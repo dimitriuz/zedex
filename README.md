@@ -15,12 +15,14 @@ arm64-v8a.
 | Working | Not yet |
 | --- | --- |
 | All sixteen machines, 16K through Scorpion | CRT / scanline filters |
-| Machine switcher, remembered across launches | Loading tapes and snapshots |
-| Reset and NMI from the menu | Save states |
-| GPU-scaled display, portrait and landscape | On-screen joystick |
-| AAudio output, pacing emulation at 50.3 fps | Native menus replacing the widget ones |
-| On-screen keyboard from Fuse's own artwork | Debugger front end |
-| Latching Caps Shift and Symbol Shift | armeabi-v7a (add to `ABIS`/`abiFilters`) |
+| Loading every format Fuse supports | Save states |
+| Opening files from other apps | On-screen joystick |
+| Machine switcher, remembered across launches | Fast-forwarding slow tape loaders |
+| Reset and NMI from the menu | Writing media back out |
+| GPU-scaled display, portrait and landscape | Native menus replacing the widget ones |
+| AAudio output, pacing emulation at 50.3 fps | Debugger front end |
+| On-screen keyboard from Fuse's own artwork | armeabi-v7a (add to `ABIS`/`abiFilters`) |
+| Latching Caps Shift and Symbol Shift | |
 | Hardware keyboard input | |
 | Fuse's widget dialogs, menus and debugger UI | |
 | Background / resume without losing the surface | |
@@ -47,6 +49,12 @@ does on the desktop.
 
 **The ☰ button** opens:
 
+- **Open file…** — anything Fuse can read: snapshots (`.z80`, `.sna`,
+  `.szx`, …), tapes (`.tap`, `.tzx`, `.pzx`, `.csw`, …), disks (`.dsk`,
+  `.trd`, `.scl`, `.mgt`, `.udi`, …), cartridges, microdrive images and RZX
+  recordings. Fuse identifies the file itself and puts it wherever it
+  belongs, switching machine first if the media needs one — a `.dsk` brings
+  up a +3, a `.trd` or `.scl` a Beta-equipped machine. Tapes autoload.
 - **Machine…** — all sixteen machines, with the running one checked. The
   choice is remembered for the next launch.
 - **Reset** — asks first, since it discards machine state.
@@ -93,12 +101,29 @@ The native build is deliberately **not** wired into Gradle: it is slow, rarely
 changes, and Gradle just packages the prebuilt `.so` from
 `app/src/main/jniLibs/`.
 
+Files can also come from elsewhere: the app accepts `ACTION_VIEW`, so a file
+manager can hand it a tape directly.
+
+Two things worth knowing. Tapes do **not** switch machine — Fuse only does
+that for disks — so choose the machine before loading a 128K-only tape.
+And a game with a custom turbo loader really does take its original loading
+time, several minutes in some cases; there is no fast-forward yet.
+
 ### Driving it from adb
 
 `adb shell input keyevent` does **not** reach the app. Tapping the on-screen
 keyboard with `adb shell input tap` does, which is enough to automate most
 things; key coordinates follow from the artwork's 541x201 layout. Use
 `input swipe x y x y 1200` to hold a key, for instance to latch a shift.
+
+Media can be loaded without touching the picker at all:
+
+```sh
+adb shell "run-as com.fusemobile sh -c 'cat > /data/data/com.fusemobile/files/game.tap'" < game.tap
+adb shell am start -a android.intent.action.VIEW \
+    -d file:///data/data/com.fusemobile/files/game.tap \
+    -n com.fusemobile/.FuseActivity
+```
 
 ## How it fits together
 
@@ -164,6 +189,14 @@ NMI is the magic button, and what it does depends on the machine. On Scorpion,
 0x0066. On Beta-equipped machines such as Pentagon it pages TR-DOS instead.
 Pentagon 512K and 1024K need no NMI to reach Gluck: their reset sets
 `beta_active`, which selects ROM 2 at boot, so they start in the service ROM.
+
+### Opening files
+
+Fuse opens files by path and identifies them by content, so the Android side
+does not need to know one format from another: the picked document is copied
+out of its content provider into the cache — keeping its original name, since
+libspectrum uses the extension as a hint — and the path is queued for the
+emulation thread, which hands it to `utils_open_file()`.
 
 ### The on-screen keyboard
 

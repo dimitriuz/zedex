@@ -48,4 +48,11 @@ final class FuseNative {
 
     /** Queues a non-maskable interrupt - the "magic button" on real hardware. */
     static native void nmi();
+
+    /**
+     * Queues a file for Fuse to open. Fuse identifies it itself, so this takes
+     * snapshots, tapes, disks, cartridges, microdrive images and RZX
+     * recordings alike. Must be a real filesystem path, not a content URI.
+     */
+    static native void openFile(String path);
 }

@@ -27,6 +27,8 @@
 #include "keyboard.h"
 #include "machine.h"
 #include "rzx.h"
+#include "tape.h"
+#include "utils.h"
 #include "z80/z80.h"
 
 /* --- window handover -------------------------------------------------- */
@@ -77,19 +79,22 @@ typedef enum command_type {
   COMMAND_SELECT_MACHINE,		/* a: index into machine_types */
   COMMAND_RESET,
   COMMAND_NMI,
+  COMMAND_OPEN_FILE,			/* text: path to open */
 } command_type;
 
 typedef struct queued_command {
   command_type type;
   int a, b;
+  char *text;				/* owned here; freed once it has run */
 } queued_command;
 
 static pthread_mutex_t command_mutex = PTHREAD_MUTEX_INITIALIZER;
 static queued_command command_queue[ COMMAND_QUEUE_SIZE ];
 static size_t command_head, command_tail;
 
+/* `text', if given, is taken over by the queue. */
 static void
-queue_command( command_type type, int a, int b )
+queue_command_text( command_type type, int a, int b, char *text )
 {
   size_t next;
 
@@ -100,14 +105,22 @@ queue_command( command_type type, int a, int b )
     /* Full: the emulation thread has stalled. Dropping is better than
        blocking the UI thread. */
     android_logw( "command queue overflow, dropping type %d", type );
+    free( text );
   } else {
     command_queue[ command_tail ].type = type;
     command_queue[ command_tail ].a = a;
     command_queue[ command_tail ].b = b;
+    command_queue[ command_tail ].text = text;
     command_tail = next;
   }
 
   pthread_mutex_unlock( &command_mutex );
+}
+
+static void
+queue_command( command_type type, int a, int b )
+{
+  queue_command_text( type, a, b, NULL );
 }
 
 static void
@@ -252,7 +265,18 @@ androidbridge_pump_commands( void )
       android_log( "nmi" );
       event_add( 0, z80_nmi_event );
       break;
+    case COMMAND_OPEN_FILE:
+      /* Fuse works out for itself what the file is - snapshot, tape, disk,
+         cartridge, microdrive, RZX - and inserts it wherever it belongs,
+         switching machine first if the media needs one we are not running.
+         Autoloading is what makes a tape start on its own. */
+      android_log( "opening %s", command.text ? command.text : "(null)" );
+      if( command.text )
+        utils_open_file( command.text, tape_can_autoload(), NULL );
+      break;
     }
+
+    free( command.text );
   }
 
   publish_machines();
@@ -433,4 +457,16 @@ JNIEXPORT void JNICALL
 Java_com_fusemobile_FuseNative_nmi( JNIEnv *env, jclass class )
 {
   queue_command( COMMAND_NMI, 0, 0 );
+}
+
+JNIEXPORT void JNICALL
+Java_com_fusemobile_FuseNative_openFile( JNIEnv *env, jclass class,
+                                         jstring path )
+{
+  const char *utf = (*env)->GetStringUTFChars( env, path, NULL );
+
+  if( utf ) {
+    queue_command_text( COMMAND_OPEN_FILE, 0, 0, strdup( utf ) );
+    (*env)->ReleaseStringUTFChars( env, path, utf );
+  }
 }

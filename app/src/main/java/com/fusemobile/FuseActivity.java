@@ -2,9 +2,13 @@ package com.fusemobile;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.Intent;
 import android.content.SharedPreferences;
+import android.database.Cursor;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Bundle;
+import android.provider.OpenableColumns;
 import android.system.ErrnoException;
 import android.system.Os;
 import android.util.Log;
@@ -47,6 +51,11 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
 
     /** How long to give the emulation thread to act on a machine change. */
     private static final long MACHINE_SETTLE_MS = 500;
+
+    private static final int REQUEST_OPEN_FILE = 1;
+
+    /** Where picked files are staged for Fuse to open. */
+    private static final String MEDIA_DIR = "media";
 
     private SharedPreferences preferences;
     private boolean started;
@@ -103,6 +112,27 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
         layout.requestFocus();
 
         getWindow().setDecorFitsSystemWindows(false);
+
+        handleViewIntent(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleViewIntent(intent);
+    }
+
+    /** Opens media handed to us by a file manager, or by `am start -a VIEW`. */
+    private void handleViewIntent(Intent intent) {
+        if (intent == null || !Intent.ACTION_VIEW.equals(intent.getAction())) return;
+
+        Uri uri = intent.getData();
+        if (uri == null) return;
+
+        // Safe before Fuse has started: the command simply waits in the queue
+        // until the emulation thread drains it.
+        new Thread(() -> stageAndOpen(uri)).start();
     }
 
     @Override
@@ -139,6 +169,7 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
 
     private void showMenu() {
         String[] items = {
+            getString(R.string.menu_open),
             getString(R.string.menu_machine),
             getString(R.string.menu_reset),
             getString(R.string.menu_nmi),
@@ -147,12 +178,105 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setItems(items, (dialog, which) -> {
                     switch (which) {
-                        case 0: showMachineDialog(); break;
-                        case 1: confirmReset(); break;
-                        case 2: FuseNative.nmi(); break;
+                        case 0: pickFile(); break;
+                        case 1: showMachineDialog(); break;
+                        case 2: confirmReset(); break;
+                        case 3: FuseNative.nmi(); break;
                     }
                 })
                 .show();
+    }
+
+    // --- opening media --------------------------------------------------
+
+    private void pickFile() {
+        // Spectrum media has no registered MIME types, so anything goes and
+        // Fuse decides what it is by content.
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+
+        try {
+            startActivityForResult(intent, REQUEST_OPEN_FILE);
+        } catch (android.content.ActivityNotFoundException e) {
+            Toast.makeText(this, R.string.open_failed, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int request, int result, Intent data) {
+        super.onActivityResult(request, result, data);
+
+        if (request != REQUEST_OPEN_FILE || result != RESULT_OK || data == null) return;
+
+        Uri uri = data.getData();
+        if (uri != null) new Thread(() -> stageAndOpen(uri)).start();
+    }
+
+    /**
+     * Fuse opens files by path, so the picked document is copied into the
+     * cache first. The original name is kept because libspectrum uses the
+     * extension as a hint when identifying the file.
+     */
+    private void stageAndOpen(Uri uri) {
+        File dir = new File(getCacheDir(), MEDIA_DIR);
+        File staged = new File(dir, displayName(uri));
+
+        if (!dir.isDirectory() && !dir.mkdirs()) {
+            reportOpenFailed();
+            return;
+        }
+
+        // Only the current file is of interest; anything Fuse still needs it
+        // has already read into memory.
+        File[] previous = dir.listFiles();
+        if (previous != null) {
+            for (File file : previous) {
+                if (!file.equals(staged)) file.delete();
+            }
+        }
+
+        try (InputStream in = getContentResolver().openInputStream(uri);
+             OutputStream out = new FileOutputStream(staged)) {
+            if (in == null) throw new IOException("cannot read " + uri);
+
+            byte[] buffer = new byte[64 * 1024];
+            int read;
+            while ((read = in.read(buffer)) != -1) {
+                out.write(buffer, 0, read);
+            }
+        } catch (IOException | SecurityException e) {
+            Log.e(TAG, "failed to stage " + uri, e);
+            reportOpenFailed();
+            return;
+        }
+
+        FuseNative.openFile(staged.getAbsolutePath());
+    }
+
+    private void reportOpenFailed() {
+        runOnUiThread(() ->
+                Toast.makeText(this, R.string.open_failed, Toast.LENGTH_LONG).show());
+    }
+
+    /** The document's own name, reduced to something safe to write. */
+    private String displayName(Uri uri) {
+        String name = null;
+
+        try (Cursor cursor = getContentResolver().query(uri,
+                new String[] { OpenableColumns.DISPLAY_NAME }, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst() && !cursor.isNull(0)) {
+                name = cursor.getString(0);
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "cannot read the name of " + uri, e);
+        }
+
+        if (name == null) name = uri.getLastPathSegment();
+        if (name == null) name = "spectrum.tap";
+
+        name = name.replace('/', '_').replace('\\', '_');
+        return name.isEmpty() ? "spectrum.tap" : name;
     }
 
     private void confirmReset() {
