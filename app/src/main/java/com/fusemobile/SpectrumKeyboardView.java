@@ -17,7 +17,9 @@ import android.view.HapticFeedbackConstants;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewParent;
 import android.view.accessibility.AccessibilityEvent;
+import android.view.accessibility.AccessibilityManager;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityNodeProvider;
 import android.widget.Button;
@@ -481,8 +483,20 @@ public class SpectrumKeyboardView extends View {
         return provider;
     }
 
-    /** Keeps a latched shift's node in step with the highlight. */
+    /**
+     * Keeps a latched shift's node in step with the highlight.
+     *
+     * Only when something is listening: sending an event with accessibility
+     * switched off throws, and off is the normal case.
+     */
     private void announce(Key key) {
+        AccessibilityManager manager = (AccessibilityManager)
+                getContext().getSystemService(Context.ACCESSIBILITY_SERVICE);
+        if (manager == null || !manager.isEnabled()) return;
+
+        ViewParent parent = getParent();
+        if (parent == null) return;
+
         int id = keys().indexOf(key);
         if (id < 0) return;
 
@@ -490,6 +504,6 @@ public class SpectrumKeyboardView extends View {
                 AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED);
         event.setPackageName(getContext().getPackageName());
         event.setSource(this, id);
-        getParent().requestSendAccessibilityEvent(this, event);
+        parent.requestSendAccessibilityEvent(this, event);
     }
 }
