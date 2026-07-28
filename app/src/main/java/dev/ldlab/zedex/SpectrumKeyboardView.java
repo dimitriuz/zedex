@@ -53,6 +53,9 @@ public class SpectrumKeyboardView extends View {
 
     private static final String IMAGE_ASSET = "fuse/keyboard.png";
 
+    /** The artwork's own 541x201, for before it has been loaded. */
+    static final float NATURAL_ASPECT = 541f / 201f;
+
     /** How long a shift must be held before it latches. */
     private static final long LATCH_MS = 400;
 
@@ -220,11 +223,23 @@ public class SpectrumKeyboardView extends View {
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         int width = MeasureSpec.getSize(widthMeasureSpec);
-        int height = keyboard != null
-                ? Math.round(width * keyboard.getHeight() / (float) keyboard.getWidth())
-                : Math.round(width * 0.37f);
+
+        // An exact height is a box the parent has already decided on - a
+        // template capping the keyboard, say - and is taken as given. Only
+        // when left to choose does the natural aspect apply, and then a
+        // landscape window would otherwise hand the keyboard four fifths of
+        // the height.
+        int height = MeasureSpec.getMode(heightMeasureSpec) == MeasureSpec.EXACTLY
+                ? MeasureSpec.getSize(heightMeasureSpec)
+                : Math.round(width / aspect());
 
         setMeasuredDimension(width, height);
+    }
+
+    /** Width over height of the artwork, so a parent can shape its box. */
+    float aspect() {
+        if (keyboard == null || keyboard.getHeight() == 0) return NATURAL_ASPECT;
+        return keyboard.getWidth() / (float) keyboard.getHeight();
     }
 
     @Override

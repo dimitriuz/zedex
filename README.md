@@ -60,6 +60,8 @@ the emulated screen.
 **Comfort**
 
 - **GPU-scaled display**, 4:3 in either orientation, no restart on rotate
+- **Four landscape layouts** — keyboard below, over the screen, or beside it on
+  either side
 - **On-screen keyboard** drawn from the real thing, so every key carries its
   BASIC keyword, symbol-shift character, colour and extended-mode token —
   and **either shift latches** on a long hold
@@ -124,7 +126,8 @@ emulated, and every one of them is a single setting away:
 **Playing**
 
 - An on-screen joystick. Cursor, Kempston, Sinclair 1 and 2, Timex 1 and 2
-  and Fuller are all emulated; nothing yet maps to them
+  and Fuller are all emulated; nothing yet maps to them. The landscape
+  layouts are where it goes — each one already decides where its pieces sit
 - Rewind, and playing back RZX recordings as recordings
 
 **Capture**
@@ -163,6 +166,17 @@ one run, so trying again means a fresh start.
 **The screen** fills whatever room the keyboard leaves, always 4:3 and always
 scaled on the GPU, in either orientation. Rotating does not restart the
 emulator.
+
+**Sideways, four layouts**, from ☰ *Landscape layout…* or from settings:
+
+| | |
+| --- | --- |
+| **Keyboard below the screen** | capped at two fifths of the height, so the picture keeps its full width |
+| **Keyboard over the screen** | translucent across the bottom; the screen keeps the whole window |
+| **Keyboard left, screen right** | an even split, each centred in its half |
+| **Screen left, keyboard right** | the same, mirrored |
+
+Portrait has one arrangement and ignores the setting.
 
 **The keyboard** is drawn from the real one, so every key carries its
 BASIC keyword, symbol-shift character, colour and extended-mode token. Two

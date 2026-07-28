@@ -30,6 +30,20 @@
         <item>100</item>
     </string-array>
 
+    <!-- Order matches EmulatorLayout.Template.values(). -->
+    <string-array name="layout_names">
+        <item>Keyboard below the screen</item>
+        <item>Keyboard over the screen</item>
+        <item>Keyboard left, screen right</item>
+        <item>Screen left, keyboard right</item>
+    </string-array>
+    <string-array name="layout_values">
+        <item>below</item>
+        <item>overlay</item>
+        <item>left</item>
+        <item>right</item>
+    </string-array>
+
     <string-array name="format_names">
         <item>SZX — every machine</item>
         <item>Z80 — widely supported</item>

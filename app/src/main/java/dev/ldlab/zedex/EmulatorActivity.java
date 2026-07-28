@@ -111,6 +111,9 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     private SharedPreferences preferences;
     private boolean started;
 
+    /** Holds the screen and the keyboard, and decides how they share the window. */
+    private EmulatorLayout layout;
+
     /** Shown in place of the emulated screen when there is no machine. */
     private View romsPanel;
     private TextView romsTitle;
@@ -159,15 +162,10 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         screen.addView(romsPanel);
         screen.addView(buildMenuButton());
 
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setBackgroundColor(0xff000000);
-        layout.addView(screen, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
-        layout.addView(new SpectrumKeyboardView(this),
-                new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT));
+        layout = new EmulatorLayout(this);
+        layout.setChildren(screen, new SpectrumKeyboardView(this));
+        layout.setTemplate(EmulatorLayout.Template.of(
+                preferences.getString(SettingsActivity.KEY_LANDSCAPE_LAYOUT, null)));
 
         setContentView(layout);
 
@@ -207,6 +205,10 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         } else {
             getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }
+
+        // The settings screen can have changed it while we were away.
+        layout.setTemplate(EmulatorLayout.Template.of(
+                preferences.getString(SettingsActivity.KEY_LANDSCAPE_LAYOUT, null)));
     }
 
     @Override
@@ -251,6 +253,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             getString(R.string.menu_media),
             getString(R.string.menu_disks),
             getString(R.string.menu_capture),
+            getString(R.string.menu_layout),
             getString(R.string.menu_settings),
             getString(R.string.menu_machine),
             getString(R.string.menu_reset),
@@ -266,10 +269,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                         case 3: showMediaMenu(); break;
                         case 4: showDiskMenu(); break;
                         case 5: showCaptureMenu(); break;
-                        case 6: startActivity(new Intent(this, SettingsActivity.class)); break;
-                        case 7: showMachineDialog(); break;
-                        case 8: confirmReset(); break;
-                        case 9:
+                        case 6: showLayoutDialog(); break;
+                        case 7: startActivity(new Intent(this, SettingsActivity.class)); break;
+                        case 8: showMachineDialog(); break;
+                        case 9: confirmReset(); break;
+                        case 10:
                             FuseNative.nmi();
                             note(R.string.nmi_done);
                             break;
@@ -1145,6 +1149,40 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                     FuseNative.reset();
                     forgetMediaName();
                     note(R.string.reset_done);
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    /**
+     * Picks how the screen and the keyboard share a landscape window. Offered
+     * in portrait too — it takes effect on the next rotation, and hiding it
+     * would be a menu item that comes and goes.
+     */
+    private void showLayoutDialog() {
+        EmulatorLayout.Template[] templates = EmulatorLayout.Template.values();
+        String[] names = getResources().getStringArray(R.array.layout_names);
+
+        int current = 0;
+        for (int i = 0; i < templates.length; i++) {
+            if (templates[i] == layout.template()) current = i;
+        }
+
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(R.string.layout_title)
+                .setSingleChoiceItems(names, current, (dialog, which) -> {
+                    EmulatorLayout.Template chosen = templates[which];
+
+                    preferences.edit()
+                            .putString(SettingsActivity.KEY_LANDSCAPE_LAYOUT, chosen.value)
+                            .apply();
+                    layout.setTemplate(chosen);
+
+                    dialog.dismiss();
+                    if (getResources().getConfiguration().orientation
+                            != android.content.res.Configuration.ORIENTATION_LANDSCAPE) {
+                        note(R.string.layout_portrait_note);
+                    }
                 })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();

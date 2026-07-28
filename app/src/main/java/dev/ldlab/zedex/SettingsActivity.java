@@ -42,6 +42,8 @@ public class SettingsActivity extends Activity {
     static final String KEY_AY_VOLUME = "volumeAy";
     static final String KEY_BEEPER_VOLUME = "volumeBeeper";
     static final String KEY_KEEP_SCREEN_ON = "keepScreenOn";
+    /** Read by EmulatorLayout; the ☰ layout switcher writes here too. */
+    static final String KEY_LANDSCAPE_LAYOUT = "landscapeLayout";
     static final String KEY_SNAPSHOT_FORMAT = "snapshotFormat";
 
     private static final int REQUEST_CONTENT_TREE = 2;

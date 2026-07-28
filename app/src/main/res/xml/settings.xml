@@ -74,6 +74,13 @@
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/settings_display">
+        <ListPreference
+            android:key="landscapeLayout"
+            android:title="@string/settings_landscape_layout"
+            android:summary="@string/settings_landscape_layout_summary"
+            android:entries="@array/layout_names"
+            android:entryValues="@array/layout_values"
+            android:defaultValue="below" />
         <SwitchPreference
             android:key="bwTv"
             android:title="@string/settings_bw_tv"

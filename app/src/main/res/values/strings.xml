@@ -4,6 +4,9 @@
     <string name="machine_title">Machine</string>
     <string name="menu_open">Open file\u2026</string>
     <string name="menu_media">Media\u2026</string>
+    <string name="menu_layout">Landscape layout\u2026</string>
+    <string name="layout_title">Landscape layout</string>
+    <string name="layout_portrait_note">Saved \u2014 it applies when you turn the device sideways</string>
     <string name="menu_machine">Machine\u2026</string>
     <string name="menu_reset">Reset</string>
     <string name="menu_nmi">NMI</string>
@@ -99,6 +102,8 @@
     <string name="settings_volume_beeper">Beeper volume</string>
 
     <string name="settings_display">Display</string>
+    <string name="settings_landscape_layout">Landscape layout</string>
+    <string name="settings_landscape_layout_summary">How the screen and the keyboard share a sideways window</string>
     <string name="settings_bw_tv">Black and white TV</string>
     <string name="settings_bw_tv_summary">Render as a monochrome set would</string>
     <string name="settings_keep_screen_on">Keep the screen on</string>

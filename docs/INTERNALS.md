@@ -241,6 +241,30 @@ Sound settings are only read when Fuse's sound subsystem starts, so changing
 one calls `fuse_emulation_pause()` / `fuse_emulation_unpause()` to restart
 it — which is what Fuse's own options dialogs do.
 
+### Sharing the window
+
+`EmulatorLayout` is a `ViewGroup` of its own rather than nested
+`LinearLayout`s, because the four landscape arrangements are not all the same
+kind of container: two stack, two sit side by side, and one puts the keyboard
+over the screen. Measuring both children in one place covers all of it without
+ever re-parenting them — which matters, since detaching the `SurfaceView` would
+destroy the surface Fuse draws into and cost a handover on every change. It
+computes the two boxes in `arrange()`, called from `onMeasure` and read back in
+`onLayout`, so the two cannot disagree.
+
+The keyboard cooperates by treating an exact height as a decision already made.
+Left to choose it takes its natural 541x201 aspect, which is what portrait
+wants; given a box it scales to fit, centres itself and hit-tests through the
+same transform, so a capped box simply letterboxes and every key still lands.
+That is the whole fix for landscape: full width at that aspect made the
+keyboard four fifths of the height and left the machine a slot 188 pixels tall.
+
+Portrait is always the stacked arrangement — there is only one sensible answer
+when the window is taller than it is wide — and the natural height at full
+width is around a third, so the cap never bites. The on-screen joystick belongs
+here too when it arrives: a third child, with each template deciding where it
+goes.
+
 ### The on-screen keyboard
 
 `SpectrumKeyboardView` draws Fuse's own `keyboard.png`. The key rectangles were
