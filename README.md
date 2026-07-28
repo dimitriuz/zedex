@@ -1,50 +1,150 @@
 # FuseMobile
 
-Android port of [Fuse](http://fuse-emulator.sourceforge.net/) (the Free Unix
-Spectrum Emulator), with a native Android UI backend, running any of the
-sixteen Spectrum-family machines Fuse supports on Android 11+.
+A ZX Spectrum emulator for Android 11+, built on
+[Fuse](http://fuse-emulator.sourceforge.net/) — the Free Unix Spectrum
+Emulator — with a native Android front end: OpenGL ES rendering, AAudio
+output, a touch keyboard from Fuse's own artwork, and menus that belong on a
+phone rather than in the emulated screen.
 
-Fuse and libspectrum are used **completely unmodified** — everything here is
-build configuration, a Fuse UI backend of our own, and a thin Android app.
+Fuse and libspectrum are used **completely unmodified**. Everything here is
+build configuration, a Fuse UI backend of our own, and a thin Android app;
+upstream is fetched, checksummed and never written to. How that is managed
+without a single patch is described under [Keeping Fuse
+unmodified](#keeping-fuse-unmodified).
 
-**No ROMs ship with the app or live in this repository.** On first run it
-creates an empty `roms` folder and asks you to fill it, either by copying
-files in or through the importer in the dialog. The set Fuse expects, by the
-filenames it looks for, is at
-<https://archive.org/details/zx-roms-fuse-roms>.
+> **No ROMs ship with the app or live in this repository.** On first run it
+> creates an empty `roms` folder and offers to import them. The set Fuse
+> expects, by the filenames it looks for, is at
+> <https://archive.org/details/zx-roms-fuse-roms>.
 
-## Status
+> **Developed with AI assistance.** Most of the code, the tests and this
+> document were written by Claude (Anthropic's Claude Code), directed and
+> reviewed by a human. Every feature described here was checked by running
+> it on a device — the disk-writing sections in particular record what was
+> actually verified, and what was not.
 
-Verified on an Android 16 x86_64 emulator (API 36) and cross-built for
-arm64-v8a.
+## Features
 
-| Working | Not yet |
+**The machine**
+
+- **16 machines**, 16K through Scorpion, switchable while running and
+  remembered for next time
+- **Speed control** from 25% to 500% — the fast-forward
+- **Reset** and **NMI**, the magic button real hardware had
+- **Issue 2 keyboard** for the early 48K games that need it
+
+**Loading and saving**
+
+- **Every format Fuse reads** — snapshots, tapes, disks, cartridges,
+  microdrive images, RZX recordings. Fuse identifies the file itself and
+  switches machine when the media needs one: a `.dsk` brings up a +3, a
+  `.trd` a Beta-equipped machine
+- **Opens files from other apps**, and from the Files app
+- **Fast tape loading**, or the real thing in real time with the loading
+  noise and border stripes
+- **Save states**, as many as you like, each named and showing the screen as
+  it was when it was written
+- **Writes tapes back** — a BASIC `SAVE "name"` reaches a `.tap` file
+- **Writes disks back**, per drive, including a disk you made and the
+  machine formatted itself
+
+**Capture**
+
+- **Screenshots** as PNG, at the machine's own size, pixel for pixel
+- **Recording** to **GIF** or **MP4**, chosen when you start, written while
+  you play rather than collected in memory
+- **Open recordings folder** hands the folder to the file manager
+
+**Comfort**
+
+- **GPU-scaled display**, 4:3 in either orientation, no restart on rotate
+- **On-screen keyboard** from Fuse's own artwork, so every key carries its
+  BASIC keyword, symbol-shift character, colour and extended-mode token —
+  and **either shift latches** on a long hold
+- **Hardware keyboards** work exactly as they do on the desktop
+- **Every key is named** to accessibility, so a screen reader reads them out
+- **Folders you choose** for data and for content
+- **Survives backgrounding** without losing the drawing surface
+- Emulation paced by the audio clock, measured at **50.28 fps**
+
+## Machines
+
+All sixteen are in the ☰ **Machine…** menu; which ones you can actually boot
+depends on the ROMs you provide.
+
+| Family | Machines |
 | --- | --- |
-| All sixteen machines, 16K through Scorpion | CRT / scanline filters |
-| Save states and ROMs in a folder you choose | Renaming an existing state |
-| Saving tapes the machine writes with SAVE | Recording tapes without fast loading |
-| Disk menu: load, save, eject, new, per drive | Writing back over the file you opened |
-| Loading every format Fuse supports | Save states |
-| Opening files from other apps | On-screen joystick |
-| Save states, named and unlimited | Microdrive cartridges |
-| Settings screen over Fuse's own options | Native menus replacing the widget ones |
-| Fast tape loading, or real-time loading with sound | On-screen joystick |
-| Machine switcher, remembered across launches | Debugger front end |
-| Reset and NMI from the menu | armeabi-v7a (add to `ABIS`/`abiFilters`) |
-| GPU-scaled display, portrait and landscape | |
-| AAudio output, pacing emulation at 50.3 fps | |
-| On-screen keyboard from Fuse's own artwork | |
-| Latching Caps Shift and Symbol Shift | |
-| Hardware keyboard input | |
-| Fuse's widget dialogs, menus and debugger UI | |
-| Background / resume without losing the surface | |
+| Sinclair | Spectrum 16K · 48K · 48K (NTSC) · 128K · +2 · +2A · +3 · +3e |
+| Timex | TC2048 · TC2068 · TS2068 |
+| Clones | Pentagon 128K · 512K · 1024K · Scorpion ZS 256 |
+| Enhanced | Spectrum SE |
 
-Known issues:
+## Hardware
 
-- The launcher icon is still SDL's, inherited from its sample project before
-  SDL was removed. It needs replacing.
-- In portrait the emulated screen is centred in the space above the keyboard,
-  which leaves wide empty bands. It should probably sit at the top.
+What the app reaches today:
+
+| | |
+| --- | --- |
+| **Beta 128 / TR-DOS**, drives A: to D: | on Pentagon and Scorpion, or whenever a `.trd`/`.scl` is opened |
+| **+3 floppy**, drives A: and B: | on a +3 or +3e |
+| **AY-3-8912** | on the 128K-family machines, with its own volume |
+| **Beeper** | with its own volume |
+| **Timex SCLD** video, including hi-res modes | on the Timex machines |
+| **Tape deck** | loading, and saving what the machine writes |
+| **Keyboard** | on screen or physical |
+
+Fuse emulates a great deal more, and none of it is reachable yet because
+there is no screen to switch it on — see below.
+
+## Not yet
+
+**Would unlock the most:** a peripherals screen. Fuse can already emulate all
+of this, and every one of them is a single setting away:
+
+- Interface I with microdrives, RS-232 and the network; Interface II
+  cartridges
+- +D, DISCiPLE, Opus Discovery, Didaktik 80 disk interfaces
+- Multiface One, 128 and 3
+- DivIDE, DivMMC, ZXATASP, ZXCF, SimpleIDE, ZXMMC storage
+- SpecDrum, Fuller Box, Melodik, Covox and Currah µSpeech sound
+- Spectranet, SpeccyBoot and the TTX2000S teletext adaptor
+- Kempston mouse, ZX Printer
+
+**The picture**
+
+- CRT, scanline and sharp-bilinear shaders. The fragment shader in
+  `native/ui/android/android_gl.c` is the only code that touches a pixel, so
+  this is where they go
+- In portrait the screen is centred above the keyboard, leaving wide empty
+  bands; it should sit at the top
+
+**Playing**
+
+- An on-screen joystick. Fuse emulates Cursor, Kempston, Sinclair 1 and 2,
+  Timex 1 and 2 and Fuller; nothing yet maps to them
+- Rewind, and playing back RZX recordings as recordings
+
+**Capture**
+
+- Sound in recordings. Both formats are video only
+- A resolution change mid-recording — a Timex hi-res mode — is skipped
+  rather than handled
+
+**Odds and ends**
+
+- Renaming a save state, and writing a disk back over the file it came from
+- Recording a tape in real time, rather than through the save trap
+- Native dialogs in place of the last of Fuse's widget ones
+- A debugger front end over Fuse's `debugger/` API
+- `armeabi-v7a` — add it to `ABIS` and `abiFilters`; nothing should stop it
+- The launcher icon is still SDL's, inherited from the sample project the
+  first prototype started from and never replaced
+
+## Tested on
+
+An Android 16 x86_64 emulator (API 36), cross-built for arm64-v8a. Four
+instrumentation tests cover the disk and capture paths; see
+[Tests](#tests).
 
 ## Using it
 
@@ -59,10 +159,11 @@ to latch it** (it turns amber) until you tap it again. That is how you get
 BREAK — Caps Shift and Space. A physical keyboard works too, exactly as it
 does on the desktop.
 
-**Folders** are yours to choose, in settings. *Data folder* holds `roms` and
-`states`: pick one of the roots the device offers — internal storage, shared
-storage, an SD card — or *Choose folder…* for anywhere at all, which needs
-Android's **All files access**. Whatever is already saved moves with it.
+**Folders** are yours to choose, in settings. *Data folder* holds `roms`,
+`states`, `tapes`, `disks`, `screenshots` and `recordings`: pick one of the
+roots the device offers — internal storage, shared storage, an SD card — or
+*Choose folder…* for anywhere at all, which needs Android's **All files
+access**. Whatever is already saved moves with it.
 *Content folder* is where **Open file…** starts, granted through the document
 picker.
 
@@ -92,6 +193,12 @@ instead — it has a button for exactly that.
 - **Disks…** — every drive the running machine has, with what is in it, and
   per drive: *Load disk…*, *New disk*, *Save…* and *Eject*. The drives follow
   the machine, so a +3 shows its two and a Pentagon its four Beta ones.
+- **Capture…** — *Save screenshot* writes the emulated screen as a PNG at
+  its own size, 320x240 and pixel for pixel. *Record a GIF* or *Record an
+  MP4* starts filming it; the same menu then offers *Stop recording*, and the
+  toast that follows arrives when the file is really finished rather than
+  when you asked for it. Both go in the data folder, named after whatever is
+  loaded, and *Open recordings folder* hands that folder to the file manager.
 - **Settings…** — see below.
 - **Machine…** — all sixteen machines, with the running one checked. The
   choice is remembered for the next launch.
@@ -129,10 +236,20 @@ vendor/          upstream sources, fetched by the build script, never modified
 native/          our Fuse backend, compiled into Fuse's own build tree
   ui/android/          display, GLES renderer, JNI bridge, keysym map
   sound/               AAudio driver
-scripts/build-native.sh  cross-compiles everything per ABI
+scripts/
+  build-native.sh      cross-compiles everything per ABI
+  ui-tap.py            taps the app by text, for driving it from a terminal
+  ui-type.py           types on the machine's keyboard the same way
 build-native/    out-of-tree build trees + per-ABI install prefixes
-app/             Gradle app; jniLibs/ and assets/fuse/ are build outputs
+app/
+  src/main/            the app; jniLibs/ and assets/fuse/ are build outputs
+  src/androidTest/     UI Automator tests
 ```
+
+The app is a handful of classes: `FuseActivity` holds the menus,
+`SpectrumKeyboardView` the keyboard, `Storage` decides where things live,
+`Recorder` takes frames off the emulation thread and `GifRecording` /
+`Mp4Recording` turn them into files.
 
 ## Building
 
@@ -297,6 +414,53 @@ or Escape dismisses; Android has already asked by that point.
 One thing worth knowing at the *Start tape, then press any key* prompt: press
 Enter rather than Space. Space aborted the save with `D BREAK` in testing.
 
+### Screenshots and recording
+
+Fuse hands over a frame of palette indices, and both formats are built from
+those rather than from the expanded picture. That is what makes this cheap
+enough to run on a 50Hz machine:
+
+- a **GIF** is a palette format too, so the indices are the pixels. Sixteen
+  colours go in the global colour table and nothing is quantised or dithered
+  — the file is exact. It is written frame by frame as they arrive, so length
+  costs no memory, and the delay of each frame is measured rather than
+  assumed, so a recording plays back at the speed it happened.
+- an **MP4** goes through the device's own H.264 encoder, which wants YUV.
+  Converting the sixteen palette entries once a recording turns every pixel
+  into three table lookups.
+
+Frames are copied out on the emulation thread — the callback happens while
+Fuse is between frames, so the buffer is whole — and encoded on another. When
+the encoder falls behind the frame is dropped rather than waited for: a
+recording that skips beats a machine that stutters. A GIF is capped at 25 fps
+because its delays are in hundredths of a second; an MP4 takes all 50.
+
+Neither has sound yet.
+
+*Open recordings folder* asks the file manager to show the folder, which
+only works when the data folder is on shared storage — the app's own
+directories are invisible to the rest of the system by design, and then the
+path is all there is to offer. The intent needs its own task, because this
+activity is `singleInstance` and the file manager would otherwise be handed
+the intent in the background and never come forward. The path is compared
+through `getCanonicalPath`, since `/sdcard`, `/storage/self/primary` and
+`/storage/emulated/0` are all the same folder and only the last is what
+`getExternalStorageDirectory` answers with.
+
+### What the app offers to open
+
+Spectrum media has no MIME types of its own, so `.tap`, `.tzx`, `.z80`,
+`.szx`, `.sna`, `.trd`, `.dsk`, `.scl` and the rest all arrive as
+`application/octet-stream` and Fuse identifies the content itself. The
+manifest matches that, and a `content` or `file` scheme.
+
+It used to match `*/*`, which made the app a candidate for opening every
+file on the device: its own recordings offered themselves back to it instead
+of to a video player, and it competed with the file manager for
+`vnd.android.document/directory` when asked to show a folder. Now a GIF or
+an MP4 offers only a video player, a folder only the file manager, and a
+`.trd` offers Fuse.
+
 ### Disks
 
 Every disk interface Fuse emulates — +3, Beta 128, +D, DISCiPLE, Opus,
@@ -398,6 +562,19 @@ to meet their neighbours so the gutters in the artwork are not dead to a
 fingertip. Presses are tracked per pointer, which is what makes both two-finger
 chords and the shift latch work.
 
+The picture is one bitmap, so the view would otherwise be a single unnamed
+`View` with nothing inside it to address. Each key is published as a virtual
+accessibility node instead, named the way the Spectrum names it — `ENTER`,
+`CAPS SHIFT`, `7` — which is both what makes a screen reader usable and what
+lets the tests press keys without knowing a coordinate.
+
+Sending an accessibility event when nothing is listening throws, and nothing
+listening is the normal case, so the latch only announces itself when
+`AccessibilityManager.isEnabled()`. That was learned the hard way: the check
+was missing at first and every long press on a shift killed the app. The
+instrumentation suite ran clean throughout, because UI Automator switches
+accessibility *on*.
+
 ### ROMs, and where things live
 
 No ROMs are shipped. Fuse's tarball carries the Sinclair and Timex ones and
@@ -483,6 +660,12 @@ to query, so there is nothing to assert against and nothing to wait on;
 the files the machine produces. That is the honest boundary of this
 approach, and why the interesting assertion is on bytes rather than pixels.
 
+`CaptureTest` is the counterpart for screenshots and recording: a PNG the
+size the machine is drawing, a GIF whose blocks parse and hold more than one
+frame, an MP4 the device's own metadata reader agrees is video. Counting
+0x2c bytes would have "found" GIF frames in the compressed data and could
+never have failed, so the blocks are walked properly instead.
+
 Gradle uninstalls the app when a run finishes, so the next one starts with
 no preferences and no storage permission. The suite sets both itself: it
 grants All files access through the shell and points the app at a folder
@@ -498,14 +681,9 @@ not redistributable, so it skips rather than fails when they are absent.
 
 ## Next steps
 
-1. **Shaders** — CRT, scanlines, sharp-bilinear scaling, in `android_gl.c`.
-2. **Files and state** — SAF file picker for `.tap`/`.tzx`/`.z80`, save/load
-   states via libspectrum, driven through the command queue.
-3. **Native menus** replacing the widget dialogs, and an on-screen joystick.
-   An app icon that is not SDL's would be good too.
-4. **Debugger** front end over Fuse's `debugger/` API.
+The list under [Not yet](#not-yet) is roughly in the order that would add the
+most. A peripherals screen is the single change that unlocks the widest range
+of hardware, since Fuse already emulates all of it.
 
-The suite in `app/src/androidTest` covers one path so far. More there is
-worth more than any single feature below.
-
-
+The suite in `app/src/androidTest` covers two paths so far. More there is
+worth more than any one feature above.
