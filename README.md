@@ -23,9 +23,10 @@ arm64-v8a.
 | All sixteen machines, 16K through Scorpion | CRT / scanline filters |
 | Save states and ROMs in a folder you choose | Renaming an existing state |
 | Saving tapes the machine writes with SAVE | Recording tapes without fast loading |
+| Writing disks back out, any interface | Writing back over the file you opened |
 | Loading every format Fuse supports | Save states |
 | Opening files from other apps | On-screen joystick |
-| Save states, named and unlimited | Writing disks back out |
+| Save states, named and unlimited | Microdrive cartridges |
 | Settings screen over Fuse's own options | Native menus replacing the widget ones |
 | Fast tape loading, or real-time loading with sound | On-screen joystick |
 | Machine switcher, remembered across launches | Debugger front end |
@@ -82,10 +83,12 @@ instead — it has a button for exactly that.
   new snapshot* first, named after whatever media is loaded and editable
   before it is written; picking an existing one overwrites it, with a
   confirmation. Long-press deletes.
-- **Tape…** — *Save tape…* writes what the machine has put on its tape to a
+- **Media…** — *Save tape…* writes what the machine has put on its tape to a
   `.tap` (or `.tzx`, if you type that extension) in the data folder, which is
   how a BASIC `SAVE "name"` reaches a file. *New tape* throws the current one
-  away so a save does not append to a game you loaded earlier.
+  away so a save does not append to a game you loaded earlier. Any drive with
+  a disk in it is listed too, so a disk the machine has written to can be
+  saved the same way.
 - **Settings…** — see below.
 - **Machine…** — all sixteen machines, with the running one checked. The
   choice is remembered for the next launch.
@@ -267,6 +270,27 @@ or Escape dismisses; Android has already asked by that point.
 
 One thing worth knowing at the *Start tape, then press any key* prompt: press
 Enter rather than Space. Space aborted the save with `D BREAK` in testing.
+
+### Writing disks
+
+Every disk interface Fuse emulates — +3, Beta 128, +D, DISCiPLE, Opus,
+Didaktik — registers its drives with `ui_media_drive_register()`, so the
+drives that currently hold a disk are found by walking
+`ui_media_drive_find()` over the controllers and asking each `fdd` whether it
+is loaded. That list is published alongside the machine list every pump, and
+the names in the menu are Fuse's own.
+
+The write itself is `disk_write()`, which picks its format from the extension
+once `disk.type` is cleared — the same thing Fuse's own save-as does, minus
+`ui_get_save_filename()` and the modal file selector behind it. Not every
+format Fuse reads can be written: an `.scl` in particular has to come back as
+a `.trd`, so the interface decides the default extension.
+
+Disks are always written as a new file in the data folder, never back over
+the one that was opened, because what was opened is a copy staged in the
+cache. Expect the bytes to differ from the original even when nothing has
+changed: Fuse writes them out of its own in-memory track representation
+rather than copying the file.
 
 ### Save states
 

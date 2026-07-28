@@ -210,7 +210,7 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
             getString(R.string.menu_open),
             getString(R.string.menu_save_state),
             getString(R.string.menu_load_state),
-            getString(R.string.menu_tape),
+            getString(R.string.menu_media),
             getString(R.string.menu_settings),
             getString(R.string.menu_machine),
             getString(R.string.menu_reset),
@@ -223,7 +223,7 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
                         case 0: pickFile(); break;
                         case 1: showStateDialog(true); break;
                         case 2: showStateDialog(false); break;
-                        case 3: showTapeMenu(); break;
+                        case 3: showMediaMenu(); break;
                         case 4: startActivity(new Intent(this, SettingsActivity.class)); break;
                         case 5: showMachineDialog(); break;
                         case 6: confirmReset(); break;
@@ -241,19 +241,106 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
      * appends to the tape held in memory, and this is how that tape reaches
      * a file.
      */
-    private void showTapeMenu() {
-        String[] items = {
-            getString(R.string.tape_save),
-            getString(R.string.tape_new),
-        };
+    private void showMediaMenu() {
+        List<String> items = new ArrayList<>();
+        items.add(getString(R.string.tape_save));
+        items.add(getString(R.string.tape_new));
+
+        // A disk is only worth offering while it is in a drive.
+        String[] drives = FuseNative.driveNames();
+        int[] ids = FuseNative.driveIds();
+        for (String drive : drives) {
+            items.add(getString(R.string.disk_save, drive));
+        }
 
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(R.string.menu_tape)
-                .setItems(items, (dialog, which) -> {
-                    if (which == 0) saveTape(); else confirmNewTape();
+                .setTitle(R.string.menu_media)
+                .setItems(items.toArray(new String[0]), (dialog, which) -> {
+                    if (which == 0) {
+                        saveTape();
+                    } else if (which == 1) {
+                        confirmNewTape();
+                    } else {
+                        int index = which - 2;
+                        if (index < drives.length && index < ids.length) {
+                            saveDisk(drives[index], ids[index]);
+                        }
+                    }
                 })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
+    }
+
+    /**
+     * Writes what is in a drive back out. Fuse picks the format from the
+     * extension, and not every format it reads can be written - an .scl in
+     * particular has to come back as a .trd - so the interface decides the
+     * default.
+     */
+    private void saveDisk(String drive, int id) {
+        EditText input = new EditText(this);
+        input.setSingleLine();
+        input.setText(suggestedDiskName(drive, id));
+        input.setSelection(input.getText().length());
+
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(getString(R.string.disk_save, drive))
+                .setView(input)
+                .setPositiveButton(android.R.string.ok, (dialog, which) ->
+                        writeDisk(id, sanitise(input.getText().toString())))
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    /** What each disk interface writes by default. */
+    private static String extensionFor(int id) {
+        switch (id >> 8) {
+            case 1: return ".trd";      // Beta 128, TR-DOS
+            case 2:                     // +D
+            case 5: return ".mgt";      // DISCiPLE
+            case 4: return ".opd";      // Opus Discovery
+            case 6: return ".d80";      // Didaktik 80
+            default: return ".dsk";     // +3, and anything unexpected
+        }
+    }
+
+    private String suggestedDiskName(String drive, int id) {
+        String base = preferences.getString(PREF_MEDIA_NAME, null);
+        if (base == null || base.isEmpty()) base = sanitise(drive);
+
+        if (!diskFile(base, id).exists()) return base;
+
+        for (int n = 2; n < 1000; n++) {
+            if (!diskFile(base + " " + n, id).exists()) return base + " " + n;
+        }
+        return base;
+    }
+
+    private File diskFile(String name, int id) {
+        String lower = name.toLowerCase(Locale.ROOT);
+        boolean hasExtension = lower.endsWith(".dsk") || lower.endsWith(".trd")
+                || lower.endsWith(".mgt") || lower.endsWith(".opd")
+                || lower.endsWith(".img") || lower.endsWith(".udi")
+                || lower.endsWith(".fdi") || lower.endsWith(".d80")
+                || lower.endsWith(".d40") || lower.endsWith(".sad");
+
+        return new File(Storage.disksDirectory(this),
+                        hasExtension ? name : name + extensionFor(id));
+    }
+
+    private void writeDisk(int id, String name) {
+        if (name.isEmpty()) name = "Disk";
+
+        File directory = Storage.disksDirectory(this);
+        if (!directory.isDirectory() && !directory.mkdirs()) {
+            Toast.makeText(this, R.string.state_failed, Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        File target = diskFile(name, id);
+        FuseNative.writeDisk(id >> 8, id & 0xff, target.getAbsolutePath());
+        Toast.makeText(this, getString(R.string.tape_saved, target.getName()),
+                Toast.LENGTH_LONG).show();
     }
 
     private void saveTape() {

@@ -80,6 +80,15 @@ final class FuseNative {
     /** Throws the current tape away and starts an empty one. */
     static native void newTape();
 
+    /** Names of the drives that currently have a disk in them. */
+    static native String[] driveNames();
+
+    /** Ids for {@link #driveNames}: controller in the high byte, drive in the low. */
+    static native int[] driveIds();
+
+    /** Writes a drive's disk; the extension picks the format. */
+    static native void writeDisk(int controller, int drive, String path);
+
     /** Index of the running machine, or -1 if Fuse has not started yet. */
     static native int currentMachine();
 

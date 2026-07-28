@@ -33,6 +33,10 @@
 #include "settings.h"
 #include "snapshot.h"
 #include "tape.h"
+#include "ui/ui.h"
+#include "ui/uimedia.h"
+#include "peripherals/disk/disk.h"
+#include "peripherals/disk/fdd.h"
 #include "utils.h"
 #include "z80/z80.h"
 
@@ -91,6 +95,7 @@ typedef enum command_type {
   COMMAND_SAVE_THUMBNAIL,		/* text: path to write */
   COMMAND_WRITE_TAPE,			/* text: path to write */
   COMMAND_NEW_TAPE,
+  COMMAND_WRITE_DISK,			/* a: controller, b: drive, text: path */
 } command_type;
 
 /* Options the Android UI can set. Values are integers; booleans are 0 or 1. */
@@ -177,6 +182,20 @@ static int machine_list_count;
 static int machine_list_current = -1;
 static int tape_on_machine;
 
+/* Drives with a disk in them, refreshed every pump for the UI thread. */
+#define MAX_DRIVES 16
+#define MAX_CONTROLLERS 8
+#define MAX_DRIVES_PER_CONTROLLER 4
+
+typedef struct drive_entry {
+  int controller;
+  int drive;
+  char name[ 48 ];
+} drive_entry;
+
+static drive_entry drive_list[ MAX_DRIVES ];
+static int drive_list_count;
+
 /* Fuse's machine table is built during initialisation and never changes
    afterwards, so it is snapshotted once, on the emulation thread, for the UI
    thread to read. The current machine is refreshed every pump because Fuse
@@ -204,6 +223,25 @@ publish_machines( void )
   }
 
   tape_on_machine = tape_present();
+
+  drive_list_count = 0;
+  for( i = 0; i < MAX_CONTROLLERS && drive_list_count < MAX_DRIVES; i++ ) {
+    int which;
+
+    for( which = 0; which < MAX_DRIVES_PER_CONTROLLER &&
+                    drive_list_count < MAX_DRIVES; which++ ) {
+      ui_media_drive_info_t *found = ui_media_drive_find( i, which );
+
+      if( !found || !found->fdd || !found->fdd->loaded ) continue;
+
+      drive_list[ drive_list_count ].controller = i;
+      drive_list[ drive_list_count ].drive = which;
+      snprintf( drive_list[ drive_list_count ].name,
+                sizeof( drive_list[0].name ), "%s",
+                found->name ? found->name : "Disk" );
+      drive_list_count++;
+    }
+  }
 
   machine_list_current = -1;
   if( machine_current ) {
@@ -388,6 +426,23 @@ androidbridge_pump_commands( void )
       android_log( "writing tape %s", command.text ? command.text : "" );
       if( command.text ) tape_write( command.text );
       break;
+    case COMMAND_WRITE_DISK: {
+      ui_media_drive_info_t *target = ui_media_drive_find( command.a, command.b );
+
+      android_log( "writing disk %s", command.text ? command.text : "" );
+
+      if( target && target->fdd && command.text ) {
+        /* Clearing the type lets disk_write pick the format from the
+           extension, which is what Fuse's own save-as does. */
+        target->fdd->disk.type = DISK_TYPE_NONE;
+
+        if( disk_write( &target->fdd->disk, command.text ) )
+          ui_error( UI_ERROR_ERROR, "couldn't write %s", command.text );
+        else
+          target->fdd->disk.dirty = 0;
+      }
+      break;
+    }
     case COMMAND_NEW_TAPE:
       /* Android has asked already; clearing the flag stops Fuse asking
          again through a modal of its own. */
@@ -634,6 +689,63 @@ Java_com_fusemobile_FuseNative_hasTape( JNIEnv *env, jclass class )
   pthread_mutex_unlock( &machine_mutex );
 
   return present;
+}
+
+JNIEXPORT jobjectArray JNICALL
+Java_com_fusemobile_FuseNative_driveNames( JNIEnv *env, jclass class )
+{
+  jobjectArray result;
+  int i;
+
+  pthread_mutex_lock( &machine_mutex );
+
+  result = (*env)->NewObjectArray( env, drive_list_count,
+             (*env)->FindClass( env, "java/lang/String" ), NULL );
+
+  for( i = 0; result && i < drive_list_count; i++ ) {
+    jstring value = (*env)->NewStringUTF( env, drive_list[i].name );
+    (*env)->SetObjectArrayElement( env, result, i, value );
+    (*env)->DeleteLocalRef( env, value );
+  }
+
+  pthread_mutex_unlock( &machine_mutex );
+
+  return result;
+}
+
+/* Controller in the high byte, drive in the low one. */
+JNIEXPORT jintArray JNICALL
+Java_com_fusemobile_FuseNative_driveIds( JNIEnv *env, jclass class )
+{
+  jintArray result;
+  jint ids[ MAX_DRIVES ];
+  int i;
+
+  pthread_mutex_lock( &machine_mutex );
+
+  for( i = 0; i < drive_list_count; i++ )
+    ids[i] = ( drive_list[i].controller << 8 ) | drive_list[i].drive;
+
+  result = (*env)->NewIntArray( env, drive_list_count );
+  if( result )
+    (*env)->SetIntArrayRegion( env, result, 0, drive_list_count, ids );
+
+  pthread_mutex_unlock( &machine_mutex );
+
+  return result;
+}
+
+JNIEXPORT void JNICALL
+Java_com_fusemobile_FuseNative_writeDisk( JNIEnv *env, jclass class,
+                                          jint controller, jint drive,
+                                          jstring path )
+{
+  const char *utf = (*env)->GetStringUTFChars( env, path, NULL );
+
+  if( utf ) {
+    queue_command_text( COMMAND_WRITE_DISK, controller, drive, strdup( utf ) );
+    (*env)->ReleaseStringUTFChars( env, path, utf );
+  }
 }
 
 JNIEXPORT void JNICALL

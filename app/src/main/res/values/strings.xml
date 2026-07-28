@@ -3,7 +3,7 @@
     <string name="app_name">Fuse Spectrum</string>
     <string name="machine_title">Machine</string>
     <string name="menu_open">Open file\u2026</string>
-    <string name="menu_tape">Tape\u2026</string>
+    <string name="menu_media">Media\u2026</string>
     <string name="menu_machine">Machine\u2026</string>
     <string name="menu_reset">Reset</string>
     <string name="menu_nmi">NMI</string>
@@ -20,6 +20,7 @@
     <string name="tape_new_confirm">Throw away the current tape and start an empty one?</string>
     <string name="tape_empty">Nothing on the tape yet. SAVE from the machine first, with fast loading on.</string>
     <string name="tape_default_name">Tape %1$d</string>
+    <string name="disk_save">Save %1$s\u2026</string>
     <string name="tape_saved">Wrote %1$s</string>
 
 
