@@ -373,3 +373,32 @@ of hardware, since all of it is emulated already.
 
 The suite in `app/src/androidTest` covers two paths so far. More there is
 worth more than any one feature above.
+
+## Licence
+
+Zedex is free software under the **GNU General Public License, version 2 or
+(at your option) any later version**. The full text is in [LICENSE](LICENSE).
+
+It could not be anything else. Fuse and libspectrum are GPL-2.0-or-later, and
+the Android backend is not a separate program that talks to them: it
+implements Fuse's own `ui/ui.h` interface, includes its internal headers, and
+is compiled into the same binary in place of `ui/fb`. The APK is one combined
+work, so it carries the core's terms.
+
+What that means in practice:
+
+- Use it, study it, change it, and pass it on, commercially or not.
+- If you distribute it, or anything derived from it, give your recipients the
+  complete source under these same terms. It cannot be folded into a
+  closed-source product.
+- No warranty. See sections 11 and 12.
+
+`vendor/` stays under its own upstream copyright — see
+`vendor/fuse-1.9.0/AUTHORS` and `vendor/libspectrum-1.6.2/AUTHORS`. Everything
+outside it is © 2026 Dmitrii Leshchenko.
+
+The name **Zedex** and the app icon are not covered by the GPL, which grants
+no trademark rights. Fork the code freely; ship it under your own name.
+
+The Spectrum ROMs are neither included nor licensed here; the note at the top
+of this README says where to get them.
