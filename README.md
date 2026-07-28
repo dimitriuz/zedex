@@ -16,6 +16,7 @@ arm64-v8a.
 | --- | --- |
 | Emulation of all 16 machines Fuse supports | CRT / scanline filters |
 | Machine switcher, remembered across launches | Loading tapes and snapshots |
+| Reset and NMI from the menu | |
 | GPU-scaled display, portrait and landscape | Save states |
 | AAudio output, pacing emulation at 50.3 fps | On-screen joystick |
 | On-screen Spectrum keyboard (multi-touch) | Debugger front end |
@@ -118,10 +119,18 @@ follows upstream instead of drifting from it.
 - **`aaudiosound.c`** writes to AAudio and *blocks*, deliberately: that is what
   paces the emulator. Audio is the clock, not vsync and not a wall timer.
 
-The machine switcher is the first feature built on the queue rather than on
-key events: the Android dialog queues an index, the emulation thread calls
-`machine_select()`, and the machine list itself is snapshotted from Fuse's
-`machine_types` on the emulation thread for the UI thread to read back.
+The menu is built on the queue rather than on key events: the Android dialog
+queues a command, and the emulation thread runs `machine_select()`,
+`machine_reset()` or `event_add( 0, z80_nmi_event )`. The machine list itself
+is snapshotted from Fuse's `machine_types` on the emulation thread for the UI
+thread to read back.
+
+NMI is the "magic button" of the real hardware, and what it does depends on
+the machine. On Scorpion, `z80_nmi()` pages ROM 2 - the Shadow service
+monitor - before jumping to 0x0066. On Beta-equipped machines such as
+Pentagon it pages TR-DOS instead. Pentagon 512K and 1024K do not need it to
+reach Gluck: their reset sets `beta_active`, which selects ROM 2 at boot, so
+they start in the service ROM.
 
 ### ROMs
 

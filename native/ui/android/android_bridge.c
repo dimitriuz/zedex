@@ -22,9 +22,12 @@
 #include <android/native_window_jni.h>
 
 #include "android_internals.h"
+#include "event.h"
 #include "input.h"
 #include "keyboard.h"
 #include "machine.h"
+#include "rzx.h"
+#include "z80/z80.h"
 
 /* --- window handover -------------------------------------------------- */
 
@@ -72,6 +75,8 @@ androidbridge_present( const void *pixels, int width, int height )
 typedef enum command_type {
   COMMAND_KEY,				/* a: keycode, b: pressed */
   COMMAND_SELECT_MACHINE,		/* a: index into machine_types */
+  COMMAND_RESET,
+  COMMAND_NMI,
 } command_type;
 
 typedef struct queued_command {
@@ -203,6 +208,18 @@ androidbridge_pump_commands( void )
       break;
     case COMMAND_SELECT_MACHINE:
       run_select_machine( command.a );
+      break;
+    case COMMAND_RESET:
+      android_log( "reset" );
+      /* Same order Fuse's own menu uses: a reset mid-recording would
+         otherwise leave the RZX out of step with the machine. */
+      rzx_stop_recording();
+      rzx_stop_playback( 1 );
+      machine_reset( 0 );
+      break;
+    case COMMAND_NMI:
+      android_log( "nmi" );
+      event_add( 0, z80_nmi_event );
       break;
     }
   }
@@ -373,4 +390,16 @@ Java_com_fusemobile_FuseNative_selectMachine( JNIEnv *env, jclass class,
                                               jint index )
 {
   queue_command( COMMAND_SELECT_MACHINE, index, 0 );
+}
+
+JNIEXPORT void JNICALL
+Java_com_fusemobile_FuseNative_reset( JNIEnv *env, jclass class )
+{
+  queue_command( COMMAND_RESET, 0, 0 );
+}
+
+JNIEXPORT void JNICALL
+Java_com_fusemobile_FuseNative_nmi( JNIEnv *env, jclass class )
+{
+  queue_command( COMMAND_NMI, 0, 0 );
 }

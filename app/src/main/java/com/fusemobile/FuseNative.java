@@ -42,4 +42,10 @@ final class FuseNative {
 
     /** Queues a machine change; {@code index} indexes {@link #machineNames}. */
     static native void selectMachine(int index);
+
+    /** Queues a machine reset. */
+    static native void reset();
+
+    /** Queues a non-maskable interrupt - the "magic button" on real hardware. */
+    static native void nmi();
 }

@@ -125,7 +125,7 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
         button.setText("\u2630");
         button.setTextColor(Color.WHITE);
         button.setBackgroundColor(0x66000000);
-        button.setOnClickListener(v -> showMachineDialog());
+        button.setOnClickListener(v -> showMenu());
 
         int size = Math.round(48 * getResources().getDisplayMetrics().density);
         int margin = size / 4;
@@ -135,6 +135,32 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
         button.setLayoutParams(params);
 
         return button;
+    }
+
+    private void showMenu() {
+        String[] items = {
+            getString(R.string.menu_machine),
+            getString(R.string.menu_reset),
+            getString(R.string.menu_nmi),
+        };
+
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setItems(items, (dialog, which) -> {
+                    switch (which) {
+                        case 0: showMachineDialog(); break;
+                        case 1: confirmReset(); break;
+                        case 2: FuseNative.nmi(); break;
+                    }
+                })
+                .show();
+    }
+
+    private void confirmReset() {
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setMessage(R.string.reset_confirm)
+                .setPositiveButton(R.string.menu_reset, (dialog, which) -> FuseNative.reset())
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
     }
 
     private void showMachineDialog() {
