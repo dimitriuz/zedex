@@ -14,28 +14,44 @@ arm64-v8a.
 
 | Working | Not yet |
 | --- | --- |
-| Emulation of all 16 machines Fuse supports | CRT / scanline filters |
+| All sixteen machines, 16K through Scorpion | CRT / scanline filters |
 | Machine switcher, remembered across launches | Loading tapes and snapshots |
-| Reset and NMI from the menu | |
-| GPU-scaled display, portrait and landscape | Save states |
-| AAudio output, pacing emulation at 50.3 fps | On-screen joystick |
+| Reset and NMI from the menu | Save states |
+| GPU-scaled display, portrait and landscape | On-screen joystick |
+| AAudio output, pacing emulation at 50.3 fps | Native menus replacing the widget ones |
 | On-screen keyboard from Fuse's own artwork | Debugger front end |
-| Hardware keyboard input | armeabi-v7a (add to `ABIS`/`abiFilters`) |
+| Latching Caps Shift and Symbol Shift | armeabi-v7a (add to `ABIS`/`abiFilters`) |
+| Hardware keyboard input | |
 | Fuse's widget dialogs, menus and debugger UI | |
 | Background / resume without losing the surface | |
 
-All sixteen machines boot. Fuse itself only ships the ROMs it is allowed to
-redistribute, so the rest live in `roms/` — see below. If a ROM is ever
-missing Fuse falls back to 48K, which the app reports rather than silently
-accepting: the machine it remembers is whatever actually ended up running.
+Known issues:
 
-**Known wart:** the launcher icon is still SDL's, inherited from its sample
-project before SDL was removed. It needs replacing.
+- The launcher icon is still SDL's, inherited from its sample project before
+  SDL was removed. It needs replacing.
+- In portrait the emulated screen is centred in the space above the keyboard,
+  which leaves wide empty bands. It should probably sit at the top.
 
-Hardware keys work as they do on the desktop — e.g. Shift+6 / Shift+7 are Caps
-Shift + 6/7, the Spectrum's cursor down/up. Note that `adb shell input
-keyevent` does **not** reach the emulator, so test key handling with a real
-keyboard or by tapping the on-screen one.
+## Using it
+
+**The screen** fills whatever room the keyboard leaves, always 4:3 and always
+scaled on the GPU, in either orientation. Rotating does not restart the
+emulator.
+
+**The keyboard** is Fuse's own keyboard artwork, so every key carries its
+BASIC keyword, symbol-shift character, colour and extended-mode token. Two
+fingers give a real shifted key; alternatively **hold either shift for 400ms
+to latch it** (it turns amber) until you tap it again. That is how you get
+BREAK — Caps Shift and Space. A physical keyboard works too, exactly as it
+does on the desktop.
+
+**The ☰ button** opens:
+
+- **Machine…** — all sixteen machines, with the running one checked. The
+  choice is remembered for the next launch.
+- **Reset** — asks first, since it discards machine state.
+- **NMI** — the magic button of the real hardware. What it does depends on the
+  machine; see below.
 
 ## Layout
 
@@ -77,6 +93,13 @@ The native build is deliberately **not** wired into Gradle: it is slow, rarely
 changes, and Gradle just packages the prebuilt `.so` from
 `app/src/main/jniLibs/`.
 
+### Driving it from adb
+
+`adb shell input keyevent` does **not** reach the app. Tapping the on-screen
+keyboard with `adb shell input tap` does, which is enough to automate most
+things; key coordinates follow from the artwork's 541x201 layout. Use
+`input swipe x y x y 1200` to hold a key, for instance to latch a shift.
+
 ## How it fits together
 
 ### Keeping Fuse unmodified
@@ -116,26 +139,39 @@ follows upstream instead of drifting from it.
 - **`keysyms.c`** maps Android keycodes to Fuse input keys, so physical keys
   and the on-screen keyboard share one path — including Caps Shift
   (`SHIFT_LEFT`) and Symbol Shift (`CTRL_LEFT`), which Fuse already maps.
+- **`aaudiosound.c`** writes to AAudio and *blocks*, deliberately: that is what
+  paces the emulator. Audio is the clock, not vsync and not a wall timer.
 
 A key release is never run in the same queue pump as its press. The Spectrum
 ROM scans the keyboard once per frame, so a press and release arriving
 together — a synthesised tap, or a very fast finger — would otherwise be
 invisible to the emulated machine.
-- **`aaudiosound.c`** writes to AAudio and *blocks*, deliberately: that is what
-  paces the emulator. Audio is the clock, not vsync and not a wall timer.
 
-The menu is built on the queue rather than on key events: the Android dialog
-queues a command, and the emulation thread runs `machine_select()`,
-`machine_reset()` or `event_add( 0, z80_nmi_event )`. The machine list itself
-is snapshotted from Fuse's `machine_types` on the emulation thread for the UI
-thread to read back.
+### The menu
 
-NMI is the "magic button" of the real hardware, and what it does depends on
-the machine. On Scorpion, `z80_nmi()` pages ROM 2 - the Shadow service
-monitor - before jumping to 0x0066. On Beta-equipped machines such as
-Pentagon it pages TR-DOS instead. Pentagon 512K and 1024K do not need it to
-reach Gluck: their reset sets `beta_active`, which selects ROM 2 at boot, so
-they start in the service ROM.
+Everything the menu does goes through the same queue as keys, because none of
+it is safe to call from the UI thread: the Android dialog queues a command and
+the emulation thread runs `machine_select()`, `machine_reset()` or
+`event_add( 0, z80_nmi_event )`. The machine list is snapshotted from Fuse's
+`machine_types` on the emulation thread for the UI thread to read back.
+
+A machine change can fail — Fuse falls back to 48K when a machine's ROMs are
+missing — so the app checks what actually ended up running, says so, and
+remembers that rather than what was asked for.
+
+NMI is the magic button, and what it does depends on the machine. On Scorpion,
+`z80_nmi()` pages ROM 2 — the Shadow service monitor — before jumping to
+0x0066. On Beta-equipped machines such as Pentagon it pages TR-DOS instead.
+Pentagon 512K and 1024K need no NMI to reach Gluck: their reset sets
+`beta_active`, which selects ROM 2 at boot, so they start in the service ROM.
+
+### The on-screen keyboard
+
+`SpectrumKeyboardView` draws Fuse's own `keyboard.png`. The key rectangles were
+measured off the image and are held in its 541x201 coordinate space, expanded
+to meet their neighbours so the gutters in the artwork are not dead to a
+fingertip. Presses are tracked per pointer, which is what makes both two-finger
+chords and the shift latch work.
 
 ### ROMs
 
@@ -168,20 +204,6 @@ crashes inside `snprintf` while looking for `fuse.font`.
 
 Fixed without touching Fuse by forcing a consistent value:
 `CPPFLAGS="-include limits.h"`. Worth reporting upstream.
-
-### The on-screen keyboard
-
-`SpectrumKeyboardView` draws Fuse's own `keyboard.png`, which carries every
-legend a Spectrum key has: the BASIC keyword, the symbol-shift character, the
-colour, the extended-mode token. Typing Spectrum BASIC is impractical without
-them. The key rectangles were measured off the image and are held in its
-541x201 coordinate space, expanded to meet their neighbours so the gutters in
-the artwork are not dead to a fingertip.
-
-Presses are tracked per pointer, so two fingers give a real shifted key.
-Because that is awkward one-handed, holding either shift for 400ms latches it
-(shown amber) until it is tapped again — which is how you get BREAK, being
-Caps Shift and Space.
 
 ## Next steps
 
