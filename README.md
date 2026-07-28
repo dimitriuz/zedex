@@ -14,9 +14,11 @@ the emulated screen.
 > [docs/INTERNALS.md](docs/INTERNALS.md).
 
 > **No ROMs ship with the app or live in this repository.** On first run it
-> creates an empty `roms` folder and offers to import them. The set it
-> expects, by the filenames it looks for, is at
-> <https://archive.org/details/zx-roms-fuse-roms>.
+> says so and offers three ways to get them: **Get ROMs** downloads a set from
+> <https://archive.org/details/zx-roms-fuse-roms>, or you can point it at a
+> folder already on the device, or pick the files — or a zip — yourself.
+> Whether you may download and use ROM images depends on the law where you
+> are, and the app says so before fetching anything.
 
 > **Developed with AI assistance.** Most of the code, the tests and this
 > document were written by Claude (Anthropic's Claude Code), directed and
@@ -144,6 +146,19 @@ An Android 16 x86_64 emulator (API 36), cross-built for arm64-v8a. Four
 instrumentation tests cover the disk and capture paths.
 
 ## Using it
+
+**ROMs first.** A Spectrum cannot run without one, so until there are ROMs the
+screen carries a panel saying what is missing and three ways to fix it: *Get
+ROMs* fetches a set from archive.org and unpacks it — it warns first that the
+images are somebody else's copyright and that the law where you are is yours to
+know — *Choose folder…* takes every `.rom` out of a folder on the device and
+out of the folders inside it, and *Choose files…* takes the files, or a zip, you
+pick. Note that Android will not grant a folder on `Download`, so ROMs sitting
+there have to be picked as files.
+
+If the ROMs turn out not to be the ones the machine needs, the panel comes back
+saying so, with a *Restart* button — the emulator cannot be started twice in
+one run, so trying again means a fresh start.
 
 **The screen** fills whatever room the keyboard leaves, always 4:3 and always
 scaled on the GPU, in either orientation. Rotating does not restart the

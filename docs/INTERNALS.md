@@ -284,8 +284,27 @@ is process wide.
 
 Without ROMs Fuse cannot even reach the 48K machine it falls back to, and
 gives up hard — `fuse_abort()` — so the app checks the folder first and does
-not start the emulator at all until there is something in it, offering an
-importer instead.
+not start the emulator at all until there is something in it.
+
+Two failures follow from that, and they need different answers. If there is no
+`.rom` at all the emulation thread is never started, so importing some and
+starting it then is enough. If there *is* one but Fuse cannot use it, Fuse has
+already run and `main()` has returned; `Java_dev_ldlab_zedex_FuseNative_start`
+refuses a second call, since Fuse's globals are not reinitialisable, so the
+only way back is a new process. The app tells the two apart by polling
+`currentMachine()` for six seconds after starting — Fuse publishes a machine as
+soon as one is running — and offers a restart rather than more ROMs in the
+second case. Either way something is on screen saying so, because Fuse draws
+nothing at all when it gives up and the surface would otherwise stay black
+with no way out of it.
+
+ROMs arrive by one of three routes: a document tree walked three deep for
+`.rom` and `.zip` entries, a multiple selection from the file picker, or a
+direct download of the archive.org set. Both pickers are kept because Android
+refuses to grant a tree on `Download`, where a downloaded set usually lands,
+while the file picker opens it without complaint. Zip entries are reduced to
+their last path component before being written, so an archive carrying
+directories — or `../` — cannot write outside the ROMs folder.
 
 Save states and ROMs share a root the user picks from what the device offers.
 It has to be a real filesystem path the app can write without a permission,

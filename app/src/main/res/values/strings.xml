@@ -10,10 +10,32 @@
     <string name="reset_confirm">Reset the machine? Anything not saved will be lost.</string>
     <string name="machine_unavailable">%1$s needs ROM files that are not bundled</string>
     <string name="roms_needed">ROMs needed</string>
-    <string name="roms_needed_message">No Spectrum ROMs are bundled with this app. Put them in\n\n%1$s\n\nor import them now. A set under the names Fuse expects is at\n\n%2$s</string>
-    <string name="roms_import">Import\u2026</string>
+    <string name="roms_needed_message">No Spectrum ROMs are bundled with this app, and a Spectrum cannot run without one. Whichever way you choose below, they end up in\n\n%1$s</string>
+    <string name="roms_folder">Choose folder\u2026</string>
+    <string name="roms_folder_hint">Take every ROM out of a folder already on this device, and out of the folders inside it</string>
+    <string name="roms_files">Choose files\u2026</string>
+    <string name="roms_files_hint">Pick the ROM files yourself, or a zip to unpack \u2014 the only way to reach Download, which Android will not grant as a folder</string>
     <string name="roms_where">Get ROMs</string>
-    <string name="roms_imported">Imported %1$d file(s)</string>
+    <string name="roms_where_hint">Download a set from archive.org, about 350 kB. Nothing else to do</string>
+    <string name="roms_restart_hint">Start the machine again, now the right ROMs are in place</string>
+    <string name="roms_imported">Copied %1$d ROM(s)</string>
+    <!-- Android will not grant a tree on Download itself, which is why the
+         panel offers the files as well as the folder. -->
+    <string name="roms_none_found">No .rom files in that folder, or in the folders inside it. Choose the folder your ROMs are in, or the files themselves \u2014 Android will not allow Download as a folder.</string>
+    <string name="roms_folder_unreadable">Could not read that folder</string>
+    <string name="roms_searching">Looking for ROMs\u2026</string>
+    <string name="roms_download_title">Download ROMs</string>
+    <string name="roms_download_warning">This fetches a set of ZX Spectrum ROM images from archive.org, about 350 kB, and unpacks them into the ROMs folder.\n\nThe ROMs themselves are not this app\u2019s to give away: they are Sinclair and Amstrad copyright. Whether you may download and use them depends on the law where you are, and that is your responsibility.\n\nContinue?</string>
+    <string name="roms_download">Download</string>
+    <string name="roms_open_page">Open the page</string>
+    <string name="roms_downloading">Downloading ROMs\u2026</string>
+    <string name="roms_download_failed">Could not download the ROMs. Check the connection, or open the page and fetch them yourself.</string>
+    <!-- Fuse's main() returns when it cannot find a ROM for the machine it was
+         asked for, and the emulation thread cannot be started twice in one
+         process, so recovering from this needs a restart. -->
+    <string name="roms_start_failed">ROMs needed</string>
+    <string name="roms_start_failed_message">The machine could not start. The ROMs in\n\n%1$s\n\nare not the ones it needs \u2014 a file may be missing, or not be a ROM at all.\n\nAdd the right ones and restart.</string>
+    <string name="roms_restart">Restart</string>
     <string name="open_failed">Could not open that file</string>
     <string name="tape_save">Save tape\u2026</string>
     <string name="tape_new">New tape</string>

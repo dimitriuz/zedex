@@ -29,6 +29,7 @@ import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -40,6 +41,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.text.DateFormat;
@@ -48,6 +51,8 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 /**
  * Hosts the emulator.
@@ -76,6 +81,26 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     private static final int REQUEST_OPEN_FILE = 1;
     private static final int REQUEST_IMPORT_ROMS = 3;
     private static final int REQUEST_LOAD_DISK = 4;
+    private static final int REQUEST_IMPORT_ROMS_TREE = 5;
+
+    /** What a ROM is called, whatever else is in the folder beside it. */
+    private static final String ROM_SUFFIX = ".rom";
+
+    /** A downloaded set arrives as one of these, so it is unpacked in place. */
+    private static final String ZIP_SUFFIX = ".zip";
+
+    /** A downloaded set unpacks into a folder or two, not a deep tree. */
+    private static final int ROM_SEARCH_DEPTH = 3;
+
+    /** Enough for every machine Fuse knows, with room to spare. */
+    private static final int ROM_SEARCH_LIMIT = 256;
+
+    /**
+     * How long Fuse gets to publish a machine before its start is called
+     * failed. Generous: this only runs while the screen is black anyway.
+     */
+    private static final long START_TIMEOUT_MS = 6000;
+    private static final long START_POLL_MS = 500;
 
     /** Where picked files are staged for Fuse to open. */
     private static final String MEDIA_DIR = "media";
@@ -85,6 +110,13 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
     private SharedPreferences preferences;
     private boolean started;
+
+    /** Shown in place of the emulated screen when there is no machine. */
+    private View romsPanel;
+    private TextView romsTitle;
+    private TextView romsMessage;
+    /** The Restart button and its caption, hidden unless Fuse gave up. */
+    private View romsRestart;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -122,6 +154,9 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         screen.addView(view, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT));
+        // Under the menu button, so ☰ stays reachable over the top of it.
+        romsPanel = buildRomsPanel();
+        screen.addView(romsPanel);
         screen.addView(buildMenuButton());
 
         LinearLayout layout = new LinearLayout(this);
@@ -980,6 +1015,15 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         if (result != RESULT_OK || data == null) return;
 
+        if (request == REQUEST_IMPORT_ROMS_TREE) {
+            Uri tree = data.getData();
+            if (tree != null) {
+                note(R.string.roms_searching);
+                new Thread(() -> copyRomsFromTree(tree)).start();
+            }
+            return;
+        }
+
         if (request == REQUEST_IMPORT_ROMS) {
             List<Uri> sources = new ArrayList<>();
 
@@ -1180,40 +1224,292 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      */
     private void startEmulator() {
         if (!Storage.haveRoms(this)) {
-            askForRoms();
+            showRomsPanel(false);
             return;
         }
 
+        hideRomsPanel();
         started = true;
 
         // Fuse searches the working directory for a ROM before anywhere
         // else, which is how it finds the user's.
         FuseNative.setWorkingDirectory(Storage.romsDirectory(this).getAbsolutePath());
         FuseNative.start(startArguments());
+        watchForStartFailure(0);
+    }
+
+    /**
+     * Fuse publishes a machine as soon as one is running, so no machine long
+     * after the emulation thread should have got there means {@code main()}
+     * returned instead - which is what an unusable ROM does. Nothing is drawn
+     * in that case, so without this the screen simply stays black.
+     */
+    private void watchForStartFailure(long waited) {
+        if (FuseNative.currentMachine() >= 0) return;
+
+        if (waited >= START_TIMEOUT_MS) {
+            Log.w(TAG, "no machine after " + waited + "ms; ROMs are unusable");
+            showRomsPanel(true);
+            return;
+        }
+
+        getWindow().getDecorView().postDelayed(
+                () -> watchForStartFailure(waited + START_POLL_MS), START_POLL_MS);
     }
 
     /** Where a set of ROMs under the names Fuse expects can be found. */
     private static final String ROMS_URL =
             "https://archive.org/details/zx-roms-fuse-roms";
 
-    private void askForRoms() {
+    /**
+     * What the screen shows when no machine is running, in place of the black
+     * that a missing ROM used to leave behind with no way out of it.
+     */
+    private View buildRomsPanel() {
+        int pad = Math.round(24 * getResources().getDisplayMetrics().density);
+
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(pad, pad, pad, pad);
+
+        romsTitle = new TextView(this);
+        romsTitle.setTextAppearance(android.R.style.TextAppearance_DeviceDefault_Large);
+        romsTitle.setTextColor(Color.WHITE);
+        content.addView(romsTitle);
+
+        romsMessage = new TextView(this);
+        romsMessage.setTextColor(0xffbbbbbb);
+        romsMessage.setPadding(0, pad / 2, 0, pad / 2);
+        content.addView(romsMessage);
+
+        // Downloading first: it is the one that needs nothing of the user.
+        content.addView(panelChoice(R.string.roms_where,
+                R.string.roms_where_hint, v -> offerRomsDownload()));
+        content.addView(panelChoice(R.string.roms_folder,
+                R.string.roms_folder_hint, v -> importRomsFolder()));
+        content.addView(panelChoice(R.string.roms_files,
+                R.string.roms_files_hint, v -> importRomFiles()));
+
+        romsRestart = panelChoice(R.string.roms_restart,
+                R.string.roms_restart_hint, v -> restartForRoms());
+        romsRestart.setVisibility(View.GONE);
+        content.addView(romsRestart);
+
+        // Landscape leaves little height, and the message is not short.
+        ScrollView scroll = new ScrollView(this);
+        scroll.setBackgroundColor(0xff000000);
+        scroll.addView(content, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT));
+        scroll.setLayoutParams(new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT));
+        scroll.setVisibility(View.GONE);
+
+        return scroll;
+    }
+
+    /**
+     * A button with a line under it saying what it does, since "Choose
+     * folder" and "Choose files" are not self-explaining on their own.
+     */
+    private View panelChoice(int label, int description, View.OnClickListener action) {
+        int unit = Math.round(4 * getResources().getDisplayMetrics().density);
+
+        LinearLayout group = new LinearLayout(this);
+        group.setOrientation(LinearLayout.VERTICAL);
+
+        Button button = new Button(this);
+        button.setText(label);
+        button.setOnClickListener(action);
+        group.addView(button);
+
+        TextView caption = new TextView(this);
+        caption.setText(description);
+        caption.setTextAppearance(android.R.style.TextAppearance_DeviceDefault_Small);
+        caption.setTextColor(0xff999999);
+        caption.setPadding(unit * 2, unit, unit * 2, unit * 4);
+        group.addView(caption);
+
+        return group;
+    }
+
+    /**
+     * @param startFailed whether Fuse tried and gave up, which needs a new
+     *                    process rather than merely more ROMs.
+     */
+    private void showRomsPanel(boolean startFailed) {
+        String path = Storage.romsDirectory(this).getAbsolutePath();
+
+        romsTitle.setText(startFailed ? R.string.roms_start_failed
+                                      : R.string.roms_needed);
+        romsMessage.setText(startFailed
+                ? getString(R.string.roms_start_failed_message, path)
+                : getString(R.string.roms_needed_message, path));
+        romsRestart.setVisibility(startFailed ? View.VISIBLE : View.GONE);
+        romsPanel.setVisibility(View.VISIBLE);
+    }
+
+    private void hideRomsPanel() {
+        romsPanel.setVisibility(View.GONE);
+    }
+
+    private void openRomsPage() {
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(ROMS_URL)));
+        } catch (android.content.ActivityNotFoundException e) {
+            Log.w(TAG, "no browser to open " + ROMS_URL, e);
+        }
+    }
+
+    /** The one file that archive.org item holds: 47 ROMs, about 350 kB. */
+    private static final String ROMS_ZIP_URL =
+            "https://archive.org/download/zx-roms-fuse-roms/zx%20roms.zip";
+
+    /**
+     * Offers to fetch the set rather than making the user find a browser, an
+     * extractor and a file manager first.
+     *
+     * Asks before doing it, because the ROMs are somebody else's copyright and
+     * whether they may be downloaded is not the same everywhere.
+     */
+    private void offerRomsDownload() {
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(R.string.roms_needed)
-                .setMessage(getString(R.string.roms_needed_message,
-                        Storage.romsDirectory(this).getAbsolutePath(), ROMS_URL))
-                .setPositiveButton(R.string.roms_import, (dialog, which) -> importRoms())
-                .setNeutralButton(R.string.roms_where, (dialog, which) -> {
-                    try {
-                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(ROMS_URL)));
-                    } catch (android.content.ActivityNotFoundException e) {
-                        Log.w(TAG, "no browser to open " + ROMS_URL, e);
-                    }
+                .setTitle(R.string.roms_download_title)
+                .setMessage(R.string.roms_download_warning)
+                .setPositiveButton(R.string.roms_download, (dialog, which) -> {
+                    note(R.string.roms_downloading);
+                    new Thread(this::downloadRoms).start();
                 })
+                .setNeutralButton(R.string.roms_open_page, (dialog, which) -> openRomsPage())
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
     }
 
-    private void importRoms() {
+    /**
+     * Fetches the set and unpacks it. To a cache file first rather than
+     * straight through the unpacker, so a connection that dies half way
+     * leaves the ROMs folder as it was instead of half filled.
+     */
+    private void downloadRoms() {
+        File directory = Storage.romsDirectory(this);
+        directory.mkdirs();
+
+        File zip = new File(getCacheDir(), "roms-download.zip");
+        HttpURLConnection connection = null;
+
+        try {
+            connection = (HttpURLConnection) new URL(ROMS_ZIP_URL).openConnection();
+            connection.setConnectTimeout(20000);
+            connection.setReadTimeout(30000);
+
+            int status = connection.getResponseCode();
+            if (status != HttpURLConnection.HTTP_OK) throw new IOException("HTTP " + status);
+
+            try (InputStream in = connection.getInputStream();
+                 OutputStream out = new FileOutputStream(zip)) {
+                byte[] buffer = new byte[64 * 1024];
+                int read;
+                while ((read = in.read(buffer)) != -1) out.write(buffer, 0, read);
+            }
+        } catch (IOException | SecurityException e) {
+            Log.e(TAG, "cannot download " + ROMS_ZIP_URL, e);
+            zip.delete();
+            runOnUiThread(() -> Toast.makeText(this, R.string.roms_download_failed,
+                                               Toast.LENGTH_LONG).show());
+            return;
+        } finally {
+            if (connection != null) connection.disconnect();
+        }
+
+        int copied = 0;
+        try (InputStream in = new FileInputStream(zip)) {
+            copied = unpackRoms(in, directory);
+        } catch (IOException e) {
+            Log.e(TAG, "cannot unpack the downloaded set", e);
+        }
+        zip.delete();
+
+        if (copied == 0) {
+            Log.w(TAG, "nothing in the downloaded zip looked like a ROM");
+            runOnUiThread(() -> Toast.makeText(this, R.string.roms_download_failed,
+                                               Toast.LENGTH_LONG).show());
+            return;
+        }
+
+        reportRoms(copied);
+    }
+
+    /** A zip of ROMs, as archive.org hands them out, opened from a document. */
+    private int unpackRoms(Uri source, File directory) {
+        try (InputStream in = getContentResolver().openInputStream(source)) {
+            if (in == null) return 0;
+            return unpackRoms(in, directory);
+        } catch (IOException | SecurityException e) {
+            Log.e(TAG, "cannot unpack " + source, e);
+            return 0;
+        }
+    }
+
+    /** Takes the ROMs out of a zip and ignores everything else in it. */
+    private int unpackRoms(InputStream source, File directory) throws IOException {
+        int copied = 0;
+
+        try (ZipInputStream zip = new ZipInputStream(new BufferedInputStream(source))) {
+            ZipEntry entry;
+
+            while ((entry = zip.getNextEntry()) != null) {
+                if (entry.isDirectory()) continue;
+
+                // The last component only. Entries carry directories, and a
+                // crafted one can carry ../ as easily.
+                String name = new File(entry.getName()).getName();
+                if (!name.toLowerCase(Locale.ROOT).endsWith(ROM_SUFFIX)) continue;
+
+                try (OutputStream out = new FileOutputStream(new File(directory, name))) {
+                    byte[] buffer = new byte[64 * 1024];
+                    int read;
+                    while ((read = zip.read(buffer)) != -1) out.write(buffer, 0, read);
+                }
+                copied++;
+            }
+        }
+
+        return copied;
+    }
+
+    /**
+     * The emulation thread cannot be started twice in one process, so trying
+     * again after Fuse has given up means a new one.
+     */
+    private void restartForRoms() {
+        Intent intent = new Intent(this, EmulatorActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
+        Runtime.getRuntime().exit(0);
+    }
+
+    /** A whole folder of ROMs, which is how a downloaded set arrives. */
+    private void importRomsFolder() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+
+        Uri start = Storage.contentFolder(this);
+        if (start != null) intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, start);
+
+        try {
+            startActivityForResult(intent, REQUEST_IMPORT_ROMS_TREE);
+        } catch (android.content.ActivityNotFoundException e) {
+            Toast.makeText(this, R.string.open_failed, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    /**
+     * Individual files, kept alongside the folder picker because Android will
+     * not grant a tree on Download - where a downloaded set most often lands -
+     * while the file picker can open it perfectly well.
+     */
+    private void importRomFiles() {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("*/*");
@@ -1229,6 +1525,73 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         }
     }
 
+    /** Everything that looks like a ROM under a granted tree, then copied. */
+    private void copyRomsFromTree(Uri tree) {
+        List<Uri> roms = new ArrayList<>();
+
+        try {
+            collectRoms(tree, DocumentsContract.getTreeDocumentId(tree), roms, 0);
+        } catch (Exception e) {
+            Log.w(TAG, "cannot read the folder " + tree, e);
+            runOnUiThread(() -> Toast.makeText(this,
+                    R.string.roms_folder_unreadable, Toast.LENGTH_LONG).show());
+            return;
+        }
+
+        if (roms.isEmpty()) {
+            // Saying nothing here reads as the picker having done nothing.
+            runOnUiThread(() -> Toast.makeText(this, R.string.roms_none_found,
+                                               Toast.LENGTH_LONG).show());
+            return;
+        }
+
+        copyRoms(roms);
+    }
+
+    /**
+     * Depth-limited walk of a document tree. Subfolders are followed because
+     * sets unpack into one, but not far: the tree is whatever was granted, and
+     * could be the whole of shared storage.
+     */
+    private void collectRoms(Uri tree, String parentId, List<Uri> found, int depth) {
+        if (depth > ROM_SEARCH_DEPTH || found.size() >= ROM_SEARCH_LIMIT) return;
+
+        Uri children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, parentId);
+
+        try (Cursor cursor = getContentResolver().query(children, new String[] {
+                DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                DocumentsContract.Document.COLUMN_MIME_TYPE,
+        }, null, null, null)) {
+            if (cursor == null) return;
+
+            while (cursor.moveToNext() && found.size() < ROM_SEARCH_LIMIT) {
+                String id = cursor.getString(0);
+                String name = cursor.getString(1);
+                String mime = cursor.getString(2);
+
+                if (DocumentsContract.Document.MIME_TYPE_DIR.equals(mime)) {
+                    collectRoms(tree, id, found, depth + 1);
+                    continue;
+                }
+
+                if (name == null) continue;
+
+                // A zip counts: a set downloaded and left where it landed is
+                // still a folder of ROMs as far as the user is concerned. Only
+                // its .rom entries are taken, so an unrelated zip costs
+                // nothing but the time to look inside it.
+                String lower = name.toLowerCase(Locale.ROOT);
+                if (lower.endsWith(ROM_SUFFIX) || lower.endsWith(ZIP_SUFFIX)) {
+                    found.add(DocumentsContract.buildDocumentUriUsingTree(tree, id));
+                }
+            }
+        } catch (Exception e) {
+            // One unreadable subfolder should not lose the rest.
+            Log.w(TAG, "cannot list " + parentId, e);
+        }
+    }
+
     /** Copies chosen files into the roms folder, then tries to start again. */
     private void copyRoms(List<Uri> sources) {
         File directory = Storage.romsDirectory(this);
@@ -1236,7 +1599,16 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         int copied = 0;
         for (Uri source : sources) {
-            File target = new File(directory, displayName(source));
+            String name = displayName(source);
+
+            // A set downloaded from archive.org is a zip; unpack it rather
+            // than making the user find an extractor first.
+            if (name.toLowerCase(Locale.ROOT).endsWith(ZIP_SUFFIX)) {
+                copied += unpackRoms(source, directory);
+                continue;
+            }
+
+            File target = new File(directory, name);
 
             try (InputStream in = getContentResolver().openInputStream(source);
                  OutputStream out = new FileOutputStream(target)) {
@@ -1251,11 +1623,21 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             }
         }
 
-        int total = copied;
+        reportRoms(copied);
+    }
+
+    /** Says what arrived, and gets a machine going if one can now run. */
+    private void reportRoms(int copied) {
         runOnUiThread(() -> {
-            Toast.makeText(this, getString(R.string.roms_imported, total),
+            Toast.makeText(this, getString(R.string.roms_imported, copied),
                     Toast.LENGTH_SHORT).show();
-            if (!started) startEmulator();
+
+            if (!started) {
+                startEmulator();
+            } else if (FuseNative.currentMachine() < 0) {
+                // Fuse already tried and gave up; more ROMs cannot reach it.
+                showRomsPanel(true);
+            }
         });
     }
 
