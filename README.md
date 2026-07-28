@@ -1,6 +1,6 @@
 # Zedex
 
-**Zedex Micro** — a ZX Spectrum emulator for Android 11+, with a native front
+**Zedex** — a ZX Spectrum emulator for Android 11+, with a native front
 end: OpenGL ES rendering, AAudio output, a touch keyboard carrying every
 legend the real machine had, and menus that belong on a phone rather than in
 the emulated screen.
