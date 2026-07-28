@@ -60,8 +60,8 @@ the emulated screen.
 **Comfort**
 
 - **GPU-scaled display**, 4:3 in either orientation, no restart on rotate
-- **Four landscape layouts** — keyboard below, over the screen, or beside it on
-  either side
+- **Five landscape layouts** — keyboard below, over the screen, beside it on
+  either side, or gone entirely
 - **On-screen keyboard** drawn from the real thing, so every key carries its
   BASIC keyword, symbol-shift character, colour and extended-mode token —
   and **either shift latches** on a long hold
@@ -120,8 +120,6 @@ emulated, and every one of them is a single setting away:
 
 - CRT, scanline and smoothing filters, for something closer to a television
   than to sharp pixels
-- In portrait the screen is centred above the keyboard, leaving wide empty
-  bands; it should sit at the top
 
 **Playing**
 
@@ -167,7 +165,7 @@ one run, so trying again means a fresh start.
 scaled on the GPU, in either orientation. Rotating does not restart the
 emulator.
 
-**Sideways, four layouts**, from ☰ *Landscape layout…* or from settings:
+**Sideways, five layouts**, from ☰ *Landscape layout…* or from settings:
 
 | | |
 | --- | --- |
@@ -175,8 +173,10 @@ emulator.
 | **Keyboard over the screen** | translucent across the bottom; the screen keeps the whole window |
 | **Keyboard left, screen right** | an even split, each centred in its half |
 | **Screen left, keyboard right** | the same, mirrored |
+| **No keyboard** | the whole window is the machine, for a physical keyboard |
 
-Portrait has one arrangement and ignores the setting.
+Portrait has one arrangement and ignores the setting; the screen sits at the
+top, with whatever height is left over in one band above the keyboard.
 
 **The keyboard** is drawn from the real one, so every key carries its
 BASIC keyword, symbol-shift character, colour and extended-mode token. Two

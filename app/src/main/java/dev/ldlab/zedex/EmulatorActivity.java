@@ -157,13 +157,13 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         screen.addView(view, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT));
-        // Under the menu button, so ☰ stays reachable over the top of it.
+        // Both are siblings of the screen rather than children of it: the panel
+        // takes the whole window, and the ☰ button has to stay on top of it.
         romsPanel = buildRomsPanel();
-        screen.addView(romsPanel);
-        screen.addView(buildMenuButton());
 
         layout = new EmulatorLayout(this);
-        layout.setChildren(screen, new SpectrumKeyboardView(this));
+        layout.setChildren(screen, romsPanel, buildMenuButton(),
+                           new SpectrumKeyboardView(this));
         layout.setTemplate(EmulatorLayout.Template.of(
                 preferences.getString(SettingsActivity.KEY_LANDSCAPE_LAYOUT, null)));
 
@@ -235,13 +235,8 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         button.setBackgroundColor(0x66000000);
         button.setOnClickListener(v -> showMenu());
 
-        int size = Math.round(48 * getResources().getDisplayMetrics().density);
-        int margin = size / 4;
-        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(size, size);
-        params.gravity = android.view.Gravity.TOP | android.view.Gravity.END;
-        params.setMargins(margin, margin, margin, margin);
-        button.setLayoutParams(params);
-
+        // Where it goes is EmulatorLayout's business: it follows the screen,
+        // which moves with the template.
         return button;
     }
 

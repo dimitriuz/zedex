@@ -261,9 +261,26 @@ keyboard four fifths of the height and left the machine a slot 188 pixels tall.
 
 Portrait is always the stacked arrangement — there is only one sensible answer
 when the window is taller than it is wide — and the natural height at full
-width is around a third, so the cap never bites. The on-screen joystick belongs
-here too when it arrives: a third child, with each template deciding where it
-goes.
+width is around a third, so the cap never bites. It is also where the screen's
+box is trimmed to the height a 4:3 picture actually uses, 810 px of 1080 wide:
+the renderer centres inside whatever it is given, so a full-height box put the
+picture in the middle with a band of black above it as well as below. One band,
+below, is what was wanted.
+
+Hiding the keyboard sets it `GONE` rather than giving it an empty box, because
+its keys are accessibility nodes and forty of them with no bounds would still
+be there for a screen reader to find. That happens outside the measure pass —
+changing visibility asks for another layout, and doing that during measure is
+how layout loops start — so it is driven from `setTemplate` and
+`onConfigurationChanged` instead. Hiding is a landscape template, so rotating
+into portrait brings the keyboard back.
+
+Four children, not two: the ROMs panel takes the whole window rather than the
+screen's share, since it is a takeover rather than part of the picture, and the
+☰ button is laid out last so it stays reachable over the panel — while sitting
+at the top right of the *screen*, so it follows the picture when the keyboard is
+beside it. The on-screen joystick belongs here too when it arrives, with each
+template deciding where it goes.
 
 ### The on-screen keyboard
 

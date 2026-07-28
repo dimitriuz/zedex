@@ -36,12 +36,14 @@
         <item>Keyboard over the screen</item>
         <item>Keyboard left, screen right</item>
         <item>Screen left, keyboard right</item>
+        <item>No keyboard</item>
     </string-array>
     <string-array name="layout_values">
         <item>below</item>
         <item>overlay</item>
         <item>left</item>
         <item>right</item>
+        <item>none</item>
     </string-array>
 
     <string-array name="format_names">

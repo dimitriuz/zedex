@@ -40,7 +40,13 @@ final class EmulatorLayout extends ViewGroup {
         /** Keyboard down the left, screen to its right. */
         LEFT("left"),
         /** Screen on the left, keyboard down the right. */
-        RIGHT("right");
+        RIGHT("right"),
+        /**
+         * No keyboard at all: the whole window is the machine. For a physical
+         * keyboard, or a game that only wants a joystick. The ☰ button stays
+         * over the screen, so this is not a way of getting stuck.
+         */
+        NONE("none");
 
         final String value;
 
@@ -80,10 +86,20 @@ final class EmulatorLayout extends ViewGroup {
     /** Enough to read the screen through, still solid enough to aim at. */
     private static final float OVERLAY_ALPHA = 0.8f;
 
+    /** The emulated screen, border and all: 320x240 whatever the machine. */
+    private static final float SCREEN_ASPECT = 4f / 3f;
+
+    /** The ☰ button, and the gap it keeps from the corner, in dp. */
+    private static final int MENU_SIZE = 48;
+
     private final Rect screenBox = new Rect();
     private final Rect keyboardBox = new Rect();
+    private final Rect panelBox = new Rect();
+    private final Rect menuBox = new Rect();
 
     private View screen;
+    private View panel;
+    private View menu;
     private SpectrumKeyboardView keyboard;
     private Template template = Template.BELOW;
 
@@ -92,12 +108,25 @@ final class EmulatorLayout extends ViewGroup {
         setBackgroundColor(0xff000000);
     }
 
-    /** Both children, in the order they are added; neither is ever removed. */
-    void setChildren(View screen, SpectrumKeyboardView keyboard) {
+    /**
+     * The children, in the order they are added; none is ever removed.
+     *
+     * The panel is the ROMs message and takes the whole window rather than the
+     * screen's share of it - it is a takeover, not part of the picture. The ☰
+     * button is last so it stays reachable over the panel, and sits at the top
+     * right of the screen rather than of the window, so it follows the picture
+     * when the keyboard is beside it.
+     */
+    void setChildren(View screen, View panel, View menu, SpectrumKeyboardView keyboard) {
         this.screen = screen;
+        this.panel = panel;
+        this.menu = menu;
         this.keyboard = keyboard;
+
         addView(screen);
         addView(keyboard);
+        addView(panel);
+        addView(menu);
     }
 
     Template template() {
@@ -108,7 +137,33 @@ final class EmulatorLayout extends ViewGroup {
         if (this.template == template) return;
 
         this.template = template;
+        applyKeyboardVisibility();
         requestLayout();
+    }
+
+    /**
+     * A hidden keyboard is really gone, not merely given an empty box: its keys
+     * are accessibility nodes, and forty of them with no bounds would still be
+     * there for a screen reader to find.
+     *
+     * Set from here rather than from {@link #arrange}, because changing
+     * visibility asks for another layout and doing that during a measure pass
+     * is how layout loops start.
+     */
+    private void applyKeyboardVisibility() {
+        if (keyboard == null) return;
+
+        boolean landscape = getResources().getConfiguration().orientation
+                == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
+
+        keyboard.setVisibility(landscape && template == Template.NONE ? GONE : VISIBLE);
+    }
+
+    @Override
+    protected void onConfigurationChanged(android.content.res.Configuration config) {
+        super.onConfigurationChanged(config);
+        // Hiding is a landscape template, so rotating changes whether it applies.
+        applyKeyboardVisibility();
     }
 
     /**
@@ -123,7 +178,15 @@ final class EmulatorLayout extends ViewGroup {
         // Portrait has one arrangement; the templates are a landscape question.
         Template current = landscape ? template : Template.BELOW;
 
+        panelBox.set(0, 0, width, height);
+
         switch (current) {
+            case NONE: {
+                screenBox.set(0, 0, width, height);
+                keyboardBox.setEmpty();
+                break;
+            }
+
             case LEFT:
             case RIGHT: {
                 int keyboardWidth = Math.round(width * LANDSCAPE_SIDE);
@@ -154,8 +217,18 @@ final class EmulatorLayout extends ViewGroup {
                 int natural = Math.round(width / aspect);
                 float cap = landscape ? LANDSCAPE_BELOW : PORTRAIT_BELOW;
                 int keyboardHeight = Math.min(natural, Math.round(height * cap));
+                int room = height - keyboardHeight;
 
-                screenBox.set(0, 0, width, height - keyboardHeight);
+                // Portrait leaves far more height than a 4:3 picture wants, and
+                // the renderer centres inside whatever it is given - which put
+                // the screen in the middle with a band of black above it as well
+                // as below. Giving the box only the height the picture uses puts
+                // it at the top and leaves the spare space in one place.
+                int screenHeight = landscape
+                        ? room
+                        : Math.min(room, Math.round(width / SCREEN_ASPECT));
+
+                screenBox.set(0, 0, width, screenHeight);
                 keyboardBox.set(0, height - keyboardHeight, width, height);
                 break;
             }
@@ -164,6 +237,11 @@ final class EmulatorLayout extends ViewGroup {
         if (keyboard != null) {
             keyboard.setAlpha(current == Template.OVERLAY ? OVERLAY_ALPHA : 1f);
         }
+
+        int size = Math.round(MENU_SIZE * getResources().getDisplayMetrics().density);
+        int gap = size / 4;
+        menuBox.set(screenBox.right - gap - size, screenBox.top + gap,
+                    screenBox.right - gap, screenBox.top + gap + size);
     }
 
     @Override
@@ -175,12 +253,14 @@ final class EmulatorLayout extends ViewGroup {
 
         measureChild(screen, screenBox);
         measureChild(keyboard, keyboardBox);
+        measureChild(panel, panelBox);
+        measureChild(menu, menuBox);
 
         setMeasuredDimension(width, height);
     }
 
     private void measureChild(View child, Rect box) {
-        if (child == null) return;
+        if (child == null || child.getVisibility() == GONE) return;
 
         child.measure(MeasureSpec.makeMeasureSpec(box.width(), MeasureSpec.EXACTLY),
                       MeasureSpec.makeMeasureSpec(box.height(), MeasureSpec.EXACTLY));
@@ -190,12 +270,15 @@ final class EmulatorLayout extends ViewGroup {
     protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
         // The boxes come from onMeasure, which always runs first with the same
         // size; recomputing here would only risk the two drifting apart.
-        if (screen != null) {
-            screen.layout(screenBox.left, screenBox.top, screenBox.right, screenBox.bottom);
-        }
-        if (keyboard != null) {
-            keyboard.layout(keyboardBox.left, keyboardBox.top,
-                            keyboardBox.right, keyboardBox.bottom);
-        }
+        placeChild(screen, screenBox);
+        placeChild(keyboard, keyboardBox);
+        placeChild(panel, panelBox);
+        placeChild(menu, menuBox);
+    }
+
+    private void placeChild(View child, Rect box) {
+        if (child == null || child.getVisibility() == GONE) return;
+
+        child.layout(box.left, box.top, box.right, box.bottom);
     }
 }
