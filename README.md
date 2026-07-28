@@ -1,8 +1,8 @@
 # FuseMobile
 
 Android port of [Fuse](http://fuse-emulator.sourceforge.net/) (the Free Unix
-Spectrum Emulator), running a **ZX Spectrum 128K** with a native Android UI
-backend on Android 11+.
+Spectrum Emulator), with a native Android UI backend, running any of the
+sixteen Spectrum-family machines Fuse supports on Android 11+.
 
 Fuse and libspectrum are used **completely unmodified** — everything here is
 build configuration, a Fuse UI backend of our own, and a thin Android app.
@@ -14,12 +14,22 @@ arm64-v8a.
 
 | Working | Not yet |
 | --- | --- |
-| 128K emulation, GPU-scaled full-screen display | CRT / scanline filters |
-| AAudio output, pacing emulation at 50.3 fps | Loading tapes and snapshots |
-| On-screen Spectrum keyboard (multi-touch) | Native menus, save states |
-| Hardware keyboard input | On-screen joystick |
-| Fuse's widget dialogs, menus and debugger UI | Debugger front end |
-| Background / resume without losing the surface | armeabi-v7a (add to `ABIS`/`abiFilters`) |
+| Emulation of all 16 machines Fuse supports | CRT / scanline filters |
+| Machine switcher, remembered across launches | Loading tapes and snapshots |
+| GPU-scaled display, portrait and landscape | Save states |
+| AAudio output, pacing emulation at 50.3 fps | On-screen joystick |
+| On-screen Spectrum keyboard (multi-touch) | Debugger front end |
+| Hardware keyboard input | armeabi-v7a (add to `ABIS`/`abiFilters`) |
+| Fuse's widget dialogs, menus and debugger UI | |
+| Background / resume without losing the surface | |
+
+Pentagon and Scorpion need ROMs that are not redistributable and so are not
+bundled. Selecting one falls back to 48K, which the app reports rather than
+silently accepting - the machine it remembers is whatever actually ended up
+running.
+
+**Known wart:** the launcher icon is still SDL's, inherited from its sample
+project before SDL was removed. It needs replacing.
 
 Hardware keys work as they do on the desktop — e.g. Shift+6 / Shift+7 are Caps
 Shift + 6/7, the Spectrum's cursor down/up. Note that `adb shell input
@@ -107,6 +117,11 @@ follows upstream instead of drifting from it.
 - **`aaudiosound.c`** writes to AAudio and *blocks*, deliberately: that is what
   paces the emulator. Audio is the clock, not vsync and not a wall timer.
 
+The machine switcher is the first feature built on the queue rather than on
+key events: the Android dialog queues an index, the emulation thread calls
+`machine_select()`, and the machine list itself is snapshotted from Fuse's
+`machine_types` on the emulation thread for the UI thread to read back.
+
 ### Data files and environment
 
 Fuse resolves ROMs and its widget font against the compile-time `FUSEDATADIR`,
@@ -135,4 +150,5 @@ Fixed without touching Fuse by forcing a consistent value:
 2. **Files and state** — SAF file picker for `.tap`/`.tzx`/`.z80`, save/load
    states via libspectrum, driven through the command queue.
 3. **Native menus** replacing the widget dialogs, and an on-screen joystick.
+   An app icon that is not SDL's would be good too.
 4. **Debugger** front end over Fuse's `debugger/` API.

@@ -31,7 +31,7 @@ ui_init( int *argc, char ***argv )
 int
 ui_event( void )
 {
-  androidbridge_pump_input();
+  androidbridge_pump_commands();
   return 0;
 }
 

@@ -45,7 +45,9 @@ void androidgl_end( void );
    Called from uidisplay_frame_end(). */
 void androidbridge_present( const void *pixels, int width, int height );
 
-/* Drain queued input onto the emulation thread. Called from ui_event(). */
-void androidbridge_pump_input( void );
+/* Drain queued UI commands - keys, machine changes - onto the emulation
+   thread, and refresh the state the UI thread reads back. Called from
+   ui_event(). */
+void androidbridge_pump_commands( void );
 
 #endif				/* #ifndef FUSE_ANDROID_INTERNALS_H */

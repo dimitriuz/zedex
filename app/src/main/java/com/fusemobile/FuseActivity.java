@@ -1,6 +1,9 @@
 package com.fusemobile;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.system.ErrnoException;
 import android.system.Os;
@@ -10,7 +13,10 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
+import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.Toast;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -33,11 +39,23 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
     /** Assets subdirectory unpacked into {@code getFilesDir()/fuse}. */
     private static final String DATA_DIR = "fuse";
 
+    private static final String PREFS = "fuse";
+
+    /** Fuse's short id for the machine to boot, e.g. "48" or "128". */
+    private static final String PREF_MACHINE = "machine";
+    private static final String DEFAULT_MACHINE = "128";
+
+    /** How long to give the emulation thread to act on a machine change. */
+    private static final long MACHINE_SETTLE_MS = 500;
+
+    private SharedPreferences preferences;
     private boolean started;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        preferences = getSharedPreferences(PREFS, MODE_PRIVATE);
 
         File files = getFilesDir();
         try {
@@ -63,10 +81,16 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
         SurfaceView view = new SurfaceView(this);
         view.getHolder().addCallback(this);
 
+        FrameLayout screen = new FrameLayout(this);
+        screen.addView(view, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT));
+        screen.addView(buildMenuButton());
+
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setBackgroundColor(0xff000000);
-        layout.addView(view, new LinearLayout.LayoutParams(
+        layout.addView(screen, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
         layout.addView(new SpectrumKeyboardView(this),
                 new LinearLayout.LayoutParams(
@@ -94,6 +118,74 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
         }
     }
 
+    // --- menu -----------------------------------------------------------
+
+    private Button buildMenuButton() {
+        Button button = new Button(this);
+        button.setText("\u2630");
+        button.setTextColor(Color.WHITE);
+        button.setBackgroundColor(0x66000000);
+        button.setOnClickListener(v -> showMachineDialog());
+
+        int size = Math.round(48 * getResources().getDisplayMetrics().density);
+        int margin = size / 4;
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(size, size);
+        params.gravity = android.view.Gravity.TOP | android.view.Gravity.END;
+        params.setMargins(margin, margin, margin, margin);
+        button.setLayoutParams(params);
+
+        return button;
+    }
+
+    private void showMachineDialog() {
+        String[] names = FuseNative.machineNames();
+        if (names.length == 0) return;   // Fuse has not finished starting
+
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(R.string.machine_title)
+                .setSingleChoiceItems(names, FuseNative.currentMachine(),
+                        (dialog, which) -> {
+                            selectMachine(which);
+                            dialog.dismiss();
+                        })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void selectMachine(int index) {
+        String[] names = FuseNative.machineNames();
+
+        FuseNative.selectMachine(index);
+
+        // The change happens on the emulation thread, and it can fail: Fuse
+        // falls back to 48K when a machine's ROMs are missing (Pentagon and
+        // Scorpion need ROMs that are not redistributable). Check what
+        // actually ended up running rather than assuming we got it.
+        getWindow().getDecorView().postDelayed(() -> {
+            if (FuseNative.currentMachine() != index && index < names.length) {
+                Toast.makeText(this, getString(R.string.machine_unavailable,
+                        names[index]), Toast.LENGTH_LONG).show();
+            }
+            rememberMachine();
+        }, MACHINE_SETTLE_MS);
+    }
+
+    /** Persists whichever machine is really running, for the next launch. */
+    private void rememberMachine() {
+        int current = FuseNative.currentMachine();
+        String[] ids = FuseNative.machineIds();
+
+        if (current >= 0 && current < ids.length) {
+            preferences.edit().putString(PREF_MACHINE, ids[current]).apply();
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        rememberMachine();
+    }
+
     // --- surface lifecycle ---------------------------------------------
 
     @Override
@@ -110,7 +202,7 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
             started = true;
             FuseNative.start(new String[] {
                 "fuse",
-                "--machine", "128",
+                "--machine", preferences.getString(PREF_MACHINE, DEFAULT_MACHINE),
             });
         }
     }

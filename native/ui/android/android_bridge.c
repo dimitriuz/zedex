@@ -24,6 +24,7 @@
 #include "android_internals.h"
 #include "input.h"
 #include "keyboard.h"
+#include "machine.h"
 
 /* --- window handover -------------------------------------------------- */
 
@@ -64,67 +65,149 @@ androidbridge_present( const void *pixels, int width, int height )
   pthread_mutex_unlock( &window_mutex );
 }
 
-/* --- input queue ------------------------------------------------------ */
+/* --- command queue ---------------------------------------------------- */
 
-#define INPUT_QUEUE_SIZE 256
+#define COMMAND_QUEUE_SIZE 256
 
-typedef struct queued_key {
-  int keycode;				/* Android keycode */
-  int pressed;
-} queued_key;
+typedef enum command_type {
+  COMMAND_KEY,				/* a: keycode, b: pressed */
+  COMMAND_SELECT_MACHINE,		/* a: index into machine_types */
+} command_type;
 
-static pthread_mutex_t input_mutex = PTHREAD_MUTEX_INITIALIZER;
-static queued_key input_queue[ INPUT_QUEUE_SIZE ];
-static size_t input_head, input_tail;
+typedef struct queued_command {
+  command_type type;
+  int a, b;
+} queued_command;
+
+static pthread_mutex_t command_mutex = PTHREAD_MUTEX_INITIALIZER;
+static queued_command command_queue[ COMMAND_QUEUE_SIZE ];
+static size_t command_head, command_tail;
 
 static void
-queue_key( int keycode, int pressed )
+queue_command( command_type type, int a, int b )
 {
   size_t next;
 
-  pthread_mutex_lock( &input_mutex );
+  pthread_mutex_lock( &command_mutex );
 
-  next = ( input_tail + 1 ) % INPUT_QUEUE_SIZE;
-  if( next == input_head ) {
+  next = ( command_tail + 1 ) % COMMAND_QUEUE_SIZE;
+  if( next == command_head ) {
     /* Full: the emulation thread has stalled. Dropping is better than
        blocking the UI thread. */
-    android_logw( "input queue overflow, dropping keycode %d", keycode );
+    android_logw( "command queue overflow, dropping type %d", type );
   } else {
-    input_queue[ input_tail ].keycode = keycode;
-    input_queue[ input_tail ].pressed = pressed;
-    input_tail = next;
+    command_queue[ command_tail ].type = type;
+    command_queue[ command_tail ].a = a;
+    command_queue[ command_tail ].b = b;
+    command_tail = next;
   }
 
-  pthread_mutex_unlock( &input_mutex );
+  pthread_mutex_unlock( &command_mutex );
+}
+
+static void
+run_key( int keycode, int pressed )
+{
+  input_event_t fuse_event;
+  input_key fuse_key = keysyms_remap( keycode );
+
+  if( fuse_key == INPUT_KEY_NONE ) return;
+
+  fuse_event.type = pressed ? INPUT_EVENT_KEYPRESS : INPUT_EVENT_KEYRELEASE;
+  fuse_event.types.key.native_key = fuse_key;
+  fuse_event.types.key.spectrum_key = fuse_key;
+
+  input_event( &fuse_event );
+}
+
+/* --- machines --------------------------------------------------------- */
+
+#define MAX_MACHINES 32
+
+typedef struct machine_entry {
+  char id[ 32 ];			/* Fuse's command line id, e.g. "128" */
+  char name[ 64 ];			/* human readable */
+} machine_entry;
+
+static pthread_mutex_t machine_mutex = PTHREAD_MUTEX_INITIALIZER;
+static machine_entry machine_list[ MAX_MACHINES ];
+static int machine_list_count;
+static int machine_list_current = -1;
+
+/* Fuse's machine table is built during initialisation and never changes
+   afterwards, so it is snapshotted once, on the emulation thread, for the UI
+   thread to read. The current machine is refreshed every pump because Fuse
+   can change it without us asking - falling back to 48K when a machine's
+   ROMs are missing, for instance. */
+static void
+publish_machines( void )
+{
+  int i;
+
+  pthread_mutex_lock( &machine_mutex );
+
+  if( !machine_list_count && machine_count ) {
+    machine_list_count = machine_count < MAX_MACHINES ? machine_count
+                                                      : MAX_MACHINES;
+    for( i = 0; i < machine_list_count; i++ ) {
+      const char *id = machine_types[i]->id;
+      const char *name = libspectrum_machine_name( machine_types[i]->machine );
+
+      snprintf( machine_list[i].id, sizeof( machine_list[i].id ), "%s",
+                id ? id : "" );
+      snprintf( machine_list[i].name, sizeof( machine_list[i].name ), "%s",
+                name ? name : "?" );
+    }
+  }
+
+  machine_list_current = -1;
+  if( machine_current ) {
+    for( i = 0; i < machine_list_count; i++ ) {
+      if( machine_types[i]->machine == machine_current->machine ) {
+        machine_list_current = i;
+        break;
+      }
+    }
+  }
+
+  pthread_mutex_unlock( &machine_mutex );
+}
+
+static void
+run_select_machine( int index )
+{
+  if( index < 0 || index >= machine_count ) return;
+
+  android_log( "selecting machine %s", machine_types[ index ]->id );
+  machine_select( machine_types[ index ]->machine );
 }
 
 void
-androidbridge_pump_input( void )
+androidbridge_pump_commands( void )
 {
   for(;;) {
-    queued_key event;
-    input_event_t fuse_event;
-    input_key fuse_key;
+    queued_command command;
 
-    pthread_mutex_lock( &input_mutex );
-    if( input_head == input_tail ) {
-      pthread_mutex_unlock( &input_mutex );
-      return;
+    pthread_mutex_lock( &command_mutex );
+    if( command_head == command_tail ) {
+      pthread_mutex_unlock( &command_mutex );
+      break;
     }
-    event = input_queue[ input_head ];
-    input_head = ( input_head + 1 ) % INPUT_QUEUE_SIZE;
-    pthread_mutex_unlock( &input_mutex );
+    command = command_queue[ command_head ];
+    command_head = ( command_head + 1 ) % COMMAND_QUEUE_SIZE;
+    pthread_mutex_unlock( &command_mutex );
 
-    fuse_key = keysyms_remap( event.keycode );
-    if( fuse_key == INPUT_KEY_NONE ) continue;
-
-    fuse_event.type = event.pressed ? INPUT_EVENT_KEYPRESS
-                                    : INPUT_EVENT_KEYRELEASE;
-    fuse_event.types.key.native_key = fuse_key;
-    fuse_event.types.key.spectrum_key = fuse_key;
-
-    input_event( &fuse_event );
+    switch( command.type ) {
+    case COMMAND_KEY:
+      run_key( command.a, command.b );
+      break;
+    case COMMAND_SELECT_MACHINE:
+      run_select_machine( command.a );
+      break;
+    }
   }
+
+  publish_machines();
 }
 
 /* --- emulation thread ------------------------------------------------- */
@@ -233,5 +316,61 @@ JNIEXPORT void JNICALL
 Java_com_fusemobile_FuseNative_key( JNIEnv *env, jclass class, jint keycode,
                                     jboolean pressed )
 {
-  queue_key( keycode, pressed ? 1 : 0 );
+  queue_command( COMMAND_KEY, keycode, pressed ? 1 : 0 );
+}
+
+/* Builds a String[] from the machine snapshot; `names' picks which column. */
+static jobjectArray
+machine_strings( JNIEnv *env, int names )
+{
+  jobjectArray result;
+  int i, count;
+
+  pthread_mutex_lock( &machine_mutex );
+  count = machine_list_count;
+
+  result = (*env)->NewObjectArray( env, count,
+             (*env)->FindClass( env, "java/lang/String" ), NULL );
+
+  for( i = 0; result && i < count; i++ ) {
+    jstring value = (*env)->NewStringUTF( env, names ? machine_list[i].name
+                                                     : machine_list[i].id );
+    (*env)->SetObjectArrayElement( env, result, i, value );
+    (*env)->DeleteLocalRef( env, value );
+  }
+
+  pthread_mutex_unlock( &machine_mutex );
+
+  return result;
+}
+
+JNIEXPORT jobjectArray JNICALL
+Java_com_fusemobile_FuseNative_machineNames( JNIEnv *env, jclass class )
+{
+  return machine_strings( env, 1 );
+}
+
+JNIEXPORT jobjectArray JNICALL
+Java_com_fusemobile_FuseNative_machineIds( JNIEnv *env, jclass class )
+{
+  return machine_strings( env, 0 );
+}
+
+JNIEXPORT jint JNICALL
+Java_com_fusemobile_FuseNative_currentMachine( JNIEnv *env, jclass class )
+{
+  jint current;
+
+  pthread_mutex_lock( &machine_mutex );
+  current = machine_list_current;
+  pthread_mutex_unlock( &machine_mutex );
+
+  return current;
+}
+
+JNIEXPORT void JNICALL
+Java_com_fusemobile_FuseNative_selectMachine( JNIEnv *env, jclass class,
+                                              jint index )
+{
+  queue_command( COMMAND_SELECT_MACHINE, index, 0 );
 }

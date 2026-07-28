@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Fuse Spectrum</string>
+    <string name="machine_title">Machine</string>
+    <string name="machine_unavailable">%1$s needs ROM files that are not bundled</string>
 </resources>
