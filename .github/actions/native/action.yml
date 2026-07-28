@@ -1,0 +1,67 @@
+name: Build the native core
+description: >
+  Cross-compiles libspectrum and Fuse with scripts/build-native.sh and leaves
+  libfuse.so in app/src/main/jniLibs, ready for Gradle to package.
+
+inputs:
+  abis:
+    description: Space-separated ABI list, as the script's ABIS variable
+    required: false
+    default: arm64-v8a x86_64
+
+runs:
+  using: composite
+  steps:
+    # The tarballs ship a generated configure, so autoconf itself is not
+    # needed. Everything else is already on the runner image; check rather
+    # than pay for an apt-get update on every build.
+    - name: Host build tools
+      shell: bash
+      run: |
+        missing=
+        for tool in make perl pkg-config gcc curl tar sha256sum; do
+          command -v "$tool" >/dev/null || missing="$missing $tool"
+        done
+        if [ -n "$missing" ]; then
+          echo "installing:$missing"
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends $missing
+        else
+          echo "all present"
+        fi
+
+    # Pinned, not "whatever the image ships": the script picks the highest
+    # installed NDK, so an image update would silently change compilers.
+    - name: NDK 27.0.12077973
+      shell: bash
+      run: |
+        ndk="$ANDROID_HOME/ndk/27.0.12077973"
+        if [ ! -d "$ndk" ]; then
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+              'ndk;27.0.12077973' > /dev/null
+        fi
+        echo "ANDROID_NDK_HOME=$ndk" >> "$GITHUB_ENV"
+
+    # ~13 MB from SourceForge, whose mirrors are not always quick. The script
+    # verifies the SHA-256 either way, so a poisoned cache cannot get through.
+    - name: Cache the upstream tarballs
+      uses: actions/cache@v4
+      with:
+        path: vendor/*.tar.gz
+        key: vendor-fuse-1.9.0-libspectrum-1.6.2
+
+    # Restoring these skips the libspectrum and Fuse compiles, which is most
+    # of the ~90s. Safe: the script always recompiles native/ and relinks, so
+    # our own changes still land. Keyed on the script, since that is what
+    # decides how the trees are configured.
+    - name: Cache the native build trees
+      uses: actions/cache@v4
+      with:
+        path: build-native
+        key: native-ndk27.0.12077973-${{ hashFiles('scripts/build-native.sh') }}-${{ inputs.abis }}
+
+    - name: Cross-compile
+      shell: bash
+      env:
+        ABIS: ${{ inputs.abis }}
+      run: scripts/build-native.sh

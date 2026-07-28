@@ -2,6 +2,18 @@ plugins {
     id 'com.android.application'
 }
 
+// Release signing comes from the environment, never from a file in the repo.
+// Unset - the normal case locally - leaves the release build unsigned and the
+// debug build signed with your own debug key, exactly as before. CI sets these
+// from repository secrets; see the Releases section of the README.
+def keystorePath = System.getenv('ZEDEX_KEYSTORE')
+
+// A tag drives these in CI; both default to what they always were. Computed
+// out here because `versionCode (x) as int` inside the block would parse as a
+// cast of the setter's own void return.
+def zedexVersionCode = (project.findProperty('zedexVersionCode') ?: '1') as int
+def zedexVersionName = project.findProperty('zedexVersionName') ?: '1.0'
+
 android {
     namespace 'dev.ldlab.zedex'
     compileSdk 34
@@ -10,8 +22,8 @@ android {
         applicationId 'dev.ldlab.zedex'   // must match DATA_ROOT in scripts/build-native.sh
         minSdk 30                        // Android 11
         targetSdk 34
-        versionCode 1
-        versionName '1.0'
+        versionCode zedexVersionCode
+        versionName zedexVersionName
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         ndk {
             // Prebuilt by scripts/build-native.sh into src/main/jniLibs
@@ -19,9 +31,21 @@ android {
         }
     }
 
+    signingConfigs {
+        if (keystorePath) {
+            release {
+                storeFile file(keystorePath)
+                storePassword System.getenv('ZEDEX_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('ZEDEX_KEY_ALIAS')
+                keyPassword System.getenv('ZEDEX_KEY_PASSWORD')
+            }
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
+            if (keystorePath) signingConfig signingConfigs.release
         }
     }
 

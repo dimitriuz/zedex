@@ -1,0 +1,49 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A newer push to the same branch makes an in-flight build pointless.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  debug-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - uses: ./.github/actions/native
+
+      - name: Assemble
+        run: ./gradlew --no-daemon assembleDebug
+
+      # Cheap guard against the mistake CLAUDE.md warns about: an APK that
+      # packages a stale or missing library. Both ABIs must be in there.
+      - name: Check both ABIs are packaged
+        run: |
+          apk=app/build/outputs/apk/debug/app-debug.apk
+          for abi in arm64-v8a x86_64; do
+            unzip -l "$apk" | grep -q "lib/$abi/libfuse.so" \
+              || { echo "::error::$abi/libfuse.so missing from the APK"; exit 1; }
+          done
+          unzip -l "$apk" | grep -q 'assets/fuse/fuse.font' \
+            || { echo "::error::fuse.font missing from the APK"; exit 1; }
+          echo "both ABIs and the widget font are present"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zedex-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

@@ -315,6 +315,46 @@ adb shell am start -a android.intent.action.VIEW \
     -n dev.ldlab.zedex/.EmulatorActivity
 ```
 
+### Releases
+
+CI does the same two steps in the same order. `.github/workflows/build.yml`
+builds a debug APK on every push and pull request;
+`.github/workflows/release.yml` builds, signs and publishes on a tag. Both
+share `.github/actions/native`, which pins **NDK 27.0.12077973** — the script
+picks the highest NDK installed, so without a pin a runner image update would
+quietly change compilers — and caches the tarballs and the native build trees.
+The cache is keyed on `build-native.sh`; restoring it is safe because the
+script recompiles `native/` and relinks every time, so a change there always
+lands.
+
+Tagging `v1.2.3` produces `versionName 1.2.3` and `versionCode 10203`
+(`major*10000 + minor*100 + patch`, so no component may exceed 99). The APK is
+published as a **draft** release with its SHA-256, to be installed and checked
+before anyone else sees it. Drop `--draft` from the workflow to publish
+straight from the tag.
+
+Signing needs four repository secrets. The keystore never enters the repo, and
+losing it means no future release can upgrade an installed app, so back it up
+somewhere durable:
+
+```sh
+keytool -genkeypair -v -keystore zedex-release.jks -alias zedex \
+        -keyalg RSA -keysize 4096 -validity 10000
+
+base64 -w0 zedex-release.jks | gh secret set ZEDEX_KEYSTORE_BASE64
+gh secret set ZEDEX_KEYSTORE_PASSWORD
+gh secret set ZEDEX_KEY_ALIAS        # zedex
+gh secret set ZEDEX_KEY_PASSWORD
+```
+
+The release job checks all four are present and opens the keystore before it
+starts the nine-minute build, so a mis-pasted secret fails in seconds.
+
+Locally the same variables — `ZEDEX_KEYSTORE` pointing at the file, plus
+`ZEDEX_KEYSTORE_PASSWORD`, `ZEDEX_KEY_ALIAS`, `ZEDEX_KEY_PASSWORD` — make
+`assembleRelease` produce a signed `app-release.apk`. With none of them set it
+produces `app-release-unsigned.apk`, which is the normal case.
+
 ## Tests
 
 `app/src/androidTest` — UI Automator, run on a connected device:
