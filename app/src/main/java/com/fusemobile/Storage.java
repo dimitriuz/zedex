@@ -40,6 +40,49 @@ final class Storage {
     private Storage() {
     }
 
+    /** Whether a folder anywhere on storage can be used. */
+    static boolean canUseAnyFolder() {
+        return Environment.isExternalStorageManager();
+    }
+
+    /**
+     * The real path behind a document tree, or null if there is not one.
+     *
+     * Tree ids look like {@code primary:Games/Spectrum} or
+     * {@code 0000-0000:Spectrum}: a volume and a path within it.
+     */
+    static File pathFor(Uri tree) {
+        try {
+            String id = DocumentsContract.getTreeDocumentId(tree);
+            String[] parts = id.split(":", 2);
+            String relative = parts.length > 1 ? parts[1] : "";
+
+            File volume = "primary".equalsIgnoreCase(parts[0])
+                    ? Environment.getExternalStorageDirectory()
+                    : new File("/storage/" + parts[0]);
+
+            return relative.isEmpty() ? volume : new File(volume, relative);
+        } catch (Exception e) {
+            Log.w(TAG, "no path behind " + tree, e);
+            return null;
+        }
+    }
+
+    /** Proves a folder is really writable rather than merely plausible. */
+    static boolean isWritable(File directory) {
+        if (!directory.isDirectory() && !directory.mkdirs()) return false;
+
+        File probe = new File(directory, ".fusemobile");
+        try {
+            if (!probe.createNewFile() && !probe.exists()) return false;
+            probe.delete();
+            return true;
+        } catch (java.io.IOException | SecurityException e) {
+            Log.w(TAG, "cannot write to " + directory, e);
+            return false;
+        }
+    }
+
     /** Directories the app can write to without holding any permission. */
     static List<File> roots(Context context) {
         List<File> roots = new ArrayList<>();
@@ -75,7 +118,7 @@ final class Storage {
             Log.w(TAG, "folder " + chosen + " is gone; using internal storage");
         }
 
-        return new File(chosenRoot(context), STATES);
+        return new File(root(context), STATES);
     }
 
     /**
@@ -83,7 +126,7 @@ final class Storage {
      * fill; it is created empty so there is somewhere obvious to put them.
      */
     static File romsDirectory(Context context) {
-        return new File(chosenRoot(context), ROMS);
+        return new File(root(context), ROMS);
     }
 
     static boolean haveRoms(Context context) {
@@ -96,7 +139,8 @@ final class Storage {
         return false;
     }
 
-    private static File chosenRoot(Context context) {
+    /** The folder holding {@code roms} and {@code states}. */
+    static File root(Context context) {
         SharedPreferences preferences =
                 context.getSharedPreferences(SettingsActivity.PREFS, Context.MODE_PRIVATE);
 
@@ -116,10 +160,10 @@ final class Storage {
     }
 
     /**
-     * Moves save states to a new root. Small files, and only when the setting
+     * Moves a folder's contents. Small files, and only when the data folder
      * changes, so this is done in place rather than in the background.
      */
-    static void moveStates(Context context, File from, File to) {
+    static void move(Context context, File from, File to) {
         File[] files = from.listFiles();
         if (files == null || files.length == 0) return;
 

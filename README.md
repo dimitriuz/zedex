@@ -57,11 +57,16 @@ to latch it** (it turns amber) until you tap it again. That is how you get
 BREAK — Caps Shift and Space. A physical keyboard works too, exactly as it
 does on the desktop.
 
-**Folders** are yours to choose, in settings. *Save states folder* picks
-which of the writable roots this device offers — internal storage, shared
-storage, an SD card — holds the `states` and `roms` folders, and moves what
-is already there when it changes. *Content folder* is where **Open file…**
-starts, granted through the document picker.
+**Folders** are yours to choose, in settings. *Data folder* holds `roms` and
+`states`: pick one of the roots the device offers — internal storage, shared
+storage, an SD card — or *Choose folder…* for anywhere at all, which needs
+Android's **All files access**. Whatever is already saved moves with it.
+*Content folder* is where **Open file…** starts, granted through the document
+picker.
+
+Two things Android will not allow as a chosen folder: the root of shared
+storage, and `Download`. The picker refuses both and says so; make a subfolder
+instead — it has a button for exactly that.
 
 **The ☰ button** opens:
 

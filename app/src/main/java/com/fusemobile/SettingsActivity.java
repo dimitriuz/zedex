@@ -1,9 +1,12 @@
 package com.fusemobile;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
+import android.provider.Settings;
 import android.preference.ListPreference;
 import android.preference.Preference;
 import android.preference.PreferenceFragment;
@@ -42,6 +45,7 @@ public class SettingsActivity extends Activity {
     static final String KEY_SNAPSHOT_FORMAT = "snapshotFormat";
 
     private static final int REQUEST_CONTENT_TREE = 2;
+    private static final int REQUEST_DATA_TREE = 3;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,8 +67,15 @@ public class SettingsActivity extends Activity {
             addPreferencesFromResource(R.xml.settings);
 
             populateMachines();
-            populateRoots();
             updateSummaries();
+
+            Preference folder = findPreference(Storage.KEY_STATES_ROOT);
+            if (folder != null) {
+                folder.setOnPreferenceClickListener(preference -> {
+                    chooseDataFolder();
+                    return true;
+                });
+            }
 
             Preference content = findPreference(Storage.KEY_CONTENT_TREE);
             if (content != null) {
@@ -76,26 +87,77 @@ public class SettingsActivity extends Activity {
         }
 
         /**
-         * The list of places save states can go is whatever this device
-         * offers, so it is built here rather than in the XML.
+         * The folders this device offers without a permission, plus anywhere
+         * at all if the user is willing to grant one.
          */
-        private void populateRoots() {
-            ListPreference preference =
-                    (ListPreference) findPreference(Storage.KEY_STATES_ROOT);
-            if (preference == null) return;
-
+        private void chooseDataFolder() {
             List<File> roots = Storage.roots(getActivity());
-            String[] labels = new String[roots.size()];
-            String[] paths = new String[roots.size()];
+            String[] items = new String[roots.size() + 1];
 
             for (int i = 0; i < roots.size(); i++) {
-                labels[i] = Storage.label(getActivity(), roots.get(i));
-                paths[i] = roots.get(i).getAbsolutePath();
+                items[i] = Storage.label(getActivity(), roots.get(i))
+                        + "\n" + roots.get(i).getAbsolutePath();
+            }
+            items[roots.size()] = getString(R.string.settings_choose_folder);
+
+            new AlertDialog.Builder(getActivity(),
+                    android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                    .setTitle(R.string.settings_data_folder)
+                    .setItems(items, (dialog, which) -> {
+                        if (which < roots.size()) {
+                            useFolder(roots.get(which));
+                        } else {
+                            chooseAnyFolder();
+                        }
+                    })
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show();
+        }
+
+        /**
+         * A folder outside the app's own directories is only reachable by
+         * path with All files access - a document tree grant hands back a
+         * content:// URI, which Fuse's stdio cannot open.
+         */
+        private void chooseAnyFolder() {
+            if (!Storage.canUseAnyFolder()) {
+                new AlertDialog.Builder(getActivity(),
+                        android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                        .setMessage(R.string.settings_all_files)
+                        .setPositiveButton(R.string.settings_grant, (dialog, which) -> {
+                            Intent intent = new Intent(
+                                    Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                                    Uri.parse("package:" + getActivity().getPackageName()));
+                            startActivity(intent);
+                        })
+                        .setNegativeButton(android.R.string.cancel, null)
+                        .show();
+                return;
             }
 
-            preference.setEntries(labels);
-            preference.setEntryValues(paths);
-            if (preference.getValue() == null) preference.setValue(paths[0]);
+            startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE),
+                    REQUEST_DATA_TREE);
+        }
+
+        private void useFolder(File folder) {
+            if (!Storage.isWritable(folder)) {
+                Toast.makeText(getActivity(), R.string.settings_folder_unusable,
+                        Toast.LENGTH_LONG).show();
+                return;
+            }
+
+            File previous = Storage.root(getActivity());
+            if (previous.equals(folder)) return;
+
+            getPreferenceManager().getSharedPreferences().edit()
+                    .putString(Storage.KEY_STATES_ROOT, folder.getAbsolutePath())
+                    .apply();
+
+            // Not left to the preference listener: choosing through the
+            // picker means this activity was paused, and onPause unregisters
+            // it, so the change would arrive with nobody listening.
+            moveData(previous);
+            updateSummaries();
         }
 
         private void pickContentFolder() {
@@ -112,12 +174,26 @@ public class SettingsActivity extends Activity {
         public void onActivityResult(int request, int result, Intent data) {
             super.onActivityResult(request, result, data);
 
-            if (request != REQUEST_CONTENT_TREE || result != Activity.RESULT_OK
-                    || data == null || data.getData() == null) {
+            if (result != Activity.RESULT_OK || data == null || data.getData() == null) {
                 return;
             }
 
             Uri tree = data.getData();
+
+            if (request == REQUEST_DATA_TREE) {
+                File folder = Storage.pathFor(tree);
+
+                if (folder == null || !Storage.isWritable(folder)) {
+                    Toast.makeText(getActivity(), R.string.settings_folder_unusable,
+                            Toast.LENGTH_LONG).show();
+                    return;
+                }
+
+                useFolder(folder);
+                return;
+            }
+
+            if (request != REQUEST_CONTENT_TREE) return;
 
             // Without this the grant dies with the activity.
             getActivity().getContentResolver().takePersistableUriPermission(
@@ -196,9 +272,6 @@ public class SettingsActivity extends Activity {
                 case KEY_BEEPER_VOLUME:
                     FuseNative.setBeeperVolume(number(preferences, key, 100));
                     break;
-                case Storage.KEY_STATES_ROOT:
-                    moveData();
-                    break;
                 default:
                     // The machine and keep-screen-on are read where they are
                     // needed rather than pushed.
@@ -206,12 +279,14 @@ public class SettingsActivity extends Activity {
             }
         }
 
-        /** Follows the setting with the files themselves. */
-        private void moveData() {
+        /** Takes the files along, from wherever they were. */
+        private void moveData(File previous) {
             Storage.createFolders(getActivity());
 
-            move("states", Storage.statesDirectory(getActivity()));
-            move("roms", Storage.romsDirectory(getActivity()));
+            Storage.move(getActivity(), new File(previous, "states"),
+                         Storage.statesDirectory(getActivity()));
+            Storage.move(getActivity(), new File(previous, "roms"),
+                         Storage.romsDirectory(getActivity()));
 
             // chdir is process wide and immediate, so the running emulator
             // finds ROMs in the new place too - no restart needed.
@@ -220,15 +295,6 @@ public class SettingsActivity extends Activity {
 
             Toast.makeText(getActivity(), R.string.settings_states_moved,
                     Toast.LENGTH_SHORT).show();
-        }
-
-        private void move(String folder, File to) {
-            for (File root : Storage.roots(getActivity())) {
-                File from = new File(root, folder);
-                if (from.equals(to) || !from.isDirectory()) continue;
-
-                Storage.moveStates(getActivity(), from, to);
-            }
         }
 
         /** ListPreference stores numbers as strings. */
@@ -242,10 +308,9 @@ public class SettingsActivity extends Activity {
         }
 
         private void updateSummaries() {
-            Preference states = findPreference(Storage.KEY_STATES_ROOT);
-            if (states != null) {
-                states.setSummary(
-                        Storage.statesDirectory(getActivity()).getAbsolutePath());
+            Preference folder = findPreference(Storage.KEY_STATES_ROOT);
+            if (folder != null) {
+                folder.setSummary(Storage.root(getActivity()).getAbsolutePath());
             }
 
             Preference content = findPreference(Storage.KEY_CONTENT_TREE);

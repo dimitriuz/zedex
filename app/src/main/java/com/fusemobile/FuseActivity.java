@@ -737,12 +737,23 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
         FuseNative.start(startArguments());
     }
 
+    /** Where a set of ROMs under the names Fuse expects can be found. */
+    private static final String ROMS_URL =
+            "https://archive.org/details/zx-roms-fuse-roms";
+
     private void askForRoms() {
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setTitle(R.string.roms_needed)
                 .setMessage(getString(R.string.roms_needed_message,
-                        Storage.romsDirectory(this).getAbsolutePath()))
+                        Storage.romsDirectory(this).getAbsolutePath(), ROMS_URL))
                 .setPositiveButton(R.string.roms_import, (dialog, which) -> importRoms())
+                .setNeutralButton(R.string.roms_where, (dialog, which) -> {
+                    try {
+                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(ROMS_URL)));
+                    } catch (android.content.ActivityNotFoundException e) {
+                        Log.w(TAG, "no browser to open " + ROMS_URL, e);
+                    }
+                })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
     }

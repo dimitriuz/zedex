@@ -15,10 +15,10 @@
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/settings_storage">
-        <ListPreference
+        <Preference
             android:key="statesRoot"
-            android:title="@string/settings_states_root"
-            android:summary="@string/settings_states_root_summary" />
+            android:title="@string/settings_data_folder"
+            android:summary="@string/settings_data_folder_summary" />
         <Preference
             android:key="contentTree"
             android:title="@string/settings_content_folder"
