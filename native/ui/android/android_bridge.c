@@ -87,6 +87,7 @@ typedef enum command_type {
   COMMAND_SET_OPTION,			/* a: option, b: value */
   COMMAND_SAVE_SNAPSHOT,		/* text: path to write */
   COMMAND_LOAD_SNAPSHOT,		/* text: path to read */
+  COMMAND_SAVE_THUMBNAIL,		/* text: path to write */
 } command_type;
 
 /* Options the Android UI can set. Values are integers; booleans are 0 or 1. */
@@ -371,6 +372,9 @@ androidbridge_pump_commands( void )
       android_log( "loading snapshot %s", command.text ? command.text : "" );
       if( command.text ) snapshot_read( command.text );
       break;
+    case COMMAND_SAVE_THUMBNAIL:
+      if( command.text ) androiddisplay_write_thumbnail( command.text );
+      break;
     }
 
     free( command.text );
@@ -621,6 +625,18 @@ Java_com_fusemobile_FuseNative_saveSnapshot( JNIEnv *env, jclass class,
 
   if( utf ) {
     queue_command_text( COMMAND_SAVE_SNAPSHOT, 0, 0, strdup( utf ) );
+    (*env)->ReleaseStringUTFChars( env, path, utf );
+  }
+}
+
+JNIEXPORT void JNICALL
+Java_com_fusemobile_FuseNative_saveThumbnail( JNIEnv *env, jclass class,
+                                              jstring path )
+{
+  const char *utf = (*env)->GetStringUTFChars( env, path, NULL );
+
+  if( utf ) {
+    queue_command_text( COMMAND_SAVE_THUMBNAIL, 0, 0, strdup( utf ) );
     (*env)->ReleaseStringUTFChars( env, path, utf );
   }
 }

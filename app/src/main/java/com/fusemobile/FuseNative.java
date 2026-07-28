@@ -83,6 +83,12 @@ final class FuseNative {
     static native void loadSnapshot(String path);
 
     /**
+     * Writes the last frame at half size: two little endian 32-bit integers
+     * of width and height, then RGBA rows.
+     */
+    static native void saveThumbnail(String path);
+
+    /**
      * Queues a file for Fuse to open. Fuse identifies it itself, so this takes
      * snapshots, tapes, disks, cartridges, microdrive images and RZX
      * recordings alike. Must be a real filesystem path, not a content URI.

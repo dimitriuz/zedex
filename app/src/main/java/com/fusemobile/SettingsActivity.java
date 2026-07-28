@@ -33,6 +33,7 @@ public class SettingsActivity extends Activity {
     static final String KEY_AY_VOLUME = "volumeAy";
     static final String KEY_BEEPER_VOLUME = "volumeBeeper";
     static final String KEY_KEEP_SCREEN_ON = "keepScreenOn";
+    static final String KEY_SNAPSHOT_FORMAT = "snapshotFormat";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -143,7 +144,7 @@ public class SettingsActivity extends Activity {
         }
 
         private void updateSummaries() {
-            for (String key : new String[] { KEY_MACHINE, KEY_SPEED,
+            for (String key : new String[] { KEY_MACHINE, KEY_SPEED, KEY_SNAPSHOT_FORMAT,
                                              KEY_AY_VOLUME, KEY_BEEPER_VOLUME }) {
                 Preference preference = findPreference(key);
                 if (preference instanceof ListPreference) {

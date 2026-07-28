@@ -14,6 +14,15 @@
             android:defaultValue="false" />
     </PreferenceCategory>
 
+    <PreferenceCategory android:title="@string/settings_states">
+        <ListPreference
+            android:key="snapshotFormat"
+            android:title="@string/settings_snapshot_format"
+            android:entries="@array/format_names"
+            android:entryValues="@array/format_values"
+            android:defaultValue="szx" />
+    </PreferenceCategory>
+
     <PreferenceCategory android:title="@string/settings_tape">
         <SwitchPreference
             android:key="fastTape"

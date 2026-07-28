@@ -24,6 +24,9 @@
 int androiddisplay_init( void );
 int androiddisplay_end( void );
 
+/* Half-size RGBA dump of the last frame, for the save state list. */
+int androiddisplay_write_thumbnail( const char *path );
+
 /* --- renderer (android_gl.c) ----------------------------------------- */
 
 /* All of these run on the emulation thread, which owns the EGL context. */

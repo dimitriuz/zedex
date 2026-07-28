@@ -29,4 +29,15 @@
         <item>75</item>
         <item>100</item>
     </string-array>
+
+    <string-array name="format_names">
+        <item>SZX — every machine</item>
+        <item>Z80 — widely supported</item>
+        <item>SNA — 48K and 128K only</item>
+    </string-array>
+    <string-array name="format_values">
+        <item>szx</item>
+        <item>z80</item>
+        <item>sna</item>
+    </string-array>
 </resources>

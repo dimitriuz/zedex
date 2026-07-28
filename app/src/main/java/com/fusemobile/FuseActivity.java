@@ -5,6 +5,7 @@ import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
@@ -17,21 +18,32 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
+import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
+import android.widget.BaseAdapter;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.BufferedInputStream;
+import java.io.DataInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Hosts the emulator.
@@ -216,53 +228,155 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
     // --- save states ----------------------------------------------------
 
     /**
-     * Slots are plain .szx files in app storage. SZX is libspectrum's own
-     * format and the only one that can hold every machine we emulate.
+     * A slot is a snapshot plus a thumbnail. The snapshot's extension decides
+     * its format, so the file for a given slot is whichever of the supported
+     * extensions is actually on disk; new saves use the one chosen in
+     * settings.
      */
-    private File stateFile(int slot) {
-        return new File(new File(getFilesDir(), STATE_DIR), "slot" + slot + ".szx");
+    private static final String[] FORMATS = { "szx", "z80", "sna" };
+
+    private File stateDirectory() {
+        return new File(getFilesDir(), STATE_DIR);
+    }
+
+    private File stateFile(int slot, String format) {
+        return new File(stateDirectory(), "slot" + slot + "." + format);
+    }
+
+    /** The saved snapshot for a slot, whatever format it was written in. */
+    private File findState(int slot) {
+        for (String format : FORMATS) {
+            File file = stateFile(slot, format);
+            if (file.exists()) return file;
+        }
+        return null;
+    }
+
+    private File thumbnailFile(int slot) {
+        return new File(stateDirectory(), "slot" + slot + ".thumb");
     }
 
     private void showStateDialog(boolean saving) {
-        String[] slots = new String[STATE_SLOTS];
-        DateFormat when = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT);
-
-        for (int i = 0; i < STATE_SLOTS; i++) {
-            File file = stateFile(i + 1);
-            slots[i] = file.exists()
-                    ? getString(R.string.state_used, i + 1, when.format(new Date(file.lastModified())))
-                    : getString(R.string.state_empty, i + 1);
-        }
-
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setTitle(saving ? R.string.menu_save_state : R.string.menu_load_state)
-                .setItems(slots, (dialog, which) -> useSlot(which + 1, saving))
+                .setAdapter(new StateAdapter(), (dialog, which) -> useSlot(which + 1, saving))
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
     }
 
-    private void useSlot(int slot, boolean saving) {
-        File file = stateFile(slot);
+    /** Slot rows, each with the screen as it was when the state was written. */
+    private final class StateAdapter extends BaseAdapter {
 
+        @Override
+        public int getCount() {
+            return STATE_SLOTS;
+        }
+
+        @Override
+        public Object getItem(int position) {
+            return position;
+        }
+
+        @Override
+        public long getItemId(int position) {
+            return position;
+        }
+
+        @Override
+        public View getView(int position, View reuse, ViewGroup parent) {
+            View row = reuse != null ? reuse
+                    : getLayoutInflater().inflate(R.layout.state_row, parent, false);
+
+            int slot = position + 1;
+            File state = findState(slot);
+
+            ((TextView) row.findViewById(R.id.title))
+                    .setText(getString(R.string.state_slot, slot));
+
+            TextView subtitle = row.findViewById(R.id.subtitle);
+            ImageView thumbnail = row.findViewById(R.id.thumbnail);
+
+            if (state == null) {
+                subtitle.setText(R.string.state_empty);
+                thumbnail.setImageDrawable(null);
+            } else {
+                DateFormat when = DateFormat.getDateTimeInstance(
+                        DateFormat.SHORT, DateFormat.SHORT);
+                subtitle.setText(getString(R.string.state_details,
+                        when.format(new Date(state.lastModified())),
+                        extensionOf(state).toUpperCase(Locale.ROOT)));
+                thumbnail.setImageBitmap(readThumbnail(thumbnailFile(slot)));
+            }
+
+            return row;
+        }
+    }
+
+    private static String extensionOf(File file) {
+        String name = file.getName();
+        int dot = name.lastIndexOf('.');
+        return dot < 0 ? "" : name.substring(dot + 1);
+    }
+
+    /** Decodes what {@link FuseNative#saveThumbnail} wrote. */
+    private static Bitmap readThumbnail(File file) {
+        if (!file.exists()) return null;
+
+        try (DataInputStream in = new DataInputStream(
+                new BufferedInputStream(new FileInputStream(file)))) {
+
+            byte[] header = new byte[8];
+            in.readFully(header);
+            ByteBuffer numbers = ByteBuffer.wrap(header).order(ByteOrder.LITTLE_ENDIAN);
+            int width = numbers.getInt();
+            int height = numbers.getInt();
+
+            if (width <= 0 || height <= 0 || width > 2048 || height > 2048) return null;
+
+            byte[] pixels = new byte[width * height * 4];
+            in.readFully(pixels);
+
+            Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+            bitmap.copyPixelsFromBuffer(ByteBuffer.wrap(pixels));
+            return bitmap;
+        } catch (IOException | IllegalArgumentException e) {
+            Log.w(TAG, "cannot read thumbnail " + file, e);
+            return null;
+        }
+    }
+
+    private void useSlot(int slot, boolean saving) {
         if (saving) {
-            File directory = file.getParentFile();
-            if (directory != null && !directory.isDirectory() && !directory.mkdirs()) {
+            String format = preferences.getString(
+                    SettingsActivity.KEY_SNAPSHOT_FORMAT, FORMATS[0]);
+
+            File directory = stateDirectory();
+            if (!directory.isDirectory() && !directory.mkdirs()) {
                 Toast.makeText(this, R.string.state_failed, Toast.LENGTH_LONG).show();
                 return;
             }
-            FuseNative.saveSnapshot(file.getAbsolutePath());
+
+            // One snapshot per slot, whatever it used to be saved as.
+            for (String other : FORMATS) {
+                if (!other.equals(format)) stateFile(slot, other).delete();
+            }
+
+            FuseNative.saveSnapshot(stateFile(slot, format).getAbsolutePath());
+            FuseNative.saveThumbnail(thumbnailFile(slot).getAbsolutePath());
             Toast.makeText(this, getString(R.string.state_saved, slot),
                     Toast.LENGTH_SHORT).show();
-        } else {
-            if (!file.exists()) {
-                Toast.makeText(this, getString(R.string.state_empty, slot),
-                        Toast.LENGTH_SHORT).show();
-                return;
-            }
-            FuseNative.loadSnapshot(file.getAbsolutePath());
-            Toast.makeText(this, getString(R.string.state_loaded, slot),
-                    Toast.LENGTH_SHORT).show();
+            return;
         }
+
+        File state = findState(slot);
+        if (state == null) {
+            Toast.makeText(this, R.string.state_empty, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        FuseNative.loadSnapshot(state.getAbsolutePath());
+        Toast.makeText(this, getString(R.string.state_loaded, slot),
+                Toast.LENGTH_SHORT).show();
     }
 
     // --- opening media --------------------------------------------------

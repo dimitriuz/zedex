@@ -25,6 +25,8 @@
     <string name="settings_issue2">Issue 2 keyboard</string>
     <string name="settings_issue2_summary">Early 48K keyboard behaviour some games expect</string>
 
+    <string name="settings_states">Save states</string>
+    <string name="settings_snapshot_format">Format</string>
     <string name="settings_tape">Tape</string>
     <string name="settings_fast_tape">Fast loading</string>
     <string name="settings_fast_tape_summary">Load through ROM traps and accelerate turbo loaders</string>
@@ -45,8 +47,9 @@
 
     <string name="settings_emulation">Emulation</string>
     <string name="settings_speed">Speed</string>
-    <string name="state_empty">Slot %1$d — empty</string>
-    <string name="state_used">Slot %1$d — %2$s</string>
+    <string name="state_slot">Slot %1$d</string>
+    <string name="state_empty">Empty</string>
+    <string name="state_details">%1$s · %2$s</string>
     <string name="state_saved">Saved to slot %1$d</string>
     <string name="state_loaded">Loaded slot %1$d</string>
     <string name="state_failed">Could not write the save state</string>

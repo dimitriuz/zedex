@@ -58,8 +58,9 @@ does on the desktop.
   recordings. Fuse identifies the file itself and puts it wherever it
   belongs, switching machine first if the media needs one — a `.dsk` brings
   up a +3, a `.trd` or `.scl` a Beta-equipped machine. Tapes autoload.
-- **Save state…** / **Load state…** — four slots, each showing when it was
-  written. Saving overwrites without asking.
+- **Save state…** / **Load state…** — four slots, each showing the screen as
+  it was when the state was written, along with the time and format. Saving
+  overwrites without asking.
 - **Settings…** — see below.
 - **Machine…** — all sixteen machines, with the running one checked. The
   choice is remembered for the next launch.
@@ -221,12 +222,28 @@ emulation thread, which hands it to `utils_open_file()`.
 
 ### Save states
 
-Slots are `.szx` files under `files/states`. SZX is libspectrum's own format
-and the only one that can represent every machine here, so a state saved on a
-Pentagon or a Timex restores as itself. Both directions are queued like any
-other command and run between frames on the emulation thread, which is what
-makes the state coherent — `snapshot_write()` and `snapshot_read()` are the
-same calls Fuse's own menus make.
+Slots live under `files/states`. The format is chosen in settings and decided
+by the file's extension, which is all `snapshot_write()` looks at; a slot is
+whichever of `.szx`, `.z80` and `.sna` is actually on disk, so states written
+before the setting changed still load. Saving replaces the others for that
+slot, so a slot is never ambiguous.
+
+SZX is the default because it is libspectrum's own format and the only one
+that can represent every machine here — a state saved on a Pentagon or a
+Timex restores as itself. The other two are for exchanging states with other
+emulators, and **Fuse warns, modally, on every save to them** that
+information has been lost. That warning is Fuse's own widget dialog and wants
+Enter or Escape; the file is not written until it is answered.
+
+Each slot also gets a `.thumb`: the last frame at half size, written by the
+display backend as a width, a height and RGBA rows, which Android decodes
+straight into a `Bitmap`. It costs 76kB a slot and saves guessing which save
+is which.
+
+Both directions are queued like any other command and run between frames on
+the emulation thread, which is what makes the state coherent —
+`snapshot_write()` and `snapshot_read()` are the same calls Fuse's own menus
+make.
 
 Loading a state is not the only way in: a `.szx`, `.z80` or `.sna` opened
 through **Open file…** takes the same path through Fuse.
@@ -302,3 +319,8 @@ Fixed without touching Fuse by forcing a consistent value:
 3. **Native menus** replacing the widget dialogs, and an on-screen joystick.
    An app icon that is not SDL's would be good too.
 4. **Debugger** front end over Fuse's `debugger/` API.
+
+Fuse reports errors through its widget layer, as a Spectrum-styled modal that
+only Enter or Escape will dismiss — awkward on a touchscreen, and it blocks
+whatever raised it. Since the build already substitutes objects,
+`ui_error_specific` could be ours and become a toast.

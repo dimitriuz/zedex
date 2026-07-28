@@ -8,6 +8,8 @@
 
 #include "config.h"
 
+#include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <libspectrum.h>
@@ -129,6 +131,45 @@ uidisplay_end( void )
 static libspectrum_byte
   saved_image[ 2 * DISPLAY_SCREEN_HEIGHT ][ DISPLAY_SCREEN_WIDTH ];
 static int have_saved_image;
+
+/* Writes the last presented frame at half size for the save state list:
+   an 8 byte header of width and height, then RGBA rows. Called on the
+   emulation thread, so the frame is whole. */
+int
+androiddisplay_write_thumbnail( const char *path )
+{
+  int32_t header[2];
+  int x, y, width, height;
+  FILE *file;
+
+  if( image_width < 2 || image_height < 2 ) return 1;
+
+  width = image_width / 2;
+  height = image_height / 2;
+
+  file = fopen( path, "wb" );
+  if( !file ) {
+    android_logw( "cannot write thumbnail %s", path );
+    return 1;
+  }
+
+  header[0] = width;
+  header[1] = height;
+  fwrite( header, sizeof( header ), 1, file );
+
+  for( y = 0; y < height; y++ ) {
+    libspectrum_dword row[ DISPLAY_SCREEN_WIDTH ];
+
+    for( x = 0; x < width; x++ )
+      row[x] = androiddisplay_rgba[ ( y * 2 ) * image_width + x * 2 ];
+
+    fwrite( row, sizeof( libspectrum_dword ), width, file );
+  }
+
+  fclose( file );
+
+  return 0;
+}
 
 void
 uidisplay_frame_save( void )
