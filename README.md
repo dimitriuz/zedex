@@ -58,9 +58,11 @@ does on the desktop.
   recordings. Fuse identifies the file itself and puts it wherever it
   belongs, switching machine first if the media needs one — a `.dsk` brings
   up a +3, a `.trd` or `.scl` a Beta-equipped machine. Tapes autoload.
-- **Save state…** / **Load state…** — four slots, each showing the screen as
-  it was when the state was written, along with the time and format. Saving
-  overwrites without asking.
+- **Save state…** / **Load state…** — as many saves as you like, each named
+  and showing the screen as it was when it was written. Saving offers *Add
+  new snapshot* first, named after whatever media is loaded and editable
+  before it is written; picking an existing one overwrites it, with a
+  confirmation. Long-press deletes.
 - **Settings…** — see below.
 - **Machine…** — all sixteen machines, with the running one checked. The
   choice is remembered for the next launch.
@@ -188,6 +190,14 @@ follows upstream instead of drifting from it.
   (`SHIFT_LEFT`) and Symbol Shift (`CTRL_LEFT`), which Fuse already maps.
 - **`aaudiosound.c`** writes to AAudio and *blocks*, deliberately: that is what
   paces the emulator. Audio is the clock, not vsync and not a wall timer.
+- **`ui_error_specific`** in `android_ui.c` turns Fuse's errors into Android
+  toasts. Fuse would otherwise draw a Spectrum-styled modal into the emulated
+  screen that only Enter or Escape dismisses — and, worse, block whatever
+  raised it until then: a save to a lossy snapshot format did not write its
+  file until the warning had been answered. `ui/widget/error.c` cannot simply
+  be dropped, because `ui/widget/query.c` shares its `split_message`, so the
+  build weakens that one symbol with `llvm-objcopy --weaken-symbol` and ours
+  wins the link.
 
 A key release is never run in the same queue pump as its press. The Spectrum
 ROM scans the keyboard once per frame, so a press and release arriving
@@ -222,18 +232,22 @@ emulation thread, which hands it to `utils_open_file()`.
 
 ### Save states
 
-Slots live under `files/states`. The format is chosen in settings and decided
-by the file's extension, which is all `snapshot_write()` looks at; a slot is
-whichever of `.szx`, `.z80` and `.sna` is actually on disk, so states written
-before the setting changed still load. Saving replaces the others for that
-slot, so a slot is never ambiguous.
+States live under `files/states`, named rather than numbered, so there can be
+any number of them and each says what it is. The format is chosen in settings
+and decided by the file's extension, which is all `snapshot_write()` looks at;
+a state is whichever of `.szx`, `.z80` and `.sna` carries its name, so states
+written before the setting changed still load. Saving removes the others for
+that name, so a name is never ambiguous.
+
+New states are named after the media that is loaded — the base name of the
+opened file, or of the state last loaded — with a number appended if that is
+taken, and the name is editable before saving.
 
 SZX is the default because it is libspectrum's own format and the only one
 that can represent every machine here — a state saved on a Pentagon or a
 Timex restores as itself. The other two are for exchanging states with other
-emulators, and **Fuse warns, modally, on every save to them** that
-information has been lost. That warning is Fuse's own widget dialog and wants
-Enter or Escape; the file is not written until it is answered.
+emulators, and Fuse warns on every save to them that information has been
+lost; that warning is now a toast (see below).
 
 Each slot also gets a `.thumb`: the last frame at half size, written by the
 display backend as a width, a height and RGBA rows, which Android decodes
@@ -320,7 +334,4 @@ Fixed without touching Fuse by forcing a consistent value:
    An app icon that is not SDL's would be good too.
 4. **Debugger** front end over Fuse's `debugger/` API.
 
-Fuse reports errors through its widget layer, as a Spectrum-styled modal that
-only Enter or Escape will dismiss — awkward on a touchscreen, and it blocks
-whatever raised it. Since the build already substitutes objects,
-`ui_error_specific` could be ours and become a toast.
+

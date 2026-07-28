@@ -23,7 +23,9 @@ import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.BaseAdapter;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.ListView;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -41,6 +43,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.text.DateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -74,9 +77,11 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
     /** Where picked files are staged for Fuse to open. */
     private static final String MEDIA_DIR = "media";
 
-    /** Save state slots, kept in app storage. */
+    /** Saved states, kept in app storage. */
     private static final String STATE_DIR = "states";
-    private static final int STATE_SLOTS = 4;
+
+    /** Base name for new states: whatever media was loaded last. */
+    private static final String PREF_MEDIA_NAME = "mediaName";
 
     private SharedPreferences preferences;
     private boolean started;
@@ -86,6 +91,7 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
         super.onCreate(savedInstanceState);
 
         preferences = getSharedPreferences(PREFS, MODE_PRIVATE);
+        FuseNative.attach(this);
 
         File files = getFilesDir();
         try {
@@ -228,48 +234,114 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
     // --- save states ----------------------------------------------------
 
     /**
-     * A slot is a snapshot plus a thumbnail. The snapshot's extension decides
-     * its format, so the file for a given slot is whichever of the supported
-     * extensions is actually on disk; new saves use the one chosen in
-     * settings.
+     * Saved states are named files rather than numbered slots, so there can
+     * be as many as wanted and each says what it is. A state is a snapshot
+     * plus a thumbnail sharing its base name; the snapshot's extension
+     * decides its format, so a state written before the format setting
+     * changed still loads.
      */
     private static final String[] FORMATS = { "szx", "z80", "sna" };
+
+    private static final class SavedState {
+        final File snapshot;
+        final String name;
+
+        SavedState(File snapshot, String name) {
+            this.snapshot = snapshot;
+            this.name = name;
+        }
+
+        String format() {
+            String file = snapshot.getName();
+            return file.substring(file.lastIndexOf('.') + 1).toUpperCase(Locale.ROOT);
+        }
+    }
 
     private File stateDirectory() {
         return new File(getFilesDir(), STATE_DIR);
     }
 
-    private File stateFile(int slot, String format) {
-        return new File(stateDirectory(), "slot" + slot + "." + format);
+    private File thumbnailFor(String name) {
+        return new File(stateDirectory(), name + ".thumb");
     }
 
-    /** The saved snapshot for a slot, whatever format it was written in. */
-    private File findState(int slot) {
-        for (String format : FORMATS) {
-            File file = stateFile(slot, format);
-            if (file.exists()) return file;
+    /** Newest first, which is nearly always the one wanted. */
+    private List<SavedState> savedStates() {
+        List<SavedState> states = new ArrayList<>();
+        File[] files = stateDirectory().listFiles();
+        if (files == null) return states;
+
+        for (File file : files) {
+            String name = file.getName();
+            int dot = name.lastIndexOf('.');
+            if (dot <= 0) continue;
+
+            String extension = name.substring(dot + 1).toLowerCase(Locale.ROOT);
+            if (Arrays.asList(FORMATS).contains(extension)) {
+                states.add(new SavedState(file, name.substring(0, dot)));
+            }
         }
-        return null;
-    }
 
-    private File thumbnailFile(int slot) {
-        return new File(stateDirectory(), "slot" + slot + ".thumb");
+        states.sort((a, b) -> Long.compare(b.snapshot.lastModified(),
+                                           a.snapshot.lastModified()));
+        return states;
     }
 
     private void showStateDialog(boolean saving) {
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        List<SavedState> states = savedStates();
+
+        if (!saving && states.isEmpty()) {
+            Toast.makeText(this, R.string.state_none, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        ListView list = new ListView(this);
+        list.setAdapter(new StateAdapter(states, saving));
+
+        AlertDialog dialog = new AlertDialog.Builder(
+                this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setTitle(saving ? R.string.menu_save_state : R.string.menu_load_state)
-                .setAdapter(new StateAdapter(), (dialog, which) -> useSlot(which + 1, saving))
+                .setView(list)
                 .setNegativeButton(android.R.string.cancel, null)
-                .show();
+                .create();
+
+        list.setOnItemClickListener((parent, view, position, id) -> {
+            dialog.dismiss();
+
+            if (saving && position == 0) {
+                askNameAndSave();
+            } else {
+                SavedState state = states.get(saving ? position - 1 : position);
+                if (saving) confirmOverwrite(state); else load(state);
+            }
+        });
+
+        list.setOnItemLongClickListener((parent, view, position, id) -> {
+            if (saving && position == 0) return false;
+
+            SavedState state = states.get(saving ? position - 1 : position);
+            dialog.dismiss();
+            confirmDelete(state);
+            return true;
+        });
+
+        dialog.show();
     }
 
-    /** Slot rows, each with the screen as it was when the state was written. */
+    /** Rows of saved states, with "add new" first when saving. */
     private final class StateAdapter extends BaseAdapter {
+
+        private final List<SavedState> states;
+        private final boolean saving;
+
+        StateAdapter(List<SavedState> states, boolean saving) {
+            this.states = states;
+            this.saving = saving;
+        }
 
         @Override
         public int getCount() {
-            return STATE_SLOTS;
+            return states.size() + (saving ? 1 : 0);
         }
 
         @Override
@@ -287,35 +359,122 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
             View row = reuse != null ? reuse
                     : getLayoutInflater().inflate(R.layout.state_row, parent, false);
 
-            int slot = position + 1;
-            File state = findState(slot);
-
-            ((TextView) row.findViewById(R.id.title))
-                    .setText(getString(R.string.state_slot, slot));
-
+            TextView title = row.findViewById(R.id.title);
             TextView subtitle = row.findViewById(R.id.subtitle);
             ImageView thumbnail = row.findViewById(R.id.thumbnail);
 
-            if (state == null) {
-                subtitle.setText(R.string.state_empty);
+            if (saving && position == 0) {
+                title.setText(R.string.state_add);
+                subtitle.setText(R.string.state_add_summary);
                 thumbnail.setImageDrawable(null);
-            } else {
-                DateFormat when = DateFormat.getDateTimeInstance(
-                        DateFormat.SHORT, DateFormat.SHORT);
-                subtitle.setText(getString(R.string.state_details,
-                        when.format(new Date(state.lastModified())),
-                        extensionOf(state).toUpperCase(Locale.ROOT)));
-                thumbnail.setImageBitmap(readThumbnail(thumbnailFile(slot)));
+                return row;
             }
+
+            SavedState state = states.get(saving ? position - 1 : position);
+            DateFormat when = DateFormat.getDateTimeInstance(
+                    DateFormat.SHORT, DateFormat.SHORT);
+
+            title.setText(state.name);
+            subtitle.setText(getString(R.string.state_details,
+                    when.format(new Date(state.snapshot.lastModified())),
+                    state.format()));
+            thumbnail.setImageBitmap(readThumbnail(thumbnailFor(state.name)));
 
             return row;
         }
     }
 
-    private static String extensionOf(File file) {
-        String name = file.getName();
-        int dot = name.lastIndexOf('.');
-        return dot < 0 ? "" : name.substring(dot + 1);
+    private void askNameAndSave() {
+        EditText input = new EditText(this);
+        input.setSingleLine();
+        input.setText(suggestedName());
+        input.setSelection(input.getText().length());
+
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(R.string.state_name)
+                .setView(input)
+                .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                    String name = sanitise(input.getText().toString());
+                    if (name.isEmpty()) name = "Snapshot";
+                    save(name);
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    /**
+     * Names a new state after whatever is loaded, which is nearly always what
+     * it is a state of, adding a number if that name is taken.
+     */
+    private String suggestedName() {
+        String base = preferences.getString(PREF_MEDIA_NAME, "Snapshot");
+        if (findState(base) == null) return base;
+
+        for (int n = 2; n < 1000; n++) {
+            if (findState(base + " " + n) == null) return base + " " + n;
+        }
+        return base;
+    }
+
+    private File findState(String name) {
+        for (String format : FORMATS) {
+            File file = new File(stateDirectory(), name + "." + format);
+            if (file.exists()) return file;
+        }
+        return null;
+    }
+
+    /** Keeps names to something that is safe as a filename. */
+    private static String sanitise(String name) {
+        return name.replaceAll("[/\\\\:*?\"<>|]", "_").trim();
+    }
+
+    private void confirmOverwrite(SavedState state) {
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setMessage(getString(R.string.state_overwrite, state.name))
+                .setPositiveButton(R.string.state_overwrite_confirm,
+                        (dialog, which) -> save(state.name))
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void confirmDelete(SavedState state) {
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setMessage(getString(R.string.state_delete, state.name))
+                .setPositiveButton(R.string.state_delete_confirm, (dialog, which) -> {
+                    state.snapshot.delete();
+                    thumbnailFor(state.name).delete();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void save(String name) {
+        File directory = stateDirectory();
+        if (!directory.isDirectory() && !directory.mkdirs()) {
+            Toast.makeText(this, R.string.state_failed, Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        String format = preferences.getString(
+                SettingsActivity.KEY_SNAPSHOT_FORMAT, FORMATS[0]);
+
+        // One snapshot per name, whatever it was saved as before.
+        for (String other : FORMATS) {
+            if (!other.equals(format)) new File(directory, name + "." + other).delete();
+        }
+
+        FuseNative.saveSnapshot(new File(directory, name + "." + format).getAbsolutePath());
+        FuseNative.saveThumbnail(thumbnailFor(name).getAbsolutePath());
+        Toast.makeText(this, getString(R.string.state_saved, name),
+                Toast.LENGTH_SHORT).show();
+    }
+
+    private void load(SavedState state) {
+        FuseNative.loadSnapshot(state.snapshot.getAbsolutePath());
+        rememberMediaName(state.name);
+        Toast.makeText(this, getString(R.string.state_loaded, state.name),
+                Toast.LENGTH_SHORT).show();
     }
 
     /** Decodes what {@link FuseNative#saveThumbnail} wrote. */
@@ -345,38 +504,9 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
         }
     }
 
-    private void useSlot(int slot, boolean saving) {
-        if (saving) {
-            String format = preferences.getString(
-                    SettingsActivity.KEY_SNAPSHOT_FORMAT, FORMATS[0]);
-
-            File directory = stateDirectory();
-            if (!directory.isDirectory() && !directory.mkdirs()) {
-                Toast.makeText(this, R.string.state_failed, Toast.LENGTH_LONG).show();
-                return;
-            }
-
-            // One snapshot per slot, whatever it used to be saved as.
-            for (String other : FORMATS) {
-                if (!other.equals(format)) stateFile(slot, other).delete();
-            }
-
-            FuseNative.saveSnapshot(stateFile(slot, format).getAbsolutePath());
-            FuseNative.saveThumbnail(thumbnailFile(slot).getAbsolutePath());
-            Toast.makeText(this, getString(R.string.state_saved, slot),
-                    Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        File state = findState(slot);
-        if (state == null) {
-            Toast.makeText(this, R.string.state_empty, Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        FuseNative.loadSnapshot(state.getAbsolutePath());
-        Toast.makeText(this, getString(R.string.state_loaded, slot),
-                Toast.LENGTH_SHORT).show();
+    /** What a new state will be called: the media that is loaded. */
+    private void rememberMediaName(String name) {
+        preferences.edit().putString(PREF_MEDIA_NAME, name).apply();
     }
 
     // --- opening media --------------------------------------------------
@@ -444,6 +574,10 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
         }
 
         FuseNative.openFile(staged.getAbsolutePath());
+
+        String name = staged.getName();
+        int dot = name.lastIndexOf('.');
+        rememberMediaName(sanitise(dot > 0 ? name.substring(0, dot) : name));
     }
 
     private void reportOpenFailed() {

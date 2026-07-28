@@ -48,6 +48,10 @@ void androidgl_end( void );
    Called from uidisplay_frame_end(). */
 void androidbridge_present( const void *pixels, int width, int height );
 
+/* Hands one of Fuse's errors to the Android side to show. Called on the
+   emulation thread. */
+void androidbridge_report_error( int severity, const char *message );
+
 /* Drain queued UI commands - keys, machine changes - onto the emulation
    thread, and refresh the state the UI thread reads back. Called from
    ui_event(). */

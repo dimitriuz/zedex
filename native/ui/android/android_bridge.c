@@ -384,6 +384,61 @@ androidbridge_pump_commands( void )
 }
 
 
+/* --- reporting errors to Android -------------------------------------- */
+
+static JavaVM *java_vm;
+static jclass native_class;
+static jmethodID on_error_method;
+
+JNIEXPORT jint JNICALL
+JNI_OnLoad( JavaVM *vm, void *reserved )
+{
+  JNIEnv *env;
+  jclass local;
+
+  java_vm = vm;
+
+  if( (*vm)->GetEnv( vm, (void**) &env, JNI_VERSION_1_6 ) != JNI_OK )
+    return JNI_VERSION_1_6;
+
+  local = (*env)->FindClass( env, "com/fusemobile/FuseNative" );
+  if( local ) {
+    native_class = (*env)->NewGlobalRef( env, local );
+    on_error_method = (*env)->GetStaticMethodID( env, native_class, "onError",
+                                                 "(ILjava/lang/String;)V" );
+    (*env)->DeleteLocalRef( env, local );
+  }
+
+  return JNI_VERSION_1_6;
+}
+
+void
+androidbridge_report_error( int severity, const char *message )
+{
+  JNIEnv *env;
+  jstring text;
+
+  android_logw( "fuse: %s", message ? message : "" );
+
+  if( !java_vm || !native_class || !on_error_method || !message ) return;
+
+  /* The emulation thread is a plain pthread, so it has to be attached before
+     it can call back into Java. It runs for the life of the process, so
+     there is nothing to detach. */
+  if( (*java_vm)->GetEnv( java_vm, (void**) &env,
+                          JNI_VERSION_1_6 ) != JNI_OK ) {
+    if( (*java_vm)->AttachCurrentThread( java_vm, &env, NULL ) != JNI_OK )
+      return;
+  }
+
+  text = (*env)->NewStringUTF( env, message );
+  if( !text ) return;
+
+  (*env)->CallStaticVoidMethod( env, native_class, on_error_method,
+                                (jint) severity, text );
+  (*env)->DeleteLocalRef( env, text );
+}
+
 /* --- emulation thread ------------------------------------------------- */
 
 /* Fuse's own entry point. With the fb UI selected there is no SDL header to

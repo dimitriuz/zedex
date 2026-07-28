@@ -155,11 +155,22 @@ EOF
   # Everything Fuse would link, minus the UI we are replacing. A few objects
   # (the timer, the scalers, the sound driver) reach the link through
   # fuse_LDADD rather than fuse_OBJECTS, so they have to be built too.
-  FUSE_OBJS=$(mkvar fuse_OBJECTS | tr ' ' '\n' | grep -v '^ui/fb/' | tr '\n' ' ')
+  FUSE_OBJS=$(mkvar fuse_OBJECTS | tr ' ' '\n' \
+              | grep -v '^ui/fb/' | grep -v '^ui/widget/error\.o$' \
+              | tr '\n' ' ')
   FUSE_LDADD=$(mkvar fuse_LDADD | tr ' ' '\n' \
                | grep -v '^sound/nullsound\.o$' | tr '\n' ' ')
   LDADD_OBJS=$(echo "$FUSE_LDADD" | tr ' ' '\n' | grep '\.o$' | tr '\n' ' ')
-  make -C "$FUSE_BUILD" -j"$JOBS" $FUSE_OBJS $LDADD_OBJS
+  mkdir -p "$FUSE_BUILD/android"
+  make -C "$FUSE_BUILD" -j"$JOBS" $FUSE_OBJS $LDADD_OBJS ui/widget/error.o
+
+  # native/ui/android reports Fuse's errors as Android toasts instead of the
+  # modal ui/widget/error.c draws into the emulated screen. The file cannot
+  # simply be dropped - ui/widget/query.c needs its split_message - so weaken
+  # the one symbol we are replacing and let ours win.
+  "$TOOLCHAIN/bin/llvm-objcopy" --weaken-symbol=ui_error_specific \
+      "$FUSE_BUILD/ui/widget/error.o" "$FUSE_BUILD/android/widget_error.o"
+  FUSE_OBJS="$FUSE_OBJS android/widget_error.o"
 
   ############################################################################
   echo "=== [$ABI] Android UI and audio ==="

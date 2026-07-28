@@ -47,10 +47,16 @@
 
     <string name="settings_emulation">Emulation</string>
     <string name="settings_speed">Speed</string>
-    <string name="state_slot">Slot %1$d</string>
-    <string name="state_empty">Empty</string>
     <string name="state_details">%1$s · %2$s</string>
-    <string name="state_saved">Saved to slot %1$d</string>
-    <string name="state_loaded">Loaded slot %1$d</string>
+    <string name="state_add">Add new snapshot</string>
+    <string name="state_add_summary">Save the machine as it is now</string>
+    <string name="state_name">Name</string>
+    <string name="state_none">No saved snapshots yet</string>
+    <string name="state_overwrite">Overwrite “%1$s”?</string>
+    <string name="state_overwrite_confirm">Overwrite</string>
+    <string name="state_delete">Delete “%1$s”?</string>
+    <string name="state_delete_confirm">Delete</string>
+    <string name="state_saved">Saved “%1$s”</string>
+    <string name="state_loaded">Loaded “%1$s”</string>
     <string name="state_failed">Could not write the save state</string>
 </resources>

@@ -1,6 +1,10 @@
 package com.fusemobile;
 
+import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.Surface;
+import android.widget.Toast;
 
 /**
  * The native side of the emulator.
@@ -16,6 +20,30 @@ final class FuseNative {
     }
 
     private FuseNative() {
+    }
+
+    private static Context context;
+    private static Handler ui;
+
+    /** Lets Fuse's errors reach the screen. Call once, from the activity. */
+    static void attach(Context activityContext) {
+        context = activityContext.getApplicationContext();
+        ui = new Handler(Looper.getMainLooper());
+    }
+
+    /**
+     * One of Fuse's errors, called from the emulation thread.
+     *
+     * Fuse would otherwise draw a modal into the emulated screen that only
+     * Enter or Escape dismisses, and block whatever raised it until then.
+     */
+    static void onError(int severity, String message) {
+        Context target = context;
+        Handler handler = ui;
+        if (target == null || handler == null || message == null) return;
+
+        int length = severity >= 2 ? Toast.LENGTH_LONG : Toast.LENGTH_SHORT;
+        handler.post(() -> Toast.makeText(target, message, length).show());
     }
 
     /** Starts Fuse's main loop on its own thread. Returns immediately. */
