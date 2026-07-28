@@ -17,11 +17,12 @@ arm64-v8a.
 | All sixteen machines, 16K through Scorpion | CRT / scanline filters |
 | Loading every format Fuse supports | Save states |
 | Opening files from other apps | On-screen joystick |
-| Machine switcher, remembered across launches | Fast-forwarding slow tape loaders |
-| Reset and NMI from the menu | Writing media back out |
-| GPU-scaled display, portrait and landscape | Native menus replacing the widget ones |
-| AAudio output, pacing emulation at 50.3 fps | Debugger front end |
-| On-screen keyboard from Fuse's own artwork | armeabi-v7a (add to `ABIS`/`abiFilters`) |
+| Fast tape loading, and real-time loading with sound | Writing media back out |
+| Machine switcher, remembered across launches | Native menus replacing the widget ones |
+| Reset and NMI from the menu | Debugger front end |
+| GPU-scaled display, portrait and landscape | armeabi-v7a (add to `ABIS`/`abiFilters`) |
+| AAudio output, pacing emulation at 50.3 fps | |
+| On-screen keyboard from Fuse's own artwork | |
 | Latching Caps Shift and Symbol Shift | |
 | Hardware keyboard input | |
 | Fuse's widget dialogs, menus and debugger UI | |
@@ -55,6 +56,12 @@ does on the desktop.
   recordings. Fuse identifies the file itself and puts it wherever it
   belongs, switching machine first if the media needs one — a `.dsk` brings
   up a +3, a `.trd` or `.scl` a Beta-equipped machine. Tapes autoload.
+- **Tape…** — *Fast loading*, on by default, which loads standard blocks
+  through Fuse's ROM traps and accelerates the timing loops of custom turbo
+  loaders; even a loader that shows a seven-minute countdown finishes in
+  seconds. Turn it off for the real thing, complete with border stripes and,
+  if *Loading sound* is left on, the noise. Both can be changed while a tape
+  is loading, and take effect at once.
 - **Machine…** — all sixteen machines, with the running one checked. The
   choice is remembered for the next launch.
 - **Reset** — asks first, since it discards machine state.
@@ -104,10 +111,8 @@ changes, and Gradle just packages the prebuilt `.so` from
 Files can also come from elsewhere: the app accepts `ACTION_VIEW`, so a file
 manager can hand it a tape directly.
 
-Two things worth knowing. Tapes do **not** switch machine — Fuse only does
+One thing worth knowing: tapes do **not** switch machine — Fuse only does
 that for disks — so choose the machine before loading a 128K-only tape.
-And a game with a custom turbo loader really does take its original loading
-time, several minutes in some cases; there is no fast-forward yet.
 
 ### Driving it from adb
 
@@ -197,6 +202,19 @@ does not need to know one format from another: the picked document is copied
 out of its content provider into the cache — keeping its original name, since
 libspectrum uses the extension as a hint — and the path is queued for the
 emulation thread, which hands it to `utils_open_file()`.
+
+### Tape options
+
+Fuse spreads fast loading across three settings, which the one switch sets
+together: `tape_traps` catches the ROM's loading routine, `fastload` makes a
+trapped block appear at once, and `accelerate_loader` speeds up the timing
+loops of custom loaders that never call the ROM at all. `sound_load` is the
+loading noise, which only exists when the tape is running in real time.
+
+They are passed on the command line at startup rather than queued, so they
+are in force before Fuse has finished starting — a file arriving by intent
+can be loading before the queue is first drained — and queued as commands
+when changed later.
 
 ### The on-screen keyboard
 

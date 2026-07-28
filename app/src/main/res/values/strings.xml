@@ -3,10 +3,14 @@
     <string name="app_name">Fuse Spectrum</string>
     <string name="machine_title">Machine</string>
     <string name="menu_open">Open file\u2026</string>
+    <string name="menu_tape">Tape\u2026</string>
     <string name="menu_machine">Machine\u2026</string>
     <string name="menu_reset">Reset</string>
     <string name="menu_nmi">NMI</string>
     <string name="reset_confirm">Reset the machine? Anything not saved will be lost.</string>
     <string name="machine_unavailable">%1$s needs ROM files that are not bundled</string>
     <string name="open_failed">Could not open that file</string>
+    <string name="tape_title">Tape</string>
+    <string name="tape_fast">Fast loading</string>
+    <string name="tape_sound">Loading sound (only without fast loading)</string>
 </resources>

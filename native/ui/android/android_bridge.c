@@ -27,6 +27,7 @@
 #include "keyboard.h"
 #include "machine.h"
 #include "rzx.h"
+#include "settings.h"
 #include "tape.h"
 #include "utils.h"
 #include "z80/z80.h"
@@ -80,7 +81,14 @@ typedef enum command_type {
   COMMAND_RESET,
   COMMAND_NMI,
   COMMAND_OPEN_FILE,			/* text: path to open */
+  COMMAND_SET_OPTION,			/* a: option, b: value */
 } command_type;
+
+/* Options the Android UI can toggle. */
+enum {
+  OPTION_FAST_TAPE,
+  OPTION_TAPE_SOUND,
+};
 
 typedef struct queued_command {
   command_type type;
@@ -274,6 +282,24 @@ androidbridge_pump_commands( void )
       if( command.text )
         utils_open_file( command.text, tape_can_autoload(), NULL );
       break;
+    case COMMAND_SET_OPTION:
+      switch( command.a ) {
+      case OPTION_FAST_TAPE:
+        /* Fuse spreads this across three settings: traps catch the ROM
+           loading routine, fastload makes a trapped block appear at once,
+           and accelerate_loader speeds up the timing loops of custom
+           loaders that never call the ROM at all. */
+        android_log( "fast tape loading %s", command.b ? "on" : "off" );
+        settings_current.tape_traps = command.b;
+        settings_current.fastload = command.b;
+        settings_current.accelerate_loader = command.b;
+        break;
+      case OPTION_TAPE_SOUND:
+        android_log( "tape sound %s", command.b ? "on" : "off" );
+        settings_current.sound_load = command.b;
+        break;
+      }
+      break;
     }
 
     free( command.text );
@@ -457,6 +483,20 @@ JNIEXPORT void JNICALL
 Java_com_fusemobile_FuseNative_nmi( JNIEnv *env, jclass class )
 {
   queue_command( COMMAND_NMI, 0, 0 );
+}
+
+JNIEXPORT void JNICALL
+Java_com_fusemobile_FuseNative_setFastTape( JNIEnv *env, jclass class,
+                                            jboolean fast )
+{
+  queue_command( COMMAND_SET_OPTION, OPTION_FAST_TAPE, fast ? 1 : 0 );
+}
+
+JNIEXPORT void JNICALL
+Java_com_fusemobile_FuseNative_setTapeSound( JNIEnv *env, jclass class,
+                                             jboolean on )
+{
+  queue_command( COMMAND_SET_OPTION, OPTION_TAPE_SOUND, on ? 1 : 0 );
 }
 
 JNIEXPORT void JNICALL

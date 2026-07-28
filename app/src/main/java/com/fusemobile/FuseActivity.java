@@ -27,6 +27,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Hosts the emulator.
@@ -51,6 +53,10 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
 
     /** How long to give the emulation thread to act on a machine change. */
     private static final long MACHINE_SETTLE_MS = 500;
+
+    /** Fuse's own defaults for these are on, and so are ours. */
+    private static final String PREF_FAST_TAPE = "fastTape";
+    private static final String PREF_TAPE_SOUND = "tapeSound";
 
     private static final int REQUEST_OPEN_FILE = 1;
 
@@ -170,6 +176,7 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
     private void showMenu() {
         String[] items = {
             getString(R.string.menu_open),
+            getString(R.string.menu_tape),
             getString(R.string.menu_machine),
             getString(R.string.menu_reset),
             getString(R.string.menu_nmi),
@@ -179,11 +186,37 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
                 .setItems(items, (dialog, which) -> {
                     switch (which) {
                         case 0: pickFile(); break;
-                        case 1: showMachineDialog(); break;
-                        case 2: confirmReset(); break;
-                        case 3: FuseNative.nmi(); break;
+                        case 1: showTapeDialog(); break;
+                        case 2: showMachineDialog(); break;
+                        case 3: confirmReset(); break;
+                        case 4: FuseNative.nmi(); break;
                     }
                 })
+                .show();
+    }
+
+    private void showTapeDialog() {
+        String[] items = {
+            getString(R.string.tape_fast),
+            getString(R.string.tape_sound),
+        };
+        boolean[] checked = {
+            preferences.getBoolean(PREF_FAST_TAPE, true),
+            preferences.getBoolean(PREF_TAPE_SOUND, true),
+        };
+
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(R.string.tape_title)
+                .setMultiChoiceItems(items, checked, (dialog, which, isChecked) -> {
+                    if (which == 0) {
+                        preferences.edit().putBoolean(PREF_FAST_TAPE, isChecked).apply();
+                        FuseNative.setFastTape(isChecked);
+                    } else {
+                        preferences.edit().putBoolean(PREF_TAPE_SOUND, isChecked).apply();
+                        FuseNative.setTapeSound(isChecked);
+                    }
+                })
+                .setPositiveButton(android.R.string.ok, null)
                 .show();
     }
 
@@ -350,11 +383,33 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
 
         if (!started) {
             started = true;
-            FuseNative.start(new String[] {
-                "fuse",
-                "--machine", preferences.getString(PREF_MACHINE, DEFAULT_MACHINE),
-            });
+            FuseNative.start(startArguments());
         }
+    }
+
+    /**
+     * Options are passed on the command line rather than queued, so they are
+     * in force before Fuse finishes starting - a file handed to us by an
+     * intent can be loading before the queue is first drained.
+     */
+    private String[] startArguments() {
+        List<String> arguments = new ArrayList<>();
+
+        arguments.add("fuse");
+        arguments.add("--machine");
+        arguments.add(preferences.getString(PREF_MACHINE, DEFAULT_MACHINE));
+
+        if (!preferences.getBoolean(PREF_FAST_TAPE, true)) {
+            arguments.add("--no-traps");
+            arguments.add("--no-fastload");
+            arguments.add("--no-accelerate-loader");
+        }
+
+        if (!preferences.getBoolean(PREF_TAPE_SOUND, true)) {
+            arguments.add("--no-loading-sound");
+        }
+
+        return arguments.toArray(new String[0]);
     }
 
     @Override
