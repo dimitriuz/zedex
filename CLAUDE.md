@@ -59,6 +59,16 @@ Things learned the hard way, all of them recorded in the tests' own comments:
   which looks exactly like a broken feature. See *Device setup* below.
 - `UiObject2.longClick()` holds for the platform long-press timeout, which is
   the same 400ms the keyboard latches at. Hold with a zero-length swipe.
+- **☰ fades out after three seconds**, so it is usually gone by the time a
+  test wants it, and it can vanish between being found and being clicked.
+  `Emulator.menu()` taps the picture to reveal it every time, first.
+- **A BASIC program belongs on a tape, not on the keyboard.** `TapeProgram`
+  writes a real `.tap` with an autostart line; typing one costs a tap and
+  150ms a character. The exception is a machine that is not sitting at a
+  BASIC prompt, since autoloading means Fuse typing `LOAD ""` itself.
+- The emulated screen cannot be read, but a **screenshot of the device** can:
+  have the program under test say what it saw in the border colour, and
+  `Emulator.borderColour()` will read it back.
 - **UI Automator switches accessibility on**, so anything guarded by
   `AccessibilityManager.isEnabled()` behaves differently under test than in
   real use. A crash on latching a shift once shipped for exactly this reason.
@@ -81,13 +91,17 @@ comparisons against `getExternalStorageDirectory()` will not match it.
 
 ```sh
 scripts/ui-tap.py list                    # what is on screen
-scripts/ui-tap.py "Disks" "Beta Disk A" "Save…"
+scripts/ui-tap.py "Media" "Beta Disk A" "Save…"
 scripts/ui-type.py 'randomize usr 15616' ENTER
 scripts/ui-type.py CS+SS SS+0 ' ' '"test"' ENTER   # extended mode: FORMAT
 ```
 
-Both address things by name, never by coordinate — menus grow and the
-keyboard is one bitmap whose keys are accessibility nodes.
+Both address things by name, never by coordinate — menus grow, the keyboard is
+one bitmap whose keys are accessibility nodes, and the quick bar is icons whose
+only name is their content description (`ui-tap.py` matches that too). ☰ has
+**pages**, so a path is several names deep: `"Machine" "Change machine"
+"Scorpion"`. The quick bar fades after three seconds, so tap the picture first
+to bring it back.
 
 ## Conventions
 

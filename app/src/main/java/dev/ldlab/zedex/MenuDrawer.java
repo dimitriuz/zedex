@@ -1,12 +1,16 @@
 package dev.ldlab.zedex;
 
 import android.content.Context;
+import android.graphics.drawable.Drawable;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * The ☰ menu, as a sheet that slides in from the edge.
@@ -20,10 +24,29 @@ import android.widget.TextView;
  * Written out rather than taken from a library: androidx's DrawerLayout would
  * be the app's first dependency, and this is a translation, a fade and a list.
  *
- * The items are ordinary text views with the words in them, which is what lets
+ * The sheet has <em>pages</em>. A flat list of everything came to a dozen rows,
+ * which is taller than a landscape window and so had to be scrolled to reach
+ * the last of it — and scrolling to find a menu item is the thing a menu is
+ * for avoiding. A page holds a handful of rows, and a row can lead to another
+ * page instead of doing something.
+ *
+ * Pages are built when they are shown rather than once at startup, which is
+ * what lets a page list the drives the machine has today, or say <em>Stop
+ * recording</em> only while something is recording. The activity supplies each
+ * one as a {@link Page}.
+ *
+ * The rows are ordinary text views with the words in them, which is what lets
  * the tests and {@code scripts/ui-tap.py} keep addressing the menu by name.
  */
 final class MenuDrawer extends FrameLayout {
+
+    /**
+     * What goes on one page. Called every time the page is shown, so it can
+     * read whatever the machine is doing now.
+     */
+    interface Page {
+        void fill(MenuDrawer sheet);
+    }
 
     /** Wide enough for the longest item, narrow enough to leave the screen. */
     private static final int WIDTH_DP = 300;
@@ -32,6 +55,10 @@ final class MenuDrawer extends FrameLayout {
     private static final float MAX_FRACTION = 0.8f;
 
     private static final long SLIDE_MS = 180;
+
+    /** How far a page slides as it replaces another; enough to show which way. */
+    private static final int PAGE_SHIFT_DP = 20;
+    private static final long PAGE_MS = 140;
 
     /** The field colour from the icon, so the sheet belongs to the app. */
     private static final int SHEET = 0xff17171d;
@@ -45,6 +72,11 @@ final class MenuDrawer extends FrameLayout {
     private final LinearLayout items;
     private final int unit;
 
+    /** The pages entered from the root, deepest last. */
+    private final List<Page> trail = new ArrayList<>();
+    private final List<String> names = new ArrayList<>();
+
+    private Page root;
     private boolean open;
     private Runnable onClosed;
 
@@ -74,6 +106,13 @@ final class MenuDrawer extends FrameLayout {
         addView(sheet, params);
     }
 
+    /** The page the sheet opens on. */
+    void setRoot(Page page) {
+        root = page;
+    }
+
+    // --- building a page ----------------------------------------------------
+
     /** A section heading; the groups are what a flat dialog could not show. */
     void addSection(String title) {
         TextView label = new TextView(getContext());
@@ -89,24 +128,31 @@ final class MenuDrawer extends FrameLayout {
         items.addView(label);
     }
 
-    void addItem(String text, Runnable action) {
-        TextView row = new TextView(getContext());
-
-        row.setText(text);
-        row.setTextColor(LABEL);
-        row.setTextSize(16);
-        row.setPadding(unit * 3, unit * 2, unit * 3, unit * 2);
-        row.setBackgroundResource(android.R.drawable.list_selector_background);
-        row.setClickable(true);
-        row.setFocusable(true);
+    /** A row that does something, and closes the sheet on its way. */
+    void addItem(String text, int icon, Runnable action) {
         // Closing first keeps the sheet from sitting over whatever the item
         // opens, and makes the two feel like one gesture.
-        row.setOnClickListener(v -> {
+        addRow(text, icon, false, () -> {
             close();
             action.run();
         });
+    }
 
-        items.addView(row);
+    /** A row that leads to another page. The sheet stays where it is. */
+    void addSubmenu(String text, int icon, Page page) {
+        addRow(text, icon, true, () -> enter(text, page));
+    }
+
+    /** Something to read rather than to press: an empty list saying so. */
+    void addNote(String text) {
+        TextView note = new TextView(getContext());
+
+        note.setText(text);
+        note.setTextColor(SECTION);
+        note.setTextSize(14);
+        note.setPadding(unit * 3, unit, unit * 3, unit * 2);
+
+        items.addView(note);
     }
 
     void addRule() {
@@ -119,6 +165,119 @@ final class MenuDrawer extends FrameLayout {
 
         items.addView(rule, params);
     }
+
+    /**
+     * One row: a single view holding the words, because a label nested inside
+     * a clickable container would put the text on one node and the click on
+     * another, and both the tests and {@code ui-tap.py} look for them
+     * together.
+     *
+     * The icon and the chevron are the view's own compound drawables for the
+     * same reason. They also align properly that way — the icon on the text's
+     * baseline box at the start, the chevron hard against the end — which a
+     * glyph pasted into the string could not do.
+     */
+    private void addRow(String label, int icon, boolean leadsOn, Runnable action) {
+        TextView row = new TextView(getContext());
+
+        row.setText(label);
+        row.setTextColor(LABEL);
+        row.setTextSize(16);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(unit * 3, unit * 2, unit * 3, unit * 2);
+        row.setCompoundDrawablePadding(unit * 2);
+        row.setCompoundDrawablesRelativeWithIntrinsicBounds(
+                tinted(icon, LABEL), null,
+                leadsOn ? tinted(R.drawable.ic_chevron_right, SECTION) : null, null);
+        row.setBackgroundResource(android.R.drawable.list_selector_background);
+        row.setClickable(true);
+        row.setFocusable(true);
+        row.setOnClickListener(v -> action.run());
+
+        items.addView(row);
+    }
+
+    /**
+     * The icons are one colour each, drawn white and tinted here, so the
+     * chevron can be quieter than the label without a second set of files.
+     */
+    private Drawable tinted(int resource, int colour) {
+        if (resource == 0) return null;
+
+        Drawable icon = getContext().getDrawable(resource);
+        if (icon == null) return null;
+
+        icon = icon.mutate();
+        icon.setTint(colour);
+
+        return icon;
+    }
+
+    // --- moving between pages -----------------------------------------------
+
+    private void enter(String name, Page page) {
+        trail.add(page);
+        names.add(name);
+        show(1);
+    }
+
+    /**
+     * Back: up one page, or shut if this is the root already. Says whether it
+     * did anything, so the activity can let the key through when it did not.
+     */
+    boolean back() {
+        if (!open) return false;
+
+        if (trail.isEmpty()) {
+            close();
+            return true;
+        }
+
+        trail.remove(trail.size() - 1);
+        names.remove(names.size() - 1);
+        show(-1);
+
+        return true;
+    }
+
+    /** Rebuilds whatever page is now current. {@code direction} is the slide. */
+    private void show(int direction) {
+        items.removeAllViews();
+
+        Page current = trail.isEmpty() ? root : trail.get(trail.size() - 1);
+
+        if (!trail.isEmpty()) {
+            // "Back" rather than the page's own name, so that a test asking
+            // for a row by name cannot land on the way out instead.
+            String back = getContext().getString(R.string.menu_back);
+
+            addRow(back, R.drawable.ic_chevron_left, false, this::back);
+
+            // "MEDIA…" as a heading promises more still to come; the ellipsis
+            // belonged to the row that got you here, not to where you are.
+            String here = names.get(names.size() - 1);
+            addSection(here.endsWith("…") ? here.substring(0, here.length() - 1)
+                                          : here);
+        }
+
+        if (current != null) current.fill(this);
+
+        sheet.scrollTo(0, 0);
+        slide(direction);
+    }
+
+    /** A short shove in the direction of travel, so the change reads as depth. */
+    private void slide(int direction) {
+        if (direction == 0) return;
+
+        float shift = PAGE_SHIFT_DP * getResources().getDisplayMetrics().density;
+
+        items.setTranslationX(direction * shift);
+        items.setAlpha(0f);
+        items.animate().translationX(0f).alpha(1f).setDuration(PAGE_MS);
+    }
+
+    // --- opening and closing ------------------------------------------------
 
     boolean isOpen() {
         return open;
@@ -134,6 +293,13 @@ final class MenuDrawer extends FrameLayout {
 
         open = true;
         setVisibility(VISIBLE);
+
+        // Always from the top: where you were last time is not where you want
+        // to be now, and a sheet that opens somewhere unexpected is worse than
+        // one extra tap.
+        trail.clear();
+        names.clear();
+        show(0);
 
         scrim.setAlpha(0f);
         scrim.animate().alpha(1f).setDuration(SLIDE_MS);

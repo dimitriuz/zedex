@@ -4,14 +4,31 @@
     <string name="machine_title">Machine</string>
     <string name="menu_open">Open file\u2026</string>
     <string name="menu_media">Media\u2026</string>
-    <string name="menu_section_files">Files</string>
-    <string name="menu_section_media">Media</string>
-    <string name="menu_section_machine">Machine</string>
-    <string name="menu_section_app">Zedex</string>
+    <string name="menu_states">States\u2026</string>
+    <!-- The page of machine things; menu_machine is the chooser on it. -->
+    <string name="menu_machine_group">Machine\u2026</string>
+    <string name="menu_app">Zedex\u2026</string>
+    <string name="menu_back">Back</string>
+    <string name="menu_disks_section">Drives</string>
     <string name="menu_layout">Landscape layout\u2026</string>
     <string name="layout_title">Landscape layout</string>
     <string name="layout_portrait_note">Saved \u2014 it applies when you turn the device sideways</string>
-    <string name="menu_machine">Machine\u2026</string>
+    <!-- The chooser, on the Machine page; the page itself is menu_machine_group. -->
+    <string name="menu_machine">Change machine\u2026</string>
+    <string name="menu_controls">Controls…</string>
+    <string name="menu_joystick">Joystick…</string>
+    <string name="menu_keyboard">Keyboard…</string>
+    <!-- Shared by the joystick and the keyboard: the same choice about both. -->
+    <string name="control_show">Show on screen</string>
+    <string name="control_hide">Hide from screen</string>
+    <string name="keyboard_shown">Keyboard shown</string>
+    <string name="keyboard_hidden">Keyboard hidden — the ☰ menu brings it back</string>
+    <!-- %1$s is one of Fuse's own names: Kempston, Cursor, Sinclair 1, … -->
+    <string name="joystick_type">Type: %1$s</string>
+    <string name="joystick_type_title">Joystick type</string>
+    <string name="joystick_type_set">Joystick: %1$s</string>
+    <string name="joystick_shown">Joystick shown</string>
+    <string name="joystick_hidden">Joystick hidden</string>
     <string name="menu_reset">Reset</string>
     <string name="menu_nmi">NMI</string>
     <string name="reset_confirm">Reset the machine? Anything not saved will be lost.</string>
@@ -132,6 +149,10 @@
     <string name="nmi_done">NMI sent</string>
     <string name="machine_selected">%1$s</string>
     <string name="menu_button">Menu</string>
+    <string name="quick_joystick_show">Show the joystick</string>
+    <string name="quick_joystick_hide">Hide the joystick</string>
+    <string name="quick_keyboard_show">Show the keyboard</string>
+    <string name="quick_keyboard_hide">Hide the keyboard</string>
     <string name="menu_capture">Capture…</string>
     <string name="capture_screenshot">Save screenshot</string>
     <string name="capture_gif">Record a GIF</string>

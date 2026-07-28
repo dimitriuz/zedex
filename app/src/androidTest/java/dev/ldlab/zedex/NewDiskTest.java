@@ -66,15 +66,15 @@ public class NewDiskTest {
         selectScorpion();
 
         // A drive that was empty, given a disk that does not exist anywhere.
-        emulator.menu("Disks", "Beta Disk A:", "New disk");
+        emulator.menu("Media", "Beta Disk A:", "New disk");
         emulator.tapIfPresent("New disk");        // only asked when replacing
 
         emulator.idle(3 * Emulator.SECOND);   // let the toast go, it says the same
 
-        emulator.menu("Disks");
+        emulator.menu("Media");
         assertTrue("the drive should hold a blank disk",
                    emulator.isShowing("Blank disk"));
-        emulator.tap("Cancel");
+        emulator.closeMenu();
 
         bootTo48Basic();
         enterAProgram();
@@ -99,12 +99,12 @@ public class NewDiskTest {
      * than being a setting; a Scorpion has it.
      */
     private void selectScorpion() {
-        emulator.menu("Machine", "Scorpion");
+        emulator.menu("Machine", "Change machine", "Scorpion");
         emulator.idle(3 * Emulator.SECOND);
 
-        emulator.menu("Disks");
+        emulator.menu("Media");
         boolean beta = emulator.isShowing("Beta Disk A:");
-        emulator.tap("Cancel");
+        emulator.closeMenu();
 
         assumeTrue("the Scorpion ROMs are missing, so it fell back to 48K", beta);
     }
@@ -114,7 +114,7 @@ public class NewDiskTest {
      * tokens the disk commands need are only reachable there.
      */
     private void bootTo48Basic() {
-        emulator.menu("Reset", "Reset");
+        emulator.menu("Machine", "Reset", "Reset");
         emulator.idle(Emulator.BOOT);
 
         emulator.capsShift("6");
@@ -124,7 +124,17 @@ public class NewDiskTest {
         emulator.idle(3 * Emulator.SECOND);
     }
 
-    /** Something for TR-DOS to save, since SAVE writes what is in memory. */
+    /**
+     * Something for TR-DOS to save, since SAVE writes what is in memory.
+     *
+     * Typed rather than handed over on a tape, which is how {@link
+     * JoystickTest} gets its program: opening a tape autoloads it, and
+     * autoloading is Fuse typing LOAD "" through its phantom typist at a
+     * moment of its own choosing. That is fine on a machine sitting at a
+     * BASIC prompt and not worth the risk on one that has just been walked
+     * through a Scorpion's boot menu. Eight keys is not the slow part of this
+     * test; formatting eighty tracks is.
+     */
     private void enterAProgram() {
         emulator.type("10 ");
         emulator.key("E");            // REM, at the keyword cursor
@@ -159,7 +169,7 @@ public class NewDiskTest {
     }
 
     private void saveTheDiskAs(String name) {
-        emulator.menu("Disks", "Beta Disk A:", "Save");
+        emulator.menu("Media", "Beta Disk A:", "Save");
         emulator.enterText(name);
         emulator.tap("OK");
         emulator.idle(3 * Emulator.SECOND);

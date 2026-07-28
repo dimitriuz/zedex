@@ -65,6 +65,12 @@ the emulated screen.
 - **On-screen keyboard** drawn from the real thing, so every key carries its
   BASIC keyword, symbol-shift character, colour and extended-mode token —
   and **either shift latches** on a long hold
+- **On-screen joystick**, all eight directions, as any interface the Spectrum
+  had — Kempston, Cursor, Sinclair, Timex or Fuller. It sits in the black
+  beside the picture rather than on top of it, so it costs the screen nothing
+- **A quick bar** in the corner for what is wanted mid-game — a save state, a
+  screenshot, the controls out of the way — and a **☰ sheet with pages** for
+  everything else, so neither is a list you have to scroll
 - **Hardware keyboards** work exactly as they do on the desktop
 - **Every key is named** to accessibility, so a screen reader reads them out
 - **Folders you choose** for data and for content
@@ -75,8 +81,8 @@ the emulated screen.
 
 ## Machines
 
-All sixteen are in the ☰ **Machine…** menu; which ones you can actually boot
-depends on the ROMs you provide.
+All sixteen are in ☰ **Machine… › Change machine…**; which ones you can
+actually boot depends on the ROMs you provide.
 
 | Family | Machines |
 | --- | --- |
@@ -98,6 +104,7 @@ What the app reaches today:
 | **Timex SCLD** video, including hi-res modes | on the Timex machines |
 | **Tape deck** | loading, and saving what the machine writes |
 | **Keyboard** | on screen or physical |
+| **Joystick**, as Kempston · Cursor · Sinclair 1/2 · Timex 1/2 · Fuller | on screen, as joystick 1 |
 
 A great deal more is already emulated and none of it is reachable yet,
 because there is no screen to switch it on — see below.
@@ -123,9 +130,8 @@ emulated, and every one of them is a single setting away:
 
 **Playing**
 
-- An on-screen joystick. Cursor, Kempston, Sinclair 1 and 2, Timex 1 and 2
-  and Fuller are all emulated; nothing yet maps to them. The landscape
-  layouts are where it goes — each one already decides where its pieces sit
+- A second joystick, and physical gamepads. The on-screen one is joystick 1;
+  nothing yet reaches joystick 2
 - Rewind, and playing back RZX recordings as recordings
 
 **Capture**
@@ -143,8 +149,8 @@ emulated, and every one of them is a single setting away:
 
 ## Tested on
 
-An Android 16 x86_64 emulator (API 36), cross-built for arm64-v8a. Four
-instrumentation tests cover the disk and capture paths.
+An Android 16 x86_64 emulator (API 36), cross-built for arm64-v8a. Eight
+instrumentation tests cover the disk, capture and joystick paths.
 
 ## Using it
 
@@ -165,7 +171,8 @@ one run, so trying again means a fresh start.
 scaled on the GPU, in either orientation. Rotating does not restart the
 emulator.
 
-**Sideways, five layouts**, from ☰ *Landscape layout…* or from settings:
+**Sideways, five layouts**, from ☰ *Controls… › Keyboard… › Landscape layout…*
+or from settings:
 
 | | |
 | --- | --- |
@@ -185,6 +192,28 @@ to latch it** (it turns amber) until you tap it again. That is how you get
 BREAK — Caps Shift and Space. A physical keyboard works too, exactly as it
 does on the desktop.
 
+**The joystick** is a thumb pad and a fire button, and it goes wherever the
+picture is not. A 4:3 picture never fills a phone's screen, so there is always
+black somewhere: in portrait the controls sit in the band between the picture
+and the keyboard, sideways they take the bars down each side. Only the two
+side-by-side layouts have no room for them, and there they float in the
+corners of the picture, faded.
+
+It is a stick rather than four buttons: the direction is where your thumb is
+relative to the middle, so corners are real diagonals and you can steer by
+sliding without lifting off.
+
+☰ *Controls… › Joystick…* turns it off and on, and chooses which interface it
+comes out as — **Kempston** to start with, since that is what most games
+expect, but **Cursor**, **Sinclair 1** and **2**, **Timex 1** and **2** and
+**Fuller** are all there. Pick the one the game asks for. Hiding the pad does
+not unplug the joystick; the interface stays where you left it.
+
+**The keyboard can go away too**, from ☰ *Controls… › Keyboard…*, in either
+orientation — for a game that only wants a joystick, or when a physical
+keyboard is doing the typing. The picture takes the whole window and the
+joystick moves into the black below it. ☰ brings the keyboard back.
+
 **Folders** are yours to choose, in settings. *Data folder* holds `roms`,
 `states`, `tapes`, `disks`, `screenshots` and `recordings`: pick one of the
 roots the device offers — internal storage, shared storage, an SD card — or
@@ -197,14 +226,43 @@ Two things Android will not allow as a chosen folder: the root of shared
 storage, and `Download`. The picker refuses both and says so; make a subfolder
 instead — it has a button for exactly that.
 
-**The ☰ button** sits in the corner of the picture, so it fades out a few
+**The quick bar** sits in the corner of the picture, so it fades out a few
 seconds after you stop using it and comes back on a tap anywhere on the screen.
 It stays put as long as there is no machine running, since then there is no
 picture to tap.
 
-It slides a sheet in from the edge, grouped into Files, Media, Machine and
-Zedex, leaving the screen visible behind it. Tap the screen or press back to
-dismiss it. It holds:
+It is the short list of things wanted mid-game, one tap each:
+
+| | |
+| --- | --- |
+| ⭳ ⭱ | save a state, load one |
+| ▣ | **Capture** — a screenshot, or start a GIF or an MP4 |
+| ⌸ | **Controls** — the joystick or the keyboard out of the way, and back |
+| ☰ | the menu |
+
+The first two do their thing at once; the middle two drop a short list down
+under the bar, with the words on it — an icon can say *capture* but it cannot
+say *GIF*, and nothing drawn can say whether tapping the joystick is about to
+show it or hide it. Tapping anything at all puts the list away again.
+
+**☰** slides a sheet in from the edge, leaving the screen visible behind it.
+Tap the screen or press back to dismiss it; back goes up a page first, if you
+are in one.
+
+The top of it is short on purpose — one thing you do constantly, and five
+doors:
+
+| | |
+| --- | --- |
+| **Open file…** | straight to the picker |
+| **States…** | save and load |
+| **Media…** | the tape, and every drive the machine has |
+| **Capture…** | screenshots and recording |
+| **Machine…** | which machine, reset, NMI |
+| **Controls…** | the joystick and the keyboard |
+| **Settings…** | the settings screen |
+
+In full:
 
 - **Open file…** — anything the emulator can read: snapshots (`.z80`, `.sna`,
   `.szx`, …), tapes (`.tap`, `.tzx`, `.pzx`, `.csw`, …), disks (`.dsk`,
@@ -216,32 +274,37 @@ dismiss it. It holds:
   file manager can hand it a tape directly. Note that tapes do **not** switch
   machine — only disks do — so choose the machine before loading a 128K-only
   tape.
-- **Save state…** / **Load state…** — as many saves as you like, each named
-  and showing the screen as it was when it was written. Saving offers *Add
-  new snapshot* first, named after whatever media is loaded and editable
-  before it is written; picking an existing one overwrites it, with a
+- **States…** — *Save state…* and *Load state…*: as many saves as you like,
+  each named and showing the screen as it was when it was written. Saving
+  offers *Add new snapshot* first, named after whatever media is loaded and
+  editable before it is written; picking an existing one overwrites it, with a
   confirmation. Long-press deletes.
-- **Media…** — *Save tape…* writes what the machine has put on its tape to a
-  `.tap` (or `.tzx`, if you type that extension) in the data folder, which is
-  how a BASIC `SAVE "name"` reaches a file. *New tape* throws the current one
-  away so a save does not append to a game you loaded earlier. Any drive with
-  a disk in it is listed too, so a disk the machine has written to can be
-  saved the same way.
-- **Disks…** — every drive the running machine has, with what is in it, and
-  per drive: *Load disk…*, *New disk*, *Save…* and *Eject*. The drives follow
-  the machine, so a +3 shows its two and a Pentagon its four Beta ones.
+- **Media…** — everything the machine can have something in. *Save tape…*
+  writes what it has put on its tape to a `.tap` (or `.tzx`, if you type that
+  extension) in the data folder, which is how a BASIC `SAVE "name"` reaches a
+  file; *New tape* throws the current one away so a save does not append to a
+  game you loaded earlier. Then every drive the running machine has, with what
+  is in it, and per drive *Load disk…*, *New disk*, *Save…* and *Eject*. The
+  drives follow the machine, so a +3 shows its two and a Pentagon its four
+  Beta ones, and a machine with none says so.
 - **Capture…** — *Save screenshot* writes the emulated screen as a PNG at
   its own size, 320x240 and pixel for pixel. *Record a GIF* or *Record an
-  MP4* starts filming it; the same menu then offers *Stop recording*, and the
-  toast that follows arrives when the file is really finished rather than
-  when you asked for it. Both go in the data folder, named after whatever is
-  loaded, and *Open recordings folder* hands that folder to the file manager.
+  MP4* starts filming it; the same page then offers *Stop recording* instead,
+  and the toast that follows arrives when the file is really finished rather
+  than when you asked for it. Both go in the data folder, named after whatever
+  is loaded, and *Open recordings folder* hands that folder to the file
+  manager.
+- **Machine…** — *Change machine…* lists all sixteen with the running one
+  checked, and the choice is remembered for the next launch. *Reset* asks
+  first, since it discards machine state. *NMI* is the magic button of the
+  real hardware; what it does depends on the machine, see below.
+- **Controls…** — the two things you play with, each of which can be put away
+  and neither of which the other replaces. *Joystick…* has *Show on screen*
+  and which of the Spectrum's seven interfaces the pad appears as.
+  *Keyboard…* has the same *Show on screen* — a game that only wants a
+  joystick has no use for forty keys — and *Landscape layout…*, which is
+  where the keyboard goes when it is out.
 - **Settings…** — see below.
-- **Machine…** — all sixteen machines, with the running one checked. The
-  choice is remembered for the next launch.
-- **Reset** — asks first, since it discards machine state.
-- **NMI** — the magic button of the real hardware. What it does depends on the
-  machine; see below.
 
 Anything that completes without visible effect — a blank disk, an eject, an
 NMI, a reset — says so with a toast, since the emulated screen often looks

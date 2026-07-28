@@ -108,6 +108,16 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     /** Base name for new states: whatever media was loaded last. */
     private static final String PREF_MEDIA_NAME = "mediaName";
 
+    /** Kempston's place in Fuse's {@code joystick_type_t}. */
+    private static final int JOYSTICK_KEMPSTON = 2;
+
+    /**
+     * Fuse's own default is None, which would leave the on-screen pad with
+     * nothing to do; Kempston is what most Spectrum games that take a joystick
+     * at all expect.
+     */
+    private static final int DEFAULT_JOYSTICK_TYPE = JOYSTICK_KEMPSTON;
+
     private SharedPreferences preferences;
     private boolean started;
 
@@ -118,7 +128,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     private MenuDrawer menu;
 
     /** The ☰ button itself, which fades out when it is not being used. */
-    private Button menuButton;
+    private QuickBar quickBar;
 
     /** Shown in place of the emulated screen when there is no machine. */
     private View romsPanel;
@@ -167,18 +177,24 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // takes the whole window, and the ☰ button has to stay on top of it.
         romsPanel = buildRomsPanel();
         menu = buildMenu();
-        menuButton = buildMenuButton();
+        quickBar = buildQuickBar();
 
         // A tap anywhere on the picture brings ☰ back; the sheet closing takes
         // it away again, so it is only ever over the screen while in use.
-        screen.setOnClickListener(v -> revealMenuButton());
-        menu.setOnClosed(fadeMenuButton);
+        screen.setOnClickListener(v -> revealQuickBar());
+        menu.setOnClosed(fadeQuickBar);
 
         layout = new EmulatorLayout(this);
-        layout.setChildren(screen, new SpectrumKeyboardView(this), romsPanel,
-                           menuButton, menu);
+        layout.setChildren(screen, new SpectrumKeyboardView(this),
+                           new JoystickView(this, JoystickView.Part.PAD),
+                           new JoystickView(this, JoystickView.Part.FIRE),
+                           romsPanel, quickBar, menu);
+        layout.setJoystickVisible(
+                preferences.getBoolean(SettingsActivity.KEY_JOYSTICK, true));
+        layout.setKeyboardVisible(
+                preferences.getBoolean(SettingsActivity.KEY_KEYBOARD, true));
 
-        revealMenuButton();
+        revealQuickBar();
         layout.setTemplate(EmulatorLayout.Template.of(
                 preferences.getString(SettingsActivity.KEY_LANDSCAPE_LAYOUT, null)));
 
@@ -241,133 +257,345 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
     // --- menu -----------------------------------------------------------
 
-    private Button buildMenuButton() {
-        Button button = new Button(this);
-        button.setText("\u2630");
-        // The only way a test - or TalkBack - can name this.
-        button.setContentDescription(getString(R.string.menu_button));
-        button.setTextColor(Color.WHITE);
-        button.setBackgroundColor(0x66000000);
-        button.setOnClickListener(v -> menu.open());
+    /**
+     * The quick bar: the handful of things done often enough that going
+     * through the sheet for them is a nuisance, plus \u2630 itself.
+     *
+     * \u2630 is last so it stays in the corner it has always been in. What sits
+     * beside it is the short list of things wanted mid-game \u2014 somewhere to put
+     * the machine down and pick it up again, a picture of it, and getting the
+     * controls out of the way \u2014 while everything that is chosen rather than
+     * reached for stays in the sheet.
+     *
+     * Where the bar goes is {@link EmulatorLayout}'s business: it follows the
+     * screen, which moves with the template.
+     */
+    private QuickBar buildQuickBar() {
+        QuickBar bar = new QuickBar(this);
 
-        // Where it goes is EmulatorLayout's business: it follows the screen,
-        // which moves with the template.
-        return button;
+        bar.addAction(R.drawable.ic_save, getString(R.string.menu_save_state),
+                      () -> showStateDialog(true));
+        bar.addAction(R.drawable.ic_load, getString(R.string.menu_load_state),
+                      () -> showStateDialog(false));
+
+        bar.addGroup(R.drawable.ic_camera, getString(R.string.menu_capture),
+                     this::fillCaptureBar);
+        bar.addGroup(R.drawable.ic_controls, getString(R.string.menu_controls),
+                     this::fillControlsBar);
+
+        bar.addAction(R.drawable.ic_menu, getString(R.string.menu_button),
+                      () -> menu.open());
+
+        return bar;
+    }
+
+    private void fillCaptureBar(QuickBar bar) {
+        bar.addToRow(R.drawable.ic_camera, getString(R.string.capture_screenshot),
+                     this::takeScreenshot);
+
+        if (Recorder.isRecording()) {
+            bar.addToRow(R.drawable.ic_stop, getString(R.string.capture_stop),
+                         Recorder::stop);
+        } else {
+            bar.addToRow(R.drawable.ic_record, getString(R.string.capture_gif),
+                         () -> startRecording(Recorder.Format.GIF));
+            bar.addToRow(R.drawable.ic_film, getString(R.string.capture_mp4),
+                         () -> startRecording(Recorder.Format.MP4));
+        }
     }
 
     /**
-     * How long \u2630 stays up before fading out again.
+     * The two toggles, named for what they would do rather than for what they
+     * are, since an icon that means "joystick" cannot also say which way it is
+     * about to go.
+     */
+    private void fillControlsBar(QuickBar bar) {
+        boolean pad = layout.joystickVisible();
+        boolean keys = layout.keyboardVisible();
+
+        bar.addToRow(R.drawable.ic_joystick,
+                     getString(pad ? R.string.quick_joystick_hide
+                                   : R.string.quick_joystick_show),
+                     () -> showJoystick(!pad));
+        bar.addToRow(R.drawable.ic_keyboard,
+                     getString(keys ? R.string.quick_keyboard_hide
+                                    : R.string.quick_keyboard_show),
+                     () -> showKeyboard(!keys));
+    }
+
+    /**
+     * How long the quick bar stays up before fading out again.
      *
      * It sits over the emulated screen, in the corner of the picture, so it is
      * in the way of the thing it belongs to. Tapping the screen brings it back.
      * It starts visible rather than hidden: a button nobody knows is there is
      * worse than one briefly in the way.
      */
-    private static final long MENU_BUTTON_LINGER_MS = 3000;
+    private static final long BAR_LINGER_MS = 3000;
 
-    /** Stays up as long as the ROMs panel does; see {@link #revealMenuButton}. */
-    private boolean menuButtonPinned;
+    /** Stays up as long as the ROMs panel does; see {@link #revealQuickBar}. */
+    private boolean barPinned;
 
     /**
-     * Whether \u2630 is meant to be up. The fade's end action has to ask, because
-     * cancelling a ViewPropertyAnimator still runs it \u2014 so a reveal arriving
-     * mid-fade would otherwise be undone a moment after it happened, which is
-     * exactly what it did.
+     * Whether the bar is meant to be up. The fade's end action has to ask,
+     * because cancelling a ViewPropertyAnimator still runs it \u2014 so a reveal
+     * arriving mid-fade would otherwise be undone a moment after it happened,
+     * which is exactly what it did.
      */
-    private boolean menuButtonWanted;
+    private boolean barWanted;
 
-    private final Runnable fadeMenuButton = () -> {
-        if (menuButtonPinned) return;
+    private final Runnable fadeQuickBar = () -> {
+        if (barPinned) return;
 
-        menuButtonWanted = false;
-        menuButton.animate().alpha(0f).setDuration(200).withEndAction(() -> {
-            if (!menuButtonWanted) menuButton.setVisibility(View.GONE);
+        barWanted = false;
+        // A group left open would be waiting there on the way back, which is
+        // not where the bar was left off.
+        quickBar.collapse();
+        quickBar.animate().alpha(0f).setDuration(200).withEndAction(() -> {
+            if (!barWanted) quickBar.setVisibility(View.GONE);
         });
     };
 
-    /** Shows \u2630 and starts it fading again. Any tap on the screen does this. */
-    private void revealMenuButton() {
-        menuButtonWanted = true;
+    /** Shows the bar and starts it fading again. Any tap on the screen does this. */
+    private void revealQuickBar() {
+        barWanted = true;
 
-        menuButton.removeCallbacks(fadeMenuButton);
-        menuButton.animate().cancel();
-        menuButton.setAlpha(1f);
-        menuButton.setVisibility(View.VISIBLE);
+        quickBar.removeCallbacks(fadeQuickBar);
+        quickBar.animate().cancel();
+        quickBar.setAlpha(1f);
+        quickBar.setVisibility(View.VISIBLE);
 
-        if (!menuButtonPinned) {
-            menuButton.postDelayed(fadeMenuButton, MENU_BUTTON_LINGER_MS);
+        if (!barPinned) {
+            quickBar.postDelayed(fadeQuickBar, BAR_LINGER_MS);
         }
     }
 
     /**
-     * Keeps \u2630 up for as long as there is no machine.
+     * Keeps the bar up for as long as there is no machine.
      *
      * The ROMs panel covers the screen, so a tap lands on the panel rather
-     * than on the thing that reveals the button - which would leave settings
+     * than on the thing that reveals the bar - which would leave settings
      * unreachable exactly when a wrong data folder is the likely problem.
      */
     private void pinMenuButton(boolean pinned) {
-        menuButtonPinned = pinned;
-        revealMenuButton();
+        barPinned = pinned;
+        revealQuickBar();
     }
 
     /**
-     * The ☰ sheet, built once. Grouped, which a dialog's flat item list could
-     * not be, and left out of the way of the screen it acts on.
+     * The ☰ sheet.
+     *
+     * Six rows, not a dozen: everything at one level came to more than a
+     * landscape window is tall, and a menu you have to scroll to read is a
+     * menu that has stopped helping. What is left at the top is the one thing
+     * done constantly — opening something — and five doors.
+     *
+     * The pages are functions rather than lists because most of them depend on
+     * what is happening: which drives this machine has, whether something is
+     * recording, which joystick is plugged in. They are called each time the
+     * page is shown.
+     *
+     * Choosing one of a set stays an {@link AlertDialog} — a machine, a
+     * joystick type, a layout — because a checked radio in a list is what says
+     * "one of these, and this is the one", and a sheet of plain rows cannot.
+     * So does anything that needs confirming.
      */
     private MenuDrawer buildMenu() {
         MenuDrawer menu = new MenuDrawer(this);
 
-        menu.addSection(getString(R.string.menu_section_files));
-        menu.addItem(getString(R.string.menu_open), this::pickFile);
-        menu.addItem(getString(R.string.menu_save_state), () -> showStateDialog(true));
-        menu.addItem(getString(R.string.menu_load_state), () -> showStateDialog(false));
+        menu.setRoot(sheet -> {
+            sheet.addItem(getString(R.string.menu_open), R.drawable.ic_folder,
+                          this::pickFile);
+            sheet.addSubmenu(getString(R.string.menu_states), R.drawable.ic_bookmark,
+                             this::fillStates);
+            sheet.addSubmenu(getString(R.string.menu_media), R.drawable.ic_tape,
+                             this::fillMedia);
+            sheet.addSubmenu(getString(R.string.menu_capture), R.drawable.ic_camera,
+                             this::fillCapture);
 
-        menu.addRule();
-        menu.addSection(getString(R.string.menu_section_media));
-        menu.addItem(getString(R.string.menu_media), this::showMediaMenu);
-        menu.addItem(getString(R.string.menu_disks), this::showDiskMenu);
-        menu.addItem(getString(R.string.menu_capture), this::showCaptureMenu);
+            sheet.addRule();
+            sheet.addSubmenu(getString(R.string.menu_machine_group),
+                             R.drawable.ic_machine, this::fillMachine);
+            sheet.addSubmenu(getString(R.string.menu_controls),
+                             R.drawable.ic_controls, this::fillControls);
+            sheet.addItem(getString(R.string.menu_settings), R.drawable.ic_settings,
+                    () -> startActivity(new Intent(this, SettingsActivity.class)));
+        });
 
-        menu.addRule();
-        menu.addSection(getString(R.string.menu_section_machine));
-        menu.addItem(getString(R.string.menu_machine), this::showMachineDialog);
-        menu.addItem(getString(R.string.menu_reset), this::confirmReset);
-        menu.addItem(getString(R.string.menu_nmi), () -> {
+        return menu;
+    }
+
+    /**
+     * The two things you play with. They are the same kind of thing — a set of
+     * keys drawn on the glass — and each is a page because each can be put
+     * away, and the keyboard also decides how the window is divided.
+     */
+    private void fillControls(MenuDrawer sheet) {
+        sheet.addSubmenu(getString(R.string.menu_joystick), R.drawable.ic_joystick,
+                         this::fillJoystick);
+        sheet.addSubmenu(getString(R.string.menu_keyboard), R.drawable.ic_keyboard,
+                         this::fillKeyboard);
+    }
+
+    private void fillKeyboard(MenuDrawer sheet) {
+        boolean shown = layout.keyboardVisible();
+
+        sheet.addItem(getString(shown ? R.string.control_hide
+                                      : R.string.control_show),
+                      shown ? R.drawable.ic_hide : R.drawable.ic_show,
+                      () -> showKeyboard(!shown));
+        sheet.addItem(getString(R.string.menu_layout), R.drawable.ic_layout,
+                      this::showLayoutDialog);
+    }
+
+    private void showKeyboard(boolean shown) {
+        layout.setKeyboardVisible(shown);
+        preferences.edit().putBoolean(SettingsActivity.KEY_KEYBOARD, shown).apply();
+
+        note(shown ? R.string.keyboard_shown : R.string.keyboard_hidden);
+    }
+
+    private void fillStates(MenuDrawer sheet) {
+        sheet.addItem(getString(R.string.menu_save_state), R.drawable.ic_save,
+                      () -> showStateDialog(true));
+        sheet.addItem(getString(R.string.menu_load_state), R.drawable.ic_load,
+                      () -> showStateDialog(false));
+    }
+
+    private void fillMachine(MenuDrawer sheet) {
+        sheet.addItem(getString(R.string.menu_machine), R.drawable.ic_swap,
+                      this::showMachineDialog);
+
+        sheet.addRule();
+        sheet.addItem(getString(R.string.menu_reset), R.drawable.ic_reset,
+                      this::confirmReset);
+        sheet.addItem(getString(R.string.menu_nmi), R.drawable.ic_bolt, () -> {
             FuseNative.nmi();
             note(R.string.nmi_done);
         });
+    }
 
-        menu.addRule();
-        menu.addSection(getString(R.string.menu_section_app));
-        menu.addItem(getString(R.string.menu_layout), this::showLayoutDialog);
-        menu.addItem(getString(R.string.menu_settings),
-                () -> startActivity(new Intent(this, SettingsActivity.class)));
+    // --- joystick -----------------------------------------------------------
 
-        return menu;
+    /**
+     * Whether the pad is on screen, and which interface it comes out as.
+     *
+     * The two are kept apart on purpose: hiding the pad does not unplug the
+     * joystick, since the interface is what a game reads and a physical
+     * gamepad may want it later. The types are Fuse's own list, in Fuse's own
+     * order, so the index is the value it takes.
+     */
+    private void fillJoystick(MenuDrawer sheet) {
+        boolean shown = layout.joystickVisible();
+
+        sheet.addItem(getString(shown ? R.string.control_hide
+                                      : R.string.control_show),
+                      shown ? R.drawable.ic_hide : R.drawable.ic_show,
+                      () -> showJoystick(!shown));
+        sheet.addItem(getString(R.string.joystick_type, joystickTypeName()),
+                      R.drawable.ic_swap, this::showJoystickTypeDialog);
+    }
+
+    private void showJoystick(boolean shown) {
+        layout.setJoystickVisible(shown);
+        preferences.edit().putBoolean(SettingsActivity.KEY_JOYSTICK, shown).apply();
+
+        note(shown ? R.string.joystick_shown : R.string.joystick_hidden);
+    }
+
+    private void showJoystickTypeDialog() {
+        String[] names = FuseNative.joystickTypeNames();
+        if (names.length == 0) return;
+
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(R.string.joystick_type_title)
+                .setSingleChoiceItems(names, joystickType(), (dialog, which) -> {
+                    preferences.edit()
+                            .putInt(SettingsActivity.KEY_JOYSTICK_TYPE, which)
+                            .apply();
+                    FuseNative.setJoystickType(which);
+
+                    dialog.dismiss();
+                    note(R.string.joystick_type_set, names[which]);
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    /** The stored type, or Kempston; never an index Fuse would not recognise. */
+    private int joystickType() {
+        int stored = preferences.getInt(SettingsActivity.KEY_JOYSTICK_TYPE,
+                                        DEFAULT_JOYSTICK_TYPE);
+        int count = FuseNative.joystickTypeNames().length;
+
+        return stored >= 0 && (count == 0 || stored < count)
+                ? stored : DEFAULT_JOYSTICK_TYPE;
+    }
+
+    private String joystickTypeName() {
+        String[] names = FuseNative.joystickTypeNames();
+        int type = joystickType();
+
+        return type < names.length ? names[type] : "";
     }
 
     // --- tapes ------------------------------------------------------------
 
     /**
-     * The machine can write to its tape as well as read from it: Fuse's tape
-     * traps catch the ROM's save routine, so a BASIC {@code SAVE "name"}
-     * appends to the tape held in memory, and this is how that tape reaches
-     * a file.
+     * What is in the machine: its tape, and every drive it has.
+     *
+     * The two used to be separate menus, which put a tape and a disk at
+     * different depths for no reason a user would recognise — they are the
+     * same question. The machine can write to its tape as well as read from
+     * it, since Fuse's tape traps catch the ROM's save routine and a BASIC
+     * {@code SAVE "name"} appends to the tape held in memory; that is what
+     * <em>Save tape…</em> writes out.
      */
-    private void showMediaMenu() {
-        String[] items = {
-            getString(R.string.tape_save),
-            getString(R.string.tape_new),
-        };
+    private void fillMedia(MenuDrawer sheet) {
+        sheet.addItem(getString(R.string.tape_save), R.drawable.ic_save, this::saveTape);
+        sheet.addItem(getString(R.string.tape_new), R.drawable.ic_plus,
+                      this::confirmNewTape);
 
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(R.string.menu_media)
-                .setItems(items, (dialog, which) -> {
-                    if (which == 0) saveTape(); else confirmNewTape();
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+        sheet.addRule();
+        sheet.addSection(getString(R.string.menu_disks_section));
+
+        // The drives follow the machine rather than being a fixed A: to D:,
+        // so they are asked for every time this page is shown.
+        String[] details = FuseNative.driveDetails();
+        int[] ids = FuseNative.driveIds();
+        int count = Math.min(ids.length, details.length / 3);
+
+        if (count == 0) {
+            sheet.addNote(getString(R.string.disk_no_drives));
+            return;
+        }
+
+        for (int i = 0; i < count; i++) {
+            String name = details[i * 3];
+            String disk = details[i * 3 + 1];
+            boolean modified = "1".equals(details[i * 3 + 2]);
+            int id = ids[i];
+
+            String state = disk.isEmpty() ? getString(R.string.disk_empty)
+                    : modified ? getString(R.string.disk_modified, disk) : disk;
+
+            sheet.addSubmenu(name + "\n" + state, R.drawable.ic_disk,
+                             page -> fillDrive(page, name, id, !disk.isEmpty()));
+        }
+    }
+
+    private void fillDrive(MenuDrawer sheet, String name, int id, boolean loaded) {
+        sheet.addItem(getString(R.string.disk_load), R.drawable.ic_folder,
+                      () -> loadDiskInto(id));
+        sheet.addItem(getString(R.string.disk_new), R.drawable.ic_plus,
+                      () -> confirmNewDisk(name, id, loaded));
+
+        if (loaded) {
+            sheet.addItem(getString(R.string.disk_save_short), R.drawable.ic_save,
+                          () -> saveDisk(name, id));
+            sheet.addItem(getString(R.string.disk_eject), R.drawable.ic_eject,
+                          () -> confirmEject(name, id));
+        }
     }
 
     // --- screenshots and recording -----------------------------------------
@@ -380,40 +608,25 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      * and keeps the palette exactly, an MP4 is smaller and takes sound
      * eventually.
      */
-    private void showCaptureMenu() {
-        boolean recording = Recorder.isRecording();
+    private void fillCapture(MenuDrawer sheet) {
+        sheet.addItem(getString(R.string.capture_screenshot), R.drawable.ic_camera,
+                      this::takeScreenshot);
 
-        String[] items = recording
-                ? new String[] {
-                    getString(R.string.capture_screenshot),
-                    getString(R.string.capture_stop),
-                    getString(R.string.capture_open_folder),
-                  }
-                : new String[] {
-                    getString(R.string.capture_screenshot),
-                    getString(R.string.capture_gif),
-                    getString(R.string.capture_mp4),
-                    getString(R.string.capture_open_folder),
-                  };
+        // Built when the page opens, so it offers the one thing that makes
+        // sense: there is nothing to stop until something is running.
+        if (Recorder.isRecording()) {
+            sheet.addItem(getString(R.string.capture_stop), R.drawable.ic_stop,
+                          Recorder::stop);
+        } else {
+            sheet.addItem(getString(R.string.capture_gif), R.drawable.ic_record,
+                          () -> startRecording(Recorder.Format.GIF));
+            sheet.addItem(getString(R.string.capture_mp4), R.drawable.ic_record,
+                          () -> startRecording(Recorder.Format.MP4));
+        }
 
-        int openFolder = items.length - 1;
-
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(R.string.menu_capture)
-                .setItems(items, (dialog, which) -> {
-                    if (which == openFolder) {
-                        openRecordingsFolder();
-                    } else if (which == 0) {
-                        takeScreenshot();
-                    } else if (recording) {
-                        Recorder.stop();
-                    } else {
-                        startRecording(which == 1 ? Recorder.Format.GIF
-                                                  : Recorder.Format.MP4);
-                    }
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+        sheet.addRule();
+        sheet.addItem(getString(R.string.capture_open_folder), R.drawable.ic_folder,
+                      this::openRecordingsFolder);
     }
 
     /**
@@ -525,60 +738,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      * drives depend on the machine and its interfaces, so the list comes
      * from Fuse rather than being a fixed A: to D:.
      */
-    private void showDiskMenu() {
-        String[] details = FuseNative.driveDetails();
-        int[] ids = FuseNative.driveIds();
-
-        if (details.length == 0 || ids.length == 0) {
-            Toast.makeText(this, R.string.disk_no_drives, Toast.LENGTH_LONG).show();
-            return;
-        }
-
-        int count = Math.min(ids.length, details.length / 3);
-        String[] items = new String[count];
-
-        for (int i = 0; i < count; i++) {
-            String disk = details[i * 3 + 1];
-            boolean modified = "1".equals(details[i * 3 + 2]);
-
-            String state = disk.isEmpty() ? getString(R.string.disk_empty)
-                    : modified ? getString(R.string.disk_modified, disk) : disk;
-
-            items[i] = details[i * 3] + "\n" + state;
-        }
-
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(R.string.menu_disks)
-                .setItems(items, (dialog, which) ->
-                        showDriveActions(details[which * 3], ids[which],
-                                         !details[which * 3 + 1].isEmpty()))
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
-    }
-
-    private void showDriveActions(String name, int id, boolean loaded) {
-        List<String> actions = new ArrayList<>();
-        actions.add(getString(R.string.disk_load));
-        actions.add(getString(R.string.disk_new));
-        if (loaded) {
-            actions.add(getString(R.string.disk_save_short));
-            actions.add(getString(R.string.disk_eject));
-        }
-
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(name)
-                .setItems(actions.toArray(new String[0]), (dialog, which) -> {
-                    switch (which) {
-                        case 0: loadDiskInto(id); break;
-                        case 1: confirmNewDisk(name, id, loaded); break;
-                        case 2: saveDisk(name, id); break;
-                        default: confirmEject(name, id); break;
-                    }
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
-    }
-
     private void loadDiskInto(int id) {
         pendingDrive = id;
 
@@ -1774,6 +1933,16 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         value(arguments, SettingsActivity.KEY_AY_VOLUME, 100, "volume-ay");
         value(arguments, SettingsActivity.KEY_BEEPER_VOLUME, 100, "volume-beeper");
 
+        // The on-screen joystick is Fuse's joystick 1. Kempston is a type and
+        // also a piece of hardware, and the port is only decoded when the
+        // interface is there, so the two go together - see OPTION_JOYSTICK_TYPE
+        // in android_bridge.c, which does the same when it is changed later.
+        int joystick = joystickType();
+        arguments.add("--joystick-1-output");
+        arguments.add(String.valueOf(joystick));
+        arguments.add(joystick == JOYSTICK_KEMPSTON ? "--kempston"
+                                                    : "--no-kempston");
+
         return arguments.toArray(new String[0]);
     }
 
@@ -1799,11 +1968,10 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (keyCode == KeyEvent.KEYCODE_BACK) {
-            // With the sheet open, back belongs to the sheet.
-            if (menu.isOpen()) {
-                menu.close();
-                return true;
-            }
+            // With the sheet open, back belongs to the sheet: up one page,
+            // and out of the sheet altogether from the top of it.
+            if (menu.back()) return true;
+
             return super.onKeyDown(keyCode, event);
         }
 

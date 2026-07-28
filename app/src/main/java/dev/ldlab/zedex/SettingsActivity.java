@@ -45,6 +45,10 @@ public class SettingsActivity extends Activity {
     /** Read by EmulatorLayout; the ☰ layout switcher writes here too. */
     static final String KEY_LANDSCAPE_LAYOUT = "landscapeLayout";
     static final String KEY_SNAPSHOT_FORMAT = "snapshotFormat";
+    /** Written from the ☰ Controls menu; there is no preference screen for them. */
+    static final String KEY_JOYSTICK = "joystick";
+    static final String KEY_JOYSTICK_TYPE = "joystickType";
+    static final String KEY_KEYBOARD = "keyboard";
 
     private static final int REQUEST_CONTENT_TREE = 2;
     private static final int REQUEST_DATA_TREE = 3;

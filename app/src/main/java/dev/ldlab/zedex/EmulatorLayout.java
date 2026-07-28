@@ -26,8 +26,13 @@ import android.view.ViewGroup;
  * Portrait is always {@link Template#BELOW}: there is only one sensible
  * arrangement when the window is taller than it is wide.
  *
- * A third child — the on-screen joystick — belongs here too when it arrives;
- * each template decides where it goes.
+ * The on-screen joystick goes in the black rather than on the picture. The
+ * renderer centres a 4:3 quad in whatever box it is given, so there is nearly
+ * always spare black somewhere — at the sides of a wide box, below the picture
+ * in a tall one — and that is a thumb's width of room the picture was never
+ * using. Only when a template leaves none does the joystick float over the
+ * picture's bottom corners, and then it is translucent. See
+ * {@link #placeJoystick}.
  */
 final class EmulatorLayout extends ViewGroup {
 
@@ -86,23 +91,47 @@ final class EmulatorLayout extends ViewGroup {
     /** Enough to read the screen through, still solid enough to aim at. */
     private static final float OVERLAY_ALPHA = 0.8f;
 
+    /** Rather less, because this one is over the middle of a game. */
+    private static final float FLOATING_ALPHA = 0.55f;
+
+    /** The pad's diameter, and the fire button's share of it, in dp. */
+    private static final int PAD_SIZE = 132;
+    private static final float FIRE_OF_PAD = 0.72f;
+
+    /** Below this a pad is not worth aiming a thumb at, in dp. */
+    private static final int PAD_MINIMUM = 84;
+
+    /** Keeps the controls clear of the picture and of the window's edge, dp. */
+    private static final int PAD_MARGIN = 12;
+
     /** The emulated screen, border and all: 320x240 whatever the machine. */
     private static final float SCREEN_ASPECT = 4f / 3f;
 
-    /** The ☰ button, and the gap it keeps from the corner, in dp. */
-    private static final int MENU_SIZE = 48;
+    /** The gap the quick bar keeps from the corner of the picture, in dp. */
+    private static final int BAR_GAP = 8;
 
     private final Rect screenBox = new Rect();
     private final Rect keyboardBox = new Rect();
     private final Rect panelBox = new Rect();
     private final Rect menuBox = new Rect();
+    private final Rect padBox = new Rect();
+    private final Rect fireBox = new Rect();
 
     private View screen;
     private View panel;
     private View menu;
     private View drawer;
     private SpectrumKeyboardView keyboard;
+    private JoystickView pad;
+    private JoystickView fire;
     private Template template = Template.BELOW;
+
+    /** Whether each is wanted at all; the ☰ menu decides. */
+    private boolean joystick = true;
+    private boolean keyboardWanted = true;
+
+    /** Set by {@link #placeJoystick}: it found no black and used the picture. */
+    private boolean joystickFloating;
 
     EmulatorLayout(Context context) {
         super(context);
@@ -113,26 +142,34 @@ final class EmulatorLayout extends ViewGroup {
      * The children, in the order they are added; none is ever removed.
      *
      * The panel is the ROMs message and takes the whole window rather than the
-     * screen's share of it - it is a takeover, not part of the picture. The ☰
-     * button is last so it stays reachable over the panel, and sits at the top
-     * right of the screen rather than of the window, so it follows the picture
-     * when the keyboard is beside it.
+     * screen's share of it - it is a takeover, not part of the picture. The
+     * quick bar is last so it stays reachable over the panel, and sits at the
+     * top right of the screen rather than of the window, so it follows the
+     * picture when the keyboard is beside it.
      */
-    void setChildren(View screen, SpectrumKeyboardView keyboard, View panel,
+    void setChildren(View screen, SpectrumKeyboardView keyboard,
+                     JoystickView pad, JoystickView fire, View panel,
                      View menuButton, View drawer) {
         this.screen = screen;
         this.keyboard = keyboard;
+        this.pad = pad;
+        this.fire = fire;
         this.panel = panel;
         this.menu = menuButton;
         this.drawer = drawer;
 
         // Front to back is the order below: the drawer covers everything, the
-        // button stays over the panel, the panel covers the screen.
+        // button stays over the panel, the panel covers the screen and the
+        // joystick, which sits over the picture when it has to.
         addView(screen);
         addView(keyboard);
+        addView(pad);
+        addView(fire);
         addView(panel);
         addView(menuButton);
         addView(drawer);
+
+        applyJoystickVisibility();
     }
 
     Template template() {
@@ -143,6 +180,48 @@ final class EmulatorLayout extends ViewGroup {
         if (this.template == template) return;
 
         this.template = template;
+        applyKeyboardVisibility();
+        requestLayout();
+    }
+
+    boolean joystickVisible() {
+        return joystick;
+    }
+
+    void setJoystickVisible(boolean visible) {
+        if (joystick == visible) return;
+
+        joystick = visible;
+        applyJoystickVisibility();
+        requestLayout();
+    }
+
+    /**
+     * Gone rather than merely unplaced, for the same reason the keyboard is:
+     * the five controls are accessibility nodes, and a screen reader would
+     * still find them sitting on top of each other at nowhere.
+     */
+    private void applyJoystickVisibility() {
+        int visibility = joystick ? VISIBLE : GONE;
+
+        if (pad != null) pad.setVisibility(visibility);
+        if (fire != null) fire.setVisibility(visibility);
+    }
+
+    boolean keyboardVisible() {
+        return keyboardWanted;
+    }
+
+    /**
+     * Puts the keyboard away, or brings it back, whichever way up the device
+     * is. Separate from the landscape template that also hides it: that one is
+     * an arrangement of the window, this one is a decision about the keyboard,
+     * and rotating should not undo it.
+     */
+    void setKeyboardVisible(boolean visible) {
+        if (keyboardWanted == visible) return;
+
+        keyboardWanted = visible;
         applyKeyboardVisibility();
         requestLayout();
     }
@@ -161,8 +240,9 @@ final class EmulatorLayout extends ViewGroup {
 
         boolean landscape = getResources().getConfiguration().orientation
                 == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
+        boolean hiddenByTemplate = landscape && template == Template.NONE;
 
-        keyboard.setVisibility(landscape && template == Template.NONE ? GONE : VISIBLE);
+        keyboard.setVisibility(!keyboardWanted || hiddenByTemplate ? GONE : VISIBLE);
     }
 
     @Override
@@ -182,7 +262,10 @@ final class EmulatorLayout extends ViewGroup {
                                         : SpectrumKeyboardView.NATURAL_ASPECT;
 
         // Portrait has one arrangement; the templates are a landscape question.
+        // A keyboard the user has put away leaves the same window as the
+        // template that has none, whichever way up the device is.
         Template current = landscape ? template : Template.BELOW;
+        if (!keyboardWanted) current = Template.NONE;
 
         panelBox.set(0, 0, width, height);
 
@@ -244,10 +327,109 @@ final class EmulatorLayout extends ViewGroup {
             keyboard.setAlpha(current == Template.OVERLAY ? OVERLAY_ALPHA : 1f);
         }
 
-        int size = Math.round(MENU_SIZE * getResources().getDisplayMetrics().density);
-        int gap = size / 4;
-        menuBox.set(screenBox.right - gap - size, screenBox.top + gap,
-                    screenBox.right - gap, screenBox.top + gap + size);
+        placeJoystick(width, height);
+
+        // Set here rather than in placeJoystick, which returns from three
+        // places; alpha is a draw property, so this is safe during a measure.
+        float alpha = joystickFloating ? FLOATING_ALPHA : 1f;
+        if (pad != null) pad.setAlpha(alpha);
+        if (fire != null) fire.setAlpha(alpha);
+    }
+
+    /**
+     * Finds the joystick somewhere that is not the picture.
+     *
+     * Three answers, tried in order, and which one applies falls out of the
+     * template rather than being written down per template:
+     *
+     * <ol>
+     * <li><b>Beside the picture.</b> A 4:3 quad in a wide box leaves a black
+     *     bar down each side — 480px of a 2400px landscape window with no
+     *     keyboard, and more with one below, because the shorter box makes the
+     *     picture narrower. The pad goes low in the left bar and fire low in
+     *     the right, where the thumbs already are, and the picture loses
+     *     nothing.</li>
+     * <li><b>Below it.</b> Portrait gives the picture only the height it uses
+     *     and puts the keyboard at the foot of the window, so what is left is
+     *     one wide band between them — the largest space of the three.</li>
+     * <li><b>Over it.</b> Only the two side-by-side templates get here: the
+     *     screen's half of a landscape window is taller than 4:3 wants, so
+     *     there are no side bars, and the keyboard beside it leaves no band.
+     *     The controls float in the picture's bottom corners, translucent.</li>
+     * </ol>
+     */
+    private void placeJoystick(int width, int height) {
+        padBox.setEmpty();
+        fireBox.setEmpty();
+        joystickFloating = false;
+
+        if (pad == null || fire == null || !joystick) return;
+
+        float density = getResources().getDisplayMetrics().density;
+        int margin = Math.round(PAD_MARGIN * density);
+        int minimum = Math.round(PAD_MINIMUM * density);
+        int wanted = Math.round(PAD_SIZE * density);
+
+        // Where the picture actually lands. The renderer centres it in the box
+        // it is given, so this is the same sum it does.
+        int pictureWidth = Math.min(screenBox.width(),
+                                    Math.round(screenBox.height() * SCREEN_ASPECT));
+        int pictureHeight = Math.round(pictureWidth / SCREEN_ASPECT);
+        int pictureLeft = screenBox.left + (screenBox.width() - pictureWidth) / 2;
+        int pictureBottom = screenBox.top
+                + (screenBox.height() + pictureHeight) / 2;
+
+        // A keyboard across the whole width is a floor; one beside the screen
+        // takes nothing away from the height.
+        boolean keyboardBelow = !keyboardBox.isEmpty()
+                && keyboardBox.left == 0 && keyboardBox.right == width;
+        int floor = keyboardBelow ? keyboardBox.top : height;
+
+        // 1. The black bars beside the picture.
+        int bar = pictureLeft - screenBox.left;
+        int barBottom = Math.min(screenBox.bottom, floor);
+        int size = Math.min(wanted, bar - 2 * margin);
+
+        if (size >= minimum && barBottom - screenBox.top >= size + 2 * margin) {
+            int centreY = barBottom - margin - size / 2;
+            int fireSize = Math.round(size * FIRE_OF_PAD);
+
+            square(padBox, screenBox.left + bar / 2, centreY, size);
+            square(fireBox, screenBox.right - bar / 2, centreY, fireSize);
+            return;
+        }
+
+        // 2. The band between the picture and the keyboard. Below the
+        // picture, not below its box: with the keyboard hidden the box is the
+        // whole window and the picture sits in the middle of it, so the two
+        // are not the same edge.
+        int bandTop = pictureBottom;
+        size = Math.min(wanted, floor - bandTop - 2 * margin);
+
+        if (size >= minimum && size <= (width - 2 * margin) / 2) {
+            strip(screenBox.left, screenBox.right, (bandTop + floor) / 2,
+                  size, margin);
+            return;
+        }
+
+        // 3. Nowhere left: over the picture's bottom corners.
+        joystickFloating = true;
+        size = Math.max(minimum, Math.min(wanted, pictureWidth / 4));
+        strip(pictureLeft, pictureLeft + pictureWidth,
+              pictureBottom - margin - size / 2, size, margin);
+    }
+
+    /** The pad at one end of a strip and the fire button at the other. */
+    private void strip(int left, int right, int centreY, int size, int margin) {
+        int fireSize = Math.round(size * FIRE_OF_PAD);
+
+        square(padBox, left + margin + size / 2, centreY, size);
+        square(fireBox, right - margin - fireSize / 2, centreY, fireSize);
+    }
+
+    private static void square(Rect out, int centreX, int centreY, int size) {
+        out.set(centreX - size / 2, centreY - size / 2,
+                centreX - size / 2 + size, centreY - size / 2 + size);
     }
 
     @Override
@@ -259,11 +441,37 @@ final class EmulatorLayout extends ViewGroup {
 
         measureChild(screen, screenBox);
         measureChild(keyboard, keyboardBox);
+        measureChild(pad, padBox);
+        measureChild(fire, fireBox);
         measureChild(panel, panelBox);
-        measureChild(menu, menuBox);
         measureChild(drawer, panelBox);
+        measureBar();
 
         setMeasuredDimension(width, height);
+    }
+
+    /**
+     * The quick bar is the one child that decides its own size: how many icons
+     * it has, and whether a group has opened a second row underneath, are its
+     * business and change as it is used. It is asked how big it would like to
+     * be and then hung off the top right corner of the picture — of the
+     * picture rather than of the window, so it follows the screen when the
+     * keyboard is beside it, and inside the picture rather than beside it
+     * because there is no guarantee of any black to sit in.
+     */
+    private void measureBar() {
+        menuBox.setEmpty();
+        if (menu == null || menu.getVisibility() == GONE) return;
+
+        menu.measure(MeasureSpec.makeMeasureSpec(screenBox.width(), MeasureSpec.AT_MOST),
+                     MeasureSpec.makeMeasureSpec(screenBox.height(), MeasureSpec.AT_MOST));
+
+        int gap = Math.round(BAR_GAP * getResources().getDisplayMetrics().density);
+        int wide = menu.getMeasuredWidth();
+        int tall = menu.getMeasuredHeight();
+
+        menuBox.set(screenBox.right - gap - wide, screenBox.top + gap,
+                    screenBox.right - gap, screenBox.top + gap + tall);
     }
 
     private void measureChild(View child, Rect box) {
@@ -279,6 +487,8 @@ final class EmulatorLayout extends ViewGroup {
         // size; recomputing here would only risk the two drifting apart.
         placeChild(screen, screenBox);
         placeChild(keyboard, keyboardBox);
+        placeChild(pad, padBox);
+        placeChild(fire, fireBox);
         placeChild(panel, panelBox);
         placeChild(menu, menuBox);
         placeChild(drawer, panelBox);

@@ -61,19 +61,35 @@ invisible to the emulated machine.
 
 ### The menu
 
-☰ itself fades out three seconds after it is last used, because it sits in the
-corner of the picture and is therefore in the way of the thing it belongs to. A
-tap anywhere on the screen brings it back; closing the sheet takes it away
-again. It starts visible rather than hidden — a button nobody knows is there is
-worse than one briefly in the way — and it is pinned up for as long as the ROMs
-panel is showing, since that panel covers the screen and a tap would land on it
-instead, leaving settings unreachable exactly when a wrong data folder is the
-likely cause.
+☰ is one icon in a **quick bar**, and the bar fades out three seconds after it
+is last used, because it sits in the corner of the picture and is therefore in
+the way of the thing it belongs to. A tap anywhere on the screen brings it
+back; closing the sheet takes it away again. It starts visible rather than
+hidden — a control nobody knows is there is worse than one briefly in the way —
+and it is pinned up for as long as the ROMs panel is showing, since that panel
+covers the screen and a tap would land on it instead, leaving settings
+unreachable exactly when a wrong data folder is the likely cause.
 
-The fade's end action has to check whether the button is still meant to be
-hidden. Cancelling a `ViewPropertyAnimator` runs its end action anyway, so a
-reveal arriving mid-fade was undone a moment after it happened: the tap
-registered, and the button stayed invisible.
+The fade's end action has to check whether the bar is still meant to be hidden.
+Cancelling a `ViewPropertyAnimator` runs its end action anyway, so a reveal
+arriving mid-fade was undone a moment after it happened: the tap registered,
+and the button stayed invisible.
+
+`QuickBar` holds the handful of things done often enough that three taps
+through the sheet is a nuisance — a save state, a screenshot, the controls out
+of the way. It is the one child `EmulatorLayout` does not size: how many icons
+it has, and whether a group has opened its list, are its own business, so it is
+measured `AT_MOST` and hung off the top right corner of the picture.
+
+The bar is icons alone and the list a group opens is not. An icon in the bar is
+a place you learn, and five of them are learnable; a list is read once, and its
+choices are not guessable from a picture — a dot and a strip of film do not say
+*GIF* and *MP4*, and nothing drawn says whether tapping the joystick will show
+it or hide it. So the bar's icons are named only to accessibility, and the list
+carries words on the screen. Being a list rather than a row, it has the width
+for them. A group's own icon turns cyan while its list is open, so it is clear
+which one the list belongs to, and anything at all — an action, another group,
+the fade — puts the list away again.
 
 ☰ opens a sheet that slides in from the edge rather than a dialog. A dialog sat
 in the middle of the window, which is where the machine is, and could only be a
@@ -83,7 +99,38 @@ still see. `MenuDrawer` is written out rather than taken from androidx, whose
 `DrawerLayout` would be the app's first dependency for what amounts to a
 translation, a fade and a list. The items are ordinary text views with the words
 in them, which is what keeps the tests and `scripts/ui-tap.py` addressing the
-menu by name. Back closes it before it reaches the activity.
+menu by name.
+
+The sheet has **pages**. Everything at one level came to a dozen rows, four
+headings and three rules — taller than a landscape window, so the last of it
+had to be scrolled to, and scrolling to find a menu item is the thing a menu
+exists to avoid. What is at the top now is the one thing done constantly,
+opening something, and a handful of doors: *States*, *Media*, *Capture*,
+*Machine*, *Controls*, *Settings*.
+
+A page is a function, not a list, and it is called every time the page is
+shown. That is what lets *Media* list the drives this machine has today,
+*Capture* offer *Stop recording* only while something is recording, and
+*Joystick* name the interface currently plugged in — none of which a menu built
+once at startup could do. It also replaced three `AlertDialog`s that existed
+only because the flat sheet had nowhere to put them.
+
+What stayed a dialog is **choosing one of a set** — a machine, a joystick type,
+a landscape layout — because a checked radio in a list is what says *one of
+these, and this is the one*, and a sheet of plain rows cannot; and anything
+that needs confirming. The line is: sheet pages navigate and act, dialogs
+choose and confirm.
+
+Back goes up one page and out of the sheet from the top of it, so the key means
+the same thing at every depth.
+
+Every row is a single `TextView`, and its icon and its chevron are that view's
+own compound drawables rather than views beside it. A label nested inside a
+clickable container would put the words on one accessibility node and the click
+on another, and both the tests and `ui-tap.py` need them together; a glyph
+pasted into the string would travel with the text a test matches on. The icons
+are one white 24dp outline each, tinted where they are drawn, which is how the
+chevron is quieter than the label without a second set of files.
 
 Everything the menu does goes through the same queue as keys, because none of
 it is safe to call from the UI thread: the item queues a command and the
@@ -303,8 +350,64 @@ Four children, not two: the ROMs panel takes the whole window rather than the
 screen's share, since it is a takeover rather than part of the picture, and the
 ☰ button is laid out last so it stays reachable over the panel — while sitting
 at the top right of the *screen*, so it follows the picture when the keyboard is
-beside it. The on-screen joystick belongs here too when it arrives, with each
-template deciding where it goes.
+beside it. The joystick's two controls are children here too, placed as below.
+
+### The on-screen joystick
+
+It goes in the black, not on the picture. The renderer centres a 4:3 quad in
+whatever box it is given, so there is nearly always spare black somewhere, and
+that is a thumb's width of room the picture was never using. `placeJoystick()`
+tries three things in order and which one applies falls out of the template
+rather than being written down per template:
+
+- **Beside the picture.** A 4:3 quad in a wide box leaves a bar down each
+  side — 480px of a 2400px landscape window with no keyboard, and more with
+  one below, since the shorter box makes the picture narrower still. This is
+  what *no keyboard*, *keyboard below* and *keyboard over the screen* all get;
+  in the last of those the bar is cut short at the top of the translucent
+  keyboard.
+- **Below it.** Portrait gives the picture only the height a 4:3 image uses
+  and puts the keyboard at the foot of the window, so what is left is one band
+  between them — 1189px of a 2400px window, the largest space of the three.
+- **Over it.** Only the two side-by-side templates reach here: half a
+  landscape window is taller than 4:3 wants, so there are no side bars, and
+  the keyboard beside the screen leaves no band either. The controls float in
+  the picture's bottom corners at 55% alpha.
+
+Both controls are the same class with a `Part`, because everything but the
+drawing is shared. The pad is a stick rather than four buttons: the direction
+is the angle of the finger about the centre snapped to eight, so a push into a
+corner is a real diagonal and sliding around the pad steers without lifting
+off. Snapping beats testing each axis against a threshold — every push outside
+the dead zone is one of exactly eight answers, with no band where a hard push
+registers nothing.
+
+Presses go through the same queue as keys, and the queue's hold-a-release-over-
+to-the-next-frame rule had to be generalised to cover them: Cursor and
+Sinclair are *keys* inside Fuse, and the Spectrum reads a Kempston port no more
+often than it scans the keyboard, so a tap that arrived and left within one
+pump would be invisible either way. Keys and directions share one namespace of
+tags so a direction cannot be mistaken for a keycode.
+
+The backend calls `joystick_press( 0, button, pressed )` directly rather than
+going through `input_event()`. For a joystick, `input_event()` also feeds the
+widget UI's dialog navigation and turns fire button 2 into *open the menu*,
+neither of which a five-control pad on a touchscreen wants.
+
+Which Spectrum interface the pad appears as is `joystick_1_output`, and the
+names in the menu are Fuse's own `joystick_name[]` — a plain table with no
+state behind it, so it can be read before the emulation thread has started.
+Kempston is the one type that is also a piece of hardware: without
+`joy_kempston` the port is not decoded and a game reads a stick that is not
+there. Fuse keeps the two apart because a real setup can have the interface
+fitted and unused; here choosing the type is the whole of the user's intent, so
+the interface follows it and `periph_posthook()` makes it take effect — which
+is what Fuse's own options dialogs do. Kempston is also the default, because
+Fuse's own default of *None* would leave the pad with nothing to do.
+
+Hiding the joystick sets both controls `GONE` for the same reason the keyboard
+is: their five controls are accessibility nodes, and a screen reader would
+otherwise still find them, sitting on top of each other at nowhere.
 
 ### The on-screen keyboard
 

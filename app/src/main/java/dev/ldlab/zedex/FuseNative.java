@@ -64,6 +64,34 @@ final class FuseNative {
     /** Queues a key event; {@code keycode} is an Android {@code KEYCODE_*}. */
     static native void key(int keycode, boolean pressed);
 
+    // --- joystick ----------------------------------------------------------
+
+    /*
+     * The on-screen joystick is Fuse's joystick 1. Which Spectrum interface
+     * it comes out as is a setting, so one pad covers Kempston, Cursor,
+     * Sinclair, Timex and Fuller without knowing anything about them.
+     */
+
+    /** Fuse's {@code joystick_button}, and the order the pad reports them in. */
+    static final int JOYSTICK_LEFT = 0;
+    static final int JOYSTICK_RIGHT = 1;
+    static final int JOYSTICK_UP = 2;
+    static final int JOYSTICK_DOWN = 3;
+    static final int JOYSTICK_FIRE = 4;
+
+    /** Queues a joystick direction or fire; {@code button} is one of the above. */
+    static native void joystick(int button, boolean pressed);
+
+    /**
+     * The interfaces Fuse can pretend to be, in its own words and its own
+     * order — "None", "Cursor", "Kempston", … The index is the value
+     * {@link #setJoystickType} takes. Available before Fuse has started.
+     */
+    static native String[] joystickTypeNames();
+
+    /** Which interface the joystick appears as; an index into the above. */
+    static native void setJoystickType(int type);
+
     /** Machine names for display, in Fuse's own order. Empty until Fuse has started. */
     static native String[] machineNames();
 

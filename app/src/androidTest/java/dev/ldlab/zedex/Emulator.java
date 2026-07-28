@@ -1,6 +1,7 @@
 package dev.ldlab.zedex;
 
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import android.content.Context;
 import android.content.Intent;
@@ -134,8 +135,42 @@ final class Emulator {
 
     /** Opens the ☰ menu and follows a path of items through it. */
     void menu(String... path) {
-        tap("Menu");
+        openMenu();
         for (String item : path) tap(item);
+    }
+
+    /**
+     * ☰ fades out three seconds after it was last used, and a test spends far
+     * longer than that between menus, so it is usually gone. A tap on the
+     * picture brings it back — which is what the app tells the user to do.
+     *
+     * The tap comes first every time, even when the button appears to be
+     * there already: finding it and clicking it are two steps, and three
+     * seconds is short enough that it can vanish between them. Revealing
+     * first restarts the clock, so the click that follows always lands.
+     *
+     * Found by description rather than through {@link #tap}, which tries
+     * three selectors in turn and could spend the three seconds doing it.
+     */
+    private void openMenu() {
+        device.click(device.getDisplayWidth() / 2, device.getDisplayHeight() / 8);
+        SystemClock.sleep(200);
+
+        UiObject2 button = device.wait(Until.findObject(By.desc("Menu")), FIND);
+        assertNotNull("the ☰ button never appeared", button);
+
+        button.click();
+        SystemClock.sleep(500);
+    }
+
+    /**
+     * Shuts the sheet from wherever in it you are, by tapping the screen
+     * beside it — which is how it is meant to be dismissed, and takes one tap
+     * however many pages deep the menu has gone.
+     */
+    void closeMenu() {
+        device.click(device.getDisplayWidth() / 8, device.getDisplayHeight() / 2);
+        SystemClock.sleep(500);
     }
 
     /** Clicks whatever carries this text, waiting for it to turn up. */
@@ -290,6 +325,115 @@ final class Emulator {
             case ')': return "9";
             default:  return null;
         }
+    }
+
+    /**
+     * Holds a control down for long enough to be certain of it, then lets go.
+     *
+     * Not longClick(): that holds for exactly the platform's long-press
+     * timeout, which is the same 400ms the keyboard latches at.
+     */
+    void hold(String name) {
+        latch(name);
+    }
+
+    /** Pins the window the way up a test expects to find things. */
+    void portrait() {
+        try {
+            device.setOrientationNatural();
+        } catch (android.os.RemoteException e) {
+            throw new AssertionError("cannot rotate the device", e);
+        }
+        SystemClock.sleep(SECOND);
+    }
+
+    void releaseOrientation() {
+        try {
+            device.unfreezeRotation();
+        } catch (android.os.RemoteException e) {
+            // Nothing worth failing a finished test over.
+        }
+    }
+
+    // --- handing the machine media ------------------------------------------
+
+    /**
+     * Gives Fuse a file by path, which is what an intent from a file manager
+     * comes down to. A tape autoloads, so a program written by
+     * {@link TapeProgram} needs no keystrokes at all.
+     *
+     * Instrumentation runs inside the app's own process, so this is the same
+     * call the activity makes rather than an imitation of it.
+     */
+    void open(java.io.File file) {
+        FuseNative.openFile(file.getAbsolutePath());
+        idle(LOADING);
+    }
+
+    /** Fast loading turns a tape into a moment, but autoload types first. */
+    private static final long LOADING = 8 * SECOND;
+
+    // --- reading the emulated screen ----------------------------------------
+
+    /*
+     * The picture is a GL surface with no view structure, so nothing in it can
+     * be found by name. A screenshot of the device does capture it, though,
+     * and one pixel of border is a whole answer when the program under test
+     * says what it saw by changing the border colour.
+     */
+
+    /** Fuse's palette, in Spectrum colour order, at normal brightness. */
+    private static final int[] PALETTE = {
+        0x000000, 0x0000c0, 0xc00000, 0xc000c0,
+        0x00c000, 0x00c0c0, 0xc0c000, 0xc0c0c0,
+    };
+
+    /**
+     * Far enough in to be past any rounding at the edge, and still border:
+     * the picture starts at the window's top left corner in portrait, and its
+     * border is a good twenty pixels deep once scaled.
+     */
+    private static final int BORDER_SAMPLE = 8;
+
+    /** The Spectrum colour number the border is showing, 0 (black) to 7. */
+    int borderColour() {
+        java.io.File shot = new java.io.File(context().getCacheDir(), "border.png");
+        assertTrue("could not screenshot the device", device.takeScreenshot(shot));
+
+        android.graphics.Bitmap screen =
+                android.graphics.BitmapFactory.decodeFile(shot.getAbsolutePath());
+        assertNotNull("the screenshot did not decode", screen);
+
+        int pixel = screen.getPixel(BORDER_SAMPLE, BORDER_SAMPLE);
+        screen.recycle();
+        shot.delete();
+
+        return nearestColour(pixel);
+    }
+
+    /** Whichever of the eight the pixel is closest to; the shader is exact,
+     *  but a nearest match survives a device that dithers or colour-manages. */
+    private static int nearestColour(int pixel) {
+        int best = 0;
+        long closest = Long.MAX_VALUE;
+
+        for (int colour = 0; colour < PALETTE.length; colour++) {
+            long distance = squared(pixel, PALETTE[colour]);
+            if (distance < closest) {
+                closest = distance;
+                best = colour;
+            }
+        }
+
+        return best;
+    }
+
+    private static long squared(int a, int b) {
+        long dr = ((a >> 16) & 0xff) - ((b >> 16) & 0xff);
+        long dg = ((a >> 8) & 0xff) - ((b >> 8) & 0xff);
+        long db = (a & 0xff) - (b & 0xff);
+
+        return dr * dr + dg * dg + db * db;
     }
 
     /** Waiting on the emulated machine, which cannot be observed directly. */

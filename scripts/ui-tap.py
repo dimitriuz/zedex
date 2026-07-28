@@ -19,7 +19,11 @@ import time
 
 ADB = os.environ.get("ADB", os.path.expanduser("~/Android/Sdk/platform-tools/adb"))
 
-NODE = re.compile(r'text="([^"]*)"[^>]*?clickable="(true|false)"'
+# The quick bar and the keyboard are icons and pixels, so their nodes carry a
+# description and no text at all; the menu carries text. Take whichever is
+# there, description first, since a described node was named on purpose.
+NODE = re.compile(r'text="([^"]*)"[^>]*?content-desc="([^"]*)"'
+                  r'[^>]*?clickable="(true|false)"'
                   r'[^>]*?bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"')
 
 
@@ -33,9 +37,10 @@ def dump():
 def nodes():
     found = []
     for match in NODE.finditer(dump()):
-        text, clickable, x1, y1, x2, y2 = match.groups()
-        if text:
-            found.append((text, clickable == "true",
+        text, described, clickable, x1, y1, x2, y2 = match.groups()
+        name = described or text
+        if name:
+            found.append((name, clickable == "true",
                           (int(x1) + int(x2)) // 2, (int(y1) + int(y2)) // 2))
     return found
 

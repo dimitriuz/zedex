@@ -30,6 +30,7 @@
 #include "input.h"
 #include "keyboard.h"
 #include "machine.h"
+#include "periph.h"
 #include "rzx.h"
 #include "settings.h"
 #include "snapshot.h"
@@ -38,6 +39,7 @@
 #include "ui/uimedia.h"
 #include "peripherals/disk/disk.h"
 #include "peripherals/disk/fdd.h"
+#include "peripherals/joystick.h"
 #include "utils.h"
 #include "z80/z80.h"
 
@@ -86,6 +88,7 @@ androidbridge_present( const void *pixels, int width, int height )
 
 typedef enum command_type {
   COMMAND_KEY,				/* a: keycode, b: pressed */
+  COMMAND_JOYSTICK,			/* a: joystick_button, b: pressed */
   COMMAND_SELECT_MACHINE,		/* a: index into machine_types */
   COMMAND_RESET,
   COMMAND_NMI,
@@ -113,6 +116,7 @@ enum {
   OPTION_SOUND,
   OPTION_AY_VOLUME,			/* 0 - 100 */
   OPTION_BEEPER_VOLUME,			/* 0 - 100 */
+  OPTION_JOYSTICK_TYPE,			/* a joystick_type_t */
 };
 
 typedef struct queued_command {
@@ -169,6 +173,21 @@ run_key( int keycode, int pressed )
   fuse_event.types.key.spectrum_key = fuse_key;
 
   input_event( &fuse_event );
+}
+
+/* The on-screen joystick is joystick 1, so it comes out as whichever
+   interface settings_current.joystick_1_output names - which is what the
+   menu chooses. joystick_press() is Fuse's own entry point for a moved
+   stick; input_event() is deliberately not used, because for a joystick it
+   also routes presses into the widget UI's dialog navigation and turns fire
+   button 2 into "open the menu", neither of which a five-control pad on a
+   touchscreen wants. */
+static void
+run_joystick( int button, int pressed )
+{
+  if( button < JOYSTICK_BUTTON_LEFT || button > JOYSTICK_BUTTON_FIRE ) return;
+
+  joystick_press( 0, button, pressed );
 }
 
 /* --- machines --------------------------------------------------------- */
@@ -294,20 +313,29 @@ run_select_machine( int index )
   machine_select( machine_types[ index ]->machine );
 }
 
-/* Keys pressed during the current pump, so their release can be held over to
-   the next one. The Spectrum ROM only scans the keyboard once per frame, so a
-   press and release arriving together - which is what a synthesised tap or a
-   very fast finger produces - would otherwise never be seen at all. */
+/* Keys and joystick directions pressed during the current pump, so their
+   release can be held over to the next one. The Spectrum ROM only scans the
+   keyboard once per frame, so a press and release arriving together - which
+   is what a synthesised tap or a very fast finger produces - would otherwise
+   never be seen at all. The joystick needs it just as much: the Cursor and
+   Sinclair interfaces are keys, and a Kempston port is read no more often. */
 static int pressed_this_pump[ 16 ];
 static int pressed_count;
 
+/* One namespace for both, so a direction cannot be mistaken for a keycode. */
 static int
-pressed_during_this_pump( int keycode )
+press_tag( command_type type, int code )
+{
+  return type == COMMAND_JOYSTICK ? 0x10000 | code : code;
+}
+
+static int
+pressed_during_this_pump( int tag )
 {
   int i;
 
   for( i = 0; i < pressed_count; i++ )
-    if( pressed_this_pump[i] == keycode ) return 1;
+    if( pressed_this_pump[i] == tag ) return 1;
 
   return 0;
 }
@@ -373,6 +401,22 @@ run_set_option( int option, int value )
     settings_current.volume_beeper = value;
     restart_sound();
     break;
+
+  case OPTION_JOYSTICK_TYPE:
+    if( value < JOYSTICK_TYPE_NONE || value >= JOYSTICK_TYPE_COUNT ) break;
+
+    settings_current.joystick_1_output = value;
+
+    /* Kempston is the one type that is also a piece of hardware: without
+       the interface plugged in, nothing decodes the port and the game reads
+       a stick that is not there. Fuse keeps the two apart because a real
+       setup can have the interface without using it; here choosing the type
+       is the whole of the user's intent, so the interface follows it.
+       periph_posthook() is what makes the change take effect, exactly as in
+       Fuse's own options dialogs. */
+    settings_current.joy_kempston = value == JOYSTICK_TYPE_KEMPSTON;
+    periph_posthook();
+    break;
   }
 }
 
@@ -391,10 +435,11 @@ androidbridge_pump_commands( void )
     }
     command = command_queue[ command_head ];
 
-    /* Leave this key up for the next frame, and everything behind it with
+    /* Leave this release for the next frame, and everything behind it with
        it: the queue has to stay in order. */
-    if( command.type == COMMAND_KEY && !command.b &&
-        pressed_during_this_pump( command.a ) ) {
+    if( ( command.type == COMMAND_KEY || command.type == COMMAND_JOYSTICK ) &&
+        !command.b &&
+        pressed_during_this_pump( press_tag( command.type, command.a ) ) ) {
       pthread_mutex_unlock( &command_mutex );
       break;
     }
@@ -404,9 +449,13 @@ androidbridge_pump_commands( void )
 
     switch( command.type ) {
     case COMMAND_KEY:
-      run_key( command.a, command.b );
+    case COMMAND_JOYSTICK:
+      if( command.type == COMMAND_KEY ) run_key( command.a, command.b );
+      else                              run_joystick( command.a, command.b );
+
       if( command.b && pressed_count < 16 )
-        pressed_this_pump[ pressed_count++ ] = command.a;
+        pressed_this_pump[ pressed_count++ ] =
+          press_tag( command.type, command.a );
       break;
     case COMMAND_SELECT_MACHINE:
       run_select_machine( command.a );
@@ -758,6 +807,41 @@ Java_dev_ldlab_zedex_FuseNative_key( JNIEnv *env, jclass class, jint keycode,
                                     jboolean pressed )
 {
   queue_command( COMMAND_KEY, keycode, pressed ? 1 : 0 );
+}
+
+JNIEXPORT void JNICALL
+Java_dev_ldlab_zedex_FuseNative_joystick( JNIEnv *env, jclass class,
+                                          jint button, jboolean pressed )
+{
+  queue_command( COMMAND_JOYSTICK, button, pressed ? 1 : 0 );
+}
+
+/* Fuse's own names for the interfaces it can pretend to be, in the order of
+   joystick_type_t, so the index is the value. A plain table with no state
+   behind it: it can be read before the emulation thread has started. */
+JNIEXPORT jobjectArray JNICALL
+Java_dev_ldlab_zedex_FuseNative_joystickTypeNames( JNIEnv *env, jclass class )
+{
+  jobjectArray result;
+  int i;
+
+  result = (*env)->NewObjectArray( env, JOYSTICK_TYPE_COUNT,
+             (*env)->FindClass( env, "java/lang/String" ), NULL );
+
+  for( i = 0; result && i < JOYSTICK_TYPE_COUNT; i++ ) {
+    jstring value = (*env)->NewStringUTF( env, joystick_name[i] );
+    (*env)->SetObjectArrayElement( env, result, i, value );
+    (*env)->DeleteLocalRef( env, value );
+  }
+
+  return result;
+}
+
+JNIEXPORT void JNICALL
+Java_dev_ldlab_zedex_FuseNative_setJoystickType( JNIEnv *env, jclass class,
+                                                 jint type )
+{
+  queue_command( COMMAND_SET_OPTION, OPTION_JOYSTICK_TYPE, type );
 }
 
 /* Builds a String[] from the machine snapshot; `names' picks which column. */
