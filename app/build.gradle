@@ -12,6 +12,7 @@ android {
         targetSdk 34
         versionCode 1
         versionName '1.0'
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         ndk {
             // Prebuilt by scripts/build-native.sh into src/main/jniLibs
             abiFilters 'arm64-v8a', 'x86_64'
@@ -41,4 +42,11 @@ android {
     lint {
         abortOnError false
     }
+}
+
+dependencies {
+    // Instrumentation tests only - the app itself has no dependencies.
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test:runner:1.5.2'
+    androidTestImplementation 'androidx.test.uiautomator:uiautomator:2.3.0'
 }

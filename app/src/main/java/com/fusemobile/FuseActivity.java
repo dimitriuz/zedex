@@ -192,6 +192,8 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
     private Button buildMenuButton() {
         Button button = new Button(this);
         button.setText("\u2630");
+        // The only way a test - or TalkBack - can name this.
+        button.setContentDescription(getString(R.string.menu_button));
         button.setTextColor(Color.WHITE);
         button.setBackgroundColor(0x66000000);
         button.setOnClickListener(v -> showMenu());

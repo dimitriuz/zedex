@@ -93,15 +93,15 @@ instead — it has a button for exactly that.
   per drive: *Load disk…*, *New disk*, *Save…* and *Eject*. The drives follow
   the machine, so a +3 shows its two and a Pentagon its four Beta ones.
 - **Settings…** — see below.
-
-Anything that completes without visible effect — a blank disk, an eject, an
-NMI, a reset — says so with a toast, since the emulated screen often looks
-identical either way.
 - **Machine…** — all sixteen machines, with the running one checked. The
   choice is remembered for the next launch.
 - **Reset** — asks first, since it discards machine state.
 - **NMI** — the magic button of the real hardware. What it does depends on the
   machine; see below.
+
+Anything that completes without visible effect — a blank disk, an eject, an
+NMI, a reset — says so with a toast, since the emulated screen often looks
+identical either way.
 
 **Settings** covers, in Fuse's terms:
 
@@ -188,7 +188,8 @@ scripts/ui-type.py 'randomize usr 15616' ENTER
 scripts/ui-type.py CS+SS SS+0 ' ' '"test"' ENTER   # extended mode: FORMAT
 ```
 
-Proper instrumentation tests would be better still; see the next steps.
+These are for poking at the app by hand. The test suite is proper
+instrumentation; see below.
 
 Media can be loaded without touching the picker at all:
 
@@ -451,6 +452,50 @@ crashes inside `snprintf` while looking for `fuse.font`.
 Fixed without touching Fuse by forcing a consistent value:
 `CPPFLAGS="-include limits.h"`. Worth reporting upstream.
 
+## Tests
+
+`app/src/androidTest` — UI Automator, run on a connected device:
+
+```sh
+./gradlew connectedDebugAndroidTest
+```
+
+`NewDiskTest` is the whole disk story end to end: a blank disk conjured into
+a Scorpion's Beta A:, `FORMAT "test"` and `SAVE "hi"` typed on the machine's
+own keyboard, *Save…*, and then the resulting file read back and checked as
+a TR-DOS image — 655360 bytes, the signature byte, one file called `hi`
+saved as a BASIC program, on a disk labelled `test`. That path is the one
+that broke: an unformatted disk used to save as a silent zero byte file.
+
+Two things make it possible to write that without a single coordinate.
+
+The keyboard is one bitmap, so it would otherwise be a lone unnamed view.
+Each key is published as an accessibility node instead, named the way the
+Spectrum names it, which is what `emulator.key("ENTER")` finds — and it
+gives the app a keyboard a screen reader can read out, which it did not have
+before. `extendedMode()` is a long press to latch Caps Shift and a tap on
+Symbol Shift, because FORMAT is not a word you can spell: it is a token on
+the 0 key.
+
+The emulated screen is the exception. It is a GL surface with no structure
+to query, so there is nothing to assert against and nothing to wait on;
+`Emulator.idle()` waits by the clock, and the assertions are made against
+the files the machine produces. That is the honest boundary of this
+approach, and why the interesting assertion is on bytes rather than pixels.
+
+Gradle uninstalls the app when a run finishes, so the next one starts with
+no preferences and no storage permission. The suite sets both itself: it
+grants All files access through the shell and points the app at a folder
+that has ROMs in it, `/sdcard/Download/Spectrum` unless told otherwise.
+
+```sh
+./gradlew connectedDebugAndroidTest \
+    -Pandroid.testInstrumentationRunnerArguments.dataFolder=/sdcard/Spectrum
+```
+
+The ROMs decide what can run. `NewDiskTest` needs a Scorpion, whose ROMs are
+not redistributable, so it skips rather than fails when they are absent.
+
 ## Next steps
 
 1. **Shaders** — CRT, scanlines, sharp-bilinear scaling, in `android_gl.c`.
@@ -460,9 +505,7 @@ Fixed without touching Fuse by forcing a consistent value:
    An app icon that is not SDL's would be good too.
 4. **Debugger** front end over Fuse's `debugger/` API.
 
-There are no automated tests. Everything here has been checked by driving the
-app by hand, which is slow and misses regressions; UI Automator tests over
-the menus, plus a debug-only intent interface so the emulator can be driven
-without the UI at all, would be worth more than any single feature below.
+The suite in `app/src/androidTest` covers one path so far. More there is
+worth more than any single feature below.
 
 

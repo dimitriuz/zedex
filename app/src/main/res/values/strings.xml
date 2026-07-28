@@ -100,4 +100,5 @@
     <string name="reset_done">Machine reset</string>
     <string name="nmi_done">NMI sent</string>
     <string name="machine_selected">%1$s</string>
+    <string name="menu_button">Menu</string>
 </resources>

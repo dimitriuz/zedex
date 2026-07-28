@@ -7,6 +7,7 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.RectF;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.AttributeSet;
@@ -16,9 +17,15 @@ import android.view.HapticFeedbackConstants;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.accessibility.AccessibilityEvent;
+import android.view.accessibility.AccessibilityNodeInfo;
+import android.view.accessibility.AccessibilityNodeProvider;
+import android.widget.Button;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * The ZX Spectrum keyboard, drawn from Fuse's own keyboard.png.
@@ -51,6 +58,7 @@ public class SpectrumKeyboardView extends View {
         final Rect image = new Rect();       // as drawn, in image pixels
         final Rect touch = new Rect();       // expanded to swallow the gaps
         final int keycode;
+        final String name;
         final boolean canLatch;
         boolean pressed;
         boolean latched;
@@ -59,8 +67,22 @@ public class SpectrumKeyboardView extends View {
             this.image.left = left;
             this.image.right = right;
             this.keycode = keycode;
+            this.name = nameOf( keycode );
             this.canLatch = keycode == KeyEvent.KEYCODE_SHIFT_LEFT
                          || keycode == KeyEvent.KEYCODE_CTRL_LEFT;
+        }
+
+        /** What the key is called on the Spectrum, not what Android calls it. */
+        private static String nameOf(int keycode) {
+            switch (keycode) {
+                case KeyEvent.KEYCODE_ENTER: return "ENTER";
+                case KeyEvent.KEYCODE_SPACE: return "BREAK SPACE";
+                case KeyEvent.KEYCODE_SHIFT_LEFT: return "CAPS SHIFT";
+                case KeyEvent.KEYCODE_CTRL_LEFT: return "SYMBOL SHIFT";
+                default:
+                    return KeyEvent.keyCodeToString(keycode)
+                            .substring("KEYCODE_".length());
+            }
         }
     }
 
@@ -262,6 +284,7 @@ public class SpectrumKeyboardView extends View {
             key.pressed = false;
             send(key, false);
             invalidate();
+            announce(key);
             return;
         }
 
@@ -283,6 +306,7 @@ public class SpectrumKeyboardView extends View {
         key.latched = true;
         performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
         invalidate();
+        announce(key);
     }
 
     private void release(int pointerId) {
@@ -324,5 +348,148 @@ public class SpectrumKeyboardView extends View {
             default:
                 return true;
         }
+    }
+
+    // --- accessibility ----------------------------------------------------
+
+    /*
+     * The keyboard is one bitmap, so without this it is a single unnamed
+     * View: nothing can say which key it means, and a test would be reduced
+     * to tapping coordinates measured off the artwork. Each key is published
+     * as a virtual node instead, named the way the Spectrum names it, so
+     * both a screen reader and UI Automator can address "ENTER" or "CAPS
+     * SHIFT" and land on the right pixels.
+     */
+
+    private final List<Key> flat = new ArrayList<>();
+
+    private List<Key> keys() {
+        if (flat.isEmpty()) {
+            for (Row row : rows) {
+                for (Key key : row.keys) flat.add(key);
+            }
+        }
+        return flat;
+    }
+
+    /** Where a key is on the screen, which is what the node has to report. */
+    private void screenBounds(Key key, Rect out) {
+        int[] location = new int[2];
+        getLocationOnScreen(location);
+
+        int x = location[0] + destination.left;
+        int y = location[1] + destination.top;
+
+        out.set(x + Math.round(key.image.left * scale),
+                y + Math.round(key.image.top * scale),
+                x + Math.round(key.image.right * scale),
+                y + Math.round(key.image.bottom * scale));
+    }
+
+    private final AccessibilityNodeProvider provider = new AccessibilityNodeProvider() {
+
+        @Override
+        public AccessibilityNodeInfo createAccessibilityNodeInfo(int virtualViewId) {
+            if (virtualViewId == HOST_VIEW_ID) {
+                AccessibilityNodeInfo host =
+                        AccessibilityNodeInfo.obtain(SpectrumKeyboardView.this);
+                onInitializeAccessibilityNodeInfo(host);
+
+                for (int i = 0; i < keys().size(); i++) {
+                    host.addChild(SpectrumKeyboardView.this, i);
+                }
+                return host;
+            }
+
+            if (virtualViewId < 0 || virtualViewId >= keys().size()) return null;
+            Key key = keys().get(virtualViewId);
+
+            AccessibilityNodeInfo node = AccessibilityNodeInfo.obtain(
+                    SpectrumKeyboardView.this, virtualViewId);
+
+            Rect bounds = new Rect();
+            screenBounds(key, bounds);
+
+            node.setPackageName(getContext().getPackageName());
+            node.setClassName(Button.class.getName());
+            node.setContentDescription(key.name);
+            node.setText(key.name);
+            node.setParent(SpectrumKeyboardView.this);
+            node.setBoundsInScreen(bounds);
+            node.setEnabled(true);
+            node.setVisibleToUser(true);
+            node.setFocusable(true);
+            node.setClickable(true);
+            node.setCheckable(key.canLatch);
+            node.setChecked(key.latched);
+            node.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_CLICK);
+
+            if (key.canLatch) {
+                node.setLongClickable(true);
+                node.addAction(
+                        AccessibilityNodeInfo.AccessibilityAction.ACTION_LONG_CLICK);
+            }
+
+            return node;
+        }
+
+        @Override
+        public List<AccessibilityNodeInfo> findAccessibilityNodeInfosByText(
+                String text, int virtualViewId) {
+
+            List<AccessibilityNodeInfo> found = new ArrayList<>();
+            if (text == null) return found;
+
+            for (int i = 0; i < keys().size(); i++) {
+                if (keys().get(i).name.equalsIgnoreCase(text.trim())) {
+                    found.add(createAccessibilityNodeInfo(i));
+                }
+            }
+            return found;
+        }
+
+        @Override
+        public boolean performAction(int virtualViewId, int action, Bundle arguments) {
+            if (virtualViewId < 0 || virtualViewId >= keys().size()) return false;
+            Key key = keys().get(virtualViewId);
+
+            // A tap through accessibility is a press and a release; Fuse
+            // reads the keyboard once a frame and the release is held back
+            // until the next one, so the machine still sees them apart.
+            if (action == AccessibilityNodeInfo.ACTION_CLICK) {
+                press(ACCESSIBILITY_POINTER, key);
+                release(ACCESSIBILITY_POINTER);
+                return true;
+            }
+
+            if (action == AccessibilityNodeInfo.ACTION_LONG_CLICK && key.canLatch) {
+                press(ACCESSIBILITY_POINTER, key);
+                latch(ACCESSIBILITY_POINTER, key);
+                pointers.remove(ACCESSIBILITY_POINTER);
+                return true;
+            }
+
+            return false;
+        }
+    };
+
+    /** No real pointer will ever have this id. */
+    private static final int ACCESSIBILITY_POINTER = -42;
+
+    @Override
+    public AccessibilityNodeProvider getAccessibilityNodeProvider() {
+        return provider;
+    }
+
+    /** Keeps a latched shift's node in step with the highlight. */
+    private void announce(Key key) {
+        int id = keys().indexOf(key);
+        if (id < 0) return;
+
+        AccessibilityEvent event = AccessibilityEvent.obtain(
+                AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED);
+        event.setPackageName(getContext().getPackageName());
+        event.setSource(this, id);
+        getParent().requestSendAccessibilityEvent(this, event);
     }
 }
