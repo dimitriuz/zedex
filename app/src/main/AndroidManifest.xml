@@ -32,15 +32,24 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Spectrum media has no registered MIME types, so match on
-                 scheme and let Fuse identify the content itself. -->
+            <!-- Spectrum media has no registered MIME types of its own, so
+                 every one of these files - .tap, .tzx, .z80, .szx, .trd,
+                 .dsk, .scl and the rest - arrives as application/octet-stream
+                 and Fuse identifies the content itself.
+
+                 Not */*: that made the app a candidate for opening every
+                 file on the device, so its own recordings offered themselves
+                 back to it instead of to a video player, and it competed
+                 with the file manager for vnd.android.document/directory
+                 when asked to show a folder. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="file" />
                 <data android:scheme="content" />
-                <data android:mimeType="*/*" />
+                <data android:mimeType="application/octet-stream" />
+                <data android:mimeType="application/x-spectrum" />
             </intent-filter>
         </activity>
 
