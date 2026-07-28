@@ -23,10 +23,10 @@ arm64-v8a.
 | Fuse's widget dialogs, menus and debugger UI | |
 | Background / resume without losing the surface | |
 
-Pentagon and Scorpion need ROMs that are not redistributable and so are not
-bundled. Selecting one falls back to 48K, which the app reports rather than
-silently accepting - the machine it remembers is whatever actually ended up
-running.
+All sixteen machines boot. Fuse itself only ships the ROMs it is allowed to
+redistribute, so the rest live in `roms/` — see below. If a ROM is ever
+missing Fuse falls back to 48K, which the app reports rather than silently
+accepting: the machine it remembers is whatever actually ended up running.
 
 **Known wart:** the launcher icon is still SDL's, inherited from its sample
 project before SDL was removed. It needs replacing.
@@ -45,6 +45,7 @@ vendor/          upstream sources, fetched by the build script, never modified
 native/          our Fuse backend, compiled into Fuse's own build tree
   ui/android/          display, GLES renderer, JNI bridge, keysym map
   sound/               AAudio driver
+roms/            machine ROMs Fuse does not ship (see below)
 scripts/build-native.sh  cross-compiles everything per ABI
 build-native/    out-of-tree build trees + per-ABI install prefixes
 app/             Gradle app; jniLibs/ and assets/fuse/ are build outputs
@@ -121,6 +122,16 @@ The machine switcher is the first feature built on the queue rather than on
 key events: the Android dialog queues an index, the emulation thread calls
 `machine_select()`, and the machine list itself is snapshotted from Fuse's
 `machine_types` on the emulation thread for the UI thread to read back.
+
+### ROMs
+
+Fuse's tarball carries the Sinclair and Timex ROMs, and a staged
+`make install` puts them in the APK's assets. It does not carry the clone
+ROMs — Pentagon (`128p-*`, `trdos`, `gluck`) and Scorpion (`256s-*`) — nor
+the Interface 1 and Opus Discovery ROMs, because they are copyrighted and not
+Fuse's to redistribute. Those sit in `roms/` and the build copies them
+alongside Fuse's own, which is all `machine_select()` needs to find them by
+name. Bear that in mind before publishing this repository.
 
 ### Data files and environment
 

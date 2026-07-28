@@ -199,8 +199,12 @@ EOF
     make -C "$FUSE_BUILD" install-pkgdataDATA DESTDIR="$STAGE" >/dev/null
     mkdir -p "$APP/assets"
     cp -r "$STAGE$DATA_ROOT/fuse" "$APP/assets/fuse"
-    echo "data files: $(ls "$APP/assets/fuse" | wc -l) entries"
   fi
+
+  # ROMs Fuse cannot redistribute (Pentagon, Scorpion, Interface 1, Opus).
+  # Kept alongside Fuse's own so machine_select() can find them by name.
+  cp "$ROOT"/roms/*.rom "$APP/assets/fuse/"
+  echo "data files: $(ls "$APP/assets/fuse" | wc -l) entries"
 done
 
 echo
