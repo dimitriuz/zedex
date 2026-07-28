@@ -9,6 +9,10 @@
     <string name="menu_nmi">NMI</string>
     <string name="reset_confirm">Reset the machine? Anything not saved will be lost.</string>
     <string name="machine_unavailable">%1$s needs ROM files that are not bundled</string>
+    <string name="roms_needed">ROMs needed</string>
+    <string name="roms_needed_message">No Spectrum ROMs are bundled with this app. Put them in\n\n%1$s\n\nor import them now.</string>
+    <string name="roms_import">Import\u2026</string>
+    <string name="roms_imported">Imported %1$d file(s)</string>
     <string name="open_failed">Could not open that file</string>
     <string name="tape_title">Tape</string>
     <string name="tape_fast">Fast loading</string>
@@ -24,6 +28,14 @@
     <string name="settings_default_machine_summary">Also set by the machine switcher</string>
     <string name="settings_issue2">Issue 2 keyboard</string>
     <string name="settings_issue2_summary">Early 48K keyboard behaviour some games expect</string>
+
+    <string name="settings_storage">Folders</string>
+    <string name="settings_states_root">Save states folder</string>
+    <string name="settings_states_root_summary">Where save states are written</string>
+    <string name="settings_content_folder">Content folder</string>
+    <string name="settings_content_folder_summary">Where Open file starts</string>
+    <string name="settings_content_folder_none">Not set</string>
+    <string name="settings_states_moved">Save states moved</string>
 
     <string name="settings_states">Save states</string>
     <string name="settings_snapshot_format">Format</string>

@@ -7,6 +7,10 @@ sixteen Spectrum-family machines Fuse supports on Android 11+.
 Fuse and libspectrum are used **completely unmodified** — everything here is
 build configuration, a Fuse UI backend of our own, and a thin Android app.
 
+**No ROMs ship with the app or live in this repository.** On first run it
+creates an empty `roms` folder and asks you to fill it, either by copying
+files in or through the importer in the dialog.
+
 ## Status
 
 Verified on an Android 16 x86_64 emulator (API 36) and cross-built for
@@ -15,9 +19,10 @@ arm64-v8a.
 | Working | Not yet |
 | --- | --- |
 | All sixteen machines, 16K through Scorpion | CRT / scanline filters |
+| Save states and ROMs in a folder you choose | Renaming an existing state |
 | Loading every format Fuse supports | Save states |
 | Opening files from other apps | On-screen joystick |
-| Save states, four slots | Writing tapes and disks back out |
+| Save states, named and unlimited | Writing tapes and disks back out |
 | Settings screen over Fuse's own options | Native menus replacing the widget ones |
 | Fast tape loading, or real-time loading with sound | On-screen joystick |
 | Machine switcher, remembered across launches | Debugger front end |
@@ -49,6 +54,12 @@ fingers give a real shifted key; alternatively **hold either shift for 400ms
 to latch it** (it turns amber) until you tap it again. That is how you get
 BREAK — Caps Shift and Space. A physical keyboard works too, exactly as it
 does on the desktop.
+
+**Folders** are yours to choose, in settings. *Save states folder* picks
+which of the writable roots this device offers — internal storage, shared
+storage, an SD card — holds the `states` and `roms` folders, and moves what
+is already there when it changes. *Content folder* is where **Open file…**
+starts, granted through the document picker.
 
 **The ☰ button** opens:
 
@@ -96,7 +107,6 @@ vendor/          upstream sources, fetched by the build script, never modified
 native/          our Fuse backend, compiled into Fuse's own build tree
   ui/android/          display, GLES renderer, JNI bridge, keysym map
   sound/               AAudio driver
-roms/            machine ROMs Fuse does not ship (see below)
 scripts/build-native.sh  cross-compiles everything per ABI
 build-native/    out-of-tree build trees + per-ABI install prefixes
 app/             Gradle app; jniLibs/ and assets/fuse/ are build outputs
@@ -295,15 +305,30 @@ to meet their neighbours so the gutters in the artwork are not dead to a
 fingertip. Presses are tracked per pointer, which is what makes both two-finger
 chords and the shift latch work.
 
-### ROMs
+### ROMs, and where things live
 
-Fuse's tarball carries the Sinclair and Timex ROMs, and a staged
-`make install` puts them in the APK's assets. It does not carry the clone
-ROMs — Pentagon (`128p-*`, `trdos`, `gluck`) and Scorpion (`256s-*`) — nor
-the Interface 1 and Opus Discovery ROMs, because they are copyrighted and not
-Fuse's to redistribute. Those sit in `roms/` and the build copies them
-alongside Fuse's own, which is all `machine_select()` needs to find them by
-name. Bear that in mind before publishing this repository.
+No ROMs are shipped. Fuse's tarball carries the Sinclair and Timex ones and
+the staged `make install` would happily bundle them, so the build deletes
+them from the assets again; what does travel with the app is Fuse's own UI
+data, the widget font and the status bitmaps, which are not ROMs.
+
+Fuse looks for a ROM in the current working directory before anywhere else,
+so the app simply `chdir`s into the user's `roms` folder before starting the
+emulation thread. That is the whole mechanism: no per-ROM paths on the
+command line, and it follows the folder setting immediately, because `chdir`
+is process wide.
+
+Without ROMs Fuse cannot even reach the 48K machine it falls back to, and
+gives up hard — `fuse_abort()` — so the app checks the folder first and does
+not start the emulator at all until there is something in it, offering an
+importer instead.
+
+Save states and ROMs share a root the user picks from what the device offers.
+It has to be a real filesystem path the app can write without a permission,
+because Fuse reaches both with plain stdio; that means internal storage or an
+app-specific external directory, not an arbitrary tree from the document
+picker. The folder to read *content* from has no such restriction, since that
+goes through the picker: any granted tree works as its starting point.
 
 ### Data files and environment
 

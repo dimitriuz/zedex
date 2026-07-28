@@ -9,6 +9,7 @@ import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
+import android.provider.DocumentsContract;
 import android.provider.OpenableColumns;
 import android.system.ErrnoException;
 import android.system.Os;
@@ -73,12 +74,10 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
     private static final long MACHINE_SETTLE_MS = 500;
 
     private static final int REQUEST_OPEN_FILE = 1;
+    private static final int REQUEST_IMPORT_ROMS = 3;
 
     /** Where picked files are staged for Fuse to open. */
     private static final String MEDIA_DIR = "media";
-
-    /** Saved states, kept in app storage. */
-    private static final String STATE_DIR = "states";
 
     /** Base name for new states: whatever media was loaded last. */
     private static final String PREF_MEDIA_NAME = "mediaName";
@@ -92,6 +91,7 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
 
         preferences = getSharedPreferences(PREFS, MODE_PRIVATE);
         FuseNative.attach(this);
+        Storage.createFolders(this);
 
         File files = getFilesDir();
         try {
@@ -258,7 +258,7 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
     }
 
     private File stateDirectory() {
-        return new File(getFilesDir(), STATE_DIR);
+        return Storage.statesDirectory(this);
     }
 
     private File thumbnailFor(String name) {
@@ -535,6 +535,9 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("*/*");
 
+        Uri start = Storage.contentFolder(this);
+        if (start != null) intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, start);
+
         try {
             startActivityForResult(intent, REQUEST_OPEN_FILE);
         } catch (android.content.ActivityNotFoundException e) {
@@ -546,7 +549,24 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
     protected void onActivityResult(int request, int result, Intent data) {
         super.onActivityResult(request, result, data);
 
-        if (request != REQUEST_OPEN_FILE || result != RESULT_OK || data == null) return;
+        if (result != RESULT_OK || data == null) return;
+
+        if (request == REQUEST_IMPORT_ROMS) {
+            List<Uri> sources = new ArrayList<>();
+
+            if (data.getClipData() != null) {
+                for (int i = 0; i < data.getClipData().getItemCount(); i++) {
+                    sources.add(data.getClipData().getItemAt(i).getUri());
+                }
+            } else if (data.getData() != null) {
+                sources.add(data.getData());
+            }
+
+            if (!sources.isEmpty()) new Thread(() -> copyRoms(sources)).start();
+            return;
+        }
+
+        if (request != REQUEST_OPEN_FILE) return;
 
         Uri uri = data.getData();
         if (uri != null) new Thread(() -> stageAndOpen(uri)).start();
@@ -695,10 +715,82 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
         FuseNative.surfaceChanged(holder.getSurface());
 
-        if (!started) {
-            started = true;
-            FuseNative.start(startArguments());
+        if (!started) startEmulator();
+    }
+
+    /**
+     * No ROMs ship with the app, so the first thing to establish is whether
+     * the user has provided any. Without them Fuse cannot even reach its
+     * fallback 48K machine and gives up hard, so it is not started at all.
+     */
+    private void startEmulator() {
+        if (!Storage.haveRoms(this)) {
+            askForRoms();
+            return;
         }
+
+        started = true;
+
+        // Fuse searches the working directory for a ROM before anywhere
+        // else, which is how it finds the user's.
+        FuseNative.setWorkingDirectory(Storage.romsDirectory(this).getAbsolutePath());
+        FuseNative.start(startArguments());
+    }
+
+    private void askForRoms() {
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(R.string.roms_needed)
+                .setMessage(getString(R.string.roms_needed_message,
+                        Storage.romsDirectory(this).getAbsolutePath()))
+                .setPositiveButton(R.string.roms_import, (dialog, which) -> importRoms())
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void importRoms() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+
+        Uri start = Storage.contentFolder(this);
+        if (start != null) intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, start);
+
+        try {
+            startActivityForResult(intent, REQUEST_IMPORT_ROMS);
+        } catch (android.content.ActivityNotFoundException e) {
+            Toast.makeText(this, R.string.open_failed, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    /** Copies chosen files into the roms folder, then tries to start again. */
+    private void copyRoms(List<Uri> sources) {
+        File directory = Storage.romsDirectory(this);
+        directory.mkdirs();
+
+        int copied = 0;
+        for (Uri source : sources) {
+            File target = new File(directory, displayName(source));
+
+            try (InputStream in = getContentResolver().openInputStream(source);
+                 OutputStream out = new FileOutputStream(target)) {
+                if (in == null) continue;
+
+                byte[] buffer = new byte[64 * 1024];
+                int read;
+                while ((read = in.read(buffer)) != -1) out.write(buffer, 0, read);
+                copied++;
+            } catch (IOException | SecurityException e) {
+                Log.e(TAG, "cannot import " + source, e);
+            }
+        }
+
+        int total = copied;
+        runOnUiThread(() -> {
+            Toast.makeText(this, getString(R.string.roms_imported, total),
+                    Toast.LENGTH_SHORT).show();
+            if (!started) startEmulator();
+        });
     }
 
     /**

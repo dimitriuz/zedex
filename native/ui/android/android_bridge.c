@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 #include <android/native_window_jni.h>
 
@@ -458,6 +459,26 @@ emulation_thread( void *arg )
 }
 
 /* --- JNI -------------------------------------------------------------- */
+
+/* Fuse looks for a ROM in the current directory before anywhere else, so
+   pointing that at the user's roms folder is all it takes to find them. Must
+   be called before the emulation thread starts. */
+JNIEXPORT jboolean JNICALL
+Java_com_fusemobile_FuseNative_setWorkingDirectory( JNIEnv *env, jclass class,
+                                                    jstring path )
+{
+  const char *utf = (*env)->GetStringUTFChars( env, path, NULL );
+  int ok;
+
+  if( !utf ) return JNI_FALSE;
+
+  ok = chdir( utf ) == 0;
+  if( !ok ) android_logw( "cannot use %s as the working directory", utf );
+
+  (*env)->ReleaseStringUTFChars( env, path, utf );
+
+  return ok ? JNI_TRUE : JNI_FALSE;
+}
 
 JNIEXPORT void JNICALL
 Java_com_fusemobile_FuseNative_start( JNIEnv *env, jclass class,

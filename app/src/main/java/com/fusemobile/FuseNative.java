@@ -46,6 +46,12 @@ final class FuseNative {
         handler.post(() -> Toast.makeText(target, message, length).show());
     }
 
+    /**
+     * Points the process at the folder Fuse should look in for ROMs, which it
+     * searches before anywhere else. Call before {@link #start}.
+     */
+    static native boolean setWorkingDirectory(String path);
+
     /** Starts Fuse's main loop on its own thread. Returns immediately. */
     static native void start(String[] args);
 

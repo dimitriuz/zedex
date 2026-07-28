@@ -14,6 +14,17 @@
             android:defaultValue="false" />
     </PreferenceCategory>
 
+    <PreferenceCategory android:title="@string/settings_storage">
+        <ListPreference
+            android:key="statesRoot"
+            android:title="@string/settings_states_root"
+            android:summary="@string/settings_states_root_summary" />
+        <Preference
+            android:key="contentTree"
+            android:title="@string/settings_content_folder"
+            android:summary="@string/settings_content_folder_summary" />
+    </PreferenceCategory>
+
     <PreferenceCategory android:title="@string/settings_states">
         <ListPreference
             android:key="snapshotFormat"

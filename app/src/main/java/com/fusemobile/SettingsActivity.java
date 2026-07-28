@@ -1,11 +1,17 @@
 package com.fusemobile;
 
 import android.app.Activity;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.preference.ListPreference;
 import android.preference.Preference;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceManager;
+import android.widget.Toast;
+
+import java.io.File;
+import java.util.List;
 
 /**
  * Settings, backed by the same {@code fuse} preferences file the emulator
@@ -35,6 +41,8 @@ public class SettingsActivity extends Activity {
     static final String KEY_KEEP_SCREEN_ON = "keepScreenOn";
     static final String KEY_SNAPSHOT_FORMAT = "snapshotFormat";
 
+    private static final int REQUEST_CONTENT_TREE = 2;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -55,6 +63,68 @@ public class SettingsActivity extends Activity {
             addPreferencesFromResource(R.xml.settings);
 
             populateMachines();
+            populateRoots();
+            updateSummaries();
+
+            Preference content = findPreference(Storage.KEY_CONTENT_TREE);
+            if (content != null) {
+                content.setOnPreferenceClickListener(preference -> {
+                    pickContentFolder();
+                    return true;
+                });
+            }
+        }
+
+        /**
+         * The list of places save states can go is whatever this device
+         * offers, so it is built here rather than in the XML.
+         */
+        private void populateRoots() {
+            ListPreference preference =
+                    (ListPreference) findPreference(Storage.KEY_STATES_ROOT);
+            if (preference == null) return;
+
+            List<File> roots = Storage.roots(getActivity());
+            String[] labels = new String[roots.size()];
+            String[] paths = new String[roots.size()];
+
+            for (int i = 0; i < roots.size(); i++) {
+                labels[i] = Storage.label(getActivity(), roots.get(i));
+                paths[i] = roots.get(i).getAbsolutePath();
+            }
+
+            preference.setEntries(labels);
+            preference.setEntryValues(paths);
+            if (preference.getValue() == null) preference.setValue(paths[0]);
+        }
+
+        private void pickContentFolder() {
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+            try {
+                startActivityForResult(intent, REQUEST_CONTENT_TREE);
+            } catch (android.content.ActivityNotFoundException e) {
+                Toast.makeText(getActivity(), R.string.open_failed,
+                        Toast.LENGTH_LONG).show();
+            }
+        }
+
+        @Override
+        public void onActivityResult(int request, int result, Intent data) {
+            super.onActivityResult(request, result, data);
+
+            if (request != REQUEST_CONTENT_TREE || result != Activity.RESULT_OK
+                    || data == null || data.getData() == null) {
+                return;
+            }
+
+            Uri tree = data.getData();
+
+            // Without this the grant dies with the activity.
+            getActivity().getContentResolver().takePersistableUriPermission(
+                    tree, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+            getPreferenceManager().getSharedPreferences().edit()
+                    .putString(Storage.KEY_CONTENT_TREE, tree.toString()).apply();
             updateSummaries();
         }
 
@@ -126,10 +196,38 @@ public class SettingsActivity extends Activity {
                 case KEY_BEEPER_VOLUME:
                     FuseNative.setBeeperVolume(number(preferences, key, 100));
                     break;
+                case Storage.KEY_STATES_ROOT:
+                    moveData();
+                    break;
                 default:
                     // The machine and keep-screen-on are read where they are
                     // needed rather than pushed.
                     break;
+            }
+        }
+
+        /** Follows the setting with the files themselves. */
+        private void moveData() {
+            Storage.createFolders(getActivity());
+
+            move("states", Storage.statesDirectory(getActivity()));
+            move("roms", Storage.romsDirectory(getActivity()));
+
+            // chdir is process wide and immediate, so the running emulator
+            // finds ROMs in the new place too - no restart needed.
+            FuseNative.setWorkingDirectory(
+                    Storage.romsDirectory(getActivity()).getAbsolutePath());
+
+            Toast.makeText(getActivity(), R.string.settings_states_moved,
+                    Toast.LENGTH_SHORT).show();
+        }
+
+        private void move(String folder, File to) {
+            for (File root : Storage.roots(getActivity())) {
+                File from = new File(root, folder);
+                if (from.equals(to) || !from.isDirectory()) continue;
+
+                Storage.moveStates(getActivity(), from, to);
             }
         }
 
@@ -144,6 +242,21 @@ public class SettingsActivity extends Activity {
         }
 
         private void updateSummaries() {
+            Preference states = findPreference(Storage.KEY_STATES_ROOT);
+            if (states != null) {
+                states.setSummary(
+                        Storage.statesDirectory(getActivity()).getAbsolutePath());
+            }
+
+            Preference content = findPreference(Storage.KEY_CONTENT_TREE);
+            if (content != null) {
+                String described = Storage.describe(getPreferenceManager()
+                        .getSharedPreferences()
+                        .getString(Storage.KEY_CONTENT_TREE, null));
+                content.setSummary(described != null ? described
+                        : getString(R.string.settings_content_folder_none));
+            }
+
             for (String key : new String[] { KEY_MACHINE, KEY_SPEED, KEY_SNAPSHOT_FORMAT,
                                              KEY_AY_VOLUME, KEY_BEEPER_VOLUME }) {
                 Preference preference = findPreference(key);

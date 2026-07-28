@@ -204,18 +204,19 @@ EOF
   # Fuse's data files (ROMs, widget font, UI bitmaps) are ABI independent;
   # take them from the first ABI we build via a staged `make install`.
   ############################################################################
+  # No ROMs are shipped, with the app or in this repository: the emulator
+  # reads them from the roms folder in its data directory, which the user
+  # fills. Fuse's own UI data - the widget font, the status bitmaps - is not
+  # a ROM and does travel with the app.
   if [ ! -d "$APP/assets/fuse" ]; then
     STAGE="$BUILD/stage"
     rm -rf "$STAGE"
     make -C "$FUSE_BUILD" install-pkgdataDATA DESTDIR="$STAGE" >/dev/null
     mkdir -p "$APP/assets"
     cp -r "$STAGE$DATA_ROOT/fuse" "$APP/assets/fuse"
+    rm -f "$APP"/assets/fuse/*.rom
+    echo "data files: $(ls "$APP/assets/fuse" | wc -l) entries"
   fi
-
-  # ROMs Fuse cannot redistribute (Pentagon, Scorpion, Interface 1, Opus).
-  # Kept alongside Fuse's own so machine_select() can find them by name.
-  cp "$ROOT"/roms/*.rom "$APP/assets/fuse/"
-  echo "data files: $(ls "$APP/assets/fuse" | wc -l) entries"
 done
 
 echo
