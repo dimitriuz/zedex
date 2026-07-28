@@ -529,6 +529,31 @@ androidbridge_pump_commands( void )
 static JavaVM *java_vm;
 static jclass native_class;
 static jmethodID on_error_method;
+static jmethodID on_frame_method;
+static jmethodID on_screenshot_method;
+
+/* Read every frame by the emulation thread, written by the UI thread. */
+static volatile int recording;
+static volatile int screenshot_wanted;
+
+/* The emulation thread is a plain pthread, so it has to be attached before
+   it can call back into Java. It runs for the life of the process, so there
+   is nothing to detach. */
+static JNIEnv *
+attached_env( void )
+{
+  JNIEnv *env;
+
+  if( !java_vm ) return NULL;
+
+  if( (*java_vm)->GetEnv( java_vm, (void**) &env,
+                          JNI_VERSION_1_6 ) != JNI_OK ) {
+    if( (*java_vm)->AttachCurrentThread( java_vm, &env, NULL ) != JNI_OK )
+      return NULL;
+  }
+
+  return env;
+}
 
 JNIEXPORT jint JNICALL
 JNI_OnLoad( JavaVM *vm, void *reserved )
@@ -546,6 +571,10 @@ JNI_OnLoad( JavaVM *vm, void *reserved )
     native_class = (*env)->NewGlobalRef( env, local );
     on_error_method = (*env)->GetStaticMethodID( env, native_class, "onError",
                                                  "(ILjava/lang/String;)V" );
+    on_frame_method = (*env)->GetStaticMethodID( env, native_class, "onFrame",
+                                                 "(II)V" );
+    on_screenshot_method = (*env)->GetStaticMethodID( env, native_class,
+                                                      "onScreenshot", "(II)V" );
     (*env)->DeleteLocalRef( env, local );
   }
 
@@ -560,16 +589,10 @@ androidbridge_report_error( int severity, const char *message )
 
   android_logw( "fuse: %s", message ? message : "" );
 
-  if( !java_vm || !native_class || !on_error_method || !message ) return;
+  if( !native_class || !on_error_method || !message ) return;
 
-  /* The emulation thread is a plain pthread, so it has to be attached before
-     it can call back into Java. It runs for the life of the process, so
-     there is nothing to detach. */
-  if( (*java_vm)->GetEnv( java_vm, (void**) &env,
-                          JNI_VERSION_1_6 ) != JNI_OK ) {
-    if( (*java_vm)->AttachCurrentThread( java_vm, &env, NULL ) != JNI_OK )
-      return;
-  }
+  env = attached_env();
+  if( !env ) return;
 
   text = (*env)->NewStringUTF( env, message );
   if( !text ) return;
@@ -577,6 +600,35 @@ androidbridge_report_error( int severity, const char *message )
   (*env)->CallStaticVoidMethod( env, native_class, on_error_method,
                                 (jint) severity, text );
   (*env)->DeleteLocalRef( env, text );
+}
+
+/* --- handing frames to Android ---------------------------------------- */
+
+/* Called for every frame Fuse draws, so the common case - nobody watching -
+   has to cost nothing. The Java side reads the pixels out of the buffer
+   published by frameBuffer() before this returns, which is safe because the
+   emulation thread is here rather than drawing the next frame. */
+void
+androidbridge_frame_ready( int width, int height )
+{
+  JNIEnv *env;
+
+  if( !recording && !screenshot_wanted ) return;
+  if( !native_class ) return;
+
+  env = attached_env();
+  if( !env ) return;
+
+  if( screenshot_wanted ) {
+    screenshot_wanted = 0;
+    if( on_screenshot_method )
+      (*env)->CallStaticVoidMethod( env, native_class, on_screenshot_method,
+                                    (jint) width, (jint) height );
+  }
+
+  if( recording && on_frame_method )
+    (*env)->CallStaticVoidMethod( env, native_class, on_frame_method,
+                                  (jint) width, (jint) height );
 }
 
 /* --- emulation thread ------------------------------------------------- */
@@ -992,6 +1044,56 @@ Java_com_fusemobile_FuseNative_saveSnapshot( JNIEnv *env, jclass class,
     queue_command_text( COMMAND_SAVE_SNAPSHOT, 0, 0, strdup( utf ) );
     (*env)->ReleaseStringUTFChars( env, path, utf );
   }
+}
+
+/* --- screenshots and recording ---------------------------------------- */
+
+/* The frame itself, as palette indices, wrapped without copying. Only ever
+   read from inside onFrame()/onScreenshot(), while the emulation thread is
+   blocked in the callback and cannot be part way through the next frame. */
+JNIEXPORT jobject JNICALL
+Java_com_fusemobile_FuseNative_frameBuffer( JNIEnv *env, jclass class )
+{
+  size_t size;
+  const libspectrum_byte *pixels = androiddisplay_indices( NULL, &size );
+
+  return (*env)->NewDirectByteBuffer( env, (void*) pixels, (jlong) size );
+}
+
+/* Rows in that buffer are this wide whatever the machine is drawing. */
+JNIEXPORT jint JNICALL
+Java_com_fusemobile_FuseNative_frameStride( JNIEnv *env, jclass class )
+{
+  int stride;
+
+  androiddisplay_indices( &stride, NULL );
+  return (jint) stride;
+}
+
+/* The sixteen colours, 0xAABBGGRR, as the renderer has them. */
+JNIEXPORT jintArray JNICALL
+Java_com_fusemobile_FuseNative_palette( JNIEnv *env, jclass class )
+{
+  const libspectrum_dword *palette = androiddisplay_palette();
+  jintArray colours = (*env)->NewIntArray( env, 16 );
+
+  if( colours )
+    (*env)->SetIntArrayRegion( env, colours, 0, 16, (const jint*) palette );
+
+  return colours;
+}
+
+JNIEXPORT void JNICALL
+Java_com_fusemobile_FuseNative_setRecording( JNIEnv *env, jclass class,
+                                             jboolean on )
+{
+  recording = on ? 1 : 0;
+}
+
+JNIEXPORT void JNICALL
+Java_com_fusemobile_FuseNative_captureScreenshot( JNIEnv *env, jclass class )
+{
+  screenshot_wanted = 1;
 }
 
 JNIEXPORT void JNICALL

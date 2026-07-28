@@ -102,10 +102,31 @@ uidisplay_area( int x, int y, int w, int h )
 {
 }
 
+/* Palette indices, and the sixteen colours they mean.
+
+   Recording and screenshots work from these rather than from the expanded
+   frame: the Spectrum has sixteen colours and nothing else, so a GIF wants
+   exactly this and a PNG is one lookup away. */
+
+const libspectrum_byte *
+androiddisplay_indices( int *stride, size_t *size )
+{
+  if( stride ) *stride = DISPLAY_SCREEN_WIDTH;
+  if( size ) *size = sizeof( androiddisplay_image );
+
+  return &androiddisplay_image[0][0];
+}
+
+const libspectrum_dword *
+androiddisplay_palette( void )
+{
+  return settings_current.bw_tv ? greys : colours;
+}
+
 void
 uidisplay_frame_end( void )
 {
-  const libspectrum_dword *palette = settings_current.bw_tv ? greys : colours;
+  const libspectrum_dword *palette = androiddisplay_palette();
   libspectrum_dword *out = androiddisplay_rgba;
   int x, y;
 
@@ -115,6 +136,7 @@ uidisplay_frame_end( void )
   }
 
   androidbridge_present( androiddisplay_rgba, image_width, image_height );
+  androidbridge_frame_ready( image_width, image_height );
 }
 
 int

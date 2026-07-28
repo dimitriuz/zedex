@@ -38,6 +38,8 @@ final class Storage {
     private static final String ROMS = "roms";
     private static final String TAPES = "tapes";
     private static final String DISKS = "disks";
+    private static final String SHOTS = "screenshots";
+    private static final String FILMS = "recordings";
 
     private Storage() {
     }
@@ -165,12 +167,24 @@ final class Storage {
         return new File(root(context), DISKS);
     }
 
+    /** Where screenshots are written. */
+    static File screenshotsDirectory(Context context) {
+        return new File(root(context), SHOTS);
+    }
+
+    /** Where recordings are written. */
+    static File recordingsDirectory(Context context) {
+        return new File(root(context), FILMS);
+    }
+
     /** The folders exist from the first run, empty if need be. */
     static void createFolders(Context context) {
         statesDirectory(context).mkdirs();
         romsDirectory(context).mkdirs();
         tapesDirectory(context).mkdirs();
         disksDirectory(context).mkdirs();
+        screenshotsDirectory(context).mkdirs();
+        recordingsDirectory(context).mkdirs();
     }
 
     /**
@@ -225,6 +239,35 @@ final class Storage {
                     tree, DocumentsContract.getTreeDocumentId(tree));
         } catch (Exception e) {
             Log.w(TAG, "cannot use content folder " + stored, e);
+            return null;
+        }
+    }
+
+    /**
+     * The same folder as a document URI, so a file manager can be pointed at
+     * it, or null when there is no such thing.
+     *
+     * Only shared storage has one. A data folder inside the app's own
+     * directory is invisible to the rest of the system by design, and no
+     * intent will open it.
+     */
+    static Uri documentUriFor(File folder) {
+        try {
+            // Through the canonical path, because /sdcard, /storage/self/
+            // primary and /storage/emulated/0 are all the same place and
+            // only the last of them is what getExternalStorageDirectory
+            // answers with.
+            String path = folder.getCanonicalPath();
+            String root = Environment.getExternalStorageDirectory()
+                                     .getCanonicalPath();
+
+            if (!path.startsWith(root + "/")) return null;
+
+            return DocumentsContract.buildDocumentUri(
+                    "com.android.externalstorage.documents",
+                    "primary:" + path.substring(root.length() + 1));
+        } catch (Exception e) {
+            Log.w(TAG, "no document uri for " + folder, e);
             return null;
         }
     }

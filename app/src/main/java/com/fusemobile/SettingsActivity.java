@@ -291,6 +291,10 @@ public class SettingsActivity extends Activity {
                          Storage.tapesDirectory(getActivity()));
             Storage.move(getActivity(), new File(previous, "disks"),
                          Storage.disksDirectory(getActivity()));
+            Storage.move(getActivity(), new File(previous, "screenshots"),
+                         Storage.screenshotsDirectory(getActivity()));
+            Storage.move(getActivity(), new File(previous, "recordings"),
+                         Storage.recordingsDirectory(getActivity()));
 
             // chdir is process wide and immediate, so the running emulator
             // finds ROMs in the new place too - no restart needed.

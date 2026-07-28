@@ -215,6 +215,7 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
             getString(R.string.menu_load_state),
             getString(R.string.menu_media),
             getString(R.string.menu_disks),
+            getString(R.string.menu_capture),
             getString(R.string.menu_settings),
             getString(R.string.menu_machine),
             getString(R.string.menu_reset),
@@ -229,10 +230,11 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
                         case 2: showStateDialog(false); break;
                         case 3: showMediaMenu(); break;
                         case 4: showDiskMenu(); break;
-                        case 5: startActivity(new Intent(this, SettingsActivity.class)); break;
-                        case 6: showMachineDialog(); break;
-                        case 7: confirmReset(); break;
-                        case 8:
+                        case 5: showCaptureMenu(); break;
+                        case 6: startActivity(new Intent(this, SettingsActivity.class)); break;
+                        case 7: showMachineDialog(); break;
+                        case 8: confirmReset(); break;
+                        case 9:
                             FuseNative.nmi();
                             note(R.string.nmi_done);
                             break;
@@ -262,6 +264,151 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
                 })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
+    }
+
+    // --- screenshots and recording -----------------------------------------
+
+    /**
+     * A picture of the emulated screen, or a film of it.
+     *
+     * The two formats are offered rather than settled in settings because
+     * they are for different things: a GIF drops straight into a forum post
+     * and keeps the palette exactly, an MP4 is smaller and takes sound
+     * eventually.
+     */
+    private void showCaptureMenu() {
+        boolean recording = Recorder.isRecording();
+
+        String[] items = recording
+                ? new String[] {
+                    getString(R.string.capture_screenshot),
+                    getString(R.string.capture_stop),
+                    getString(R.string.capture_open_folder),
+                  }
+                : new String[] {
+                    getString(R.string.capture_screenshot),
+                    getString(R.string.capture_gif),
+                    getString(R.string.capture_mp4),
+                    getString(R.string.capture_open_folder),
+                  };
+
+        int openFolder = items.length - 1;
+
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(R.string.menu_capture)
+                .setItems(items, (dialog, which) -> {
+                    if (which == openFolder) {
+                        openRecordingsFolder();
+                    } else if (which == 0) {
+                        takeScreenshot();
+                    } else if (recording) {
+                        Recorder.stop();
+                    } else {
+                        startRecording(which == 1 ? Recorder.Format.GIF
+                                                  : Recorder.Format.MP4);
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    /**
+     * Hands the folder to whatever browses files on this device.
+     *
+     * There are two ways to ask and neither is guaranteed: viewing the
+     * folder as a document is what the Files app understands, and the
+     * document picker opened at that folder is the fallback. If the data
+     * folder is the app's own, no intent can reach it and the path is all
+     * there is to offer.
+     */
+    private void openRecordingsFolder() {
+        File folder = Storage.recordingsDirectory(this);
+        folder.mkdirs();
+
+        Uri uri = Storage.documentUriFor(folder);
+
+        if (uri != null) {
+            Intent view = new Intent(Intent.ACTION_VIEW);
+            view.setDataAndType(uri, DocumentsContract.Document.MIME_TYPE_DIR);
+            view.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+            // This activity is singleInstance, so without a task of its own
+            // the file manager is handed the intent in the background and
+            // never comes forward.
+            view.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                        | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+
+            if (start(view)) return;
+
+            Intent browse = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+            browse.putExtra(DocumentsContract.EXTRA_INITIAL_URI, uri);
+            browse.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+            if (start(browse)) return;
+        }
+
+        Toast.makeText(this, getString(R.string.capture_no_browser,
+                                       folder.getAbsolutePath()),
+                       Toast.LENGTH_LONG).show();
+    }
+
+    private boolean start(Intent intent) {
+        try {
+            startActivity(intent);
+            return true;
+        } catch (android.content.ActivityNotFoundException e) {
+            return false;
+        }
+    }
+
+    private void takeScreenshot() {
+        File target = captureFile(Storage.screenshotsDirectory(this), "png");
+        if (target == null) return;
+
+        Recorder.screenshotTo(target, this::reportCapture);
+    }
+
+    private void startRecording(Recorder.Format format) {
+        File target = captureFile(Storage.recordingsDirectory(this),
+                                  format.extension);
+        if (target == null) return;
+
+        if (!Recorder.start(target, format, this::reportCapture)) {
+            Toast.makeText(this, R.string.capture_busy, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        note(R.string.capture_recording, target.getName());
+    }
+
+    /** Reported when the file is really written, not when it was asked for. */
+    private void reportCapture(File file, String error) {
+        if (error == null) {
+            Toast.makeText(this, getString(R.string.capture_saved, file.getName()),
+                           Toast.LENGTH_LONG).show();
+        } else {
+            Toast.makeText(this, getString(R.string.capture_failed,
+                                           file.getName(), error),
+                           Toast.LENGTH_LONG).show();
+        }
+    }
+
+    /** Named after whatever is loaded, numbered so nothing is overwritten. */
+    private File captureFile(File directory, String extension) {
+        if (!directory.isDirectory() && !directory.mkdirs()) {
+            Toast.makeText(this, R.string.state_failed, Toast.LENGTH_LONG).show();
+            return null;
+        }
+
+        String base = preferences.getString(PREF_MEDIA_NAME, null);
+        if (base == null || base.isEmpty()) base = "Spectrum";
+
+        File target = new File(directory, base + "." + extension);
+        for (int n = 2; target.exists() && n < 10000; n++) {
+            target = new File(directory, base + " " + n + "." + extension);
+        }
+
+        return target;
     }
 
     // --- disks ------------------------------------------------------------

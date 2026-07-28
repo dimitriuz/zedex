@@ -151,6 +151,39 @@ final class FuseNative {
      */
     static native void saveThumbnail(String path);
 
+    // --- screenshots and recording ---------------------------------------
+
+    /**
+     * The frame as palette indices, wrapped without a copy.
+     *
+     * Only valid inside {@link #onFrame} and {@link #onScreenshot}: the
+     * emulation thread is inside the callback then, so it cannot be part way
+     * through drawing the next one. Rows are {@link #frameStride()} apart,
+     * which is wider than the frame on machines that do not use it all.
+     */
+    static native java.nio.ByteBuffer frameBuffer();
+
+    static native int frameStride();
+
+    /** The sixteen colours the indices mean, 0xAABBGGRR. */
+    static native int[] palette();
+
+    /** Whether {@link #onFrame} is called for every frame drawn. */
+    static native void setRecording(boolean on);
+
+    /** Asks for {@link #onScreenshot} on the next frame. */
+    static native void captureScreenshot();
+
+    /** One frame, on the emulation thread. Must return promptly. */
+    static void onFrame(int width, int height) {
+        Recorder.frame(width, height);
+    }
+
+    /** The frame a screenshot was asked for, on the emulation thread. */
+    static void onScreenshot(int width, int height) {
+        Recorder.screenshot(width, height);
+    }
+
     /**
      * Queues a file for Fuse to open. Fuse identifies it itself, so this takes
      * snapshots, tapes, disks, cartridges, microdrive images and RZX

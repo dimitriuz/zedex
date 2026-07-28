@@ -27,6 +27,11 @@ int androiddisplay_end( void );
 /* Half-size RGBA dump of the last frame, for the save state list. */
 int androiddisplay_write_thumbnail( const char *path );
 
+/* The frame as palette indices, and the sixteen colours they stand for.
+   Recording and screenshots are built from these. */
+const libspectrum_byte *androiddisplay_indices( int *stride, size_t *size );
+const libspectrum_dword *androiddisplay_palette( void );
+
 /* --- renderer (android_gl.c) ----------------------------------------- */
 
 /* All of these run on the emulation thread, which owns the EGL context. */
@@ -51,6 +56,11 @@ void androidbridge_present( const void *pixels, int width, int height );
 /* Hands one of Fuse's errors to the Android side to show. Called on the
    emulation thread. */
 void androidbridge_report_error( int severity, const char *message );
+
+/* Offers the frame just drawn to whatever is recording or waiting for a
+   screenshot. Does nothing, cheaply, when nothing is. Called from
+   uidisplay_frame_end() on the emulation thread. */
+void androidbridge_frame_ready( int width, int height );
 
 /* Drain queued UI commands - keys, machine changes - onto the emulation
    thread, and refresh the state the UI thread reads back. Called from

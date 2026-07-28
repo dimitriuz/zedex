@@ -101,4 +101,15 @@
     <string name="nmi_done">NMI sent</string>
     <string name="machine_selected">%1$s</string>
     <string name="menu_button">Menu</string>
+    <string name="menu_capture">Capture…</string>
+    <string name="capture_screenshot">Save screenshot</string>
+    <string name="capture_gif">Record a GIF</string>
+    <string name="capture_mp4">Record an MP4</string>
+    <string name="capture_stop">Stop recording</string>
+    <string name="capture_recording">Recording to “%1$s”</string>
+    <string name="capture_saved">Saved “%1$s”</string>
+    <string name="capture_failed">Could not write “%1$s”: %2$s</string>
+    <string name="capture_busy">Still finishing the last recording</string>
+    <string name="capture_open_folder">Open recordings folder</string>
+    <string name="capture_no_browser">Recordings are in %1$s</string>
 </resources>
