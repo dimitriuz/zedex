@@ -17,6 +17,7 @@
     <string name="open_failed">Could not open that file</string>
     <string name="tape_save">Save tape\u2026</string>
     <string name="tape_new">New tape</string>
+    <string name="tape_new_done">Started an empty tape</string>
     <string name="tape_new_confirm">Throw away the current tape and start an empty one?</string>
     <string name="tape_empty">Nothing on the tape yet. SAVE from the machine first, with fast loading on.</string>
     <string name="tape_default_name">Tape %1$d</string>
@@ -25,6 +26,9 @@
     <string name="disk_save_short">Save\u2026</string>
     <string name="disk_load">Load disk\u2026</string>
     <string name="disk_new">New disk</string>
+    <string name="disk_new_done">Blank disk in %1$s</string>
+    <string name="disk_inserted">Inserted “%1$s”</string>
+    <string name="disk_ejected">Ejected %1$s</string>
     <string name="disk_eject">Eject</string>
     <string name="disk_empty">Empty</string>
     <string name="disk_modified">%1$s (modified)</string>
@@ -92,4 +96,8 @@
     <string name="state_saved">Saved “%1$s”</string>
     <string name="state_loaded">Loaded “%1$s”</string>
     <string name="state_failed">Could not write the save state</string>
+    <string name="file_opened">Opened “%1$s”</string>
+    <string name="reset_done">Machine reset</string>
+    <string name="nmi_done">NMI sent</string>
+    <string name="machine_selected">%1$s</string>
 </resources>

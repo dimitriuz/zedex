@@ -230,7 +230,10 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
                         case 5: startActivity(new Intent(this, SettingsActivity.class)); break;
                         case 6: showMachineDialog(); break;
                         case 7: confirmReset(); break;
-                        case 8: FuseNative.nmi(); break;
+                        case 8:
+                            FuseNative.nmi();
+                            note(R.string.nmi_done);
+                            break;
                     }
                 })
                 .show();
@@ -342,23 +345,30 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
 
     private void confirmNewDisk(String name, int id, boolean loaded) {
         if (!loaded) {
-            FuseNative.newDisk(id >> 8, id & 0xff);
+            newDisk(name, id);
             return;
         }
 
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setMessage(getString(R.string.disk_replace, name))
                 .setPositiveButton(R.string.disk_new, (dialog, which) ->
-                        FuseNative.newDisk(id >> 8, id & 0xff))
+                        newDisk(name, id))
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
+    }
+
+    private void newDisk(String name, int id) {
+        FuseNative.newDisk(id >> 8, id & 0xff);
+        note(R.string.disk_new_done, name);
     }
 
     private void confirmEject(String name, int id) {
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setMessage(getString(R.string.disk_eject_confirm, name))
-                .setPositiveButton(R.string.disk_eject, (dialog, which) ->
-                        FuseNative.ejectDisk(id >> 8, id & 0xff))
+                .setPositiveButton(R.string.disk_eject, (dialog, which) -> {
+                    FuseNative.ejectDisk(id >> 8, id & 0xff);
+                    note(R.string.disk_ejected, name);
+                })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
     }
@@ -493,7 +503,10 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
     private void confirmNewTape() {
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setMessage(R.string.tape_new_confirm)
-                .setPositiveButton(R.string.tape_new, (dialog, which) -> FuseNative.newTape())
+                .setPositiveButton(R.string.tape_new, (dialog, which) -> {
+                    FuseNative.newTape();
+                    note(R.string.tape_new_done);
+                })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
     }
@@ -844,6 +857,7 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
                     if (staged == null) return;
                     FuseNative.insertDisk(drive >> 8, drive & 0xff,
                                           staged.getAbsolutePath());
+                    note(R.string.disk_inserted, staged.getName());
                 }).start();
             }
             return;
@@ -865,6 +879,7 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
         if (staged == null) return;
 
         FuseNative.openFile(staged.getAbsolutePath());
+        note(R.string.file_opened, staged.getName());
 
         String name = staged.getName();
         int dot = name.lastIndexOf('.');
@@ -899,6 +914,12 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
         return staged;
     }
 
+    /** Says an action happened. Fuse itself is silent about most of them. */
+    private void note(int message, Object... arguments) {
+        runOnUiThread(() -> Toast.makeText(this, getString(message, arguments),
+                                           Toast.LENGTH_SHORT).show());
+    }
+
     private void reportOpenFailed() {
         runOnUiThread(() ->
                 Toast.makeText(this, R.string.open_failed, Toast.LENGTH_LONG).show());
@@ -930,6 +951,7 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
                 .setPositiveButton(R.string.menu_reset, (dialog, which) -> {
                     FuseNative.reset();
                     forgetMediaName();
+                    note(R.string.reset_done);
                 })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
@@ -964,6 +986,8 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
             if (FuseNative.currentMachine() != index && index < names.length) {
                 Toast.makeText(this, getString(R.string.machine_unavailable,
                         names[index]), Toast.LENGTH_LONG).show();
+            } else if (index < names.length) {
+                note(R.string.machine_selected, names[index]);
             }
             rememberMachine();
         }, MACHINE_SETTLE_MS);

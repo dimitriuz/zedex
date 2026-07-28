@@ -93,6 +93,10 @@ instead — it has a button for exactly that.
   per drive: *Load disk…*, *New disk*, *Save…* and *Eject*. The drives follow
   the machine, so a +3 shows its two and a Pentagon its four Beta ones.
 - **Settings…** — see below.
+
+Anything that completes without visible effect — a blank disk, an eject, an
+NMI, a reset — says so with a toast, since the emulated screen often looks
+identical either way.
 - **Machine…** — all sixteen machines, with the running one checked. The
   choice is remembered for the next launch.
 - **Reset** — asks first, since it discards machine state.
@@ -176,8 +180,15 @@ scripts/ui-tap.py list                       # what is on screen
 scripts/ui-tap.py "Disks" "Beta Disk A" "Save…"
 ```
 
-It reads the view hierarchy through `uiautomator dump`. Proper
-instrumentation tests would be better still; see the next steps.
+It reads the view hierarchy through `uiautomator dump`. For the emulated
+machine there is `scripts/ui-type.py`, which taps the keyboard artwork:
+
+```sh
+scripts/ui-type.py 'randomize usr 15616' ENTER
+scripts/ui-type.py CS+SS SS+0 ' ' '"test"' ENTER   # extended mode: FORMAT
+```
+
+Proper instrumentation tests would be better still; see the next steps.
 
 Media can be loaded without touching the picker at all:
 
@@ -303,6 +314,11 @@ A disk made with *New disk* is **unformatted** — Fuse's `disk_new()` gives it
 geometry but no filesystem — so there is nothing to write until the machine
 formats it. Saving one produced a silent zero byte file, so a failed or empty
 write now deletes the file and says why.
+
+Once the machine has formatted it, it writes: a blank disk in a Scorpion's
+Beta A:, `FORMAT "test"` at the TR-DOS prompt, `SAVE "hi"`, then *Save…*
+gives a 655360 byte TRD whose catalogue reads `test`, one file `hi`, 2543
+free — and reopening it in the app shows the same.
 
 The write itself is `disk_write()`, which picks its format from the extension
 once `disk.type` is cleared — the same thing Fuse's own save-as does, minus

@@ -2,6 +2,14 @@
 """Tap an on-screen element by its text, via the view hierarchy.
 
 Coordinates shift whenever a menu gains an item; text does not.
+
+    scripts/ui-tap.py list
+    scripts/ui-tap.py "Disks" "Beta Disk A" "Save…"
+
+Each argument is matched against the screen in turn, waiting for it to
+appear. An exact match wins over a substring, and a clickable node over a
+decorative one, so asking for "Reset" finds the button in a dialog rather
+than the sentence above it that happens to contain the word.
 """
 import os
 import re
@@ -10,6 +18,9 @@ import sys
 import time
 
 ADB = os.environ.get("ADB", os.path.expanduser("~/Android/Sdk/platform-tools/adb"))
+
+NODE = re.compile(r'text="([^"]*)"[^>]*?clickable="(true|false)"'
+                  r'[^>]*?bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"')
 
 
 def dump():
@@ -21,33 +32,47 @@ def dump():
 
 def nodes():
     found = []
-    for m in re.finditer(r'text="([^"]*)"[^>]*?bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"',
-                         dump()):
-        text, x1, y1, x2, y2 = m.groups()
+    for match in NODE.finditer(dump()):
+        text, clickable, x1, y1, x2, y2 = match.groups()
         if text:
-            found.append((text, (int(x1) + int(x2)) // 2, (int(y1) + int(y2)) // 2))
+            found.append((text, clickable == "true",
+                          (int(x1) + int(x2)) // 2, (int(y1) + int(y2)) // 2))
     return found
+
+
+def best(target, on_screen):
+    """Exact before substring, clickable before not, in that order."""
+    def rank(node):
+        text, clickable, _, _ = node
+        exact = text.strip().lower() == target.lower()
+        return (0 if exact else 1, 0 if clickable else 1)
+
+    matches = [n for n in on_screen if target.lower() in n[0].lower()]
+    return min(matches, key=rank) if matches else None
 
 
 def tap(target, timeout=8):
     deadline = time.time() + timeout
-    while time.time() < deadline:
-        for text, x, y in nodes():
-            if target.lower() in text.lower():
-                subprocess.run([ADB, "shell", "input", "tap", str(x), str(y)])
-                print(f"tapped {text!r} at ({x},{y})")
-                time.sleep(1.2)
-                return True
+    while True:
+        on_screen = nodes()
+        match = best(target, on_screen)
+        if match:
+            text, _, x, y = match
+            subprocess.run([ADB, "shell", "input", "tap", str(x), str(y)])
+            print(f"tapped {text!r} at ({x},{y})")
+            time.sleep(1.2)
+            return True
+        if time.time() > deadline:
+            print(f"NOT FOUND: {target!r}")
+            print("  on screen:", [n[0] for n in on_screen])
+            return False
         time.sleep(0.5)
-    print(f"NOT FOUND: {target!r}")
-    print("  on screen:", [t for t, _, _ in nodes()])
-    return False
 
 
 if __name__ == "__main__":
-    if sys.argv[1] == "list":
-        for text, x, y in nodes():
-            print(f"{text!r:40} ({x},{y})")
+    if sys.argv[1:2] == ["list"]:
+        for text, clickable, x, y in nodes():
+            print(f"{text!r:44} {'tap' if clickable else '   '} ({x},{y})")
     else:
         for argument in sys.argv[1:]:
             if not tap(argument):
