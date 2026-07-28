@@ -1,4 +1,4 @@
-package com.fusemobile;
+package dev.ldlab.zedex;
 
 import java.io.BufferedOutputStream;
 import java.io.File;

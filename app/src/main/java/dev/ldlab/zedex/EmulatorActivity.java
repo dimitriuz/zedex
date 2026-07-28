@@ -1,4 +1,4 @@
-package com.fusemobile;
+package dev.ldlab.zedex;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -57,9 +57,9 @@ import java.util.Locale;
  * is prepare the Unix environment Fuse expects, hand it a surface, and
  * forward input.
  */
-public class FuseActivity extends Activity implements SurfaceHolder.Callback {
+public class EmulatorActivity extends Activity implements SurfaceHolder.Callback {
 
-    private static final String TAG = "FuseMobile";
+    private static final String TAG = "Zedex";
 
     /** Assets subdirectory unpacked into {@code getFilesDir()/fuse}. */
     private static final String DATA_DIR = "fuse";

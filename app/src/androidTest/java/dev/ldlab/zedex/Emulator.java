@@ -1,4 +1,4 @@
-package com.fusemobile;
+package dev.ldlab.zedex;
 
 import static org.junit.Assert.assertNotNull;
 

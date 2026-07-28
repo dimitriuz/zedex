@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace 'com.fusemobile'
+    namespace 'dev.ldlab.zedex'
     compileSdk 34
 
     defaultConfig {
-        applicationId 'com.fusemobile'   // must match DATA_ROOT in scripts/build-native.sh
+        applicationId 'dev.ldlab.zedex'   // must match DATA_ROOT in scripts/build-native.sh
         minSdk 30                        // Android 11
         targetSdk 34
         versionCode 1

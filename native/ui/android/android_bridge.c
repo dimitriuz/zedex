@@ -566,7 +566,7 @@ JNI_OnLoad( JavaVM *vm, void *reserved )
   if( (*vm)->GetEnv( vm, (void**) &env, JNI_VERSION_1_6 ) != JNI_OK )
     return JNI_VERSION_1_6;
 
-  local = (*env)->FindClass( env, "com/fusemobile/FuseNative" );
+  local = (*env)->FindClass( env, "dev/ldlab/zedex/FuseNative" );
   if( local ) {
     native_class = (*env)->NewGlobalRef( env, local );
     on_error_method = (*env)->GetStaticMethodID( env, native_class, "onError",
@@ -655,7 +655,7 @@ emulation_thread( void *arg )
    pointing that at the user's roms folder is all it takes to find them. Must
    be called before the emulation thread starts. */
 JNIEXPORT jboolean JNICALL
-Java_com_fusemobile_FuseNative_setWorkingDirectory( JNIEnv *env, jclass class,
+Java_dev_ldlab_zedex_FuseNative_setWorkingDirectory( JNIEnv *env, jclass class,
                                                     jstring path )
 {
   const char *utf = (*env)->GetStringUTFChars( env, path, NULL );
@@ -672,7 +672,7 @@ Java_com_fusemobile_FuseNative_setWorkingDirectory( JNIEnv *env, jclass class,
 }
 
 JNIEXPORT void JNICALL
-Java_com_fusemobile_FuseNative_start( JNIEnv *env, jclass class,
+Java_dev_ldlab_zedex_FuseNative_start( JNIEnv *env, jclass class,
                                       jobjectArray args )
 {
   pthread_attr_t attributes;
@@ -707,7 +707,7 @@ Java_com_fusemobile_FuseNative_start( JNIEnv *env, jclass class,
 }
 
 JNIEXPORT void JNICALL
-Java_com_fusemobile_FuseNative_surfaceChanged( JNIEnv *env, jclass class,
+Java_dev_ldlab_zedex_FuseNative_surfaceChanged( JNIEnv *env, jclass class,
                                                jobject surface )
 {
   ANativeWindow *native = ANativeWindow_fromSurface( env, surface );
@@ -720,7 +720,7 @@ Java_com_fusemobile_FuseNative_surfaceChanged( JNIEnv *env, jclass class,
 }
 
 JNIEXPORT void JNICALL
-Java_com_fusemobile_FuseNative_surfaceDestroyed( JNIEnv *env, jclass class )
+Java_dev_ldlab_zedex_FuseNative_surfaceDestroyed( JNIEnv *env, jclass class )
 {
   struct timespec deadline;
 
@@ -754,7 +754,7 @@ Java_com_fusemobile_FuseNative_surfaceDestroyed( JNIEnv *env, jclass class )
 }
 
 JNIEXPORT void JNICALL
-Java_com_fusemobile_FuseNative_key( JNIEnv *env, jclass class, jint keycode,
+Java_dev_ldlab_zedex_FuseNative_key( JNIEnv *env, jclass class, jint keycode,
                                     jboolean pressed )
 {
   queue_command( COMMAND_KEY, keycode, pressed ? 1 : 0 );
@@ -786,19 +786,19 @@ machine_strings( JNIEnv *env, int names )
 }
 
 JNIEXPORT jobjectArray JNICALL
-Java_com_fusemobile_FuseNative_machineNames( JNIEnv *env, jclass class )
+Java_dev_ldlab_zedex_FuseNative_machineNames( JNIEnv *env, jclass class )
 {
   return machine_strings( env, 1 );
 }
 
 JNIEXPORT jobjectArray JNICALL
-Java_com_fusemobile_FuseNative_machineIds( JNIEnv *env, jclass class )
+Java_dev_ldlab_zedex_FuseNative_machineIds( JNIEnv *env, jclass class )
 {
   return machine_strings( env, 0 );
 }
 
 JNIEXPORT jboolean JNICALL
-Java_com_fusemobile_FuseNative_hasTape( JNIEnv *env, jclass class )
+Java_dev_ldlab_zedex_FuseNative_hasTape( JNIEnv *env, jclass class )
 {
   jboolean present;
 
@@ -810,7 +810,7 @@ Java_com_fusemobile_FuseNative_hasTape( JNIEnv *env, jclass class )
 }
 
 JNIEXPORT jobjectArray JNICALL
-Java_com_fusemobile_FuseNative_driveNames( JNIEnv *env, jclass class )
+Java_dev_ldlab_zedex_FuseNative_driveNames( JNIEnv *env, jclass class )
 {
   jobjectArray result;
   int i;
@@ -833,7 +833,7 @@ Java_com_fusemobile_FuseNative_driveNames( JNIEnv *env, jclass class )
 
 /* Controller in the high byte, drive in the low one. */
 JNIEXPORT jintArray JNICALL
-Java_com_fusemobile_FuseNative_driveIds( JNIEnv *env, jclass class )
+Java_dev_ldlab_zedex_FuseNative_driveIds( JNIEnv *env, jclass class )
 {
   jintArray result;
   jint ids[ MAX_DRIVES ];
@@ -857,7 +857,7 @@ Java_com_fusemobile_FuseNative_driveIds( JNIEnv *env, jclass class )
    three entries per drive. One call rather than three keeps the list
    consistent. */
 JNIEXPORT jobjectArray JNICALL
-Java_com_fusemobile_FuseNative_driveDetails( JNIEnv *env, jclass class )
+Java_dev_ldlab_zedex_FuseNative_driveDetails( JNIEnv *env, jclass class )
 {
   jobjectArray result;
   jclass string_class;
@@ -890,7 +890,7 @@ Java_com_fusemobile_FuseNative_driveDetails( JNIEnv *env, jclass class )
 }
 
 JNIEXPORT void JNICALL
-Java_com_fusemobile_FuseNative_insertDisk( JNIEnv *env, jclass class,
+Java_dev_ldlab_zedex_FuseNative_insertDisk( JNIEnv *env, jclass class,
                                            jint controller, jint drive,
                                            jstring path )
 {
@@ -903,21 +903,21 @@ Java_com_fusemobile_FuseNative_insertDisk( JNIEnv *env, jclass class,
 }
 
 JNIEXPORT void JNICALL
-Java_com_fusemobile_FuseNative_newDisk( JNIEnv *env, jclass class,
+Java_dev_ldlab_zedex_FuseNative_newDisk( JNIEnv *env, jclass class,
                                         jint controller, jint drive )
 {
   queue_command( COMMAND_DISK_NEW, controller, drive );
 }
 
 JNIEXPORT void JNICALL
-Java_com_fusemobile_FuseNative_ejectDisk( JNIEnv *env, jclass class,
+Java_dev_ldlab_zedex_FuseNative_ejectDisk( JNIEnv *env, jclass class,
                                           jint controller, jint drive )
 {
   queue_command( COMMAND_DISK_EJECT, controller, drive );
 }
 
 JNIEXPORT void JNICALL
-Java_com_fusemobile_FuseNative_writeDisk( JNIEnv *env, jclass class,
+Java_dev_ldlab_zedex_FuseNative_writeDisk( JNIEnv *env, jclass class,
                                           jint controller, jint drive,
                                           jstring path )
 {
@@ -930,7 +930,7 @@ Java_com_fusemobile_FuseNative_writeDisk( JNIEnv *env, jclass class,
 }
 
 JNIEXPORT void JNICALL
-Java_com_fusemobile_FuseNative_writeTape( JNIEnv *env, jclass class,
+Java_dev_ldlab_zedex_FuseNative_writeTape( JNIEnv *env, jclass class,
                                           jstring path )
 {
   const char *utf = (*env)->GetStringUTFChars( env, path, NULL );
@@ -942,13 +942,13 @@ Java_com_fusemobile_FuseNative_writeTape( JNIEnv *env, jclass class,
 }
 
 JNIEXPORT void JNICALL
-Java_com_fusemobile_FuseNative_newTape( JNIEnv *env, jclass class )
+Java_dev_ldlab_zedex_FuseNative_newTape( JNIEnv *env, jclass class )
 {
   queue_command( COMMAND_NEW_TAPE, 0, 0 );
 }
 
 JNIEXPORT jint JNICALL
-Java_com_fusemobile_FuseNative_currentMachine( JNIEnv *env, jclass class )
+Java_dev_ldlab_zedex_FuseNative_currentMachine( JNIEnv *env, jclass class )
 {
   jint current;
 
@@ -960,82 +960,82 @@ Java_com_fusemobile_FuseNative_currentMachine( JNIEnv *env, jclass class )
 }
 
 JNIEXPORT void JNICALL
-Java_com_fusemobile_FuseNative_selectMachine( JNIEnv *env, jclass class,
+Java_dev_ldlab_zedex_FuseNative_selectMachine( JNIEnv *env, jclass class,
                                               jint index )
 {
   queue_command( COMMAND_SELECT_MACHINE, index, 0 );
 }
 
 JNIEXPORT void JNICALL
-Java_com_fusemobile_FuseNative_reset( JNIEnv *env, jclass class )
+Java_dev_ldlab_zedex_FuseNative_reset( JNIEnv *env, jclass class )
 {
   queue_command( COMMAND_RESET, 0, 0 );
 }
 
 JNIEXPORT void JNICALL
-Java_com_fusemobile_FuseNative_nmi( JNIEnv *env, jclass class )
+Java_dev_ldlab_zedex_FuseNative_nmi( JNIEnv *env, jclass class )
 {
   queue_command( COMMAND_NMI, 0, 0 );
 }
 
 JNIEXPORT void JNICALL
-Java_com_fusemobile_FuseNative_setFastTape( JNIEnv *env, jclass class,
+Java_dev_ldlab_zedex_FuseNative_setFastTape( JNIEnv *env, jclass class,
                                             jboolean fast )
 {
   queue_command( COMMAND_SET_OPTION, OPTION_FAST_TAPE, fast ? 1 : 0 );
 }
 
 JNIEXPORT void JNICALL
-Java_com_fusemobile_FuseNative_setTapeSound( JNIEnv *env, jclass class,
+Java_dev_ldlab_zedex_FuseNative_setTapeSound( JNIEnv *env, jclass class,
                                              jboolean on )
 {
   queue_command( COMMAND_SET_OPTION, OPTION_TAPE_SOUND, on ? 1 : 0 );
 }
 
 JNIEXPORT void JNICALL
-Java_com_fusemobile_FuseNative_setAutoLoad( JNIEnv *env, jclass class, jboolean on )
+Java_dev_ldlab_zedex_FuseNative_setAutoLoad( JNIEnv *env, jclass class, jboolean on )
 {
   queue_command( COMMAND_SET_OPTION, OPTION_AUTOLOAD, on ? 1 : 0 );
 }
 
 JNIEXPORT void JNICALL
-Java_com_fusemobile_FuseNative_setIssue2( JNIEnv *env, jclass class, jboolean on )
+Java_dev_ldlab_zedex_FuseNative_setIssue2( JNIEnv *env, jclass class, jboolean on )
 {
   queue_command( COMMAND_SET_OPTION, OPTION_ISSUE2, on ? 1 : 0 );
 }
 
 JNIEXPORT void JNICALL
-Java_com_fusemobile_FuseNative_setBlackAndWhite( JNIEnv *env, jclass class, jboolean on )
+Java_dev_ldlab_zedex_FuseNative_setBlackAndWhite( JNIEnv *env, jclass class, jboolean on )
 {
   queue_command( COMMAND_SET_OPTION, OPTION_BW_TV, on ? 1 : 0 );
 }
 
 JNIEXPORT void JNICALL
-Java_com_fusemobile_FuseNative_setSound( JNIEnv *env, jclass class, jboolean on )
+Java_dev_ldlab_zedex_FuseNative_setSound( JNIEnv *env, jclass class, jboolean on )
 {
   queue_command( COMMAND_SET_OPTION, OPTION_SOUND, on ? 1 : 0 );
 }
 
 JNIEXPORT void JNICALL
-Java_com_fusemobile_FuseNative_setSpeed( JNIEnv *env, jclass class, jint value )
+Java_dev_ldlab_zedex_FuseNative_setSpeed( JNIEnv *env, jclass class, jint value )
 {
   queue_command( COMMAND_SET_OPTION, OPTION_SPEED, value );
 }
 
 JNIEXPORT void JNICALL
-Java_com_fusemobile_FuseNative_setAyVolume( JNIEnv *env, jclass class, jint value )
+Java_dev_ldlab_zedex_FuseNative_setAyVolume( JNIEnv *env, jclass class, jint value )
 {
   queue_command( COMMAND_SET_OPTION, OPTION_AY_VOLUME, value );
 }
 
 JNIEXPORT void JNICALL
-Java_com_fusemobile_FuseNative_setBeeperVolume( JNIEnv *env, jclass class, jint value )
+Java_dev_ldlab_zedex_FuseNative_setBeeperVolume( JNIEnv *env, jclass class, jint value )
 {
   queue_command( COMMAND_SET_OPTION, OPTION_BEEPER_VOLUME, value );
 }
 
 JNIEXPORT void JNICALL
-Java_com_fusemobile_FuseNative_saveSnapshot( JNIEnv *env, jclass class,
+Java_dev_ldlab_zedex_FuseNative_saveSnapshot( JNIEnv *env, jclass class,
                                              jstring path )
 {
   const char *utf = (*env)->GetStringUTFChars( env, path, NULL );
@@ -1052,7 +1052,7 @@ Java_com_fusemobile_FuseNative_saveSnapshot( JNIEnv *env, jclass class,
    read from inside onFrame()/onScreenshot(), while the emulation thread is
    blocked in the callback and cannot be part way through the next frame. */
 JNIEXPORT jobject JNICALL
-Java_com_fusemobile_FuseNative_frameBuffer( JNIEnv *env, jclass class )
+Java_dev_ldlab_zedex_FuseNative_frameBuffer( JNIEnv *env, jclass class )
 {
   size_t size;
   const libspectrum_byte *pixels = androiddisplay_indices( NULL, &size );
@@ -1062,7 +1062,7 @@ Java_com_fusemobile_FuseNative_frameBuffer( JNIEnv *env, jclass class )
 
 /* Rows in that buffer are this wide whatever the machine is drawing. */
 JNIEXPORT jint JNICALL
-Java_com_fusemobile_FuseNative_frameStride( JNIEnv *env, jclass class )
+Java_dev_ldlab_zedex_FuseNative_frameStride( JNIEnv *env, jclass class )
 {
   int stride;
 
@@ -1072,7 +1072,7 @@ Java_com_fusemobile_FuseNative_frameStride( JNIEnv *env, jclass class )
 
 /* The sixteen colours, 0xAABBGGRR, as the renderer has them. */
 JNIEXPORT jintArray JNICALL
-Java_com_fusemobile_FuseNative_palette( JNIEnv *env, jclass class )
+Java_dev_ldlab_zedex_FuseNative_palette( JNIEnv *env, jclass class )
 {
   const libspectrum_dword *palette = androiddisplay_palette();
   jintArray colours = (*env)->NewIntArray( env, 16 );
@@ -1084,20 +1084,20 @@ Java_com_fusemobile_FuseNative_palette( JNIEnv *env, jclass class )
 }
 
 JNIEXPORT void JNICALL
-Java_com_fusemobile_FuseNative_setRecording( JNIEnv *env, jclass class,
+Java_dev_ldlab_zedex_FuseNative_setRecording( JNIEnv *env, jclass class,
                                              jboolean on )
 {
   recording = on ? 1 : 0;
 }
 
 JNIEXPORT void JNICALL
-Java_com_fusemobile_FuseNative_captureScreenshot( JNIEnv *env, jclass class )
+Java_dev_ldlab_zedex_FuseNative_captureScreenshot( JNIEnv *env, jclass class )
 {
   screenshot_wanted = 1;
 }
 
 JNIEXPORT void JNICALL
-Java_com_fusemobile_FuseNative_saveThumbnail( JNIEnv *env, jclass class,
+Java_dev_ldlab_zedex_FuseNative_saveThumbnail( JNIEnv *env, jclass class,
                                               jstring path )
 {
   const char *utf = (*env)->GetStringUTFChars( env, path, NULL );
@@ -1109,7 +1109,7 @@ Java_com_fusemobile_FuseNative_saveThumbnail( JNIEnv *env, jclass class,
 }
 
 JNIEXPORT void JNICALL
-Java_com_fusemobile_FuseNative_loadSnapshot( JNIEnv *env, jclass class,
+Java_dev_ldlab_zedex_FuseNative_loadSnapshot( JNIEnv *env, jclass class,
                                              jstring path )
 {
   const char *utf = (*env)->GetStringUTFChars( env, path, NULL );
@@ -1121,7 +1121,7 @@ Java_com_fusemobile_FuseNative_loadSnapshot( JNIEnv *env, jclass class,
 }
 
 JNIEXPORT void JNICALL
-Java_com_fusemobile_FuseNative_openFile( JNIEnv *env, jclass class,
+Java_dev_ldlab_zedex_FuseNative_openFile( JNIEnv *env, jclass class,
                                          jstring path )
 {
   const char *utf = (*env)->GetStringUTFChars( env, path, NULL );

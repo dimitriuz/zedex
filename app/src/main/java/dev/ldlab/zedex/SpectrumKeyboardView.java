@@ -1,4 +1,4 @@
-package com.fusemobile;
+package dev.ldlab.zedex;
 
 import android.content.Context;
 import android.graphics.Bitmap;
@@ -49,7 +49,7 @@ import java.util.List;
  */
 public class SpectrumKeyboardView extends View {
 
-    private static final String TAG = "FuseMobile";
+    private static final String TAG = "Zedex";
 
     private static final String IMAGE_ASSET = "fuse/keyboard.png";
 

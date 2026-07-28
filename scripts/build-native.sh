@@ -34,7 +34,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 # Must match applicationId in app/build.gradle: Fuse hardcodes FUSEDATADIR at
 # compile time and looks for its ROMs / font there at runtime.
-PKG="com.fusemobile"
+PKG="dev.ldlab.zedex"
 DATA_ROOT="/data/data/$PKG/files"      # -> FUSEDATADIR = $DATA_ROOT/fuse
 
 if [ "${1:-}" = "clean" ]; then
@@ -120,6 +120,18 @@ for ABI in $ABIS; do
   echo "=== [$ABI] fuse $FUSE_VER ==="
   ############################################################################
   FUSE_BUILD="$BUILD/fuse/$ABI"
+
+  # Fuse bakes FUSEDATADIR in at configure time, so a build tree configured
+  # for a different package is worse than no build tree at all: it compiles,
+  # links and installs, and then cannot find its own font at runtime. The
+  # tree records what it was configured for, and anything else - including a
+  # tree from before this check existed, which has no record - is discarded.
+  if [ -d "$FUSE_BUILD" ] && \
+     [ "$(cat "$FUSE_BUILD/.package" 2>/dev/null)" != "$PKG" ]; then
+    echo "configured for another package; reconfiguring for $PKG"
+    rm -rf "$FUSE_BUILD"
+  fi
+
   if [ ! -f "$FUSE_BUILD/Makefile" ]; then
     mkdir -p "$FUSE_BUILD"
     # --with-fb selects the widget UI without pulling in anything framebuffer
@@ -137,7 +149,8 @@ for ABI in $ABIS; do
         --with-fb --without-gpm --with-audio-driver=null \
         --without-gtk --without-x --without-png \
         --without-libxml2 \
-        --disable-desktop-integration )
+        --disable-desktop-integration ) && \
+      echo "$PKG" > "$FUSE_BUILD/.package"
   fi
 
   # Ask the generated Makefile for its own variables rather than guessing at

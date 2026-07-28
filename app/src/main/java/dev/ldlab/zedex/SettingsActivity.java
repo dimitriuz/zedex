@@ -1,4 +1,4 @@
-package com.fusemobile;
+package dev.ldlab.zedex;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -30,7 +30,7 @@ public class SettingsActivity extends Activity {
 
     static final String PREFS = "fuse";
 
-    // Keys shared with FuseActivity.
+    // Keys shared with EmulatorActivity.
     static final String KEY_MACHINE = "machine";
     static final String KEY_FAST_TAPE = "fastTape";
     static final String KEY_TAPE_SOUND = "tapeSound";

@@ -1,4 +1,4 @@
-package com.fusemobile;
+package dev.ldlab.zedex;
 
 import android.graphics.Bitmap;
 import android.os.Handler;
@@ -28,7 +28,7 @@ import java.util.concurrent.BlockingQueue;
  */
 final class Recorder {
 
-    private static final String TAG = "FuseMobile";
+    private static final String TAG = "Zedex";
 
     /** Deep enough to ride out a slow write, shallow enough to stay current. */
     private static final int SPARE_FRAMES = 8;

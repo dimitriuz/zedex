@@ -1,4 +1,4 @@
-package com.fusemobile;
+package dev.ldlab.zedex;
 
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;

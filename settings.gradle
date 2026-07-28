@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "FuseMobile"
+rootProject.name = "Zedex"
 include ':app'

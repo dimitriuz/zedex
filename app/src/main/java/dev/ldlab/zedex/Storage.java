@@ -1,4 +1,4 @@
-package com.fusemobile;
+package dev.ldlab.zedex;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -29,7 +29,7 @@ import java.util.List;
  */
 final class Storage {
 
-    private static final String TAG = "FuseMobile";
+    private static final String TAG = "Zedex";
 
     static final String KEY_STATES_ROOT = "statesRoot";
     static final String KEY_CONTENT_TREE = "contentTree";
@@ -76,7 +76,7 @@ final class Storage {
     static boolean isWritable(File directory) {
         if (!directory.isDirectory() && !directory.mkdirs()) return false;
 
-        File probe = new File(directory, ".fusemobile");
+        File probe = new File(directory, ".zedex");
         try {
             if (!probe.createNewFile() && !probe.exists()) return false;
             probe.delete();

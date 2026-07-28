@@ -13,7 +13,7 @@
 
 #include <libspectrum.h>
 
-#define ANDROID_LOG_TAG "FuseNative"
+#define ANDROID_LOG_TAG "Zedex"
 #define android_log( ... ) \
   __android_log_print( ANDROID_LOG_INFO, ANDROID_LOG_TAG, __VA_ARGS__ )
 #define android_logw( ... ) \
