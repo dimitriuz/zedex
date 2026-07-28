@@ -179,9 +179,15 @@ gh secret set ZEDEX_KEY_ALIAS        # zedex
 gh secret set ZEDEX_KEY_PASSWORD
 ```
 
-That `gh` is GitHub's own CLI (`github-cli`), not the npm package of the same
-name. Without it, paste the same four values into Settings → Secrets and
-variables → Actions.
+That `gh` is GitHub's own CLI (`github-cli`), not the abandoned npm package of
+the same name — the npm one authenticates through an endpoint GitHub removed in
+2020 and can only fail with `Error creating GitHub token / Not Found`. If it is
+installed, its `~/.local/bin/gh` symlink shadows the real `/usr/bin/gh`, so
+remove it rather than installing alongside it.
+
+None of this is required: the four secrets can equally be pasted into
+Settings → Secrets and variables → Actions. The `gh` the release workflow
+itself calls is the one preinstalled on GitHub's runners.
 
 The release job checks all four are present and opens the keystore before it
 starts the build, so a mis-pasted secret fails in seconds rather than after
