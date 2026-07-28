@@ -61,6 +61,20 @@ invisible to the emulated machine.
 
 ### The menu
 
+☰ itself fades out three seconds after it is last used, because it sits in the
+corner of the picture and is therefore in the way of the thing it belongs to. A
+tap anywhere on the screen brings it back; closing the sheet takes it away
+again. It starts visible rather than hidden — a button nobody knows is there is
+worse than one briefly in the way — and it is pinned up for as long as the ROMs
+panel is showing, since that panel covers the screen and a tap would land on it
+instead, leaving settings unreachable exactly when a wrong data folder is the
+likely cause.
+
+The fade's end action has to check whether the button is still meant to be
+hidden. Cancelling a `ViewPropertyAnimator` runs its end action anyway, so a
+reveal arriving mid-fade was undone a moment after it happened: the tap
+registered, and the button stayed invisible.
+
 ☰ opens a sheet that slides in from the edge rather than a dialog. A dialog sat
 in the middle of the window, which is where the machine is, and could only be a
 flat list of equal-looking items; a sheet down one side leaves the picture

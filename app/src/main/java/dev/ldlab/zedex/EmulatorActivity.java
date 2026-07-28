@@ -117,6 +117,9 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     /** The ☰ sheet. Built once and slid in and out. */
     private MenuDrawer menu;
 
+    /** The ☰ button itself, which fades out when it is not being used. */
+    private Button menuButton;
+
     /** Shown in place of the emulated screen when there is no machine. */
     private View romsPanel;
     private TextView romsTitle;
@@ -164,10 +167,18 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // takes the whole window, and the ☰ button has to stay on top of it.
         romsPanel = buildRomsPanel();
         menu = buildMenu();
+        menuButton = buildMenuButton();
+
+        // A tap anywhere on the picture brings ☰ back; the sheet closing takes
+        // it away again, so it is only ever over the screen while in use.
+        screen.setOnClickListener(v -> revealMenuButton());
+        menu.setOnClosed(fadeMenuButton);
 
         layout = new EmulatorLayout(this);
         layout.setChildren(screen, new SpectrumKeyboardView(this), romsPanel,
-                           buildMenuButton(), menu);
+                           menuButton, menu);
+
+        revealMenuButton();
         layout.setTemplate(EmulatorLayout.Template.of(
                 preferences.getString(SettingsActivity.KEY_LANDSCAPE_LAYOUT, null)));
 
@@ -242,6 +253,62 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // Where it goes is EmulatorLayout's business: it follows the screen,
         // which moves with the template.
         return button;
+    }
+
+    /**
+     * How long \u2630 stays up before fading out again.
+     *
+     * It sits over the emulated screen, in the corner of the picture, so it is
+     * in the way of the thing it belongs to. Tapping the screen brings it back.
+     * It starts visible rather than hidden: a button nobody knows is there is
+     * worse than one briefly in the way.
+     */
+    private static final long MENU_BUTTON_LINGER_MS = 3000;
+
+    /** Stays up as long as the ROMs panel does; see {@link #revealMenuButton}. */
+    private boolean menuButtonPinned;
+
+    /**
+     * Whether \u2630 is meant to be up. The fade's end action has to ask, because
+     * cancelling a ViewPropertyAnimator still runs it \u2014 so a reveal arriving
+     * mid-fade would otherwise be undone a moment after it happened, which is
+     * exactly what it did.
+     */
+    private boolean menuButtonWanted;
+
+    private final Runnable fadeMenuButton = () -> {
+        if (menuButtonPinned) return;
+
+        menuButtonWanted = false;
+        menuButton.animate().alpha(0f).setDuration(200).withEndAction(() -> {
+            if (!menuButtonWanted) menuButton.setVisibility(View.GONE);
+        });
+    };
+
+    /** Shows \u2630 and starts it fading again. Any tap on the screen does this. */
+    private void revealMenuButton() {
+        menuButtonWanted = true;
+
+        menuButton.removeCallbacks(fadeMenuButton);
+        menuButton.animate().cancel();
+        menuButton.setAlpha(1f);
+        menuButton.setVisibility(View.VISIBLE);
+
+        if (!menuButtonPinned) {
+            menuButton.postDelayed(fadeMenuButton, MENU_BUTTON_LINGER_MS);
+        }
+    }
+
+    /**
+     * Keeps \u2630 up for as long as there is no machine.
+     *
+     * The ROMs panel covers the screen, so a tap lands on the panel rather
+     * than on the thing that reveals the button - which would leave settings
+     * unreachable exactly when a wrong data folder is the likely problem.
+     */
+    private void pinMenuButton(boolean pinned) {
+        menuButtonPinned = pinned;
+        revealMenuButton();
     }
 
     /**
@@ -1384,10 +1451,12 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                 : getString(R.string.roms_needed_message, path));
         romsRestart.setVisibility(startFailed ? View.VISIBLE : View.GONE);
         romsPanel.setVisibility(View.VISIBLE);
+        pinMenuButton(true);
     }
 
     private void hideRomsPanel() {
         romsPanel.setVisibility(View.GONE);
+        pinMenuButton(false);
     }
 
     private void openRomsPage() {

@@ -46,6 +46,7 @@ final class MenuDrawer extends FrameLayout {
     private final int unit;
 
     private boolean open;
+    private Runnable onClosed;
 
     MenuDrawer(Context context) {
         super(context);
@@ -123,6 +124,11 @@ final class MenuDrawer extends FrameLayout {
         return open;
     }
 
+    /** Told whenever the sheet has finished closing, however it was closed. */
+    void setOnClosed(Runnable action) {
+        onClosed = action;
+    }
+
     void open() {
         if (open) return;
 
@@ -149,7 +155,10 @@ final class MenuDrawer extends FrameLayout {
         open = false;
         scrim.animate().alpha(0f).setDuration(SLIDE_MS);
         sheet.animate().translationX(sheet.getWidth()).setDuration(SLIDE_MS)
-             .withEndAction(() -> setVisibility(GONE));
+             .withEndAction(() -> {
+                 setVisibility(GONE);
+                 if (onClosed != null) onClosed.run();
+             });
     }
 
     @Override
