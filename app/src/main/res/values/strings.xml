@@ -51,6 +51,7 @@
     <string name="state_add">Add new snapshot</string>
     <string name="state_add_summary">Save the machine as it is now</string>
     <string name="state_name">Name</string>
+    <string name="state_default_name">Snapshot %1$d</string>
     <string name="state_none">No saved snapshots yet</string>
     <string name="state_overwrite">Overwrite “%1$s”?</string>
     <string name="state_overwrite_confirm">Overwrite</string>

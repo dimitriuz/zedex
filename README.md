@@ -241,7 +241,9 @@ that name, so a name is never ambiguous.
 
 New states are named after the media that is loaded — the base name of the
 opened file, or of the state last loaded — with a number appended if that is
-taken, and the name is editable before saving.
+taken, and the name is editable before saving. A reset or a machine change
+empties the machine, so there is nothing left to name a state after and they
+go back to being numbered `Snapshot 1`, `Snapshot 2` and so on.
 
 SZX is the default because it is libspectrum's own format and the only one
 that can represent every machine here — a state saved on a Pentagon or a

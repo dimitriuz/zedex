@@ -405,15 +405,27 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
     /**
      * Names a new state after whatever is loaded, which is nearly always what
      * it is a state of, adding a number if that name is taken.
+     *
+     * A reset or a machine change empties the machine, so there is nothing to
+     * name a state after and they are simply numbered instead.
      */
     private String suggestedName() {
-        String base = preferences.getString(PREF_MEDIA_NAME, "Snapshot");
-        if (findState(base) == null) return base;
+        String media = preferences.getString(PREF_MEDIA_NAME, null);
+
+        if (media == null || media.isEmpty()) {
+            for (int n = 1; n < 1000; n++) {
+                String numbered = getString(R.string.state_default_name, n);
+                if (findState(numbered) == null) return numbered;
+            }
+            return getString(R.string.state_default_name, 1);
+        }
+
+        if (findState(media) == null) return media;
 
         for (int n = 2; n < 1000; n++) {
-            if (findState(base + " " + n) == null) return base + " " + n;
+            if (findState(media + " " + n) == null) return media + " " + n;
         }
-        return base;
+        return media;
     }
 
     private File findState(String name) {
@@ -507,6 +519,11 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
     /** What a new state will be called: the media that is loaded. */
     private void rememberMediaName(String name) {
         preferences.edit().putString(PREF_MEDIA_NAME, name).apply();
+    }
+
+    /** Nothing is loaded any more, so new states go back to being numbered. */
+    private void forgetMediaName() {
+        preferences.edit().remove(PREF_MEDIA_NAME).apply();
     }
 
     // --- opening media --------------------------------------------------
@@ -608,7 +625,10 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
     private void confirmReset() {
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setMessage(R.string.reset_confirm)
-                .setPositiveButton(R.string.menu_reset, (dialog, which) -> FuseNative.reset())
+                .setPositiveButton(R.string.menu_reset, (dialog, which) -> {
+                    FuseNative.reset();
+                    forgetMediaName();
+                })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
     }
@@ -632,6 +652,7 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
         String[] names = FuseNative.machineNames();
 
         FuseNative.selectMachine(index);
+        forgetMediaName();
 
         // The change happens on the emulation thread, and it can fail: Fuse
         // falls back to 48K when a machine's ROMs are missing (Pentagon and
