@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 #
-# Cross-compiles SDL2 + libspectrum + Fuse for Android and drops the results
-# into the Gradle project (app/src/main/jniLibs and app/src/main/assets).
+# Cross-compiles libspectrum + Fuse for Android and drops the result into the
+# Gradle project (app/src/main/jniLibs and app/src/main/assets).
 #
-# Nothing under vendor/ is modified: everything is built out-of-tree.
+# Fuse is used completely unmodified. Rather than adding an Android UI to its
+# build system, we configure it --with-fb (which builds Fuse's portable widget
+# UI and nothing framebuffer specific outside ui/fb), then simply never
+# compile ui/fb and link native/ui/android in its place. Same trick for the
+# sound driver.
 #
 # Usage:
 #   scripts/build-native.sh                 # build all ABIs
@@ -16,8 +20,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VENDOR="$ROOT/vendor"
 BUILD="$ROOT/build-native"
 APP="$ROOT/app/src/main"
+NATIVE="$ROOT/native"
 
-SDL_VER="2.32.10"
 FUSE_VER="1.9.0"
 LIBSPECTRUM_VER="1.6.2"
 
@@ -45,7 +49,7 @@ echo "API:  $API"
 echo "ABIs: $ABIS"
 
 ##############################################################################
-# Upstream sources. Not kept in git (~100 MB); fetched once, verified, and
+# Upstream sources. Not kept in git (~13 MB); fetched once, verified, and
 # then left strictly read-only.
 ##############################################################################
 fetch() {
@@ -73,13 +77,6 @@ fetch "fuse-$FUSE_VER" \
 fetch "libspectrum-$LIBSPECTRUM_VER" \
   "https://downloads.sourceforge.net/project/fuse-emulator/libspectrum/$LIBSPECTRUM_VER/libspectrum-$LIBSPECTRUM_VER.tar.gz" \
   74bb2bb0e78779a09808aa7636fe7fa6c815002e8344b46d914bfb7a864c88e0
-fetch "SDL2-$SDL_VER" \
-  "https://github.com/libsdl-org/SDL/releases/download/release-$SDL_VER/SDL2-$SDL_VER.tar.gz" \
-  5f5993c530f084535c65a6879e9b26ad441169b3e25d789d83287040a9ca5165
-
-# SDL's Java glue has to match libSDL2.so, so it is copied rather than vendored
-# by hand. Our own code lives in com/fusemobile; org/libsdl/app is upstream.
-cp -r "$VENDOR/SDL2-$SDL_VER/android-project/app/src/main/java/org" "$APP/java/"
 
 for ABI in $ABIS; do
   case "$ABI" in
@@ -94,7 +91,6 @@ for ABI in $ABIS; do
   mkdir -p "$PREFIX"
 
   export CC="$TOOLCHAIN/bin/${TARGET}${API}-clang"
-  export CXX="$TOOLCHAIN/bin/${TARGET}${API}-clang++"
   export AR="$TOOLCHAIN/bin/llvm-ar"
   export RANLIB="$TOOLCHAIN/bin/llvm-ranlib"
   export STRIP="$TOOLCHAIN/bin/llvm-strip"
@@ -105,20 +101,6 @@ for ABI in $ABIS; do
   export PKG_CONFIG_LIBDIR="$PREFIX/lib/pkgconfig"
   export PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig"
   unset PKG_CONFIG_SYSROOT_DIR
-
-  ############################################################################
-  echo "=== [$ABI] SDL $SDL_VER ==="
-  ############################################################################
-  if [ ! -f "$PREFIX/lib/libSDL2.so" ]; then
-    cmake -S "$VENDOR/SDL2-$SDL_VER" -B "$BUILD/sdl2/$ABI" -G Ninja \
-      -DCMAKE_TOOLCHAIN_FILE="$NDK/build/cmake/android.toolchain.cmake" \
-      -DANDROID_ABI="$ABI" -DANDROID_PLATFORM="android-$API" \
-      -DCMAKE_BUILD_TYPE=Release \
-      -DCMAKE_INSTALL_PREFIX="$PREFIX" \
-      -DSDL_SHARED=ON -DSDL_STATIC=OFF -DSDL_TEST=OFF
-    cmake --build "$BUILD/sdl2/$ABI" --parallel "$JOBS"
-    cmake --install "$BUILD/sdl2/$ABI"
-  fi
 
   ############################################################################
   echo "=== [$ABI] libspectrum $LIBSPECTRUM_VER ==="
@@ -140,6 +122,9 @@ for ABI in $ABIS; do
   FUSE_BUILD="$BUILD/fuse/$ABI"
   if [ ! -f "$FUSE_BUILD/Makefile" ]; then
     mkdir -p "$FUSE_BUILD"
+    # --with-fb selects the widget UI without pulling in anything framebuffer
+    # specific outside ui/fb, which we discard below.
+    #
     # -include limits.h: compat.h falls back to PATH_MAX=1024 when nothing has
     # pulled in <limits.h> yet, which is what happens on bionic in some
     # translation units. Other units see the real 4096, so struct path_context
@@ -149,22 +134,58 @@ for ABI in $ABIS; do
       CPPFLAGS="-include limits.h" \
       "$VENDOR/fuse-$FUSE_VER/configure" \
         --host="$HOST" --prefix="$DATA_ROOT" --datadir="$DATA_ROOT" \
-        --with-sdl --without-gtk --without-x --without-png \
-        --without-libxml2 --without-gpm \
+        --with-fb --without-gpm --with-audio-driver=null \
+        --without-gtk --without-x --without-png \
+        --without-libxml2 \
         --disable-desktop-integration )
   fi
-  # Link the emulator as libmain.so instead of an executable: SDL's Android
-  # bootstrap dlsym()s SDL_main out of it, and fuse.c's main() is already
-  # renamed to SDL_main by <SDL.h> when UI_SDL2 is defined. No source changes.
-  # -XCClinker is needed because the link goes through libtool, which would
-  # otherwise eat a bare -shared on a program target.
-  make -C "$FUSE_BUILD" -j"$JOBS" \
-    LDFLAGS="-XCClinker -shared -XCClinker -Wl,-soname,libmain.so -XCClinker -Wl,--no-undefined"
+
+  # Ask the generated Makefile for its own variables rather than guessing at
+  # include paths and the object list.
+  cat > "$FUSE_BUILD/printvar.mk" <<'EOF'
+include Makefile
+print-%:
+	@echo "$($*)"
+EOF
+  mkvar() { make -s -C "$FUSE_BUILD" -f printvar.mk "print-$1"; }
+
+  # Perl-generated sources (z80 opcodes, settings, menu data, widget options).
+  make -C "$FUSE_BUILD" -j"$JOBS" $(mkvar BUILT_SOURCES) >/dev/null
+
+  # Everything Fuse would link, minus the UI we are replacing. A few objects
+  # (the timer, the scalers, the sound driver) reach the link through
+  # fuse_LDADD rather than fuse_OBJECTS, so they have to be built too.
+  FUSE_OBJS=$(mkvar fuse_OBJECTS | tr ' ' '\n' | grep -v '^ui/fb/' | tr '\n' ' ')
+  LDADD_OBJS=$(mkvar fuse_LDADD | tr ' ' '\n' | grep '\.o$' | tr '\n' ' ')
+  make -C "$FUSE_BUILD" -j"$JOBS" $FUSE_OBJS $LDADD_OBJS
+
+  ############################################################################
+  echo "=== [$ABI] Android UI ==="
+  ############################################################################
+  OUR_OBJS=""
+  mkdir -p "$FUSE_BUILD/android"
+  # Compiled from inside the build tree: Fuse's DEFAULT_INCLUDES starts with
+  # -I. for the generated config.h.
+  for src in "$NATIVE"/ui/android/*.c; do
+    obj="android/$(basename "${src%.c}").o"
+    ( cd "$FUSE_BUILD" && \
+      $CC $CFLAGS -DHAVE_CONFIG_H $(mkvar DEFAULT_INCLUDES) $(mkvar AM_CPPFLAGS) \
+          $(mkvar CPPFLAGS) -c -o "$obj" "$src" )
+    OUR_OBJS="$OUR_OBJS $obj"
+  done
+
+  ############################################################################
+  echo "=== [$ABI] link libfuse.so ==="
+  ############################################################################
+  ( cd "$FUSE_BUILD" && \
+    $CC -shared -Wl,-soname,libfuse.so -Wl,--no-undefined -o libfuse.so \
+      $FUSE_OBJS $OUR_OBJS \
+      $(mkvar fuse_LDADD) $(mkvar LIBS) \
+      -landroid -llog -lEGL -lGLESv3 )
 
   mkdir -p "$APP/jniLibs/$ABI"
-  cp "$FUSE_BUILD/fuse" "$APP/jniLibs/$ABI/libmain.so"
-  cp "$PREFIX/lib/libSDL2.so" "$APP/jniLibs/$ABI/libSDL2.so"
-  "$STRIP" "$APP/jniLibs/$ABI/libmain.so" "$APP/jniLibs/$ABI/libSDL2.so"
+  cp "$FUSE_BUILD/libfuse.so" "$APP/jniLibs/$ABI/libfuse.so"
+  "$STRIP" "$APP/jniLibs/$ABI/libfuse.so"
 
   ############################################################################
   # Fuse's data files (ROMs, widget font, UI bitmaps) are ABI independent;
@@ -173,7 +194,7 @@ for ABI in $ABIS; do
   if [ ! -d "$APP/assets/fuse" ]; then
     STAGE="$BUILD/stage"
     rm -rf "$STAGE"
-    make -C "$FUSE_BUILD" install DESTDIR="$STAGE" >/dev/null
+    make -C "$FUSE_BUILD" install-pkgdataDATA DESTDIR="$STAGE" >/dev/null
     mkdir -p "$APP/assets"
     cp -r "$STAGE$DATA_ROOT/fuse" "$APP/assets/fuse"
     echo "data files: $(ls "$APP/assets/fuse" | wc -l) entries"
