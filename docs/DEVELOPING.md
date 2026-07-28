@@ -20,10 +20,20 @@ build-native/    out-of-tree build trees + per-ABI install prefixes
 app/
   src/main/            the app; jniLibs/ and assets/ are build outputs
   src/androidTest/     UI Automator tests
+store/           Play assets: 512 icon and 1024x500 feature graphic, not packaged
 .github/
   actions/native/      the cross-compile, shared by both workflows
   workflows/           debug APK on every push; signed APK on a tag
 ```
+
+The icon is a set of PNGs rather than a `VectorDrawable`, because the mark is
+lettering — `zdx` in Onest ExtraBold — and a vector drawable has no fonts, so
+it would mean converting glyphs to paths. `mipmap-anydpi-v26` is what every
+supported device actually uses, minSdk being 30; the legacy mipmaps are there
+for tooling and the store listing. The Android 12 splash is set through the
+framework attributes in `values-v31/styles.xml` rather than
+`androidx.core:core-splashscreen`, since the library exists to back-port it
+below API 31 and the app has no dependencies.
 
 The app is a handful of classes: `EmulatorActivity` holds the menus,
 `SpectrumKeyboardView` the keyboard, `Storage` decides where things live,
@@ -157,6 +167,12 @@ lands.
 Both workflows then check the APK really contains both ABIs and `fuse.font`,
 because packaging a stale or missing library is this project's recurring
 failure and it stays silent until runtime.
+
+The build artifact is named `Zedex-debug`, holding `Zedex-debug.apk`. GitHub
+zips every artifact on download and a workflow cannot change that — but
+`gh run download` unpacks it, giving the bare APK. Release assets are direct
+uploads and are not zipped at all: a tag produces `Zedex-1.2.3.apk` and its
+`.sha256` beside it.
 
 Tagging `v1.2.3` produces `versionName 1.2.3` and `versionCode 10203`
 (`major*10000 + minor*100 + patch`, so no component may exceed 99). Deriving

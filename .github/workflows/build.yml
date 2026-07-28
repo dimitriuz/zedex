@@ -15,14 +15,14 @@ jobs:
   debug-apk:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
 
       - uses: ./.github/actions/native
 
@@ -42,8 +42,16 @@ jobs:
             || { echo "::error::fuse.font missing from the APK"; exit 1; }
           echo "both ABIs and the widget font are present"
 
-      - uses: actions/upload-artifact@v4
+      # GitHub zips every artifact on download - that is the artifacts API, not
+      # something a workflow can turn off. What it does control is the names:
+      # the artifact is Zedex-debug, so the download is Zedex-debug.zip holding
+      # one properly named APK rather than app-debug.apk. `gh run download`
+      # gives the bare file with no zip at all.
+      - name: Name the APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk Zedex-debug.apk
+
+      - uses: actions/upload-artifact@v7
         with:
-          name: zedex-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: Zedex-debug
+          path: Zedex-debug.apk
           if-no-files-found: error

@@ -50,7 +50,7 @@ runs:
     # ~13 MB from SourceForge, whose mirrors are not always quick. The script
     # verifies the SHA-256 either way, so a poisoned cache cannot get through.
     - name: Cache the upstream tarballs
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: vendor/*.tar.gz
         key: vendor-fuse-1.9.0-libspectrum-1.6.2
@@ -60,7 +60,7 @@ runs:
     # our own changes still land. Keyed on the script, since that is what
     # decides how the trees are configured.
     - name: Cache the native build trees
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: build-native
         key: native-ndk27.0.12077973-${{ hashFiles('scripts/build-native.sh') }}-${{ inputs.abis }}

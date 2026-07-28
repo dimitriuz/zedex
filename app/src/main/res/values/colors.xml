@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">#17171D</color>
+    <color name="zedex_splash_background">#0E0E13</color>
+    <color name="zedex_key_top">#3C3C48</color>
+    <color name="zedex_key_bottom">#1E1E26</color>
+    <color name="zedex_flash_red">#FF3355</color>
+    <color name="zedex_flash_yellow">#FFCE00</color>
+    <color name="zedex_flash_green">#22DD6E</color>
+    <color name="zedex_flash_cyan">#00D8F0</color>
+</resources>

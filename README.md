@@ -67,6 +67,8 @@ the emulated screen.
 - **Every key is named** to accessibility, so a screen reader reads them out
 - **Folders you choose** for data and for content
 - **Survives backgrounding** without losing the drawing surface
+- A **rubber-key icon** of its own — adaptive, themed on Android 13+, with a
+  matching splash
 - Emulation paced by the audio clock, measured at **50.28 fps**
 
 ## Machines
@@ -137,8 +139,6 @@ emulated, and every one of them is a single setting away:
 - Recording a tape in real time, rather than through the save trap
 - Native dialogs in place of the last of the core's own ones
 - A debugger, which the core supports and nothing yet exposes
-- The launcher icon is still SDL's, inherited from the sample project the
-  first prototype started from and never replaced
 
 ## Tested on
 

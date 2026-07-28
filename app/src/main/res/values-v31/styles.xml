@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      The Android 12 splash: the design's Theme.Zedex.Splash, but expressed
+      through the framework attributes rather than androidx.core:core-splashscreen.
+      The app has no dependencies and this needs none - the library exists to
+      back-port the splash below API 31, and minSdk here is 30, so the only
+      version that misses out is Android 11, which simply shows none.
+
+      values-v31 because both attributes are API 31; the base AppTheme has no
+      other items, so overriding the whole style loses nothing.
+    -->
+    <style name="AppTheme" parent="android:Theme.NoTitleBar.Fullscreen">
+        <item name="android:windowSplashScreenBackground">@color/zedex_splash_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
+    </style>
+</resources>
