@@ -1,0 +1,15 @@
+# upstream sources: ~100 MB, fetched and checksum-verified by
+# scripts/build-native.sh
+/vendor/
+
+# native build trees and their outputs
+/build-native/
+/build/
+/app/build/
+/app/src/main/jniLibs/
+/app/src/main/assets/fuse/
+
+# local toolchain config
+/local.properties
+/.gradle/
+/.idea/

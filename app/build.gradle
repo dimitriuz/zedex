@@ -1,0 +1,44 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.fusemobile'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.fusemobile'   // must match DATA_ROOT in scripts/build-native.sh
+        minSdk 30                        // Android 11
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+        ndk {
+            // Prebuilt by scripts/build-native.sh into src/main/jniLibs
+            abiFilters 'arm64-v8a', 'x86_64'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    packaging {
+        jniLibs {
+            // build-native.sh already strips the libraries it installs; this
+            // keeps symbols intact if you drop in an unstripped build to debug
+            // a native crash (tombstones then name the failing function).
+            keepDebugSymbols += '**/*.so'
+        }
+    }
+
+    lint {
+        abortOnError false
+    }
+}
