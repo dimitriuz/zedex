@@ -187,9 +187,29 @@ run_select_machine( int index )
   machine_select( machine_types[ index ]->machine );
 }
 
+/* Keys pressed during the current pump, so their release can be held over to
+   the next one. The Spectrum ROM only scans the keyboard once per frame, so a
+   press and release arriving together - which is what a synthesised tap or a
+   very fast finger produces - would otherwise never be seen at all. */
+static int pressed_this_pump[ 16 ];
+static int pressed_count;
+
+static int
+pressed_during_this_pump( int keycode )
+{
+  int i;
+
+  for( i = 0; i < pressed_count; i++ )
+    if( pressed_this_pump[i] == keycode ) return 1;
+
+  return 0;
+}
+
 void
 androidbridge_pump_commands( void )
 {
+  pressed_count = 0;
+
   for(;;) {
     queued_command command;
 
@@ -199,12 +219,23 @@ androidbridge_pump_commands( void )
       break;
     }
     command = command_queue[ command_head ];
+
+    /* Leave this key up for the next frame, and everything behind it with
+       it: the queue has to stay in order. */
+    if( command.type == COMMAND_KEY && !command.b &&
+        pressed_during_this_pump( command.a ) ) {
+      pthread_mutex_unlock( &command_mutex );
+      break;
+    }
+
     command_head = ( command_head + 1 ) % COMMAND_QUEUE_SIZE;
     pthread_mutex_unlock( &command_mutex );
 
     switch( command.type ) {
     case COMMAND_KEY:
       run_key( command.a, command.b );
+      if( command.b && pressed_count < 16 )
+        pressed_this_pump[ pressed_count++ ] = command.a;
       break;
     case COMMAND_SELECT_MACHINE:
       run_select_machine( command.a );

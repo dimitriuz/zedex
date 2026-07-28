@@ -19,7 +19,7 @@ arm64-v8a.
 | Reset and NMI from the menu | |
 | GPU-scaled display, portrait and landscape | Save states |
 | AAudio output, pacing emulation at 50.3 fps | On-screen joystick |
-| On-screen Spectrum keyboard (multi-touch) | Debugger front end |
+| On-screen keyboard from Fuse's own artwork | Debugger front end |
 | Hardware keyboard input | armeabi-v7a (add to `ABIS`/`abiFilters`) |
 | Fuse's widget dialogs, menus and debugger UI | |
 | Background / resume without losing the surface | |
@@ -116,6 +116,11 @@ follows upstream instead of drifting from it.
 - **`keysyms.c`** maps Android keycodes to Fuse input keys, so physical keys
   and the on-screen keyboard share one path — including Caps Shift
   (`SHIFT_LEFT`) and Symbol Shift (`CTRL_LEFT`), which Fuse already maps.
+
+A key release is never run in the same queue pump as its press. The Spectrum
+ROM scans the keyboard once per frame, so a press and release arriving
+together — a synthesised tap, or a very fast finger — would otherwise be
+invisible to the emulated machine.
 - **`aaudiosound.c`** writes to AAudio and *blocks*, deliberately: that is what
   paces the emulator. Audio is the clock, not vsync and not a wall timer.
 
@@ -163,6 +168,20 @@ crashes inside `snprintf` while looking for `fuse.font`.
 
 Fixed without touching Fuse by forcing a consistent value:
 `CPPFLAGS="-include limits.h"`. Worth reporting upstream.
+
+### The on-screen keyboard
+
+`SpectrumKeyboardView` draws Fuse's own `keyboard.png`, which carries every
+legend a Spectrum key has: the BASIC keyword, the symbol-shift character, the
+colour, the extended-mode token. Typing Spectrum BASIC is impractical without
+them. The key rectangles were measured off the image and are held in its
+541x201 coordinate space, expanded to meet their neighbours so the gutters in
+the artwork are not dead to a fingertip.
+
+Presses are tracked per pointer, so two fingers give a real shifted key.
+Because that is awkward one-handed, holding either shift for 400ms latches it
+(shown amber) until it is tapped again — which is how you get BREAK, being
+Caps Shift and Space.
 
 ## Next steps
 
