@@ -9,7 +9,9 @@ build configuration, a Fuse UI backend of our own, and a thin Android app.
 
 **No ROMs ship with the app or live in this repository.** On first run it
 creates an empty `roms` folder and asks you to fill it, either by copying
-files in or through the importer in the dialog.
+files in or through the importer in the dialog. The set Fuse expects, by the
+filenames it looks for, is at
+<https://archive.org/details/zx-roms-fuse-roms>.
 
 ## Status
 
@@ -311,6 +313,13 @@ No ROMs are shipped. Fuse's tarball carries the Sinclair and Timex ones and
 the staged `make install` would happily bundle them, so the build deletes
 them from the assets again; what does travel with the app is Fuse's own UI
 data, the widget font and the status bitmaps, which are not ROMs.
+
+A complete set under the names Fuse looks for — `48.rom`, `128-0.rom`,
+`plus3-0.rom` and the rest, including the Pentagon and Scorpion ones Fuse
+cannot distribute — is at
+<https://archive.org/details/zx-roms-fuse-roms>. Fuse's per-machine ROM
+filenames are listed in its `settings.dat` if you need to check what a
+particular machine wants.
 
 Fuse looks for a ROM in the current working directory before anywhere else,
 so the app simply `chdir`s into the user's `roms` folder before starting the
