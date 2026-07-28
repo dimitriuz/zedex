@@ -32,14 +32,19 @@ runs:
 
     # Pinned, not "whatever the image ships": the script picks the highest
     # installed NDK, so an image update would silently change compilers.
+    # No `yes |` here: steps run under `bash -e -o pipefail`, and sdkmanager
+    # closing the pipe on exit kills yes with SIGPIPE, whose non-zero status
+    # pipefail then reports as the step failing after a successful install.
+    # The runner image has the SDK licences accepted already, so nothing needs
+    # to be piped in at all.
     - name: NDK 27.0.12077973
       shell: bash
       run: |
         ndk="$ANDROID_HOME/ndk/27.0.12077973"
         if [ ! -d "$ndk" ]; then
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
-              'ndk;27.0.12077973' > /dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'ndk;27.0.12077973'
         fi
+        [ -d "$ndk" ] || { echo "::error::NDK 27.0.12077973 did not install"; exit 1; }
         echo "ANDROID_NDK_HOME=$ndk" >> "$GITHUB_ENV"
 
     # ~13 MB from SourceForge, whose mirrors are not always quick. The script
