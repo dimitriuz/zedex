@@ -179,6 +179,18 @@ gh secret set ZEDEX_KEY_ALIAS        # zedex
 gh secret set ZEDEX_KEY_PASSWORD
 ```
 
+The store password unlocks the file; the key password unlocks the one entry
+named by the alias. **For the keystore that command produces they are the same
+value.** Despite the `.jks` name, keytool on JDK 9 and later writes a PKCS12
+keystore, which has no separate per-entry password — give it a different
+`-keypass` and it says so and ignores it, which is why it only ever asks for
+one password. Set both secrets to that one.
+
+Leaving `ZEDEX_KEY_PASSWORD` empty or guessed does not work: AGP checks it even
+though keytool does not, and `:app:packageRelease` fails with `Get Key failed:
+Given final block not properly padded`. The two are separate settings because a
+legacy `-storetype JKS` keystore does support distinct passwords.
+
 That `gh` is GitHub's own CLI (`github-cli`), not the abandoned npm package of
 the same name — the npm one authenticates through an endpoint GitHub removed in
 2020 and can only fail with `Error creating GitHub token / Not Found`. If it is
