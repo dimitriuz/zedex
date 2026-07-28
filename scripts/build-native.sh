@@ -156,17 +156,19 @@ EOF
   # (the timer, the scalers, the sound driver) reach the link through
   # fuse_LDADD rather than fuse_OBJECTS, so they have to be built too.
   FUSE_OBJS=$(mkvar fuse_OBJECTS | tr ' ' '\n' | grep -v '^ui/fb/' | tr '\n' ' ')
-  LDADD_OBJS=$(mkvar fuse_LDADD | tr ' ' '\n' | grep '\.o$' | tr '\n' ' ')
+  FUSE_LDADD=$(mkvar fuse_LDADD | tr ' ' '\n' \
+               | grep -v '^sound/nullsound\.o$' | tr '\n' ' ')
+  LDADD_OBJS=$(echo "$FUSE_LDADD" | tr ' ' '\n' | grep '\.o$' | tr '\n' ' ')
   make -C "$FUSE_BUILD" -j"$JOBS" $FUSE_OBJS $LDADD_OBJS
 
   ############################################################################
-  echo "=== [$ABI] Android UI ==="
+  echo "=== [$ABI] Android UI and audio ==="
   ############################################################################
   OUR_OBJS=""
   mkdir -p "$FUSE_BUILD/android"
   # Compiled from inside the build tree: Fuse's DEFAULT_INCLUDES starts with
   # -I. for the generated config.h.
-  for src in "$NATIVE"/ui/android/*.c; do
+  for src in "$NATIVE"/ui/android/*.c "$NATIVE"/sound/*.c; do
     obj="android/$(basename "${src%.c}").o"
     ( cd "$FUSE_BUILD" && \
       $CC $CFLAGS -DHAVE_CONFIG_H $(mkvar DEFAULT_INCLUDES) $(mkvar AM_CPPFLAGS) \
@@ -180,8 +182,8 @@ EOF
   ( cd "$FUSE_BUILD" && \
     $CC -shared -Wl,-soname,libfuse.so -Wl,--no-undefined -o libfuse.so \
       $FUSE_OBJS $OUR_OBJS \
-      $(mkvar fuse_LDADD) $(mkvar LIBS) \
-      -landroid -llog -lEGL -lGLESv3 )
+      $FUSE_LDADD $(mkvar LIBS) \
+      -landroid -llog -lEGL -lGLESv3 -laaudio )
 
   mkdir -p "$APP/jniLibs/$ABI"
   cp "$FUSE_BUILD/libfuse.so" "$APP/jniLibs/$ABI/libfuse.so"

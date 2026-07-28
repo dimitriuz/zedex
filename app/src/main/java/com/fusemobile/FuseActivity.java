@@ -10,6 +10,7 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
+import android.widget.LinearLayout;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -56,12 +57,26 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
             Log.e(TAG, "failed to set up environment", e);
         }
 
+        // The emulated screen takes whatever the keyboard leaves. In portrait
+        // that is the classic 4:3-above-keys layout; in landscape the keyboard
+        // caps itself at half the window.
         SurfaceView view = new SurfaceView(this);
         view.getHolder().addCallback(this);
-        view.setFocusable(true);
-        view.setFocusableInTouchMode(true);
-        setContentView(view);
-        view.requestFocus();
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setBackgroundColor(0xff000000);
+        layout.addView(view, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
+        layout.addView(new SpectrumKeyboardView(this),
+                new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        setContentView(layout);
+
+        layout.setFocusableInTouchMode(true);
+        layout.requestFocus();
 
         getWindow().setDecorFitsSystemWindows(false);
     }
@@ -96,9 +111,6 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
             FuseNative.start(new String[] {
                 "fuse",
                 "--machine", "128",
-                // Audio is not wired up yet, so let Fuse pace itself off its
-                // own timer rather than a sound device.
-                "--no-sound",
             });
         }
     }
