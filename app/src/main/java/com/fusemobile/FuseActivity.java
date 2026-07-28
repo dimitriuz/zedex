@@ -210,6 +210,7 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
             getString(R.string.menu_open),
             getString(R.string.menu_save_state),
             getString(R.string.menu_load_state),
+            getString(R.string.menu_tape),
             getString(R.string.menu_settings),
             getString(R.string.menu_machine),
             getString(R.string.menu_reset),
@@ -222,12 +223,99 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
                         case 0: pickFile(); break;
                         case 1: showStateDialog(true); break;
                         case 2: showStateDialog(false); break;
-                        case 3: startActivity(new Intent(this, SettingsActivity.class)); break;
-                        case 4: showMachineDialog(); break;
-                        case 5: confirmReset(); break;
-                        case 6: FuseNative.nmi(); break;
+                        case 3: showTapeMenu(); break;
+                        case 4: startActivity(new Intent(this, SettingsActivity.class)); break;
+                        case 5: showMachineDialog(); break;
+                        case 6: confirmReset(); break;
+                        case 7: FuseNative.nmi(); break;
                     }
                 })
+                .show();
+    }
+
+    // --- tapes ------------------------------------------------------------
+
+    /**
+     * The machine can write to its tape as well as read from it: Fuse's tape
+     * traps catch the ROM's save routine, so a BASIC {@code SAVE "name"}
+     * appends to the tape held in memory, and this is how that tape reaches
+     * a file.
+     */
+    private void showTapeMenu() {
+        String[] items = {
+            getString(R.string.tape_save),
+            getString(R.string.tape_new),
+        };
+
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(R.string.menu_tape)
+                .setItems(items, (dialog, which) -> {
+                    if (which == 0) saveTape(); else confirmNewTape();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void saveTape() {
+        if (!FuseNative.hasTape()) {
+            Toast.makeText(this, R.string.tape_empty, Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        EditText input = new EditText(this);
+        input.setSingleLine();
+        input.setText(suggestedTapeName());
+        input.setSelection(input.getText().length());
+
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(R.string.tape_save)
+                .setView(input)
+                .setPositiveButton(android.R.string.ok, (dialog, which) ->
+                        writeTape(sanitise(input.getText().toString())))
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private String suggestedTapeName() {
+        String base = preferences.getString(PREF_MEDIA_NAME, null);
+        if (base != null && !base.isEmpty() && !tapeFile(base).exists()) return base;
+
+        for (int n = 1; n < 1000; n++) {
+            String numbered = getString(R.string.tape_default_name, n);
+            if (!tapeFile(numbered).exists()) return numbered;
+        }
+        return getString(R.string.tape_default_name, 1);
+    }
+
+    /** Fuse picks the format from the extension; anything else means TZX. */
+    private File tapeFile(String name) {
+        String lower = name.toLowerCase(Locale.ROOT);
+        String file = lower.endsWith(".tap") || lower.endsWith(".tzx")
+                ? name : name + ".tap";
+
+        return new File(Storage.tapesDirectory(this), file);
+    }
+
+    private void writeTape(String name) {
+        if (name.isEmpty()) name = getString(R.string.tape_default_name, 1);
+
+        File directory = Storage.tapesDirectory(this);
+        if (!directory.isDirectory() && !directory.mkdirs()) {
+            Toast.makeText(this, R.string.state_failed, Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        File target = tapeFile(name);
+        FuseNative.writeTape(target.getAbsolutePath());
+        Toast.makeText(this, getString(R.string.tape_saved, target.getName()),
+                Toast.LENGTH_LONG).show();
+    }
+
+    private void confirmNewTape() {
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setMessage(R.string.tape_new_confirm)
+                .setPositiveButton(R.string.tape_new, (dialog, which) -> FuseNative.newTape())
+                .setNegativeButton(android.R.string.cancel, null)
                 .show();
     }
 

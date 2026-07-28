@@ -36,6 +36,7 @@ final class Storage {
 
     private static final String STATES = "states";
     private static final String ROMS = "roms";
+    private static final String TAPES = "tapes";
 
     private Storage() {
     }
@@ -153,10 +154,16 @@ final class Storage {
         return context.getFilesDir();
     }
 
-    /** Both folders exist from the first run, empty if need be. */
+    /** Where tapes the machine SAVEs to are written. */
+    static File tapesDirectory(Context context) {
+        return new File(root(context), TAPES);
+    }
+
+    /** The folders exist from the first run, empty if need be. */
     static void createFolders(Context context) {
         statesDirectory(context).mkdirs();
         romsDirectory(context).mkdirs();
+        tapesDirectory(context).mkdirs();
     }
 
     /**

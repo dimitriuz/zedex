@@ -71,6 +71,15 @@ final class FuseNative {
      *  {@link #machineNames}. These are what {@code --machine} accepts. */
     static native String[] machineIds();
 
+    /** Whether there is anything on the tape - loaded, or SAVEd by the machine. */
+    static native boolean hasTape();
+
+    /** Writes the tape; the extension picks the format, .tap or .tzx. */
+    static native void writeTape(String path);
+
+    /** Throws the current tape away and starts an empty one. */
+    static native void newTape();
+
     /** Index of the running machine, or -1 if Fuse has not started yet. */
     static native int currentMachine();
 

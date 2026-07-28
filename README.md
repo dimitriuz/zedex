@@ -22,9 +22,10 @@ arm64-v8a.
 | --- | --- |
 | All sixteen machines, 16K through Scorpion | CRT / scanline filters |
 | Save states and ROMs in a folder you choose | Renaming an existing state |
+| Saving tapes the machine writes with SAVE | Recording tapes without fast loading |
 | Loading every format Fuse supports | Save states |
 | Opening files from other apps | On-screen joystick |
-| Save states, named and unlimited | Writing tapes and disks back out |
+| Save states, named and unlimited | Writing disks back out |
 | Settings screen over Fuse's own options | Native menus replacing the widget ones |
 | Fast tape loading, or real-time loading with sound | On-screen joystick |
 | Machine switcher, remembered across launches | Debugger front end |
@@ -81,6 +82,10 @@ instead — it has a button for exactly that.
   new snapshot* first, named after whatever media is loaded and editable
   before it is written; picking an existing one overwrites it, with a
   confirmation. Long-press deletes.
+- **Tape…** — *Save tape…* writes what the machine has put on its tape to a
+  `.tap` (or `.tzx`, if you type that extension) in the data folder, which is
+  how a BASIC `SAVE "name"` reaches a file. *New tape* throws the current one
+  away so a save does not append to a game you loaded earlier.
 - **Settings…** — see below.
 - **Machine…** — all sixteen machines, with the running one checked. The
   choice is remembered for the next launch.
@@ -246,6 +251,22 @@ does not need to know one format from another: the picked document is copied
 out of its content provider into the cache — keeping its original name, since
 libspectrum uses the extension as a hint — and the path is queued for the
 emulation thread, which hands it to `utils_open_file()`.
+
+### Saving tapes
+
+The machine writes to its tape as well as reading from it. With fast loading
+on, Fuse's `tape_save_trap()` catches the ROM's save routine and appends each
+block to the tape held in memory, so `SAVE "name"` from BASIC lands there;
+*Save tape…* then calls `tape_write()`, which picks TAP or TZX from the
+extension. It needs fast loading, since that is what puts the trap in place —
+without it the save goes out as audio that nothing is recording.
+
+*New tape* clears `tape_modified` before calling `tape_close()`. Fuse would
+otherwise ask whether to save first, through a widget dialog that only Enter
+or Escape dismisses; Android has already asked by that point.
+
+One thing worth knowing at the *Start tape, then press any key* prompt: press
+Enter rather than Space. Space aborted the save with `D BREAK` in testing.
 
 ### Save states
 

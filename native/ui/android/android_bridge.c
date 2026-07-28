@@ -89,6 +89,8 @@ typedef enum command_type {
   COMMAND_SAVE_SNAPSHOT,		/* text: path to write */
   COMMAND_LOAD_SNAPSHOT,		/* text: path to read */
   COMMAND_SAVE_THUMBNAIL,		/* text: path to write */
+  COMMAND_WRITE_TAPE,			/* text: path to write */
+  COMMAND_NEW_TAPE,
 } command_type;
 
 /* Options the Android UI can set. Values are integers; booleans are 0 or 1. */
@@ -173,6 +175,7 @@ static pthread_mutex_t machine_mutex = PTHREAD_MUTEX_INITIALIZER;
 static machine_entry machine_list[ MAX_MACHINES ];
 static int machine_list_count;
 static int machine_list_current = -1;
+static int tape_on_machine;
 
 /* Fuse's machine table is built during initialisation and never changes
    afterwards, so it is snapshotted once, on the emulation thread, for the UI
@@ -199,6 +202,8 @@ publish_machines( void )
                 name ? name : "?" );
     }
   }
+
+  tape_on_machine = tape_present();
 
   machine_list_current = -1;
   if( machine_current ) {
@@ -375,6 +380,19 @@ androidbridge_pump_commands( void )
       break;
     case COMMAND_SAVE_THUMBNAIL:
       if( command.text ) androiddisplay_write_thumbnail( command.text );
+      break;
+    case COMMAND_WRITE_TAPE:
+      /* Whatever the machine has SAVEd - Fuse's tape traps catch the ROM's
+         save routine and append each block to the tape in memory - plus
+         anything already on it. The extension picks the format. */
+      android_log( "writing tape %s", command.text ? command.text : "" );
+      if( command.text ) tape_write( command.text );
+      break;
+    case COMMAND_NEW_TAPE:
+      /* Android has asked already; clearing the flag stops Fuse asking
+         again through a modal of its own. */
+      tape_modified = 0;
+      tape_close();
       break;
     }
 
@@ -604,6 +622,36 @@ JNIEXPORT jobjectArray JNICALL
 Java_com_fusemobile_FuseNative_machineIds( JNIEnv *env, jclass class )
 {
   return machine_strings( env, 0 );
+}
+
+JNIEXPORT jboolean JNICALL
+Java_com_fusemobile_FuseNative_hasTape( JNIEnv *env, jclass class )
+{
+  jboolean present;
+
+  pthread_mutex_lock( &machine_mutex );
+  present = tape_on_machine ? JNI_TRUE : JNI_FALSE;
+  pthread_mutex_unlock( &machine_mutex );
+
+  return present;
+}
+
+JNIEXPORT void JNICALL
+Java_com_fusemobile_FuseNative_writeTape( JNIEnv *env, jclass class,
+                                          jstring path )
+{
+  const char *utf = (*env)->GetStringUTFChars( env, path, NULL );
+
+  if( utf ) {
+    queue_command_text( COMMAND_WRITE_TAPE, 0, 0, strdup( utf ) );
+    (*env)->ReleaseStringUTFChars( env, path, utf );
+  }
+}
+
+JNIEXPORT void JNICALL
+Java_com_fusemobile_FuseNative_newTape( JNIEnv *env, jclass class )
+{
+  queue_command( COMMAND_NEW_TAPE, 0, 0 );
 }
 
 JNIEXPORT jint JNICALL
