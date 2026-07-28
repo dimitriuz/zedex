@@ -28,7 +28,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.text.DateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -59,6 +61,10 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
 
     /** Where picked files are staged for Fuse to open. */
     private static final String MEDIA_DIR = "media";
+
+    /** Save state slots, kept in app storage. */
+    private static final String STATE_DIR = "states";
+    private static final int STATE_SLOTS = 4;
 
     private SharedPreferences preferences;
     private boolean started;
@@ -184,6 +190,8 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
     private void showMenu() {
         String[] items = {
             getString(R.string.menu_open),
+            getString(R.string.menu_save_state),
+            getString(R.string.menu_load_state),
             getString(R.string.menu_settings),
             getString(R.string.menu_machine),
             getString(R.string.menu_reset),
@@ -194,13 +202,67 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
                 .setItems(items, (dialog, which) -> {
                     switch (which) {
                         case 0: pickFile(); break;
-                        case 1: startActivity(new Intent(this, SettingsActivity.class)); break;
-                        case 2: showMachineDialog(); break;
-                        case 3: confirmReset(); break;
-                        case 4: FuseNative.nmi(); break;
+                        case 1: showStateDialog(true); break;
+                        case 2: showStateDialog(false); break;
+                        case 3: startActivity(new Intent(this, SettingsActivity.class)); break;
+                        case 4: showMachineDialog(); break;
+                        case 5: confirmReset(); break;
+                        case 6: FuseNative.nmi(); break;
                     }
                 })
                 .show();
+    }
+
+    // --- save states ----------------------------------------------------
+
+    /**
+     * Slots are plain .szx files in app storage. SZX is libspectrum's own
+     * format and the only one that can hold every machine we emulate.
+     */
+    private File stateFile(int slot) {
+        return new File(new File(getFilesDir(), STATE_DIR), "slot" + slot + ".szx");
+    }
+
+    private void showStateDialog(boolean saving) {
+        String[] slots = new String[STATE_SLOTS];
+        DateFormat when = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT);
+
+        for (int i = 0; i < STATE_SLOTS; i++) {
+            File file = stateFile(i + 1);
+            slots[i] = file.exists()
+                    ? getString(R.string.state_used, i + 1, when.format(new Date(file.lastModified())))
+                    : getString(R.string.state_empty, i + 1);
+        }
+
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(saving ? R.string.menu_save_state : R.string.menu_load_state)
+                .setItems(slots, (dialog, which) -> useSlot(which + 1, saving))
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void useSlot(int slot, boolean saving) {
+        File file = stateFile(slot);
+
+        if (saving) {
+            File directory = file.getParentFile();
+            if (directory != null && !directory.isDirectory() && !directory.mkdirs()) {
+                Toast.makeText(this, R.string.state_failed, Toast.LENGTH_LONG).show();
+                return;
+            }
+            FuseNative.saveSnapshot(file.getAbsolutePath());
+            Toast.makeText(this, getString(R.string.state_saved, slot),
+                    Toast.LENGTH_SHORT).show();
+        } else {
+            if (!file.exists()) {
+                Toast.makeText(this, getString(R.string.state_empty, slot),
+                        Toast.LENGTH_SHORT).show();
+                return;
+            }
+            FuseNative.loadSnapshot(file.getAbsolutePath());
+            Toast.makeText(this, getString(R.string.state_loaded, slot),
+                    Toast.LENGTH_SHORT).show();
+        }
     }
 
     // --- opening media --------------------------------------------------

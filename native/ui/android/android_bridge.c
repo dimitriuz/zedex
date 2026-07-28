@@ -30,6 +30,7 @@
 #include "machine.h"
 #include "rzx.h"
 #include "settings.h"
+#include "snapshot.h"
 #include "tape.h"
 #include "utils.h"
 #include "z80/z80.h"
@@ -84,6 +85,8 @@ typedef enum command_type {
   COMMAND_NMI,
   COMMAND_OPEN_FILE,			/* text: path to open */
   COMMAND_SET_OPTION,			/* a: option, b: value */
+  COMMAND_SAVE_SNAPSHOT,		/* text: path to write */
+  COMMAND_LOAD_SNAPSHOT,		/* text: path to read */
 } command_type;
 
 /* Options the Android UI can set. Values are integers; booleans are 0 or 1. */
@@ -358,6 +361,16 @@ androidbridge_pump_commands( void )
     case COMMAND_SET_OPTION:
       run_set_option( command.a, command.b );
       break;
+    case COMMAND_SAVE_SNAPSHOT:
+      /* Run between frames on the emulation thread, so the machine is in a
+         consistent state; libspectrum picks the format from the extension. */
+      android_log( "saving snapshot %s", command.text ? command.text : "" );
+      if( command.text ) snapshot_write( command.text );
+      break;
+    case COMMAND_LOAD_SNAPSHOT:
+      android_log( "loading snapshot %s", command.text ? command.text : "" );
+      if( command.text ) snapshot_read( command.text );
+      break;
     }
 
     free( command.text );
@@ -598,6 +611,30 @@ JNIEXPORT void JNICALL
 Java_com_fusemobile_FuseNative_setBeeperVolume( JNIEnv *env, jclass class, jint value )
 {
   queue_command( COMMAND_SET_OPTION, OPTION_BEEPER_VOLUME, value );
+}
+
+JNIEXPORT void JNICALL
+Java_com_fusemobile_FuseNative_saveSnapshot( JNIEnv *env, jclass class,
+                                             jstring path )
+{
+  const char *utf = (*env)->GetStringUTFChars( env, path, NULL );
+
+  if( utf ) {
+    queue_command_text( COMMAND_SAVE_SNAPSHOT, 0, 0, strdup( utf ) );
+    (*env)->ReleaseStringUTFChars( env, path, utf );
+  }
+}
+
+JNIEXPORT void JNICALL
+Java_com_fusemobile_FuseNative_loadSnapshot( JNIEnv *env, jclass class,
+                                             jstring path )
+{
+  const char *utf = (*env)->GetStringUTFChars( env, path, NULL );
+
+  if( utf ) {
+    queue_command_text( COMMAND_LOAD_SNAPSHOT, 0, 0, strdup( utf ) );
+    (*env)->ReleaseStringUTFChars( env, path, utf );
+  }
 }
 
 JNIEXPORT void JNICALL

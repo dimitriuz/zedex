@@ -76,6 +76,12 @@ final class FuseNative {
     /** Beeper volume, 0 to 100; restarts Fuse's sound subsystem. */
     static native void setBeeperVolume(int volume);
 
+    /** Writes the machine's state; libspectrum picks the format by extension. */
+    static native void saveSnapshot(String path);
+
+    /** Restores a state written by {@link #saveSnapshot}. */
+    static native void loadSnapshot(String path);
+
     /**
      * Queues a file for Fuse to open. Fuse identifies it itself, so this takes
      * snapshots, tapes, disks, cartridges, microdrive images and RZX

@@ -17,11 +17,12 @@ arm64-v8a.
 | All sixteen machines, 16K through Scorpion | CRT / scanline filters |
 | Loading every format Fuse supports | Save states |
 | Opening files from other apps | On-screen joystick |
-| Settings screen over Fuse's own options | Writing media back out |
-| Fast tape loading, or real-time loading with sound | Native menus replacing the widget ones |
-| Machine switcher, remembered across launches | On-screen joystick |
-| Reset and NMI from the menu | Debugger front end |
-| GPU-scaled display, portrait and landscape | armeabi-v7a (add to `ABIS`/`abiFilters`) |
+| Save states, four slots | Writing tapes and disks back out |
+| Settings screen over Fuse's own options | Native menus replacing the widget ones |
+| Fast tape loading, or real-time loading with sound | On-screen joystick |
+| Machine switcher, remembered across launches | Debugger front end |
+| Reset and NMI from the menu | armeabi-v7a (add to `ABIS`/`abiFilters`) |
+| GPU-scaled display, portrait and landscape | |
 | AAudio output, pacing emulation at 50.3 fps | |
 | On-screen keyboard from Fuse's own artwork | |
 | Latching Caps Shift and Symbol Shift | |
@@ -57,6 +58,8 @@ does on the desktop.
   recordings. Fuse identifies the file itself and puts it wherever it
   belongs, switching machine first if the media needs one — a `.dsk` brings
   up a +3, a `.trd` or `.scl` a Beta-equipped machine. Tapes autoload.
+- **Save state…** / **Load state…** — four slots, each showing when it was
+  written. Saving overwrites without asking.
 - **Settings…** — see below.
 - **Machine…** — all sixteen machines, with the running one checked. The
   choice is remembered for the next launch.
@@ -215,6 +218,18 @@ does not need to know one format from another: the picked document is copied
 out of its content provider into the cache — keeping its original name, since
 libspectrum uses the extension as a hint — and the path is queued for the
 emulation thread, which hands it to `utils_open_file()`.
+
+### Save states
+
+Slots are `.szx` files under `files/states`. SZX is libspectrum's own format
+and the only one that can represent every machine here, so a state saved on a
+Pentagon or a Timex restores as itself. Both directions are queued like any
+other command and run between frames on the emulation thread, which is what
+makes the state coherent — `snapshot_write()` and `snapshot_read()` are the
+same calls Fuse's own menus make.
+
+Loading a state is not the only way in: a `.szx`, `.z80` or `.sna` opened
+through **Open file…** takes the same path through Fuse.
 
 ### Settings
 
