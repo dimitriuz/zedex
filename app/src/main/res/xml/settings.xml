@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory android:title="@string/settings_machine">
+        <ListPreference
+            android:key="machine"
+            android:title="@string/settings_default_machine"
+            android:summary="@string/settings_default_machine_summary"
+            android:defaultValue="128" />
+        <SwitchPreference
+            android:key="issue2"
+            android:title="@string/settings_issue2"
+            android:summary="@string/settings_issue2_summary"
+            android:defaultValue="false" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/settings_tape">
+        <SwitchPreference
+            android:key="fastTape"
+            android:title="@string/settings_fast_tape"
+            android:summary="@string/settings_fast_tape_summary"
+            android:defaultValue="true" />
+        <SwitchPreference
+            android:key="tapeSound"
+            android:title="@string/settings_tape_sound"
+            android:summary="@string/settings_tape_sound_summary"
+            android:defaultValue="true" />
+        <SwitchPreference
+            android:key="autoLoad"
+            android:title="@string/settings_autoload"
+            android:summary="@string/settings_autoload_summary"
+            android:defaultValue="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/settings_sound">
+        <SwitchPreference
+            android:key="sound"
+            android:title="@string/settings_sound_enabled"
+            android:defaultValue="true" />
+        <ListPreference
+            android:key="volumeAy"
+            android:title="@string/settings_volume_ay"
+            android:entries="@array/volume_names"
+            android:entryValues="@array/volume_values"
+            android:defaultValue="100"
+            android:dependency="sound" />
+        <ListPreference
+            android:key="volumeBeeper"
+            android:title="@string/settings_volume_beeper"
+            android:entries="@array/volume_names"
+            android:entryValues="@array/volume_values"
+            android:defaultValue="100"
+            android:dependency="sound" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/settings_display">
+        <SwitchPreference
+            android:key="bwTv"
+            android:title="@string/settings_bw_tv"
+            android:summary="@string/settings_bw_tv_summary"
+            android:defaultValue="false" />
+        <SwitchPreference
+            android:key="keepScreenOn"
+            android:title="@string/settings_keep_screen_on"
+            android:defaultValue="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/settings_emulation">
+        <ListPreference
+            android:key="speed"
+            android:title="@string/settings_speed"
+            android:entries="@array/speed_names"
+            android:entryValues="@array/speed_values"
+            android:defaultValue="100" />
+    </PreferenceCategory>
+
+</PreferenceScreen>

@@ -13,4 +13,34 @@
     <string name="tape_title">Tape</string>
     <string name="tape_fast">Fast loading</string>
     <string name="tape_sound">Loading sound (only without fast loading)</string>
+
+    <string name="menu_settings">Settings\u2026</string>
+
+    <string name="settings_title">Settings</string>
+    <string name="settings_machine">Machine</string>
+    <string name="settings_default_machine">Machine at startup</string>
+    <string name="settings_default_machine_summary">Also set by the machine switcher</string>
+    <string name="settings_issue2">Issue 2 keyboard</string>
+    <string name="settings_issue2_summary">Early 48K keyboard behaviour some games expect</string>
+
+    <string name="settings_tape">Tape</string>
+    <string name="settings_fast_tape">Fast loading</string>
+    <string name="settings_fast_tape_summary">Load through ROM traps and accelerate turbo loaders</string>
+    <string name="settings_tape_sound">Loading sound</string>
+    <string name="settings_tape_sound_summary">Only audible without fast loading</string>
+    <string name="settings_autoload">Autoload media</string>
+    <string name="settings_autoload_summary">Type LOAD for you when a tape is inserted</string>
+
+    <string name="settings_sound">Sound</string>
+    <string name="settings_sound_enabled">Sound</string>
+    <string name="settings_volume_ay">AY volume</string>
+    <string name="settings_volume_beeper">Beeper volume</string>
+
+    <string name="settings_display">Display</string>
+    <string name="settings_bw_tv">Black and white TV</string>
+    <string name="settings_bw_tv_summary">Render as a monochrome set would</string>
+    <string name="settings_keep_screen_on">Keep the screen on</string>
+
+    <string name="settings_emulation">Emulation</string>
+    <string name="settings_speed">Speed</string>
 </resources>

@@ -22,7 +22,9 @@
 #include <android/native_window_jni.h>
 
 #include "android_internals.h"
+#include "display.h"
 #include "event.h"
+#include "fuse.h"
 #include "input.h"
 #include "keyboard.h"
 #include "machine.h"
@@ -84,10 +86,17 @@ typedef enum command_type {
   COMMAND_SET_OPTION,			/* a: option, b: value */
 } command_type;
 
-/* Options the Android UI can toggle. */
+/* Options the Android UI can set. Values are integers; booleans are 0 or 1. */
 enum {
   OPTION_FAST_TAPE,
   OPTION_TAPE_SOUND,
+  OPTION_AUTOLOAD,
+  OPTION_ISSUE2,
+  OPTION_BW_TV,
+  OPTION_SPEED,				/* per cent */
+  OPTION_SOUND,
+  OPTION_AY_VOLUME,			/* 0 - 100 */
+  OPTION_BEEPER_VOLUME,			/* 0 - 100 */
 };
 
 typedef struct queued_command {
@@ -226,6 +235,70 @@ pressed_during_this_pump( int keycode )
   return 0;
 }
 
+/* Sound settings are only read when the sound subsystem starts, so changing
+   one means restarting it - which is what Fuse's own options dialogs do. */
+static void
+restart_sound( void )
+{
+  fuse_emulation_pause();
+  fuse_emulation_unpause();
+}
+
+static void
+run_set_option( int option, int value )
+{
+  android_log( "option %d = %d", option, value );
+
+  switch( option ) {
+
+  case OPTION_FAST_TAPE:
+    /* Fuse spreads this across three settings: traps catch the ROM loading
+       routine, fastload makes a trapped block appear at once, and
+       accelerate_loader speeds up the timing loops of custom loaders that
+       never call the ROM at all. */
+    settings_current.tape_traps = value;
+    settings_current.fastload = value;
+    settings_current.accelerate_loader = value;
+    break;
+
+  case OPTION_TAPE_SOUND:
+    settings_current.sound_load = value;
+    break;
+
+  case OPTION_AUTOLOAD:
+    settings_current.auto_load = value;
+    break;
+
+  case OPTION_ISSUE2:
+    settings_current.issue2 = value;
+    break;
+
+  case OPTION_BW_TV:
+    settings_current.bw_tv = value;
+    display_refresh_all();
+    break;
+
+  case OPTION_SPEED:
+    settings_current.emulation_speed = value;
+    break;
+
+  case OPTION_SOUND:
+    settings_current.sound = value;
+    restart_sound();
+    break;
+
+  case OPTION_AY_VOLUME:
+    settings_current.volume_ay = value;
+    restart_sound();
+    break;
+
+  case OPTION_BEEPER_VOLUME:
+    settings_current.volume_beeper = value;
+    restart_sound();
+    break;
+  }
+}
+
 void
 androidbridge_pump_commands( void )
 {
@@ -283,22 +356,7 @@ androidbridge_pump_commands( void )
         utils_open_file( command.text, tape_can_autoload(), NULL );
       break;
     case COMMAND_SET_OPTION:
-      switch( command.a ) {
-      case OPTION_FAST_TAPE:
-        /* Fuse spreads this across three settings: traps catch the ROM
-           loading routine, fastload makes a trapped block appear at once,
-           and accelerate_loader speeds up the timing loops of custom
-           loaders that never call the ROM at all. */
-        android_log( "fast tape loading %s", command.b ? "on" : "off" );
-        settings_current.tape_traps = command.b;
-        settings_current.fastload = command.b;
-        settings_current.accelerate_loader = command.b;
-        break;
-      case OPTION_TAPE_SOUND:
-        android_log( "tape sound %s", command.b ? "on" : "off" );
-        settings_current.sound_load = command.b;
-        break;
-      }
+      run_set_option( command.a, command.b );
       break;
     }
 
@@ -307,6 +365,7 @@ androidbridge_pump_commands( void )
 
   publish_machines();
 }
+
 
 /* --- emulation thread ------------------------------------------------- */
 
@@ -497,6 +556,48 @@ Java_com_fusemobile_FuseNative_setTapeSound( JNIEnv *env, jclass class,
                                              jboolean on )
 {
   queue_command( COMMAND_SET_OPTION, OPTION_TAPE_SOUND, on ? 1 : 0 );
+}
+
+JNIEXPORT void JNICALL
+Java_com_fusemobile_FuseNative_setAutoLoad( JNIEnv *env, jclass class, jboolean on )
+{
+  queue_command( COMMAND_SET_OPTION, OPTION_AUTOLOAD, on ? 1 : 0 );
+}
+
+JNIEXPORT void JNICALL
+Java_com_fusemobile_FuseNative_setIssue2( JNIEnv *env, jclass class, jboolean on )
+{
+  queue_command( COMMAND_SET_OPTION, OPTION_ISSUE2, on ? 1 : 0 );
+}
+
+JNIEXPORT void JNICALL
+Java_com_fusemobile_FuseNative_setBlackAndWhite( JNIEnv *env, jclass class, jboolean on )
+{
+  queue_command( COMMAND_SET_OPTION, OPTION_BW_TV, on ? 1 : 0 );
+}
+
+JNIEXPORT void JNICALL
+Java_com_fusemobile_FuseNative_setSound( JNIEnv *env, jclass class, jboolean on )
+{
+  queue_command( COMMAND_SET_OPTION, OPTION_SOUND, on ? 1 : 0 );
+}
+
+JNIEXPORT void JNICALL
+Java_com_fusemobile_FuseNative_setSpeed( JNIEnv *env, jclass class, jint value )
+{
+  queue_command( COMMAND_SET_OPTION, OPTION_SPEED, value );
+}
+
+JNIEXPORT void JNICALL
+Java_com_fusemobile_FuseNative_setAyVolume( JNIEnv *env, jclass class, jint value )
+{
+  queue_command( COMMAND_SET_OPTION, OPTION_AY_VOLUME, value );
+}
+
+JNIEXPORT void JNICALL
+Java_com_fusemobile_FuseNative_setBeeperVolume( JNIEnv *env, jclass class, jint value )
+{
+  queue_command( COMMAND_SET_OPTION, OPTION_BEEPER_VOLUME, value );
 }
 
 JNIEXPORT void JNICALL

@@ -17,8 +17,9 @@ arm64-v8a.
 | All sixteen machines, 16K through Scorpion | CRT / scanline filters |
 | Loading every format Fuse supports | Save states |
 | Opening files from other apps | On-screen joystick |
-| Fast tape loading, and real-time loading with sound | Writing media back out |
-| Machine switcher, remembered across launches | Native menus replacing the widget ones |
+| Settings screen over Fuse's own options | Writing media back out |
+| Fast tape loading, or real-time loading with sound | Native menus replacing the widget ones |
+| Machine switcher, remembered across launches | On-screen joystick |
 | Reset and NMI from the menu | Debugger front end |
 | GPU-scaled display, portrait and landscape | armeabi-v7a (add to `ABIS`/`abiFilters`) |
 | AAudio output, pacing emulation at 50.3 fps | |
@@ -56,17 +57,29 @@ does on the desktop.
   recordings. Fuse identifies the file itself and puts it wherever it
   belongs, switching machine first if the media needs one — a `.dsk` brings
   up a +3, a `.trd` or `.scl` a Beta-equipped machine. Tapes autoload.
-- **Tape…** — *Fast loading*, on by default, which loads standard blocks
-  through Fuse's ROM traps and accelerates the timing loops of custom turbo
-  loaders; even a loader that shows a seven-minute countdown finishes in
-  seconds. Turn it off for the real thing, complete with border stripes and,
-  if *Loading sound* is left on, the noise. Both can be changed while a tape
-  is loading, and take effect at once.
+- **Settings…** — see below.
 - **Machine…** — all sixteen machines, with the running one checked. The
   choice is remembered for the next launch.
 - **Reset** — asks first, since it discards machine state.
 - **NMI** — the magic button of the real hardware. What it does depends on the
   machine; see below.
+
+**Settings** covers, in Fuse's terms:
+
+| | |
+| --- | --- |
+| **Machine at startup** | which machine to boot; the ☰ switcher writes here too |
+| **Issue 2 keyboard** | early 48K keyboard behaviour a few games depend on |
+| **Fast loading** | ROM traps plus loader acceleration — a turbo loader showing a seven-minute countdown finishes in seconds. Off gives the real thing, border stripes and all |
+| **Loading sound** | the loading noise, which only exists when a tape runs in real time |
+| **Autoload media** | whether inserting a tape types `LOAD` for you |
+| **Sound**, **AY volume**, **Beeper volume** | restart Fuse's sound subsystem when changed |
+| **Black and white TV** | Fuse's monochrome palette |
+| **Keep the screen on** | ours, not Fuse's |
+| **Speed** | 25% to 500%; this is the fast-forward |
+
+Everything except the startup machine takes effect immediately, including
+while a tape is loading.
 
 ## Layout
 
@@ -203,18 +216,28 @@ out of its content provider into the cache — keeping its original name, since
 libspectrum uses the extension as a hint — and the path is queued for the
 emulation thread, which hands it to `utils_open_file()`.
 
-### Tape options
+### Settings
 
-Fuse spreads fast loading across three settings, which the one switch sets
-together: `tape_traps` catches the ROM's loading routine, `fastload` makes a
-trapped block appear at once, and `accelerate_loader` speeds up the timing
-loops of custom loaders that never call the ROM at all. `sound_load` is the
-loading noise, which only exists when the tape is running in real time.
+`SettingsActivity` is a plain framework `PreferenceFragment` over the same
+`fuse` preferences file the emulator reads, so there is one store rather than
+two. The machine list is not a fixed array: it is read back from Fuse through
+`FuseNative.machineNames()`, the same snapshot the ☰ switcher uses.
 
-They are passed on the command line at startup rather than queued, so they
-are in force before Fuse has finished starting — a file arriving by intent
-can be loading before the queue is first drained — and queued as commands
-when changed later.
+Each setting is applied twice. At startup it goes on Fuse's command line —
+Fuse generates `--x` / `--no-x` for every boolean setting and `--x n` for
+every numeric one — so the options are in force before Fuse has finished
+starting, which matters because a file arriving by intent can be loading
+before the command queue is first drained. Changed later, it goes through the
+queue like everything else.
+
+Fast loading is one switch over three Fuse settings: `tape_traps` catches the
+ROM's loading routine, `fastload` makes a trapped block appear at once, and
+`accelerate_loader` speeds up the timing loops of custom loaders that never
+call the ROM at all.
+
+Sound settings are only read when Fuse's sound subsystem starts, so changing
+one calls `fuse_emulation_pause()` / `fuse_emulation_unpause()` to restart
+it — which is what Fuse's own options dialogs do.
 
 ### The on-screen keyboard
 

@@ -17,6 +17,7 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
@@ -45,18 +46,14 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
     /** Assets subdirectory unpacked into {@code getFilesDir()/fuse}. */
     private static final String DATA_DIR = "fuse";
 
-    private static final String PREFS = "fuse";
+    private static final String PREFS = SettingsActivity.PREFS;
 
     /** Fuse's short id for the machine to boot, e.g. "48" or "128". */
-    private static final String PREF_MACHINE = "machine";
+    private static final String PREF_MACHINE = SettingsActivity.KEY_MACHINE;
     private static final String DEFAULT_MACHINE = "128";
 
     /** How long to give the emulation thread to act on a machine change. */
     private static final long MACHINE_SETTLE_MS = 500;
-
-    /** Fuse's own defaults for these are on, and so are ours. */
-    private static final String PREF_FAST_TAPE = "fastTape";
-    private static final String PREF_TAPE_SOUND = "tapeSound";
 
     private static final int REQUEST_OPEN_FILE = 1;
 
@@ -142,6 +139,17 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+
+        if (preferences.getBoolean(SettingsActivity.KEY_KEEP_SCREEN_ON, true)) {
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        } else {
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        }
+    }
+
+    @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) {
@@ -176,7 +184,7 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
     private void showMenu() {
         String[] items = {
             getString(R.string.menu_open),
-            getString(R.string.menu_tape),
+            getString(R.string.menu_settings),
             getString(R.string.menu_machine),
             getString(R.string.menu_reset),
             getString(R.string.menu_nmi),
@@ -186,37 +194,12 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
                 .setItems(items, (dialog, which) -> {
                     switch (which) {
                         case 0: pickFile(); break;
-                        case 1: showTapeDialog(); break;
+                        case 1: startActivity(new Intent(this, SettingsActivity.class)); break;
                         case 2: showMachineDialog(); break;
                         case 3: confirmReset(); break;
                         case 4: FuseNative.nmi(); break;
                     }
                 })
-                .show();
-    }
-
-    private void showTapeDialog() {
-        String[] items = {
-            getString(R.string.tape_fast),
-            getString(R.string.tape_sound),
-        };
-        boolean[] checked = {
-            preferences.getBoolean(PREF_FAST_TAPE, true),
-            preferences.getBoolean(PREF_TAPE_SOUND, true),
-        };
-
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(R.string.tape_title)
-                .setMultiChoiceItems(items, checked, (dialog, which, isChecked) -> {
-                    if (which == 0) {
-                        preferences.edit().putBoolean(PREF_FAST_TAPE, isChecked).apply();
-                        FuseNative.setFastTape(isChecked);
-                    } else {
-                        preferences.edit().putBoolean(PREF_TAPE_SOUND, isChecked).apply();
-                        FuseNative.setTapeSound(isChecked);
-                    }
-                })
-                .setPositiveButton(android.R.string.ok, null)
                 .show();
     }
 
@@ -399,17 +382,35 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
         arguments.add("--machine");
         arguments.add(preferences.getString(PREF_MACHINE, DEFAULT_MACHINE));
 
-        if (!preferences.getBoolean(PREF_FAST_TAPE, true)) {
+        if (!preferences.getBoolean(SettingsActivity.KEY_FAST_TAPE, true)) {
             arguments.add("--no-traps");
             arguments.add("--no-fastload");
             arguments.add("--no-accelerate-loader");
         }
 
-        if (!preferences.getBoolean(PREF_TAPE_SOUND, true)) {
-            arguments.add("--no-loading-sound");
-        }
+        flag(arguments, SettingsActivity.KEY_TAPE_SOUND, true, "loading-sound");
+        flag(arguments, SettingsActivity.KEY_AUTOLOAD, true, "auto-load");
+        flag(arguments, SettingsActivity.KEY_ISSUE2, false, "issue2");
+        flag(arguments, SettingsActivity.KEY_BW_TV, false, "bw-tv");
+        flag(arguments, SettingsActivity.KEY_SOUND, true, "sound");
+
+        value(arguments, SettingsActivity.KEY_SPEED, 100, "speed");
+        value(arguments, SettingsActivity.KEY_AY_VOLUME, 100, "volume-ay");
+        value(arguments, SettingsActivity.KEY_BEEPER_VOLUME, 100, "volume-beeper");
 
         return arguments.toArray(new String[0]);
+    }
+
+    /** Fuse generates --x / --no-x for every boolean setting. */
+    private void flag(List<String> arguments, String key, boolean fallback, String option) {
+        boolean on = preferences.getBoolean(key, fallback);
+        arguments.add(on ? "--" + option : "--no-" + option);
+    }
+
+    private void value(List<String> arguments, String key, int fallback, String option) {
+        String stored = preferences.getString(key, String.valueOf(fallback));
+        arguments.add("--" + option);
+        arguments.add(stored);
     }
 
     @Override

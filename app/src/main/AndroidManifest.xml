@@ -38,6 +38,14 @@
                 <data android:mimeType="*/*" />
             </intent-filter>
         </activity>
+
+        <!-- The emulator's own theme is a bare fullscreen one, which would
+             leave the preference widgets looking like Android 4. -->
+        <activity
+            android:name=".SettingsActivity"
+            android:label="@string/settings_title"
+            android:theme="@android:style/Theme.DeviceDefault.Settings"
+            android:exported="false" />
     </application>
 
 </manifest>

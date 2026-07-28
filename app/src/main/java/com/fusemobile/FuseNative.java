@@ -55,6 +55,27 @@ final class FuseNative {
     /** Turns the tape loading noise on or off; only audible without fast loading. */
     static native void setTapeSound(boolean on);
 
+    /** Whether inserting a tape types LOAD for you. */
+    static native void setAutoLoad(boolean on);
+
+    /** Issue 2 keyboard behaviour, which a few early 48K games depend on. */
+    static native void setIssue2(boolean on);
+
+    /** Renders with Fuse's monochrome palette. */
+    static native void setBlackAndWhite(boolean on);
+
+    /** Sound on or off; restarts Fuse's sound subsystem. */
+    static native void setSound(boolean on);
+
+    /** Emulation speed as a percentage; 100 is a real Spectrum. */
+    static native void setSpeed(int percent);
+
+    /** AY volume, 0 to 100; restarts Fuse's sound subsystem. */
+    static native void setAyVolume(int volume);
+
+    /** Beeper volume, 0 to 100; restarts Fuse's sound subsystem. */
+    static native void setBeeperVolume(int volume);
+
     /**
      * Queues a file for Fuse to open. Fuse identifies it itself, so this takes
      * snapshots, tapes, disks, cartridges, microdrive images and RZX
