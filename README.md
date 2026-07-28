@@ -23,7 +23,7 @@ arm64-v8a.
 | All sixteen machines, 16K through Scorpion | CRT / scanline filters |
 | Save states and ROMs in a folder you choose | Renaming an existing state |
 | Saving tapes the machine writes with SAVE | Recording tapes without fast loading |
-| Writing disks back out, any interface | Writing back over the file you opened |
+| Disk menu: load, save, eject, new, per drive | Writing back over the file you opened |
 | Loading every format Fuse supports | Save states |
 | Opening files from other apps | On-screen joystick |
 | Save states, named and unlimited | Microdrive cartridges |
@@ -89,6 +89,9 @@ instead — it has a button for exactly that.
   away so a save does not append to a game you loaded earlier. Any drive with
   a disk in it is listed too, so a disk the machine has written to can be
   saved the same way.
+- **Disks…** — every drive the running machine has, with what is in it, and
+  per drive: *Load disk…*, *New disk*, *Save…* and *Eject*. The drives follow
+  the machine, so a +3 shows its two and a Pentagon its four Beta ones.
 - **Settings…** — see below.
 - **Machine…** — all sixteen machines, with the running one checked. The
   choice is remembered for the next launch.
@@ -164,6 +167,17 @@ that for disks — so choose the machine before loading a 128K-only tape.
 keyboard with `adb shell input tap` does, which is enough to automate most
 things; key coordinates follow from the artwork's 541x201 layout. Use
 `input swipe x y x y 1200` to hold a key, for instance to latch a shift.
+
+For the menus, tap by text rather than by coordinate — they move whenever a
+menu gains an item:
+
+```sh
+scripts/ui-tap.py list                       # what is on screen
+scripts/ui-tap.py "Disks" "Beta Disk A" "Save…"
+```
+
+It reads the view hierarchy through `uiautomator dump`. Proper
+instrumentation tests would be better still; see the next steps.
 
 Media can be loaded without touching the picker at all:
 
@@ -271,14 +285,24 @@ or Escape dismisses; Android has already asked by that point.
 One thing worth knowing at the *Start tape, then press any key* prompt: press
 Enter rather than Space. Space aborted the save with `D BREAK` in testing.
 
-### Writing disks
+### Disks
 
 Every disk interface Fuse emulates — +3, Beta 128, +D, DISCiPLE, Opus,
-Didaktik — registers its drives with `ui_media_drive_register()`, so the
-drives that currently hold a disk are found by walking
-`ui_media_drive_find()` over the controllers and asking each `fdd` whether it
-is loaded. That list is published alongside the machine list every pump, and
-the names in the menu are Fuse's own.
+Didaktik — registers its drives with `ui_media_drive_register()`, so the menu
+is built by walking `ui_media_drive_find()` over the controllers rather than
+naming any of them. Each drive is asked `is_available()` first, which is how
+the list follows the machine: a +3 has no Beta drives and a Pentagon no +3
+ones. The names shown are Fuse's own.
+
+Loading, creating and ejecting all go through
+`ui_media_drive_insert()` / `ui_media_drive_eject()`, with `disk.dirty`
+cleared first: those would otherwise ask about losing changes through a
+widget dialog only Enter or Escape dismisses, and Android has already asked.
+
+A disk made with *New disk* is **unformatted** — Fuse's `disk_new()` gives it
+geometry but no filesystem — so there is nothing to write until the machine
+formats it. Saving one produced a silent zero byte file, so a failed or empty
+write now deletes the file and says why.
 
 The write itself is `disk_write()`, which picks its format from the extension
 once `disk.type` is cleared — the same thing Fuse's own save-as does, minus
@@ -419,5 +443,10 @@ Fixed without touching Fuse by forcing a consistent value:
 3. **Native menus** replacing the widget dialogs, and an on-screen joystick.
    An app icon that is not SDL's would be good too.
 4. **Debugger** front end over Fuse's `debugger/` API.
+
+There are no automated tests. Everything here has been checked by driving the
+app by hand, which is slow and misses regressions; UI Automator tests over
+the menus, plus a debug-only intent interface so the emulator can be driven
+without the UI at all, would be worth more than any single feature below.
 
 

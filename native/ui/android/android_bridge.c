@@ -17,6 +17,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -96,6 +97,9 @@ typedef enum command_type {
   COMMAND_WRITE_TAPE,			/* text: path to write */
   COMMAND_NEW_TAPE,
   COMMAND_WRITE_DISK,			/* a: controller, b: drive, text: path */
+  COMMAND_DISK_INSERT,			/* a: controller, b: drive, text: path */
+  COMMAND_DISK_NEW,			/* a: controller, b: drive */
+  COMMAND_DISK_EJECT,			/* a: controller, b: drive */
 } command_type;
 
 /* Options the Android UI can set. Values are integers; booleans are 0 or 1. */
@@ -190,7 +194,10 @@ static int tape_on_machine;
 typedef struct drive_entry {
   int controller;
   int drive;
+  int loaded;
+  int dirty;
   char name[ 48 ];
+  char disk[ 96 ];			/* what is in it, if anything */
 } drive_entry;
 
 static drive_entry drive_list[ MAX_DRIVES ];
@@ -231,14 +238,36 @@ publish_machines( void )
     for( which = 0; which < MAX_DRIVES_PER_CONTROLLER &&
                     drive_list_count < MAX_DRIVES; which++ ) {
       ui_media_drive_info_t *found = ui_media_drive_find( i, which );
+      drive_entry *entry = &drive_list[ drive_list_count ];
+      const char *file;
 
-      if( !found || !found->fdd || !found->fdd->loaded ) continue;
+      /* Every drive the running machine actually has, empty or not. Fuse
+         knows which interfaces are present - a +3 has no Beta drives, a
+         Pentagon no +3 ones - so ask rather than listing them all. */
+      if( !found || !found->fdd ) continue;
+      if( found->is_available && !found->is_available() ) continue;
 
-      drive_list[ drive_list_count ].controller = i;
-      drive_list[ drive_list_count ].drive = which;
-      snprintf( drive_list[ drive_list_count ].name,
-                sizeof( drive_list[0].name ), "%s",
+      entry->controller = i;
+      entry->drive = which;
+      entry->loaded = found->fdd->loaded;
+      entry->dirty = found->fdd->disk.dirty;
+
+      snprintf( entry->name, sizeof( entry->name ), "%s",
                 found->name ? found->name : "Disk" );
+
+      file = found->fdd->loaded ? found->fdd->disk.filename : NULL;
+      if( file ) {
+        const char *base = strrchr( file, '/' );
+        snprintf( entry->disk, sizeof( entry->disk ), "%s",
+                  base ? base + 1 : file );
+      } else if( found->fdd->loaded ) {
+        /* A disk made here has no file behind it yet, but it is still in
+           the drive and still worth saving. */
+        snprintf( entry->disk, sizeof( entry->disk ), "%s", "Blank disk" );
+      } else {
+        entry->disk[0] = '\0';
+      }
+
       drive_list_count++;
     }
   }
@@ -436,11 +465,48 @@ androidbridge_pump_commands( void )
            extension, which is what Fuse's own save-as does. */
         target->fdd->disk.type = DISK_TYPE_NONE;
 
-        if( disk_write( &target->fdd->disk, command.text ) )
-          ui_error( UI_ERROR_ERROR, "couldn't write %s", command.text );
-        else
+        struct stat written;
+        int failed = disk_write( &target->fdd->disk, command.text );
+
+        /* A disk made here is unformatted until the machine formats it, and
+           an unformatted disk has nothing to write. Fuse reports that either
+           as an error or as a write of nothing at all, and leaves an empty
+           file behind either way. */
+        if( !failed && !stat( command.text, &written ) &&
+            written.st_size == 0 )
+          failed = 1;
+
+        if( failed ) {
+          remove( command.text );
+          ui_error( UI_ERROR_ERROR,
+                    "Couldn't write the disk. A new disk has to be formatted "
+                    "by the machine before there is anything to save." );
+        } else {
           target->fdd->disk.dirty = 0;
+        }
       }
+      break;
+    }
+    case COMMAND_DISK_INSERT:
+    case COMMAND_DISK_NEW: {
+      ui_media_drive_info_t *target = ui_media_drive_find( command.a, command.b );
+
+      if( target && target->fdd ) {
+        /* Android has already asked about losing changes; clearing this
+           stops Fuse asking again through a modal of its own. */
+        target->fdd->disk.dirty = 0;
+        ui_media_drive_insert( target,
+                               command.type == COMMAND_DISK_INSERT
+                                 ? command.text : NULL,
+                               0 );
+      }
+      break;
+    }
+    case COMMAND_DISK_EJECT: {
+      ui_media_drive_info_t *target = ui_media_drive_find( command.a, command.b );
+
+      if( target && target->fdd ) target->fdd->disk.dirty = 0;
+      ui_media_drive_eject( command.a, command.b );
       break;
     }
     case COMMAND_NEW_TAPE:
@@ -733,6 +799,69 @@ Java_com_fusemobile_FuseNative_driveIds( JNIEnv *env, jclass class )
   pthread_mutex_unlock( &machine_mutex );
 
   return result;
+}
+
+/* "name", then the disk in it or "" if empty, then "1" or "0" for modified,
+   three entries per drive. One call rather than three keeps the list
+   consistent. */
+JNIEXPORT jobjectArray JNICALL
+Java_com_fusemobile_FuseNative_driveDetails( JNIEnv *env, jclass class )
+{
+  jobjectArray result;
+  jclass string_class;
+  int i;
+
+  pthread_mutex_lock( &machine_mutex );
+
+  string_class = (*env)->FindClass( env, "java/lang/String" );
+  result = (*env)->NewObjectArray( env, drive_list_count * 3, string_class,
+                                   NULL );
+
+  for( i = 0; result && i < drive_list_count; i++ ) {
+    jstring name = (*env)->NewStringUTF( env, drive_list[i].name );
+    jstring disk = (*env)->NewStringUTF( env, drive_list[i].disk );
+    jstring dirty = (*env)->NewStringUTF( env,
+                      drive_list[i].dirty ? "1" : "0" );
+
+    (*env)->SetObjectArrayElement( env, result, i * 3, name );
+    (*env)->SetObjectArrayElement( env, result, i * 3 + 1, disk );
+    (*env)->SetObjectArrayElement( env, result, i * 3 + 2, dirty );
+
+    (*env)->DeleteLocalRef( env, name );
+    (*env)->DeleteLocalRef( env, disk );
+    (*env)->DeleteLocalRef( env, dirty );
+  }
+
+  pthread_mutex_unlock( &machine_mutex );
+
+  return result;
+}
+
+JNIEXPORT void JNICALL
+Java_com_fusemobile_FuseNative_insertDisk( JNIEnv *env, jclass class,
+                                           jint controller, jint drive,
+                                           jstring path )
+{
+  const char *utf = (*env)->GetStringUTFChars( env, path, NULL );
+
+  if( utf ) {
+    queue_command_text( COMMAND_DISK_INSERT, controller, drive, strdup( utf ) );
+    (*env)->ReleaseStringUTFChars( env, path, utf );
+  }
+}
+
+JNIEXPORT void JNICALL
+Java_com_fusemobile_FuseNative_newDisk( JNIEnv *env, jclass class,
+                                        jint controller, jint drive )
+{
+  queue_command( COMMAND_DISK_NEW, controller, drive );
+}
+
+JNIEXPORT void JNICALL
+Java_com_fusemobile_FuseNative_ejectDisk( JNIEnv *env, jclass class,
+                                          jint controller, jint drive )
+{
+  queue_command( COMMAND_DISK_EJECT, controller, drive );
 }
 
 JNIEXPORT void JNICALL

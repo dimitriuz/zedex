@@ -89,6 +89,17 @@ final class FuseNative {
     /** Writes a drive's disk; the extension picks the format. */
     static native void writeDisk(int controller, int drive, String path);
 
+    /** Three strings per drive: its name, the disk in it, and "1" if modified. */
+    static native String[] driveDetails();
+
+    /** Puts a disk image into a particular drive. */
+    static native void insertDisk(int controller, int drive, String path);
+
+    /** Puts a blank formatted disk into a drive. */
+    static native void newDisk(int controller, int drive);
+
+    static native void ejectDisk(int controller, int drive);
+
     /** Index of the running machine, or -1 if Fuse has not started yet. */
     static native int currentMachine();
 

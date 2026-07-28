@@ -75,6 +75,7 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
 
     private static final int REQUEST_OPEN_FILE = 1;
     private static final int REQUEST_IMPORT_ROMS = 3;
+    private static final int REQUEST_LOAD_DISK = 4;
 
     /** Where picked files are staged for Fuse to open. */
     private static final String MEDIA_DIR = "media";
@@ -211,6 +212,7 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
             getString(R.string.menu_save_state),
             getString(R.string.menu_load_state),
             getString(R.string.menu_media),
+            getString(R.string.menu_disks),
             getString(R.string.menu_settings),
             getString(R.string.menu_machine),
             getString(R.string.menu_reset),
@@ -224,10 +226,11 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
                         case 1: showStateDialog(true); break;
                         case 2: showStateDialog(false); break;
                         case 3: showMediaMenu(); break;
-                        case 4: startActivity(new Intent(this, SettingsActivity.class)); break;
-                        case 5: showMachineDialog(); break;
-                        case 6: confirmReset(); break;
-                        case 7: FuseNative.nmi(); break;
+                        case 4: showDiskMenu(); break;
+                        case 5: startActivity(new Intent(this, SettingsActivity.class)); break;
+                        case 6: showMachineDialog(); break;
+                        case 7: confirmReset(); break;
+                        case 8: FuseNative.nmi(); break;
                     }
                 })
                 .show();
@@ -242,31 +245,120 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
      * a file.
      */
     private void showMediaMenu() {
-        List<String> items = new ArrayList<>();
-        items.add(getString(R.string.tape_save));
-        items.add(getString(R.string.tape_new));
-
-        // A disk is only worth offering while it is in a drive.
-        String[] drives = FuseNative.driveNames();
-        int[] ids = FuseNative.driveIds();
-        for (String drive : drives) {
-            items.add(getString(R.string.disk_save, drive));
-        }
+        String[] items = {
+            getString(R.string.tape_save),
+            getString(R.string.tape_new),
+        };
 
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setTitle(R.string.menu_media)
-                .setItems(items.toArray(new String[0]), (dialog, which) -> {
-                    if (which == 0) {
-                        saveTape();
-                    } else if (which == 1) {
-                        confirmNewTape();
-                    } else {
-                        int index = which - 2;
-                        if (index < drives.length && index < ids.length) {
-                            saveDisk(drives[index], ids[index]);
-                        }
+                .setItems(items, (dialog, which) -> {
+                    if (which == 0) saveTape(); else confirmNewTape();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    // --- disks ------------------------------------------------------------
+
+    /** Which drive a pending "load disk" belongs to. */
+    private int pendingDrive = -1;
+
+    /**
+     * Every drive the running machine has, with whatever is in it. The
+     * drives depend on the machine and its interfaces, so the list comes
+     * from Fuse rather than being a fixed A: to D:.
+     */
+    private void showDiskMenu() {
+        String[] details = FuseNative.driveDetails();
+        int[] ids = FuseNative.driveIds();
+
+        if (details.length == 0 || ids.length == 0) {
+            Toast.makeText(this, R.string.disk_no_drives, Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        int count = Math.min(ids.length, details.length / 3);
+        String[] items = new String[count];
+
+        for (int i = 0; i < count; i++) {
+            String disk = details[i * 3 + 1];
+            boolean modified = "1".equals(details[i * 3 + 2]);
+
+            String state = disk.isEmpty() ? getString(R.string.disk_empty)
+                    : modified ? getString(R.string.disk_modified, disk) : disk;
+
+            items[i] = details[i * 3] + "\n" + state;
+        }
+
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(R.string.menu_disks)
+                .setItems(items, (dialog, which) ->
+                        showDriveActions(details[which * 3], ids[which],
+                                         !details[which * 3 + 1].isEmpty()))
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void showDriveActions(String name, int id, boolean loaded) {
+        List<String> actions = new ArrayList<>();
+        actions.add(getString(R.string.disk_load));
+        actions.add(getString(R.string.disk_new));
+        if (loaded) {
+            actions.add(getString(R.string.disk_save_short));
+            actions.add(getString(R.string.disk_eject));
+        }
+
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(name)
+                .setItems(actions.toArray(new String[0]), (dialog, which) -> {
+                    switch (which) {
+                        case 0: loadDiskInto(id); break;
+                        case 1: confirmNewDisk(name, id, loaded); break;
+                        case 2: saveDisk(name, id); break;
+                        default: confirmEject(name, id); break;
                     }
                 })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void loadDiskInto(int id) {
+        pendingDrive = id;
+
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+
+        Uri start = Storage.contentFolder(this);
+        if (start != null) intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, start);
+
+        try {
+            startActivityForResult(intent, REQUEST_LOAD_DISK);
+        } catch (android.content.ActivityNotFoundException e) {
+            Toast.makeText(this, R.string.open_failed, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void confirmNewDisk(String name, int id, boolean loaded) {
+        if (!loaded) {
+            FuseNative.newDisk(id >> 8, id & 0xff);
+            return;
+        }
+
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setMessage(getString(R.string.disk_replace, name))
+                .setPositiveButton(R.string.disk_new, (dialog, which) ->
+                        FuseNative.newDisk(id >> 8, id & 0xff))
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void confirmEject(String name, int id) {
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setMessage(getString(R.string.disk_eject_confirm, name))
+                .setPositiveButton(R.string.disk_eject, (dialog, which) ->
+                        FuseNative.ejectDisk(id >> 8, id & 0xff))
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
     }
@@ -741,6 +833,22 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
             return;
         }
 
+        if (request == REQUEST_LOAD_DISK) {
+            Uri uri = data.getData();
+            int drive = pendingDrive;
+            pendingDrive = -1;
+
+            if (uri != null && drive >= 0) {
+                new Thread(() -> {
+                    File staged = stage(uri);
+                    if (staged == null) return;
+                    FuseNative.insertDisk(drive >> 8, drive & 0xff,
+                                          staged.getAbsolutePath());
+                }).start();
+            }
+            return;
+        }
+
         if (request != REQUEST_OPEN_FILE) return;
 
         Uri uri = data.getData();
@@ -753,21 +861,24 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
      * extension as a hint when identifying the file.
      */
     private void stageAndOpen(Uri uri) {
+        File staged = stage(uri);
+        if (staged == null) return;
+
+        FuseNative.openFile(staged.getAbsolutePath());
+
+        String name = staged.getName();
+        int dot = name.lastIndexOf('.');
+        rememberMediaName(sanitise(dot > 0 ? name.substring(0, dot) : name));
+    }
+
+    /** Copies a picked document somewhere Fuse can open by path. */
+    private File stage(Uri uri) {
         File dir = new File(getCacheDir(), MEDIA_DIR);
         File staged = new File(dir, displayName(uri));
 
         if (!dir.isDirectory() && !dir.mkdirs()) {
             reportOpenFailed();
-            return;
-        }
-
-        // Only the current file is of interest; anything Fuse still needs it
-        // has already read into memory.
-        File[] previous = dir.listFiles();
-        if (previous != null) {
-            for (File file : previous) {
-                if (!file.equals(staged)) file.delete();
-            }
+            return null;
         }
 
         try (InputStream in = getContentResolver().openInputStream(uri);
@@ -782,14 +893,10 @@ public class FuseActivity extends Activity implements SurfaceHolder.Callback {
         } catch (IOException | SecurityException e) {
             Log.e(TAG, "failed to stage " + uri, e);
             reportOpenFailed();
-            return;
+            return null;
         }
 
-        FuseNative.openFile(staged.getAbsolutePath());
-
-        String name = staged.getName();
-        int dot = name.lastIndexOf('.');
-        rememberMediaName(sanitise(dot > 0 ? name.substring(0, dot) : name));
+        return staged;
     }
 
     private void reportOpenFailed() {
