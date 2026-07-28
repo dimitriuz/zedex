@@ -61,9 +61,19 @@ invisible to the emulated machine.
 
 ### The menu
 
+☰ opens a sheet that slides in from the edge rather than a dialog. A dialog sat
+in the middle of the window, which is where the machine is, and could only be a
+flat list of equal-looking items; a sheet down one side leaves the picture
+visible, has room for section headings, and closes by tapping the screen you can
+still see. `MenuDrawer` is written out rather than taken from androidx, whose
+`DrawerLayout` would be the app's first dependency for what amounts to a
+translation, a fade and a list. The items are ordinary text views with the words
+in them, which is what keeps the tests and `scripts/ui-tap.py` addressing the
+menu by name. Back closes it before it reaches the activity.
+
 Everything the menu does goes through the same queue as keys, because none of
-it is safe to call from the UI thread: the Android dialog queues a command and
-the emulation thread runs `machine_select()`, `machine_reset()` or
+it is safe to call from the UI thread: the item queues a command and the
+emulation thread runs `machine_select()`, `machine_reset()` or
 `event_add( 0, z80_nmi_event )`. The machine list is snapshotted from Fuse's
 `machine_types` on the emulation thread for the UI thread to read back.
 

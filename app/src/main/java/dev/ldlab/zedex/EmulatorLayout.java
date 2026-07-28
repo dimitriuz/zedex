@@ -100,6 +100,7 @@ final class EmulatorLayout extends ViewGroup {
     private View screen;
     private View panel;
     private View menu;
+    private View drawer;
     private SpectrumKeyboardView keyboard;
     private Template template = Template.BELOW;
 
@@ -117,16 +118,21 @@ final class EmulatorLayout extends ViewGroup {
      * right of the screen rather than of the window, so it follows the picture
      * when the keyboard is beside it.
      */
-    void setChildren(View screen, View panel, View menu, SpectrumKeyboardView keyboard) {
+    void setChildren(View screen, SpectrumKeyboardView keyboard, View panel,
+                     View menuButton, View drawer) {
         this.screen = screen;
-        this.panel = panel;
-        this.menu = menu;
         this.keyboard = keyboard;
+        this.panel = panel;
+        this.menu = menuButton;
+        this.drawer = drawer;
 
+        // Front to back is the order below: the drawer covers everything, the
+        // button stays over the panel, the panel covers the screen.
         addView(screen);
         addView(keyboard);
         addView(panel);
-        addView(menu);
+        addView(menuButton);
+        addView(drawer);
     }
 
     Template template() {
@@ -255,6 +261,7 @@ final class EmulatorLayout extends ViewGroup {
         measureChild(keyboard, keyboardBox);
         measureChild(panel, panelBox);
         measureChild(menu, menuBox);
+        measureChild(drawer, panelBox);
 
         setMeasuredDimension(width, height);
     }
@@ -274,6 +281,7 @@ final class EmulatorLayout extends ViewGroup {
         placeChild(keyboard, keyboardBox);
         placeChild(panel, panelBox);
         placeChild(menu, menuBox);
+        placeChild(drawer, panelBox);
     }
 
     private void placeChild(View child, Rect box) {

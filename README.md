@@ -197,7 +197,9 @@ Two things Android will not allow as a chosen folder: the root of shared
 storage, and `Download`. The picker refuses both and says so; make a subfolder
 instead — it has a button for exactly that.
 
-**The ☰ button** opens:
+**The ☰ button** slides a sheet in from the edge, grouped into Files, Media,
+Machine and Zedex, leaving the screen visible behind it. Tap the screen or press
+back to dismiss it. It holds:
 
 - **Open file…** — anything the emulator can read: snapshots (`.z80`, `.sna`,
   `.szx`, …), tapes (`.tap`, `.tzx`, `.pzx`, `.csw`, …), disks (`.dsk`,

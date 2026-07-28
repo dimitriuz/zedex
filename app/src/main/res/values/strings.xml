@@ -4,6 +4,10 @@
     <string name="machine_title">Machine</string>
     <string name="menu_open">Open file\u2026</string>
     <string name="menu_media">Media\u2026</string>
+    <string name="menu_section_files">Files</string>
+    <string name="menu_section_media">Media</string>
+    <string name="menu_section_machine">Machine</string>
+    <string name="menu_section_app">Zedex</string>
     <string name="menu_layout">Landscape layout\u2026</string>
     <string name="layout_title">Landscape layout</string>
     <string name="layout_portrait_note">Saved \u2014 it applies when you turn the device sideways</string>

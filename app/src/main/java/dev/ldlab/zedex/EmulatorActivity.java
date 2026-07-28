@@ -114,6 +114,9 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     /** Holds the screen and the keyboard, and decides how they share the window. */
     private EmulatorLayout layout;
 
+    /** The ☰ sheet. Built once and slid in and out. */
+    private MenuDrawer menu;
+
     /** Shown in place of the emulated screen when there is no machine. */
     private View romsPanel;
     private TextView romsTitle;
@@ -160,10 +163,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // Both are siblings of the screen rather than children of it: the panel
         // takes the whole window, and the ☰ button has to stay on top of it.
         romsPanel = buildRomsPanel();
+        menu = buildMenu();
 
         layout = new EmulatorLayout(this);
-        layout.setChildren(screen, romsPanel, buildMenuButton(),
-                           new SpectrumKeyboardView(this));
+        layout.setChildren(screen, new SpectrumKeyboardView(this), romsPanel,
+                           buildMenuButton(), menu);
         layout.setTemplate(EmulatorLayout.Template.of(
                 preferences.getString(SettingsActivity.KEY_LANDSCAPE_LAYOUT, null)));
 
@@ -233,48 +237,47 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         button.setContentDescription(getString(R.string.menu_button));
         button.setTextColor(Color.WHITE);
         button.setBackgroundColor(0x66000000);
-        button.setOnClickListener(v -> showMenu());
+        button.setOnClickListener(v -> menu.open());
 
         // Where it goes is EmulatorLayout's business: it follows the screen,
         // which moves with the template.
         return button;
     }
 
-    private void showMenu() {
-        String[] items = {
-            getString(R.string.menu_open),
-            getString(R.string.menu_save_state),
-            getString(R.string.menu_load_state),
-            getString(R.string.menu_media),
-            getString(R.string.menu_disks),
-            getString(R.string.menu_capture),
-            getString(R.string.menu_layout),
-            getString(R.string.menu_settings),
-            getString(R.string.menu_machine),
-            getString(R.string.menu_reset),
-            getString(R.string.menu_nmi),
-        };
+    /**
+     * The ☰ sheet, built once. Grouped, which a dialog's flat item list could
+     * not be, and left out of the way of the screen it acts on.
+     */
+    private MenuDrawer buildMenu() {
+        MenuDrawer menu = new MenuDrawer(this);
 
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setItems(items, (dialog, which) -> {
-                    switch (which) {
-                        case 0: pickFile(); break;
-                        case 1: showStateDialog(true); break;
-                        case 2: showStateDialog(false); break;
-                        case 3: showMediaMenu(); break;
-                        case 4: showDiskMenu(); break;
-                        case 5: showCaptureMenu(); break;
-                        case 6: showLayoutDialog(); break;
-                        case 7: startActivity(new Intent(this, SettingsActivity.class)); break;
-                        case 8: showMachineDialog(); break;
-                        case 9: confirmReset(); break;
-                        case 10:
-                            FuseNative.nmi();
-                            note(R.string.nmi_done);
-                            break;
-                    }
-                })
-                .show();
+        menu.addSection(getString(R.string.menu_section_files));
+        menu.addItem(getString(R.string.menu_open), this::pickFile);
+        menu.addItem(getString(R.string.menu_save_state), () -> showStateDialog(true));
+        menu.addItem(getString(R.string.menu_load_state), () -> showStateDialog(false));
+
+        menu.addRule();
+        menu.addSection(getString(R.string.menu_section_media));
+        menu.addItem(getString(R.string.menu_media), this::showMediaMenu);
+        menu.addItem(getString(R.string.menu_disks), this::showDiskMenu);
+        menu.addItem(getString(R.string.menu_capture), this::showCaptureMenu);
+
+        menu.addRule();
+        menu.addSection(getString(R.string.menu_section_machine));
+        menu.addItem(getString(R.string.menu_machine), this::showMachineDialog);
+        menu.addItem(getString(R.string.menu_reset), this::confirmReset);
+        menu.addItem(getString(R.string.menu_nmi), () -> {
+            FuseNative.nmi();
+            note(R.string.nmi_done);
+        });
+
+        menu.addRule();
+        menu.addSection(getString(R.string.menu_section_app));
+        menu.addItem(getString(R.string.menu_layout), this::showLayoutDialog);
+        menu.addItem(getString(R.string.menu_settings),
+                () -> startActivity(new Intent(this, SettingsActivity.class)));
+
+        return menu;
     }
 
     // --- tapes ------------------------------------------------------------
@@ -1726,7 +1729,15 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if (keyCode == KeyEvent.KEYCODE_BACK) return super.onKeyDown(keyCode, event);
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
+            // With the sheet open, back belongs to the sheet.
+            if (menu.isOpen()) {
+                menu.close();
+                return true;
+            }
+            return super.onKeyDown(keyCode, event);
+        }
+
         FuseNative.key(keyCode, true);
         return true;
     }
