@@ -664,6 +664,44 @@ That is also what drives *Hide for a controller*, which is a separate flag in th
 layout rather than a write to the user's own *Show on screen* — unplugging has to
 bring back whatever they had chosen, and it cannot if plugging in threw it away.
 
+### Speed, and what the clock really was
+
+**Fast forward** is a quick-bar button held down and R2 on a controller: 500%
+while it is held, and back to the *Speed* setting when it is let go. The setting
+is not written to — this is a thing being done, not a preference being changed,
+and a loading screen skipped at speed should not leave the machine fast for the
+game afterwards. It is guarded against being told the same thing twice, since it
+arrives from a finger, from a trigger button and from that trigger's axis, and on
+some pads from two of those at once.
+
+Making it work turned up **two reasons the speed had never worked at all**, the
+*Speed* setting included.
+
+The first is that `settings_current.emulation_speed` is not read where it is set.
+With sound enabled — and here the sound is the clock — the speed reaches the
+machine through `sound_get_effective_processor_speed()`, which scales the blip
+buffer's clock rate, and that is read once, in `sound_init()`. Setting the number
+alone changed nothing: the emulation went on running at whatever rate the audio
+device was draining samples. So the option restarts the sound now, the same way
+the volume and stereo options do. Past 300% Fuse switches the sound off itself —
+its own range for having any is 50 to 300 — and then `timer.c` does the throttling
+and reads the speed live. Which is why fast forward is silent, and should be.
+
+The second is worse, because it had quietly taken the clock away from the sound:
+`eglSwapBuffers()` waits for the display's next refresh, so presenting every
+emulated frame tied the emulation to the panel. At sixty hertz the machine could
+not exceed about 120% however fast it was asked to run — 500% measured 105%. Above
+real time the frames the panel cannot show are dropped instead, in
+`androidbridge_present()`: a screen refreshing sixty times a second cannot show
+two hundred and fifty frames, and the emulation gets the time back. At normal
+speed every frame is presented exactly as before, so the pacing there is
+untouched.
+
+Measured on an API 36 emulator by counting emulated frames: 50 a second at 100%,
+100 at 200%, and 247 while fast forward was held — 494% of a real Spectrum, the
+AVD not quite managing the last one per cent — and 48 again the moment it was let
+go.
+
 ### Pausing
 
 Fuse has no pause of its own to borrow. `fuse_emulation_pause()` sounds like

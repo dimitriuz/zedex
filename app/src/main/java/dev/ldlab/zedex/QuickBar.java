@@ -174,6 +174,43 @@ final class QuickBar extends LinearLayout {
         return button;
     }
 
+    /**
+     * An icon that does something for as long as it is held, and stops when it is
+     * let go.
+     *
+     * A touch listener rather than a click listener, because a click is a press
+     * and a release together and there is nothing in between it can report. That
+     * makes it the one control here a screen reader cannot work: an accessibility
+     * click has no duration. Nothing is lost that is not elsewhere - the speed is
+     * a setting too - and a control that has to be held is what was asked for.
+     */
+    ImageButton addHold(int drawable, String name, Runnable press, Runnable release) {
+        ImageButton button = makeButton(drawable, name, null);
+
+        button.setOnTouchListener((view, event) -> {
+            switch (event.getActionMasked()) {
+                case android.view.MotionEvent.ACTION_DOWN:
+                    collapse();
+                    view.setPressed(true);
+                    press.run();
+                    return true;
+
+                case android.view.MotionEvent.ACTION_UP:
+                case android.view.MotionEvent.ACTION_CANCEL:
+                    view.setPressed(false);
+                    release.run();
+                    return true;
+
+                default:
+                    return true;
+            }
+        });
+
+        primary.addView(button);
+
+        return button;
+    }
+
     /** Changes what an action looks like and is called, after the fact. */
     void setAction(ImageButton button, int drawable, String name) {
         Drawable image = getContext().getDrawable(drawable);

@@ -22,6 +22,8 @@
 
 #include <android/native_window_jni.h>
 
+#include "settings.h"
+
 #include "android_internals.h"
 
 static pthread_mutex_t window_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -34,9 +36,53 @@ static int teardown_requested;
 static int teardown_done;
 static unsigned window_generation;
 
+/* No faster than this, in nanoseconds: about seventy five frames a second. */
+#define PRESENT_INTERVAL_NS ( 13 * 1000 * 1000LL )
+
+static long long last_present;
+
+static long long
+now_ns( void )
+{
+  struct timespec now;
+
+  clock_gettime( CLOCK_MONOTONIC, &now );
+  return now.tv_sec * 1000000000LL + now.tv_nsec;
+}
+
+/* Whether this frame is worth showing.
+ *
+ * eglSwapBuffers() waits for the display's next refresh, so presenting every
+ * emulated frame ties the emulation to the panel: at sixty hertz the machine
+ * cannot run faster than about a hundred and twenty per cent however fast it is
+ * asked to. That is why the speed setting looked inert and why fast forward did
+ * nothing - the sound had stopped being the clock and the *display* had taken
+ * over.
+ *
+ * So above real time the frames the panel cannot show are dropped instead.
+ * Nothing is lost: a screen refreshing sixty times a second cannot show two
+ * hundred and fifty frames, and the emulation gets the time back. At normal
+ * speed every frame is presented as before, and the pacing stays where it was.
+ */
+static int
+worth_presenting( void )
+{
+  long long now;
+
+  if( settings_current.emulation_speed <= 100 ) return 1;
+
+  now = now_ns();
+  if( now - last_present < PRESENT_INTERVAL_NS ) return 0;
+
+  last_present = now;
+  return 1;
+}
+
 void
 androidbridge_present( const void *pixels, int width, int height )
 {
+  if( !worth_presenting() ) return;
+
   pthread_mutex_lock( &window_mutex );
 
   if( teardown_requested ) {

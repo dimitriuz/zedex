@@ -127,6 +127,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         public void saveState() {
             showStateDialog(true);
         }
+
+        @Override
+        public void fastForward(boolean on) {
+            EmulatorActivity.this.fastForward(on);
+        }
     });
     private boolean started;
 
@@ -396,6 +401,9 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         bar.addGroup(R.drawable.ic_machine, getString(R.string.menu_machine_group),
                      this::fillMachineBar);
 
+        bar.addHold(R.drawable.ic_fast_forward, getString(R.string.fast_forward),
+                    () -> fastForward(true), () -> fastForward(false));
+
         fullscreenAction = bar.addAction(R.drawable.ic_fullscreen,
                                          getString(R.string.fullscreen_enter),
                                          () -> showFullscreen(!fullscreen()));
@@ -529,6 +537,33 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         quickBar.setVisibility(View.VISIBLE);
 
         if (fullscreen()) quickBar.postDelayed(fadeQuickBar, BAR_LINGER_MS);
+    }
+
+    /** What holding fast forward runs at, in per cent of a real Spectrum. */
+    private static final int FAST_FORWARD = 500;
+
+    private boolean fastForwarding;
+
+    /**
+     * Five hundred per cent while it is held, and back to the setting when it is
+     * let go.
+     *
+     * The setting is not written to: this is a thing being done, not a preference
+     * being changed, and a loading screen skipped at speed should not leave the
+     * machine fast for the game afterwards. Reading the stored value back is what
+     * restores it, so whatever the user chose is what returns - 25% included.
+     *
+     * Guarded against being told the same thing twice, because it arrives from a
+     * finger, a controller's trigger and that trigger's axis, and on some pads
+     * two of those at once.
+     */
+    private void fastForward(boolean on) {
+        if (fastForwarding == on) return;
+
+        fastForwarding = on;
+        FuseNative.setSpeed(on ? FAST_FORWARD
+                               : SettingsActivity.SettingsFragment.number(
+                                       preferences, SettingsActivity.KEY_SPEED, 100));
     }
 
     private boolean fullscreen() {

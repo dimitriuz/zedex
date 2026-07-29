@@ -145,7 +145,7 @@ control and then the key.
 five controls, through the same profile. The stick, the hat and the D-pad steer,
 **A** is fire, and **B**, **X** and **Y** are the three key buttons. The rest are
 the app: **Start** is Enter, **Select** puts the keyboard away and brings it back,
-**L1** loads a state and **R1** saves one. The on-screen pad steps aside while a
+**L1** loads a state, **R1** saves one, and **R2** held runs the machine fast. The on-screen pad steps aside while a
 controller is connected, which *Hide for a controller* turns off.
 
 
@@ -163,8 +163,10 @@ picker.
 ---
 
 **The bar** is always there: across the top in portrait, smaller in the top right
-corner sideways. Six icons — **Files** (open, save a state, load one), **Capture**,
-**Controls**, **Machine** (pause, change machine, reset), **Fullscreen**, and ☰.
+corner sideways. Seven icons — **Files** (open, save a state, load one),
+**Capture**, **Controls**, **Machine** (pause, change machine, reset), **Fast
+forward** (hold it: 500% while held, silent, and back to your speed on release),
+**Fullscreen**, and ☰.
 Fullscreen clears the bar away and, sideways, the keyboard with it; tap the picture
 to bring the bar back for a moment.
 

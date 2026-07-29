@@ -20,9 +20,13 @@ import android.view.MotionEvent;
  * The shoulders and the middle two are the app rather than the machine, because
  * a controller is usually the only thing in reach: <b>Start</b> is Enter, which
  * is what a game asks for whatever its own keys are; <b>Select</b> puts the
- * on-screen keyboard away and brings it back; <b>L1</b> loads a state and
- * <b>R1</b> saves one. Those three are not part of a profile - they are the
- * app's own, and rebinding them would only hide them.
+ * on-screen keyboard away and brings it back; <b>L1</b> loads a state, <b>R1</b>
+ * saves one, and <b>R2</b> held runs the machine fast. Those are not part of a
+ * profile - they are the app's own, and rebinding them would only hide them.
+ *
+ * R2 is read twice over. A trigger is a button on some pads and an axis on
+ * others, and on a few it is both, so the axis is watched as well and whichever
+ * arrives first wins - {@code fastForward()} is told a change and not a press.
  *
  * The two ways a direction can arrive are tracked apart and combined, because
  * many pads report the hat as both an axis and a D-pad key: a release down one
@@ -36,6 +40,9 @@ final class Gamepad {
         void toggleKeyboard();
         void loadState();
         void saveState();
+
+        /** Held down rather than tapped: on going down, off coming up. */
+        void fastForward(boolean on);
     }
 
     private final Actions actions;
@@ -140,6 +147,11 @@ final class Gamepad {
                 if (pressed) actions.saveState();
                 return true;
 
+            // The one that is held rather than tapped, so both ends matter.
+            case KeyEvent.KEYCODE_BUTTON_R2:
+                actions.fastForward(pressed);
+                return true;
+
             default:
                 return false;
         }
@@ -164,6 +176,11 @@ final class Gamepad {
         fromAxes[1] = x >= DEAD_ZONE;
         fromAxes[2] = y <= -DEAD_ZONE;
         fromAxes[3] = y >= DEAD_ZONE;
+
+        // The right trigger, where it is an axis rather than a button.
+        float trigger = Math.max(event.getAxisValue(MotionEvent.AXIS_RTRIGGER),
+                                 event.getAxisValue(MotionEvent.AXIS_GAS));
+        actions.fastForward(trigger >= DEAD_ZONE);
 
         steer();
         return true;
@@ -211,6 +228,8 @@ final class Gamepad {
      * nothing is going to let go of.
      */
     void releaseAll() {
+        actions.fastForward(false);
+
         for (int i = 0; i < fromKeys.length; i++) {
             fromKeys[i] = false;
             fromAxes[i] = false;

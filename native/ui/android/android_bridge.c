@@ -324,7 +324,18 @@ run_set_option( int option, int value )
     break;
 
   case OPTION_SPEED:
+    /* The speed reaches the machine through the sound, which in this port is
+       also the clock: Fuse scales the blip buffer's clock rate by
+       sound_get_effective_processor_speed() and reads that once, in
+       sound_init(). So setting the number alone did nothing at all - the
+       emulation kept running at whatever rate the audio device was consuming
+       samples - and this setting has never worked without the restart.
+
+       Past 300% Fuse switches the sound off itself, since its own range for
+       having any is 50 to 300, and then timer.c does the throttling and reads
+       the speed live. Which is why fast forward is silent, and should be. */
     settings_current.emulation_speed = value;
+    restart_sound();
     break;
 
   case OPTION_SOUND:
@@ -551,6 +562,7 @@ androidbridge_pump_commands( void )
 {
   /* Once a frame, and on the emulation thread, which is what the lamps need. */
   androidstatus_frame();
+
 
   drain_commands();
 
