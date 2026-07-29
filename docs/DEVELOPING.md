@@ -28,7 +28,22 @@ store/           Play assets: 512 icon and 1024x500 feature graphic, not package
 
 The icon is a set of PNGs rather than a `VectorDrawable`, because the mark is
 lettering — `zdx` in Onest ExtraBold — and a vector drawable has no fonts, so
-it would mean converting glyphs to paths. `mipmap-anydpi-v26` is what every
+it would mean converting glyphs to paths.
+
+**Updating it from a design pack takes more than a copy.** The pack ships the
+adaptive layers at two densities - `ic_launcher_foreground` at xhdpi and xxxhdpi,
+`ic_launcher_monochrome` at xxxhdpi only - and the app carries all five, so
+copying what is in the pack leaves mdpi, hdpi and xxhdpi holding the *previous*
+design. That is not academic: a 420 dpi phone resolves xxhdpi, and after one such
+copy the launcher showed the new icon while the splash showed the old one. Rescale
+the missing densities from the 432 px master (108 dp: 108, 162, 216, 324, 432) and
+check both.
+
+Two files in the pack are deliberately not taken. `values/themes-splash.xml`
+inherits from `Theme.SplashScreen`, which is `androidx.core:core-splashscreen` -
+`values-v31/styles.xml` already says the same thing in framework attributes, for
+the reason below. And `drawable-xxxhdpi/ic_stat_zedex.png` is a notification small
+icon for an app that posts no notifications. `mipmap-anydpi-v26` is what every
 supported device actually uses, minSdk being 30; the legacy mipmaps are there
 for tooling and the store listing. The Android 12 splash is set through the
 framework attributes in `values-v31/styles.xml` rather than
