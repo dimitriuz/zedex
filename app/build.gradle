@@ -42,6 +42,24 @@ def zedexVersionCode = project.findProperty('zedexVersionCode') as Integer ?: {
     part(0) * 10000 + part(1) * 100 + part(2)
 }()
 
+// What this was built from, for the About screen. Taken from git rather than
+// from the clock: the same source tree gives the same answer, so it does not
+// defeat the build cache the way a timestamp would, and "which commit" is the
+// more useful thing to be told anyway. A source download with no git history
+// leaves both empty and the screen simply says less.
+def gitStamp = { String... command ->
+    try {
+        def process = (['git'] + (command as List)).execute(null, rootProject.projectDir)
+        process.waitForOrKill(5000)
+        return process.exitValue() == 0 ? process.text.trim() : ''
+    } catch (ignored) {
+        return ''
+    }
+}
+
+def zedexCommit = gitStamp('rev-parse', '--short', 'HEAD')
+def zedexDate = gitStamp('log', '-1', '--date=format:%Y-%m-%d', '--format=%cd')
+
 android {
     namespace 'dev.ldlab.zedex'
     compileSdk 34
@@ -52,6 +70,11 @@ android {
         targetSdk 34
         versionCode zedexVersionCode
         versionName zedexVersionName
+
+        // Resources rather than BuildConfig fields, so nothing has to turn the
+        // buildConfig feature on to read them.
+        resValue 'string', 'build_commit', zedexCommit
+        resValue 'string', 'build_date', zedexDate
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         ndk {
             // Prebuilt by scripts/build-native.sh into src/main/jniLibs

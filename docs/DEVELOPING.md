@@ -198,6 +198,12 @@ read straight by `app/build.gradle`, so a local build and a release build call
 themselves the same thing, and ☰ shows what is installed by asking the package
 manager rather than a compiled-in constant.
 
+The build also stamps two string resources out of git - `build_commit` and
+`build_date` - which is what the About screen shows beside the version. From git
+and not from the clock, so the same tree gives the same APK and the build cache
+still works; "which commit" is the more useful answer anyway. A source download
+with no git history leaves them empty and the screen simply says less.
+
 A tag only has to *agree*. The release workflow compares `v1.2.3` with the file
 and stops if they differ, so tagging a tree whose version says something else
 fails before the nine-minute build rather than publishing an APK that calls

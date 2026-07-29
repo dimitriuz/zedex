@@ -700,7 +700,9 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                              R.drawable.ic_controls, this::fillControls);
             sheet.addItem(getString(R.string.menu_settings), R.drawable.ic_settings,
                     () -> startActivity(new Intent(this, SettingsActivity.class)));
-            sheet.addNote(getString(R.string.menu_version, version()));
+            sheet.addItem(getString(R.string.menu_about, version()),
+                          R.drawable.ic_info,
+                          () -> startActivity(new Intent(this, AboutActivity.class)));
         });
 
         return menu;

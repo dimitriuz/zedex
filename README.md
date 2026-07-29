@@ -227,6 +227,8 @@ In full:
   keyboard**, which puts your own input method up instead and types through it —
   and *Landscape layout…*, which is where the keyboard goes when it is out.
 - **Settings…** — see below.
+- **About Zedex** — which version this is, which commit it was built from and
+  when, and where the source is.
 
 **Settings** is five tabs — Machine, Tape, Picture, Sound, Files — covering:
 

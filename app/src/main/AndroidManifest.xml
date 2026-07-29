@@ -69,6 +69,12 @@
             android:exported="false" />
 
         <activity
+            android:name=".AboutActivity"
+            android:label="@string/about_title"
+            android:theme="@android:style/Theme.DeviceDefault"
+            android:exported="false" />
+
+        <activity
             android:name=".SettingsActivity"
             android:label="@string/settings_title"
             android:theme="@android:style/Theme.DeviceDefault.Settings"
