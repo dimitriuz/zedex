@@ -125,6 +125,12 @@ static const char fragment_shader_src[] =
      pixel wide strokes broke up and the 128 in the startup menu read as a 2 with
      no upright. It looked like a scaling fault and was a sampling one. */
   "vec2 sharpen( vec2 uv ) {\n"
+  /* Full sharpness is the coordinate it was given, untouched. Working out that
+     the answer is the middle of the pixel the coordinate is already in, and
+     dividing back down to get there, is arithmetic that can only lose - and it
+     is what the whole picture goes through by default. */
+  "  if( u_sharpness >= 1.0 ) return uv;\n"
+  "\n"
   "  vec2 texel = uv * u_source;\n"
   "  vec2 middle = floor( texel ) + 0.5;\n"
   "  vec2 offset = texel - middle;\n"
