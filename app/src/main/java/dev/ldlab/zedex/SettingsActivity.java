@@ -12,6 +12,7 @@ import android.provider.Settings;
 import android.preference.ListPreference;
 import android.preference.Preference;
 import android.preference.PreferenceFragment;
+import android.preference.PreferenceGroup;
 import android.preference.PreferenceManager;
 import android.view.Gravity;
 import android.view.View;
@@ -109,7 +110,7 @@ public class SettingsActivity extends Activity {
         { KEY_VIDEO,            FuseNative.FILTER_VIDEO,     "0"   },
         { KEY_FILTER_BLEED,     FuseNative.FILTER_BLEED,     "50"  },
         { KEY_FILTER_NOISE,     FuseNative.FILTER_NOISE,     "20"  },
-        { KEY_FILTER_GAP,       FuseNative.FILTER_GAP,       "55"  },
+        { KEY_FILTER_GAP,       FuseNative.FILTER_GAP,       "60"  },
         { KEY_FILTER_BACKLIGHT, FuseNative.FILTER_BACKLIGHT, "20"  },
     };
 
@@ -463,6 +464,7 @@ public class SettingsActivity extends Activity {
 
             populateMachines();
             populateScales();
+            snapToEntries();
             updateSummaries();
 
             Preference folder = findPreference(Storage.KEY_STATES_ROOT);
@@ -645,6 +647,72 @@ public class SettingsActivity extends Activity {
                 list.setEntries(names);
                 list.setEntryValues(values);
             }
+        }
+
+        /**
+         * Moves any list whose stored value is not one of its own entries to the
+         * nearest entry that is.
+         *
+         * A ListPreference with a value it cannot find shows no checked row and
+         * no summary: the setting looks unset while quietly still applying. That
+         * is what a default of 55 did to the dot gap, whose entries go up in
+         * tens - the effect was there and the screen said nothing. Snapping is
+         * better than clearing, since the value that was applied is the one the
+         * user has been looking at.
+         *
+         * Numeric entries only. A machine id is not nearer or further from
+         * another one.
+         */
+        private void snapToEntries() {
+            for (int i = 0; i < getPreferenceScreen().getPreferenceCount(); i++) {
+                Preference group = getPreferenceScreen().getPreference(i);
+                if (!(group instanceof PreferenceGroup)) {
+                    snapOne(group);
+                    continue;
+                }
+
+                PreferenceGroup category = (PreferenceGroup) group;
+                for (int j = 0; j < category.getPreferenceCount(); j++) {
+                    snapOne(category.getPreference(j));
+                }
+            }
+        }
+
+        private void snapOne(Preference preference) {
+            if (!(preference instanceof ListPreference)) return;
+
+            ListPreference list = (ListPreference) preference;
+            CharSequence[] values = list.getEntryValues();
+            String stored = list.getValue();
+
+            if (values == null || stored == null || list.getEntry() != null) return;
+
+            int wanted;
+            try {
+                wanted = Integer.parseInt(stored);
+            } catch (NumberFormatException e) {
+                return;
+            }
+
+            String nearest = null;
+            int distance = Integer.MAX_VALUE;
+
+            for (CharSequence value : values) {
+                try {
+                    int candidate = Integer.parseInt(value.toString());
+                    // <= and not <: the entries ascend, so a value exactly
+                    // between two of them lands on the higher one, which is
+                    // where a default that has moved up will be.
+                    if (Math.abs(candidate - wanted) <= distance) {
+                        distance = Math.abs(candidate - wanted);
+                        nearest = value.toString();
+                    }
+                } catch (NumberFormatException e) {
+                    return;
+                }
+            }
+
+            if (nearest != null) list.setValue(nearest);
         }
 
         @Override

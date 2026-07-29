@@ -63,7 +63,7 @@ static struct {
   int scale;
   float sharpness, scanline, curve, mask, glow, bleed, noise, gap, backlight;
 } settings = { 0, 0, 0, 0, 0, 1.0f, 0.5f, 0.4f, 0.4f, 0.3f, 0.5f, 0.2f,
-               0.55f, 0.2f };
+               0.6f, 0.2f };
 
 /* Counts frames, for the parts of a signal that move: snow is different every
    frame or it is not snow. */

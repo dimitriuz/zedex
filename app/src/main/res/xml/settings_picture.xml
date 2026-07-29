@@ -57,7 +57,7 @@
             android:title="@string/settings_filter_gap"
             android:entries="@array/percent_names"
             android:entryValues="@array/percent_values"
-            android:defaultValue="55"
+            android:defaultValue="60"
             android:dependency="dots" />
         <dev.ldlab.zedex.FadingListPreference
             android:key="filterBacklight"

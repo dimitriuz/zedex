@@ -101,7 +101,7 @@ enum {
    the renderer wants them together. Defaults match android_gl.c's. */
 static android_filter filter = {
   0, 0, 0, 0,				/* scanlines, crt, dots, video */
-  100, 50, 40, 40, 30, 50, 20, 55, 20,
+  100, 50, 40, 40, 30, 50, 20, 60, 20,
 };
 
 typedef struct queued_command {
