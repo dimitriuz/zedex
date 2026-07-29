@@ -160,6 +160,11 @@
     <string name="settings_scanlines_summary">A dark line between each of the machine\u2019s own 240</string>
     <string name="settings_crt">CRT effect</string>
     <string name="settings_crt_summary">The glass in front of the beam: curve, shadow mask, glow</string>
+    <string name="settings_dots">Dot matrix</string>
+    <string name="settings_dots_summary">A handheld LCD: one square dot per emulated pixel, with a gap around it</string>
+    <string name="settings_filter_gap">Dot gap</string>
+    <string name="settings_filter_backlight">Backlight</string>
+
     <string name="settings_video">Video output</string>
     <string name="settings_video_summary">How the picture left the machine, and what that cost it</string>
     <string name="settings_filter_bleed">Colour bleed</string>

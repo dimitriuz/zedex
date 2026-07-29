@@ -92,6 +92,9 @@ public class SettingsActivity extends Activity {
     static final String KEY_VIDEO = "video";
     static final String KEY_FILTER_BLEED = "filterBleed";
     static final String KEY_FILTER_NOISE = "filterNoise";
+    static final String KEY_DOTS = "dots";
+    static final String KEY_FILTER_GAP = "filterGap";
+    static final String KEY_FILTER_BACKLIGHT = "filterBacklight";
 
     /**
      * Each strength, the index it sets and what it is worth by default. The two
@@ -106,6 +109,8 @@ public class SettingsActivity extends Activity {
         { KEY_VIDEO,            FuseNative.FILTER_VIDEO,     "0"   },
         { KEY_FILTER_BLEED,     FuseNative.FILTER_BLEED,     "50"  },
         { KEY_FILTER_NOISE,     FuseNative.FILTER_NOISE,     "20"  },
+        { KEY_FILTER_GAP,       FuseNative.FILTER_GAP,       "55"  },
+        { KEY_FILTER_BACKLIGHT, FuseNative.FILTER_BACKLIGHT, "20"  },
     };
 
     /**
@@ -121,6 +126,8 @@ public class SettingsActivity extends Activity {
                 preferences.getBoolean(KEY_SCANLINES, false) ? 1 : 0);
         FuseNative.setFilter(FuseNative.FILTER_CRT,
                 preferences.getBoolean(KEY_CRT, false) ? 1 : 0);
+        FuseNative.setFilter(FuseNative.FILTER_DOTS,
+                preferences.getBoolean(KEY_DOTS, false) ? 1 : 0);
 
         for (Object[] entry : FILTER_KEYS) {
             FuseNative.setFilter((Integer) entry[1],
@@ -191,7 +198,10 @@ public class SettingsActivity extends Activity {
 
     /** Whether a key is one of the filters'. */
     private static boolean isFilterKey(String key) {
-        if (KEY_SCANLINES.equals(key) || KEY_CRT.equals(key)) return true;
+        if (KEY_SCANLINES.equals(key) || KEY_CRT.equals(key)
+                || KEY_DOTS.equals(key)) {
+            return true;
+        }
 
         for (Object[] entry : FILTER_KEYS) {
             if (entry[0].equals(key)) return true;
@@ -797,6 +807,7 @@ public class SettingsActivity extends Activity {
                                              KEY_FILTER_MASK, KEY_FILTER_GLOW,
                                              KEY_VIDEO, KEY_FILTER_BLEED,
                                              KEY_FILTER_NOISE,
+                                             KEY_FILTER_GAP, KEY_FILTER_BACKLIGHT,
                                              KEY_AY_VOLUME, KEY_BEEPER_VOLUME }) {
                 Preference preference = findPreference(key);
                 if (preference instanceof ListPreference) {

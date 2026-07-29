@@ -49,12 +49,32 @@ void androidgl_frame( ANativeWindow *window, unsigned generation,
    many device pixels per emulated pixel. */
 void androidgl_set_scale( int pixels );
 
-/* The picture filters: scanlines and the CRT glass, each on or off, and five
-   strengths from 0 to 100. Bounded like RetroArch's #pragma parameter, for the
-   day someone wants to run one of theirs. */
-void androidgl_set_filter( int scanlines, int crt, int video, int sharpness,
-                           int scanline, int curve, int mask, int glow,
-                           int bleed, int noise );
+/* The picture filters: three displays, each on or off, the signal that reached
+   them, and a strength from 0 to 100 for every dial.
+
+   One struct rather than a dozen arguments, which is what this was: they arrive
+   from the settings one at a time and go to the renderer together, and a
+   positional list of ints that all mean something different is a mistake waiting
+   to be made. Bounded like RetroArch's #pragma parameter, for the day someone
+   wants to run one of theirs. */
+typedef struct android_filter {
+  int scanlines;			/* on or off */
+  int crt;
+  int dots;				/* a dot matrix panel */
+  int video;				/* 0 RGB, 1 composite, 2 RF */
+
+  int sharpness;			/* the rest are 0 - 100 */
+  int scanline;
+  int curve;
+  int mask;
+  int glow;
+  int bleed;
+  int noise;
+  int gap;				/* between one dot and the next */
+  int backlight;			/* how grey a dot matrix black is */
+} android_filter;
+
+void androidgl_set_filter( const android_filter *filter );
 
 /* Drop the EGL surface but keep the context, for when Android takes the
    window away. */

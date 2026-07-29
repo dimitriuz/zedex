@@ -685,8 +685,14 @@ curve, the shadow mask and the glow are the glass in front of it. Either can be
 had without the other, and both together is what a television looked like.
 
 One fragment shader, not one per filter. The effects branch on uniforms, which
-are constant across a draw and so cost a predictable nothing, and three
-programs would share nine tenths of their code.
+are constant across a draw and so cost a predictable nothing, and a program each
+would share nine tenths of their code.
+
+The values reach it as **one struct rather than a dozen arguments**, which is
+what `androidgl_set_filter()` took by the time there were three displays and nine
+dials: they arrive from the settings one at a time, go to the renderer together,
+and a positional list of ints that all mean something different is a mistake
+waiting to be made.
 
 Everything is in units that mean something. `u_source` is the emulated frame in
 its own pixels, so a scanline is one emulated row and stays one however far the
@@ -732,6 +738,29 @@ The order matters. The signal is applied to the sampled frame and the glass acts
 on the result, because that is the order it happened in: the tube displayed
 whatever arrived. A signal also needs interpolation to smear across, so choosing
 anything but RGB softens the sampler regardless of *Sharpness*.
+
+**A dot matrix** is the third display, and the only one whose grid is in
+*emulated* pixels: a dot is a picture element, so it stays one emulated pixel
+however far the picture is scaled, while the shadow mask above is a property of
+the glass and stays in output pixels. `fract( uv * u_source )` is the position
+inside the dot, and the gap is a `smoothstep` towards its edge — `max()` of the
+two axes rather than `length()`, because the cells of an LCD are square and
+rounding them looks like a printed halftone. A whole-pixel scale is what makes
+them exactly square; fitted, a cell is three device pixels one way and four the
+other.
+
+Two things it does that a plain grid would not. The gap **shows on dark and
+nearly vanishes on white**, which is what the Game Boy Color shader this follows
+does, and what keeps it usable here: most of a Spectrum screen is bright paper,
+and a grid drawn evenly over all of it is a grid with a program somewhere behind
+it. And the **backlight comes through the dots rather than the gaps**, which is
+the only way a black area shows any dots at all — taking light away cannot do it,
+since black times anything is still black. That is also what a panel does: it is
+lit from behind, so its black is a dark grey with a darker grid over it.
+
+`luigira/GBC-dot-matrix-shader`, which prompted this, is GPL-3 and three Vulkan
+passes; the same reasoning as below applies, so this is its idea rather than its
+code.
 
 **Why these and not RetroArch's.** `.slang` shaders are Vulkan GLSL: running one
 means glslang to SPIR-V and SPIRV-Cross back to GLSL ES, two large C++

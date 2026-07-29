@@ -50,7 +50,7 @@ end.
 **Comfort**
 
 - **GPU-scaled display**, fitted or at a **whole-pixel scale**, with
-  **scanline, CRT and composite/RF filters**
+  **scanline, CRT, dot-matrix and composite/RF filters**
 - **Five landscape layouts**
 - **On-screen Spectrum keyboard**
 - **On-screen joystick**, and **physical controllers**, which just work
@@ -230,6 +230,7 @@ In full:
 | **AY stereo separation** | off, ACB or ABC — the 128's three channels spread across two |
 | **Black and white TV** | the monochrome palette |
 | **Scanlines**, **CRT effect** | a dark line per emulated row; curve, shadow mask and glow, each with its own strength |
+| **Dot matrix** | a handheld LCD: one square dot per emulated pixel, with a gap and a backlight |
 | **Video output** | RGB, composite or RF — what the picture cost on the way to the telly, with colour bleed and noise |
 | **Sharpness** | 100% is pixel for pixel; less softens the edges |
 | **Portrait scale**, **Landscape scale** | fit to the screen, or a whole number of device pixels per emulated one |
