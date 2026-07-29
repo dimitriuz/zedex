@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+        <SwitchPreference
+            android:key="sound"
+            android:title="@string/settings_sound_enabled"
+            android:defaultValue="true" />
+        <dev.ldlab.zedex.FadingListPreference
+            android:key="volumeAy"
+            android:title="@string/settings_volume_ay"
+            android:entries="@array/volume_names"
+            android:entryValues="@array/volume_values"
+            android:defaultValue="100"
+            android:dependency="sound" />
+        <ListPreference
+            android:key="ayStereo"
+            android:title="@string/settings_ay_stereo"
+            android:entries="@array/ay_stereo_names"
+            android:entryValues="@array/ay_stereo_values"
+            android:defaultValue="None"
+            android:dependency="sound" />
+        <dev.ldlab.zedex.FadingListPreference
+            android:key="volumeBeeper"
+            android:title="@string/settings_volume_beeper"
+            android:entries="@array/volume_names"
+            android:entryValues="@array/volume_values"
+            android:defaultValue="100"
+            android:dependency="sound" />
+</PreferenceScreen>

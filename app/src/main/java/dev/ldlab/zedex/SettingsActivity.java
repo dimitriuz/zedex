@@ -11,9 +11,16 @@ import android.preference.ListPreference;
 import android.preference.Preference;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceManager;
+import android.view.Gravity;
+import android.view.View;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -171,16 +178,193 @@ public class SettingsActivity extends Activity {
     private static final int REQUEST_CONTENT_TREE = 2;
     private static final int REQUEST_DATA_TREE = 3;
 
+    /** One tab: what it is called, what it looks like, and what is on it. */
+    private static final class Tab {
+        final int label, icon, screen;
+
+        Tab(int label, int icon, int screen) {
+            this.label = label;
+            this.icon = icon;
+            this.screen = screen;
+        }
+    }
+
+    /**
+     * Five tabs, in the order you would go looking through them.
+     *
+     * Twenty-eight preferences in one list was a scroll nobody could hold in
+     * their head, and the picture filters alone were ten of it. The tab is now
+     * the grouping, so a category inside one only survives where it still
+     * divides something — the picture tab keeps *Filters* and *Display* apart,
+     * and the rest need no headings at all.
+     */
+    private static final Tab[] TABS = {
+        new Tab(R.string.settings_tab_machine, R.drawable.ic_machine,
+                R.xml.settings_machine),
+        new Tab(R.string.settings_tab_tape, R.drawable.ic_tape,
+                R.xml.settings_tape),
+        new Tab(R.string.settings_tab_picture, R.drawable.ic_picture,
+                R.xml.settings_picture),
+        new Tab(R.string.settings_tab_sound, R.drawable.ic_sound,
+                R.xml.settings_sound),
+        new Tab(R.string.settings_tab_files, R.drawable.ic_folder,
+                R.xml.settings_files),
+    };
+
+    private static final String STATE_TAB = "tab";
+
+    /** Where the fragment goes; any id will do as long as it is ours. */
+    private static final int CONTENT_ID = 0x7e5;
+
+    private final List<View> tabViews = new ArrayList<>();
+    private int selected;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        if (savedInstanceState != null) {
+            selected = savedInstanceState.getInt(STATE_TAB, 0);
+        }
+
+        setContentView(buildTabs());
+        show(selected);
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle state) {
+        super.onSaveInstanceState(state);
+        state.putInt(STATE_TAB, selected);
+    }
+
+    /**
+     * The tab strip and the space under it.
+     *
+     * Hand-built, like the ☰ sheet and the quick bar: tabs otherwise mean
+     * ViewPager2 and a TabLayout, which would be the app's first dependencies
+     * for a row of buttons and a fragment swap.
+     *
+     * The colours come from the theme rather than from here. That is the lesson
+     * of {@link FadingListPreference} — this screen follows the device's light
+     * or dark setting, and anything hardcoded is wrong under one of them.
+     */
+    private View buildTabs() {
+        LinearLayout root = new LinearLayout(this);
+        LinearLayout strip = new LinearLayout(this);
+        FrameLayout content = new FrameLayout(this);
+
+        root.setOrientation(LinearLayout.VERTICAL);
+        strip.setOrientation(LinearLayout.HORIZONTAL);
+        content.setId(CONTENT_ID);
+
+        for (int i = 0; i < TABS.length; i++) {
+            View tab = buildTab(TABS[i], i);
+
+            tabViews.add(tab);
+            strip.addView(tab, new LinearLayout.LayoutParams(0,
+                    LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        }
+
+        root.addView(strip, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+        root.addView(content, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
+
+        return root;
+    }
+
+    /** Icon over a word: an icon alone would be a guess at this size. */
+    private View buildTab(Tab tab, int index) {
+        float density = getResources().getDisplayMetrics().density;
+        int pad = Math.round(10 * density);
+
+        LinearLayout holder = new LinearLayout(this);
+        ImageView icon = new ImageView(this);
+        TextView label = new TextView(this);
+        View underline = new View(this);
+
+        icon.setImageResource(tab.icon);
+        icon.setLayoutParams(new LinearLayout.LayoutParams(
+                Math.round(24 * density), Math.round(24 * density)));
+
+        label.setText(tab.label);
+        label.setTextSize(11);
+        label.setSingleLine();
+        label.setGravity(Gravity.CENTER);
+
+        holder.setOrientation(LinearLayout.VERTICAL);
+        holder.setGravity(Gravity.CENTER_HORIZONTAL);
+        holder.setPadding(0, pad, 0, 0);
+        holder.setClickable(true);
+        holder.setFocusable(true);
+        holder.setBackgroundResource(
+                android.R.drawable.list_selector_background);
+        holder.setContentDescription(getString(tab.label));
+        holder.setOnClickListener(v -> show(index));
+
+        holder.addView(icon);
+        holder.addView(label, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+        holder.addView(underline, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                Math.round(2 * density)));
+
+        // Top of the pad above, and the underline sits at the very bottom.
+        ((LinearLayout.LayoutParams) underline.getLayoutParams()).topMargin = pad;
+
+        return holder;
+    }
+
+    /** Swaps in a tab's preferences and marks it as the one you are on. */
+    private void show(int index) {
+        selected = index;
+
+        SettingsFragment fragment = new SettingsFragment();
+        Bundle arguments = new Bundle();
+
+        arguments.putInt(SettingsFragment.ARG_SCREEN, TABS[index].screen);
+        fragment.setArguments(arguments);
+
         getFragmentManager().beginTransaction()
-                .replace(android.R.id.content, new SettingsFragment())
+                .replace(CONTENT_ID, fragment)
                 .commit();
+
+        paintTabs();
+    }
+
+    private void paintTabs() {
+        int active = themeColour(android.R.attr.colorAccent);
+        int idle = themeColour(android.R.attr.textColorSecondary);
+
+        for (int i = 0; i < tabViews.size(); i++) {
+            LinearLayout tab = (LinearLayout) tabViews.get(i);
+            boolean on = i == selected;
+            int colour = on ? active : idle;
+
+            ((ImageView) tab.getChildAt(0)).setColorFilter(colour);
+            ((TextView) tab.getChildAt(1)).setTextColor(colour);
+            tab.getChildAt(2).setBackgroundColor(on ? active : 0x00000000);
+        }
+    }
+
+    /** Whatever this theme says, rather than whatever looks right on mine. */
+    private int themeColour(int attribute) {
+        android.content.res.TypedArray values =
+                getTheme().obtainStyledAttributes(new int[] { attribute });
+        int colour = values.getColor(0, 0xff888888);
+
+        values.recycle();
+
+        return colour;
     }
 
     public static class SettingsFragment extends PreferenceFragment
             implements android.content.SharedPreferences.OnSharedPreferenceChangeListener {
+
+        /** Which tab's preferences this instance is showing. */
+        static final String ARG_SCREEN = "screen";
 
         @Override
         public void onCreate(Bundle savedInstanceState) {
@@ -188,7 +372,12 @@ public class SettingsActivity extends Activity {
 
             PreferenceManager manager = getPreferenceManager();
             manager.setSharedPreferencesName(PREFS);
-            addPreferencesFromResource(R.xml.settings);
+
+            /* One class over five screens rather than five classes: everything
+               below already asks findPreference() whether a setting is on this
+               screen before touching it, because it had to cope with a
+               preference being absent anyway. */
+            addPreferencesFromResource(getArguments().getInt(ARG_SCREEN));
 
             populateMachines();
             updateSummaries();

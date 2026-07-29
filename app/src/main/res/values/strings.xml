@@ -91,6 +91,12 @@
     <string name="menu_settings">Settings\u2026</string>
 
     <string name="settings_title">Settings</string>
+    <!-- The tabs. One word each, because a tab is only as wide as a fifth. -->
+    <string name="settings_tab_machine">Machine</string>
+    <string name="settings_tab_tape">Tape</string>
+    <string name="settings_tab_picture">Picture</string>
+    <string name="settings_tab_sound">Sound</string>
+    <string name="settings_tab_files">Files</string>
     <string name="settings_machine">Machine</string>
     <string name="settings_default_machine">Machine at startup</string>
     <string name="settings_default_machine_summary">Also set by the machine switcher</string>

@@ -313,6 +313,20 @@ through **Open file…** takes the same path through Fuse.
 `fuse` preferences file the emulator reads, so there is one store rather than
 two.
 
+It is **five tabs**, not one list. Twenty-eight preferences in a single scroll
+was more than anybody could hold in their head, and the picture filters alone
+were ten of it. The tab is now the grouping, so a category inside one only
+survives where it still divides something: *Picture* keeps *Filters* and
+*Display* apart, and the other four need no headings at all.
+
+The strip is hand-built, like the ☰ sheet and the quick bar — tabs otherwise
+mean `ViewPager2` and a `TabLayout`, which would be the app's first
+dependencies for a row of buttons and a fragment swap. Icon over a word,
+because an icon alone at a fifth of the width is a guess. One
+`PreferenceFragment` class over five XML screens rather than five classes:
+everything in it already asked `findPreference()` whether a setting was on this
+screen before touching it, since it had to cope with one being absent anyway.
+
 **A disabled preference is not dimmed by this theme at all.** Measured on API
 36, the darkest pixel of the title is (48, 50, 59) whether the row is enabled or
 not — so `android:dependency` was decorative, and a setting that could do

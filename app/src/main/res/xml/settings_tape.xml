@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+        <ListPreference
+            android:key="loaderAcceleration"
+            android:title="@string/settings_loader"
+            android:entries="@array/loader_names"
+            android:entryValues="@array/loader_values"
+            android:defaultValue="turbo" />
+        <SwitchPreference
+            android:key="detectLoader"
+            android:title="@string/settings_detect_loader"
+            android:summary="@string/settings_detect_loader_summary"
+            android:defaultValue="true" />
+        <SwitchPreference
+            android:key="tapeSound"
+            android:title="@string/settings_tape_sound"
+            android:summary="@string/settings_tape_sound_summary"
+            android:defaultValue="true" />
+        <SwitchPreference
+            android:key="autoLoad"
+            android:title="@string/settings_autoload"
+            android:summary="@string/settings_autoload_summary"
+            android:defaultValue="true" />
+</PreferenceScreen>

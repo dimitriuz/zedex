@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+        <Preference
+            android:key="statesRoot"
+            android:title="@string/settings_data_folder"
+            android:summary="@string/settings_data_folder_summary" />
+        <Preference
+            android:key="contentTree"
+            android:title="@string/settings_content_folder"
+            android:summary="@string/settings_content_folder_summary" />
+
+        <ListPreference
+            android:key="snapshotFormat"
+            android:title="@string/settings_snapshot_format"
+            android:entries="@array/format_names"
+            android:entryValues="@array/format_values"
+            android:defaultValue="szx" />
+</PreferenceScreen>

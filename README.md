@@ -201,7 +201,7 @@ In full:
   where the keyboard goes when it is out.
 - **Settings…** — see below.
 
-**Settings** covers:
+**Settings** is five tabs — Machine, Tape, Picture, Sound, Files — covering:
 
 | | |
 | --- | --- |

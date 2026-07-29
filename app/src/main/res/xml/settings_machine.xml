@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+        <ListPreference
+            android:key="machine"
+            android:title="@string/settings_default_machine"
+            android:summary="@string/settings_default_machine_summary"
+            android:defaultValue="128" />
+        <SwitchPreference
+            android:key="issue2"
+            android:title="@string/settings_issue2"
+            android:summary="@string/settings_issue2_summary"
+            android:defaultValue="false" />
+
+        <ListPreference
+            android:key="speed"
+            android:title="@string/settings_speed"
+            android:entries="@array/speed_names"
+            android:entryValues="@array/speed_values"
+            android:defaultValue="100" />
+</PreferenceScreen>
