@@ -326,6 +326,23 @@ androidstatus_frame( void )
   published = state;
 }
 
+/* A paused machine is doing nothing, and every lamp should say so. Without
+   this they freeze at whatever they happened to be showing, which reads as a
+   tape still running or a keyboard still being scanned. */
+void
+androidstatus_idle( void )
+{
+  published = 0;
+  published_levels = 0;
+
+  tape_reading = 0;
+  tape_writing = 0;
+  disk_writing = 0;
+  keyboard_seen = 0;
+  joystick_seen = 0;
+  ay_written = 0;
+}
+
 int
 androidstatus_activity( void )
 {

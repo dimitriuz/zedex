@@ -53,7 +53,7 @@ end.
 - **Five landscape layouts**
 - **On-screen Spectrum keyboard**
 - **On-screen joystick**
-- **A quick actions bar**
+- **A quick actions bar**, and **pause** — automatic when the app is not in front
 - **Activity lamps** for the tape, disks, AY, keyboard and joystick
 - **Hardware keyboards**
 
@@ -158,7 +158,7 @@ picker.
 | **States…** | save and load |
 | **Media…** | the tape, and every drive the machine has |
 | **Capture…** | screenshots and recording |
-| **Machine…** | which machine, reset, NMI |
+| **Machine…** | which machine, pause, reset, NMI |
 | **Controls…** | the joystick and the keyboard |
 | **Settings…** | the settings screen |
 
@@ -190,6 +190,8 @@ In full:
   checked, and the choice is remembered for the next launch.
   - *Reset* asks
   first, since it discards machine state.
+  - *Pause* stops the machine; a big play button over the picture starts it
+  again. It pauses itself whenever the app is not in front.
   - *NMI* is the magic button of the real hardware; what it does depends on
   the machine.
 - **Controls…** — the two things you play with, each of which can be put away

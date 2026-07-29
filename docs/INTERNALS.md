@@ -437,6 +437,41 @@ Hiding the joystick sets both controls `GONE` for the same reason the keyboard
 is: their five controls are accessibility nodes, and a screen reader would
 otherwise still find them, sitting on top of each other at nowhere.
 
+### Pausing
+
+Fuse has no pause of its own to borrow. `fuse_emulation_pause()` sounds like
+one and is not: it stops the sound and the RZX recording and returns, leaving
+the Z80 running — it is a bracket for a UI operation. What actually stops a
+Fuse UI is that UI's own nested main loop, and each of them writes its own
+`menu_machine_pause`. Nothing defines one here, so this port writes the pause
+rather than inherits it.
+
+The obvious implementation deadlocks. The emulation thread is the only one that
+ever calls `androidbridge_present()`, and that is where the window handover
+happens — `surfaceDestroyed()` blocks until it does. Blocking the thread in
+`ui_event()` would therefore hang the app the moment Android took the window
+away, which is *precisely* when the app pauses itself. So the paused loop hands
+the last frame over again and again instead: a texture upload every sixteen
+milliseconds, the handover kept alive, and the paused picture redrawn after a
+rotation for free. `androiddisplay_last_frame()` exists for that.
+
+`fuse_emulation_pause()` is still used, for what it does do — stopping the
+sound, which in this port is also the clock, so the thread would otherwise sit
+in a blocking AAudio write. It counts, so the pairing matters.
+
+The flag is `volatile` rather than a queued command, because the emulation
+thread has to see it while it is *in* the paused loop and the queue is only
+read between frames.
+
+Two reasons to be stopped are kept apart. The user's pause survives going away
+and coming back; Android's does not, and lifting it must not undo one the user
+asked for. The lamps are cleared on the way in, since a paused machine is doing
+nothing and they would otherwise freeze at whatever they last showed — which
+reads as a tape still running.
+
+Measured: 48 CPU ticks in two seconds running, two in three seconds paused in
+the background.
+
 ### The activity lamps
 
 Five indicators — tape, disk, AY, keyboard, joystick — because a Spectrum gives

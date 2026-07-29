@@ -25,6 +25,7 @@ import android.view.WindowManager;
 import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.FrameLayout;
@@ -130,6 +131,20 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     /** The ☰ button itself, which fades out when it is not being used. */
     private QuickBar quickBar;
 
+    /** The big play button over the picture, shown only while paused. */
+    private ImageButton playButton;
+
+    /** The bar's pause icon, which becomes play; see {@link #applyPause}. */
+    private ImageButton pauseAction;
+
+    /**
+     * Two reasons to be stopped, kept apart. The user's pause survives going
+     * away and coming back; the automatic one does not, and must not undo the
+     * user's when it lifts.
+     */
+    private boolean pausedByUser;
+    private boolean pausedByAndroid;
+
     /** Shown in place of the emulated screen when there is no machine. */
     private View romsPanel;
     private TextView romsTitle;
@@ -178,6 +193,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         romsPanel = buildRomsPanel();
         menu = buildMenu();
         quickBar = buildQuickBar();
+        playButton = buildPlayButton();
 
         // A tap anywhere on the picture brings ☰ back; the sheet closing takes
         // it away again, so it is only ever over the screen while in use.
@@ -188,7 +204,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         layout.setChildren(screen, new SpectrumKeyboardView(this),
                            new JoystickView(this, JoystickView.Part.PAD),
                            new JoystickView(this, JoystickView.Part.FIRE),
-                           new ActivityLights(this),
+                           new ActivityLights(this), playButton,
                            romsPanel, quickBar, menu);
         layout.setJoystickVisible(
                 preferences.getBoolean(SettingsActivity.KEY_JOYSTICK, true));
@@ -245,6 +261,9 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                 preferences.getString(SettingsActivity.KEY_LANDSCAPE_LAYOUT, null)));
         layout.setLightsVisible(
                 preferences.getBoolean(SettingsActivity.KEY_INDICATORS, true));
+
+        pausedByAndroid = false;
+        applyPause();
     }
 
     @Override
@@ -278,20 +297,37 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     private QuickBar buildQuickBar() {
         QuickBar bar = new QuickBar(this);
 
+        bar.addAction(R.drawable.ic_folder, getString(R.string.menu_open),
+                      this::pickFile);
         bar.addAction(R.drawable.ic_save, getString(R.string.menu_save_state),
                       () -> showStateDialog(true));
         bar.addAction(R.drawable.ic_load, getString(R.string.menu_load_state),
                       () -> showStateDialog(false));
 
+        pauseAction = bar.addAction(R.drawable.ic_pause,
+                                    getString(R.string.pause_pause),
+                                    () -> pause(!pausedByUser));
+
         bar.addGroup(R.drawable.ic_camera, getString(R.string.menu_capture),
                      this::fillCaptureBar);
         bar.addGroup(R.drawable.ic_controls, getString(R.string.menu_controls),
                      this::fillControlsBar);
+        bar.addGroup(R.drawable.ic_machine, getString(R.string.menu_machine_group),
+                     this::fillMachineBar);
 
         bar.addAction(R.drawable.ic_menu, getString(R.string.menu_button),
                       () -> menu.open());
 
         return bar;
+    }
+
+    /** Reset is here rather than on the bar itself: it asks first, and an icon
+     *  that throws the game away wants a word beside it. */
+    private void fillMachineBar(QuickBar bar) {
+        bar.addToRow(R.drawable.ic_swap, getString(R.string.menu_machine),
+                     this::showMachineDialog);
+        bar.addToRow(R.drawable.ic_reset, getString(R.string.menu_reset),
+                     this::confirmReset);
     }
 
     private void fillCaptureBar(QuickBar bar) {
@@ -472,12 +508,77 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                       this::showMachineDialog);
 
         sheet.addRule();
+        sheet.addItem(getString(pausedByUser ? R.string.pause_resume
+                                             : R.string.pause_pause),
+                      pausedByUser ? R.drawable.ic_play : R.drawable.ic_pause,
+                      () -> pause(!pausedByUser));
         sheet.addItem(getString(R.string.menu_reset), R.drawable.ic_reset,
                       this::confirmReset);
         sheet.addItem(getString(R.string.menu_nmi), R.drawable.ic_bolt, () -> {
             FuseNative.nmi();
             note(R.string.nmi_done);
         });
+    }
+
+    // --- pause ---------------------------------------------------------------
+
+    /**
+     * The one control that is not in a menu or on the bar.
+     *
+     * A paused emulator looks exactly like a stopped one — the last frame is
+     * still on the screen, because that is what a paused emulator has to keep
+     * presenting — so it says so in the middle of the picture, and the thing
+     * that says so is also the way out. Nothing else is needed: whatever else
+     * you might want, unpausing comes first.
+     */
+    private ImageButton buildPlayButton() {
+        ImageButton button = new ImageButton(this);
+        android.graphics.drawable.GradientDrawable backing =
+                new android.graphics.drawable.GradientDrawable();
+
+        backing.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+        backing.setColor(0xb3000000);
+
+        button.setImageResource(R.drawable.ic_play);
+        button.setColorFilter(Color.WHITE);
+        button.setScaleType(ImageButton.ScaleType.FIT_CENTER);
+        button.setBackground(backing);
+        button.setContentDescription(getString(R.string.pause_resume));
+        button.setVisibility(View.GONE);
+        button.setOnClickListener(v -> pause(false));
+
+        return button;
+    }
+
+    private boolean isPaused() {
+        return pausedByUser || pausedByAndroid;
+    }
+
+    /** The user's pause, from the menu or the bar. */
+    private void pause(boolean paused) {
+        pausedByUser = paused;
+        applyPause();
+
+        if (!paused) revealQuickBar();
+    }
+
+    /**
+     * Tells the emulator, and shows or hides the way back. Called for either
+     * reason, and what it sends is whether *anything* wants a pause.
+     */
+    private void applyPause() {
+        boolean paused = isPaused();
+
+        FuseNative.setPaused(paused);
+
+        playButton.setVisibility(paused ? View.VISIBLE : View.GONE);
+
+        if (pauseAction != null) {
+            quickBar.setAction(pauseAction,
+                    paused ? R.drawable.ic_play : R.drawable.ic_pause,
+                    getString(paused ? R.string.pause_resume
+                                     : R.string.pause_pause));
+        }
     }
 
     // --- joystick -----------------------------------------------------------
@@ -1463,10 +1564,18 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         }
     }
 
+    /**
+     * Nothing to look at, nothing to run: a Spectrum in the background is a
+     * Spectrum burning the battery. The automatic pause is kept apart from the
+     * user's so that coming back does not undo one they asked for.
+     */
     @Override
     protected void onPause() {
         super.onPause();
         rememberMachine();
+
+        pausedByAndroid = true;
+        applyPause();
     }
 
     // --- surface lifecycle ---------------------------------------------

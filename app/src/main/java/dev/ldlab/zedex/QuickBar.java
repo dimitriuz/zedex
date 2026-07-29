@@ -110,12 +110,30 @@ final class QuickBar extends LinearLayout {
 
     // --- building -----------------------------------------------------------
 
-    /** An icon that does something, and shuts any open group on its way. */
-    void addAction(int drawable, String name, Runnable action) {
-        primary.addView(makeButton(drawable, name, () -> {
+    /**
+     * An icon that does something, and shuts any open group on its way.
+     *
+     * Returns the button, for the one action whose icon is not fixed: pause
+     * becomes play and back again, and the bar is built once.
+     */
+    ImageButton addAction(int drawable, String name, Runnable action) {
+        ImageButton button = makeButton(drawable, name, () -> {
             collapse();
             action.run();
-        }));
+        });
+
+        primary.addView(button);
+
+        return button;
+    }
+
+    /** Changes what an action looks like and is called, after the fact. */
+    void setAction(ImageButton button, int drawable, String name) {
+        Drawable image = getContext().getDrawable(drawable);
+
+        button.setImageDrawable(image);
+        button.setColorFilter(ICON);
+        button.setContentDescription(name);
     }
 
     /**

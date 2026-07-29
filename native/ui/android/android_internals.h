@@ -27,6 +27,10 @@ int androiddisplay_end( void );
 /* Half-size RGBA dump of the last frame, for the save state list. */
 int androiddisplay_write_thumbnail( const char *path );
 
+/* The frame as it was last handed over, RGBA8888, or NULL before there has
+   been one. For presenting again while the machine is not running. */
+const void *androiddisplay_last_frame( int *width, int *height );
+
 /* The frame as palette indices, and the sixteen colours they stand for.
    Recording and screenshots are built from these. */
 const libspectrum_byte *androiddisplay_indices( int *stride, size_t *size );
@@ -77,6 +81,9 @@ void androidbridge_pump_commands( void );
 /* Gather the tape, disk, AY and port-read state for the app's indicators.
    Called once a frame on the emulation thread. */
 void androidstatus_frame( void );
+
+/* Every lamp dark, for while the machine is not running. */
+void androidstatus_idle( void );
 
 /* The gathered state as ACTIVITY_* bits, for the UI thread to read. */
 int androidstatus_activity( void );

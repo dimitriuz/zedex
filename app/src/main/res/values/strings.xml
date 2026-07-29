@@ -29,6 +29,8 @@
     <string name="joystick_type_set">Joystick: %1$s</string>
     <string name="joystick_shown">Joystick shown</string>
     <string name="joystick_hidden">Joystick hidden</string>
+    <string name="pause_pause">Pause</string>
+    <string name="pause_resume">Resume</string>
     <string name="menu_reset">Reset</string>
     <string name="menu_nmi">NMI</string>
     <string name="reset_confirm">Reset the machine? Anything not saved will be lost.</string>

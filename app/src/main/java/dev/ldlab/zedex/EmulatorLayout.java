@@ -104,6 +104,9 @@ final class EmulatorLayout extends ViewGroup {
     /** Keeps the controls clear of the picture and of the window's edge, dp. */
     private static final int PAD_MARGIN = 12;
 
+    /** The play button, as a share of the picture's shorter side. */
+    private static final float PLAY_OF_PICTURE = 0.28f;
+
     /** The emulated screen, border and all: 320x240 whatever the machine. */
     private static final float SCREEN_ASPECT = 4f / 3f;
 
@@ -117,6 +120,7 @@ final class EmulatorLayout extends ViewGroup {
     private final Rect padBox = new Rect();
     private final Rect fireBox = new Rect();
     private final Rect lightsBox = new Rect();
+    private final Rect playBox = new Rect();
 
     /**
      * Where the 4:3 picture actually lands inside {@link #screenBox}. The
@@ -134,6 +138,7 @@ final class EmulatorLayout extends ViewGroup {
     private JoystickView pad;
     private JoystickView fire;
     private ActivityLights lights;
+    private View play;
     private Template template = Template.BELOW;
 
     /** Whether each is wanted at all; the ☰ menu decides. */
@@ -159,12 +164,13 @@ final class EmulatorLayout extends ViewGroup {
      */
     void setChildren(View screen, SpectrumKeyboardView keyboard,
                      JoystickView pad, JoystickView fire, ActivityLights lights,
-                     View panel, View menuButton, View drawer) {
+                     View play, View panel, View menuButton, View drawer) {
         this.screen = screen;
         this.keyboard = keyboard;
         this.pad = pad;
         this.fire = fire;
         this.lights = lights;
+        this.play = play;
         this.panel = panel;
         this.menu = menuButton;
         this.drawer = drawer;
@@ -177,6 +183,7 @@ final class EmulatorLayout extends ViewGroup {
         addView(pad);
         addView(fire);
         addView(lights);
+        addView(play);
         addView(panel);
         addView(menuButton);
         addView(drawer);
@@ -351,6 +358,7 @@ final class EmulatorLayout extends ViewGroup {
         }
 
         measurePicture();
+        placePlay();
         placeLights();
         placeJoystick(width, height);
 
@@ -371,6 +379,22 @@ final class EmulatorLayout extends ViewGroup {
         int top = screenBox.top + (screenBox.height() - tall) / 2;
 
         picture.set(left, top, left + wide, top + tall);
+    }
+
+    /**
+     * The play button goes in the middle of the picture, which is the one place
+     * nothing else wants and the first place anybody looks.
+     */
+    private void placePlay() {
+        playBox.setEmpty();
+        if (play == null || play.getVisibility() == GONE) return;
+
+        int size = Math.round(Math.min(picture.width(), picture.height())
+                              * PLAY_OF_PICTURE);
+
+        playBox.set(picture.centerX() - size / 2, picture.centerY() - size / 2,
+                    picture.centerX() - size / 2 + size,
+                    picture.centerY() - size / 2 + size);
     }
 
     /**
@@ -521,6 +545,7 @@ final class EmulatorLayout extends ViewGroup {
         measureChild(panel, panelBox);
         measureChild(drawer, panelBox);
         measureChild(lights, lightsBox);
+        measureChild(play, playBox);
         measureBar();
 
         setMeasuredDimension(width, height);
@@ -566,6 +591,7 @@ final class EmulatorLayout extends ViewGroup {
         placeChild(pad, padBox);
         placeChild(fire, fireBox);
         placeChild(lights, lightsBox);
+        placeChild(play, playBox);
         placeChild(panel, panelBox);
         placeChild(menu, menuBox);
         placeChild(drawer, panelBox);

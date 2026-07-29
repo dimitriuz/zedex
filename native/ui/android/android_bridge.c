@@ -433,13 +433,14 @@ run_set_option( int option, int value )
   }
 }
 
-void
-androidbridge_pump_commands( void )
+/* Whether the app wants the machine stopped. Written by the UI thread, read
+   here; one word, so it needs nothing more than being volatile. */
+static volatile int pause_wanted;
+
+static void
+drain_commands( void )
 {
   pressed_count = 0;
-
-  /* Once a frame, and on the emulation thread, which is what the lamps need. */
-  androidstatus_frame();
 
   for(;;) {
     queued_command command;
@@ -584,6 +585,49 @@ androidbridge_pump_commands( void )
 
     free( command.text );
   }
+}
+
+/* Nothing runs while paused: no opcodes, no events, no sound.
+
+   But the loop cannot simply block, because this is the only thread that ever
+   calls androidbridge_present(), and that is where the window handover
+   happens - surfaceDestroyed() waits for it. Blocking here would deadlock the
+   moment Android took the window away, which is precisely when the app pauses
+   itself. So the last frame is handed over again and again instead: it costs a
+   texture upload every sixteen milliseconds, it keeps the handover working,
+   and it redraws the paused picture after a rotation for free.
+
+   fuse_emulation_pause() is Fuse's own, and stops the sound - which for this
+   port is also the clock, so the emulation thread would otherwise sit in a
+   blocking AAudio write. It counts, so the pairing matters. */
+static void
+run_while_paused( void )
+{
+  fuse_emulation_pause();
+  androidstatus_idle();
+
+  while( pause_wanted && !fuse_exiting ) {
+    int width, height;
+    const void *pixels = androiddisplay_last_frame( &width, &height );
+
+    drain_commands();
+    if( pixels ) androidbridge_present( pixels, width, height );
+
+    usleep( 16000 );
+  }
+
+  fuse_emulation_unpause();
+}
+
+void
+androidbridge_pump_commands( void )
+{
+  /* Once a frame, and on the emulation thread, which is what the lamps need. */
+  androidstatus_frame();
+
+  drain_commands();
+
+  if( pause_wanted ) run_while_paused();
 
   publish_machines();
 }
@@ -852,6 +896,16 @@ Java_dev_ldlab_zedex_FuseNative_joystick( JNIEnv *env, jclass class,
                                           jint button, jboolean pressed )
 {
   queue_command( COMMAND_JOYSTICK, button, pressed ? 1 : 0 );
+}
+
+/* Stops the machine, or lets it go again. Not queued: the emulation thread has
+   to be able to see this while it is sitting in the paused loop, and a command
+   in the queue is only read between frames. */
+JNIEXPORT void JNICALL
+Java_dev_ldlab_zedex_FuseNative_setPaused( JNIEnv *env, jclass class,
+                                          jboolean paused )
+{
+  pause_wanted = paused ? 1 : 0;
 }
 
 /* What the machine is busy with, as ACTIVITY_* bits. A plain read of one word

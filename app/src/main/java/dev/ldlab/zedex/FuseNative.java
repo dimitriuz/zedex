@@ -189,6 +189,15 @@ final class FuseNative {
     /** Queues a machine reset. */
     static native void reset();
 
+    /**
+     * Stops the machine, or lets it go again.
+     *
+     * Not queued, unlike everything else here: the emulation thread has to see
+     * it while it is sitting in the paused loop, and a queued command is only
+     * read between frames.
+     */
+    static native void setPaused(boolean paused);
+
     /** Queues a non-maskable interrupt - the "magic button" on real hardware. */
     static native void nmi();
 

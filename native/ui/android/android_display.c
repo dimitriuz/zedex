@@ -139,6 +139,20 @@ uidisplay_frame_end( void )
   androidbridge_frame_ready( image_width, image_height );
 }
 
+/* The frame as it was last handed over, for presenting again without running
+   the machine - which is what a paused emulator has to do to keep the window
+   handover alive. */
+const void *
+androiddisplay_last_frame( int *width, int *height )
+{
+  if( !image_width || !image_height ) return NULL;
+
+  *width = image_width;
+  *height = image_height;
+
+  return androiddisplay_rgba;
+}
+
 int
 uidisplay_end( void )
 {
