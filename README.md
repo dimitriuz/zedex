@@ -211,6 +211,7 @@ In full:
 | **Detect loaders** | start and stop the tape when a loader asks for it |
 | **Loading sound** | the loading sound, which only exists when a tape runs in real time |
 | **Autoload media** | whether inserting a tape types `LOAD` for you |
+| **Save tape format** | TAP or TZX, when you do not type an extension yourself |
 | **Sound**, **AY volume**, **Beeper volume** | restart the sound subsystem when changed |
 | **AY stereo separation** | off, ACB or ABC — the 128's three channels spread across two |
 | **Black and white TV** | the monochrome palette |

@@ -112,6 +112,15 @@
         <item>100</item>
     </string-array>
 
+    <string-array name="tape_format_names">
+        <item>TAP — smaller, the common one</item>
+        <item>TZX — keeps custom loaders</item>
+    </string-array>
+    <string-array name="tape_format_values">
+        <item>tap</item>
+        <item>tzx</item>
+    </string-array>
+
     <string-array name="format_names">
         <item>SZX — every machine</item>
         <item>Z80 — widely supported</item>

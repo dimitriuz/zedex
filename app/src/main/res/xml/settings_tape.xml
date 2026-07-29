@@ -22,4 +22,10 @@
             android:title="@string/settings_autoload"
             android:summary="@string/settings_autoload_summary"
             android:defaultValue="true" />
+        <ListPreference
+            android:key="tapeFormat"
+            android:title="@string/settings_tape_format"
+            android:entries="@array/tape_format_names"
+            android:entryValues="@array/tape_format_values"
+            android:defaultValue="tap" />
 </PreferenceScreen>

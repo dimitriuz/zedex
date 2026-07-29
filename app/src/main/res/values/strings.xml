@@ -116,8 +116,10 @@
     <string name="settings_states_moved">Save states moved</string>
 
     <string name="settings_states">Save states</string>
-    <string name="settings_snapshot_format">Format</string>
+    <string name="settings_snapshot_format">Save state format</string>
     <string name="settings_tape">Tape</string>
+    <string name="settings_tape_format">Save tape format</string>
+    <string name="settings_tape_format_summary">What a tape is written as when you do not type an extension</string>
     <string name="settings_loader">Fast loading</string>
     <string name="settings_detect_loader">Detect loaders</string>
     <string name="settings_detect_loader_summary">Start and stop the tape when a loader asks for it</string>

@@ -1007,11 +1007,16 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         return getString(R.string.tape_default_name, 1);
     }
 
-    /** Fuse picks the format from the extension; anything else means TZX. */
+    /**
+     * Fuse picks the format from the extension, so choosing one is choosing
+     * what to call the file. Typing .tap or .tzx yourself still wins; the
+     * setting is only what happens when you do not.
+     */
     private File tapeFile(String name) {
         String lower = name.toLowerCase(Locale.ROOT);
+        String wanted = preferences.getString(SettingsActivity.KEY_TAPE_FORMAT, "tap");
         String file = lower.endsWith(".tap") || lower.endsWith(".tzx")
-                ? name : name + ".tap";
+                ? name : name + "." + wanted;
 
         return new File(Storage.tapesDirectory(this), file);
     }

@@ -3,6 +3,11 @@
 
     <PreferenceCategory android:title="@string/settings_filter">
         <SwitchPreference
+            android:key="bwTv"
+            android:title="@string/settings_bw_tv"
+            android:summary="@string/settings_bw_tv_summary"
+            android:defaultValue="false" />
+        <SwitchPreference
             android:key="scanlines"
             android:title="@string/settings_scanlines"
             android:summary="@string/settings_scanlines_summary"
@@ -79,16 +84,6 @@
             android:entries="@array/layout_names"
             android:entryValues="@array/layout_values"
             android:defaultValue="below" />
-        <SwitchPreference
-            android:key="indicators"
-            android:title="@string/settings_indicators"
-            android:summary="@string/settings_indicators_summary"
-            android:defaultValue="true" />
-        <SwitchPreference
-            android:key="bwTv"
-            android:title="@string/settings_bw_tv"
-            android:summary="@string/settings_bw_tv_summary"
-            android:defaultValue="false" />
         <SwitchPreference
             android:key="keepScreenOn"
             android:title="@string/settings_keep_screen_on"

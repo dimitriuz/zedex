@@ -58,6 +58,8 @@ public class SettingsActivity extends Activity {
     /** Read by EmulatorLayout; the ☰ layout switcher writes here too. */
     static final String KEY_LANDSCAPE_LAYOUT = "landscapeLayout";
     static final String KEY_SNAPSHOT_FORMAT = "snapshotFormat";
+    /** "tap" or "tzx": what a tape is written as without an explicit extension. */
+    static final String KEY_TAPE_FORMAT = "tapeFormat";
     /** Written from the ☰ Controls menu; there is no preference screen for them. */
     static final String KEY_JOYSTICK = "joystick";
     static final String KEY_JOYSTICK_TYPE = "joystickType";
@@ -684,6 +686,7 @@ public class SettingsActivity extends Activity {
 
             for (String key : new String[] { KEY_MACHINE, KEY_SPEED, KEY_SNAPSHOT_FORMAT,
                                              KEY_LOADER, KEY_AY_STEREO,
+                                             KEY_TAPE_FORMAT,
                                              KEY_FILTER_SHARPNESS,
                                              KEY_FILTER_SCANLINE, KEY_FILTER_CURVE,
                                              KEY_FILTER_MASK, KEY_FILTER_GLOW,
