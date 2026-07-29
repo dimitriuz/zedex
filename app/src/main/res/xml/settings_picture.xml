@@ -78,6 +78,16 @@
 
     <PreferenceCategory android:title="@string/settings_display">
         <ListPreference
+            android:key="scalePortrait"
+            android:title="@string/settings_scale_portrait"
+            android:summary="@string/settings_scale_summary"
+            android:defaultValue="0" />
+        <ListPreference
+            android:key="scaleLandscape"
+            android:title="@string/settings_scale_landscape"
+            android:summary="@string/settings_scale_summary"
+            android:defaultValue="0" />
+        <ListPreference
             android:key="landscapeLayout"
             android:title="@string/settings_landscape_layout"
             android:summary="@string/settings_landscape_layout_summary"

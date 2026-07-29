@@ -108,7 +108,10 @@ final class EmulatorLayout extends ViewGroup {
     private static final float PLAY_OF_PICTURE = 0.28f;
 
     /** The emulated screen, border and all: 320x240 whatever the machine. */
-    private static final float SCREEN_ASPECT = 4f / 3f;
+    private static final int SOURCE_WIDTH = 320;
+    private static final int SOURCE_HEIGHT = 240;
+    private static final float SCREEN_ASPECT =
+            (float) SOURCE_WIDTH / (float) SOURCE_HEIGHT;
 
     /** The gap the quick bar keeps from the corner of the picture, in dp. */
     private static final int BAR_GAP = 8;
@@ -144,6 +147,15 @@ final class EmulatorLayout extends ViewGroup {
     /** Whether each is wanted at all; the ☰ menu decides. */
     private boolean joystick = true;
     private boolean keyboardWanted = true;
+
+    /**
+     * Device pixels per emulated pixel, per orientation, or
+     * {@link FuseNative#SCALE_FIT}. The same numbers the renderer has: this is
+     * not what draws the picture, but everything placed around the picture needs
+     * to know how big it came out.
+     */
+    private int scalePortrait = FuseNative.SCALE_FIT;
+    private int scaleLandscape = FuseNative.SCALE_FIT;
 
     /** Set by {@link #placeJoystick}: it found no black and used the picture. */
     private boolean joystickFloating;
@@ -239,6 +251,21 @@ final class EmulatorLayout extends ViewGroup {
         if (lights == null || (lights.getVisibility() == VISIBLE) == visible) return;
 
         lights.setVisibility(visible ? VISIBLE : GONE);
+        requestLayout();
+    }
+
+    /**
+     * How big the picture is drawn, matching what the renderer was told.
+     *
+     * Kept in step by hand rather than asked for, because the renderer runs on
+     * the emulation thread and this is a layout pass: both apply the same rule
+     * to the same box, so both get the same answer.
+     */
+    void setScale(int portrait, int landscape) {
+        if (scalePortrait == portrait && scaleLandscape == landscape) return;
+
+        scalePortrait = portrait;
+        scaleLandscape = landscape;
         requestLayout();
     }
 
@@ -357,7 +384,7 @@ final class EmulatorLayout extends ViewGroup {
             keyboard.setAlpha(current == Template.OVERLAY ? OVERLAY_ALPHA : 1f);
         }
 
-        measurePicture();
+        measurePicture(landscape);
         placePlay();
         placeLights();
         placeJoystick(width, height);
@@ -369,11 +396,38 @@ final class EmulatorLayout extends ViewGroup {
         if (fire != null) fire.setAlpha(alpha);
     }
 
-    /** Fills in {@link #picture} for the screen box just decided. */
-    private void measurePicture() {
-        int wide = Math.min(screenBox.width(),
+    /**
+     * Fills in {@link #picture} for the screen box just decided.
+     *
+     * The same sum android_gl.c's place() does, and it has to stay that way:
+     * a whole-pixel scale is used if it fits, reduced until it does, and the
+     * picture fitted to the box if not even one to one will go. The floor
+     * division for the offset is deliberate too - both sides land on the same
+     * pixel that way.
+     *
+     * One difference, and it only shows on a Timex in its hi-res mode: that
+     * doubles the emulated frame, so the renderer's 1x is twice the size of the
+     * one worked out here and the controls sit a little further out than they
+     * need to.
+     */
+    private void measurePicture(boolean landscape) {
+        int wanted = landscape ? scaleLandscape : scalePortrait;
+        int wide, tall;
+
+        while (wanted > 1 && (wanted * SOURCE_WIDTH > screenBox.width()
+                              || wanted * SOURCE_HEIGHT > screenBox.height())) {
+            wanted--;
+        }
+
+        if (wanted >= 1 && wanted * SOURCE_WIDTH <= screenBox.width()
+                        && wanted * SOURCE_HEIGHT <= screenBox.height()) {
+            wide = wanted * SOURCE_WIDTH;
+            tall = wanted * SOURCE_HEIGHT;
+        } else {
+            wide = Math.min(screenBox.width(),
                             Math.round(screenBox.height() * SCREEN_ASPECT));
-        int tall = Math.round(wide / SCREEN_ASPECT);
+            tall = Math.round(wide / SCREEN_ASPECT);
+        }
 
         int left = screenBox.left + (screenBox.width() - wide) / 2;
         int top = screenBox.top + (screenBox.height() - tall) / 2;

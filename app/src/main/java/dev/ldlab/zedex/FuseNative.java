@@ -254,6 +254,24 @@ final class FuseNative {
      */
     static native void setFilter(int which, int value);
 
+    /**
+     * How big the picture is drawn: {@code pixels} device pixels for every
+     * emulated one, or {@link #SCALE_FIT} to fill the space.
+     *
+     * One number rather than one per orientation, because which of the two
+     * applies is a question about the device that the renderer cannot answer -
+     * the box it draws into is wider than it is tall in portrait too. Push this
+     * again when the orientation changes.
+     *
+     * A scale too big for the window is reduced until it fits, so this can be
+     * set from a list built for the whole display and still be right in a
+     * layout that only gives the screen half of it.
+     */
+    static native void setScale(int pixels);
+
+    /** The scale that fits the picture to the space, whatever size that is. */
+    static final int SCALE_FIT = 0;
+
     /** Renders with Fuse's monochrome palette. */
     static native void setBlackAndWhite(boolean on);
 

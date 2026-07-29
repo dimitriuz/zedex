@@ -45,6 +45,10 @@ const libspectrum_dword *androiddisplay_palette( void );
 void androidgl_frame( ANativeWindow *window, unsigned generation,
                       const void *pixels, int width, int height );
 
+/* How big the picture is drawn: 0 fits it to the window, anything else is that
+   many device pixels per emulated pixel. */
+void androidgl_set_scale( int pixels );
+
 /* The picture filters: scanlines and the CRT glass, each on or off, and five
    strengths from 0 to 100. Bounded like RetroArch's #pragma parameter, for the
    day someone wants to run one of theirs. */

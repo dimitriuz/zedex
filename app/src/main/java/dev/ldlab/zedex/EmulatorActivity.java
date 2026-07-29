@@ -197,6 +197,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                 preferences.getBoolean(SettingsActivity.KEY_KEYBOARD, true));
         layout.setLightsVisible(
                 preferences.getBoolean(SettingsActivity.KEY_INDICATORS, true));
+        applyScale();
 
         revealQuickBar();
         layout.setTemplate(EmulatorLayout.Template.of(
@@ -217,6 +218,30 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         super.onNewIntent(intent);
         setIntent(intent);
         handleViewIntent(intent);
+    }
+
+    /**
+     * Tells the layout how big the picture will be drawn. The renderer is told
+     * separately, by the settings screen and at startup; this is the other half,
+     * so that the lamps and the joystick sit against the picture's real edge
+     * rather than where a fitted one would have been.
+     */
+    private void applyScale() {
+        layout.setScale(SettingsActivity.scale(preferences, false),
+                        SettingsActivity.scale(preferences, true));
+        SettingsActivity.applyScale(this, preferences);
+    }
+
+    /**
+     * The scale is per orientation and the renderer is told only the one that
+     * applies, so turning the device has to say so again. The window is handled
+     * here rather than being recreated - see the manifest's configChanges - so
+     * this is the only notice of a rotation there is.
+     */
+    @Override
+    public void onConfigurationChanged(android.content.res.Configuration config) {
+        super.onConfigurationChanged(config);
+        applyScale();
     }
 
     /** Opens media handed to us by a file manager, or by `am start -a VIEW`. */
@@ -246,6 +271,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                 preferences.getString(SettingsActivity.KEY_LANDSCAPE_LAYOUT, null)));
         layout.setLightsVisible(
                 preferences.getBoolean(SettingsActivity.KEY_INDICATORS, true));
+        applyScale();
 
         pausedByAndroid = false;
         applyPause();
@@ -1596,6 +1622,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // renderer has to be told. Queued, so arriving before Fuse has finished
         // starting is safe.
         SettingsActivity.applyFilter(preferences);
+        SettingsActivity.applyScale(this, preferences);
     }
 
     /**

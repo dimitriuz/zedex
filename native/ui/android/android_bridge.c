@@ -91,6 +91,7 @@ enum {
   OPTION_FILTER_GLOW,
   OPTION_FILTER_BLEED,
   OPTION_FILTER_NOISE,
+  OPTION_SCALE,				/* 0 fits, else pixels per pixel */
 };
 
 /* The filters' shape, kept here because the settings arrive one at a time and
@@ -269,6 +270,10 @@ run_set_option( int option, int value )
                           filter.sharpness, filter.scanline, filter.curve,
                           filter.mask, filter.glow, filter.bleed,
                           filter.noise );
+    break;
+
+  case OPTION_SCALE:
+    androidgl_set_scale( value );
     break;
 
   case OPTION_AY_STEREO: {
@@ -922,6 +927,14 @@ Java_dev_ldlab_zedex_FuseNative_setFilter( JNIEnv *env, jclass class,
                                           jint which, jint value )
 {
   queue_command( COMMAND_SET_OPTION, OPTION_FILTER_SCANLINES + which, value );
+}
+
+/* How big the picture is drawn; see OPTION_SCALE. */
+JNIEXPORT void JNICALL
+Java_dev_ldlab_zedex_FuseNative_setScale( JNIEnv *env, jclass class,
+                                         jint pixels )
+{
+  queue_command( COMMAND_SET_OPTION, OPTION_SCALE, pixels );
 }
 
 JNIEXPORT void JNICALL

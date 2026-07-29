@@ -49,7 +49,8 @@ end.
 
 **Comfort**
 
-- **GPU-scaled display**, with **scanline, CRT and composite/RF filters**
+- **GPU-scaled display**, fitted or at a **whole-pixel scale**, with
+  **scanline, CRT and composite/RF filters**
 - **Five landscape layouts**
 - **On-screen Spectrum keyboard**
 - **On-screen joystick**
@@ -218,6 +219,7 @@ In full:
 | **Scanlines**, **CRT effect** | a dark line per emulated row; curve, shadow mask and glow, each with its own strength |
 | **Video output** | RGB, composite or RF — what the picture cost on the way to the telly, with colour bleed and noise |
 | **Sharpness** | 100% is pixel for pixel; less softens the edges |
+| **Portrait scale**, **Landscape scale** | fit to the screen, or a whole number of device pixels per emulated one |
 | **Activity indicators** | the lamps beside the picture |
 | **Keep the screen on** | Android's, not the emulator's |
 | **Speed** | 25% to 500% |

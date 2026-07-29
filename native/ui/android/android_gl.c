@@ -43,7 +43,7 @@ static GLuint program, texture, vbo;
 static int texture_width, texture_height;
 
 static struct {
-  GLint scale, source, output, frame;
+  GLint scale, offset, source, output, frame;
   GLint scanlines, crt, video;
   GLint sharpness, scanline, curve, mask, glow, bleed, noise;
 } uniform;
@@ -55,8 +55,14 @@ static struct {
    glow are the glass in front of it. Either can be had without the other. */
 static struct {
   int scanlines, crt, video;
+  /* 0 fits the picture to the window; anything else is that many device
+     pixels per emulated pixel, kept exact. Which one applies is a question
+     about the device's orientation, not about the shape of the box the screen
+     was given - in portrait with the keyboard below, that box is wider than it
+     is tall - so Java picks and this is only ever told the answer. */
+  int scale;
   float sharpness, scanline, curve, mask, glow, bleed, noise;
-} settings = { 0, 0, 0, 1.0f, 0.5f, 0.4f, 0.4f, 0.3f, 0.5f, 0.2f };
+} settings = { 0, 0, 0, 0, 1.0f, 0.5f, 0.4f, 0.4f, 0.3f, 0.5f, 0.2f };
 
 /* Counts frames, for the parts of a signal that move: snow is different every
    frame or it is not snow. */
@@ -72,9 +78,10 @@ static const char vertex_shader_src[] =
   "in vec2 a_pos;\n"
   "out vec2 v_uv;\n"
   "uniform vec2 u_scale;\n"
+  "uniform vec2 u_offset;\n"
   "void main() {\n"
   "  v_uv = a_pos * vec2( 0.5, -0.5 ) + 0.5;\n"
-  "  gl_Position = vec4( a_pos * u_scale, 0.0, 1.0 );\n"
+  "  gl_Position = vec4( a_pos * u_scale + u_offset, 0.0, 1.0 );\n"
   "}\n";
 
 /* One shader, three looks. u_filter picks; the rest shape it.
@@ -299,6 +306,7 @@ create_program( void )
   }
 
   uniform.scale     = glGetUniformLocation( program, "u_scale" );
+  uniform.offset    = glGetUniformLocation( program, "u_offset" );
   uniform.source    = glGetUniformLocation( program, "u_source" );
   uniform.output    = glGetUniformLocation( program, "u_output" );
   uniform.scanlines = glGetUniformLocation( program, "u_scanlines" );
@@ -431,6 +439,12 @@ apply_sampler( void )
 }
 
 void
+androidgl_set_scale( int pixels )
+{
+  settings.scale = pixels;
+}
+
+void
 androidgl_set_filter( int scanlines, int crt, int video, int sharpness,
                       int scanline, int curve, int mask, int glow, int bleed,
                       int noise )
@@ -445,6 +459,65 @@ androidgl_set_filter( int scanlines, int crt, int video, int sharpness,
   settings.curve = curve / 100.0f;
   settings.mask = mask / 100.0f;
   settings.glow = glow / 100.0f;
+}
+
+/* Where the picture goes in the window, as a scale and an offset in clip
+   space.
+
+   Fitting is the easy half: the frame is 4:3 whatever the panel is, so one axis
+   is shrunk until the aspect matches and the rest is black.
+
+   An integer scale is the interesting one. The whole point of asking for one is
+   that every emulated pixel becomes exactly the same number of real ones, and
+   that only holds if the quad is a whole number of pixels wide *and* starts on
+   one. Centring it can leave half a pixel over - the window is rarely an exact
+   multiple of anything - and half a pixel with GL_NEAREST is a row of doubled
+   pixels down one edge. So the offset is computed from a floored pixel position
+   rather than by centring the quad and hoping.
+
+   A scale too big for the window is reduced until it fits, and if even one to
+   one will not fit the picture is fitted instead. Better a smaller picture than
+   one with its edges off the screen. */
+static void
+place( int view_width, int view_height, int width, int height )
+{
+  int wanted = settings.scale;
+  float scale_x = 1.0f, scale_y = 1.0f, view_aspect, image_aspect;
+
+  while( wanted > 1 && ( wanted * width > view_width ||
+                         wanted * height > view_height ) ) {
+    wanted--;
+  }
+
+  if( wanted >= 1 && wanted * width <= view_width &&
+      wanted * height <= view_height ) {
+    int drawn_width = wanted * width;
+    int drawn_height = wanted * height;
+    int left = ( view_width - drawn_width ) / 2;
+    int top = ( view_height - drawn_height ) / 2;
+
+    glUniform2f( uniform.scale, (float) drawn_width / view_width,
+                 (float) drawn_height / view_height );
+
+    /* Clip space is -1 to 1 across the window, so the centre of a rectangle
+       starting at `left' and `drawn_width' wide is this. */
+    glUniform2f( uniform.offset,
+                 ( 2.0f * left + drawn_width ) / view_width - 1.0f,
+                 1.0f - ( 2.0f * top + drawn_height ) / view_height );
+    return;
+  }
+
+  view_aspect = (float) view_width / (float) view_height;
+  image_aspect = (float) width / (float) height;
+
+  if( view_aspect > image_aspect ) {
+    scale_x = image_aspect / view_aspect;
+  } else {
+    scale_y = view_aspect / image_aspect;
+  }
+
+  glUniform2f( uniform.scale, scale_x, scale_y );
+  glUniform2f( uniform.offset, 0.0f, 0.0f );
 }
 
 void
@@ -486,15 +559,7 @@ androidgl_frame( ANativeWindow *window, unsigned generation,
                      GL_UNSIGNED_BYTE, pixels );
   }
 
-  /* Letterbox: the Spectrum's 320x240 frame is 4:3 whatever the panel is. */
-  view_aspect = (float) view_width / (float) view_height;
-  image_aspect = (float) width / (float) height;
-  if( view_aspect > image_aspect ) {
-    scale_x = image_aspect / view_aspect;
-  } else {
-    scale_y = view_aspect / image_aspect;
-  }
-  glUniform2f( uniform.scale, scale_x, scale_y );
+  place( view_width, view_height, width, height );
 
   apply_sampler();
 

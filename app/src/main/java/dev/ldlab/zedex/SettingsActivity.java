@@ -2,7 +2,9 @@ package dev.ldlab.zedex;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.Context;
 import android.content.Intent;
+import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -13,6 +15,7 @@ import android.preference.PreferenceFragment;
 import android.preference.PreferenceManager;
 import android.view.Gravity;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -66,6 +69,12 @@ public class SettingsActivity extends Activity {
     static final String KEY_KEYBOARD = "keyboard";
     /** Read by EmulatorActivity on resume; there is no immediate push for it. */
     static final String KEY_INDICATORS = "indicators";
+    /* How big the picture is drawn, one per orientation: the number of device
+       pixels per emulated pixel, or "0" to fill the space. Stored as strings
+       because a ListPreference stores strings, and separate because the two
+       ways up of a phone have wildly different room. */
+    static final String KEY_SCALE_PORTRAIT = "scalePortrait";
+    static final String KEY_SCALE_LANDSCAPE = "scaleLandscape";
 
     /*
      * The picture filter. One key per number the shader takes, because that is
@@ -118,6 +127,65 @@ public class SettingsActivity extends Activity {
                                         Integer.parseInt((String) entry[2])));
         }
     }
+
+    /**
+     * The stored scale for one orientation, or {@link FuseNative#SCALE_FIT}.
+     *
+     * Fitting is the default, and also what an unparseable value means: a scale
+     * that was possible on the display the setting was made on may not be on
+     * this one, and the picture being the wrong size is worse than it being the
+     * size it has always been.
+     */
+    static int scale(android.content.SharedPreferences preferences,
+                     boolean landscape) {
+        return SettingsFragment.number(preferences,
+                landscape ? KEY_SCALE_LANDSCAPE : KEY_SCALE_PORTRAIT,
+                FuseNative.SCALE_FIT);
+    }
+
+    /**
+     * Pushes the scale for the way up the device is now, like
+     * {@link #applyFilter} and for the same reason. EmulatorActivity does this
+     * again on a rotation; the settings screen only ever needs the current one,
+     * since changing the other orientation's cannot show until it turns.
+     */
+    static void applyScale(Context context,
+                           android.content.SharedPreferences preferences) {
+        FuseNative.setScale(scale(preferences, isLandscape(context)));
+    }
+
+    /** Which way up the device is; both the scale settings hang off this. */
+    static boolean isLandscape(Context context) {
+        return context.getResources().getConfiguration().orientation
+                == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
+    }
+
+    /**
+     * The largest whole-pixel scale this display has room for, one orientation
+     * at a time.
+     *
+     * From the display rather than from the box the picture will actually get,
+     * which is smaller and depends on the landscape template and on whether the
+     * keyboard is up. Offering a scale that a particular arrangement cannot fit
+     * is harmless - both the renderer and the layout reduce it until it does -
+     * whereas working out every arrangement's box here would mean a second copy
+     * of EmulatorLayout's sums that could only ever drift.
+     */
+    static int maximumScale(Context context, boolean landscape) {
+        Rect bounds = context.getSystemService(WindowManager.class)
+                .getCurrentWindowMetrics().getBounds();
+
+        int longer = Math.max(bounds.width(), bounds.height());
+        int shorter = Math.min(bounds.width(), bounds.height());
+        int width = landscape ? longer : shorter;
+        int height = landscape ? shorter : longer;
+
+        return Math.max(1, Math.min(width / SOURCE_WIDTH, height / SOURCE_HEIGHT));
+    }
+
+    /** The emulated frame, border and all, in pixels. */
+    private static final int SOURCE_WIDTH = 320;
+    private static final int SOURCE_HEIGHT = 240;
 
     /** Whether a key is one of the filters'. */
     private static boolean isFilterKey(String key) {
@@ -382,6 +450,7 @@ public class SettingsActivity extends Activity {
             addPreferencesFromResource(getArguments().getInt(ARG_SCREEN));
 
             populateMachines();
+            populateScales();
             updateSummaries();
 
             Preference folder = findPreference(Storage.KEY_STATES_ROOT);
@@ -537,6 +606,35 @@ public class SettingsActivity extends Activity {
             machines.setEntryValues(ids);
         }
 
+        /**
+         * The scale lists depend on the display, so they are built here rather
+         * than being a string-array: 1x up to as many as fit, and then fitting
+         * to the screen last - which is the default, because it is what the app
+         * did before there was a choice and what wastes least of the panel.
+         */
+        private void populateScales() {
+            for (boolean landscape : new boolean[] { false, true }) {
+                ListPreference list = (ListPreference) findPreference(
+                        landscape ? KEY_SCALE_LANDSCAPE : KEY_SCALE_PORTRAIT);
+                if (list == null) continue;
+
+                int most = maximumScale(getActivity(), landscape);
+                String[] names = new String[most + 1];
+                String[] values = new String[most + 1];
+
+                for (int n = 1; n <= most; n++) {
+                    names[n - 1] = getString(R.string.settings_scale_integer,
+                                             n, n * SOURCE_WIDTH, n * SOURCE_HEIGHT);
+                    values[n - 1] = String.valueOf(n);
+                }
+                names[most] = getString(R.string.settings_scale_fit);
+                values[most] = String.valueOf(FuseNative.SCALE_FIT);
+
+                list.setEntries(names);
+                list.setEntryValues(values);
+            }
+        }
+
         @Override
         public void onResume() {
             super.onResume();
@@ -588,6 +686,10 @@ public class SettingsActivity extends Activity {
                     break;
                 case KEY_SPEED:
                     FuseNative.setSpeed(number(preferences, key, 100));
+                    break;
+                case KEY_SCALE_PORTRAIT:
+                case KEY_SCALE_LANDSCAPE:
+                    applyScale(getActivity(), preferences);
                     break;
                 case KEY_AY_STEREO:
                     FuseNative.setAyStereo(ayStereo(preferences));
@@ -687,6 +789,7 @@ public class SettingsActivity extends Activity {
             for (String key : new String[] { KEY_MACHINE, KEY_SPEED, KEY_SNAPSHOT_FORMAT,
                                              KEY_LOADER, KEY_AY_STEREO,
                                              KEY_TAPE_FORMAT,
+                                             KEY_SCALE_PORTRAIT, KEY_SCALE_LANDSCAPE,
                                              KEY_FILTER_SHARPNESS,
                                              KEY_FILTER_SCANLINE, KEY_FILTER_CURVE,
                                              KEY_FILTER_MASK, KEY_FILTER_GLOW,

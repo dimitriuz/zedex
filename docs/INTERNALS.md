@@ -521,6 +521,40 @@ reads as a tape still running.
 Measured: 48 CPU ticks in two seconds running, two in three seconds paused in
 the background.
 
+### How big the picture is
+
+Fitting the 4:3 frame into whatever box the screen gets is the default and was
+for a long time the only option. A whole-pixel scale is the alternative, one
+setting per orientation because a phone has room for very different numbers each
+way up: 3x portrait and 4x landscape on a 1080x2400 panel.
+
+The point of asking for one is that every emulated pixel becomes the same number
+of real ones, and that only holds if the quad is a whole number of pixels wide
+*and* starts on one. Centring can leave half a pixel over — a window is rarely
+an exact multiple of anything — and half a pixel with `GL_NEAREST` is a column
+of doubled pixels down one edge. So `place()` in `android_gl.c` floors a pixel
+position and derives the clip-space offset from it, rather than centring the
+quad and hoping. That is what `u_offset` is for; fitting leaves it at zero.
+
+A scale too big for the box is reduced until it fits, and a box too small for
+even 1x is fitted instead. That is what lets the settings list be built from the
+*display* rather than from the box the picture will actually get — which depends
+on the landscape template and on whether the keyboard is up, and would mean a
+second copy of `EmulatorLayout`'s sums that could only ever drift.
+
+**Which orientation applies is Java's to answer.** The renderer cannot: in
+portrait with the keyboard below, the box it draws into is 1080x810 — wider than
+it is tall. So it is told one number, and `EmulatorActivity` pushes it again from
+`onConfigurationChanged()`.
+
+`EmulatorLayout` applies the same rule a second time, in Java, to place the
+lamps, the joystick, the play button and the quick bar against the picture's real
+edge instead of where a fitted one would have been. Two copies of one rule, kept
+in step by hand, because the renderer runs on the emulation thread and that is a
+layout pass. They agree on everything except a Timex in hi-res, which doubles the
+emulated frame: the renderer's 1x is then twice what the layout worked out, and
+the controls sit a little further out than they need to.
+
 ### Filters
 
 Scanlines and a CRT, as **two switches rather than one choice**, because they

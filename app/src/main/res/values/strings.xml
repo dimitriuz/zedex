@@ -151,6 +151,13 @@
     <string name="settings_filter_glow">Glow</string>
 
     <string name="settings_display">Display</string>
+    <string name="settings_scale_portrait">Portrait scale</string>
+    <string name="settings_scale_landscape">Landscape scale</string>
+    <!-- 3, then the pixel size that scale draws: "3\u00d7 \u2014 960 \u00d7 720". -->
+    <string name="settings_scale_integer">%1$d\u00d7 \u2014 %2$d \u00d7 %3$d</string>
+    <string name="settings_scale_fit">Fit to the screen</string>
+    <string name="settings_scale_summary">Whole-pixel scales keep every emulated pixel the same size; fitting fills the space instead.</string>
+
     <string name="settings_landscape_layout">Landscape layout</string>
     <string name="settings_landscape_layout_summary">How the screen and the keyboard share a sideways window</string>
     <string name="settings_bw_tv">Black and white TV</string>
