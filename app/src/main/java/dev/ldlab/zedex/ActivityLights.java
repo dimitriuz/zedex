@@ -20,15 +20,15 @@ import android.view.View;
  * already has, and each of them is the difference between "it does not work"
  * and "it wants something else".
  *
- * Colour says which way the data is going. Reading is the cool blue the
- * keyboard uses for a pressed key; writing is amber, because writing is the
- * direction that changes something and the one worth noticing. Only some of
- * the lamps can tell the difference — a keyboard is only ever read, and what
- * the AY does is sound on its way out — so most of them only ever show one of
- * the two. The emulator is the limit here, not the display: Fuse's status bar
- * reports that a disk is turning and not which way the head is pointing, so a
- * write is found instead in the moment a disk becomes dirty or a block is
- * appended to a tape, and held for a fifth of a second so that it can be seen.
+ * Colour says which way the data is going, where anybody can tell. Reading is
+ * the cool blue the keyboard uses for a pressed key; writing is amber, because
+ * writing is the direction that changes something. Most of the lamps only ever
+ * show one of the two, and that is the emulator's limit rather than the
+ * display's: a keyboard is only ever read, what the AY does is sound on its way
+ * out, and a disk will not say at all — Fuse reports the motor turning and not
+ * which way the head is pointing. The tape can say, because the moment its save
+ * trap appends a block is visible, and that moment is held for a fifth of a
+ * second so it can be seen.
  *
  * Laid out along whichever axis there is room for: a row under the picture in
  * portrait, a column beside it in landscape. The view decides that from the
@@ -105,11 +105,8 @@ final class ActivityLights extends View {
             int loudness = FuseNative.ayLevels();
 
             if (now != state || loudness != levels) {
-                boolean spoken = now != state;
-
                 state = now;
                 levels = loudness;
-                if (spoken) describe();
                 invalidate();
             }
 
@@ -245,28 +242,22 @@ final class ActivityLights extends View {
     // --- accessibility ------------------------------------------------------
 
     /**
-     * One description of the whole row rather than five nodes: these are not
-     * things to press, and a screen reader announcing five lamps every time one
-     * of them flickers would be unusable. What it says is what is happening, or
-     * that nothing is.
+     * One description for the strip, set once and never changed.
+     *
+     * It is tempting to say what is happening — "tape reading, AY writing" —
+     * and that was the first attempt. It made the app untestable and would have
+     * made it unusable with a screen reader, for the same reason: a
+     * contentDescription that changes ten times a second is ten
+     * window-content-changed events a second, the accessibility tree never
+     * settles, and anything waiting for it to settle waits for ever. UI
+     * Automator could not find the ☰ button any more.
+     *
+     * So what a screen reader gets is what the strip is, not what it is
+     * momentarily doing. Nothing is lost that was ever any use: these are
+     * lamps, and a lamp read aloud on every flicker is noise.
      */
     private void describe() {
-        StringBuilder said = new StringBuilder();
-
-        for (Lamp lamp : lamps) {
-            if ((state & lamp.bit) == 0) continue;
-            if (said.length() > 0) said.append(", ");
-
-            said.append(getContext().getString(lamp.name));
-
-            boolean writing = (state & (lamp.bit << FuseNative.ACTIVITY_WRITING)) != 0;
-            said.append(' ').append(getContext().getString(
-                    writing ? R.string.lamp_writing : R.string.lamp_reading));
-        }
-
-        setContentDescription(said.length() > 0
-                ? getContext().getString(R.string.lights_active, said)
-                : getContext().getString(R.string.lights_idle));
+        setContentDescription(getContext().getString(R.string.lights_name));
     }
 
     // --- polling ------------------------------------------------------------

@@ -42,6 +42,7 @@
 
 #include "peripherals/disk/disk.h"
 #include "peripherals/disk/fdd.h"
+
 #include "peripherals/sound/ay.h"
 
 /* Bits as the app sees them; keep in step with FuseNative.ACTIVITY_*. */
@@ -60,8 +61,12 @@
    At 50Hz this is a fifth of a second. */
 #define HOLD_FRAMES 10
 
-/* And the tape for longer still; see watch_tape(). Half a second. */
+/* The tape and the disks for longer still. A tape can be trapped through in
+   three frames; a format pauses between tracks for longer than a fifth of a
+   second, and a lamp that goes out between them reads as one that has
+   finished. Half a second each. */
 #define TAPE_FRAMES 25
+#define DISK_FRAMES 25
 
 /* What the UI thread reads. Written once a frame by the emulation thread. */
 static volatile int published;
@@ -80,12 +85,14 @@ static int ay_written;
 /* Counting down while something that already happened is worth showing. */
 static int tape_reading;
 static int tape_writing;
-static int disk_writing;
+static int disk_reading;
+
+/* Where each drive's head was a frame ago; -1 for a drive with nothing in it. */
+static int disk_was_at[ MAX_CONTROLLERS ][ MAX_DRIVES_PER_CONTROLLER ];
 
 /* What we last saw, so a change can be told from a state. */
 static int tape_was_modified;
 static int tape_was_at_block = -1;
-static int drives_were_dirty;
 
 /* --- what Fuse announces ---------------------------------------------- */
 
@@ -99,9 +106,14 @@ ui_statusbar_update( ui_statusbar_item item, ui_statusbar_state state )
 
   /* A microdrive is a disk as far as a lamp is concerned: both mean the
      machine is waiting on something that spins. */
-  case UI_STATUSBAR_ITEM_MICRODRIVE:
-  case UI_STATUSBAR_ITEM_DISK: disk_running = active; break;
+  case UI_STATUSBAR_ITEM_MICRODRIVE: disk_running = active; break;
 
+  /* Not the disks: see the note at watch_disk_access(). Fuse's count of
+     turning motors can stick above zero, because fdd_unload() clears the
+     drive's `loaded' before calling fdd_motoron( d, 0 ), which returns early
+     for a drive with nothing in it and so never decrements it. Ejecting a
+     spinning disk therefore leaves the lamp on for the rest of the session. */
+  case UI_STATUSBAR_ITEM_DISK:
   case UI_STATUSBAR_ITEM_MOUSE:
   case UI_STATUSBAR_ITEM_PAUSED:
     break;
@@ -254,33 +266,66 @@ watch_tape( void )
   if( block != tape_was_at_block ) tape_reading = TAPE_FRAMES;
   tape_was_at_block = block;
 
+  /* The tape can say which way, and the rise of tape_modified is the moment
+     the save trap appended a block - which is inside the save rather than
+     merely after it, so unlike the disk's latch this really does mark the
+     event. Only the rise: it stays set afterwards, and a tape saved to ten
+     minutes ago is not being saved to now. A real-time recording is a state
+     and says so for as long as it runs. */
   if( modified && !tape_was_modified ) tape_writing = HOLD_FRAMES;
   tape_was_modified = modified;
 
   if( tape_recording ) tape_writing = HOLD_FRAMES;
 }
 
-/* And a disk the same way, through the dirty flags of every drive that has
-   something in it. Counting them rather than watching one means a second
-   drive being written to still shows, and clearing one - which saving a disk
-   does - cannot be mistaken for a write. */
-static void
-watch_disk_writes( void )
+/* Whether any drive is being read or written this instant.
+
+   Not from the status bar, which cannot be trusted here: Fuse counts turning
+   motors in a global, and fdd_unload() clears a drive's `loaded' *before*
+   calling fdd_motoron( d, 0 ), which returns early for a drive with nothing in
+   it and so never decrements the count. Eject a spinning disk once and the
+   lamp stays on for the rest of the session. The per-drive flag goes stale the
+   same way, and a fresh disk inherits it.
+
+   So this watches the drive doing something instead of a flag saying it is.
+   disk.i is the drive's position along the current track, and it only advances
+   inside fdd_read_write_data() - which nothing but the controller calls, for a
+   byte it is genuinely reading or writing. A stale flag cannot move it. It
+   wraps at the end of a track, so any change at all is a change.
+
+   Which way the byte was going is not on offer. The only trace a write leaves
+   is disk.dirty, and that is a latch: set on the first written byte and cleared
+   only when the app saves the disk out. Two proxies for it were tried and both
+   were wrong more often than right - the rise of the latch flashed for a fifth
+   of a second at the start of a two minute format and then sat in the reading
+   colour for the rest of it, and the level of it turned the lamp amber for the
+   whole session, because a disk made by New disk is dirty before the machine
+   has touched it. The controllers do know, and wd_fdc even has a WRITETRACK
+   state which is exactly what a format is, but every instance of one is static
+   inside its own interface's file and ui_media_drive_info_t hands out the drive
+   rather than the controller. So the lamp says the drive is being used, which
+   is true, and says nothing it cannot stand behind.
+*/
+static int
+watch_disk_access( void )
 {
-  int dirty = 0;
-  int controller, drive;
+  int controller, drive, moved = 0;
 
   for( controller = 0; controller < MAX_CONTROLLERS; controller++ ) {
     for( drive = 0; drive < MAX_DRIVES_PER_CONTROLLER; drive++ ) {
       ui_media_drive_info_t *found = ui_media_drive_find( controller, drive );
+      int *last = &disk_was_at[ controller ][ drive ];
+      int now;
 
-      if( found && found->fdd && found->fdd->loaded && found->fdd->disk.dirty )
-        dirty++;
+      if( !found || !found->fdd || !found->fdd->loaded ) { *last = -1; continue; }
+
+      now = found->fdd->disk.i;
+      if( *last >= 0 && now != *last ) moved = 1;
+      *last = now;
     }
   }
 
-  if( dirty > drives_were_dirty ) disk_writing = HOLD_FRAMES;
-  drives_were_dirty = dirty;
+  return moved;
 }
 
 /* --- once a frame ----------------------------------------------------- */
@@ -292,20 +337,26 @@ androidstatus_frame( void )
 
   keep_monitor_attached();
   watch_tape();
-  watch_disk_writes();
+
+  /* Accesses come in bursts, so this is held like the rest: a lamp flickering
+     at fifty hertz is a lamp nobody can read. */
+  if( watch_disk_access() ) disk_reading = DISK_FRAMES;
 
   if( tape_reading ) tape_reading--;
   if( tape_writing ) tape_writing--;
-  if( disk_writing ) disk_writing--;
+  if( disk_reading ) disk_reading--;
 
   /* A write shows as a write and as activity: the lamp is on either way, and
      the colour is what says which. A tape being saved is not "playing", so it
      has to light the lamp itself. */
-  if( tape_running || tape_reading || tape_writing ) state |= ACTIVITY_TAPE;
-  if( tape_writing ) state |= ACTIVITY_TAPE << ACTIVITY_WRITING;
+  if( tape_running || tape_reading ) {
+    state |= ACTIVITY_TAPE;
+    if( tape_writing ) state |= ACTIVITY_TAPE << ACTIVITY_WRITING;
+  }
 
-  if( disk_running || disk_writing ) state |= ACTIVITY_DISK;
-  if( disk_writing ) state |= ACTIVITY_DISK << ACTIVITY_WRITING;
+  /* No writing bit: see the note at watch_disk_access(). disk_running is the
+     microdrive, which does still come from the status bar. */
+  if( disk_running || disk_reading ) state |= ACTIVITY_DISK;
 
   /* A level covers a note left running after the registers were set; the
      write covers the setting of them. Either way it is sound going out. */
@@ -337,7 +388,7 @@ androidstatus_idle( void )
 
   tape_reading = 0;
   tape_writing = 0;
-  disk_writing = 0;
+  disk_reading = 0;
   keyboard_seen = 0;
   joystick_seen = 0;
   ay_written = 0;

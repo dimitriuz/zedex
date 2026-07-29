@@ -33,7 +33,12 @@ expensive to rediscover.
 - **Fuse's core is single threaded.** Everything from the UI thread goes
   through the command queue in `native/ui/android/android_bridge.c` and is
   drained on the emulation thread from `ui_event()`. Never call into Fuse
-  from Java directly.
+  from Java directly. The surface handover lives in `android_window.c` and the
+  snapshots the UI thread reads back in `android_state.c`.
+- **Nothing on screen may change its `contentDescription` continuously.** That
+  is a window-content-changed event each time, the accessibility tree never
+  settles, and every UI Automator test fails with *the ☰ button never
+  appeared*. The activity lamps did this and took the whole suite down.
 
 ## Building
 

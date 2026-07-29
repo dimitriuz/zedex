@@ -158,11 +158,7 @@
     <string name="lamp_ay">AY</string>
     <string name="lamp_keyboard">keyboard</string>
     <string name="lamp_joystick">joystick</string>
-    <string name="lamp_reading">reading</string>
-    <string name="lamp_writing">writing</string>
-    <!-- %1$s is a list: "tape reading, AY writing" and so on. -->
-    <string name="lights_active">Machine activity: %1$s</string>
-    <string name="lights_idle">Machine activity: none</string>
+    <string name="lights_name">Machine activity indicators</string>
     <string name="settings_indicators">Activity indicators</string>
     <string name="settings_indicators_summary">Lamps beside the picture for the tape, disks, sound, keyboard and joystick</string>
     <string name="quick_joystick_show">Show the joystick</string>

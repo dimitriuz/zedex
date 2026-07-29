@@ -126,9 +126,10 @@ to latch it** (it turns amber) until you tap it again. That is how you get
 BREAK — Caps Shift and Space.
 
 **The lamps** beside the picture — tape, disk, AY, keyboard, joystick — show
-what the machine is busy with. Blue reads, amber writes; the AY is three bars,
-one per channel, as tall as it is loud. A lit joystick lamp and a dead stick
-means the game wants a different interface. Off in settings.
+what the machine is busy with. Blue reads, amber writes, and the disk lamp only
+says it is being used, since the emulator does not report which way. The AY is
+three bars, one per channel, as tall as it is loud. A lit joystick lamp and a
+dead stick means the game wants a different interface. Off in settings.
 
 **The joystick** is a thumb pad and a fire button, and it goes wherever the picture is not.
 

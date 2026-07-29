@@ -37,9 +37,19 @@ follows upstream instead of drifting from it.
   code that touches pixels, which is where CRT/scanline filters go.
 - **`android_bridge.c`** is the Android boundary. Fuse's core is single
   threaded, so everything arriving from the UI thread is queued and replayed
-  on the emulation thread from `ui_event()`. It also runs the window handover:
-  `surfaceDestroyed()` blocks until the emulation thread has released the
-  surface.
+  on the emulation thread from `ui_event()`. That queue, and the pause loop
+  that keeps running beside it, is all this file is for now.
+- **`android_window.c`** hands the drawing surface over. Android may take the
+  window away at any moment and the emulation thread must have stopped using it
+  before `surfaceDestroyed()` returns, so it is a handshake rather than a lock:
+  the UI thread leaves a request and the emulation thread answers it at a frame
+  boundary, the only moment the surface is not in use. Split out because it is
+  a protocol with an invariant of its own, and because it is the one part of
+  the bridge that has to keep working when everything else has stopped.
+- **`android_state.c`** is what the UI thread is allowed to read: the machine
+  list, which machine is running, what is in which drive. The emulation thread
+  copies it into plain arrays once a frame behind a mutex. A different job from
+  the queue — that one carries intentions in, this one carries facts out.
 - **`keysyms.c`** maps Android keycodes to Fuse input keys, so physical keys
   and the on-screen keyboard share one path — including Caps Shift
   (`SHIFT_LEFT`) and Symbol Shift (`CTRL_LEFT`), which Fuse already maps. The
@@ -506,11 +516,32 @@ Getting at it takes four different routes, none of which touches `vendor/`:
   which empties the port list but keeps the registrations, so the monitor is
   registered once and put back on the list whenever it finds itself off it.
 
-Colour says direction, and only where the emulator knows one. Fuse reports that
-a disk is turning, not which way the head is pointing, so a write is found
-instead in the moment a disk becomes dirty or a block is appended to a tape, and
-held long enough to see. A keyboard is only ever read; what the AY does is sound
-on its way out, so it is always the writing colour.
+Colour says direction, and only where the emulator knows one. A keyboard is
+only ever read; what the AY does is sound on its way out, so it is always the
+writing colour. The tape can say, because the rise of `tape_modified` is the
+moment its save trap appended a block — inside the save rather than merely
+after it — and that moment is held long enough to see.
+
+**A disk will not say, and three attempts at making it say were all worse than
+not.** The only trace a write leaves on a drive is `disk.dirty`, and that is a
+latch: set on the first written byte, cleared only when the app saves the disk
+out. Watching it rise flashed for a fifth of a second at the start of a two
+minute format and then sat in the reading colour for the rest of it — the exact
+opposite of what was happening. Watching its level turned the lamp amber and
+left it there for the session, because a disk made by *New disk* is dirty before
+the machine has touched it. The controllers do know, and `wd_fdc` even has a
+`WRITETRACK` state which is precisely what a format is, but every instance of
+one is `static` inside its own interface's file and `ui_media_drive_info_t`
+hands out the drive rather than the controller. So the disk lamp reports access
+and nothing else.
+
+It does not take that from the status bar either. Fuse counts turning motors in
+a global, and `fdd_unload()` clears a drive's `loaded` *before* calling
+`fdd_motoron( d, 0 )`, which returns early for a drive with nothing in it and so
+never decrements the count — eject a spinning disk once and the lamp stays on
+for the rest of the session. What the lamp watches instead is `disk.i`, the
+head's position along the current track, which only advances inside
+`fdd_read_write_data()` and so cannot be moved by a stale flag.
 
 The AY is three bars rather than one lamp, and the height of each is that
 channel's amplitude — a chip using one channel is doing something quite
@@ -532,6 +563,13 @@ the picture in portrait and only one of them has somewhere else to go.
 State is polled, not pushed. It changes at 50Hz — far faster than an eye reads a
 lamp, and far too fast to be worth a callback and a thread hop each time — so
 the view looks every 100ms and redraws only on a change.
+
+What it must *not* do is say what it sees. The first version put the live state
+in the view's `contentDescription`, which is ten window-content-changed events a
+second: the accessibility tree never settles, anything waiting for it to settle
+waits for ever, and the whole instrumentation suite went red with *the ☰ button
+never appeared*. A screen reader would have fared no better. The description is
+now what the strip is, set once.
 
 ### The on-screen keyboard
 
