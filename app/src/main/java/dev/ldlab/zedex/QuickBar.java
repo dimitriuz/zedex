@@ -200,6 +200,23 @@ final class QuickBar extends LinearLayout {
                                                 LayoutParams.WRAP_CONTENT));
     }
 
+    /**
+     * Reduces the bar to one button, or restores all of them.
+     *
+     * With no machine there is nothing for any of the actions to act on: no
+     * state to save, nothing to pause, no picture to photograph. They go away
+     * and leave whichever one still leads somewhere.
+     */
+    void showOnly(View kept) {
+        for (int i = 0; i < primary.getChildCount(); i++) {
+            View child = primary.getChildAt(i);
+
+            child.setVisibility(kept == null || child == kept ? VISIBLE : GONE);
+        }
+
+        collapse();
+    }
+
     /** Puts the dropdown away, wherever the tap came from. */
     void collapse() {
         if (openGroup == null) return;

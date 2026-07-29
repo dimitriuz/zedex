@@ -282,4 +282,31 @@ final class Storage {
             return treeUri;
         }
     }
+
+    /**
+     * What a picked document is called, sanitised into a filename.
+     *
+     * libspectrum uses the extension as a hint about the format, so a staged
+     * copy has to keep the name it arrived with. Both the ROM importer and the
+     * media staging want this, which is why it lives here.
+     */
+    static String displayName(Context context, Uri uri) {
+        String name = null;
+
+        try (android.database.Cursor cursor = context.getContentResolver().query(uri,
+                new String[] { android.provider.OpenableColumns.DISPLAY_NAME },
+                null, null, null)) {
+            if (cursor != null && cursor.moveToFirst() && !cursor.isNull(0)) {
+                name = cursor.getString(0);
+            }
+        } catch (Exception e) {
+            android.util.Log.w("Zedex", "cannot read the name of " + uri, e);
+        }
+
+        if (name == null) name = uri.getLastPathSegment();
+        if (name == null) name = "spectrum.tap";
+
+        name = name.replace('/', '_').replace('\\', '_');
+        return name.isEmpty() ? "spectrum.tap" : name;
+    }
 }

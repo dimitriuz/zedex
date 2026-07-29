@@ -76,6 +76,12 @@ void androidbridge_pump_commands( void );
 #define MAX_CONTROLLERS 8
 #define MAX_DRIVES_PER_CONTROLLER 4
 
+/* --- state for the UI thread (android_state.c) ------------------------ */
+
+/* Copy everything the UI thread may read - the machine list, which machine is
+   running, what is in which drive. Called once a frame from the pump. */
+void androidstate_publish( void );
+
 /* --- what the machine is busy with (android_status.c) ----------------- */
 
 /* Gather the tape, disk, AY and port-read state for the app's indicators.
