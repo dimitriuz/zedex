@@ -490,7 +490,7 @@ screen's share, since it is a takeover rather than part of the picture, and the
 at the top right of the *screen*, so it follows the picture when the keyboard is
 beside it. The joystick's two controls are children here too, placed as below.
 
-### Two keyboards
+### Three keyboards
 
 A skin is a picture and a table of key rectangles in that picture's own pixels.
 Nothing else differs: the presses, the latching, the accessibility nodes and the
@@ -536,6 +536,40 @@ this again:
 `scripts/ui-type.py` carries both tables and reads the stored skin to choose,
 because it taps by coordinate rather than by name: the 128K's keys are somewhere
 else entirely and the rubber one's coordinates type nonsense on it.
+
+**The third keyboard is the phone's own.** It is in the same list because it is the
+same choice, and it has no picture and no key table: `Skin.SYSTEM` draws nothing,
+the layout treats the window as having no keyboard of ours in it, and Android's
+input method comes up over the bottom of the picture.
+
+Three things had to be got right.
+
+- **An IME commits text; it does not press keys.** A soft keyboard hands over a
+  string through `commitText()` and sends real key events only for a few editing
+  keys. So the characters go through a path of their own, `FuseNative.character()`,
+  and the key events take the ordinary one.
+- **A character needs no translation.** Fuse's `input_key` values *are* ASCII for
+  everything printable, and its own `keysyms_map` turns one into the Spectrum keys
+  it takes — a colon is SYMBOL SHIFT and Z, and Fuse knows that. So
+  `run_character()` skips `keysyms_remap()` and hands the character straight to
+  `input_event()`, which is why the punctuation comes out right without a table
+  here. The same press-and-release-in-one-pump rule applies as for keys and the
+  joystick, since an IME commits both ends at once, so characters have their own
+  slice of the press-tag namespace.
+- **`showSoftInput()` does not work in this app.** It returned false however the
+  focus was arranged, because the window fits none of its own system windows and
+  drives the bars through a `WindowInsetsController`; the keyboard is one more
+  inset to `show()`. And the request only lands once the window has focus, so it
+  is made from `onWindowFocusChanged()` and again from `onResume()` - at startup it
+  beat the window to it and was dropped.
+
+There is nothing to see in the app: the input target is a one-pixel view in the
+corner, because an input method needs something focused to talk to and what it
+types shows up on the machine's screen.
+
+Worth knowing when testing on an emulator: an AVD reports a hardware keyboard, so
+Gboard shows only its floating toolbar. `adb shell settings put secure
+show_ime_with_hard_keyboard 1` brings the keys back.
 
 A keyboard beside the screen gets the foot of its half rather than all of it.
 It centres itself in whatever box it is given, so a full-height box put it in

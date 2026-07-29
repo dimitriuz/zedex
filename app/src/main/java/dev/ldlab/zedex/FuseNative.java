@@ -65,6 +65,17 @@ final class FuseNative {
     static native void key(int keycode, boolean pressed);
 
     /**
+     * Queues a typed character rather than a key.
+     *
+     * The system keyboard commits text instead of pressing keys, and a character
+     * needs no translation on the way in: Fuse's own key values are ASCII for
+     * everything printable and its table turns one into the Spectrum keys it
+     * takes, so a colon arrives as SYMBOL SHIFT and Z without anything here
+     * knowing that.
+     */
+    static native void character(int character, boolean pressed);
+
+    /**
      * Whether the Spectrum has any use for this key at all.
      *
      * Asked before a key event is swallowed: the volume and media keys belong

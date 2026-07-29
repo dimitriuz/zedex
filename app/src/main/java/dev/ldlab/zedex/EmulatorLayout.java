@@ -135,6 +135,13 @@ final class EmulatorLayout extends ViewGroup {
 
     private final Rect screenBox = new Rect();
     private final Rect keyboardBox = new Rect();
+
+    /**
+     * One pixel in the corner for the system keyboard's input view. It has to be
+     * in the window and focusable for an input method to talk to it, and there
+     * is nothing to see: what it types shows up on the machine's screen.
+     */
+    private final Rect systemBox = new Rect(0, 0, 1, 1);
     private final Rect panelBox = new Rect();
     private final Rect menuBox = new Rect();
     private final Rect padBox = new Rect();
@@ -166,6 +173,7 @@ final class EmulatorLayout extends ViewGroup {
     private QuickBar menu;
     private View drawer;
     private SpectrumKeyboardView keyboard;
+    private SystemKeyboardView system;
     private JoystickView pad;
     private JoystickView fire;
     private JoystickView[] keys = new JoystickView[0];
@@ -219,11 +227,13 @@ final class EmulatorLayout extends ViewGroup {
      * picture when the keyboard is beside it.
      */
     void setChildren(View screen, SpectrumKeyboardView keyboard,
+                     SystemKeyboardView system,
                      JoystickView pad, JoystickView fire, JoystickView[] keys,
                      ActivityLights lights,
                      View play, View panel, QuickBar bar, View drawer) {
         this.screen = screen;
         this.keyboard = keyboard;
+        this.system = system;
         this.pad = pad;
         this.fire = fire;
         this.keys = keys;
@@ -238,6 +248,7 @@ final class EmulatorLayout extends ViewGroup {
         // joystick, which sits over the picture when it has to.
         addView(screen);
         addView(keyboard);
+        addView(system);
         addView(pad);
         addView(fire);
         for (JoystickView key : keys) addView(key);
@@ -346,7 +357,13 @@ final class EmulatorLayout extends ViewGroup {
         if (keyboard == null || keyboard.skin() == skin) return;
 
         keyboard.setSkin(skin);
+        applyKeyboardVisibility();
         requestLayout();
+    }
+
+    /** The device's own keyboard, for the skin that is not drawn here. */
+    SystemKeyboardView systemKeyboard() {
+        return system;
     }
 
     boolean keyboardVisible() {
@@ -411,7 +428,8 @@ final class EmulatorLayout extends ViewGroup {
         boolean hiddenByFullscreen = landscape && fullscreen;
 
         keyboard.setVisibility(!keyboardWanted || hiddenByTemplate
-                               || hiddenByFullscreen ? GONE : VISIBLE);
+                               || hiddenByFullscreen || !keyboard.skin().drawn()
+                               ? GONE : VISIBLE);
     }
 
     /**
@@ -471,6 +489,10 @@ final class EmulatorLayout extends ViewGroup {
         // was with a band of black where the keys had been.
         Template current = landscape ? template : Template.BELOW;
         if (!keyboardWanted || (landscape && fullscreen)) current = Template.NONE;
+
+        // The system keyboard is Android's own and comes up over the window
+        // whenever it is asked to, so there is nothing here to leave room for.
+        if (keyboard != null && !keyboard.skin().drawn()) current = Template.NONE;
 
         panelBox.set(0, 0, width, height);
 
@@ -899,6 +921,7 @@ final class EmulatorLayout extends ViewGroup {
 
         measureChild(screen, screenBox);
         measureChild(keyboard, keyboardBox);
+        measureChild(system, systemBox);
         measureChild(pad, padBox);
         measureChild(fire, fireBox);
         for (int i = 0; i < keys.length; i++) measureChild(keys[i], keyBoxes[i]);
@@ -958,6 +981,7 @@ final class EmulatorLayout extends ViewGroup {
         // size; recomputing here would only risk the two drifting apart.
         placeChild(screen, screenBox);
         placeChild(keyboard, keyboardBox);
+        placeChild(system, systemBox);
         placeChild(pad, padBox);
         placeChild(fire, fireBox);
         for (int i = 0; i < keys.length; i++) placeChild(keys[i], keyBoxes[i]);

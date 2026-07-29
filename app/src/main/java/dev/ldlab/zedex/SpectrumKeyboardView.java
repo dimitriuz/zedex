@@ -65,7 +65,15 @@ public class SpectrumKeyboardView extends View {
      */
     enum Skin {
         RUBBER("rubber", "ZX Spectrum 48K", "fuse/keyboard.png", 541f / 201f),
-        PLUS("plus", "ZX Spectrum 128K", "skins/spectrum128.webp", 1040f / 413f);
+        PLUS("plus", "ZX Spectrum 128K", "skins/spectrum128.webp", 1040f / 413f),
+
+        /**
+         * Not a picture at all: the device's own input method types instead, and
+         * this keyboard is not drawn. It is in the same list because it is the
+         * same choice - which keyboard you use - and it has no asset and no key
+         * table because it has no keys of its own.
+         */
+        SYSTEM("system", "Android keyboard", null, 541f / 201f);
 
         final String value;             /* as stored in the preferences */
         final String title;
@@ -81,6 +89,11 @@ public class SpectrumKeyboardView extends View {
 
         Row[] rows() {
             return this == PLUS ? PLUS_ROWS : RUBBER_ROWS;
+        }
+
+        /** Whether this one is drawn here rather than by Android. */
+        boolean drawn() {
+            return asset != null;
         }
 
         static Skin of(String stored) {
@@ -347,11 +360,14 @@ public class SpectrumKeyboardView extends View {
         skin = wanted;
         rows = wanted.rows();
 
-        try (InputStream in = getContext().getAssets().open(wanted.asset)) {
-            keyboard = BitmapFactory.decodeStream(in);
-        } catch (IOException e) {
-            Log.e(TAG, "cannot load " + wanted.asset, e);
-            keyboard = null;
+        keyboard = null;
+
+        if (wanted.drawn()) {
+            try (InputStream in = getContext().getAssets().open(wanted.asset)) {
+                keyboard = BitmapFactory.decodeStream(in);
+            } catch (IOException e) {
+                Log.e(TAG, "cannot load " + wanted.asset, e);
+            }
         }
 
         computeTouchAreas();

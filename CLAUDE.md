@@ -115,7 +115,10 @@ scripts/ui-type.py CS+SS SS+0 ' ' '"test"' ENTER   # extended mode: FORMAT
 ```
 
 `ui-type.py` taps by coordinate and so carries a copy of each skin's key
-positions; it reads the stored skin to pick between them. **After switching skins
+positions; it reads the stored skin to pick between them. Neither script can type
+on the **Android keyboard** skin - that is the phone's own input method, and on an
+AVD Gboard hides its keys because the emulator reports a hardware keyboard.
+`adb shell settings put secure show_ime_with_hard_keyboard 1` brings them back. **After switching skins
 in a running app, `ui-tap.py` still reports the old skin's key names** — UI
 Automator caches the window's tree and nothing the app sends clears it. Relaunch
 before driving the keyboard.

@@ -49,7 +49,8 @@
 #define COMMAND_QUEUE_SIZE 256
 
 typedef enum command_type {
-  COMMAND_KEY,				/* a: keycode, b: pressed */
+  COMMAND_KEY,
+  COMMAND_CHARACTER,			/* a typed character, not a keycode */				/* a: keycode, b: pressed */
   COMMAND_JOYSTICK,			/* a: joystick_button, b: pressed */
   COMMAND_SELECT_MACHINE,		/* a: index into machine_types */
   COMMAND_RESET,
@@ -160,6 +161,28 @@ run_key( int keycode, int pressed )
   input_event( &fuse_event );
 }
 
+/* A character typed on the system keyboard, which arrives as a character and
+   not as a keycode - an Android IME commits text rather than pressing keys.
+
+   No keysym translation, because there is nothing to translate: Fuse's
+   input_key values *are* ASCII for everything printable, and its own
+   keysyms_map turns one into the Spectrum keys it takes - a colon is SYMBOL
+   SHIFT and Z, and Fuse knows that already. Skipping keysyms_remap is the whole
+   trick, and it is why punctuation comes out right without a table of our own. */
+static void
+run_character( int character, int pressed )
+{
+  input_event_t fuse_event;
+
+  if( character <= 0 || character > 0xff ) return;
+
+  fuse_event.type = pressed ? INPUT_EVENT_KEYPRESS : INPUT_EVENT_KEYRELEASE;
+  fuse_event.types.key.native_key = character;
+  fuse_event.types.key.spectrum_key = character;
+
+  input_event( &fuse_event );
+}
+
 /* The on-screen joystick is joystick 1, so it comes out as whichever
    interface settings_current.joystick_1_output names - which is what the
    menu chooses. joystick_press() is Fuse's own entry point for a moved
@@ -194,11 +217,16 @@ run_select_machine( int index )
 static int pressed_this_pump[ 16 ];
 static int pressed_count;
 
-/* One namespace for both, so a direction cannot be mistaken for a keycode. */
+/* One namespace for all of them, so a direction cannot be mistaken for a
+   keycode nor a character for either. */
 static int
 press_tag( command_type type, int code )
 {
-  return type == COMMAND_JOYSTICK ? 0x10000 | code : code;
+  switch( type ) {
+  case COMMAND_JOYSTICK:  return 0x10000 | code;
+  case COMMAND_CHARACTER: return 0x20000 | code;
+  default:                return code;
+  }
 }
 
 static int
@@ -392,7 +420,8 @@ drain_commands( void )
 
     /* Leave this release for the next frame, and everything behind it with
        it: the queue has to stay in order. */
-    if( ( command.type == COMMAND_KEY || command.type == COMMAND_JOYSTICK ) &&
+    if( ( command.type == COMMAND_KEY || command.type == COMMAND_JOYSTICK ||
+          command.type == COMMAND_CHARACTER ) &&
         !command.b &&
         pressed_during_this_pump( press_tag( command.type, command.a ) ) ) {
       pthread_mutex_unlock( &command_mutex );
@@ -405,8 +434,12 @@ drain_commands( void )
     switch( command.type ) {
     case COMMAND_KEY:
     case COMMAND_JOYSTICK:
-      if( command.type == COMMAND_KEY ) run_key( command.a, command.b );
-      else                              run_joystick( command.a, command.b );
+    case COMMAND_CHARACTER:
+      if( command.type == COMMAND_KEY )           run_key( command.a, command.b );
+      else if( command.type == COMMAND_CHARACTER ) run_character( command.a,
+                                                                 command.b );
+      else                                        run_joystick( command.a,
+                                                                command.b );
 
       if( command.b && pressed_count < 16 )
         pressed_this_pump[ pressed_count++ ] =
@@ -761,6 +794,14 @@ Java_dev_ldlab_zedex_FuseNative_key( JNIEnv *env, jclass class, jint keycode,
                                     jboolean pressed )
 {
   queue_command( COMMAND_KEY, keycode, pressed ? 1 : 0 );
+}
+
+/* A character from the system keyboard; see run_character(). */
+JNIEXPORT void JNICALL
+Java_dev_ldlab_zedex_FuseNative_character( JNIEnv *env, jclass class,
+                                         jint character, jboolean pressed )
+{
+  queue_command( COMMAND_CHARACTER, character, pressed ? 1 : 0 );
 }
 
 /* Whether the Spectrum has any use for this key at all.

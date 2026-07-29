@@ -221,6 +221,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         layout = new EmulatorLayout(this);
         layout.setChildren(screen, new SpectrumKeyboardView(this),
+                           new SystemKeyboardView(this),
                            new JoystickView(this, JoystickView.Part.PAD),
                            new JoystickView(this, JoystickView.Part.FIRE),
                            keyButtons,
@@ -246,6 +247,10 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         layout.requestFocus();
 
         getWindow().setDecorFitsSystemWindows(false);
+
+        // Posted: there is no window to show an input method for until the
+        // activity has one.
+        layout.post(this::applySystemKeyboard);
 
         handleViewIntent(getIntent());
     }
@@ -338,6 +343,10 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         pausedByAndroid = false;
         applyPause();
+
+        // Coming back from somewhere else: if the device's keyboard is the one
+        // chosen, it went away with the app and should come back with it.
+        applySystemKeyboard();
     }
 
     @Override
@@ -350,6 +359,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                 insets.setSystemBarsBehavior(
                         WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
             }
+
+            // An input method is only shown for a window that has the focus, so
+            // this is where asking for one belongs: at startup the request beat
+            // the window to it and was quietly dropped.
+            applySystemKeyboard();
         }
     }
 
@@ -700,6 +714,21 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                       this::showLayoutDialog);
     }
 
+    /**
+     * Brings the device's own keyboard up, or puts it away, to match the skin
+     * and whether the keyboard is meant to be showing at all.
+     *
+     * The other two skins are drawn by the app and need none of this; this one is
+     * Android's, so showing it is asking for it and hiding it is asking it to go.
+     */
+    private void applySystemKeyboard() {
+        boolean wanted = keyboardSkin() == SpectrumKeyboardView.Skin.SYSTEM
+                      && layout.keyboardVisible();
+
+        if (wanted) layout.systemKeyboard().open();
+        else layout.systemKeyboard().close();
+    }
+
     private SpectrumKeyboardView.Skin keyboardSkin() {
         return SpectrumKeyboardView.Skin.of(
                 preferences.getString(SettingsActivity.KEY_KEYBOARD_SKIN, null));
@@ -731,8 +760,12 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                                        skins[which].value)
                             .apply();
                     layout.setKeyboardSkin(skins[which]);
-
                     dialog.dismiss();
+
+                    // After the dialog has gone, and posted: an input method is
+                    // only shown for the window that has the focus, and while
+                    // this dialog still had it the request was quietly dropped.
+                    layout.post(this::applySystemKeyboard);
                     note(R.string.keyboard_skin_set, skins[which].title);
                 })
                 .setNegativeButton(android.R.string.cancel, null)
@@ -741,6 +774,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
     private void showKeyboard(boolean shown) {
         layout.setKeyboardVisible(shown);
+        applySystemKeyboard();
         preferences.edit().putBoolean(SettingsActivity.KEY_KEYBOARD, shown).apply();
 
         note(shown ? R.string.keyboard_shown : R.string.keyboard_hidden);
