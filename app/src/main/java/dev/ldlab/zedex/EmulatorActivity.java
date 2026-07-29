@@ -110,6 +110,12 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     private SharedPreferences preferences;
     private JoystickView[] keyButtons = new JoystickView[0];
 
+    /**
+     * Whether the system keyboard has been up since this activity was created.
+     * Until it has, a report of "not visible" says nothing.
+     */
+    private boolean imeSeen;
+
     /** A physical controller, when there is one; harmless when there is not. */
     private final Gamepad gamepad = new Gamepad(new Gamepad.Actions() {
 
@@ -247,6 +253,45 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         layout.requestFocus();
 
         getWindow().setDecorFitsSystemWindows(false);
+
+        /*
+         * The system keyboard's own comings and goings.
+         *
+         * Two things depend on them. The picture moves out of its way - see
+         * EmulatorLayout's NONE branch - and the menu has to agree with it: the
+         * keyboard can be dismissed from the keyboard, with its own key or a
+         * back gesture, and until this listener existed the app went on offering
+         * to hide something that had already gone.
+         *
+         * One way only. Asking the keyboard to appear is done elsewhere; this
+         * merely records what happened, so that noticing it cannot turn into
+         * asking for it again.
+         *
+         * And only once the keyboard has actually been seen. The insets arrive
+         * before it does, so at startup the first thing this heard was "not
+         * visible" - which it dutifully recorded, whereupon the app decided the
+         * keyboard was not wanted and closed the one it had just asked for. A
+         * dismissal can only follow an appearance.
+         */
+        layout.setOnApplyWindowInsetsListener((ignored, insets) -> {
+            boolean visible = insets.isVisible(WindowInsets.Type.ime());
+
+            layout.setInsets(
+                    visible ? insets.getInsets(WindowInsets.Type.ime()).bottom : 0,
+                    insets.getInsets(WindowInsets.Type.mandatorySystemGestures())
+                          .bottom);
+
+            if (visible) imeSeen = true;
+
+            if (imeSeen && keyboardSkin() == SpectrumKeyboardView.Skin.SYSTEM
+                    && layout.keyboardVisible() != visible) {
+                preferences.edit()
+                        .putBoolean(SettingsActivity.KEY_KEYBOARD, visible).apply();
+                layout.setKeyboardVisible(visible);
+            }
+
+            return insets;
+        });
 
         // Posted: there is no window to show an input method for until the
         // activity has one.

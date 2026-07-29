@@ -198,6 +198,20 @@ final class EmulatorLayout extends ViewGroup {
      * fullscreen brings back what they had.
      */
     private boolean fullscreen;
+
+    /**
+     * How much of the bottom of the window the system keyboard is covering, or
+     * zero while it is not up. Only the Android keyboard produces this: the two
+     * drawn ones are children of this layout and have boxes of their own.
+     */
+    private int imeInset;
+
+    /**
+     * The strip at the foot of the window that the system keeps for its own
+     * gestures. Nothing of ours goes in it: a thumb that means "fire" and lands
+     * there sends the app to the background instead.
+     */
+    private int gestureInset;
     private boolean keyboardWanted = true;
 
     /**
@@ -366,6 +380,21 @@ final class EmulatorLayout extends ViewGroup {
         return system;
     }
 
+    /**
+     * How far up the window the system keyboard reaches, so the picture can get
+     * out of its way.
+     *
+     * Told rather than asked, because the insets arrive at the activity and this
+     * is a measure input like any other; a change in it is a change of layout.
+     */
+    void setInsets(int ime, int gestures) {
+        if (imeInset == ime && gestureInset == gestures) return;
+
+        imeInset = ime;
+        gestureInset = gestures;
+        requestLayout();
+    }
+
     boolean keyboardVisible() {
         return keyboardWanted;
     }
@@ -507,6 +536,17 @@ final class EmulatorLayout extends ViewGroup {
             case NONE: {
                 screenBox.set(0, 0, width, height);
                 keyboardBox.setEmpty();
+
+                // Except while the system keyboard is up, which covers the
+                // bottom of the window: then the picture takes the space above
+                // it and sits at the top of that, rather than staying centred in
+                // a window whose lower half it can no longer be seen in.
+                if (imeInset > 0) {
+                    int room = height - imeInset - top;
+                    int tall = Math.min(room, Math.round(width / SCREEN_ASPECT));
+
+                    if (tall > 0) screenBox.set(0, top, width, top + tall);
+                }
                 break;
             }
 
@@ -734,10 +774,18 @@ final class EmulatorLayout extends ViewGroup {
         int wanted = Math.round(PAD_SIZE * density);
 
         // A keyboard across the whole width is a floor; one beside the screen
-        // takes nothing away from the height.
+        // takes nothing away from the height. The system keyboard is a floor too
+        // - it is not a child of this layout, but it covers the bottom of the
+        // window just the same, and a thumb cannot reach through it.
+        // Wider than half the window, rather than exactly the whole of it: the
+        // portrait keyboard is inset from the edges so that its corner keys can
+        // be hit, and testing for 0 to width made that inset read as "no
+        // keyboard below" - which put the joystick at the foot of the window,
+        // on top of the keys.
         boolean keyboardBelow = !keyboardBox.isEmpty()
-                && keyboardBox.left == 0 && keyboardBox.right == width;
-        int floor = keyboardBelow ? keyboardBox.top : height;
+                && keyboardBox.width() > width / 2;
+        int floor = keyboardBelow ? keyboardBox.top
+                                  : height - Math.max(imeInset, gestureInset);
 
         // 1. The black bars beside the picture, outside the lamps.
         //
@@ -783,7 +831,12 @@ final class EmulatorLayout extends ViewGroup {
         size = Math.min(wanted, floor - underPicture - 2 * margin);
 
         if (size >= minimum && size <= (width - 2 * margin) / 2) {
-            strip(screenBox.left, screenBox.right, (underPicture + floor) / 2,
+            // Against the keyboard rather than floating in the middle of the
+            // band. That is where a thumb rests, it is what the side bars
+            // already do, and centring it left the controls in the middle of
+            // nowhere when the band was tall - or over the keys when the band
+            // was measured against a window the keyboard was covering.
+            strip(screenBox.left, screenBox.right, floor - margin - size / 2,
                   size, margin);
             fireArea.set(screenBox.left, underPicture, screenBox.right, floor);
             return;

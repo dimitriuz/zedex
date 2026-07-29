@@ -389,13 +389,21 @@ final class Emulator {
     };
 
     /**
-     * Far enough in to be past any rounding at the edge, and still border:
-     * the picture starts at the window's top left corner in portrait, and its
-     * border is a good twenty pixels deep once scaled.
+     * Far enough in from the picture's corner to be past any rounding, and still
+     * border: the Spectrum's is a good twenty pixels deep once scaled.
      */
     private static final int BORDER_SAMPLE = 8;
 
-    /** The Spectrum colour number the border is showing, 0 (black) to 7. */
+    /**
+     * The Spectrum colour number the border is showing, 0 (black) to 7.
+     *
+     * Sampled inside the emulated screen wherever that is, which is not where it
+     * used to be: the quick bar took a strip across the top of the window in
+     * portrait and the picture starts below it, so a fixed corner of the *window*
+     * read black and three tests failed with the machine working perfectly. The
+     * SurfaceView's own bounds are the picture in portrait - the box it gets is
+     * exactly the height a 4:3 image uses - so they are what to ask.
+     */
     int borderColour() {
         java.io.File shot = new java.io.File(context().getCacheDir(), "border.png");
         assertTrue("could not screenshot the device", device.takeScreenshot(shot));
@@ -404,11 +412,21 @@ final class Emulator {
                 android.graphics.BitmapFactory.decodeFile(shot.getAbsolutePath());
         assertNotNull("the screenshot did not decode", screen);
 
-        int pixel = screen.getPixel(BORDER_SAMPLE, BORDER_SAMPLE);
+        Rect picture = pictureBounds();
+        int pixel = screen.getPixel(picture.left + BORDER_SAMPLE,
+                                    picture.top + BORDER_SAMPLE);
         screen.recycle();
         shot.delete();
 
         return nearestColour(pixel);
+    }
+
+    /** Where the emulated screen is, or the window's corner if it cannot be found. */
+    private Rect pictureBounds() {
+        UiObject2 screen = device.wait(
+                Until.findObject(By.clazz("android.view.SurfaceView")), GLANCE);
+
+        return screen != null ? screen.getVisibleBounds() : new Rect(0, 0, 1, 1);
     }
 
     /** Whichever of the eight the pixel is closest to; the shader is exact,

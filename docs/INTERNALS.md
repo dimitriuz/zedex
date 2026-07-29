@@ -537,6 +537,15 @@ this again:
 because it taps by coordinate rather than by name: the 128K's keys are somewhere
 else entirely and the rubber one's coordinates type nonsense on it.
 
+**The scale follows the bitmap, not the size.** Where the artwork lands in the
+view and how far it is scaled are worked out in `fit()`, which runs on a size
+change *and on a skin change* - not the same event. Sideways the keyboard's box is
+capped at a fraction of the window, so it is the same size for either skin and
+nothing resized: the view went on holding the 48K's scale, stretched the 128K's
+picture to the 48K's shape, and put every hit test off by the difference, with the
+press highlight landing between the keys. Portrait hid it completely, because
+there the box follows the skin's aspect and a switch really does resize it.
+
 **The third keyboard is the phone's own.** It is in the same list because it is the
 same choice, and it has no picture and no key table: `Skin.SYSTEM` draws nothing,
 the layout treats the window as having no keyboard of ours in it, and Android's
@@ -566,6 +575,22 @@ Three things had to be got right.
 There is nothing to see in the app: the input target is a one-pixel view in the
 corner, because an input method needs something focused to talk to and what it
 types shows up on the machine's screen.
+
+Two more things follow from it being Android's keyboard and not ours.
+
+**The picture gets out of its way.** While the keyboard is up it covers the bottom
+of the window, so the screen box becomes the space above it and the picture sits
+at the top of that rather than staying centred in a window whose lower half cannot
+be seen. The inset arrives through `setOnApplyWindowInsetsListener`, which is also
+the only way to know the height.
+
+**The menu has to agree with it.** The keyboard can be dismissed from the
+keyboard - its own key, a back gesture - and until that listener existed the app
+went on offering to hide something already gone. The listener records what
+happened and never asks for anything, so noticing cannot become requesting; and it
+ignores "not visible" until the keyboard has been seen at least once, because the
+insets arrive before it does and at startup the first thing it heard was that the
+keyboard it had just asked for was not there - whereupon it closed it.
 
 Worth knowing when testing on an emulator: an AVD reports a hardware keyboard, so
 Gboard shows only its floating toolbar. `adb shell settings put secure
@@ -602,7 +627,21 @@ rather than being written down per template:
   however much the lamps took.
 - **Below it.** Portrait gives the picture only the height a 4:3 image uses
   and puts the keyboard at the foot of the window, so what is left is one band
-  between them — 1189px of a 2400px window, the largest space of the three.
+  between them — 1189px of a 2400px window, the largest space of the three. The
+  controls go **against the keyboard**, not in the middle of that band: that is
+  where a thumb rests, it is what the side bars already do, and centring them left
+  them floating in the middle of nowhere when the band was tall.
+
+  What counts as a keyboard below is "wider than half the window", not "exactly
+  the whole of it". The portrait keyboard is inset from the edges so its corner
+  keys can be hit, and the exact test read that inset as *no keyboard below* - so
+  the joystick was placed against the bottom of the window, on top of the keys.
+  That was the one visible symptom of a padding change three commits earlier.
+
+  The floor is also whichever is lower of the keyboard, the system keyboard's
+  inset and the strip the system keeps for its own gestures. Nothing of ours goes
+  in that strip: a thumb that means *fire* and lands there sends the app to the
+  background instead.
 - **Above the keyboard.** The two side-by-side templates give the screen a box
   taller than 4:3 wants, so there are no side bars, and the band under the
   picture is thin. The keyboard is where the room is: it is one bitmap with a

@@ -371,6 +371,7 @@ public class SpectrumKeyboardView extends View {
         }
 
         computeTouchAreas();
+        fit(getWidth(), getHeight());
         requestLayout();
         invalidate();
 
@@ -461,7 +462,22 @@ public class SpectrumKeyboardView extends View {
 
     @Override
     protected void onSizeChanged(int width, int height, int oldWidth, int oldHeight) {
-        if (keyboard == null) return;
+        fit(width, height);
+    }
+
+    /**
+     * Where the artwork lands in the view, and by how much it is scaled.
+     *
+     * Called on a size change and <b>also when the skin changes</b>, which is not
+     * the same event: sideways the keyboard's box is capped at a fraction of the
+     * window and is therefore the same size for either skin, so nothing resized
+     * and this was left holding the other artwork's scale. The 128K's picture was
+     * then stretched to the 48K's shape, every hit test was off by the difference,
+     * and the highlight landed between the keys. Portrait hid it, because there
+     * the box follows the skin's aspect and a switch really does resize it.
+     */
+    private void fit(int width, int height) {
+        if (keyboard == null || width <= 0 || height <= 0) return;
 
         scale = Math.min(width / (float) keyboard.getWidth(),
                          height / (float) keyboard.getHeight());

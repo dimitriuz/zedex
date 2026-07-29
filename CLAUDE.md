@@ -73,6 +73,12 @@ env JAVA_HOME=/opt/android-studio/jbr ./gradlew connectedDebugAndroidTest \
 
 Things learned the hard way, all of them recorded in the tests' own comments:
 
+- **`Emulator.borderColour()` finds the picture; it does not assume where it is.**
+  It used to sample the window's top left corner, which stopped being inside the
+  emulated screen the moment the quick bar took a strip across the top - three
+  tests then failed with "expected 4 but was 0" while the machine was working
+  perfectly. It reads the SurfaceView's bounds now. Any test that samples the
+  screen has to do the same.
 - Instrumentation runs **inside the app's process**, so `am force-stop` on the
   app kills the test with it.
 - **A run uninstalls the app afterwards**, wiping its preferences and storage

@@ -17,3 +17,6 @@
 /.gradle/
 /.idea/
 __pycache__/
+
+# Sidecars an image viewer leaves beside an asset.
+*.xmp
