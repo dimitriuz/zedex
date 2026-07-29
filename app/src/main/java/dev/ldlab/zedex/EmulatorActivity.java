@@ -1965,6 +1965,24 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
     // --- input ----------------------------------------------------------
 
+    /**
+     * A key the machine can use is the machine's; everything else is the
+     * phone's.
+     *
+     * Returning true from onKeyDown consumes the event, and this used to do it
+     * for every key there was — so the volume buttons did nothing while the app
+     * was in front, and neither did the media keys: the event was swallowed on
+     * the way to Fuse, which then had no mapping for it and ignored it. Fuse's
+     * own keysym table is the authority on what it can use, so ask that rather
+     * than keep a second list here of what to let past.
+     */
+    private boolean forwardKey(int keyCode, boolean pressed) {
+        if (!FuseNative.mapsKey(keyCode)) return false;
+
+        FuseNative.key(keyCode, pressed);
+        return true;
+    }
+
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (keyCode == KeyEvent.KEYCODE_BACK) {
@@ -1975,15 +1993,14 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             return super.onKeyDown(keyCode, event);
         }
 
-        FuseNative.key(keyCode, true);
-        return true;
+        return forwardKey(keyCode, true) || super.onKeyDown(keyCode, event);
     }
 
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
         if (keyCode == KeyEvent.KEYCODE_BACK) return super.onKeyUp(keyCode, event);
-        FuseNative.key(keyCode, false);
-        return true;
+
+        return forwardKey(keyCode, false) || super.onKeyUp(keyCode, event);
     }
 
     // --- assets -----------------------------------------------------------

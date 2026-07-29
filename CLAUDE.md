@@ -19,6 +19,13 @@ expensive to rediscover.
   configure time; a mismatch compiles, links and installs happily, then
   fails at runtime looking for `fuse.font` in the wrong directory. The build
   tree stamps `.package` and reconfigures itself when it changes.
+- **Only swallow a key Fuse can use.** `onKeyDown` returning true consumes the
+  event, and consuming the volume keys so that Fuse can ignore them is how the
+  phone's volume buttons stopped working. `FuseNative.mapsKey()` asks Fuse's
+  own keysym table; anything it does not know goes to `super`.
+- **`app/debug.keystore` is committed on purpose.** Gradle's own debug key is
+  per machine, so a CI build could not update a local one — or another CI
+  build. See *Building* in `docs/DEVELOPING.md`.
 - **Fuse's core is single threaded.** Everything from the UI thread goes
   through the command queue in `native/ui/android/android_bridge.c` and is
   drained on the emulation thread from `ui_event()`. Never call into Fuse
@@ -87,7 +94,9 @@ comparisons against `getExternalStorageDirectory()` will not match it.
 
 ## Driving the app from a terminal
 
-`adb shell input keyevent` does **not** reach the emulator. Two helpers:
+A plain `adb shell input keyevent KEYCODE_A` does reach the emulator and types
+an `a` — but nothing shifted, no keyword, and `input text` does nothing at all.
+Two helpers:
 
 ```sh
 scripts/ui-tap.py list                    # what is on screen

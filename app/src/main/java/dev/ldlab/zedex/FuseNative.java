@@ -64,6 +64,16 @@ final class FuseNative {
     /** Queues a key event; {@code keycode} is an Android {@code KEYCODE_*}. */
     static native void key(int keycode, boolean pressed);
 
+    /**
+     * Whether the Spectrum has any use for this key at all.
+     *
+     * Asked before a key event is swallowed: the volume and media keys belong
+     * to the phone, and consuming one so that Fuse can ignore it is how the
+     * volume buttons stopped working. Safe to call at any time, machine or no
+     * machine — it reads Fuse's static keysym table and nothing else.
+     */
+    static native boolean mapsKey(int keycode);
+
     // --- joystick ----------------------------------------------------------
 
     /*

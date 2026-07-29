@@ -42,7 +42,15 @@ follows upstream instead of drifting from it.
   surface.
 - **`keysyms.c`** maps Android keycodes to Fuse input keys, so physical keys
   and the on-screen keyboard share one path — including Caps Shift
-  (`SHIFT_LEFT`) and Symbol Shift (`CTRL_LEFT`), which Fuse already maps.
+  (`SHIFT_LEFT`) and Symbol Shift (`CTRL_LEFT`), which Fuse already maps. The
+  same table decides what the activity is allowed to swallow: `onKeyDown`
+  returning true consumes the event, and it used to do that for every key
+  there was, so the phone's volume and media buttons did nothing while the app
+  was in front — the event was taken on the way to Fuse, which then had no
+  mapping for it and ignored it. `mapsKey()` walks `keysyms_map` rather than
+  calling `keysyms_remap`, because the hash table behind that one is not built
+  until Fuse has initialised and the question is asked before there is a
+  machine — or when there is no ROM and there never will be one.
 - **`aaudiosound.c`** writes to AAudio and *blocks*, deliberately: that is what
   paces the emulator. Audio is the clock, not vsync and not a wall timer.
 - **`ui_error_specific`** in `android_ui.c` turns Fuse's errors into Android

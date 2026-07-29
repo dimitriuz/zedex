@@ -809,6 +809,28 @@ Java_dev_ldlab_zedex_FuseNative_key( JNIEnv *env, jclass class, jint keycode,
   queue_command( COMMAND_KEY, keycode, pressed ? 1 : 0 );
 }
 
+/* Whether the Spectrum has any use for this key at all.
+
+   The activity has to know before it decides to swallow a key event: volume,
+   media and the rest belong to the phone, and consuming them so that Fuse can
+   ignore them is how the volume buttons stopped working.
+
+   Walks keysyms_map rather than calling keysyms_remap, for two reasons: the
+   hash table behind that is not built until Fuse has initialised, and this can
+   be asked before there is a machine - or when there is no ROM and there never
+   will be one. A read of a static table is also safe from the UI thread, which
+   nothing else here is. */
+JNIEXPORT jboolean JNICALL
+Java_dev_ldlab_zedex_FuseNative_mapsKey( JNIEnv *env, jclass class, jint keycode )
+{
+  const keysyms_map_t *ptr;
+
+  for( ptr = keysyms_map; ptr->ui; ptr++ )
+    if( ptr->ui == (libspectrum_dword) keycode ) return JNI_TRUE;
+
+  return JNI_FALSE;
+}
+
 JNIEXPORT void JNICALL
 Java_dev_ldlab_zedex_FuseNative_joystick( JNIEnv *env, jclass class,
                                           jint button, jboolean pressed )
