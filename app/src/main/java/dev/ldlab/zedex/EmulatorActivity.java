@@ -647,6 +647,22 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     }
 
     /**
+     * What is installed, asked of the package manager rather than compiled in.
+     *
+     * The build takes the number from version.properties, and this reads back
+     * what actually ended up in the APK - so a version on screen is the version
+     * running, not one a stale constant remembers.
+     */
+    private String version() {
+        try {
+            return getPackageManager()
+                    .getPackageInfo(getPackageName(), 0).versionName;
+        } catch (android.content.pm.PackageManager.NameNotFoundException e) {
+            return "";
+        }
+    }
+
+    /**
      * The ☰ sheet.
      *
      * Six rows, not a dozen: everything at one level came to more than a
@@ -684,6 +700,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                              R.drawable.ic_controls, this::fillControls);
             sheet.addItem(getString(R.string.menu_settings), R.drawable.ic_settings,
                     () -> startActivity(new Intent(this, SettingsActivity.class)));
+            sheet.addNote(getString(R.string.menu_version, version()));
         });
 
         return menu;

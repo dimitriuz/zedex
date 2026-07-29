@@ -113,6 +113,7 @@
 
     <string name="menu_save_state">Save state\u2026</string>
     <string name="menu_load_state">Load state\u2026</string>
+    <string name="menu_version">Zedex %1$s</string>
     <string name="menu_settings">Settings\u2026</string>
 
     <string name="settings_title">Settings</string>

@@ -8,11 +8,39 @@ plugins {
 // from repository secrets; see the Releases section of the README.
 def keystorePath = System.getenv('ZEDEX_KEYSTORE')
 
-// A tag drives these in CI; both default to what they always were. Computed
-// out here because `versionCode (x) as int` inside the block would parse as a
-// cast of the setter's own void return.
-def zedexVersionCode = (project.findProperty('zedexVersionCode') ?: '1') as int
-def zedexVersionName = project.findProperty('zedexVersionName') ?: '1.0'
+// The version comes from version.properties at the root of the repository,
+// which is the only place it is written down. A -P on the command line still
+// wins, for a one-off build; CI does not need one, because the workflow checks
+// the tag against that file instead of computing a version of its own.
+//
+// Computed out here rather than inside the android block because
+// `versionCode (x) as int` in there would parse as a cast of the setter's own
+// void return.
+def zedexVersion = new Properties()
+def zedexVersionFile = rootProject.file('version.properties')
+
+if (zedexVersionFile.exists()) {
+    zedexVersionFile.withInputStream { zedexVersion.load(it) }
+}
+
+def zedexVersionName = project.findProperty('zedexVersionName')
+        ?: zedexVersion.getProperty('version')
+        ?: '0.0.0'
+
+// 1.2.3 -> 10203. Two digits a component, so 1.10.0 sorts above 1.9.9 as it
+// should, and a missing patch counts as zero.
+def zedexVersionCode = project.findProperty('zedexVersionCode') as Integer ?: {
+    def parts = (zedexVersionName as String).tokenize('.')
+    def part = { int i -> (parts.size() > i ? parts[i] : '0') as int }
+
+    if (parts.any { !it.isInteger() } || [0, 1, 2].any { part(it) > 99 }) {
+        throw new GradleException(
+                "version.properties says '$zedexVersionName', which is not " +
+                "MAJOR.MINOR[.PATCH] with every part 99 or less")
+    }
+
+    part(0) * 10000 + part(1) * 100 + part(2)
+}()
 
 android {
     namespace 'dev.ldlab.zedex'

@@ -190,10 +190,21 @@ zips every artifact on download and a workflow cannot change that — but
 uploads and are not zipped at all: a tag produces `Zedex-1.2.3.apk` and its
 `.sha256` beside it.
 
-Tagging `v1.2.3` produces `versionName 1.2.3` and `versionCode 10203`
-(`major*10000 + minor*100 + patch`, so no component may exceed 99). Deriving
-the code from the tag rather than the run number means rebuilding a tag gives
-the same APK. It is published as a **draft** release with its SHA-256, to be
+**The version is set in `version.properties` at the root of the repository, and
+nowhere else.** One line - `version=1.2.3` - which the build turns into
+`versionName 1.2.3` and `versionCode 10203` (`major*10000 + minor*100 + patch`,
+so no component may exceed 99, and 1.10.0 sorts above 1.9.9 as it should). It is
+read straight by `app/build.gradle`, so a local build and a release build call
+themselves the same thing, and ☰ shows what is installed by asking the package
+manager rather than a compiled-in constant.
+
+A tag only has to *agree*. The release workflow compares `v1.2.3` with the file
+and stops if they differ, so tagging a tree whose version says something else
+fails before the nine-minute build rather than publishing an APK that calls
+itself the wrong number. Bump the file in the commit you tag. A
+`-PzedexVersionName=` still overrides both, for a one-off build that has to say
+something particular. Deriving the code from the version rather than the run
+number means rebuilding a tag gives the same APK. It is published as a **draft** release with its SHA-256, to be
 installed and checked before anyone else sees it; drop `--draft` from the
 workflow to publish straight from the tag.
 

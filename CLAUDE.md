@@ -23,6 +23,11 @@ expensive to rediscover.
   event, and consuming the volume keys so that Fuse can ignore them is how the
   phone's volume buttons stopped working. `FuseNative.mapsKey()` asks Fuse's
   own keysym table; anything it does not know goes to `super`.
+- **The version lives in `version.properties`, and nowhere else.** The build
+  reads it and derives `versionCode` as `major * 10000 + minor * 100 + patch`;
+  the release workflow *checks* the tag against it rather than computing a
+  version of its own, so `git tag v1.2.3` on a tree that says `version=1.2.2`
+  fails the release before it builds. Bump the file in the commit you tag.
 - **`app/debug.keystore` is committed on purpose.** Gradle's own debug key is
   per machine, so a CI build could not update a local one — or another CI
   build. See *Building* in `docs/DEVELOPING.md`.

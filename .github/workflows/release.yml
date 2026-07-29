@@ -14,26 +14,27 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # v1.2.3 -> versionName 1.2.3, versionCode 10203. Monotonic across
-      # releases as long as no component goes past 99, which is what Android
-      # requires of versionCode; deriving it from the tag rather than the run
-      # number keeps a rebuild of the same tag identical.
-      - name: Version from the tag
+      # The version lives in version.properties and nowhere else; the tag only
+      # has to agree with it. Checked here rather than computed, so that a tag
+      # cannot quietly build something that calls itself another number - and
+      # so that a rebuild of the same tag is identical.
+      - name: Check the tag against version.properties
         run: |
-          version="${GITHUB_REF_NAME#v}"
-          case "$version" in
+          tag="${GITHUB_REF_NAME#v}"
+          file="$(sed -n 's/^version=//p' version.properties)"
+
+          case "$file" in
             [0-9]*.[0-9]*) ;;
-            *) echo "::error::tag $GITHUB_REF_NAME is not vMAJOR.MINOR[.PATCH]"; exit 1 ;;
+            *) echo "::error::version.properties says '$file', not MAJOR.MINOR[.PATCH]"; exit 1 ;;
           esac
-          IFS=. read -r major minor patch <<< "$version"
-          patch="${patch:-0}"
-          for part in "$major" "$minor" "$patch"; do
-            [ "$part" -le 99 ] 2>/dev/null \
-              || { echo "::error::$version has a component over 99, which versionCode cannot hold"; exit 1; }
-          done
-          echo "VERSION=$version" >> "$GITHUB_ENV"
-          echo "VERSION_CODE=$((major * 10000 + minor * 100 + patch))" >> "$GITHUB_ENV"
-          echo "Building $version, versionCode $((major * 10000 + minor * 100 + patch))"
+
+          [ "$tag" = "$file" ] || {
+            echo "::error::tag $GITHUB_REF_NAME and version.properties ($file) disagree"
+            exit 1
+          }
+
+          echo "VERSION=$file" >> "$GITHUB_ENV"
+          echo "Building $file, version from version.properties"
 
       # Fail here, before a nine-minute build, if the secrets are not set up.
       - name: Decode the signing keystore
@@ -71,9 +72,7 @@ jobs:
           ZEDEX_KEY_ALIAS: ${{ secrets.ZEDEX_KEY_ALIAS }}
           ZEDEX_KEY_PASSWORD: ${{ secrets.ZEDEX_KEY_PASSWORD }}
         run: |
-          ./gradlew --no-daemon assembleRelease \
-              -PzedexVersionName="$VERSION" \
-              -PzedexVersionCode="$VERSION_CODE"
+          ./gradlew --no-daemon assembleRelease
 
       - name: Verify what was built
         run: |
