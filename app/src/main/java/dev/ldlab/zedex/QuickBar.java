@@ -48,6 +48,10 @@ final class QuickBar extends LinearLayout {
     private static final int BUTTON_DP = 44;
     private static final int ICON_DP = 22;
 
+    /** And the smallest it will shrink to when the black beside the picture is
+     *  narrow; the activity lamps are 28dp for comparison. */
+    private static final int LEAST_DP = 22;
+
     /** The dropdown's own metrics: a smaller icon, and room for words. */
     private static final int LIST_ICON_DP = 20;
     private static final int LIST_PAD_DP = 14;
@@ -65,6 +69,12 @@ final class QuickBar extends LinearLayout {
     private final int button;
     private final int icon;
 
+    /** Below this an icon is not worth aiming at, however little room there is. */
+    private final int least;
+
+    /** What a cell came out as, so the same answer is not applied twice. */
+    private int cellSize;
+
     /** Which group is showing its row, so tapping it again puts it away. */
     private View openGroup;
 
@@ -74,6 +84,8 @@ final class QuickBar extends LinearLayout {
         float density = getResources().getDisplayMetrics().density;
         button = Math.round(BUTTON_DP * density);
         icon = Math.round(ICON_DP * density);
+        least = Math.round(LEAST_DP * density);
+        cellSize = button;
 
         setOrientation(VERTICAL);
         setGravity(Gravity.END);
@@ -91,6 +103,41 @@ final class QuickBar extends LinearLayout {
         addView(primary, new LayoutParams(LayoutParams.WRAP_CONTENT,
                                           LayoutParams.WRAP_CONTENT));
         addView(secondary, below);
+    }
+
+    /**
+     * How big the icons are, given the room the bar has beside the picture.
+     *
+     * Sideways the bar sits in the black down the side of a 4:3 picture in a wide
+     * window, and that is all the room there is: nine full sized icons came to
+     * nearly a thousand pixels of a four hundred and eighty pixel gap, so the bar
+     * lay across the picture. The answer is not a column - a column of six is
+     * taller than the black above a keyboard - but smaller icons, the size of the
+     * activity lamps, which sit in the same black and have always been compact.
+     *
+     * {@code room} of zero means full size, which is portrait: there the bar has a
+     * strip of its own across the top and the whole width to use.
+     */
+    void setCompact(int room) {
+        int count = primary.getChildCount();
+        int cell = room <= 0 || count == 0
+                ? button
+                : Math.max(least, Math.min(button, room / count));
+
+        if (cell == cellSize) return;
+
+        cellSize = cell;
+        collapse();
+
+        int glyph = Math.round(cell * ICON_DP / (float) BUTTON_DP);
+        int padding = ( cell - glyph ) / 2;
+
+        for (int i = 0; i < primary.getChildCount(); i++) {
+            View child = primary.getChildAt(i);
+
+            child.setLayoutParams(new LayoutParams(cell, cell));
+            child.setPadding(padding, padding, padding, padding);
+        }
     }
 
     /** One strip of choices on its own rounded backing. */

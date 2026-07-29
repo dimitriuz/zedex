@@ -142,9 +142,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     /** The big play button over the picture, shown only while paused. */
     private ImageButton playButton;
 
-    /** The bar's pause icon, which becomes play; see {@link #applyPause}. */
-    private ImageButton pauseAction;
-
     /** The bar's fullscreen icon, which becomes its own way out. */
     private ImageButton fullscreenAction;
 
@@ -390,17 +387,8 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     private QuickBar buildQuickBar() {
         QuickBar bar = new QuickBar(this);
 
-        bar.addAction(R.drawable.ic_folder, getString(R.string.menu_open),
-                      this::pickFile);
-        bar.addAction(R.drawable.ic_save, getString(R.string.menu_save_state),
-                      () -> showStateDialog(true));
-        bar.addAction(R.drawable.ic_load, getString(R.string.menu_load_state),
-                      () -> showStateDialog(false));
-
-        pauseAction = bar.addAction(R.drawable.ic_pause,
-                                    getString(R.string.pause_pause),
-                                    () -> pause(!pausedByUser));
-
+        bar.addGroup(R.drawable.ic_folder, getString(R.string.menu_files),
+                     this::fillFilesBar);
         bar.addGroup(R.drawable.ic_camera, getString(R.string.menu_capture),
                      this::fillCaptureBar);
         bar.addGroup(R.drawable.ic_controls, getString(R.string.menu_controls),
@@ -420,7 +408,32 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
     /** Reset is here rather than on the bar itself: it asks first, and an icon
      *  that throws the game away wants a word beside it. */
+    /**
+     * Everything that is a file: what to open, and the states either way.
+     *
+     * Grouped rather than three icons of their own because the bar is a column
+     * sideways and a column has a height to fit into - and because a folder, a
+     * disk going down and a disk coming up are three pictures that have to be
+     * learned, while a list says which is which.
+     */
+    private void fillFilesBar(QuickBar bar) {
+        bar.addToRow(R.drawable.ic_folder, getString(R.string.menu_open),
+                     this::pickFile);
+        bar.addToRow(R.drawable.ic_save, getString(R.string.menu_save_state),
+                     () -> showStateDialog(true));
+        bar.addToRow(R.drawable.ic_load, getString(R.string.menu_load_state),
+                     () -> showStateDialog(false));
+    }
+
     private void fillMachineBar(QuickBar bar) {
+        boolean paused = isPaused();
+
+        // Built when the group is opened, so it says which way round it is
+        // without anything having to keep it up to date.
+        bar.addToRow(paused ? R.drawable.ic_play : R.drawable.ic_pause,
+                     getString(paused ? R.string.pause_resume
+                                      : R.string.pause_pause),
+                     () -> pause(!pausedByUser));
         bar.addToRow(R.drawable.ic_swap, getString(R.string.menu_machine),
                      this::showMachineDialog);
         bar.addToRow(R.drawable.ic_reset, getString(R.string.menu_reset),
@@ -733,13 +746,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         FuseNative.setPaused(paused);
 
         playButton.setVisibility(paused ? View.VISIBLE : View.GONE);
-
-        if (pauseAction != null) {
-            quickBar.setAction(pauseAction,
-                    paused ? R.drawable.ic_play : R.drawable.ic_pause,
-                    getString(paused ? R.string.pause_resume
-                                     : R.string.pause_pause));
-        }
     }
 
     // --- joystick -----------------------------------------------------------

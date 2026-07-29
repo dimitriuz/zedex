@@ -163,7 +163,7 @@ final class EmulatorLayout extends ViewGroup {
 
     private View screen;
     private View panel;
-    private View menu;
+    private QuickBar menu;
     private View drawer;
     private SpectrumKeyboardView keyboard;
     private JoystickView pad;
@@ -221,7 +221,7 @@ final class EmulatorLayout extends ViewGroup {
     void setChildren(View screen, SpectrumKeyboardView keyboard,
                      JoystickView pad, JoystickView fire, JoystickView[] keys,
                      ActivityLights lights,
-                     View play, View panel, View menuButton, View drawer) {
+                     View play, View panel, QuickBar bar, View drawer) {
         this.screen = screen;
         this.keyboard = keyboard;
         this.pad = pad;
@@ -230,7 +230,7 @@ final class EmulatorLayout extends ViewGroup {
         this.lights = lights;
         this.play = play;
         this.panel = panel;
-        this.menu = menuButton;
+        this.menu = bar;
         this.drawer = drawer;
 
         // Front to back is the order below: the drawer covers everything, the
@@ -244,9 +244,10 @@ final class EmulatorLayout extends ViewGroup {
         addView(lights);
         addView(play);
         addView(panel);
-        addView(menuButton);
+        addView(bar);
         addView(drawer);
 
+        applyBarMetrics();
         applyJoystickVisibility();
     }
 
@@ -405,11 +406,44 @@ final class EmulatorLayout extends ViewGroup {
                                || hiddenByFullscreen ? GONE : VISIBLE);
     }
 
+    /**
+     * Full sized across the top in portrait, compact in the corner sideways.
+     *
+     * The room it is given is the black down the side of a 4:3 picture as wide as
+     * the window can make it - the narrowest that black ever gets, since a
+     * template that gives the screen less makes the picture smaller and the black
+     * wider. Worked out from the display rather than from the boxes, because the
+     * bar is measured before the boxes are: in portrait the screen starts
+     * underneath it.
+     *
+     * Set from here rather than during a measure, since changing a child's size
+     * asks for another layout.
+     */
+    private void applyBarMetrics() {
+        if (menu == null) return;
+
+        android.util.DisplayMetrics metrics = getResources().getDisplayMetrics();
+        boolean landscape = getResources().getConfiguration().orientation
+                == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
+
+        if (!landscape) {
+            menu.setCompact(0);
+            return;
+        }
+
+        int across = Math.max(metrics.widthPixels, metrics.heightPixels);
+        int down = Math.min(metrics.widthPixels, metrics.heightPixels);
+        int beside = ( across - Math.round( down * SCREEN_ASPECT ) ) / 2;
+
+        menu.setCompact(beside - 2 * Math.round(BAR_GAP * metrics.density));
+    }
+
     @Override
     protected void onConfigurationChanged(android.content.res.Configuration config) {
         super.onConfigurationChanged(config);
         // Hiding is a landscape template, so rotating changes whether it applies.
         applyKeyboardVisibility();
+        applyBarMetrics();
     }
 
     /**
@@ -687,7 +721,14 @@ final class EmulatorLayout extends ViewGroup {
         int leftBar = (lightsBox.isEmpty() ? picture.left
                                            : Math.min(picture.left, lightsBox.left))
                       - screenBox.left;
-        int rightBar = screenBox.right - picture.right;
+
+        // The bar is a column down the same black sideways, so the right one
+        // stops at it: fire is at the bottom of the bar and the column reaches
+        // most of the way down.
+        int rightEdge = menuBox.isEmpty() || menuBox.left <= picture.right
+                ? screenBox.right
+                : Math.min(screenBox.right, menuBox.left - margin);
+        int rightBar = rightEdge - picture.right;
         int barTop = screenBox.top;
         int barBottom = Math.min(screenBox.bottom, floor);
         int size = Math.min(wanted, leftBar - 2 * margin);
@@ -697,8 +738,8 @@ final class EmulatorLayout extends ViewGroup {
             int fireSize = Math.round(size * FIRE_OF_PAD);
 
             square(padBox, screenBox.left + leftBar / 2, centreY, size);
-            square(fireBox, screenBox.right - rightBar / 2, centreY, fireSize);
-            fireArea.set(picture.right, barTop, screenBox.right, barBottom);
+            square(fireBox, rightEdge - rightBar / 2, centreY, fireSize);
+            fireArea.set(picture.right, barTop, rightEdge, barBottom);
             return;
         }
 

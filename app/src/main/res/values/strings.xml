@@ -228,6 +228,7 @@
     <string name="quick_joystick_hide">Hide the joystick</string>
     <string name="quick_keyboard_show">Show the keyboard</string>
     <string name="quick_keyboard_hide">Hide the keyboard</string>
+    <string name="menu_files">Files…</string>
     <string name="menu_capture">Capture…</string>
     <string name="capture_screenshot">Save screenshot</string>
     <string name="capture_gif">Record a GIF</string>

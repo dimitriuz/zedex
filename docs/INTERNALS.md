@@ -87,11 +87,28 @@ It used to fade after three seconds because it *was* over the picture, and now i
 only fades in fullscreen — a control that is always there needs no discovering,
 and one that has its own strip is in nobody's way.
 
-The one landscape arrangement where it still overlaps is a keyboard on the left:
-there the screen's half reaches the window's right edge and only a thin band is
-left above the picture, so the corner of the border is what it costs. Reserving a
-strip in landscape instead would cost the picture height, which is the scarce
-direction there.
+Two things make it fit that black. **Six icons, not nine**: everything that is a
+file went into one group behind a folder, and pause went into *Machine* with the
+reset. And **the icons are smaller sideways**, sized from the room there is — the
+black down the side of a 4:3 picture as wide as the window can make it, which is
+the narrowest that black ever gets, since a template giving the screen less makes
+the picture smaller and the black wider. On a 2400x1080 phone that comes out at
+29dp a cell against 44dp in portrait, which is about the size of the activity
+lamps: they sit in the same black and have always been compact.
+
+A column was the first attempt and was worse. One icon wide fits any window, but
+six cells are taller than the black *above* a keyboard across the bottom, so ☰
+ended up sitting on the keys — and a bar reading downwards is a different thing to
+learn from the same bar reading across.
+
+The one landscape arrangement where it still overlaps the picture is a keyboard on
+the left: there the screen's half reaches the window's right edge, so there is no
+black at that corner at all. Reserving a strip instead would cost the picture
+height, which is the scarce direction sideways.
+
+The joystick keeps out of its way as it keeps out of the lamps': in the side-bar
+branch the right bar stops at the bar's left edge, since fire sits at the bottom
+of the same black.
 
 It is **gone entirely while the ROMs panel is showing**, ☰ and all. With no
 machine there is nothing for any of it to act on: no state to save, nothing to
@@ -101,6 +118,11 @@ doors out of it — download a set, import a folder, import files — and each o
 them puts ROMs where they are wanted, so a bar of actions that cannot act was
 worse than no bar. Nothing reveals it while the panel is up, since startup and
 the sheet closing both ask as well as a tap on the picture.
+
+**Pause lives in the Machine group** and its row is built when the group is
+opened, so it says *Pause* or *Resume* without anything having to keep it up to
+date — which is what the bar's own pause icon needed when it was a permanent
+button, and one fewer thing to forget.
 
 **Fullscreen** is a quick-bar action and a stored setting: the bar gives up its
 strip, and in landscape the keyboard goes away. Only in landscape, because that

@@ -162,10 +162,11 @@ picker.
 
 ---
 
-**The bar** across the top — down the top right corner sideways — is always
-there: open a file, save or load a state, pause, capture, controls, machine, and
-**fullscreen**, which clears the bar away and, sideways, the keyboard with it. Tap
-the picture to bring it back for a moment.
+**The bar** is always there: across the top in portrait, smaller in the top right
+corner sideways. Six icons — **Files** (open, save a state, load one), **Capture**,
+**Controls**, **Machine** (pause, change machine, reset), **Fullscreen**, and ☰.
+Fullscreen clears the bar away and, sideways, the keyboard with it; tap the picture
+to bring the bar back for a moment.
 
 **Main menu**
 
