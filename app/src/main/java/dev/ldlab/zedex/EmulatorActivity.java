@@ -1638,6 +1638,10 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         value(arguments, SettingsActivity.KEY_SPEED, 100, "speed");
         value(arguments, SettingsActivity.KEY_AY_VOLUME, 100, "volume-ay");
+
+        // Fuse's own word for it, passed straight through; see AY_STEREO.
+        arguments.add("--separation");
+        arguments.add(SettingsActivity.ayStereoName(preferences));
         value(arguments, SettingsActivity.KEY_BEEPER_VOLUME, 100, "volume-beeper");
 
         // The on-screen joystick is Fuse's joystick 1. Kempston is a type and

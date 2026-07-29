@@ -232,6 +232,15 @@ final class FuseNative {
     /** AY volume, 0 to 100; restarts Fuse's sound subsystem. */
     static native void setAyVolume(int volume);
 
+    /**
+     * AY stereo separation: 0 mono, 1 ACB, 2 ABC.
+     *
+     * ACB puts channel A left, C in the middle and B right; ABC puts A left, B
+     * in the middle and C right. Either makes Fuse's output two channels
+     * instead of one. Restarts the sound subsystem, which is what reads it.
+     */
+    static native void setAyStereo(int separation);
+
     /** Beeper volume, 0 to 100; restarts Fuse's sound subsystem. */
     static native void setBeeperVolume(int volume);
 

@@ -71,6 +71,13 @@
             android:defaultValue="100"
             android:dependency="sound" />
         <ListPreference
+            android:key="ayStereo"
+            android:title="@string/settings_ay_stereo"
+            android:entries="@array/ay_stereo_names"
+            android:entryValues="@array/ay_stereo_values"
+            android:defaultValue="None"
+            android:dependency="sound" />
+        <ListPreference
             android:key="volumeBeeper"
             android:title="@string/settings_volume_beeper"
             android:entries="@array/volume_names"

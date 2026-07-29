@@ -59,6 +59,19 @@
         <item>turbo</item>
     </string-array>
 
+    <!-- Values are Fuse's own words; its separation option takes them
+         verbatim and compares them with strcmp. -->
+    <string-array name="ay_stereo_names">
+        <item>Off — mono</item>
+        <item>ACB — A left, C centre, B right</item>
+        <item>ABC — A left, B centre, C right</item>
+    </string-array>
+    <string-array name="ay_stereo_values">
+        <item>None</item>
+        <item>ACB</item>
+        <item>ABC</item>
+    </string-array>
+
     <string-array name="format_names">
         <item>SZX — every machine</item>
         <item>Z80 — widely supported</item>

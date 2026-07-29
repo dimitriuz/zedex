@@ -44,6 +44,8 @@ public class SettingsActivity extends Activity {
     static final String KEY_SPEED = "speed";
     static final String KEY_SOUND = "sound";
     static final String KEY_AY_VOLUME = "volumeAy";
+    /** Fuse's own three words; it matches them with strcmp. */
+    static final String KEY_AY_STEREO = "ayStereo";
     static final String KEY_BEEPER_VOLUME = "volumeBeeper";
     static final String KEY_KEEP_SCREEN_ON = "keepScreenOn";
     /** Read by EmulatorLayout; the ☰ layout switcher writes here too. */
@@ -58,6 +60,29 @@ public class SettingsActivity extends Activity {
 
     /** The stored words, and the level each one means. */
     private static final String[] LOADER_LEVELS = { "off", "safe", "turbo" };
+
+    /**
+     * AY stereo separation. These are Fuse's own words rather than ours,
+     * because {@code --separation} takes them verbatim and Fuse compares them
+     * with strcmp — so what is stored is what is passed.
+     */
+    private static final String[] AY_STEREO = { "None", "ACB", "ABC" };
+
+    /** The stored separation as {@link FuseNative#setAyStereo} wants it. */
+    static int ayStereo(android.content.SharedPreferences preferences) {
+        String stored = preferences.getString(KEY_AY_STEREO, AY_STEREO[0]);
+
+        for (int i = 0; i < AY_STEREO.length; i++) {
+            if (AY_STEREO[i].equals(stored)) return i;
+        }
+
+        return 0;
+    }
+
+    /** And as Fuse's command line wants it. */
+    static String ayStereoName(android.content.SharedPreferences preferences) {
+        return AY_STEREO[ ayStereo(preferences) ];
+    }
 
     /**
      * How hard to push a tape, as {@link FuseNative#setLoaderAcceleration}
@@ -306,6 +331,9 @@ public class SettingsActivity extends Activity {
                 case KEY_SPEED:
                     FuseNative.setSpeed(number(preferences, key, 100));
                     break;
+                case KEY_AY_STEREO:
+                    FuseNative.setAyStereo(ayStereo(preferences));
+                    break;
                 case KEY_AY_VOLUME:
                     FuseNative.setAyVolume(number(preferences, key, 100));
                     break;
@@ -371,7 +399,7 @@ public class SettingsActivity extends Activity {
             }
 
             for (String key : new String[] { KEY_MACHINE, KEY_SPEED, KEY_SNAPSHOT_FORMAT,
-                                             KEY_LOADER,
+                                             KEY_LOADER, KEY_AY_STEREO,
                                              KEY_AY_VOLUME, KEY_BEEPER_VOLUME }) {
                 Preference preference = findPreference(key);
                 if (preference instanceof ListPreference) {

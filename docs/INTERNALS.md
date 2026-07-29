@@ -348,7 +348,22 @@ wants the tape to be playing.
 
 Sound settings are only read when Fuse's sound subsystem starts, so changing
 one calls `fuse_emulation_pause()` / `fuse_emulation_unpause()` to restart
-it — which is what Fuse's own options dialogs do.
+it — which is what Fuse's own options dialogs do. That pair counts, and the app
+now pauses itself whenever it is not in front, so a sound setting changed from
+the settings screen restarts nothing at the time: the inner unpause only takes
+the count from two to one. It applies on the way back to the machine, when the
+outer pause lifts and `sound_unpause()` finally runs `sound_init()`. Which is
+the right moment anyway — there is nothing to listen to until then.
+
+**AY stereo separation** is Fuse's `stereo_ay`, and it is a *string* matched
+with `strcmp` against `None`, `ACB` and `ABC` — anything else silently means
+none. So those three words are what the preference stores, and `--separation`
+takes them verbatim. ACB puts channel A left, C in the middle and B right; ABC
+puts A left, B in the middle and C right. Either one makes `sound_channels` two
+instead of one, which the AAudio driver asks the device for and falls back from
+if it cannot have it. `settings_set_string()` does the assignment, because the
+setting owns its copy and handing it a literal would leave Fuse freeing static
+storage later.
 
 ### Sharing the window
 

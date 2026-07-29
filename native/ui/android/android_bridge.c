@@ -80,6 +80,7 @@ enum {
   OPTION_BEEPER_VOLUME,			/* 0 - 100 */
   OPTION_JOYSTICK_TYPE,			/* a joystick_type_t */
   OPTION_DETECT_LOADER,
+  OPTION_AY_STEREO,			/* 0 none, 1 ACB, 2 ABC */
 };
 
 typedef struct queued_command {
@@ -221,6 +222,24 @@ run_set_option( int option, int value )
     settings_current.fastload = value > 0;
     settings_current.accelerate_loader = value > 1;
     break;
+
+  case OPTION_AY_STEREO: {
+    /* Fuse takes this as one of its own three words and matches it with
+       strcmp, so anything else silently means None. It reads it when the sound
+       subsystem starts, which is why this restarts it - and turning it on
+       makes Fuse's output two channels rather than one, which the AAudio
+       driver asks the device for and falls back from if it cannot have it.
+
+       settings_set_string because the setting owns its copy: assigning a
+       literal would leave Fuse freeing static storage later. */
+    static const char * const names[] = { "None", "ACB", "ABC" };
+
+    if( value < 0 || value > 2 ) break;
+
+    settings_set_string( &settings_current.stereo_ay, names[ value ] );
+    restart_sound();
+    break;
+  }
 
   case OPTION_DETECT_LOADER:
     /* Watches the ULA for the pattern of a loader polling it and starts the
@@ -847,6 +866,13 @@ Java_dev_ldlab_zedex_FuseNative_setLoaderAcceleration( JNIEnv *env, jclass class
                                                        jint level )
 {
   queue_command( COMMAND_SET_OPTION, OPTION_LOADER_ACCELERATION, level );
+}
+
+JNIEXPORT void JNICALL
+Java_dev_ldlab_zedex_FuseNative_setAyStereo( JNIEnv *env, jclass class,
+                                            jint separation )
+{
+  queue_command( COMMAND_SET_OPTION, OPTION_AY_STEREO, separation );
 }
 
 JNIEXPORT void JNICALL
