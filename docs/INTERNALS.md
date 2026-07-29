@@ -429,12 +429,17 @@ screen's share, since it is a takeover rather than part of the picture, and the
 at the top right of the *screen*, so it follows the picture when the keyboard is
 beside it. The joystick's two controls are children here too, placed as below.
 
+A keyboard beside the screen gets the foot of its half rather than all of it.
+It centres itself in whatever box it is given, so a full-height box put it in
+the middle with as much empty above as below; the bottom is where a thumb is,
+and it leaves the space in one place for the joystick to use.
+
 ### The on-screen joystick
 
 It goes in the black, not on the picture. The renderer centres a 4:3 quad in
 whatever box it is given, so there is nearly always spare black somewhere, and
 that is a thumb's width of room the picture was never using. `placeJoystick()`
-tries three things in order and which one applies falls out of the template
+tries four things in order and which one applies falls out of the template
 rather than being written down per template:
 
 - **Beside the picture.** A 4:3 quad in a wide box leaves a bar down each
@@ -443,13 +448,35 @@ rather than being written down per template:
   what *no keyboard*, *keyboard below* and *keyboard over the screen* all get;
   in the last of those the bar is cut short at the top of the translucent
   keyboard.
+
+  The lamps are in the left bar too, and what the pad takes is the width
+  *outside* them rather than the height *below* them. Ducking under them was
+  the first attempt and it cost the largest space on offer: the lamps are a
+  narrow column that reaches most of the way down a landscape picture, so
+  everything below them is a strip too short for a pad, and the joystick fell
+  all the way through to floating over a window with 700px of black going
+  spare. Only the left bar is narrowed by this, so the two are measured
+  separately — fire would otherwise be pushed out towards the window's edge by
+  however much the lamps took.
 - **Below it.** Portrait gives the picture only the height a 4:3 image uses
   and puts the keyboard at the foot of the window, so what is left is one band
   between them — 1189px of a 2400px window, the largest space of the three.
-- **Over it.** Only the two side-by-side templates reach here: half a
-  landscape window is taller than 4:3 wants, so there are no side bars, and
-  the keyboard beside the screen leaves no band either. The controls float in
-  the picture's bottom corners at 55% alpha.
+- **Above the keyboard.** The two side-by-side templates give the screen a box
+  taller than 4:3 wants, so there are no side bars, and the band under the
+  picture is thin. The keyboard is where the room is: it is one bitmap with a
+  fixed 541x201 aspect, and half a landscape window is far wider than that is
+  tall, so it is given the foot of its half rather than the middle of it and
+  634px of a 1080px window is left empty above it. Both controls go there,
+  centred in the band, since only one half of the window is ours — the pad at
+  one end and fire at the other, and the far end cut back to the lamps when
+  they hang into it, which with the keyboard on the left they do.
+
+  Centring the keyboard in its half was the older arrangement and it split that
+  634px into two bands of 317, one above and one below, neither of them where a
+  thumb naturally is.
+- **Over it.** Nothing left. The controls float in the picture's bottom corners
+  at 55% alpha. Reachable only with a whole-pixel scale small enough to leave a
+  short band and a narrow bar at once.
 
 Both controls are the same class with a `Part`, because everything but the
 drawing is shared. The pad is a stick rather than four buttons: the direction
@@ -687,7 +714,10 @@ thing they describe when the keyboard is beside the screen: a row under it in
 portrait, a column beside it in landscape, which the view decides from the
 configuration rather than being told. They are placed before the joystick and
 the joystick is told to keep clear of them, because both want the space under
-the picture in portrait and only one of them has somewhere else to go.
+the picture in portrait and only one of them has somewhere else to go. In
+landscape they are a column down the inside edge of the screen's half, which is
+also the far end of the band above a keyboard on the left — so that band is cut
+back to them as well.
 
 State is polled, not pushed. It changes at 50Hz — far faster than an eye reads a
 lamp, and far too fast to be worth a callback and a thread hop each time — so

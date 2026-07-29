@@ -29,10 +29,10 @@ import android.view.ViewGroup;
  * The on-screen joystick goes in the black rather than on the picture. The
  * renderer centres a 4:3 quad in whatever box it is given, so there is nearly
  * always spare black somewhere — at the sides of a wide box, below the picture
- * in a tall one — and that is a thumb's width of room the picture was never
- * using. Only when a template leaves none does the joystick float over the
- * picture's bottom corners, and then it is translucent. See
- * {@link #placeJoystick}.
+ * in a tall one, above the keyboard when it is beside the screen —
+ * and that is a thumb's width of room the picture was never using. Only when a
+ * template leaves none does the joystick float over the picture's bottom
+ * corners, and then it is translucent. See {@link #placeJoystick}.
  */
 final class EmulatorLayout extends ViewGroup {
 
@@ -336,14 +336,23 @@ final class EmulatorLayout extends ViewGroup {
             case LEFT:
             case RIGHT: {
                 int keyboardWidth = Math.round(width * LANDSCAPE_SIDE);
-                // Full height: the keyboard centres itself inside whatever it
-                // is given, so the screen never has to guess where it sits.
+
+                // The foot of its half, not the middle of it. Half a landscape
+                // window is far wider than the keyboard is tall, so centring it
+                // left a band of nothing above and another below; putting it at
+                // the bottom makes that one band, in one place, and the
+                // joystick goes in it. It is also where a thumb already is.
+                int keyboardHeight = Math.min(height,
+                        Math.round(keyboardWidth / aspect));
+
                 if (current == Template.LEFT) {
-                    keyboardBox.set(0, 0, keyboardWidth, height);
+                    keyboardBox.set(0, height - keyboardHeight,
+                                    keyboardWidth, height);
                     screenBox.set(keyboardWidth, 0, width, height);
                 } else {
                     screenBox.set(0, 0, width - keyboardWidth, height);
-                    keyboardBox.set(width - keyboardWidth, 0, width, height);
+                    keyboardBox.set(width - keyboardWidth, height - keyboardHeight,
+                                    width, height);
                 }
                 break;
             }
@@ -505,14 +514,23 @@ final class EmulatorLayout extends ViewGroup {
      *     keyboard, and more with one below, because the shorter box makes the
      *     picture narrower. The pad goes low in the left bar and fire low in
      *     the right, where the thumbs already are, and the picture loses
-     *     nothing.</li>
+     *     nothing. The lamps hang down the inside of the left bar, so the pad
+     *     takes the width outside them rather than the height below them: they
+     *     are a narrow strip and treating them as blocking the whole bar cost
+     *     the largest space on offer.</li>
      * <li><b>Below it.</b> Portrait gives the picture only the height it uses
      *     and puts the keyboard at the foot of the window, so what is left is
      *     one wide band between them — the largest space of the three.</li>
-     * <li><b>Over it.</b> Only the two side-by-side templates get here: the
-     *     screen's half of a landscape window is taller than 4:3 wants, so
-     *     there are no side bars, and the keyboard beside it leaves no band.
-     *     The controls float in the picture's bottom corners, translucent.</li>
+     * <li><b>Above the keyboard.</b> The two side-by-side templates give the
+     *     screen a box taller than 4:3 wants, so there are no side bars, and
+     *     the band under the picture is thin. But the keyboard is one bitmap
+     *     with a fixed aspect and half a landscape window is far wider than it
+     *     is tall, so it sits at the foot of its half and leaves 634px of a
+     *     1080px window empty above it. Both controls go there, centred in the
+     *     band, since only one half of the window is ours — the pad at one end
+     *     and fire at the other.</li>
+     * <li><b>Over it.</b> Nothing left: the controls float in the picture's
+     *     bottom corners, translucent.</li>
      * </ol>
      */
     private void placeJoystick(int width, int height) {
@@ -533,20 +551,29 @@ final class EmulatorLayout extends ViewGroup {
                 && keyboardBox.left == 0 && keyboardBox.right == width;
         int floor = keyboardBelow ? keyboardBox.top : height;
 
-        // 1. The black bars beside the picture. Below the lamps, when they are
-        // in the same bar.
-        int bar = picture.left - screenBox.left;
-        int barTop = lightsBox.isEmpty() ? screenBox.top
-                                         : Math.max(screenBox.top, lightsBox.bottom);
+        // 1. The black bars beside the picture, outside the lamps.
+        //
+        // The left bar stops at whichever of the two is further out. In
+        // landscape the lamps are a vertical strip against the picture's left
+        // edge, so that leaves the pad the rest of the bar's width and all of
+        // its height; in portrait they are under the picture and do not narrow
+        // the bar at all. Either way the right bar is untouched, which is why
+        // the two are measured separately - fire would otherwise be pushed out
+        // towards the window's edge by however much the lamps took.
+        int leftBar = (lightsBox.isEmpty() ? picture.left
+                                           : Math.min(picture.left, lightsBox.left))
+                      - screenBox.left;
+        int rightBar = screenBox.right - picture.right;
+        int barTop = screenBox.top;
         int barBottom = Math.min(screenBox.bottom, floor);
-        int size = Math.min(wanted, bar - 2 * margin);
+        int size = Math.min(wanted, leftBar - 2 * margin);
 
         if (size >= minimum && barBottom - barTop >= size + 2 * margin) {
             int centreY = barBottom - margin - size / 2;
             int fireSize = Math.round(size * FIRE_OF_PAD);
 
-            square(padBox, screenBox.left + bar / 2, centreY, size);
-            square(fireBox, screenBox.right - bar / 2, centreY, fireSize);
+            square(padBox, screenBox.left + leftBar / 2, centreY, size);
+            square(fireBox, screenBox.right - rightBar / 2, centreY, fireSize);
             return;
         }
 
@@ -555,17 +582,50 @@ final class EmulatorLayout extends ViewGroup {
         // picture, not below its box: with the keyboard hidden the box is the
         // whole window and the picture sits in the middle of it, so the two
         // are not the same edge.
-        int bandTop = lightsBox.isEmpty() ? picture.bottom
-                                          : Math.max(picture.bottom, lightsBox.bottom);
-        size = Math.min(wanted, floor - bandTop - 2 * margin);
+        int underPicture = lightsBox.isEmpty()
+                ? picture.bottom : Math.max(picture.bottom, lightsBox.bottom);
+        size = Math.min(wanted, floor - underPicture - 2 * margin);
 
         if (size >= minimum && size <= (width - 2 * margin) / 2) {
-            strip(screenBox.left, screenBox.right, (bandTop + floor) / 2,
+            strip(screenBox.left, screenBox.right, (underPicture + floor) / 2,
                   size, margin);
             return;
         }
 
-        // 3. Nowhere left: over the picture's bottom corners.
+        // 3. The band above the keyboard, when it is beside the screen rather
+        // than below it. Above by preference and below if that will not have
+        // it: the keyboard is centred in its half, so on a phone the two are
+        // the same size and either is a whole thumb's width away from the
+        // picture.
+        if (!keyboardBox.isEmpty() && !keyboardBelow) {
+            int bandTop = 0;
+            int bandBottom = keyboardBox.top;
+
+            // The lamps are the one thing that can already be in here. They
+            // hang down the inside edge of the screen's half, which with the
+            // keyboard on the left is this band's far end - fire lands on them
+            // otherwise - and with it on the right is nowhere near.
+            int left = keyboardBox.left;
+            int right = keyboardBox.right;
+
+            if (!lightsBox.isEmpty() && lightsBox.top < bandBottom
+                                     && lightsBox.bottom > bandTop) {
+                if (lightsBox.centerX() > (left + right) / 2) {
+                    right = Math.min(right, lightsBox.left - margin);
+                } else {
+                    left = Math.max(left, lightsBox.right + margin);
+                }
+            }
+
+            size = Math.min(wanted, bandBottom - bandTop - 2 * margin);
+
+            if (size >= minimum && size <= (right - left - 2 * margin) / 2) {
+                strip(left, right, (bandTop + bandBottom) / 2, size, margin);
+                return;
+            }
+        }
+
+        // 4. Nowhere left: over the picture's bottom corners.
         joystickFloating = true;
         size = Math.max(minimum, Math.min(wanted, picture.width() / 4));
         strip(picture.left, picture.right,

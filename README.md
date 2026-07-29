@@ -112,7 +112,7 @@ screen carries a panel saying what is missing and three ways to fix it:
 | --- | --- |
 | **Keyboard below the screen** | capped at two fifths of the height, so the picture keeps its full width |
 | **Keyboard over the screen** | translucent across the bottom; the screen keeps the whole window |
-| **Keyboard left, screen right** | an even split, each centred in its half |
+| **Keyboard left, screen right** | an even split; the keyboard at the foot of its half, the joystick above it |
 | **Screen left, keyboard right** | the same, mirrored |
 | **No keyboard** | the whole window is the machine, for a physical keyboard |
 
