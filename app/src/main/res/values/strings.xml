@@ -126,6 +126,18 @@
     <string name="settings_ay_stereo">AY stereo separation</string>
     <string name="settings_volume_beeper">Beeper volume</string>
 
+    <string name="settings_filter">Picture filter</string>
+    <string name="settings_scanlines">Scanlines</string>
+    <string name="settings_scanlines_summary">A dark line between each of the machine\u2019s own 240</string>
+    <string name="settings_crt">CRT effect</string>
+    <string name="settings_crt_summary">The glass in front of the beam: curve, shadow mask, glow</string>
+    <string name="settings_filter_sharpness">Sharpness</string>
+    <string name="settings_filter_sharpness_summary">100% is pixel for pixel; less softens the edges</string>
+    <string name="settings_filter_scanline">Scanline strength</string>
+    <string name="settings_filter_curve">Curvature</string>
+    <string name="settings_filter_mask">Shadow mask</string>
+    <string name="settings_filter_glow">Glow</string>
+
     <string name="settings_display">Display</string>
     <string name="settings_landscape_layout">Landscape layout</string>
     <string name="settings_landscape_layout_summary">How the screen and the keyboard share a sideways window</string>

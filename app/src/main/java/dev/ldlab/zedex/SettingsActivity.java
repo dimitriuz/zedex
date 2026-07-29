@@ -58,6 +58,62 @@ public class SettingsActivity extends Activity {
     /** Read by EmulatorActivity on resume; there is no immediate push for it. */
     static final String KEY_INDICATORS = "indicators";
 
+    /*
+     * The picture filter. One key per number the shader takes, because that is
+     * what a settings screen can show and what the renderer wants anyway.
+     */
+    static final String KEY_SCANLINES = "scanlines";
+    static final String KEY_CRT = "crt";
+    static final String KEY_FILTER_SHARPNESS = "filterSharpness";
+    static final String KEY_FILTER_SCANLINE = "filterScanline";
+    static final String KEY_FILTER_CURVE = "filterCurve";
+    static final String KEY_FILTER_MASK = "filterMask";
+    static final String KEY_FILTER_GLOW = "filterGlow";
+
+    /**
+     * Each strength, the index it sets and what it is worth by default. The two
+     * switches are booleans and so are handled apart from these.
+     */
+    private static final Object[][] FILTER_KEYS = {
+        { KEY_FILTER_SHARPNESS, FuseNative.FILTER_SHARPNESS, "100" },
+        { KEY_FILTER_SCANLINE,  FuseNative.FILTER_SCANLINE,  "50"  },
+        { KEY_FILTER_CURVE,     FuseNative.FILTER_CURVE,     "40"  },
+        { KEY_FILTER_MASK,      FuseNative.FILTER_MASK,      "40"  },
+        { KEY_FILTER_GLOW,      FuseNative.FILTER_GLOW,      "30"  },
+    };
+
+    /**
+     * Pushes every filter number at once.
+     *
+     * Called at startup as well as on a change, because these are not Fuse
+     * settings and so cannot ride in on its command line: the renderer has to
+     * be told. Queued like everything else, so doing it before Fuse has started
+     * is safe - the commands wait.
+     */
+    static void applyFilter(android.content.SharedPreferences preferences) {
+        FuseNative.setFilter(FuseNative.FILTER_SCANLINES,
+                preferences.getBoolean(KEY_SCANLINES, false) ? 1 : 0);
+        FuseNative.setFilter(FuseNative.FILTER_CRT,
+                preferences.getBoolean(KEY_CRT, false) ? 1 : 0);
+
+        for (Object[] entry : FILTER_KEYS) {
+            FuseNative.setFilter((Integer) entry[1],
+                                 SettingsFragment.number(preferences,
+                                        (String) entry[0],
+                                        Integer.parseInt((String) entry[2])));
+        }
+    }
+
+    /** Whether a key is one of the filters'. */
+    private static boolean isFilterKey(String key) {
+        if (KEY_SCANLINES.equals(key) || KEY_CRT.equals(key)) return true;
+
+        for (Object[] entry : FILTER_KEYS) {
+            if (entry[0].equals(key)) return true;
+        }
+        return false;
+    }
+
     /** The stored words, and the level each one means. */
     private static final String[] LOADER_LEVELS = { "off", "safe", "turbo" };
 
@@ -306,6 +362,11 @@ public class SettingsActivity extends Activity {
         }
 
         private void apply(android.content.SharedPreferences preferences, String key) {
+            if (isFilterKey(key)) {
+                applyFilter(preferences);
+                return;
+            }
+
             switch (key) {
                 case KEY_LOADER:
                     FuseNative.setLoaderAcceleration(loaderLevel(preferences));
@@ -374,8 +435,8 @@ public class SettingsActivity extends Activity {
         }
 
         /** ListPreference stores numbers as strings. */
-        private static int number(android.content.SharedPreferences preferences,
-                                  String key, int fallback) {
+        static int number(android.content.SharedPreferences preferences,
+                          String key, int fallback) {
             try {
                 return Integer.parseInt(preferences.getString(key, String.valueOf(fallback)));
             } catch (NumberFormatException e) {
@@ -400,6 +461,9 @@ public class SettingsActivity extends Activity {
 
             for (String key : new String[] { KEY_MACHINE, KEY_SPEED, KEY_SNAPSHOT_FORMAT,
                                              KEY_LOADER, KEY_AY_STEREO,
+                                             KEY_FILTER_SHARPNESS,
+                                             KEY_FILTER_SCANLINE, KEY_FILTER_CURVE,
+                                             KEY_FILTER_MASK, KEY_FILTER_GLOW,
                                              KEY_AY_VOLUME, KEY_BEEPER_VOLUME }) {
                 Preference preference = findPreference(key);
                 if (preference instanceof ListPreference) {

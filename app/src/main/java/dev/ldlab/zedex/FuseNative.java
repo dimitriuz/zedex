@@ -220,6 +220,31 @@ final class FuseNative {
     /** Issue 2 keyboard behaviour, which a few early 48K games depend on. */
     static native void setIssue2(boolean on);
 
+    // --- the picture filter ------------------------------------------------
+
+    /*
+     * Which number {@link #setFilter} is setting. In step with
+     * OPTION_FILTER_SCANLINES and the six after it in android_bridge.c: the
+     * native side adds the index to the first of them, so the order here is the
+     * order there.
+     *
+     * Scanlines and the CRT glass are two switches rather than one choice,
+     * because a tube has both and either can be had without the other.
+     */
+    static final int FILTER_SCANLINES = 0;
+    static final int FILTER_CRT = 1;
+    static final int FILTER_SHARPNESS = 2;
+    static final int FILTER_SCANLINE = 3;
+    static final int FILTER_CURVE = 4;
+    static final int FILTER_MASK = 5;
+    static final int FILTER_GLOW = 6;
+
+    /**
+     * Sets one of the filters' numbers: {@code which} is a FILTER_* index.
+     * The two switches take 0 or 1, the five strengths 0 to 100.
+     */
+    static native void setFilter(int which, int value);
+
     /** Renders with Fuse's monochrome palette. */
     static native void setBlackAndWhite(boolean on);
 

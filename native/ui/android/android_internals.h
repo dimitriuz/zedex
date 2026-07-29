@@ -45,6 +45,12 @@ const libspectrum_dword *androiddisplay_palette( void );
 void androidgl_frame( ANativeWindow *window, unsigned generation,
                       const void *pixels, int width, int height );
 
+/* The picture filters: scanlines and the CRT glass, each on or off, and five
+   strengths from 0 to 100. Bounded like RetroArch's #pragma parameter, for the
+   day someone wants to run one of theirs. */
+void androidgl_set_filter( int scanlines, int crt, int sharpness, int scanline,
+                           int curve, int mask, int glow );
+
 /* Drop the EGL surface but keep the context, for when Android takes the
    window away. */
 void androidgl_detach( void );

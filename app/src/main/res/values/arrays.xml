@@ -72,6 +72,35 @@
         <item>ABC</item>
     </string-array>
 
+    <!-- Shared by every filter strength. Fine enough to tune by, coarse
+         enough to pick from a list. -->
+    <string-array name="percent_names">
+        <item>0%</item>
+        <item>10%</item>
+        <item>20%</item>
+        <item>30%</item>
+        <item>40%</item>
+        <item>50%</item>
+        <item>60%</item>
+        <item>70%</item>
+        <item>80%</item>
+        <item>90%</item>
+        <item>100%</item>
+    </string-array>
+    <string-array name="percent_values">
+        <item>0</item>
+        <item>10</item>
+        <item>20</item>
+        <item>30</item>
+        <item>40</item>
+        <item>50</item>
+        <item>60</item>
+        <item>70</item>
+        <item>80</item>
+        <item>90</item>
+        <item>100</item>
+    </string-array>
+
     <string-array name="format_names">
         <item>SZX — every machine</item>
         <item>Z80 — widely supported</item>

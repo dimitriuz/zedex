@@ -1,8 +1,22 @@
 /* android_gl.c: GLES 3 presentation for the Android UI
 
    Uploads the emulated frame to a texture and draws it as an
-   aspect-corrected quad. The fragment shader is deliberately the only place
-   that touches pixels, so CRT/scanline filters drop straight in here.
+   aspect-corrected quad. The fragment shader is the only place that touches
+   pixels, and it is one shader rather than one per filter: the effects branch
+   on uniforms, which are constant across a draw and so cost a predictable
+   nothing, and the alternative is three programs that share nine tenths of
+   their code.
+
+   The filters are written here rather than borrowed. RetroArch's .slang
+   shaders are Vulkan GLSL and want glslang and SPIRV-Cross to become GLSL ES -
+   two large C++ libraries, in an app that has none - and the format is a
+   multi-pass pipeline with framebuffers, history and feedback textures rather
+   than a fragment shader. Its hand-converted glsl-shaders are GLES-friendly
+   and GPL-2-or-later, so those could be adopted, but only along with
+   RetroArch's uniform names, its #pragma parameter directive and multi-pass
+   render targets, since every CRT shader worth having is multi-pass. The
+   parameters below are named and bounded the way theirs are, so that day is
+   not made harder.
 
    Everything in this file runs on the emulation thread, which owns the EGL
    context; the JNI bridge is responsible for never handing us a window that
@@ -26,8 +40,28 @@ static ANativeWindow *bound_window;
 static unsigned bound_generation;
 
 static GLuint program, texture, vbo;
-static GLint uniform_scale;
 static int texture_width, texture_height;
+
+static struct {
+  GLint scale, source, output;
+  GLint scanlines, crt;
+  GLint sharpness, scanline, curve, mask, glow;
+} uniform;
+
+/* What the app has asked for. Set from the emulation thread, read by it.
+
+   Two switches rather than one choice, because they are two different things
+   and a tube has both: scanlines are the beam, and the curve, the mask and the
+   glow are the glass in front of it. Either can be had without the other. */
+static struct {
+  int scanlines, crt;
+  float sharpness, scanline, curve, mask, glow;
+} settings = { 0, 0, 1.0f, 0.5f, 0.4f, 0.4f, 0.3f };
+
+/* Whether the texture is currently sampled without interpolation. Nearest is
+   the only way to be exactly pixel for pixel, so it stays the default and the
+   sampler is only softened when a filter actually wants it. */
+static int nearest = 1;
 
 static const char vertex_shader_src[] =
   "#version 300 es\n"
@@ -39,14 +73,111 @@ static const char vertex_shader_src[] =
   "  gl_Position = vec4( a_pos * u_scale, 0.0, 1.0 );\n"
   "}\n";
 
+/* One shader, three looks. u_filter picks; the rest shape it.
+
+   Everything is in units that mean something: u_source is the emulated frame
+   in its own pixels, so a scanline is one of those and stays one however far
+   the picture is scaled, and the mask is in output pixels, because a shadow
+   mask is a property of the glass and not of the signal. */
 static const char fragment_shader_src[] =
   "#version 300 es\n"
-  "precision mediump float;\n"
+  "precision highp float;\n"
   "in vec2 v_uv;\n"
   "uniform sampler2D u_tex;\n"
+  "uniform vec2 u_source;\n"
+  "uniform vec2 u_output;\n"
+  "uniform int u_scanlines;\n"
+  "uniform int u_crt;\n"
+  "uniform float u_sharpness;\n"
+  "uniform float u_scanline;\n"
+  "uniform float u_curve;\n"
+  "uniform float u_mask;\n"
+  "uniform float u_glow;\n"
   "out vec4 colour;\n"
+  "\n"
+  "const float PI = 3.14159265;\n"
+  "\n"
+  /* Bilinear sampling pulled towards the middle of each source pixel: at full
+     sharpness this is nearest neighbour, and easing it off softens only the
+     boundary rather than blurring the whole picture. */
+  "vec2 sharpen( vec2 uv ) {\n"
+  "  vec2 texel = uv * u_source;\n"
+  "  vec2 middle = floor( texel ) + 0.5;\n"
+  "  vec2 offset = texel - middle;\n"
+  "  float steepness = mix( 1.0, 8.0, u_sharpness );\n"
+  "  offset = clamp( offset * steepness, -0.5, 0.5 );\n"
+  "  return ( middle + offset ) / u_source;\n"
+  "}\n"
+  "\n"
+  /* Barrel distortion about the centre. Gentle: a tube is not a fishbowl. */
+  "vec2 bend( vec2 uv ) {\n"
+  "  vec2 centred = uv * 2.0 - 1.0;\n"
+  "  centred *= 1.0 + u_curve * 0.12 * dot( centred, centred );\n"
+  "  return centred * 0.5 + 0.5;\n"
+  "}\n"
+  "\n"
+  /* An aperture grille in threes, in output pixels. */
+  "vec3 grille( float x ) {\n"
+  "  float which = mod( floor( x ), 3.0 );\n"
+  "  vec3 tint = vec3( which == 0.0 ? 1.0 : 0.6,\n"
+  "                    which == 1.0 ? 1.0 : 0.6,\n"
+  "                    which == 2.0 ? 1.0 : 0.6 );\n"
+  "  return mix( vec3( 1.0 ), tint, u_mask );\n"
+  "}\n"
+  "\n"
+  /* Four taps around the pixel, squared so only the bright parts bloom. */
+  "vec3 bloom( vec2 uv ) {\n"
+  "  vec2 step = 1.5 / u_source;\n"
+  "  vec3 sum = texture( u_tex, uv + vec2( step.x, 0.0 ) ).rgb\n"
+  "           + texture( u_tex, uv - vec2( step.x, 0.0 ) ).rgb\n"
+  "           + texture( u_tex, uv + vec2( 0.0, step.y ) ).rgb\n"
+  "           + texture( u_tex, uv - vec2( 0.0, step.y ) ).rgb;\n"
+  "  vec3 average = sum * 0.25;\n"
+  "  return average * average;\n"
+  "}\n"
+  "\n"
   "void main() {\n"
-  "  colour = texture( u_tex, v_uv );\n"
+  "  vec2 uv = v_uv;\n"
+  "\n"
+  "  if( u_crt == 1 && u_curve > 0.0 ) {\n"
+  "    uv = bend( uv );\n"
+  /* Past the edge of the tube there is no picture, only cabinet. */
+  "    if( any( lessThan( uv, vec2( 0.0 ) ) ) ||\n"
+  "        any( greaterThan( uv, vec2( 1.0 ) ) ) ) {\n"
+  "      colour = vec4( 0.0, 0.0, 0.0, 1.0 );\n"
+  "      return;\n"
+  "    }\n"
+  "  }\n"
+  "\n"
+  "  vec3 rgb = texture( u_tex, sharpen( uv ) ).rgb;\n"
+  "\n"
+  "  if( u_scanlines == 0 && u_crt == 0 ) {\n"
+  "    colour = vec4( rgb, 1.0 );\n"
+  "    return;\n"
+  "  }\n"
+  "\n"
+  /* One dark line per emulated row, brightest through the middle of it. A
+     beam is not a step, so this is a sine and not a stripe. */
+  "  float scanned = 0.0;\n"
+  "  if( u_scanlines == 1 ) {\n"
+  "    float across = fract( uv.y * u_source.y );\n"
+  "    float beam = sin( across * PI );\n"
+  "    rgb *= 1.0 - u_scanline * ( 1.0 - beam );\n"
+  "    scanned = u_scanline;\n"
+  "  }\n"
+  "\n"
+  "  float masked = 0.0;\n"
+  "  if( u_crt == 1 ) {\n"
+  "    if( u_mask > 0.0 ) { rgb *= grille( gl_FragCoord.x ); masked = u_mask; }\n"
+  "    if( u_glow > 0.0 ) rgb += u_glow * 0.35 * bloom( uv );\n"
+  "  }\n"
+  "\n"
+  /* Scanlines and a mask both take light away, and a filter that only made
+     the picture dimmer would be a poor trade. Give back roughly what they
+     cost, so switching one on changes the texture and not the exposure. */
+  "  rgb *= 1.0 + 0.45 * scanned + 0.25 * masked;\n"
+  "\n"
+  "  colour = vec4( clamp( rgb, 0.0, 1.0 ), 1.0 );\n"
   "}\n";
 
 static const GLfloat quad[] = {
@@ -106,7 +237,16 @@ create_program( void )
     return 1;
   }
 
-  uniform_scale = glGetUniformLocation( program, "u_scale" );
+  uniform.scale     = glGetUniformLocation( program, "u_scale" );
+  uniform.source    = glGetUniformLocation( program, "u_source" );
+  uniform.output    = glGetUniformLocation( program, "u_output" );
+  uniform.scanlines = glGetUniformLocation( program, "u_scanlines" );
+  uniform.crt       = glGetUniformLocation( program, "u_crt" );
+  uniform.sharpness = glGetUniformLocation( program, "u_sharpness" );
+  uniform.scanline  = glGetUniformLocation( program, "u_scanline" );
+  uniform.curve     = glGetUniformLocation( program, "u_curve" );
+  uniform.mask      = glGetUniformLocation( program, "u_mask" );
+  uniform.glow      = glGetUniformLocation( program, "u_glow" );
 
   glGenBuffers( 1, &vbo );
   glBindBuffer( GL_ARRAY_BUFFER, vbo );
@@ -114,7 +254,8 @@ create_program( void )
 
   glGenTextures( 1, &texture );
   glBindTexture( GL_TEXTURE_2D, texture );
-  /* Nearest keeps the pixels crisp; filtering is a shader's job. */
+  /* Nearest by default, which is the only way to be exactly pixel for pixel.
+     apply_sampler() softens it if a filter asks. */
   glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
   glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
   glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
@@ -207,6 +348,36 @@ androidgl_detach( void )
   bound_window = NULL;
 }
 
+/* Softening the sampler is only worth doing when something wants it: at full
+   sharpness the shader's own snapping already lands on the middle of a texel,
+   so nearest is both faster and exactly right. Called with the texture bound. */
+static void
+apply_sampler( void )
+{
+  int wanted = settings.sharpness >= 1.0f;
+
+  if( wanted == nearest ) return;
+
+  nearest = wanted;
+  glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
+                   nearest ? GL_NEAREST : GL_LINEAR );
+  glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
+                   nearest ? GL_NEAREST : GL_LINEAR );
+}
+
+void
+androidgl_set_filter( int scanlines, int crt, int sharpness, int scanline,
+                      int curve, int mask, int glow )
+{
+  settings.scanlines = scanlines;
+  settings.crt = crt;
+  settings.sharpness = sharpness / 100.0f;
+  settings.scanline = scanline / 100.0f;
+  settings.curve = curve / 100.0f;
+  settings.mask = mask / 100.0f;
+  settings.glow = glow / 100.0f;
+}
+
 void
 androidgl_frame( ANativeWindow *window, unsigned generation,
                  const void *pixels, int width, int height )
@@ -254,7 +425,19 @@ androidgl_frame( ANativeWindow *window, unsigned generation,
   } else {
     scale_y = view_aspect / image_aspect;
   }
-  glUniform2f( uniform_scale, scale_x, scale_y );
+  glUniform2f( uniform.scale, scale_x, scale_y );
+
+  apply_sampler();
+
+  glUniform2f( uniform.source, (float) width, (float) height );
+  glUniform2f( uniform.output, (float) view_width, (float) view_height );
+  glUniform1i( uniform.scanlines, settings.scanlines );
+  glUniform1i( uniform.crt, settings.crt );
+  glUniform1f( uniform.sharpness, settings.sharpness );
+  glUniform1f( uniform.scanline, settings.scanline );
+  glUniform1f( uniform.curve, settings.curve );
+  glUniform1f( uniform.mask, settings.mask );
+  glUniform1f( uniform.glow, settings.glow );
 
   glBindBuffer( GL_ARRAY_BUFFER, vbo );
   glEnableVertexAttribArray( 0 );

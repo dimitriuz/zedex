@@ -34,7 +34,7 @@ follows upstream instead of drifting from it.
   dialogs no longer corrupt the screen behind them.
 - **`android_gl.c`** owns EGL and a GLES 3 context on the emulation thread and
   draws the frame as an aspect-corrected quad. The fragment shader is the only
-  code that touches pixels, which is where CRT/scanline filters go.
+  code that touches pixels, and the filters live in it — see *Filters* below.
 - **`android_bridge.c`** is the Android boundary. Fuse's core is single
   threaded, so everything arriving from the UI thread is queued and replayed
   on the emulation thread from `ui_event()`. That queue, and the pause loop
@@ -496,6 +496,43 @@ reads as a tape still running.
 
 Measured: 48 CPU ticks in two seconds running, two in three seconds paused in
 the background.
+
+### Filters
+
+Scanlines and a CRT, as **two switches rather than one choice**, because they
+are two different things and a tube has both: scanlines are the beam, and the
+curve, the shadow mask and the glow are the glass in front of it. Either can be
+had without the other, and both together is what a television looked like.
+
+One fragment shader, not one per filter. The effects branch on uniforms, which
+are constant across a draw and so cost a predictable nothing, and three
+programs would share nine tenths of their code.
+
+Everything is in units that mean something. `u_source` is the emulated frame in
+its own pixels, so a scanline is one emulated row and stays one however far the
+picture is scaled; the mask is in *output* pixels, because a shadow mask is a
+property of the glass and not of the signal. Scanlines are a sine rather than a
+stripe, since a beam is not a step function. Both scanlines and the mask take
+light away, so the shader gives back roughly what they cost — a filter that only
+made the picture dimmer would be a poor trade.
+
+The sampler stays `GL_NEAREST` unless something wants otherwise. *Sharpness* is
+bilinear sampling pulled towards the middle of each source pixel, so at 100% it
+is nearest neighbour and easing it off softens only the boundary instead of
+blurring everything; at 100% the shader's own snapping already lands on a texel
+centre, so the sampler is switched to nearest and the default look is exactly
+what it was.
+
+**Why these and not RetroArch's.** `.slang` shaders are Vulkan GLSL: running one
+means glslang to SPIR-V and SPIRV-Cross back to GLSL ES, two large C++
+libraries in an app that has none, and the format is a multi-pass pipeline with
+framebuffers, history and feedback textures rather than a fragment shader.
+`libretro/glsl-shaders` is the same collection hand-converted for the GL and
+GLES path and is GPL-2-or-later, so those *could* be adopted — but only along
+with RetroArch's uniform names, its `#pragma parameter` directive and
+multi-pass render targets, because every CRT shader worth having is multi-pass.
+That is a feature in itself. The parameters here are named and bounded the way
+theirs are, so that day is not made harder.
 
 ### The activity lamps
 

@@ -81,7 +81,20 @@ enum {
   OPTION_JOYSTICK_TYPE,			/* a joystick_type_t */
   OPTION_DETECT_LOADER,
   OPTION_AY_STEREO,			/* 0 none, 1 ACB, 2 ABC */
+  OPTION_FILTER_SCANLINES,		/* on or off */
+  OPTION_FILTER_CRT,			/* on or off */
+  OPTION_FILTER_SHARPNESS,		/* the five below are 0 - 100 */
+  OPTION_FILTER_SCANLINE,
+  OPTION_FILTER_CURVE,
+  OPTION_FILTER_MASK,
+  OPTION_FILTER_GLOW,
 };
+
+/* The filters' shape, kept here because the settings arrive one at a time and
+   the renderer wants them together. Defaults match android_gl.c's. */
+static struct {
+  int scanlines, crt, sharpness, scanline, curve, mask, glow;
+} filter = { 0, 0, 100, 50, 40, 40, 30 };
 
 typedef struct queued_command {
   command_type type;
@@ -221,6 +234,30 @@ run_set_option( int option, int value )
     settings_current.tape_traps = value > 0;
     settings_current.fastload = value > 0;
     settings_current.accelerate_loader = value > 1;
+    break;
+
+  case OPTION_FILTER_SCANLINES:
+  case OPTION_FILTER_CRT:
+  case OPTION_FILTER_SHARPNESS:
+  case OPTION_FILTER_SCANLINE:
+  case OPTION_FILTER_CURVE:
+  case OPTION_FILTER_MASK:
+  case OPTION_FILTER_GLOW:
+    switch( option ) {
+    case OPTION_FILTER_SCANLINES: filter.scanlines = value; break;
+    case OPTION_FILTER_CRT:       filter.crt = value; break;
+    case OPTION_FILTER_SHARPNESS: filter.sharpness = value; break;
+    case OPTION_FILTER_SCANLINE:  filter.scanline = value; break;
+    case OPTION_FILTER_CURVE:     filter.curve = value; break;
+    case OPTION_FILTER_MASK:      filter.mask = value; break;
+    case OPTION_FILTER_GLOW:      filter.glow = value; break;
+    }
+
+    /* Safe from here: this runs on the emulation thread, which is the one that
+       owns the GL context. */
+    androidgl_set_filter( filter.scanlines, filter.crt, filter.sharpness,
+                          filter.scanline, filter.curve, filter.mask,
+                          filter.glow );
     break;
 
   case OPTION_AY_STEREO: {
@@ -866,6 +903,14 @@ Java_dev_ldlab_zedex_FuseNative_setLoaderAcceleration( JNIEnv *env, jclass class
                                                        jint level )
 {
   queue_command( COMMAND_SET_OPTION, OPTION_LOADER_ACCELERATION, level );
+}
+
+/* The picture filter, one number at a time; see OPTION_FILTER. */
+JNIEXPORT void JNICALL
+Java_dev_ldlab_zedex_FuseNative_setFilter( JNIEnv *env, jclass class,
+                                          jint which, jint value )
+{
+  queue_command( COMMAND_SET_OPTION, OPTION_FILTER_SCANLINES + which, value );
 }
 
 JNIEXPORT void JNICALL

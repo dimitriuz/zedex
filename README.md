@@ -49,7 +49,7 @@ end.
 
 **Comfort**
 
-- **GPU-scaled display**
+- **GPU-scaled display**, with **scanline and CRT filters**
 - **Five landscape layouts**
 - **On-screen Spectrum keyboard**
 - **On-screen joystick**
@@ -82,9 +82,6 @@ emulated, and each of them is one setting away:
 - SpecDrum, Fuller Box, Melodik, Covox and Currah µSpeech sound
 - Kempston mouse, ZX Printer
 
-**The picture**
-
-- CRT, scanline and smoothing filters
 
 **Playing**
 
@@ -217,6 +214,8 @@ In full:
 | **Sound**, **AY volume**, **Beeper volume** | restart the sound subsystem when changed |
 | **AY stereo separation** | off, ACB or ABC — the 128's three channels spread across two |
 | **Black and white TV** | the monochrome palette |
+| **Scanlines**, **CRT effect** | a dark line per emulated row; curve, shadow mask and glow, each with its own strength |
+| **Sharpness** | 100% is pixel for pixel; less softens the edges |
 | **Activity indicators** | the lamps beside the picture |
 | **Keep the screen on** | Android's, not the emulator's |
 | **Speed** | 25% to 500% |

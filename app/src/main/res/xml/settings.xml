@@ -86,6 +86,56 @@
             android:dependency="sound" />
     </PreferenceCategory>
 
+    <PreferenceCategory android:title="@string/settings_filter">
+        <SwitchPreference
+            android:key="scanlines"
+            android:title="@string/settings_scanlines"
+            android:summary="@string/settings_scanlines_summary"
+            android:defaultValue="false" />
+        <ListPreference
+            android:key="filterScanline"
+            android:title="@string/settings_filter_scanline"
+            android:entries="@array/percent_names"
+            android:entryValues="@array/percent_values"
+            android:defaultValue="50"
+            android:dependency="scanlines" />
+
+        <SwitchPreference
+            android:key="crt"
+            android:title="@string/settings_crt"
+            android:summary="@string/settings_crt_summary"
+            android:defaultValue="false" />
+        <ListPreference
+            android:key="filterCurve"
+            android:title="@string/settings_filter_curve"
+            android:entries="@array/percent_names"
+            android:entryValues="@array/percent_values"
+            android:defaultValue="40"
+            android:dependency="crt" />
+        <ListPreference
+            android:key="filterMask"
+            android:title="@string/settings_filter_mask"
+            android:entries="@array/percent_names"
+            android:entryValues="@array/percent_values"
+            android:defaultValue="40"
+            android:dependency="crt" />
+        <ListPreference
+            android:key="filterGlow"
+            android:title="@string/settings_filter_glow"
+            android:entries="@array/percent_names"
+            android:entryValues="@array/percent_values"
+            android:defaultValue="30"
+            android:dependency="crt" />
+
+        <ListPreference
+            android:key="filterSharpness"
+            android:title="@string/settings_filter_sharpness"
+            android:summary="@string/settings_filter_sharpness_summary"
+            android:entries="@array/percent_names"
+            android:entryValues="@array/percent_values"
+            android:defaultValue="100" />
+    </PreferenceCategory>
+
     <PreferenceCategory android:title="@string/settings_display">
         <ListPreference
             android:key="landscapeLayout"

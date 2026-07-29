@@ -1586,6 +1586,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         FuseNative.setWorkingDirectory(Storage.romsDirectory(this).getAbsolutePath());
         FuseNative.start(startArguments());
         watchForStartFailure(0);
+
+        // Not Fuse's settings, so they cannot ride in on its command line: the
+        // renderer has to be told. Queued, so arriving before Fuse has finished
+        // starting is safe.
+        SettingsActivity.applyFilter(preferences);
     }
 
     /**
