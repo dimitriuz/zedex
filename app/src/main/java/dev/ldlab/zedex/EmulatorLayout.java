@@ -165,6 +165,13 @@ final class EmulatorLayout extends ViewGroup {
 
     /** Whether each is wanted at all; the ☰ menu decides. */
     private boolean joystick = true;
+
+    /**
+     * Set while a real controller is plugged in and the on-screen one is to step
+     * aside for it. Kept apart from {@link #joystick} rather than writing to it,
+     * so that unplugging brings back whatever the user had chosen.
+     */
+    private boolean suppressed;
     private boolean keyboardWanted = true;
 
     /**
@@ -266,13 +273,22 @@ final class EmulatorLayout extends ViewGroup {
         requestLayout();
     }
 
+    /** Whether a real controller is standing in for the on-screen one. */
+    void setJoystickSuppressed(boolean standingAside) {
+        if (suppressed == standingAside) return;
+
+        suppressed = standingAside;
+        applyJoystickVisibility();
+        requestLayout();
+    }
+
     /**
      * Gone rather than merely unplaced, for the same reason the keyboard is:
      * the five controls are accessibility nodes, and a screen reader would
      * still find them sitting on top of each other at nowhere.
      */
     private void applyJoystickVisibility() {
-        int visibility = joystick ? VISIBLE : GONE;
+        int visibility = joystick && !suppressed ? VISIBLE : GONE;
 
         if (pad != null) pad.setVisibility(visibility);
         if (fire != null) fire.setVisibility(visibility);
@@ -584,7 +600,7 @@ final class EmulatorLayout extends ViewGroup {
         fireArea.setEmpty();
         joystickFloating = false;
 
-        if (pad == null || fire == null || !joystick) return;
+        if (pad == null || fire == null || !joystick || suppressed) return;
 
         float density = getResources().getDisplayMetrics().density;
         int margin = Math.round(PAD_MARGIN * density);
@@ -701,7 +717,7 @@ final class EmulatorLayout extends ViewGroup {
     private void placeKeyButtons() {
         for (Rect box : keyBoxes) box.setEmpty();
 
-        if (keys.length == 0 || fireBox.isEmpty() || !joystick) return;
+        if (keys.length == 0 || fireBox.isEmpty()) return;
 
         float density = getResources().getDisplayMetrics().density;
         int margin = Math.round(PAD_MARGIN * density);

@@ -84,9 +84,14 @@ is last used, because it sits in the corner of the picture and is therefore in
 the way of the thing it belongs to. A tap anywhere on the screen brings it
 back; closing the sheet takes it away again. It starts visible rather than
 hidden — a control nobody knows is there is worse than one briefly in the way —
-and it is pinned up for as long as the ROMs panel is showing, since that panel
-covers the screen and a tap would land on it instead, leaving settings
-unreachable exactly when a wrong data folder is the likely cause.
+and it is **gone entirely while the ROMs panel is showing**, ☰ and all. With no
+machine there is nothing for any of it to act on: no state to save, nothing to
+pause, no picture to photograph, no drives to look in. It kept ☰ for a while so
+that the data folder stayed reachable, but the panel's own three options are the
+doors out of it — download a set, import a folder, import files — and each of
+them puts ROMs where they are wanted, so a bar of actions that cannot act was
+worse than no bar. Nothing reveals it while the panel is up, since startup and
+the sheet closing both ask as well as a tap on the picture.
 
 The fade's end action has to check whether the bar is still meant to be hidden.
 Cancelling a `ViewPropertyAnimator` runs its end action anyway, so a reveal
@@ -562,6 +567,46 @@ SYMBOL SHIFT wants the picture of the keyboard, and the picture wants room.
 Bindings apply as they are made, like the rest of the app's settings, and what is
 edited is always the current profile — the one the controls are using, so a
 change can be felt straight away.
+
+### A physical controller
+
+There is nothing to set up and nothing to pair: `Gamepad` reads the events the
+window already gets and pushes them at `Controls`, so a pad comes out as
+whichever interface the joystick type says — or as the profile's keys when that
+type is Keyboard, which makes a game that wants QAOP playable on a gamepad
+without the gamepad knowing what a Q is. That is the whole benefit of having
+routed the on-screen controls through one place first.
+
+A is fire; B, X and Y are the three key buttons. The shoulders and the middle two
+are the app rather than the machine, because a controller is usually the only
+thing in reach: **Start** is Enter — as itself, not as whatever Button 1 holds,
+because a game that says PRESS ENTER wants Enter — **Select** puts the on-screen
+keyboard away and brings it back, **L1** loads a state and **R1** saves one.
+Those are the app's own and are not part of a profile; rebinding them would only
+hide them. They act on the press alone, since a release has nothing to undo and
+doing them twice a push would open and close a dialog.
+
+Three details that are easy to get wrong:
+
+- **Source, not keycode.** A keyboard's arrow keys are `DPAD_*` too, and the
+  machine has its own use for those, so every event is checked for
+  `SOURCE_GAMEPAD` or `SOURCE_JOYSTICK` before it is looked at. The test
+  emulator's `qwerty2` device reports `KEYBOARD | DPAD`, which is exactly the
+  case that must not be caught — and is not.
+- **A hat arrives twice.** Many pads report it as both `AXIS_HAT_X/Y` and as
+  D-pad key events. The two paths are tracked separately and combined, because a
+  release down one would otherwise cancel a press that came down the other and
+  the stick would stick. Releases are still sent before presses, for the same
+  reason `JoystickView.steer()` does it.
+- **Nothing else will let go.** A pad unplugged mid-press, or an app sent to the
+  background, leaves the machine holding a direction, so `releaseAll()` runs from
+  `onPause()` and from `onInputDeviceRemoved()`.
+
+`InputManager.InputDeviceListener` is how a pad appearing is noticed; Android has
+no broadcast for it, and the device list is the only answer to "is there one".
+That is also what drives *Hide for a controller*, which is a separate flag in the
+layout rather than a write to the user's own *Show on screen* — unplugging has to
+bring back whatever they had chosen, and it cannot if plugging in threw it away.
 
 ### Pausing
 

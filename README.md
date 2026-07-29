@@ -53,7 +53,7 @@ end.
   **scanline, CRT and composite/RF filters**
 - **Five landscape layouts**
 - **On-screen Spectrum keyboard**
-- **On-screen joystick**
+- **On-screen joystick**, and **physical controllers**, which just work
 - **A quick actions bar**, and **pause** — automatic when the app is not in front
 - **Activity lamps** for the tape, disks, AY, keyboard and joystick
 - **Hardware keyboards**
@@ -86,7 +86,7 @@ emulated, and each of them is one setting away:
 
 **Playing**
 
-- A second joystick, and physical gamepads — which will use the key profile
+- A second joystick
 - Rewind, and playing back RZX recordings
 
 
@@ -138,6 +138,13 @@ joystick — and picks the **key profile**: eight keys, five for the pad and thr
 for the buttons, named and switchable, with QAOPM, QAOP + Space, cursor keys,
 both Sinclair sets and WASD built in. *Edit keys…* binds one by tapping the
 control and then the key.
+
+**A physical controller** needs no setting up: plug one in and it drives the same
+five controls, through the same profile. The stick, the hat and the D-pad steer,
+**A** is fire, and **B**, **X** and **Y** are the three key buttons. The rest are
+the app: **Start** is Enter, **Select** puts the keyboard away and brings it back,
+**L1** loads a state and **R1** saves one. The on-screen pad steps aside while a
+controller is connected, which *Hide for a controller* turns off.
 
 
 **Folders** are yours to choose, in settings:
@@ -200,8 +207,9 @@ In full:
 - **Controls…** — the two things you play with, each of which can be put away
   and neither of which the other replaces.
   - *Joystick…* has *Show on screen*, which of the Spectrum's seven interfaces
-  the pad appears as or *Keyboard* for keys instead, and *Keys…* for the profile
-  the keys come from. A control shows the key it sends on its face.
+  the pad appears as or *Keyboard* for keys instead, *Keys…* for the profile the
+  keys come from, and whether to *Hide for a controller*. A control shows the key
+  it sends on its face.
   - *Keyboard…* has the same *Show on screen* — a game that only wants a
   joystick has no use for forty keys — and *Landscape layout…*, which is
   where the keyboard goes when it is out.

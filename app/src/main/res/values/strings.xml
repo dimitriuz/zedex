@@ -33,6 +33,11 @@
     <!-- The key profile: what the pad sends as a Keyboard joystick, and what
          the three buttons beside fire send whatever the type is. -->
     <string name="joystick_profile">Keys: %1$s</string>
+    <string name="joystick_auto_hide">Hide for a controller: %1$s</string>
+    <string name="joystick_auto_hide_on">The pad will step aside for a controller</string>
+    <string name="joystick_auto_hide_off">The pad stays on screen</string>
+    <string name="on">on</string>
+    <string name="off">off</string>
     <string name="profile_title">Key profile</string>
     <string name="profile_edit">Edit keys…</string>
     <string name="profile_new">New…</string>

@@ -7,6 +7,7 @@ import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.hardware.input.InputManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.DocumentsContract;
@@ -15,6 +16,7 @@ import android.system.ErrnoException;
 import android.system.Os;
 import android.util.Log;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.WindowInsets;
@@ -107,6 +109,25 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
     private SharedPreferences preferences;
     private JoystickView[] keyButtons = new JoystickView[0];
+
+    /** A physical controller, when there is one; harmless when there is not. */
+    private final Gamepad gamepad = new Gamepad(new Gamepad.Actions() {
+
+        @Override
+        public void toggleKeyboard() {
+            showKeyboard(!layout.keyboardVisible());
+        }
+
+        @Override
+        public void loadState() {
+            showStateDialog(false);
+        }
+
+        @Override
+        public void saveState() {
+            showStateDialog(true);
+        }
+    });
     private boolean started;
 
     /** Holds the screen and the keyboard, and decides how they share the window. */
@@ -123,9 +144,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
     /** The bar's pause icon, which becomes play; see {@link #applyPause}. */
     private ImageButton pauseAction;
-
-    /** ☰ itself, which is the one thing worth keeping with no machine. */
-    private ImageButton menuAction;
 
     /**
      * Two reasons to be stopped, kept apart. The user's pause survives going
@@ -299,6 +317,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         applyScale();
         applyControls();
 
+        // Connecting or disconnecting one while the app was away.
+        InputManager input = getSystemService(InputManager.class);
+        if (input != null) input.registerInputDeviceListener(devices, null);
+        applyGamepad();
+
         pausedByAndroid = false;
         applyPause();
     }
@@ -333,7 +356,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         @Override
         public void setTakeover(boolean covering) {
-            pinMenuButton(covering);
+            hideBarForPanel(covering);
         }
     };
 
@@ -373,8 +396,8 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         bar.addGroup(R.drawable.ic_machine, getString(R.string.menu_machine_group),
                      this::fillMachineBar);
 
-        menuAction = bar.addAction(R.drawable.ic_menu, getString(R.string.menu_button),
-                                   () -> menu.open());
+        bar.addAction(R.drawable.ic_menu, getString(R.string.menu_button),
+                      () -> menu.open());
 
         return bar;
     }
@@ -432,8 +455,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      */
     private static final long BAR_LINGER_MS = 3000;
 
-    /** Stays up as long as the ROMs panel does; see {@link #revealQuickBar}. */
-    private boolean barPinned;
+    /**
+     * Set while the ROMs panel is covering everything: the bar is gone and
+     * nothing brings it back. See {@link #hideBarForPanel}.
+     */
+    private boolean panelUp;
 
     /**
      * Whether the bar is meant to be up. The fade's end action has to ask,
@@ -444,8 +470,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     private boolean barWanted;
 
     private final Runnable fadeQuickBar = () -> {
-        if (barPinned) return;
-
         barWanted = false;
         // A group left open would be waiting there on the way back, which is
         // not where the bar was left off.
@@ -457,35 +481,45 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
     /** Shows the bar and starts it fading again. Any tap on the screen does this. */
     private void revealQuickBar() {
+        if (panelUp) return;
+
         barWanted = true;
 
         quickBar.removeCallbacks(fadeQuickBar);
         quickBar.animate().cancel();
         quickBar.setAlpha(1f);
         quickBar.setVisibility(View.VISIBLE);
-
-        if (!barPinned) {
-            quickBar.postDelayed(fadeQuickBar, BAR_LINGER_MS);
-        }
+        quickBar.postDelayed(fadeQuickBar, BAR_LINGER_MS);
     }
 
     /**
-     * Keeps the bar up for as long as there is no machine, and strips it to ☰.
+     * Takes the bar away entirely while the ROMs panel is covering everything,
+     * and puts it back when a machine is running.
      *
-     * Up, because the ROMs panel covers the screen, so a tap lands on the panel
-     * rather than on the thing that reveals the bar. Stripped, because with no
-     * machine there is nothing for the actions to act on — no state to save,
-     * nothing to pause, no picture to photograph.
+     * There is nothing for it to do with no machine: no state to save, nothing
+     * to pause, no picture to photograph, no drives to look in. It kept ☰ for a
+     * while so that the data folder stayed reachable, but the panel's own three
+     * options are the doors out of it - download a set, import a folder, import
+     * files - and each of them puts ROMs where this needs them. A bar of
+     * actions that cannot act is worse than no bar.
      *
-     * ☰ stays, and only ☰: the data folder is behind it, and a data folder
-     * pointing somewhere with no ROMs in it is the likeliest reason for being
-     * on this panel at all. Taking it away would stand the user in the one room
-     * with no doors.
+     * Nothing reveals it while the panel is up: the panel covers the screen, so
+     * a tap lands on the panel rather than on the picture, but startup and the
+     * sheet closing both ask as well.
      */
-    private void pinMenuButton(boolean pinned) {
-        barPinned = pinned;
-        quickBar.showOnly(pinned ? menuAction : null);
-        revealQuickBar();
+    private void hideBarForPanel(boolean covering) {
+        panelUp = covering;
+
+        if (!covering) {
+            revealQuickBar();
+            return;
+        }
+
+        barWanted = false;
+        quickBar.removeCallbacks(fadeQuickBar);
+        quickBar.animate().cancel();
+        quickBar.collapse();
+        quickBar.setVisibility(View.GONE);
     }
 
     /**
@@ -668,6 +702,34 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         sheet.addItem(getString(R.string.joystick_profile,
                                 ControlProfiles.current(preferences).name),
                       R.drawable.ic_bookmark, this::showProfileDialog);
+        sheet.addItem(getString(R.string.joystick_auto_hide,
+                                getString(autoHide() ? R.string.on : R.string.off)),
+                      R.drawable.ic_hide, () -> setAutoHide(!autoHide()));
+    }
+
+    /** Whether the on-screen pad steps aside for a real controller. */
+    private boolean autoHide() {
+        return preferences.getBoolean(SettingsActivity.KEY_JOYSTICK_AUTO_HIDE, true);
+    }
+
+    private void setAutoHide(boolean on) {
+        preferences.edit()
+                .putBoolean(SettingsActivity.KEY_JOYSTICK_AUTO_HIDE, on).apply();
+
+        applyGamepad();
+        note(on ? R.string.joystick_auto_hide_on : R.string.joystick_auto_hide_off);
+    }
+
+    /**
+     * Takes the on-screen pad away while a controller is plugged in, if that is
+     * wanted.
+     *
+     * Separate from the user's own Show on screen rather than writing to it: a
+     * pad unplugged should bring the controls back, and it cannot if plugging one
+     * in threw the setting away.
+     */
+    private void applyGamepad() {
+        layout.setJoystickSuppressed(autoHide() && Gamepad.connected());
     }
 
     /**
@@ -1698,9 +1760,44 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         super.onPause();
         rememberMachine();
 
+        InputManager input = getSystemService(InputManager.class);
+        if (input != null) input.unregisterInputDeviceListener(devices);
+
+        // A held direction has nobody to let go of it once we are not being sent
+        // events any more.
+        gamepad.releaseAll();
+
         pausedByAndroid = true;
         applyPause();
     }
+
+    /**
+     * A controller appearing or going away.
+     *
+     * Android has no broadcast for "a gamepad is connected"; the device list is
+     * the only answer, and this is how to know it has changed. Every one of the
+     * three does the same thing - look again - since the question is only ever
+     * whether there is one now.
+     */
+    private final InputManager.InputDeviceListener devices =
+            new InputManager.InputDeviceListener() {
+
+        @Override
+        public void onInputDeviceAdded(int deviceId) {
+            applyGamepad();
+        }
+
+        @Override
+        public void onInputDeviceRemoved(int deviceId) {
+            gamepad.releaseAll();
+            applyGamepad();
+        }
+
+        @Override
+        public void onInputDeviceChanged(int deviceId) {
+            applyGamepad();
+        }
+    };
 
     // --- surface lifecycle ---------------------------------------------
 
@@ -1854,6 +1951,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
+        // A controller first: its buttons are not keys the machine has, and its
+        // D-pad must not be mistaken for a keyboard's cursor keys, which the
+        // machine does have.
+        if (gamepad.key(event)) return true;
+
         if (keyCode == KeyEvent.KEYCODE_BACK) {
             // With the sheet open, back belongs to the sheet: up one page,
             // and out of the sheet altogether from the top of it.
@@ -1867,9 +1969,16 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
+        if (gamepad.key(event)) return true;
         if (keyCode == KeyEvent.KEYCODE_BACK) return super.onKeyUp(keyCode, event);
 
         return forwardKey(keyCode, false) || super.onKeyUp(keyCode, event);
+    }
+
+    /** A controller's stick and hat, which arrive as axes rather than as keys. */
+    @Override
+    public boolean onGenericMotionEvent(MotionEvent event) {
+        return gamepad.motion(event) || super.onGenericMotionEvent(event);
     }
 
     // --- assets -----------------------------------------------------------
