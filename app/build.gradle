@@ -32,6 +32,25 @@ android {
     }
 
     signingConfigs {
+        // Debug builds are signed with a key that is in the repository, which
+        // is the only way one debug APK can replace another. Left to itself
+        // Gradle invents a debug key per machine and keeps it in
+        // ~/.android/debug.keystore - so a build from CI, where that file does
+        // not exist and is created fresh for the run, is signed with a key
+        // nothing else has, and Android refuses to install it over anything.
+        // Three builds meant three certificates and three uninstalls.
+        //
+        // Nothing is given away by committing it. It signs debug builds and
+        // only debug builds: it is not the release key, it cannot update
+        // anything from the Play Store, and its password is the published
+        // Android default. Every project that shares debug builds does this.
+        debug {
+            storeFile file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+
         if (keystorePath) {
             release {
                 storeFile file(keystorePath)

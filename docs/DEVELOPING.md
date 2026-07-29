@@ -58,6 +58,19 @@ ABIS=x86_64 ./scripts/build-native.sh  # single ABI
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
+**Debug builds are signed with `app/debug.keystore`, which is in the
+repository.** That is what lets one debug APK replace another: left to itself
+Gradle invents a debug key per machine and keeps it in
+`~/.android/debug.keystore`, so a build from CI — where that file does not
+exist and is created fresh for the run — carries a key nothing else has, and
+`adb install -r` answers `INSTALL_FAILED_UPDATE_INCOMPATIBLE`. Three builds
+meant three certificates and three uninstalls, CI against CI included.
+
+Nothing is given away by committing it. It signs debug builds and only debug
+builds, it is not the release key, it cannot update anything installed from a
+store, and its password is the published Android default. Anything installed
+before this key existed has to be uninstalled once to cross over.
+
 If your default JDK is newer than 21, point Gradle at Android Studio's JBR:
 `JAVA_HOME=/opt/android-studio/jbr ./gradlew assembleDebug`.
 
@@ -69,7 +82,10 @@ previous library.
 
 ## Driving it from adb
 
-`adb shell input keyevent` does **not** reach the app. Tapping the on-screen
+A plain `adb shell input keyevent KEYCODE_A` does reach the app and does type
+an `a`, but that is as far as it goes: there is no way to spell a shifted
+character or a BASIC keyword with it, and `adb shell input text` produces
+nothing at all. Tapping the on-screen
 keyboard with `adb shell input tap` does, which is enough to automate most
 things; key coordinates follow from the artwork's 541x201 layout. Use
 `input swipe x y x y 1200` to hold a key, for instance to latch a shift.
