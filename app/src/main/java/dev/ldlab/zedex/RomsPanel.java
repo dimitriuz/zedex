@@ -92,8 +92,15 @@ final class RomsPanel {
     private final View panel;
     private TextView title;
     private TextView message;
-    /** The Restart button and its caption, hidden unless Fuse gave up. */
-    private View restart;
+    /** The three ways of getting ROMs, hidden while one of them is running. */
+    private final List<View> choices = new ArrayList<>();
+
+    /**
+     * The one button that gets the machine going: "Run anyway" when ROMs are
+     * missing, "Restart" when Fuse has already given up on the ones there are.
+     * Hidden the rest of the time.
+     */
+    private View run;
 
     RomsPanel(Activity activity, Host host) {
         this.activity = activity;
@@ -172,17 +179,18 @@ final class RomsPanel {
         content.addView(message);
 
         // Downloading first: it is the one that needs nothing of the user.
-        content.addView(panelChoice(R.string.roms_where,
+        choices.add(panelChoice(R.string.roms_where,
                 R.string.roms_where_hint, v -> offerRomsDownload()));
-        content.addView(panelChoice(R.string.roms_folder,
+        choices.add(panelChoice(R.string.roms_folder,
                 R.string.roms_folder_hint, v -> importRomsFolder()));
-        content.addView(panelChoice(R.string.roms_files,
+        choices.add(panelChoice(R.string.roms_files,
                 R.string.roms_files_hint, v -> importRomFiles()));
 
-        restart = panelChoice(R.string.roms_restart,
-                R.string.roms_restart_hint, v -> restartForRoms());
-        restart.setVisibility(View.GONE);
-        content.addView(restart);
+        for (View choice : choices) content.addView(choice);
+
+        run = panelChoice(R.string.roms_run, R.string.roms_run_hint, v -> runNow());
+        run.setVisibility(View.GONE);
+        content.addView(run);
 
         // Landscape leaves little height, and the message is not short.
         ScrollView scroll = new ScrollView(activity);
@@ -235,7 +243,8 @@ final class RomsPanel {
         message.setText(startFailed
                 ? activity.getString(R.string.roms_start_failed_message, path)
                 : activity.getString(R.string.roms_needed_message, path));
-        restart.setVisibility(startFailed ? View.VISIBLE : View.GONE);
+        for (View choice : choices) choice.setVisibility(View.VISIBLE);
+        run.setVisibility(startFailed ? View.VISIBLE : View.GONE);
         panel.setVisibility(View.VISIBLE);
         host.setTakeover(true);
     }
@@ -243,6 +252,77 @@ final class RomsPanel {
     void hide() {
         panel.setVisibility(View.GONE);
         host.setTakeover(false);
+    }
+
+    /**
+     * Something is happening and there is nothing to press.
+     *
+     * A download of a third of a megabyte is quick on a desk and not always
+     * quick on a train, and until this existed the panel said exactly what it
+     * had said before, with no sign that a tap had done anything at all. Which
+     * is what a report of "I pressed download and nothing happened" looks like
+     * from the inside.
+     */
+    private void busy(int heading, String detail) {
+        activity.runOnUiThread(() -> {
+            title.setText(heading);
+            message.setText(detail);
+
+            for (View choice : choices) choice.setVisibility(View.GONE);
+            run.setVisibility(View.GONE);
+
+            panel.setVisibility(View.VISIBLE);
+            host.setTakeover(true);
+        });
+    }
+
+    /**
+     * ROMs arrived, but not all of them. Which machines are short is the useful
+     * thing to say, and running with what there is has to be one tap away: a set
+     * missing the +3's four files still runs every other machine, and being told
+     * to go and find them first would be nonsense.
+     */
+    private void showMissing(List<String> missing) {
+        StringBuilder names = new StringBuilder();
+        int shown = Math.min(missing.size(), 10);
+
+        for (int i = 0; i < shown; i++) {
+            names.append(i > 0 ? ", " : "").append(missing.get(i));
+        }
+        if (missing.size() > shown) {
+            names.append(activity.getString(R.string.roms_missing_more,
+                                            missing.size() - shown));
+        }
+
+        title.setText(R.string.roms_missing);
+        message.setText(activity.getString(R.string.roms_missing_message,
+                                           missing.size(), names.toString()));
+
+        for (View choice : choices) choice.setVisibility(View.VISIBLE);
+        run.setVisibility(View.VISIBLE);
+
+        panel.setVisibility(View.VISIBLE);
+        host.setTakeover(true);
+    }
+
+    /**
+     * Gets a machine going with whatever ROMs are now there.
+     *
+     * Two cases, and only one of them is a restart. If Fuse was never started -
+     * the usual one, since with no ROMs it is not started at all - it can simply
+     * be started now. If it *was* started and gave up, it cannot be started
+     * again in this process: its init is not re-entrant, which is why the panel
+     * used to offer a Restart button and wait to be pressed. It no longer waits.
+     */
+    private void runNow() {
+        if (!host.hasStarted()) {
+            hide();
+            host.onRomsChanged();
+            return;
+        }
+
+        Toast.makeText(activity, R.string.roms_restarting, Toast.LENGTH_SHORT).show();
+        restartForRoms();
     }
 
     private void openRomsPage() {
@@ -286,6 +366,9 @@ final class RomsPanel {
         File directory = Storage.romsDirectory(activity);
         directory.mkdirs();
 
+        busy(R.string.roms_downloading,
+             activity.getString(R.string.roms_downloading_message, ROMS_ZIP_URL));
+
         File zip = new File(activity.getCacheDir(), "roms-download.zip");
         HttpURLConnection connection = null;
 
@@ -306,8 +389,7 @@ final class RomsPanel {
         } catch (IOException | SecurityException e) {
             Log.e(TAG, "cannot download " + ROMS_ZIP_URL, e);
             zip.delete();
-            activity.runOnUiThread(() -> Toast.makeText(activity, R.string.roms_download_failed,
-                                               Toast.LENGTH_LONG).show());
+            failed(e.getMessage());
             return;
         } finally {
             if (connection != null) connection.disconnect();
@@ -323,12 +405,31 @@ final class RomsPanel {
 
         if (copied == 0) {
             Log.w(TAG, "nothing in the downloaded zip looked like a ROM");
-            activity.runOnUiThread(() -> Toast.makeText(activity, R.string.roms_download_failed,
-                                               Toast.LENGTH_LONG).show());
+            failed(activity.getString(R.string.roms_download_empty));
             return;
         }
 
         reportRoms(copied);
+    }
+
+    /**
+     * The download did not work. Says so where the user is looking, rather than
+     * in a toast they may have already turned away from, and puts the three
+     * choices back so that another one can be tried.
+     */
+    private void failed(String reason) {
+        activity.runOnUiThread(() -> {
+            title.setText(R.string.roms_download_did_not);
+            message.setText(activity.getString(R.string.roms_download_failed_message,
+                                               activity.getString(R.string.roms_download_failed),
+                                               reason == null ? "" : reason));
+
+            for (View choice : choices) choice.setVisibility(View.VISIBLE);
+            run.setVisibility(Storage.haveRoms(activity) ? View.VISIBLE : View.GONE);
+
+            panel.setVisibility(View.VISIBLE);
+            host.setTakeover(true);
+        });
     }
 
     /** A zip of ROMs, as archive.org hands them out, opened from a document. */
@@ -517,18 +618,23 @@ final class RomsPanel {
         reportRoms(copied);
     }
 
-    /** Says what arrived, and gets a machine going if one can now run. */
+    /**
+     * Says what arrived and gets a machine going, or says what is still missing
+     * and offers to go anyway.
+     *
+     * The machine starts by itself now. It used to need a restart pressed by
+     * hand whenever Fuse had already given up, which read as the app having
+     * nothing more to offer - the ROMs were there and the panel was still up.
+     */
     private void reportRoms(int copied) {
+        List<String> missing = Storage.missingRoms(activity);
+
         activity.runOnUiThread(() -> {
             Toast.makeText(activity, activity.getString(R.string.roms_imported, copied),
                     Toast.LENGTH_SHORT).show();
 
-            if (!host.hasStarted()) {
-                host.onRomsChanged();
-            } else if (FuseNative.currentMachine() < 0) {
-                // Fuse already tried and gave up; more ROMs cannot reach it.
-                show(true);
-            }
+            if (missing.isEmpty()) runNow();
+            else showMissing(missing);
         });
     }
 }

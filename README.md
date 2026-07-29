@@ -108,6 +108,9 @@ screen carries a panel saying what is missing and three ways to fix it:
 - *Choose folder…* takes every `.rom` out of a folder on the device and out of the folders inside it
 - *Choose files…* takes the files, or a zip, you pick
 
+The machine starts as soon as the ROMs are in. If some are missing the panel
+says which, and *Run anyway* starts on the ones that are there.
+
 
 **Sideways, five landscape layouts**, from ☰ *Controls… › Keyboard… › Landscape layout…*:
 

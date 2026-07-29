@@ -68,8 +68,17 @@
     <string name="roms_files_hint">Pick the ROM files yourself, or a zip to unpack \u2014 the only way to reach Download, which Android will not grant as a folder</string>
     <string name="roms_where">Get ROMs</string>
     <string name="roms_where_hint">Download a set from archive.org, about 350 kB. Nothing else to do</string>
-    <string name="roms_restart_hint">Start the machine again, now the right ROMs are in place</string>
     <string name="roms_imported">Copied %1$d ROM(s)</string>
+    <string name="roms_downloading_message">Fetching a set from\n\n%1$s\n\nabout 350 kB. The machine starts by itself when they arrive.</string>
+    <string name="roms_download_did_not">Download failed</string>
+    <string name="roms_download_failed_message">%1$s\n\n%2$s\n\nTry again, or one of the other two ways below.</string>
+    <string name="roms_download_empty">Nothing in the downloaded file looked like a ROM.</string>
+    <string name="roms_missing">Some ROMs are missing</string>
+    <string name="roms_missing_message">%1$d of the machines\' ROMs are not in the folder:\n\n%2$s\n\nThe machines that need them will not start. Everything else will.</string>
+    <string name="roms_missing_more">, and %1$d more</string>
+    <string name="roms_run">Run anyway</string>
+    <string name="roms_run_hint">Start the machine with the ROMs that are there</string>
+    <string name="roms_restarting">Starting the machine…</string>
     <!-- Android will not grant a tree on Download itself, which is why the
          panel offers the files as well as the folder. -->
     <string name="roms_none_found">No .rom files in that folder, or in the folders inside it. Choose the folder your ROMs are in, or the files themselves \u2014 Android will not allow Download as a folder.</string>
@@ -86,7 +95,6 @@
          process, so recovering from this needs a restart. -->
     <string name="roms_start_failed">ROMs needed</string>
     <string name="roms_start_failed_message">The machine could not start. The ROMs in\n\n%1$s\n\nare not the ones it needs \u2014 a file may be missing, or not be a ROM at all.\n\nAdd the right ones and restart.</string>
-    <string name="roms_restart">Restart</string>
     <string name="open_failed">Could not open that file</string>
     <string name="tape_save">Save tape\u2026</string>
     <string name="tape_new">New tape</string>

@@ -8,6 +8,9 @@ import android.provider.DocumentsContract;
 import android.util.Log;
 
 import java.io.File;
+import java.util.Set;
+import java.util.Locale;
+import java.util.HashSet;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -131,6 +134,48 @@ final class Storage {
      */
     static File romsDirectory(Context context) {
         return new File(root(context), ROMS);
+    }
+
+    /**
+     * The ROMs Fuse's machines need, from its own settings defaults in
+     * `vendor/fuse-1.9.0/settings.c`.
+     *
+     * Machines only. Fuse names thirty-eight ROMs in all, but most of them are
+     * peripherals - Multiface, the disk interfaces, the speech chips - and a
+     * missing one of those costs a device nobody asked for, while a missing
+     * machine ROM is a machine that will not boot. Listing all thirty-eight as
+     * "missing" would bury the ones that matter.
+     */
+    private static final String[] MACHINE_ROMS = {
+        "48.rom",
+        "128-0.rom", "128-1.rom",
+        "128p-0.rom", "128p-1.rom",
+        "plus2-0.rom", "plus2-1.rom",
+        "plus3-0.rom", "plus3-1.rom", "plus3-2.rom", "plus3-3.rom",
+        "plus3e-0.rom", "plus3e-1.rom", "plus3e-2.rom", "plus3e-3.rom",
+        "se-0.rom", "se-1.rom",
+        "tc2048.rom", "tc2068-0.rom", "tc2068-1.rom",
+        "256s-0.rom", "256s-1.rom", "256s-2.rom", "256s-3.rom",
+        "trdos.rom", "gluck.rom",
+    };
+
+    /** Which of those are not in the ROM folder, in Fuse's own order. */
+    static List<String> missingRoms(Context context) {
+        File directory = romsDirectory(context);
+        Set<String> present = new HashSet<>();
+        File[] files = directory.listFiles();
+
+        if (files != null) {
+            for (File file : files) {
+                present.add(file.getName().toLowerCase(Locale.ROOT));
+            }
+        }
+
+        List<String> missing = new ArrayList<>();
+        for (String rom : MACHINE_ROMS) {
+            if (!present.contains(rom)) missing.add(rom);
+        }
+        return missing;
     }
 
     static boolean haveRoms(Context context) {

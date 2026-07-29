@@ -1136,6 +1136,22 @@ second case. Either way something is on screen saying so, because Fuse draws
 nothing at all when it gives up and the surface would otherwise stay black
 with no way out of it.
 
+**Arriving ROMs start the machine.** Nothing about a folder that now has ROMs
+in it needs confirming, and a first install that ends with the panel still up
+and no button on it that runs anything reads as a broken app — which is what it
+did before, since the panel waited to be dismissed by hand. So the import
+finishes by starting the emulator, or by restarting the process if Fuse has
+already run and given up.
+
+What it does say something about is an *incomplete* set. `Storage.MACHINE_ROMS`
+lists the twenty-six filenames Fuse's `settings.dat` defaults name, and
+`missingRoms()` reports whichever are not in the folder. That is a report and
+not a refusal: a set that is only 48K and 128K runs those two machines
+perfectly well, so the panel names up to ten of the absentees, says the
+machines that want them will not start, and offers *Run anyway*. The check is
+by filename only — a file called `48.rom` that is not one is Fuse's problem,
+and Fuse says so in its own way.
+
 ROMs arrive by one of three routes: a document tree walked three deep for
 `.rom` and `.zip` entries, a multiple selection from the file picker, or a
 direct download of the archive.org set. Both pickers are kept because Android
