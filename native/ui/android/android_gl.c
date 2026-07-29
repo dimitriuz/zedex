@@ -452,6 +452,26 @@ attach( ANativeWindow *window )
     return 1;
   }
 
+  /* Do not wait for the panel.
+   *
+   * This is the emulation thread, and it owns the EGL context: a swap that
+   * blocks until the next refresh blocks *the emulator*. With the default
+   * interval of one it did, for three quarters of every second, and since a
+   * Spectrum frame is 19.97ms while a sixty hertz refresh is 16.67ms the two
+   * clocks are not multiples of one another - so audio, which is the real
+   * clock, and the display, which had quietly become a second one, fought.
+   * Each frame was finished on the sound's schedule and then held for the
+   * panel's, the sound buffer drained while it waited, and the picture stalled
+   * for four refreshes about once a second while the machine caught up.
+   *
+   * With no interval the buffer is queued the moment it is drawn and
+   * SurfaceFlinger shows the newest one at each refresh, which is what it does
+   * anyway: it composites whole buffers, so there is nothing to tear. Sound is
+   * the only clock again, and above real time the frame dropping in
+   * androidbridge_present() is the only limit.
+   */
+  eglSwapInterval( display, 0 );
+
   /* The program belongs to the context, which outlives the surface, so it
      only has to be built once. */
   if( !program && create_program() ) return 1;

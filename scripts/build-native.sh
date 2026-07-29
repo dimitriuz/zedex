@@ -217,7 +217,7 @@ EOF
     $CC -shared -Wl,-soname,libfuse.so -Wl,--no-undefined -o libfuse.so \
       $FUSE_OBJS $OUR_OBJS \
       $FUSE_LDADD $(mkvar LIBS) \
-      -landroid -llog -lEGL -lGLESv3 -laaudio )
+      -landroid -lnativewindow -llog -lEGL -lGLESv3 -laaudio )
 
   mkdir -p "$APP/jniLibs/$ABI"
   cp "$FUSE_BUILD/libfuse.so" "$APP/jniLibs/$ABI/libfuse.so"

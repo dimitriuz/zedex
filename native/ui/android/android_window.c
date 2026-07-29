@@ -22,6 +22,7 @@
 
 #include <android/native_window_jni.h>
 
+#include "machine.h"
 #include "settings.h"
 
 #include "android_internals.h"
@@ -52,17 +53,17 @@ now_ns( void )
 
 /* Whether this frame is worth showing.
  *
- * eglSwapBuffers() waits for the display's next refresh, so presenting every
- * emulated frame ties the emulation to the panel: at sixty hertz the machine
- * cannot run faster than about a hundred and twenty per cent however fast it is
- * asked to. That is why the speed setting looked inert and why fast forward did
- * nothing - the sound had stopped being the clock and the *display* had taken
- * over.
+ * Above real time the frames the panel cannot show are dropped. Nothing is
+ * lost: a screen refreshing sixty times a second cannot show two hundred and
+ * fifty of them, so drawing and queueing them is work spent on something
+ * nobody will see, and the emulation gets the time back instead. At normal
+ * speed every frame is presented.
  *
- * So above real time the frames the panel cannot show are dropped instead.
- * Nothing is lost: a screen refreshing sixty times a second cannot show two
- * hundred and fifty frames, and the emulation gets the time back. At normal
- * speed every frame is presented as before, and the pacing stays where it was.
+ * This used to matter far more than it does: with the swap waiting for the
+ * panel it was the *only* thing that let the speed setting go above about a
+ * hundred and twenty per cent, because the display had quietly become the
+ * clock. The swap no longer waits - see attach() in android_gl.c - so this is
+ * now only about not doing pointless work.
  */
 static int
 worth_presenting( void )
@@ -76,6 +77,40 @@ worth_presenting( void )
 
   last_present = now;
   return 1;
+}
+
+/* Tells Android how often this window will have something new to show.
+ *
+ * A Spectrum makes 50.08 frames a second and no panel refreshes at that rate,
+ * so on a sixty hertz screen a tenth of the refreshes have to show the frame
+ * before them again - visible in anything that scrolls. A phone that has more
+ * than one refresh rate can do better than that, but only if it is told what
+ * the content's rate is, which is what this is for: FIXED_SOURCE says the rate
+ * is the material's own and not a target to be met, so the platform may switch
+ * the display to a rate that suits it and will schedule the frames evenly
+ * either way.
+ *
+ * The rate is asked of the machine rather than assumed, since a 48K and a
+ * Pentagon do not agree on it, and it is set again whenever the window or the
+ * machine changes.
+ */
+static float declared_rate;
+
+static void
+declare_frame_rate( void )
+{
+  float rate;
+
+  if( !window || !machine_current ) return;
+
+  rate = (float) machine_current->timings.processor_speed
+         / machine_current->timings.tstates_per_frame;
+
+  if( rate == declared_rate ) return;
+
+  ANativeWindow_setFrameRate(
+    window, rate, ANATIVEWINDOW_FRAME_RATE_COMPATIBILITY_FIXED_SOURCE );
+  declared_rate = rate;
 }
 
 void
@@ -100,7 +135,10 @@ androidbridge_present( const void *pixels, int width, int height )
     pending_window = NULL;
     have_pending = 0;
     window_generation++;
+    declared_rate = 0;		/* a new window has not been told anything */
   }
+
+  declare_frame_rate();
 
   androidgl_frame( window, window_generation, pixels, width, height );
 

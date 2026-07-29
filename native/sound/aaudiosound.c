@@ -7,9 +7,19 @@
    emulation. Fuse produces one frame of samples per emulated frame and
    blocks here until the device has room for them, so audio - not vsync and
    not a wall clock - is the emulator's clock.
+
+   That works while the device takes its audio in lumps smaller than a
+   Spectrum frame, which is what a phone asked for low latency does. Where it
+   does not - an emulator's audio device, or a Bluetooth headset - the write
+   comes back only once per lump and the emulation would advance in lumps too,
+   so pace_frame() holds it to the clock instead and lets the queue absorb the
+   lumps. See COARSE_LUMP_MS.
 */
 
 #include "config.h"
+
+#include <errno.h>
+#include <time.h>
 
 #include <aaudio/AAudio.h>
 #include <android/log.h>
@@ -30,12 +40,31 @@
    jitter without adding audible latency. */
 #define BUFFER_BURSTS 3
 
+/* A device that takes its audio in lumps this long or longer cannot be the
+   emulator's clock without the emulation moving in lumps as well: a blocking
+   write only comes back when the device has swallowed a whole lump, so the
+   machine runs the two or three frames that fit and then waits. The sound is
+   continuous - it is buffered - but the picture stops for as long as the lump
+   lasts and then jumps, which is exactly the stutter this guards against.
+
+   Half a Spectrum frame. Phones asked for low latency usually answer with two
+   to five milliseconds and are nowhere near it; an emulator's audio device and
+   anything played over Bluetooth are, and the emulator has to cope with both.
+*/
+#define COARSE_LUMP_MS 10
+
 /* Long enough that a write only times out if audio has genuinely stopped;
    short enough that we do not wedge the emulation thread if it has. */
 #define WRITE_TIMEOUT_NS ( 200 * 1000 * 1000LL )
 
 static AAudioStream *stream;
 static int channels = 1;
+
+static int sample_rate;		/* sample frames a second */
+static int lump;		/* what the device swallows at a time */
+static int coarse;		/* whether that is too big to be the clock */
+static int target_queue;	/* how much audio to keep queued ahead */
+static long long frame_due;	/* when the next emulated frame may end */
 
 int
 sound_lowlevel_init( const char *device, int *freqptr, int *stereoptr )
@@ -76,6 +105,19 @@ sound_lowlevel_init( const char *device, int *freqptr, int *stereoptr )
   *freqptr = AAudioStream_getSampleRate( stream );
   if( channels < 2 ) *stereoptr = 0;
 
+  sample_rate = *freqptr;
+  lump = AAudioStream_getFramesPerBurst( stream );
+  coarse = sample_rate > 0
+           && (long long) lump * 1000 / sample_rate >= COARSE_LUMP_MS;
+
+  /* Half of what the device will hold before a write blocks: a lump of
+     cushion against running dry, and a lump of room so the write does not
+     block and undo the pacing. */
+  target_queue = AAudioStream_getBufferSizeInFrames( stream ) / 2;
+  if( target_queue < lump / 2 ) target_queue = lump / 2;
+
+  frame_due = 0;
+
   result = AAudioStream_requestStart( stream );
   if( result != AAUDIO_OK ) {
     ui_error( UI_ERROR_ERROR, "couldn't start the audio stream: %s",
@@ -85,7 +127,11 @@ sound_lowlevel_init( const char *device, int *freqptr, int *stereoptr )
     return 1;
   }
 
-  sound_log( "audio started: %d Hz, %d channel(s)", *freqptr, channels );
+  sound_log( "audio started: %d Hz, %d channel(s), %d frames a lump (%lldms)"
+             "%s, keeping %d queued",
+             sample_rate, channels, lump,
+             (long long) lump * 1000 / ( sample_rate ? sample_rate : 1 ),
+             coarse ? ", too coarse to be the clock" : "", target_queue );
 
   return 0;
 }
@@ -100,6 +146,64 @@ sound_lowlevel_end( void )
   stream = NULL;
 }
 
+static long long
+audio_now_ns( void )
+{
+  struct timespec now;
+
+  clock_gettime( CLOCK_MONOTONIC, &now );
+  return now.tv_sec * 1000000000LL + now.tv_nsec;
+}
+
+/* Holds the emulation back to real time when the device's lumps are too big
+   to do it evenly.
+ *
+ * Fuse hands over exactly one frame's worth of samples per emulated frame, so
+ * how long that frame should have taken is simply how long the samples will
+ * take to play - which also means this needs no notion of the emulation speed:
+ * at two hundred per cent Fuse resamples and hands over half as many.
+ *
+ * The wall clock and the audio device's clock are not the same clock, and a
+ * few parts in a thousand between them is enough to empty or overflow the
+ * queue within a minute, so the queue's own depth trims the next deadline:
+ * shorter while it is draining, longer while it is filling. That keeps the
+ * audio device the clock in the long run - which is the point of it, since it
+ * is the one clock the sound cannot drift against - while the emulation
+ * advances a frame at a time rather than a lump at a time.
+ */
+static void
+pace_frame( int frames )
+{
+  long long period = (long long) frames * 1000000000LL / sample_rate;
+  long long now = audio_now_ns();
+  long long queued;
+  struct timespec until;
+
+  /* The first frame, or one so far behind that catching up would be a rush -
+     sound paused for a fastload, or the app in the background. Start again
+     from here rather than running a burst of frames to nowhere. */
+  if( !frame_due || frame_due < now - 4 * period ) {
+    frame_due = now + period;
+    return;
+  }
+
+  if( frame_due > now ) {
+    until.tv_sec = frame_due / 1000000000LL;
+    until.tv_nsec = frame_due % 1000000000LL;
+    while( clock_nanosleep( CLOCK_MONOTONIC, TIMER_ABSTIME, &until, NULL )
+           == EINTR );
+  }
+
+  frame_due += period;
+
+  queued = AAudioStream_getFramesWritten( stream )
+         - AAudioStream_getFramesRead( stream );
+
+  /* An eighth of the error, so the correction is spread over a dozen frames
+     and never fast enough to hear. */
+  frame_due += ( queued - target_queue ) * 1000000000LL / sample_rate / 8;
+}
+
 void
 sound_lowlevel_frame( libspectrum_signed_word *data, int len )
 {
@@ -107,6 +211,11 @@ sound_lowlevel_frame( libspectrum_signed_word *data, int len )
   int frames = len / channels;
 
   if( !stream ) return;
+
+  /* On a device with fine lumps the blocking write below is the clock, and
+     the best one available. On a coarse one it cannot be, so the emulation is
+     held to the wall clock here and the queue is left to absorb the lumps. */
+  if( coarse ) pace_frame( frames );
 
   while( frames > 0 ) {
     aaudio_result_t written = AAudioStream_write( stream, data, frames,

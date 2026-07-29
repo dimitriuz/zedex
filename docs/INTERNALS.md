@@ -62,7 +62,10 @@ follows upstream instead of drifting from it.
   until Fuse has initialised and the question is asked before there is a
   machine — or when there is no ROM and there never will be one.
 - **`aaudiosound.c`** writes to AAudio and *blocks*, deliberately: that is what
-  paces the emulator. Audio is the clock, not vsync and not a wall timer.
+  paces the emulator. Audio is the clock, not vsync and not a wall timer — and
+  where a device's bursts are too coarse for a blocking write to pace anything
+  evenly, `pace_frame()` keeps it the clock without letting it clump the
+  emulation. See *Stutter, and the three clocks*.
 - **`ui_error_specific`** in `android_ui.c` turns Fuse's errors into Android
   toasts. Fuse would otherwise draw a Spectrum-styled modal into the emulated
   screen that only Enter or Escape dismisses — and, worse, block whatever
@@ -821,6 +824,70 @@ Measured on an API 36 emulator by counting emulated frames: 50 a second at 100%,
 100 at 200%, and 247 while fast forward was held — 494% of a real Spectrum, the
 AVD not quite managing the last one per cent — and 48 again the moment it was let
 go.
+
+### Stutter, and the three clocks
+
+Dropping the frames a fast machine could not show fixed the speed, and left the
+swap still *waiting* at normal speed — which was its own fault, reported as the
+picture freezing for a few frames every second or so while the sound carried on
+without a break. Sound carrying on is the clue: the sound cannot break, because
+it is buffered and because it is the clock. Only the picture can.
+
+There were two causes, and it took instrumenting the emulation thread to tell
+them apart — a second's worth of totals, printed once a second: frames, time
+inside the swap, time inside the audio write, and a histogram of the gaps
+between one frame being finished and the next.
+
+**Waiting for the panel.** The first report said the emulation thread spent
+**690 to 860 milliseconds of every second inside `eglSwapBuffers()`**, with a
+65ms gap once a second and five to twelve gaps over 25ms. The default swap
+interval is one, so the swap waits for the next refresh — and this is the
+emulation thread, which owns the EGL context, so *the emulator* was waiting.
+A Spectrum frame is 19.97ms and a sixty hertz refresh is 16.67ms; neither
+divides the other, so the sound's schedule and the panel's ground against each
+other, and the sound's slack was spent waiting for a refresh. `attach()` now
+asks for `eglSwapInterval( display, 0 )`: the buffer is queued as it is drawn
+and SurfaceFlinger shows the newest one at each refresh, which is what a
+compositor does anyway — there is nothing to tear. Time in the swap fell to
+about 150ms a second.
+
+**Waiting for the audio device.** That alone did not fix the gaps, and the
+histogram said why: 34 frames a second arrived less than 10ms apart and 15
+arrived 45 to 65ms apart, with almost nothing in between. The machine was
+running in clumps. `AAudioStream_getFramesPerBurst()` on that AVD is **2006
+sample frames — 45ms**, and a blocking write only returns when the device has
+swallowed a whole burst, so the emulation ran the two or three frames that fit
+and then waited. Turning the sound off, which hands pacing to `timer.c` and its
+ten millisecond wall clock, made the gaps even again — which is the proof that
+the granularity was the audio device's and not ours.
+
+So `pace_frame()` in `aaudiosound.c` takes over **only where a burst is longer
+than half a Spectrum frame** — an emulator's audio device, or Bluetooth, where
+bursts are large; a phone asked for low latency answers with two to five
+milliseconds and keeps the blocking write it always had. Where it does take
+over, the frame is held to a wall-clock deadline and the queue absorbs the
+lumps. The deadline needs no notion of the emulation speed: Fuse hands over one
+frame's worth of samples per frame, so how long the frame should take is how
+long its own samples take to play, and at 200% it hands over half as many. The
+wall clock and the audio device's clock are still not the same clock, so the
+queue's depth trims each deadline by an eighth of its error — draining, run
+sooner; filling, run later — which keeps the audio device the clock over any
+length of time while the emulation advances a frame at a time.
+
+Measured after, over forty seconds on the same AVD: every gap in the 18–23ms
+bucket, worst 22ms, **no gaps over 25ms at all**, the queue holding between 2028
+and 2967 sample frames against a 2006 target, and `getXRunCount()` still at the
+two it reported from starting up. Smooth picture, and the sound no closer to
+running dry than before.
+
+One thing this does not fix, because nothing can: 50.08 frames a second on a
+sixty hertz panel means a tenth of the refreshes must show the frame before them
+again. `ANativeWindow_setFrameRate()` tells Android the content's real rate —
+asked of `machine_current->timings`, since a Pentagon does not agree with a 48K
+— with `FIXED_SOURCE`, which says it is the material's rate and not a target, so
+a phone with more than one refresh rate may pick one that suits. It needs
+`-lnativewindow`: `libandroid.so` re-exports the older `ANativeWindow_`
+functions but not that one.
 
 ### Pausing
 
