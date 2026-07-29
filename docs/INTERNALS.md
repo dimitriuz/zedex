@@ -311,7 +311,17 @@ through **Open file…** takes the same path through Fuse.
 
 `SettingsActivity` is a plain framework `PreferenceFragment` over the same
 `fuse` preferences file the emulator reads, so there is one store rather than
-two. The machine list is not a fixed array: it is read back from Fuse through
+two.
+
+**A disabled preference is not dimmed by this theme at all.** Measured on API
+36, the darkest pixel of the title is (48, 50, 59) whether the row is enabled or
+not — so `android:dependency` was decorative, and a setting that could do
+nothing looked exactly like one that could. `FadingListPreference` overrides
+`onBindView` to put the whole row at 38% alpha when it is disabled: the whole
+row, so the summary and the widget go with it, and alpha rather than a colour so
+there is no opinion about what "dim" looks like on a dark theme. It has to be
+set on every bind, because these views are recycled as the list scrolls and a
+faded one would otherwise turn up under an enabled row. The machine list is not a fixed array: it is read back from Fuse through
 `FuseNative.machineNames()`, the same snapshot the ☰ switcher uses.
 
 Each setting is applied twice. At startup it goes on Fuse's command line —
