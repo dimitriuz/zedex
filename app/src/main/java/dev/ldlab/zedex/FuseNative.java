@@ -233,15 +233,24 @@ final class FuseNative {
      */
     static final int FILTER_SCANLINES = 0;
     static final int FILTER_CRT = 1;
-    static final int FILTER_SHARPNESS = 2;
-    static final int FILTER_SCANLINE = 3;
-    static final int FILTER_CURVE = 4;
-    static final int FILTER_MASK = 5;
-    static final int FILTER_GLOW = 6;
+    static final int FILTER_VIDEO = 2;
+    static final int FILTER_SHARPNESS = 3;
+    static final int FILTER_SCANLINE = 4;
+    static final int FILTER_CURVE = 5;
+    static final int FILTER_MASK = 6;
+    static final int FILTER_GLOW = 7;
+    static final int FILTER_BLEED = 8;
+    static final int FILTER_NOISE = 9;
+
+    /** Values of FILTER_VIDEO: how the picture left the machine. */
+    static final int VIDEO_RGB = 0;
+    static final int VIDEO_COMPOSITE = 1;
+    static final int VIDEO_RF = 2;
 
     /**
      * Sets one of the filters' numbers: {@code which} is a FILTER_* index.
-     * The two switches take 0 or 1, the five strengths 0 to 100.
+     * The two switches take 0 or 1, FILTER_VIDEO a VIDEO_* value, and the
+     * strengths 0 to 100.
      */
     static native void setFilter(int which, int value);
 

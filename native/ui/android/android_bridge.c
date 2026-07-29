@@ -83,18 +83,22 @@ enum {
   OPTION_AY_STEREO,			/* 0 none, 1 ACB, 2 ABC */
   OPTION_FILTER_SCANLINES,		/* on or off */
   OPTION_FILTER_CRT,			/* on or off */
-  OPTION_FILTER_SHARPNESS,		/* the five below are 0 - 100 */
+  OPTION_FILTER_VIDEO,			/* 0 RGB, 1 composite, 2 RF */
+  OPTION_FILTER_SHARPNESS,		/* the rest are 0 - 100 */
   OPTION_FILTER_SCANLINE,
   OPTION_FILTER_CURVE,
   OPTION_FILTER_MASK,
   OPTION_FILTER_GLOW,
+  OPTION_FILTER_BLEED,
+  OPTION_FILTER_NOISE,
 };
 
 /* The filters' shape, kept here because the settings arrive one at a time and
    the renderer wants them together. Defaults match android_gl.c's. */
 static struct {
-  int scanlines, crt, sharpness, scanline, curve, mask, glow;
-} filter = { 0, 0, 100, 50, 40, 40, 30 };
+  int scanlines, crt, video, sharpness, scanline, curve, mask, glow, bleed,
+      noise;
+} filter = { 0, 0, 0, 100, 50, 40, 40, 30, 50, 20 };
 
 typedef struct queued_command {
   command_type type;
@@ -238,26 +242,33 @@ run_set_option( int option, int value )
 
   case OPTION_FILTER_SCANLINES:
   case OPTION_FILTER_CRT:
+  case OPTION_FILTER_VIDEO:
   case OPTION_FILTER_SHARPNESS:
   case OPTION_FILTER_SCANLINE:
   case OPTION_FILTER_CURVE:
   case OPTION_FILTER_MASK:
   case OPTION_FILTER_GLOW:
+  case OPTION_FILTER_BLEED:
+  case OPTION_FILTER_NOISE:
     switch( option ) {
     case OPTION_FILTER_SCANLINES: filter.scanlines = value; break;
     case OPTION_FILTER_CRT:       filter.crt = value; break;
+    case OPTION_FILTER_VIDEO:     filter.video = value; break;
     case OPTION_FILTER_SHARPNESS: filter.sharpness = value; break;
     case OPTION_FILTER_SCANLINE:  filter.scanline = value; break;
     case OPTION_FILTER_CURVE:     filter.curve = value; break;
     case OPTION_FILTER_MASK:      filter.mask = value; break;
     case OPTION_FILTER_GLOW:      filter.glow = value; break;
+    case OPTION_FILTER_BLEED:     filter.bleed = value; break;
+    case OPTION_FILTER_NOISE:     filter.noise = value; break;
     }
 
     /* Safe from here: this runs on the emulation thread, which is the one that
        owns the GL context. */
-    androidgl_set_filter( filter.scanlines, filter.crt, filter.sharpness,
-                          filter.scanline, filter.curve, filter.mask,
-                          filter.glow );
+    androidgl_set_filter( filter.scanlines, filter.crt, filter.video,
+                          filter.sharpness, filter.scanline, filter.curve,
+                          filter.mask, filter.glow, filter.bleed,
+                          filter.noise );
     break;
 
   case OPTION_AY_STEREO: {

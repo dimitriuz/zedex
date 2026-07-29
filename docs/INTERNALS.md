@@ -523,6 +523,25 @@ blurring everything; at 100% the shader's own snapping already lands on a texel
 centre, so the sampler is switched to nearest and the default look is exactly
 what it was.
 
+**The signal, before the glass.** A Spectrum reached its television through a
+modulator, and what came out was not what went in. Luma survived; chroma did
+not — it rode a subcarrier with a fraction of the bandwidth, so colour smeared
+sideways across several pixels while the edges stayed put. That is the whole of
+the composite look, and it is why magenta text on a 48K bled. It is done in YIQ
+because that is what the encoding used: convert, blur I and Q along the line
+with seven weighted taps, keep Y from the middle tap, convert back.
+
+RF adds what an analogue tuner contributed of its own: snow, which is hashed
+from the output pixel and a frame counter so that it moves — snow that does not
+move is not snow — and a faint horizontal ripple, which is the subcarrier
+beating against the luma and is what dot crawl looks like when you are not
+staring at it.
+
+The order matters. The signal is applied to the sampled frame and the glass acts
+on the result, because that is the order it happened in: the tube displayed
+whatever arrived. A signal also needs interpolation to smear across, so choosing
+anything but RGB softens the sampler regardless of *Sharpness*.
+
 **Why these and not RetroArch's.** `.slang` shaders are Vulkan GLSL: running one
 means glslang to SPIR-V and SPIRV-Cross back to GLSL ES, two large C++
 libraries in an app that has none, and the format is a multi-pass pipeline with

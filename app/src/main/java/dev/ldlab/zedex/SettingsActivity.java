@@ -69,6 +69,9 @@ public class SettingsActivity extends Activity {
     static final String KEY_FILTER_CURVE = "filterCurve";
     static final String KEY_FILTER_MASK = "filterMask";
     static final String KEY_FILTER_GLOW = "filterGlow";
+    static final String KEY_VIDEO = "video";
+    static final String KEY_FILTER_BLEED = "filterBleed";
+    static final String KEY_FILTER_NOISE = "filterNoise";
 
     /**
      * Each strength, the index it sets and what it is worth by default. The two
@@ -80,6 +83,9 @@ public class SettingsActivity extends Activity {
         { KEY_FILTER_CURVE,     FuseNative.FILTER_CURVE,     "40"  },
         { KEY_FILTER_MASK,      FuseNative.FILTER_MASK,      "40"  },
         { KEY_FILTER_GLOW,      FuseNative.FILTER_GLOW,      "30"  },
+        { KEY_VIDEO,            FuseNative.FILTER_VIDEO,     "0"   },
+        { KEY_FILTER_BLEED,     FuseNative.FILTER_BLEED,     "50"  },
+        { KEY_FILTER_NOISE,     FuseNative.FILTER_NOISE,     "20"  },
     };
 
     /**
@@ -464,6 +470,8 @@ public class SettingsActivity extends Activity {
                                              KEY_FILTER_SHARPNESS,
                                              KEY_FILTER_SCANLINE, KEY_FILTER_CURVE,
                                              KEY_FILTER_MASK, KEY_FILTER_GLOW,
+                                             KEY_VIDEO, KEY_FILTER_BLEED,
+                                             KEY_FILTER_NOISE,
                                              KEY_AY_VOLUME, KEY_BEEPER_VOLUME }) {
                 Preference preference = findPreference(key);
                 if (preference instanceof ListPreference) {

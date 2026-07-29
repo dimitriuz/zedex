@@ -128,6 +128,27 @@
             android:dependency="crt" />
 
         <ListPreference
+            android:key="video"
+            android:title="@string/settings_video"
+            android:summary="@string/settings_video_summary"
+            android:entries="@array/video_names"
+            android:entryValues="@array/video_values"
+            android:defaultValue="0" />
+        <ListPreference
+            android:key="filterBleed"
+            android:title="@string/settings_filter_bleed"
+            android:entries="@array/percent_names"
+            android:entryValues="@array/percent_values"
+            android:defaultValue="50" />
+        <ListPreference
+            android:key="filterNoise"
+            android:title="@string/settings_filter_noise"
+            android:summary="@string/settings_filter_noise_summary"
+            android:entries="@array/percent_names"
+            android:entryValues="@array/percent_values"
+            android:defaultValue="20" />
+
+        <ListPreference
             android:key="filterSharpness"
             android:title="@string/settings_filter_sharpness"
             android:summary="@string/settings_filter_sharpness_summary"

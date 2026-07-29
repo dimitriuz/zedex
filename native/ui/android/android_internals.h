@@ -48,8 +48,9 @@ void androidgl_frame( ANativeWindow *window, unsigned generation,
 /* The picture filters: scanlines and the CRT glass, each on or off, and five
    strengths from 0 to 100. Bounded like RetroArch's #pragma parameter, for the
    day someone wants to run one of theirs. */
-void androidgl_set_filter( int scanlines, int crt, int sharpness, int scanline,
-                           int curve, int mask, int glow );
+void androidgl_set_filter( int scanlines, int crt, int video, int sharpness,
+                           int scanline, int curve, int mask, int glow,
+                           int bleed, int noise );
 
 /* Drop the EGL surface but keep the context, for when Android takes the
    window away. */

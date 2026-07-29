@@ -72,6 +72,17 @@
         <item>ABC</item>
     </string-array>
 
+    <string-array name="video_names">
+        <item>RGB — straight from the machine</item>
+        <item>Composite — colour bleeds sideways</item>
+        <item>RF — through the aerial socket</item>
+    </string-array>
+    <string-array name="video_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+
     <!-- Shared by every filter strength. Fine enough to tune by, coarse
          enough to pick from a list. -->
     <string-array name="percent_names">

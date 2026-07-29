@@ -43,9 +43,9 @@ static GLuint program, texture, vbo;
 static int texture_width, texture_height;
 
 static struct {
-  GLint scale, source, output;
-  GLint scanlines, crt;
-  GLint sharpness, scanline, curve, mask, glow;
+  GLint scale, source, output, frame;
+  GLint scanlines, crt, video;
+  GLint sharpness, scanline, curve, mask, glow, bleed, noise;
 } uniform;
 
 /* What the app has asked for. Set from the emulation thread, read by it.
@@ -54,9 +54,13 @@ static struct {
    and a tube has both: scanlines are the beam, and the curve, the mask and the
    glow are the glass in front of it. Either can be had without the other. */
 static struct {
-  int scanlines, crt;
-  float sharpness, scanline, curve, mask, glow;
-} settings = { 0, 0, 1.0f, 0.5f, 0.4f, 0.4f, 0.3f };
+  int scanlines, crt, video;
+  float sharpness, scanline, curve, mask, glow, bleed, noise;
+} settings = { 0, 0, 0, 1.0f, 0.5f, 0.4f, 0.4f, 0.3f, 0.5f, 0.2f };
+
+/* Counts frames, for the parts of a signal that move: snow is different every
+   frame or it is not snow. */
+static unsigned frame_counter;
 
 /* Whether the texture is currently sampled without interpolation. Nearest is
    the only way to be exactly pixel for pixel, so it stays the default and the
@@ -88,11 +92,15 @@ static const char fragment_shader_src[] =
   "uniform vec2 u_output;\n"
   "uniform int u_scanlines;\n"
   "uniform int u_crt;\n"
+  "uniform int u_video;\n"
+  "uniform int u_frame;\n"
   "uniform float u_sharpness;\n"
   "uniform float u_scanline;\n"
   "uniform float u_curve;\n"
   "uniform float u_mask;\n"
   "uniform float u_glow;\n"
+  "uniform float u_bleed;\n"
+  "uniform float u_noise;\n"
   "out vec4 colour;\n"
   "\n"
   "const float PI = 3.14159265;\n"
@@ -136,6 +144,49 @@ static const char fragment_shader_src[] =
   "  return average * average;\n"
   "}\n"
   "\n"
+  /* A Spectrum reached its television through a modulator, and what came out
+     the other end was not what went in. Luma survived; chroma did not - it
+     rode a subcarrier with a fraction of the bandwidth, so colour smeared
+     sideways across several pixels while the edges stayed put. That is the
+     whole of the composite look, and it is why magenta text on a 48K bled.
+
+     Done in YIQ because that is what the encoding actually used: convert,
+     blur I and Q along the line, keep Y from the middle, convert back. */
+  "const mat3 TO_YIQ = mat3( 0.299,  0.596,  0.211,\n"
+  "                          0.587, -0.274, -0.523,\n"
+  "                          0.114, -0.322,  0.312 );\n"
+  "const mat3 TO_RGB = mat3( 1.0,    1.0,    1.0,\n"
+  "                          0.956, -0.272, -1.106,\n"
+  "                          0.621, -0.647,  1.703 );\n"
+  "\n"
+  "vec3 modulated( vec2 uv, vec3 centre ) {\n"
+  "  float spread = u_bleed * 3.0 / u_source.x;\n"
+  "  vec3 yiq = TO_YIQ * centre;\n"
+  "  vec2 chroma = vec2( 0.0 );\n"
+  "  float total = 0.0;\n"
+  "\n"
+  "  for( int tap = -3; tap <= 3; tap++ ) {\n"
+  "    float weight = 1.0 - abs( float( tap ) ) / 4.0;\n"
+  "    vec3 near = TO_YIQ * texture( u_tex, uv + vec2( float( tap ) * spread,\n"
+  "                                                    0.0 ) ).rgb;\n"
+  "    chroma += weight * near.yz;\n"
+  "    total += weight;\n"
+  "  }\n"
+  "\n"
+  "  yiq.yz = chroma / total;\n"
+  "  return TO_RGB * yiq;\n"
+  "}\n"
+  "\n"
+  /* Aerial rather than a lead: the same smearing, plus what an analogue tuner
+     adds of its own. Snow, which moves; and a faint horizontal ripple, which
+     is the subcarrier beating against the luma and is what dot crawl looks
+     like when you are not looking closely. */
+  "float snow( vec2 where ) {\n"
+  "  vec3 seed = vec3( where, float( u_frame ) );\n"
+  "  return fract( sin( dot( seed, vec3( 12.9898, 78.233, 37.719 ) ) )\n"
+  "                * 43758.5453 );\n"
+  "}\n"
+  "\n"
   "void main() {\n"
   "  vec2 uv = v_uv;\n"
   "\n"
@@ -151,8 +202,18 @@ static const char fragment_shader_src[] =
   "\n"
   "  vec3 rgb = texture( u_tex, sharpen( uv ) ).rgb;\n"
   "\n"
+  /* The signal first: it is what arrived, and the glass acts on that. */
+  "  if( u_video > 0 && u_bleed > 0.0 ) rgb = modulated( uv, rgb );\n"
+  "\n"
+  "  if( u_video == 2 ) {\n"
+  "    float ripple = sin( uv.y * u_source.y * PI * 2.0\n"
+  "                        + float( u_frame ) * 0.7 );\n"
+  "    rgb *= 1.0 + u_noise * 0.06 * ripple;\n"
+  "    rgb += u_noise * 0.18 * ( snow( gl_FragCoord.xy ) - 0.5 );\n"
+  "  }\n"
+  "\n"
   "  if( u_scanlines == 0 && u_crt == 0 ) {\n"
-  "    colour = vec4( rgb, 1.0 );\n"
+  "    colour = vec4( clamp( rgb, 0.0, 1.0 ), 1.0 );\n"
   "    return;\n"
   "  }\n"
   "\n"
@@ -242,6 +303,10 @@ create_program( void )
   uniform.output    = glGetUniformLocation( program, "u_output" );
   uniform.scanlines = glGetUniformLocation( program, "u_scanlines" );
   uniform.crt       = glGetUniformLocation( program, "u_crt" );
+  uniform.video     = glGetUniformLocation( program, "u_video" );
+  uniform.frame     = glGetUniformLocation( program, "u_frame" );
+  uniform.bleed     = glGetUniformLocation( program, "u_bleed" );
+  uniform.noise     = glGetUniformLocation( program, "u_noise" );
   uniform.sharpness = glGetUniformLocation( program, "u_sharpness" );
   uniform.scanline  = glGetUniformLocation( program, "u_scanline" );
   uniform.curve     = glGetUniformLocation( program, "u_curve" );
@@ -354,7 +419,7 @@ androidgl_detach( void )
 static void
 apply_sampler( void )
 {
-  int wanted = settings.sharpness >= 1.0f;
+  int wanted = settings.sharpness >= 1.0f && settings.video == 0;
 
   if( wanted == nearest ) return;
 
@@ -366,11 +431,15 @@ apply_sampler( void )
 }
 
 void
-androidgl_set_filter( int scanlines, int crt, int sharpness, int scanline,
-                      int curve, int mask, int glow )
+androidgl_set_filter( int scanlines, int crt, int video, int sharpness,
+                      int scanline, int curve, int mask, int glow, int bleed,
+                      int noise )
 {
   settings.scanlines = scanlines;
   settings.crt = crt;
+  settings.video = video;
+  settings.bleed = bleed / 100.0f;
+  settings.noise = noise / 100.0f;
   settings.sharpness = sharpness / 100.0f;
   settings.scanline = scanline / 100.0f;
   settings.curve = curve / 100.0f;
@@ -433,6 +502,10 @@ androidgl_frame( ANativeWindow *window, unsigned generation,
   glUniform2f( uniform.output, (float) view_width, (float) view_height );
   glUniform1i( uniform.scanlines, settings.scanlines );
   glUniform1i( uniform.crt, settings.crt );
+  glUniform1i( uniform.video, settings.video );
+  glUniform1i( uniform.frame, (GLint) ( frame_counter++ & 0xffff ) );
+  glUniform1f( uniform.bleed, settings.bleed );
+  glUniform1f( uniform.noise, settings.noise );
   glUniform1f( uniform.sharpness, settings.sharpness );
   glUniform1f( uniform.scanline, settings.scanline );
   glUniform1f( uniform.curve, settings.curve );

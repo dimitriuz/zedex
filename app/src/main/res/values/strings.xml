@@ -131,6 +131,11 @@
     <string name="settings_scanlines_summary">A dark line between each of the machine\u2019s own 240</string>
     <string name="settings_crt">CRT effect</string>
     <string name="settings_crt_summary">The glass in front of the beam: curve, shadow mask, glow</string>
+    <string name="settings_video">Video output</string>
+    <string name="settings_video_summary">How the picture left the machine, and what that cost it</string>
+    <string name="settings_filter_bleed">Colour bleed</string>
+    <string name="settings_filter_noise">Noise</string>
+    <string name="settings_filter_noise_summary">RF only</string>
     <string name="settings_filter_sharpness">Sharpness</string>
     <string name="settings_filter_sharpness_summary">100% is pixel for pixel; less softens the edges</string>
     <string name="settings_filter_scanline">Scanline strength</string>

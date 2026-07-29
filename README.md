@@ -49,7 +49,7 @@ end.
 
 **Comfort**
 
-- **GPU-scaled display**, with **scanline and CRT filters**
+- **GPU-scaled display**, with **scanline, CRT and composite/RF filters**
 - **Five landscape layouts**
 - **On-screen Spectrum keyboard**
 - **On-screen joystick**
@@ -215,6 +215,7 @@ In full:
 | **AY stereo separation** | off, ACB or ABC — the 128's three channels spread across two |
 | **Black and white TV** | the monochrome palette |
 | **Scanlines**, **CRT effect** | a dark line per emulated row; curve, shadow mask and glow, each with its own strength |
+| **Video output** | RGB, composite or RF — what the picture cost on the way to the telly, with colour bleed and noise |
 | **Sharpness** | 100% is pixel for pixel; less softens the edges |
 | **Activity indicators** | the lamps beside the picture |
 | **Keep the screen on** | Android's, not the emulator's |
