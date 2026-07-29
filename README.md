@@ -207,7 +207,8 @@ In full:
 | --- | --- |
 | **Machine at startup** | which machine to boot |
 | **Issue 2 keyboard** | early 48K keyboard behaviour a few games depend on |
-| **Fast loading** | ROM traps plus loader acceleration |
+| **Fast loading** | off, safe (ROM loaders) or turbo (custom loaders too) |
+| **Detect loaders** | start and stop the tape when a loader asks for it |
 | **Loading sound** | the loading sound, which only exists when a tape runs in real time |
 | **Autoload media** | whether inserting a tape types `LOAD` for you |
 | **Sound**, **AY volume**, **Beeper volume** | restart the sound subsystem when changed |

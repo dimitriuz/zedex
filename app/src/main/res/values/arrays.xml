@@ -46,6 +46,19 @@
         <item>none</item>
     </string-array>
 
+    <!-- Three of Fuse's tape settings in the combinations worth having; see
+         OPTION_LOADER_ACCELERATION in android_bridge.c. -->
+    <string-array name="loader_names">
+        <item>Off — real time</item>
+        <item>Safe — ROM loaders</item>
+        <item>Turbo — every loader</item>
+    </string-array>
+    <string-array name="loader_values">
+        <item>off</item>
+        <item>safe</item>
+        <item>turbo</item>
+    </string-array>
+
     <string-array name="format_names">
         <item>SZX — every machine</item>
         <item>Z80 — widely supported</item>

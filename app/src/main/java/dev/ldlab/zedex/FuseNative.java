@@ -192,8 +192,15 @@ final class FuseNative {
     /** Queues a non-maskable interrupt - the "magic button" on real hardware. */
     static native void nmi();
 
-    /** Turns Fuse's tape traps, fast loading and loader acceleration on or off. */
-    static native void setFastTape(boolean fast);
+    /**
+     * How hard to push a tape: 0 real time, 1 the ROM's loaders, 2 custom
+     * loaders too. Three of Fuse's settings in the three combinations that are
+     * worth having — see OPTION_LOADER_ACCELERATION in android_bridge.c.
+     */
+    static native void setLoaderAcceleration(int level);
+
+    /** Whether Fuse starts and stops the tape when it spots a loader. */
+    static native void setDetectLoader(boolean on);
 
     /** Turns the tape loading noise on or off; only audible without fast loading. */
     static native void setTapeSound(boolean on);

@@ -107,7 +107,7 @@ typedef enum command_type {
 
 /* Options the Android UI can set. Values are integers; booleans are 0 or 1. */
 enum {
-  OPTION_FAST_TAPE,
+  OPTION_LOADER_ACCELERATION,		/* 0 none, 1 safe, 2 turbo */
   OPTION_TAPE_SOUND,
   OPTION_AUTOLOAD,
   OPTION_ISSUE2,
@@ -117,6 +117,7 @@ enum {
   OPTION_AY_VOLUME,			/* 0 - 100 */
   OPTION_BEEPER_VOLUME,			/* 0 - 100 */
   OPTION_JOYSTICK_TYPE,			/* a joystick_type_t */
+  OPTION_DETECT_LOADER,
 };
 
 typedef struct queued_command {
@@ -356,14 +357,26 @@ run_set_option( int option, int value )
 
   switch( option ) {
 
-  case OPTION_FAST_TAPE:
-    /* Fuse spreads this across three settings: traps catch the ROM loading
-       routine, fastload makes a trapped block appear at once, and
-       accelerate_loader speeds up the timing loops of custom loaders that
-       never call the ROM at all. */
-    settings_current.tape_traps = value;
-    settings_current.fastload = value;
-    settings_current.accelerate_loader = value;
+  case OPTION_LOADER_ACCELERATION:
+    /* Three of Fuse's settings, in three useful combinations. Traps catch the
+       ROM's loading routine and fastload makes a trapped block appear at once,
+       which between them cover every tape that loads the standard way;
+       accelerate_loader goes further and skips the timing loops of custom
+       loaders that never call the ROM, which is the part that can occasionally
+       defeat one. So the middle setting is the one to fall back to when a tape
+       will not load, and it is still nothing like real time.
+
+       The same three levels as Spectacol, the other Fuse-based Android port,
+       and for the same reason. */
+    settings_current.tape_traps = value > 0;
+    settings_current.fastload = value > 0;
+    settings_current.accelerate_loader = value > 1;
+    break;
+
+  case OPTION_DETECT_LOADER:
+    /* Watches the ULA for the pattern of a loader polling it and starts the
+       tape when it sees one - and stops it when the loader stops asking. */
+    settings_current.detect_loader = value;
     break;
 
   case OPTION_TAPE_SOUND:
@@ -1105,10 +1118,17 @@ Java_dev_ldlab_zedex_FuseNative_nmi( JNIEnv *env, jclass class )
 }
 
 JNIEXPORT void JNICALL
-Java_dev_ldlab_zedex_FuseNative_setFastTape( JNIEnv *env, jclass class,
-                                            jboolean fast )
+Java_dev_ldlab_zedex_FuseNative_setLoaderAcceleration( JNIEnv *env, jclass class,
+                                                       jint level )
 {
-  queue_command( COMMAND_SET_OPTION, OPTION_FAST_TAPE, fast ? 1 : 0 );
+  queue_command( COMMAND_SET_OPTION, OPTION_LOADER_ACCELERATION, level );
+}
+
+JNIEXPORT void JNICALL
+Java_dev_ldlab_zedex_FuseNative_setDetectLoader( JNIEnv *env, jclass class,
+                                                 jboolean on )
+{
+  queue_command( COMMAND_SET_OPTION, OPTION_DETECT_LOADER, on ? 1 : 0 );
 }
 
 JNIEXPORT void JNICALL

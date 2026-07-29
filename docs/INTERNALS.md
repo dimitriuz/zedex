@@ -311,10 +311,30 @@ starting, which matters because a file arriving by intent can be loading
 before the command queue is first drained. Changed later, it goes through the
 queue like everything else.
 
-Fast loading is one switch over three Fuse settings: `tape_traps` catches the
-ROM's loading routine, `fastload` makes a trapped block appear at once, and
-`accelerate_loader` speeds up the timing loops of custom loaders that never
-call the ROM at all.
+Fast loading is three of Fuse's settings in the three combinations worth
+having. `tape_traps` catches the ROM's loading routine and `fastload` makes a
+trapped block appear at once, which between them cover every tape that loads
+the standard way; `accelerate_loader` goes further and skips the timing loops
+of custom loaders that never call the ROM at all, which is the part that can
+occasionally defeat one.
+
+| | `tape_traps` | `fastload` | `accelerate_loader` |
+| --- | --- | --- | --- |
+| **Off** | 0 | 0 | 0 |
+| **Safe** | 1 | 1 | 0 |
+| **Turbo** | 1 | 1 | 1 |
+
+So *Safe* is what to fall back to when a tape will not load, and it is still
+nothing like real time. These are the same three levels as Spectacol, the other
+Fuse-based Android port, and they are its grouping rather than Fuse's — Fuse has
+only the three booleans. The setting used to be one switch, which could only
+ever be *Off* or *Turbo*; it migrates by which end it was at.
+
+`detect_loader` is separate, and a fourth thing again: it watches the ULA for
+the pattern of a loader polling it, starts the tape when it sees one, and stops
+it when the loader stops asking. Fuse's acceleration does not depend on it —
+they are two consecutive `if`s in `loader_detect_loader()`, and the second only
+wants the tape to be playing.
 
 Sound settings are only read when Fuse's sound subsystem starts, so changing
 one calls `fuse_emulation_pause()` / `fuse_emulation_unpause()` to restart

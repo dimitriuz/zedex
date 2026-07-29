@@ -1922,11 +1922,16 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         arguments.add("--machine");
         arguments.add(preferences.getString(PREF_MACHINE, DEFAULT_MACHINE));
 
-        if (!preferences.getBoolean(SettingsActivity.KEY_FAST_TAPE, true)) {
-            arguments.add("--no-traps");
-            arguments.add("--no-fastload");
-            arguments.add("--no-accelerate-loader");
-        }
+        // Three of Fuse's settings in three combinations; see
+        // OPTION_LOADER_ACCELERATION in android_bridge.c for why these three.
+        int loader = SettingsActivity.loaderLevel(preferences);
+
+        arguments.add(loader > 0 ? "--traps" : "--no-traps");
+        arguments.add(loader > 0 ? "--fastload" : "--no-fastload");
+        arguments.add(loader > 1 ? "--accelerate-loader"
+                                 : "--no-accelerate-loader");
+
+        flag(arguments, SettingsActivity.KEY_DETECT_LOADER, true, "detect-loader");
 
         flag(arguments, SettingsActivity.KEY_TAPE_SOUND, true, "loading-sound");
         flag(arguments, SettingsActivity.KEY_AUTOLOAD, true, "auto-load");

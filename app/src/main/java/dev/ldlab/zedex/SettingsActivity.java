@@ -32,6 +32,10 @@ public class SettingsActivity extends Activity {
 
     // Keys shared with EmulatorActivity.
     static final String KEY_MACHINE = "machine";
+    /** "off", "safe" or "turbo"; {@link #LOADER_LEVELS} turns it into a number. */
+    static final String KEY_LOADER = "loaderAcceleration";
+    static final String KEY_DETECT_LOADER = "detectLoader";
+    /** The boolean this replaced, kept only long enough to migrate from it. */
     static final String KEY_FAST_TAPE = "fastTape";
     static final String KEY_TAPE_SOUND = "tapeSound";
     static final String KEY_AUTOLOAD = "autoLoad";
@@ -51,6 +55,31 @@ public class SettingsActivity extends Activity {
     static final String KEY_KEYBOARD = "keyboard";
     /** Read by EmulatorActivity on resume; there is no immediate push for it. */
     static final String KEY_INDICATORS = "indicators";
+
+    /** The stored words, and the level each one means. */
+    private static final String[] LOADER_LEVELS = { "off", "safe", "turbo" };
+
+    /**
+     * How hard to push a tape, as {@link FuseNative#setLoaderAcceleration}
+     * wants it. Shared with the emulator, which needs the same number for the
+     * command line before Fuse has finished starting.
+     */
+    static int loaderLevel(android.content.SharedPreferences preferences) {
+        String stored = preferences.getString(KEY_LOADER, null);
+
+        // Migrating from the boolean this replaced: it was all or nothing, so
+        // whichever end it was at is the end to start from.
+        if (stored == null) {
+            return preferences.getBoolean(KEY_FAST_TAPE, true)
+                    ? LOADER_LEVELS.length - 1 : 0;
+        }
+
+        for (int level = 0; level < LOADER_LEVELS.length; level++) {
+            if (LOADER_LEVELS[level].equals(stored)) return level;
+        }
+
+        return LOADER_LEVELS.length - 1;
+    }
 
     private static final int REQUEST_CONTENT_TREE = 2;
     private static final int REQUEST_DATA_TREE = 3;
@@ -253,8 +282,11 @@ public class SettingsActivity extends Activity {
 
         private void apply(android.content.SharedPreferences preferences, String key) {
             switch (key) {
-                case KEY_FAST_TAPE:
-                    FuseNative.setFastTape(preferences.getBoolean(key, true));
+                case KEY_LOADER:
+                    FuseNative.setLoaderAcceleration(loaderLevel(preferences));
+                    break;
+                case KEY_DETECT_LOADER:
+                    FuseNative.setDetectLoader(preferences.getBoolean(key, true));
                     break;
                 case KEY_TAPE_SOUND:
                     FuseNative.setTapeSound(preferences.getBoolean(key, true));
@@ -339,6 +371,7 @@ public class SettingsActivity extends Activity {
             }
 
             for (String key : new String[] { KEY_MACHINE, KEY_SPEED, KEY_SNAPSHOT_FORMAT,
+                                             KEY_LOADER,
                                              KEY_AY_VOLUME, KEY_BEEPER_VOLUME }) {
                 Preference preference = findPreference(key);
                 if (preference instanceof ListPreference) {

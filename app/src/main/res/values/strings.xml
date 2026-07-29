@@ -110,10 +110,11 @@
     <string name="settings_states">Save states</string>
     <string name="settings_snapshot_format">Format</string>
     <string name="settings_tape">Tape</string>
-    <string name="settings_fast_tape">Fast loading</string>
-    <string name="settings_fast_tape_summary">Load through ROM traps and accelerate turbo loaders</string>
+    <string name="settings_loader">Fast loading</string>
+    <string name="settings_detect_loader">Detect loaders</string>
+    <string name="settings_detect_loader_summary">Start and stop the tape when a loader asks for it</string>
     <string name="settings_tape_sound">Loading sound</string>
-    <string name="settings_tape_sound_summary">Only audible without fast loading</string>
+    <string name="settings_tape_sound_summary">Only audible with fast loading off</string>
     <string name="settings_autoload">Autoload media</string>
     <string name="settings_autoload_summary">Type LOAD for you when a tape is inserted</string>
 
