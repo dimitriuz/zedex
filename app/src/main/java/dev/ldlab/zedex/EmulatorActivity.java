@@ -188,11 +188,14 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         layout.setChildren(screen, new SpectrumKeyboardView(this),
                            new JoystickView(this, JoystickView.Part.PAD),
                            new JoystickView(this, JoystickView.Part.FIRE),
+                           new ActivityLights(this),
                            romsPanel, quickBar, menu);
         layout.setJoystickVisible(
                 preferences.getBoolean(SettingsActivity.KEY_JOYSTICK, true));
         layout.setKeyboardVisible(
                 preferences.getBoolean(SettingsActivity.KEY_KEYBOARD, true));
+        layout.setLightsVisible(
+                preferences.getBoolean(SettingsActivity.KEY_INDICATORS, true));
 
         revealQuickBar();
         layout.setTemplate(EmulatorLayout.Template.of(
@@ -237,9 +240,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }
 
-        // The settings screen can have changed it while we were away.
+        // The settings screen can have changed these while we were away.
         layout.setTemplate(EmulatorLayout.Template.of(
                 preferences.getString(SettingsActivity.KEY_LANDSCAPE_LAYOUT, null)));
+        layout.setLightsVisible(
+                preferences.getBoolean(SettingsActivity.KEY_INDICATORS, true));
     }
 
     @Override

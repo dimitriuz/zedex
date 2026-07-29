@@ -102,6 +102,48 @@ final class FuseNative {
     /** Which interface the joystick appears as; an index into the above. */
     static native void setJoystickType(int type);
 
+    // --- what the machine is busy with -------------------------------------
+
+    /*
+     * Bits of {@link #activity}, in step with ACTIVITY_* in
+     * native/ui/android/android_status.c. The tape and the disks are what Fuse
+     * reports through its own status bar; the AY is read off its registers; the
+     * last two are ports the machine has read since the previous frame.
+     */
+    static final int ACTIVITY_TAPE = 1;
+    static final int ACTIVITY_DISK = 1 << 1;
+    static final int ACTIVITY_AY = 1 << 2;
+    static final int ACTIVITY_KEYBOARD = 1 << 3;
+    static final int ACTIVITY_JOYSTICK = 1 << 4;
+
+    /**
+     * The same five bits again, this far up, mean "and it is writing rather
+     * than reading". Only some of them can say: a keyboard is only ever read,
+     * and what the AY does is sound on its way out.
+     */
+    static final int ACTIVITY_WRITING = 5;
+
+    /**
+     * What the machine is doing right now, as ACTIVITY_* bits.
+     *
+     * One word the emulation thread publishes at the end of every frame, so
+     * this neither queues nor blocks and is safe to poll while a frame is
+     * being drawn. Zero before Fuse has started.
+     */
+    static native int activity();
+
+    /**
+     * How loud the AY's three channels are, 0 to 15 each, as three bytes: A in
+     * the bottom, then B, then C.
+     *
+     * A channel counts only while the mixer has not switched off both its tone
+     * and its noise, so a game that stops using one and leaves its amplitude
+     * behind does not hold the meter up. A channel following the envelope
+     * generator reads as full: where the envelope has got to is not something
+     * the registers say.
+     */
+    static native int ayLevels();
+
     /** Machine names for display, in Fuse's own order. Empty until Fuse has started. */
     static native String[] machineNames();
 

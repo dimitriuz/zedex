@@ -417,6 +417,67 @@ Hiding the joystick sets both controls `GONE` for the same reason the keyboard
 is: their five controls are accessibility nodes, and a screen reader would
 otherwise still find them, sitting on top of each other at nowhere.
 
+### The activity lamps
+
+Five indicators — tape, disk, AY, keyboard, joystick — because a Spectrum gives
+nothing away. A tape that is not running looks like one that is, a game that
+has stopped reading the keyboard looks like one that never did, and a game
+waiting for a Kempston when Cursor is selected looks simply broken. Each of
+those is state the emulator already has, and each is the difference between *it
+does not work* and *it wants something else*.
+
+Getting at it takes four different routes, none of which touches `vendor/`:
+
+- **The tape and the disks** come through `ui_statusbar_update()`, which is how
+  Fuse tells a UI to light its status bar. `ui/widget/widget.c` has a stub that
+  returns 0 and throws the news away, so the build weakens that symbol and ours
+  wins the link — the same trick as `ui_error_specific`.
+- **The tape needs more than that**, because Fuse only announces a tape that is
+  *playing* and loading fast never plays one: the trap hands the block over
+  whole. So `tape_get_current_block()` is watched as well, and the lamp lights
+  when the tape moves however it moved. A whole small tape can be trapped
+  through in three frames, so that reading is held for half a second — a lamp
+  that is technically right and never seen is no use.
+- **The AY** announces nothing at all, so `machine_current->ay.registers` is
+  read at the end of every frame.
+- **A port read is reported by nothing, and there is no hook for one.** What
+  there is, in `readport_internal()`, is a walk over *every* peripheral whose
+  mask matches, ANDing what each returns. So a peripheral that returns `0xff`
+  and leaves `attached` alone can watch a port without changing what the machine
+  reads from it, and `periph_register()` only ever uses the type as a hash key —
+  a value past the end of Fuse's enum is a type of our own. The monitor watches
+  every even port for the ULA, which is how a keyboard is scanned, and the
+  loosely-decoded joystick ports. Every machine's reset calls `periph_clear()`,
+  which empties the port list but keeps the registrations, so the monitor is
+  registered once and put back on the list whenever it finds itself off it.
+
+Colour says direction, and only where the emulator knows one. Fuse reports that
+a disk is turning, not which way the head is pointing, so a write is found
+instead in the moment a disk becomes dirty or a block is appended to a tape, and
+held long enough to see. A keyboard is only ever read; what the AY does is sound
+on its way out, so it is always the writing colour.
+
+The AY is three bars rather than one lamp, and the height of each is that
+channel's amplitude — a chip using one channel is doing something quite
+different from a chip using all three. A channel counts only while the mixer has
+not switched off both its tone and its noise, since a game that finishes with a
+channel usually silences it there and leaves the amplitude behind. **A channel
+following the envelope generator reads as full**: where the envelope has got to
+is `static` inside Fuse's `sound.c` and not reachable from here, and computing
+it again on this side would mean a second envelope generator that could disagree
+with the one being heard.
+
+The lamps sit against the picture rather than the window, so they stay with the
+thing they describe when the keyboard is beside the screen: a row under it in
+portrait, a column beside it in landscape, which the view decides from the
+configuration rather than being told. They are placed before the joystick and
+the joystick is told to keep clear of them, because both want the space under
+the picture in portrait and only one of them has somewhere else to go.
+
+State is polled, not pushed. It changes at 50Hz — far faster than an eye reads a
+lamp, and far too fast to be worth a callback and a thread hop each time — so
+the view looks every 100ms and redraws only on a change.
+
 ### The on-screen keyboard
 
 `SpectrumKeyboardView` draws Fuse's own `keyboard.png`. The key rectangles were

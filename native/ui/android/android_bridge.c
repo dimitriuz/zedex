@@ -205,10 +205,10 @@ static int machine_list_count;
 static int machine_list_current = -1;
 static int tape_on_machine;
 
-/* Drives with a disk in them, refreshed every pump for the UI thread. */
+/* Drives with a disk in them, refreshed every pump for the UI thread.
+   MAX_CONTROLLERS and MAX_DRIVES_PER_CONTROLLER are in android_internals.h,
+   since the disk lamp walks the same controllers. */
 #define MAX_DRIVES 16
-#define MAX_CONTROLLERS 8
-#define MAX_DRIVES_PER_CONTROLLER 4
 
 typedef struct drive_entry {
   int controller;
@@ -424,6 +424,9 @@ void
 androidbridge_pump_commands( void )
 {
   pressed_count = 0;
+
+  /* Once a frame, and on the emulation thread, which is what the lamps need. */
+  androidstatus_frame();
 
   for(;;) {
     queued_command command;
@@ -836,6 +839,23 @@ Java_dev_ldlab_zedex_FuseNative_joystick( JNIEnv *env, jclass class,
                                           jint button, jboolean pressed )
 {
   queue_command( COMMAND_JOYSTICK, button, pressed ? 1 : 0 );
+}
+
+/* What the machine is busy with, as ACTIVITY_* bits. A plain read of one word
+   the emulation thread publishes; nothing is queued and nothing blocks, which
+   is what lets the app poll it while a frame is being drawn. */
+JNIEXPORT jint JNICALL
+Java_dev_ldlab_zedex_FuseNative_activity( JNIEnv *env, jclass class )
+{
+  return androidstatus_activity();
+}
+
+/* How loud each of the AY's three channels is, for the meter the app draws in
+   place of a single lamp. Three bytes, A in the bottom. */
+JNIEXPORT jint JNICALL
+Java_dev_ldlab_zedex_FuseNative_ayLevels( JNIEnv *env, jclass class )
+{
+  return androidstatus_ay_levels();
 }
 
 /* Fuse's own names for the interfaces it can pretend to be, in the order of

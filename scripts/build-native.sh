@@ -170,12 +170,14 @@ EOF
   # fuse_LDADD rather than fuse_OBJECTS, so they have to be built too.
   FUSE_OBJS=$(mkvar fuse_OBJECTS | tr ' ' '\n' \
               | grep -v '^ui/fb/' | grep -v '^ui/widget/error\.o$' \
+              | grep -v '^ui/widget/widget\.o$' \
               | tr '\n' ' ')
   FUSE_LDADD=$(mkvar fuse_LDADD | tr ' ' '\n' \
                | grep -v '^sound/nullsound\.o$' | tr '\n' ' ')
   LDADD_OBJS=$(echo "$FUSE_LDADD" | tr ' ' '\n' | grep '\.o$' | tr '\n' ' ')
   mkdir -p "$FUSE_BUILD/android"
-  make -C "$FUSE_BUILD" -j"$JOBS" $FUSE_OBJS $LDADD_OBJS ui/widget/error.o
+  make -C "$FUSE_BUILD" -j"$JOBS" $FUSE_OBJS $LDADD_OBJS \
+      ui/widget/error.o ui/widget/widget.o
 
   # native/ui/android reports Fuse's errors as Android toasts instead of the
   # modal ui/widget/error.c draws into the emulated screen. The file cannot
@@ -184,6 +186,14 @@ EOF
   "$TOOLCHAIN/bin/llvm-objcopy" --weaken-symbol=ui_error_specific \
       "$FUSE_BUILD/ui/widget/error.o" "$FUSE_BUILD/android/widget_error.o"
   FUSE_OBJS="$FUSE_OBJS android/widget_error.o"
+
+  # Same again for the status bar. ui/widget/widget.c's ui_statusbar_update is
+  # a stub that returns 0 and throws the news away; ours keeps it, so the app
+  # can light a lamp when the tape or a disk is running. widget.c is the whole
+  # widget framework and cannot be dropped either.
+  "$TOOLCHAIN/bin/llvm-objcopy" --weaken-symbol=ui_statusbar_update \
+      "$FUSE_BUILD/ui/widget/widget.o" "$FUSE_BUILD/android/widget_widget.o"
+  FUSE_OBJS="$FUSE_OBJS android/widget_widget.o"
 
   ############################################################################
   echo "=== [$ABI] Android UI and audio ==="

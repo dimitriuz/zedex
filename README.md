@@ -54,6 +54,7 @@ end.
 - **On-screen Spectrum keyboard**
 - **On-screen joystick**
 - **A quick actions bar**
+- **Activity lamps** for the tape, disks, AY, keyboard and joystick
 - **Hardware keyboards**
 
 ## Hardware
@@ -123,6 +124,11 @@ BASIC keyword, symbol-shift character, colour and extended-mode token. Two
 fingers give a real shifted key; alternatively **hold either shift for 400ms
 to latch it** (it turns amber) until you tap it again. That is how you get
 BREAK — Caps Shift and Space.
+
+**The lamps** beside the picture — tape, disk, AY, keyboard, joystick — show
+what the machine is busy with. Blue reads, amber writes; the AY is three bars,
+one per channel, as tall as it is loud. A lit joystick lamp and a dead stick
+means the game wants a different interface. Off in settings.
 
 **The joystick** is a thumb pad and a fire button, and it goes wherever the picture is not.
 
@@ -206,6 +212,7 @@ In full:
 | **Autoload media** | whether inserting a tape types `LOAD` for you |
 | **Sound**, **AY volume**, **Beeper volume** | restart the sound subsystem when changed |
 | **Black and white TV** | the monochrome palette |
+| **Activity indicators** | the lamps beside the picture |
 | **Keep the screen on** | Android's, not the emulator's |
 | **Speed** | 25% to 500% |
 

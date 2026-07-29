@@ -67,4 +67,22 @@ void androidbridge_frame_ready( int width, int height );
    ui_event(). */
 void androidbridge_pump_commands( void );
 
+/* How far to look for drives when walking Fuse's controllers. Shared because
+   both the drive list and the disk lamp have to walk the same ground. */
+#define MAX_CONTROLLERS 8
+#define MAX_DRIVES_PER_CONTROLLER 4
+
+/* --- what the machine is busy with (android_status.c) ----------------- */
+
+/* Gather the tape, disk, AY and port-read state for the app's indicators.
+   Called once a frame on the emulation thread. */
+void androidstatus_frame( void );
+
+/* The gathered state as ACTIVITY_* bits, for the UI thread to read. */
+int androidstatus_activity( void );
+
+/* How loud the AY's three channels are, 0-15 each, as three bytes: A in the
+   bottom, then B, then C. */
+int androidstatus_ay_levels( void );
+
 #endif				/* #ifndef FUSE_ANDROID_INTERNALS_H */

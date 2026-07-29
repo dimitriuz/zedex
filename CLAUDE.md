@@ -26,6 +26,10 @@ expensive to rediscover.
 - **`app/debug.keystore` is committed on purpose.** Gradle's own debug key is
   per machine, so a CI build could not update a local one — or another CI
   build. See *Building* in `docs/DEVELOPING.md`.
+- **`ui_statusbar_update` is ours too.** `ui/widget/widget.c`'s version is a
+  stub that discards the news, so the build weakens it the same way it weakens
+  `ui_error_specific`, and `native/ui/android/android_status.c` keeps it for the
+  activity lamps. Two weakened symbols now; both are listed in the build script.
 - **Fuse's core is single threaded.** Everything from the UI thread goes
   through the command queue in `native/ui/android/android_bridge.c` and is
   drained on the emulation thread from `ui_event()`. Never call into Fuse

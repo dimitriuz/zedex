@@ -82,6 +82,11 @@
             android:entryValues="@array/layout_values"
             android:defaultValue="below" />
         <SwitchPreference
+            android:key="indicators"
+            android:title="@string/settings_indicators"
+            android:summary="@string/settings_indicators_summary"
+            android:defaultValue="true" />
+        <SwitchPreference
             android:key="bwTv"
             android:title="@string/settings_bw_tv"
             android:summary="@string/settings_bw_tv_summary"
