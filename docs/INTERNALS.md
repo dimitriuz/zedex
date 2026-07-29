@@ -697,11 +697,22 @@ light away, so the shader gives back roughly what they cost — a filter that on
 made the picture dimmer would be a poor trade.
 
 The sampler stays `GL_NEAREST` unless something wants otherwise. *Sharpness* is
-bilinear sampling pulled towards the middle of each source pixel, so at 100% it
-is nearest neighbour and easing it off softens only the boundary instead of
-blurring everything; at 100% the shader's own snapping already lands on a texel
-centre, so the sampler is switched to nearest and the default look is exactly
-what it was.
+sampling pulled towards the middle of each source pixel, so at 100% it lands on
+the middle — which is that pixel and nothing else — and easing it off lets the
+coordinate drift back out towards the boundary, so only the boundary softens
+instead of the whole picture blurring. At 100% the coordinate is already a texel
+centre, so the sampler is switched to nearest as well and the default look is
+exactly what it was.
+
+**Towards the middle, and never past it.** The first version of this multiplied
+the offset instead of shrinking it and clamped the result to ±½ a texel, which is
+the texel *edge* — and the edge is where the next pixel begins. Every device
+column past the middle of a source pixel therefore read the pixel after it: with
+a 320x240 frame in a 1080 wide window that was two columns in five wrong, one
+pixel wide strokes broke up, and the *128* in the 128K startup menu read as a 2
+with no upright. It looked like a scaling fault, which is what it was reported
+as, and it was in the sampler all along — the picture had been drawn at the same
+3.375x since long before there was a scale setting.
 
 **The signal, before the glass.** A Spectrum reached its television through a
 modulator, and what came out was not what went in. Luma survived; chroma did

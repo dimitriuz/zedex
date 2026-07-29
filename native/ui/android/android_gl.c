@@ -112,16 +112,23 @@ static const char fragment_shader_src[] =
   "\n"
   "const float PI = 3.14159265;\n"
   "\n"
-  /* Bilinear sampling pulled towards the middle of each source pixel: at full
-     sharpness this is nearest neighbour, and easing it off softens only the
-     boundary rather than blurring the whole picture. */
+  /* Sampling pulled towards the middle of each source pixel: at full sharpness
+     it lands exactly on the middle, which is the pixel itself and nothing else,
+     and easing it off lets the coordinate drift back out towards the boundary so
+     that only the boundary softens.
+
+     Towards the middle, and never past it. Pushing the coordinate the other way
+     - out to the texel edge, which an earlier version did - reads the *next*
+     source pixel for every device column past the middle of one, because that
+     edge is where the next pixel begins. With a 320x240 frame on a 1080 wide
+     window that was two device columns in five showing the wrong pixel: one
+     pixel wide strokes broke up and the 128 in the startup menu read as a 2 with
+     no upright. It looked like a scaling fault and was a sampling one. */
   "vec2 sharpen( vec2 uv ) {\n"
   "  vec2 texel = uv * u_source;\n"
   "  vec2 middle = floor( texel ) + 0.5;\n"
   "  vec2 offset = texel - middle;\n"
-  "  float steepness = mix( 1.0, 8.0, u_sharpness );\n"
-  "  offset = clamp( offset * steepness, -0.5, 0.5 );\n"
-  "  return ( middle + offset ) / u_source;\n"
+  "  return ( middle + offset * ( 1.0 - u_sharpness ) ) / u_source;\n"
   "}\n"
   "\n"
   /* Barrel distortion about the centre. Gentle: a tube is not a fishbowl. */
@@ -525,7 +532,6 @@ androidgl_frame( ANativeWindow *window, unsigned generation,
                  const void *pixels, int width, int height )
 {
   EGLint view_width, view_height;
-  float scale_x = 1.0f, scale_y = 1.0f, view_aspect, image_aspect;
 
   if( !window ) return;
 
