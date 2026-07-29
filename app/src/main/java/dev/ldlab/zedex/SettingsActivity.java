@@ -450,7 +450,35 @@ public class SettingsActivity extends Activity {
             }
         }
 
+        /**
+         * Greys out the settings that would do nothing.
+         *
+         * Colour bleed and noise are properties of a signal, so with the
+         * output set to RGB there is no signal for them to spoil: the shader
+         * gates them on the video output and the screen has to say so, or it
+         * offers a number that changes nothing. Greying out rather than a word
+         * in the summary, because the summary of a list is its value here and
+         * anything else put there is overwritten. The scanline and CRT
+         * parameters manage this with android:dependency, but that only works
+         * off a switch, and this depends on a list having a particular value.
+         *
+         * Sharpness is not in here on purpose. It is the sampling, and it
+         * applies whatever the output is.
+         */
+        private void updateFilterEnabled() {
+            int video = number(getPreferenceManager().getSharedPreferences(),
+                               KEY_VIDEO, 0);
+
+            Preference bleed = findPreference(KEY_FILTER_BLEED);
+            if (bleed != null) bleed.setEnabled(video != FuseNative.VIDEO_RGB);
+
+            Preference noise = findPreference(KEY_FILTER_NOISE);
+            if (noise != null) noise.setEnabled(video == FuseNative.VIDEO_RF);
+        }
+
         private void updateSummaries() {
+            updateFilterEnabled();
+
             Preference folder = findPreference(Storage.KEY_STATES_ROOT);
             if (folder != null) {
                 folder.setSummary(Storage.root(getActivity()).getAbsolutePath());

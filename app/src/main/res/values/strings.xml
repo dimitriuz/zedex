@@ -135,7 +135,6 @@
     <string name="settings_video_summary">How the picture left the machine, and what that cost it</string>
     <string name="settings_filter_bleed">Colour bleed</string>
     <string name="settings_filter_noise">Noise</string>
-    <string name="settings_filter_noise_summary">RF only</string>
     <string name="settings_filter_sharpness">Sharpness</string>
     <string name="settings_filter_sharpness_summary">100% is pixel for pixel; less softens the edges</string>
     <string name="settings_filter_scanline">Scanline strength</string>

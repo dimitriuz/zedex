@@ -143,7 +143,6 @@
         <ListPreference
             android:key="filterNoise"
             android:title="@string/settings_filter_noise"
-            android:summary="@string/settings_filter_noise_summary"
             android:entries="@array/percent_names"
             android:entryValues="@array/percent_values"
             android:defaultValue="20" />
