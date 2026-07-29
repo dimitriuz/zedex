@@ -17,18 +17,19 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The on-screen joystick: a thumb pad, or the fire button that goes with it.
+ * The on-screen joystick: a thumb pad, the fire button that goes with it, or one
+ * of the three key buttons in the arc beside fire.
  *
- * One class and two instances rather than two classes, because everything but
- * the drawing is the same — the presses go the same way, the controls are
- * published to accessibility the same way, and a template places the two boxes
- * side by side. {@link Part} is which of the two this one is.
+ * One class and several instances rather than a class each, because everything
+ * but the drawing is the same — the presses go the same way, the controls are
+ * published to accessibility the same way, and a template places the boxes.
+ * {@link Part} is which of them this one is.
  *
- * Nothing here knows what a Kempston is. The five controls are Fuse's own
- * {@code joystick_button} values and go through {@link FuseNative#joystick},
- * which hands them to whichever interface the menu has chosen; Cursor and
- * Sinclair come out as key presses inside Fuse, Kempston and Timex as port
- * bits, and this side is the same either way.
+ * Nothing here knows what a Kempston is, and nothing here knows which keys a
+ * profile holds. The five pad controls are Fuse's own {@code joystick_button}
+ * values and the three buttons are slots in the current profile; both go through
+ * {@link Controls}, which is the one place that decides whether a press reaches
+ * the machine as a joystick or as a key.
  *
  * The pad is a stick, not four buttons: the direction comes from the angle of
  * the finger about the centre, snapped to eight, so a push into a corner is a
@@ -36,7 +37,7 @@ import java.util.List;
  */
 final class JoystickView extends View {
 
-    enum Part { PAD, FIRE }
+    enum Part { PAD, FIRE, KEY }
 
     /** Face, edge and legend, from the same palette as the ☰ sheet. */
     private static final int FACE = 0x26ffffff;
@@ -58,6 +59,10 @@ final class JoystickView extends View {
     private static final float INSET_DP = 6f;
 
     private final Part part;
+
+    /** Which profile slot a {@link Part#KEY} sends; -1 for the other two. */
+    private final int slot;
+
     private final float density;
 
     private final Paint face = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -74,10 +79,24 @@ final class JoystickView extends View {
     /** Where the knob sits, in pixels from the centre; zero when let go. */
     private float knobX, knobY;
 
+    /** Whether a {@link Part#KEY} is being held. */
+    private boolean keyDown;
+
+    /** The pad or fire. */
     JoystickView(Context context, Part part) {
+        this(context, part, -1);
+    }
+
+    /** One of the three buttons, sending the key in {@code slot}. */
+    JoystickView(Context context, int slot) {
+        this(context, Part.KEY, slot);
+    }
+
+    private JoystickView(Context context, Part part, int slot) {
         super(context);
 
         this.part = part;
+        this.slot = slot;
         this.density = getResources().getDisplayMetrics().density;
 
         face.setColor(FACE);
@@ -101,8 +120,6 @@ final class JoystickView extends View {
         centreY = height / 2f;
         radius = Math.min(width, height) / 2f - INSET_DP * density;
         if (radius < 0) radius = 0;
-
-        legend.setTextSize(radius * 0.42f);
     }
 
     // --- drawing ----------------------------------------------------------
@@ -112,17 +129,31 @@ final class JoystickView extends View {
         if (radius <= 0) return;
 
         if (part == Part.FIRE) {
-            drawFire(canvas);
+            // The key underneath, but only when there is one: with a real
+            // interface selected fire is a joystick button and no key is
+            // involved, and a name that was there whatever the type would be a
+            // lie half the time.
+            String key = Controls.padSendsKeys()
+                    ? ControlProfiles.label(Controls.key(FuseNative.JOYSTICK_FIRE))
+                    : null;
+
+            drawRound(canvas, "FIRE", key, held[FuseNative.JOYSTICK_FIRE]);
+            return;
+        }
+
+        if (part == Part.KEY) {
+            drawRound(canvas, ControlProfiles.label(Controls.key(slot)), null,
+                      keyDown);
             return;
         }
 
         canvas.drawCircle(centreX, centreY, radius, face);
         canvas.drawCircle(centreX, centreY, radius, edge);
 
-        drawArrow(canvas, FuseNative.JOYSTICK_UP, 0, -1);
-        drawArrow(canvas, FuseNative.JOYSTICK_DOWN, 0, 1);
-        drawArrow(canvas, FuseNative.JOYSTICK_LEFT, -1, 0);
-        drawArrow(canvas, FuseNative.JOYSTICK_RIGHT, 1, 0);
+        drawWay(canvas, FuseNative.JOYSTICK_UP, 0, -1);
+        drawWay(canvas, FuseNative.JOYSTICK_DOWN, 0, 1);
+        drawWay(canvas, FuseNative.JOYSTICK_LEFT, -1, 0);
+        drawWay(canvas, FuseNative.JOYSTICK_RIGHT, 1, 0);
 
         // The knob, wherever the finger last put it.
         mark.setColor(knobX != 0 || knobY != 0 ? PRESSED : MARK);
@@ -130,18 +161,69 @@ final class JoystickView extends View {
         mark.setColor(MARK);
     }
 
-    private void drawFire(Canvas canvas) {
-        boolean down = held[FuseNative.JOYSTICK_FIRE];
-
+    /**
+     * A ring with a word in it, and a second smaller one under it when there is
+     * something to say. Text is shrunk to fit rather than clipped, because a
+     * button's word is whatever key a profile put there and BREAK SPACE is five
+     * times the width of M.
+     */
+    private void drawRound(Canvas canvas, String text, String under, boolean down) {
         face.setColor(down ? PRESSED : FACE);
         canvas.drawCircle(centreX, centreY, radius, face);
         canvas.drawCircle(centreX, centreY, radius, edge);
         face.setColor(FACE);
 
+        float size = radius * (part == Part.KEY ? 0.62f : 0.42f);
+        float room = radius * 1.6f;
+
+        // Two lines are drawn either side of the middle rather than one in it.
+        float offset = under == null ? 0f : radius * 0.2f;
+
+        glyph(canvas, text, centreX, centreY - offset, size, room, MARK);
+        if (under != null) {
+            glyph(canvas, under, centreX, centreY + radius * 0.62f,
+                  size * 0.78f, room, MARK);
+        }
+    }
+
+    /**
+     * A word centred on a point, shrunk to fit the room it is given rather than
+     * clipped: what a control says is whatever key a profile put there, and
+     * BREAK SPACE is five times the width of M.
+     */
+    private void glyph(Canvas canvas, String text, float x, float y, float size,
+                       float room, int colour) {
+        legend.setColor(colour);
+        legend.setTextSize(size);
+
+        float width = legend.measureText(text);
+        if (width > room) legend.setTextSize(size * room / width);
+
         // Centred on the glyphs rather than on the line box, which sits low.
         Paint.FontMetrics metrics = legend.getFontMetrics();
-        canvas.drawText("FIRE", centreX,
-                        centreY - (metrics.ascent + metrics.descent) / 2f, legend);
+        canvas.drawText(text, x, y - (metrics.ascent + metrics.descent) / 2f, legend);
+
+        legend.setColor(MARK);
+    }
+
+    /**
+     * One of the four ways, at the rim: an arrow, or the key it sends when the
+     * pad is a Keyboard joystick.
+     *
+     * The key instead of the arrow rather than as well as it. Where the four sit
+     * says which way each one is - that is what a pad is - so the arrow is the
+     * part that can be spared, and a letter squeezed in beside one would be too
+     * small to read at a glance while playing.
+     */
+    private void drawWay(Canvas canvas, int button, float dx, float dy) {
+        if (!Controls.padSendsKeys()) {
+            drawArrow(canvas, button, dx, dy);
+            return;
+        }
+
+        glyph(canvas, ControlProfiles.label(Controls.key(button)),
+              centreX + dx * radius * 0.66f, centreY + dy * radius * 0.66f,
+              radius * 0.34f, radius * 0.62f, held[button] ? PRESSED : MARK);
     }
 
     /** A triangle pointing the way, at the rim, lit while that way is held. */
@@ -170,12 +252,20 @@ final class JoystickView extends View {
         if (held[button] == pressed) return;
 
         held[button] = pressed;
-        FuseNative.joystick(button, pressed);
+        Controls.press(button, pressed);
+    }
+
+    private void sendKey(boolean pressed) {
+        if (keyDown == pressed) return;
+
+        keyDown = pressed;
+        Controls.pressKey(slot, pressed);
     }
 
     /** Everything up: the finger left, or the view is being taken away. */
     private void releaseAll() {
         for (int button = 0; button < held.length; button++) send(button, false);
+        if (part == Part.KEY) sendKey(false);
 
         knobX = 0;
         knobY = 0;
@@ -235,7 +325,10 @@ final class JoystickView extends View {
                 performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
                 // fall through
             case MotionEvent.ACTION_MOVE:
-                if (part == Part.FIRE) {
+                if (part == Part.KEY) {
+                    sendKey(true);
+                    invalidate();
+                } else if (part == Part.FIRE) {
                     send(FuseNative.JOYSTICK_FIRE, true);
                     invalidate();
                 } else {
@@ -287,12 +380,22 @@ final class JoystickView extends View {
         return part == Part.FIRE ? FuseNative.JOYSTICK_FIRE : id;
     }
 
+    /**
+     * A button is named for the key it sends, as it is drawn, so that a tester
+     * or a screen reader asks for what it can see. That name changes when the
+     * profile does — which is a handful of times ever, not the continuous
+     * churn that once took the whole instrumentation suite down.
+     */
     private String nameFor(int id) {
-        return part == Part.FIRE ? FIRE_NAME : PAD_NAMES[id];
+        switch (part) {
+            case KEY: return "BUTTON " + ControlProfiles.label(Controls.key(slot));
+            case FIRE: return FIRE_NAME;
+            default: return PAD_NAMES[id];
+        }
     }
 
     private int controlCount() {
-        return part == Part.FIRE ? 1 : PAD_NAMES.length;
+        return part == Part.PAD ? PAD_NAMES.length : 1;
     }
 
     /**
@@ -307,7 +410,7 @@ final class JoystickView extends View {
         float x = location[0] + centreX;
         float y = location[1] + centreY;
 
-        if (part == Part.FIRE) {
+        if (part != Part.PAD) {
             out.set(Math.round(x - radius), Math.round(y - radius),
                     Math.round(x + radius), Math.round(y + radius));
             return;
@@ -388,9 +491,14 @@ final class JoystickView extends View {
 
             // A press and a release: Fuse holds the release back to the next
             // frame, so the machine still sees the two apart.
-            int button = buttonFor(virtualViewId);
-            send(button, true);
-            send(button, false);
+            if (part == Part.KEY) {
+                sendKey(true);
+                sendKey(false);
+            } else {
+                int button = buttonFor(virtualViewId);
+                send(button, true);
+                send(button, false);
+            }
             invalidate();
 
             return true;

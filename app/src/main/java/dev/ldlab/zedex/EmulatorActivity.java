@@ -106,6 +106,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     private static final int DEFAULT_JOYSTICK_TYPE = JOYSTICK_KEMPSTON;
 
     private SharedPreferences preferences;
+    private JoystickView[] keyButtons = new JoystickView[0];
     private boolean started;
 
     /** Holds the screen and the keyboard, and decides how they share the window. */
@@ -185,10 +186,17 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         screen.setOnClickListener(v -> revealQuickBar());
         menu.setOnClosed(fadeQuickBar);
 
+        keyButtons = new JoystickView[] {
+            new JoystickView(this, ControlProfiles.BUTTON_1),
+            new JoystickView(this, ControlProfiles.BUTTON_2),
+            new JoystickView(this, ControlProfiles.BUTTON_3),
+        };
+
         layout = new EmulatorLayout(this);
         layout.setChildren(screen, new SpectrumKeyboardView(this),
                            new JoystickView(this, JoystickView.Part.PAD),
                            new JoystickView(this, JoystickView.Part.FIRE),
+                           keyButtons,
                            new ActivityLights(this), playButton,
                            roms.view(), quickBar, menu);
         layout.setJoystickVisible(
@@ -198,6 +206,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         layout.setLightsVisible(
                 preferences.getBoolean(SettingsActivity.KEY_INDICATORS, true));
         applyScale();
+        applyControls();
 
         revealQuickBar();
         layout.setTemplate(EmulatorLayout.Template.of(
@@ -244,6 +253,22 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         applyScale();
     }
 
+    /**
+     * Tells {@link Controls} which keys the profile holds and whether the pad is
+     * one of Fuse's interfaces or a set of keys, then redraws the three buttons,
+     * which are labelled with whatever they now send.
+     *
+     * Everything a control does goes through that one class, so this is the whole
+     * of applying a profile - and the same call is what a physical gamepad will
+     * need when there is one.
+     */
+    private void applyControls() {
+        Controls.setProfile(ControlProfiles.current(preferences).keys);
+        Controls.setPadSendsKeys(joystickType() == Controls.JOYSTICK_KEYBOARD);
+
+        layout.refreshControls();
+    }
+
     /** Opens media handed to us by a file manager, or by `am start -a VIEW`. */
     private void handleViewIntent(Intent intent) {
         if (intent == null || !Intent.ACTION_VIEW.equals(intent.getAction())) return;
@@ -272,6 +297,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         layout.setLightsVisible(
                 preferences.getBoolean(SettingsActivity.KEY_INDICATORS, true));
         applyScale();
+        applyControls();
 
         pausedByAndroid = false;
         applyPause();
@@ -639,6 +665,69 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                       () -> showJoystick(!shown));
         sheet.addItem(getString(R.string.joystick_type, joystickTypeName()),
                       R.drawable.ic_swap, this::showJoystickTypeDialog);
+        sheet.addItem(getString(R.string.joystick_profile,
+                                ControlProfiles.current(preferences).name),
+                      R.drawable.ic_bookmark, this::showProfileDialog);
+    }
+
+    /**
+     * Which set of keys the controls send, and the way in to editing them.
+     *
+     * A list of profiles with the editor and New on the dialog's own buttons,
+     * rather than as more rows: choosing a profile and changing one are
+     * different kinds of thing, and a row that opens a screen sitting among rows
+     * that switch a setting reads as another profile at a glance.
+     */
+    private void showProfileDialog() {
+        List<ControlProfiles.Profile> profiles = ControlProfiles.all(preferences);
+        String[] names = new String[profiles.size()];
+
+        for (int i = 0; i < names.length; i++) names[i] = profiles.get(i).name;
+
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(R.string.profile_title)
+                .setSingleChoiceItems(names, ControlProfiles.currentIndex(preferences),
+                        (dialog, which) -> {
+                            ControlProfiles.store(preferences, profiles, which);
+                            applyControls();
+
+                            dialog.dismiss();
+                            note(R.string.profile_set, names[which]);
+                        })
+                .setPositiveButton(R.string.profile_edit,
+                        (dialog, which) -> ProfileActivity.open(this))
+                .setNeutralButton(R.string.profile_new,
+                        (dialog, which) -> showNewProfileDialog())
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    /** A new profile starts as a copy of the one in use, and becomes the one in
+     *  use: it is being made because the current keys are nearly right. */
+    private void showNewProfileDialog() {
+        EditText field = new EditText(this);
+        field.setHint(R.string.profile_new_name);
+        field.setSingleLine(true);
+
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(R.string.profile_new_title)
+                .setView(field)
+                .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                    String name = field.getText().toString().trim();
+                    if (name.isEmpty()) return;
+
+                    List<ControlProfiles.Profile> profiles =
+                            ControlProfiles.all(preferences);
+
+                    profiles.add(new ControlProfiles.Profile(
+                            name, ControlProfiles.current(preferences).keys));
+                    ControlProfiles.store(preferences, profiles, profiles.size() - 1);
+
+                    applyControls();
+                    ProfileActivity.open(this);
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
     }
 
     private void showJoystick(boolean shown) {
@@ -648,17 +737,35 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         note(shown ? R.string.joystick_shown : R.string.joystick_hidden);
     }
 
+    /**
+     * Fuse's own interfaces, and Keyboard after them.
+     *
+     * Keyboard is not an interface at all: the machine has nothing plugged in
+     * and the pad presses keys, which is how a great many games that predate
+     * the joystick interfaces are played. It is offered in the same list because
+     * from the pad's side it is the same choice.
+     */
     private void showJoystickTypeDialog() {
-        String[] names = FuseNative.joystickTypeNames();
-        if (names.length == 0) return;
+        String[] fuseTypes = FuseNative.joystickTypeNames();
+        if (fuseTypes.length == 0) return;
+
+        String[] names = new String[fuseTypes.length + 1];
+        System.arraycopy(fuseTypes, 0, names, 0, fuseTypes.length);
+        names[fuseTypes.length] = getString(R.string.joystick_keyboard);
+
+        int type = joystickType();
+        int checked = type == Controls.JOYSTICK_KEYBOARD ? fuseTypes.length : type;
 
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setTitle(R.string.joystick_type_title)
-                .setSingleChoiceItems(names, joystickType(), (dialog, which) -> {
+                .setSingleChoiceItems(names, checked, (dialog, which) -> {
+                    int chosen = which == fuseTypes.length
+                            ? Controls.JOYSTICK_KEYBOARD : which;
+
                     preferences.edit()
-                            .putInt(SettingsActivity.KEY_JOYSTICK_TYPE, which)
+                            .putInt(SettingsActivity.KEY_JOYSTICK_TYPE, chosen)
                             .apply();
-                    FuseNative.setJoystickType(which);
+                    setJoystickType(chosen);
 
                     dialog.dismiss();
                     note(R.string.joystick_type_set, names[which]);
@@ -667,20 +774,32 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                 .show();
     }
 
+    /** Nothing plugged in for Keyboard, since the pad sends keys instead. */
+    private void setJoystickType(int type) {
+        FuseNative.setJoystickType(type == Controls.JOYSTICK_KEYBOARD
+                ? Controls.JOYSTICK_NONE : type);
+        applyControls();
+    }
+
     /** The stored type, or Kempston; never an index Fuse would not recognise. */
     private int joystickType() {
         int stored = preferences.getInt(SettingsActivity.KEY_JOYSTICK_TYPE,
                                         DEFAULT_JOYSTICK_TYPE);
         int count = FuseNative.joystickTypeNames().length;
 
+        if (stored == Controls.JOYSTICK_KEYBOARD) return stored;
+
         return stored >= 0 && (count == 0 || stored < count)
                 ? stored : DEFAULT_JOYSTICK_TYPE;
     }
 
     private String joystickTypeName() {
-        String[] names = FuseNative.joystickTypeNames();
         int type = joystickType();
+        if (type == Controls.JOYSTICK_KEYBOARD) {
+            return getString(R.string.joystick_keyboard);
+        }
 
+        String[] names = FuseNative.joystickTypeNames();
         return type < names.length ? names[type] : "";
     }
 
@@ -1686,6 +1805,8 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // interface is there, so the two go together - see OPTION_JOYSTICK_TYPE
         // in android_bridge.c, which does the same when it is changed later.
         int joystick = joystickType();
+        if (joystick == Controls.JOYSTICK_KEYBOARD) joystick = Controls.JOYSTICK_NONE;
+
         arguments.add("--joystick-1-output");
         arguments.add(String.valueOf(joystick));
         arguments.add(joystick == JOYSTICK_KEMPSTON ? "--kempston"

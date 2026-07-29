@@ -288,7 +288,32 @@ public class SpectrumKeyboardView extends View {
         return null;
     }
 
+    /**
+     * Told which key was tapped, instead of the machine being told.
+     *
+     * The profile editor needs a way to say "that key", and this keyboard
+     * already knows where every one of the forty is and what it is called.
+     * Pointing at a picture of the real thing beats choosing SYMBOL SHIFT off a
+     * list of forty names.
+     */
+    interface Picker {
+        void picked(int keycode);
+    }
+
+    private Picker picker;
+
+    void setPicker(Picker picker) {
+        this.picker = picker;
+    }
+
     private void send(Key key, boolean pressed) {
+        if (picker != null) {
+            // On the press, not the release: the highlight is already showing
+            // and waiting for the finger to lift would feel slow.
+            if (pressed) picker.picked(key.keycode);
+            return;
+        }
+
         FuseNative.key(key.keycode, pressed);
     }
 
@@ -311,7 +336,9 @@ public class SpectrumKeyboardView extends View {
         performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
         invalidate();
 
-        if (key.canLatch) {
+        // Nothing to latch a shift for while picking one: it is being named,
+        // not used, and a latched shift would stay lit after the tap.
+        if (key.canLatch && picker == null) {
             handler.postDelayed(() -> latch(pointerId, key), LATCH_MS);
         }
     }

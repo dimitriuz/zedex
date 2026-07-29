@@ -509,9 +509,59 @@ the interface follows it and `periph_posthook()` makes it take effect — which
 is what Fuse's own options dialogs do. Kempston is also the default, because
 Fuse's own default of *None* would leave the pad with nothing to do.
 
-Hiding the joystick sets both controls `GONE` for the same reason the keyboard
-is: their five controls are accessibility nodes, and a screen reader would
-otherwise still find them, sitting on top of each other at nowhere.
+Hiding the joystick sets every control `GONE` for the same reason the keyboard
+is: they are accessibility nodes, and a screen reader would otherwise still find
+them, sitting on top of each other at nowhere. The three key buttons go with the
+pad, since they are only where they are because fire is.
+
+### Keys instead of a joystick
+
+**Keyboard** is offered in the same list as Fuse's interfaces and is not one:
+nothing is plugged into the machine and the pad presses keys. Plenty of games
+predate the interfaces and simply read QAOP, and for those every real interface
+does nothing while this works. Fuse is told *None*, and its stored value is 1000
+rather than one past `joystick_name[]` so that a setting made today cannot come
+to mean a real interface if that table ever grows.
+
+Beside fire are **three key buttons**, which are keys whatever the type is: a
+game that wants a joystick usually also wants Enter to start it, and reaching for
+the keyboard for one key is why the keyboard has to be on screen at all.
+
+What each control sends comes from a **profile**: eight keys, the pad's five in
+Fuse's own `joystick_button` order so a button number indexes it directly, then
+the three buttons. Named, switchable, and stored as a JSON array in the
+preferences — `org.json` is in the framework, so it costs no dependency. Six are
+built in: QAOPM, QAOP + Space, the cursor keys, both Sinclair sets and WASD. The
+first five of a profile only mean anything for a Keyboard joystick; the last
+three always do. One profile rather than two lists, because what a game wants is
+a set, and a set is one thing to name and one thing to choose.
+
+Keys are **Android keycodes**, which is what the whole app already speaks — the
+on-screen keyboard reports them, `FuseNative.key()` takes them, and Fuse's keysym
+table maps them, with `SHIFT_LEFT` for CAPS SHIFT and `CTRL_LEFT` for SYMBOL
+SHIFT. Nothing above the JNI needs a Spectrum key table of its own, and a
+physical gamepad's `KeyEvent` will drop into the same profile without a
+translation step.
+
+`Controls` is the one place a press is routed: joystick or key, for the pad, for
+the buttons, and for a screen reader's click alike. It is static like
+`FuseNative`, because the routing is a property of the settings rather than of
+any one view, and three views would otherwise each need telling. That is also
+what makes the planned gamepad support small — A to fire and the rest to the
+three buttons, through the same two calls.
+
+Every control draws the key it sends: the pad's four ways show them **instead of**
+their arrows, since where the four sit is what says which way each one is, and
+fire shows its key under the word. Only when the pad is sending keys, though — a
+name that was there whatever the type would be a lie half the time.
+
+**The editor is a screen, not a settings row.** Tap a control, tap a key: it puts
+the same `SpectrumKeyboardView` the emulator uses into picker mode, where a tap
+names a key rather than pressing one. Choosing SYMBOL SHIFT by pointing at
+SYMBOL SHIFT wants the picture of the keyboard, and the picture wants room.
+Bindings apply as they are made, like the rest of the app's settings, and what is
+edited is always the current profile — the one the controls are using, so a
+change can be felt straight away.
 
 ### Pausing
 

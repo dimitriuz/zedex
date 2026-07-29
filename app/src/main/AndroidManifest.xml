@@ -60,6 +60,14 @@
 
         <!-- The emulator's own theme is a bare fullscreen one, which would
              leave the preference widgets looking like Android 4. -->
+        <!-- Dark like the emulator, since it is mostly a picture of a black
+             Spectrum keyboard, and with an action bar for Delete. -->
+        <activity
+            android:name=".ProfileActivity"
+            android:label="@string/profile_activity"
+            android:theme="@android:style/Theme.DeviceDefault"
+            android:exported="false" />
+
         <activity
             android:name=".SettingsActivity"
             android:label="@string/settings_title"

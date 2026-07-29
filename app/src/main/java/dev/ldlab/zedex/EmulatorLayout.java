@@ -98,6 +98,13 @@ final class EmulatorLayout extends ViewGroup {
     private static final int PAD_SIZE = 132;
     private static final float FIRE_OF_PAD = 0.72f;
 
+    /** A key button's share of fire, and the gap between the two rings. */
+    private static final float KEY_OF_FIRE = 0.46f;
+    private static final int KEY_GAP = 5;
+
+    /** Below this a key button is not worth aiming at, so it is not shown. */
+    private static final int KEY_MINIMUM = 30;
+
     /** Below this a pad is not worth aiming a thumb at, in dp. */
     private static final int PAD_MINIMUM = 84;
 
@@ -125,6 +132,17 @@ final class EmulatorLayout extends ViewGroup {
     private final Rect lightsBox = new Rect();
     private final Rect playBox = new Rect();
 
+    /** The three key buttons in the arc beside fire, in profile order. */
+    private final Rect[] keyBoxes = { new Rect(), new Rect(), new Rect() };
+
+    /**
+     * The black that fire went in, so the arc beside it can be fitted to the
+     * same space. Set by {@link #placeJoystick} in each of its four branches -
+     * the space is a different shape in each, and the arc has no other way to
+     * know how much of it there is.
+     */
+    private final Rect fireArea = new Rect();
+
     /**
      * Where the 4:3 picture actually lands inside {@link #screenBox}. The
      * renderer centres it in whatever box it is given, so this is the same sum
@@ -140,6 +158,7 @@ final class EmulatorLayout extends ViewGroup {
     private SpectrumKeyboardView keyboard;
     private JoystickView pad;
     private JoystickView fire;
+    private JoystickView[] keys = new JoystickView[0];
     private ActivityLights lights;
     private View play;
     private Template template = Template.BELOW;
@@ -175,12 +194,14 @@ final class EmulatorLayout extends ViewGroup {
      * picture when the keyboard is beside it.
      */
     void setChildren(View screen, SpectrumKeyboardView keyboard,
-                     JoystickView pad, JoystickView fire, ActivityLights lights,
+                     JoystickView pad, JoystickView fire, JoystickView[] keys,
+                     ActivityLights lights,
                      View play, View panel, View menuButton, View drawer) {
         this.screen = screen;
         this.keyboard = keyboard;
         this.pad = pad;
         this.fire = fire;
+        this.keys = keys;
         this.lights = lights;
         this.play = play;
         this.panel = panel;
@@ -194,6 +215,7 @@ final class EmulatorLayout extends ViewGroup {
         addView(keyboard);
         addView(pad);
         addView(fire);
+        for (JoystickView key : keys) addView(key);
         addView(lights);
         addView(play);
         addView(panel);
@@ -213,6 +235,23 @@ final class EmulatorLayout extends ViewGroup {
         this.template = template;
         applyKeyboardVisibility();
         requestLayout();
+    }
+
+    /**
+     * Redraws every control, for when the profile behind their faces has
+     * changed: the pad's four ways, fire and the three buttons all show which
+     * key they send.
+     *
+     * Here rather than in the activity because this is the one place that has
+     * all of them - the activity would need three sets of references, and it
+     * forgetting one of them is exactly how fire and then the pad came to be
+     * showing yesterday's keys.
+     */
+    void refreshControls() {
+        if (pad != null) pad.invalidate();
+        if (fire != null) fire.invalidate();
+
+        for (JoystickView key : keys) key.invalidate();
     }
 
     boolean joystickVisible() {
@@ -237,6 +276,11 @@ final class EmulatorLayout extends ViewGroup {
 
         if (pad != null) pad.setVisibility(visibility);
         if (fire != null) fire.setVisibility(visibility);
+
+        // The key buttons are part of the joystick: they are where they are
+        // because fire is, and hiding the joystick to get the picture back
+        // would be no use if three rings stayed behind.
+        for (JoystickView key : keys) key.setVisibility(visibility);
     }
 
     boolean keyboardVisible() {
@@ -397,6 +441,7 @@ final class EmulatorLayout extends ViewGroup {
         placePlay();
         placeLights();
         placeJoystick(width, height);
+        placeKeyButtons();
 
         // Set here rather than in placeJoystick, which returns from three
         // places; alpha is a draw property, so this is safe during a measure.
@@ -536,6 +581,7 @@ final class EmulatorLayout extends ViewGroup {
     private void placeJoystick(int width, int height) {
         padBox.setEmpty();
         fireBox.setEmpty();
+        fireArea.setEmpty();
         joystickFloating = false;
 
         if (pad == null || fire == null || !joystick) return;
@@ -574,6 +620,7 @@ final class EmulatorLayout extends ViewGroup {
 
             square(padBox, screenBox.left + leftBar / 2, centreY, size);
             square(fireBox, screenBox.right - rightBar / 2, centreY, fireSize);
+            fireArea.set(picture.right, barTop, screenBox.right, barBottom);
             return;
         }
 
@@ -589,6 +636,7 @@ final class EmulatorLayout extends ViewGroup {
         if (size >= minimum && size <= (width - 2 * margin) / 2) {
             strip(screenBox.left, screenBox.right, (underPicture + floor) / 2,
                   size, margin);
+            fireArea.set(screenBox.left, underPicture, screenBox.right, floor);
             return;
         }
 
@@ -621,6 +669,7 @@ final class EmulatorLayout extends ViewGroup {
 
             if (size >= minimum && size <= (right - left - 2 * margin) / 2) {
                 strip(left, right, (bandTop + bandBottom) / 2, size, margin);
+                fireArea.set(left, bandTop, right, bandBottom);
                 return;
             }
         }
@@ -630,6 +679,75 @@ final class EmulatorLayout extends ViewGroup {
         size = Math.max(minimum, Math.min(wanted, picture.width() / 4));
         strip(picture.left, picture.right,
               picture.bottom - margin - size / 2, size, margin);
+        fireArea.set(picture);
+    }
+
+    /**
+     * The three key buttons, in an arc on the inboard side of fire.
+     *
+     * Round the inboard side because that is the side with room: fire is at the
+     * far end of whatever space the joystick found, so outboard of it is the
+     * window's edge. Up-left, left and down-left, in profile order top to
+     * bottom, at a radius that clears both rings.
+     *
+     * Two things can be in the way, and both are handled by moving rather than
+     * by giving up. If the arc would reach past the space fire was placed in,
+     * the whole cluster slides outboard as far as the margin allows - fire is
+     * centred in its bar, so there is usually slack there and nothing else
+     * wants it. If it would reach the pad, or there is still not enough room,
+     * the buttons shrink; below thirty dp they are not worth aiming at and are
+     * dropped altogether.
+     */
+    private void placeKeyButtons() {
+        for (Rect box : keyBoxes) box.setEmpty();
+
+        if (keys.length == 0 || fireBox.isEmpty() || !joystick) return;
+
+        float density = getResources().getDisplayMetrics().density;
+        int margin = Math.round(PAD_MARGIN * density);
+        int gap = Math.round(KEY_GAP * density);
+        int least = Math.round(KEY_MINIMUM * density);
+
+        int fireRadius = fireBox.width() / 2;
+        int size = Math.round(fireBox.width() * KEY_OF_FIRE);
+        int centreX = fireBox.centerX();
+        int centreY = fireBox.centerY();
+
+        // What the arc must not cross on the inboard side: the pad, and the
+        // edge of the space fire is in - which is black by construction, so
+        // the picture and the keyboard are covered by the same test.
+        int inboard = Math.max(fireArea.left, padBox.isEmpty() ? fireArea.left
+                                                              : padBox.right);
+        if (!joystickFloating) inboard += margin;
+
+        // The middle button of the three reaches furthest: fire's radius, the
+        // gap, then the whole button.
+        int reach = fireRadius + gap + size;
+        int slack = fireArea.right - margin - fireBox.right;
+
+        if (centreX - reach < inboard && slack > 0) {
+            centreX += Math.min(slack, inboard - (centreX - reach));
+        }
+
+        if (centreX - reach < inboard) {
+            size -= inboard - (centreX - reach);
+            if (size < least) return;
+            reach = fireRadius + gap + size;
+        }
+
+        // Vertically the corner buttons reach less far than the middle one, by
+        // the cosine of forty-five degrees, but the box still has to fit.
+        int distance = fireRadius + gap + size / 2;
+        int corner = Math.round(distance * 0.7071f);
+
+        if (centreY - corner - size / 2 < fireArea.top
+                || centreY + corner + size / 2 > fireArea.bottom) {
+            if (!joystickFloating) return;
+        }
+
+        square(keyBoxes[0], centreX - corner, centreY - corner, size);
+        square(keyBoxes[1], centreX - distance, centreY, size);
+        square(keyBoxes[2], centreX - corner, centreY + corner, size);
     }
 
     /** The pad at one end of a strip and the fire button at the other. */
@@ -656,6 +774,7 @@ final class EmulatorLayout extends ViewGroup {
         measureChild(keyboard, keyboardBox);
         measureChild(pad, padBox);
         measureChild(fire, fireBox);
+        for (int i = 0; i < keys.length; i++) measureChild(keys[i], keyBoxes[i]);
         measureChild(panel, panelBox);
         measureChild(drawer, panelBox);
         measureChild(lights, lightsBox);
@@ -704,6 +823,7 @@ final class EmulatorLayout extends ViewGroup {
         placeChild(keyboard, keyboardBox);
         placeChild(pad, padBox);
         placeChild(fire, fireBox);
+        for (int i = 0; i < keys.length; i++) placeChild(keys[i], keyBoxes[i]);
         placeChild(lights, lightsBox);
         placeChild(play, playBox);
         placeChild(panel, panelBox);

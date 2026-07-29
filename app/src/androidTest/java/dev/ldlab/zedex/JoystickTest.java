@@ -53,6 +53,29 @@ public class JoystickTest {
             .line(40, "GO TO 20")
             .startingAt(10);
 
+    /**
+     * The same trick for keys rather than a port: which of the profile's keys
+     * the machine is seeing, in the border.
+     *
+     * A Keyboard joystick sends keys, so the Kempston port has nothing to say
+     * about it and {@code INKEY$} is what does. Latched the same way, and the
+     * three it watches are three different colours - Q is the profile's up, M
+     * its fire, and a space is what Button 2 sends.
+     *
+     * It compares codes with the case folded rather than strings, because the
+     * 128's editor leaves CAPS LOCK on and {@code INKEY$} says so: the first
+     * version looked for "q" and never saw one.
+     */
+    private static final TapeProgram KEY_REPORTER = new TapeProgram()
+            .line(10, "BORDER 0")
+            .line(20, "LET c=CODE INKEY$")
+            .line(30, "IF c>96 THEN LET c=c-32")
+            .line(40, "IF c=81 THEN BORDER 4")
+            .line(50, "IF c=77 THEN BORDER 5")
+            .line(60, "IF c=32 THEN BORDER 1")
+            .line(70, "GO TO 20")
+            .startingAt(10);
+
     private final Emulator emulator = new Emulator();
 
     @Before
@@ -129,6 +152,26 @@ public class JoystickTest {
         emulator.closeMenu();
     }
 
+    /**
+     * Keyboard is not one of Fuse's interfaces: the pad sends the current
+     * profile's keys, and the three buttons beside fire send theirs whatever the
+     * type is. Both are checked through a program that watches the keyboard,
+     * since a key press is invisible at the Kempston port by definition.
+     */
+    @Test
+    public void theKeyboardTypeSendsKeysAndSoDoTheButtons() {
+        chooseType("Keyboard");
+        runTheProgram(KEY_REPORTER, "keys.tap", "keys");
+
+        assertEquals("an untouched joystick should type nothing",
+                     NOTHING, emulator.borderColour());
+
+        assertEquals("up is the profile's Q", UP, whatTheMachineSaw("JOYSTICK UP"));
+        assertEquals("fire is its M", FIRE, whatTheMachineSaw("JOYSTICK FIRE"));
+        assertEquals("and a button sends its own key",
+                     RIGHT, whatTheMachineSaw("BUTTON SPACE"));
+    }
+
     /** Presses a control, then reads what the machine made of it. */
     private int whatTheMachineSaw(String control) {
         emulator.hold(control);
@@ -140,12 +183,16 @@ public class JoystickTest {
      * an autostart line, so there is nothing to type.
      */
     private void runTheReporter() {
+        runTheProgram(REPORTER, "reporter.tap", "reporter");
+    }
+
+    private void runTheProgram(TapeProgram program, String file, String name) {
         emulator.menu("Machine", "Reset", "Reset");
         emulator.idle(Emulator.BOOT);
 
-        File tape = new File(emulator.context().getCacheDir(), "reporter.tap");
+        File tape = new File(emulator.context().getCacheDir(), file);
         try {
-            REPORTER.writeTo(tape, "reporter");
+            program.writeTo(tape, name);
         } catch (IOException e) {
             throw new AssertionError("could not write " + tape, e);
         }

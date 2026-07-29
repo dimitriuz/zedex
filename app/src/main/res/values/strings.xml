@@ -25,9 +25,25 @@
     <string name="keyboard_hidden">Keyboard hidden — the ☰ menu brings it back</string>
     <!-- %1$s is one of Fuse's own names: Kempston, Cursor, Sinclair 1, … -->
     <string name="joystick_type">Type: %1$s</string>
+    <string name="joystick_keyboard">Keyboard — the profile\'s keys</string>
     <string name="joystick_type_title">Joystick type</string>
     <string name="joystick_type_set">Joystick: %1$s</string>
     <string name="joystick_shown">Joystick shown</string>
+
+    <!-- The key profile: what the pad sends as a Keyboard joystick, and what
+         the three buttons beside fire send whatever the type is. -->
+    <string name="joystick_profile">Keys: %1$s</string>
+    <string name="profile_title">Key profile</string>
+    <string name="profile_edit">Edit keys…</string>
+    <string name="profile_new">New…</string>
+    <string name="profile_new_title">New key profile</string>
+    <string name="profile_new_name">Name</string>
+    <string name="profile_set">Keys: %1$s</string>
+    <string name="profile_activity">Key profile</string>
+    <string name="profile_hint">Tap a key for %1$s</string>
+    <string name="profile_delete">Delete profile</string>
+    <string name="profile_delete_ask">Delete “%1$s”?</string>
+    <string name="profile_last">The controls need one profile, so the last one cannot be deleted.</string>
     <string name="joystick_hidden">Joystick hidden</string>
     <string name="pause_pause">Pause</string>
     <string name="pause_resume">Resume</string>

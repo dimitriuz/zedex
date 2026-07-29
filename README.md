@@ -70,7 +70,7 @@ What the app reaches today:
 | **Timex SCLD** video, including hi-res modes | on the Timex machines |
 | **Tape deck** | loading and saving |
 | **Keyboard** | on screen or physical |
-| **Joystick** | Kempston · Cursor · Sinclair 1/2 · Timex 1/2 · Fuller |
+| **Joystick** | Kempston · Cursor · Sinclair 1/2 · Timex 1/2 · Fuller · keyboard |
 
 
 ## Not yet
@@ -86,7 +86,7 @@ emulated, and each of them is one setting away:
 
 **Playing**
 
-- A second joystick, and physical gamepads
+- A second joystick, and physical gamepads — which will use the key profile
 - Rewind, and playing back RZX recordings
 
 
@@ -129,11 +129,15 @@ says it is being used, since the emulator does not report which way. The AY is
 three bars, one per channel, as tall as it is loud. A lit joystick lamp and a
 dead stick means the game wants a different interface. Off in settings.
 
-**The joystick** is a thumb pad and a fire button, and it goes wherever the picture is not.
+**The joystick** is a thumb pad, a fire button and three key buttons in an arc
+beside it, and it goes wherever the picture is not.
 
-
-☰ *Controls… › Joystick…* turns it off and on, and chooses which interface it
-comes out as.
+☰ *Controls… › Joystick…* turns it off and on, chooses which interface it comes
+out as — including **Keyboard**, for the games that want QAOP rather than a
+joystick — and picks the **key profile**: eight keys, five for the pad and three
+for the buttons, named and switchable, with QAOPM, QAOP + Space, cursor keys,
+both Sinclair sets and WASD built in. *Edit keys…* binds one by tapping the
+control and then the key.
 
 
 **Folders** are yours to choose, in settings:
@@ -195,8 +199,9 @@ In full:
   the machine.
 - **Controls…** — the two things you play with, each of which can be put away
   and neither of which the other replaces.
-  - *Joystick…* has *Show on screen*
-  and which of the Spectrum's seven interfaces the pad appears as.
+  - *Joystick…* has *Show on screen*, which of the Spectrum's seven interfaces
+  the pad appears as or *Keyboard* for keys instead, and *Keys…* for the profile
+  the keys come from. A control shows the key it sends on its face.
   - *Keyboard…* has the same *Show on screen* — a game that only wants a
   joystick has no use for forty keys — and *Landscape layout…*, which is
   where the keyboard goes when it is out.
