@@ -114,6 +114,12 @@ scripts/ui-type.py 'randomize usr 15616' ENTER
 scripts/ui-type.py CS+SS SS+0 ' ' '"test"' ENTER   # extended mode: FORMAT
 ```
 
+`ui-type.py` taps by coordinate and so carries a copy of each skin's key
+positions; it reads the stored skin to pick between them. **After switching skins
+in a running app, `ui-tap.py` still reports the old skin's key names** — UI
+Automator caches the window's tree and nothing the app sends clears it. Relaunch
+before driving the keyboard.
+
 Both address things by name, never by coordinate — menus grow, the keyboard is
 one bitmap whose keys are accessibility nodes, and the quick bar is icons whose
 only name is their content description (`ui-tap.py` matches that too). ☰ has

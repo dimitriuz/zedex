@@ -72,6 +72,8 @@ public class SettingsActivity extends Activity {
     static final String KEY_FULLSCREEN = "fullscreen";
     static final String KEY_JOYSTICK_TYPE = "joystickType";
     static final String KEY_KEYBOARD = "keyboard";
+    /** Which machine's keyboard is drawn; see SpectrumKeyboardView.Skin. */
+    static final String KEY_KEYBOARD_SKIN = "keyboardSkin";
     /** Read by EmulatorActivity on resume; there is no immediate push for it. */
     static final String KEY_INDICATORS = "indicators";
     /* How big the picture is drawn, one per orientation: the number of device

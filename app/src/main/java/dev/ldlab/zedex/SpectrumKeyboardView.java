@@ -51,9 +51,50 @@ public class SpectrumKeyboardView extends View {
 
     private static final String TAG = "Zedex";
 
-    private static final String IMAGE_ASSET = "fuse/keyboard.png";
+    /**
+     * Which machine's keyboard is drawn.
+     *
+     * Two pictures with a table of key rectangles each, in their own image's
+     * pixels: everything else - the presses, the latching, the accessibility
+     * nodes, the scaling - is the same for both, because a skin is only a
+     * picture and where its keys are.
+     *
+     * The rubber one is Fuse's own artwork, which the app already installs; the
+     * 128K is a photograph of a real plate, cropped to the keys - the badge and
+     * the heatsink beside them are inches of nothing to press.
+     */
+    enum Skin {
+        RUBBER("rubber", "ZX Spectrum 48K", "fuse/keyboard.png", 541f / 201f),
+        PLUS("plus", "ZX Spectrum 128K", "skins/spectrum128.webp", 1040f / 413f);
 
-    /** The artwork's own 541x201, for before it has been loaded. */
+        final String value;             /* as stored in the preferences */
+        final String title;
+        final String asset;
+        final float aspect;             /* before the image has loaded */
+
+        Skin(String value, String title, String asset, float aspect) {
+            this.value = value;
+            this.title = title;
+            this.asset = asset;
+            this.aspect = aspect;
+        }
+
+        Row[] rows() {
+            return this == PLUS ? PLUS_ROWS : RUBBER_ROWS;
+        }
+
+        static Skin of(String stored) {
+            for (Skin skin : values()) {
+                if (skin.value.equals(stored)) return skin;
+            }
+            return RUBBER;
+        }
+    }
+
+    private Skin skin = Skin.RUBBER;
+    private Row[] rows = RUBBER_ROWS;
+
+    /** Fuse's own artwork, for before anything has been loaded. */
     static final float NATURAL_ASPECT = 541f / 201f;
 
     /** How long a shift must be held before it latches. */
@@ -63,18 +104,35 @@ public class SpectrumKeyboardView extends View {
         final Rect image = new Rect();       // as drawn, in image pixels
         final Rect touch = new Rect();       // expanded to swallow the gaps
         final int keycode;
+
+        /**
+         * Held down with it, or zero. The 128K's plate has keys the machine
+         * does not: TRUE VIDEO is CAPS SHIFT and 3, GRAPH is CAPS SHIFT and 9.
+         * Most of the rest turn out to be single keycodes Fuse already maps -
+         * Escape is EDIT, Caps Lock is CAPS LOCK, Backspace is DELETE, and the
+         * arrows and the punctuation are what Fuse does with a PC keyboard -
+         * so only five keys need this.
+         */
+        final int modifier;
+
         final String name;
         final boolean canLatch;
         boolean pressed;
         boolean latched;
 
-        Key(int left, int right, int keycode) {
+        Key(int left, int right, int keycode, int modifier, String name) {
             this.image.left = left;
             this.image.right = right;
             this.keycode = keycode;
-            this.name = nameOf( keycode );
-            this.canLatch = keycode == KeyEvent.KEYCODE_SHIFT_LEFT
-                         || keycode == KeyEvent.KEYCODE_CTRL_LEFT;
+            this.modifier = modifier;
+            this.name = name != null ? name : nameOf( keycode );
+
+            // A shift that is part of a combination is not a shift being
+            // pressed: EXTEND MODE is CAPS SHIFT and SYMBOL SHIFT together,
+            // and latching it would leave the machine in extended mode.
+            this.canLatch = modifier == 0
+                         && ( keycode == KeyEvent.KEYCODE_SHIFT_LEFT
+                           || keycode == KeyEvent.KEYCODE_CTRL_LEFT );
         }
 
         /** What the key is called on the Spectrum, not what Android calls it. */
@@ -102,7 +160,7 @@ public class SpectrumKeyboardView extends View {
         }
     }
 
-    private final Row[] rows = {
+    private static final Row[] RUBBER_ROWS = {
         row(20, 43,
             key(10, 43, KeyEvent.KEYCODE_1),
             key(60, 93, KeyEvent.KEYCODE_2),
@@ -149,8 +207,93 @@ public class SpectrumKeyboardView extends View {
             key(472, 530, KeyEvent.KEYCODE_SPACE)),
     };
 
+    /**
+     * The 128K's plate, measured off a photograph of one.
+     *
+     * The keys are on a strict grid - a uniform 111.8 pixels of pitch across
+     * every row of the original, which is what made this a calculation rather
+     * than sixty measurements. Only the wide keys and the L of ENTER are
+     * spelled out, and ENTER appears twice because it is one key in two places.
+     */
+    private static final Row[] PLUS_ROWS = {
+        row(45, 98,
+            shifted(23, 89, KeyEvent.KEYCODE_3, "TRUE VIDEO"),
+            shifted(97, 164, KeyEvent.KEYCODE_4, "INV VIDEO"),
+            named(172, 239, KeyEvent.KEYCODE_1, "1"),
+            named(247, 313, KeyEvent.KEYCODE_2, "2"),
+            named(321, 388, KeyEvent.KEYCODE_3, "3"),
+            named(395, 462, KeyEvent.KEYCODE_4, "4"),
+            named(470, 537, KeyEvent.KEYCODE_5, "5"),
+            named(545, 611, KeyEvent.KEYCODE_6, "6"),
+            named(619, 686, KeyEvent.KEYCODE_7, "7"),
+            named(694, 761, KeyEvent.KEYCODE_8, "8"),
+            named(768, 835, KeyEvent.KEYCODE_9, "9"),
+            named(843, 909, KeyEvent.KEYCODE_0, "0"),
+            shifted(918, 1021, KeyEvent.KEYCODE_SPACE, "BREAK")),
+        row(127, 171,
+            named(23, 128, KeyEvent.KEYCODE_DEL, "DELETE"),
+            shifted(133, 208, KeyEvent.KEYCODE_9, "GRAPH"),
+            named(210, 277, KeyEvent.KEYCODE_Q, "Q"),
+            named(285, 351, KeyEvent.KEYCODE_W, "W"),
+            named(359, 426, KeyEvent.KEYCODE_E, "E"),
+            named(433, 500, KeyEvent.KEYCODE_R, "R"),
+            named(508, 575, KeyEvent.KEYCODE_T, "T"),
+            named(583, 649, KeyEvent.KEYCODE_Y, "Y"),
+            named(657, 724, KeyEvent.KEYCODE_U, "U"),
+            named(732, 799, KeyEvent.KEYCODE_I, "I"),
+            named(806, 873, KeyEvent.KEYCODE_O, "O"),
+            named(881, 947, KeyEvent.KEYCODE_P, "P"),
+            named(953, 1021, KeyEvent.KEYCODE_ENTER, "ENTER")),
+        row(200, 245,
+            shifted(23, 128, KeyEvent.KEYCODE_CTRL_LEFT, "EXTEND MODE"),
+            named(133, 225, KeyEvent.KEYCODE_ESCAPE, "EDIT"),
+            named(228, 295, KeyEvent.KEYCODE_A, "A"),
+            named(303, 369, KeyEvent.KEYCODE_S, "S"),
+            named(377, 444, KeyEvent.KEYCODE_D, "D"),
+            named(451, 518, KeyEvent.KEYCODE_F, "F"),
+            named(526, 593, KeyEvent.KEYCODE_G, "G"),
+            named(601, 667, KeyEvent.KEYCODE_H, "H"),
+            named(675, 742, KeyEvent.KEYCODE_J, "J"),
+            named(750, 817, KeyEvent.KEYCODE_K, "K"),
+            named(824, 891, KeyEvent.KEYCODE_L, "L"),
+            named(900, 1021, KeyEvent.KEYCODE_ENTER, "ENTER")),
+        row(275, 321,
+            named(23, 181, KeyEvent.KEYCODE_SHIFT_LEFT, "CAPS SHIFT"),
+            named(190, 259, KeyEvent.KEYCODE_CAPS_LOCK, "CAPS LOCK"),
+            named(267, 333, KeyEvent.KEYCODE_Z, "Z"),
+            named(341, 408, KeyEvent.KEYCODE_X, "X"),
+            named(416, 483, KeyEvent.KEYCODE_C, "C"),
+            named(490, 557, KeyEvent.KEYCODE_V, "V"),
+            named(565, 631, KeyEvent.KEYCODE_B, "B"),
+            named(639, 706, KeyEvent.KEYCODE_N, "N"),
+            named(714, 781, KeyEvent.KEYCODE_M, "M"),
+            named(789, 855, KeyEvent.KEYCODE_PERIOD, "."),
+            named(860, 1021, KeyEvent.KEYCODE_SHIFT_LEFT, "CAPS SHIFT")),
+        row(340, 397,
+            named(23, 95, KeyEvent.KEYCODE_CTRL_LEFT, "SYMBOL SHIFT"),
+            named(97, 163, KeyEvent.KEYCODE_SEMICOLON, ";"),
+            named(171, 238, KeyEvent.KEYCODE_APOSTROPHE, "QUOTE"),
+            named(246, 313, KeyEvent.KEYCODE_DPAD_LEFT, "LEFT"),
+            named(320, 387, KeyEvent.KEYCODE_DPAD_RIGHT, "RIGHT"),
+            named(395, 727, KeyEvent.KEYCODE_SPACE, "SPACE"),
+            named(730, 797, KeyEvent.KEYCODE_DPAD_UP, "UP"),
+            named(805, 871, KeyEvent.KEYCODE_DPAD_DOWN, "DOWN"),
+            named(879, 946, KeyEvent.KEYCODE_COMMA, ","),
+            named(948, 1021, KeyEvent.KEYCODE_CTRL_LEFT, "SYMBOL SHIFT")),
+    };
+
     private static Key key(int left, int right, int keycode) {
-        return new Key(left, right, keycode);
+        return new Key(left, right, keycode, 0, null);
+    }
+
+    /** A key whose legend is not what Android calls its keycode. */
+    private static Key named(int left, int right, int keycode, String name) {
+        return new Key(left, right, keycode, 0, name);
+    }
+
+    /** One of the 128K's keys that the machine reaches with CAPS SHIFT held. */
+    private static Key shifted(int left, int right, int keycode, String name) {
+        return new Key(left, right, keycode, KeyEvent.KEYCODE_SHIFT_LEFT, name);
     }
 
     private static Row row(int top, int bottom, Key... keys) {
@@ -182,14 +325,72 @@ public class SpectrumKeyboardView extends View {
         pressedPaint.setColor(0x9900b0c8);
         latchedPaint.setColor(0x99ffb000);
 
-        try (InputStream in = context.getAssets().open(IMAGE_ASSET)) {
+        // Read here rather than pushed in, so that every keyboard in the app
+        // is the same one: the emulator's, and the profile editor's.
+        setSkin(Skin.of(context.getSharedPreferences(SettingsActivity.PREFS,
+                                                     Context.MODE_PRIVATE)
+                        .getString(SettingsActivity.KEY_KEYBOARD_SKIN, null)));
+
+        setBackgroundColor(0xff1b1b1b);
+    }
+
+    /**
+     * Draws a different machine's keyboard.
+     *
+     * The picture and the key table go together and neither means anything
+     * without the other, so they change in one step - and the aspect changes
+     * with them, which is why this asks for a layout and not just a redraw.
+     */
+    void setSkin(Skin wanted) {
+        releaseEverything();
+
+        skin = wanted;
+        rows = wanted.rows();
+
+        try (InputStream in = getContext().getAssets().open(wanted.asset)) {
             keyboard = BitmapFactory.decodeStream(in);
         } catch (IOException e) {
-            Log.e(TAG, "cannot load " + IMAGE_ASSET, e);
+            Log.e(TAG, "cannot load " + wanted.asset, e);
+            keyboard = null;
         }
 
         computeTouchAreas();
-        setBackgroundColor(0xff1b1b1b);
+        requestLayout();
+        invalidate();
+
+        // Every key is a virtual accessibility node, and they have all just
+        // moved or changed their names, so say so. Once when a skin changes,
+        // which is nothing like the continuous churn that once took the whole
+        // instrumentation suite down.
+        //
+        // Worth knowing: this is enough for a screen reader and not enough for
+        // UI Automator, which caches a window's tree and went on reporting the
+        // other skin's keys until the app was relaunched. Nothing the app can
+        // say clears that cache - a blunter attempt at it, removing this view
+        // from the tree and putting it back, made no difference either.
+        if (getParent() != null) {
+            getParent().notifySubtreeAccessibilityStateChanged(
+                    this, this, AccessibilityEvent.CONTENT_CHANGE_TYPE_SUBTREE);
+        }
+
+    }
+
+    Skin skin() {
+        return skin;
+    }
+
+    /** Everything up, for when the keys under the fingers are about to change. */
+    private void releaseEverything() {
+        for (Row row : rows) {
+            for (Key key : row.keys) {
+                if (key.pressed || key.latched) {
+                    key.latched = false;
+                    key.pressed = false;
+                    send(key, false);
+                }
+            }
+        }
+        pointers.clear();
     }
 
     /**
@@ -238,7 +439,7 @@ public class SpectrumKeyboardView extends View {
 
     /** Width over height of the artwork, so a parent can shape its box. */
     float aspect() {
-        if (keyboard == null || keyboard.getHeight() == 0) return NATURAL_ASPECT;
+        if (keyboard == null || keyboard.getHeight() == 0) return skin.aspect;
         return keyboard.getWidth() / (float) keyboard.getHeight();
     }
 
@@ -314,7 +515,33 @@ public class SpectrumKeyboardView extends View {
             return;
         }
 
+        // The modifier first going down and last coming up, so the machine
+        // never sees the key without its shift.
+        if (key.modifier != 0 && pressed) FuseNative.key(key.modifier, true);
+
         FuseNative.key(key.keycode, pressed);
+
+        if (key.modifier != 0 && !pressed && !isLatched(key.modifier)) {
+            FuseNative.key(key.modifier, false);
+        }
+    }
+
+    /**
+     * Whether a shift is being held by its own key.
+     *
+     * A latched CAPS SHIFT and then GRAPH, which is CAPS SHIFT and 9, would
+     * otherwise let go of the latch on the way out: the combination would
+     * release a shift the user is still holding.
+     */
+    private boolean isLatched(int keycode) {
+        for (Row row : rows) {
+            for (Key key : row.keys) {
+                if (key.keycode == keycode && key.modifier == 0 && key.latched) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private void press(int pointerId, Key key) {

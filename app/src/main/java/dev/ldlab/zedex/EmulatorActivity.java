@@ -694,8 +694,49 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                                       : R.string.control_show),
                       shown ? R.drawable.ic_hide : R.drawable.ic_show,
                       () -> showKeyboard(!shown));
+        sheet.addItem(getString(R.string.keyboard_skin, keyboardSkin().title),
+                      R.drawable.ic_picture, this::showSkinDialog);
         sheet.addItem(getString(R.string.menu_layout), R.drawable.ic_layout,
                       this::showLayoutDialog);
+    }
+
+    private SpectrumKeyboardView.Skin keyboardSkin() {
+        return SpectrumKeyboardView.Skin.of(
+                preferences.getString(SettingsActivity.KEY_KEYBOARD_SKIN, null));
+    }
+
+    /**
+     * Which machine's keyboard is drawn.
+     *
+     * A picture and where its keys are, nothing more: the 128K's plate has keys
+     * the 48K's rubber one does not, and they reach the machine the way the real
+     * ones did - TRUE VIDEO is CAPS SHIFT and 3, and most of the others turn out
+     * to be single keys Fuse already knows.
+     */
+    private void showSkinDialog() {
+        SpectrumKeyboardView.Skin[] skins = SpectrumKeyboardView.Skin.values();
+        String[] names = new String[skins.length];
+        int checked = 0;
+
+        for (int i = 0; i < skins.length; i++) {
+            names[i] = skins[i].title;
+            if (skins[i] == keyboardSkin()) checked = i;
+        }
+
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(R.string.keyboard_skin_title)
+                .setSingleChoiceItems(names, checked, (dialog, which) -> {
+                    preferences.edit()
+                            .putString(SettingsActivity.KEY_KEYBOARD_SKIN,
+                                       skins[which].value)
+                            .apply();
+                    layout.setKeyboardSkin(skins[which]);
+
+                    dialog.dismiss();
+                    note(R.string.keyboard_skin_set, skins[which].title);
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
     }
 
     private void showKeyboard(boolean shown) {

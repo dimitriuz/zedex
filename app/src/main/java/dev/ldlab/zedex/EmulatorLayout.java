@@ -341,6 +341,14 @@ final class EmulatorLayout extends ViewGroup {
         for (JoystickView key : keys) key.setVisibility(visibility);
     }
 
+    /** Draws another machine's keyboard; its aspect changes with it. */
+    void setKeyboardSkin(SpectrumKeyboardView.Skin skin) {
+        if (keyboard == null || keyboard.skin() == skin) return;
+
+        keyboard.setSkin(skin);
+        requestLayout();
+    }
+
     boolean keyboardVisible() {
         return keyboardWanted;
     }

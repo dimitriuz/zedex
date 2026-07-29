@@ -52,7 +52,7 @@ end.
 - **GPU-scaled display**, fitted or at a **whole-pixel scale**, with
   **scanline, CRT, dot-matrix and composite/RF filters**
 - **Five landscape layouts**
-- **On-screen Spectrum keyboard**
+- **On-screen Spectrum keyboard**, as the rubber **48K** or the **128K** plate
 - **On-screen joystick**, and **physical controllers**, which just work
 - **A quick actions bar**, always on screen, with a **fullscreen** button that
   clears it and the keyboard away
@@ -221,8 +221,9 @@ In full:
   keys come from, and whether to *Hide for a controller*. A control shows the key
   it sends on its face.
   - *Keyboard…* has the same *Show on screen* — a game that only wants a
-  joystick has no use for forty keys — and *Landscape layout…*, which is
-  where the keyboard goes when it is out.
+  joystick has no use for forty keys — a *Skin*, either the rubber 48K or the
+  128K plate with its own DELETE, EDIT, GRAPH, arrows and punctuation, and
+  *Landscape layout…*, which is where the keyboard goes when it is out.
 - **Settings…** — see below.
 
 **Settings** is five tabs — Machine, Tape, Picture, Sound, Files — covering:

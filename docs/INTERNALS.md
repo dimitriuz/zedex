@@ -490,6 +490,53 @@ screen's share, since it is a takeover rather than part of the picture, and the
 at the top right of the *screen*, so it follows the picture when the keyboard is
 beside it. The joystick's two controls are children here too, placed as below.
 
+### Two keyboards
+
+A skin is a picture and a table of key rectangles in that picture's own pixels.
+Nothing else differs: the presses, the latching, the accessibility nodes and the
+scaling are the same code for both, which is what makes a second one cheap. The
+rubber 48K is Fuse's own artwork, which the app already installs; the 128K is a
+photograph of a real plate, cropped to the keys - the badge and the heatsink
+beside them are inches of nothing to press.
+
+**The grid was a calculation, not fifty-nine measurements.** The plate turns out
+to have a uniform pitch of 111.8 pixels of the photograph across every row, so
+each row is a first centre and a count; only the wide keys and the L of ENTER are
+spelled out. The rectangles were then drawn back over the photograph and looked
+at, which is the only way to know they are on the keys.
+
+ENTER appears twice, because it is one key in two places: without a rectangle for
+its upper arm, the touch expansion would give that arm to P.
+
+**Most of the extra keys are not extra at all.** The 128K plate has keys the
+machine does not - TRUE VIDEO, GRAPH, EXTEND MODE - but Fuse already maps a PC
+keyboard onto a Spectrum one, so Escape *is* EDIT, Caps Lock *is* CAPS LOCK,
+Backspace *is* DELETE, and the arrows and the punctuation come out as Fuse's own
+shifted pairs. Only five keys need a modifier of their own, and all five are CAPS
+SHIFT with something: TRUE VIDEO, INV VIDEO, GRAPH, EXTEND MODE and BREAK. The
+modifier goes down first and comes up last, and it is *not* released if that shift
+is latched - a latched CAPS SHIFT and then GRAPH would otherwise let go of the
+latch on the way out.
+
+Two things learned from the accessibility tree, both worth knowing before touching
+this again:
+
+- **A skin change is invisible to UI Automator.** The keys are virtual nodes, and
+  the view says so with `notifySubtreeAccessibilityStateChanged()`, which is
+  enough for a screen reader. It is not enough for UI Automator, which caches a
+  window's tree and goes on reporting the *other* skin's keys until the app is
+  relaunched. Nothing the app can say clears that cache; removing the view from
+  the tree and putting it back made no difference either. So `scripts/ui-tap.py`
+  and the tests see the old names after a live switch, and the app is not at
+  fault.
+- **A key called `"` cannot be found.** `uiautomator dump` writes the name into an
+  XML attribute and that one node came back unusable - it simply vanished from the
+  dump. It is called `QUOTE` instead, which is also what a screen reader would say.
+
+`scripts/ui-type.py` carries both tables and reads the stored skin to choose,
+because it taps by coordinate rather than by name: the 128K's keys are somewhere
+else entirely and the rubber one's coordinates type nonsense on it.
+
 A keyboard beside the screen gets the foot of its half rather than all of it.
 It centres itself in whatever box it is given, so a full-height box put it in
 the middle with as much empty above as below; the bottom is where a thumb is,

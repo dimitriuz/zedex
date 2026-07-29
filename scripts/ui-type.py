@@ -23,8 +23,11 @@ import time
 
 ADB = os.environ.get("ADB", os.path.expanduser("~/Android/Sdk/platform-tools/adb"))
 
-# The keyboard artwork, 541x201, exactly as SpectrumKeyboardView has it.
-ROWS = [
+# The keyboard artwork, in its own pixels, exactly as SpectrumKeyboardView has
+# it. Which one is on screen is a setting, so both are here and the stored skin
+# picks between them - the 128K plate has its keys somewhere else entirely, and
+# tapping the rubber one's coordinates on it types nonsense.
+ROWS_48 = [
     (20, 43, "1234567890",
      [(10, 43), (60, 93), (110, 143), (160, 193), (210, 243),
       (260, 293), (310, 343), (360, 393), (410, 443), (460, 493)]),
@@ -38,6 +41,35 @@ ROWS = [
      [(10, 55), (72, 105), (122, 155), (172, 205), (222, 255),
       (272, 305), (322, 355), (372, 405), (422, 455), (472, 530)]),
 ]
+
+ROWS_128 = [
+    (45, 98, "1234567890",
+     [(172, 239), (247, 313), (321, 388), (395, 462), (470, 537), (545, 611), (619, 686), (694, 761), (768, 835), (843, 909)]),
+    (127, 171, "qwertyuiop\n",
+     [(210, 277), (285, 351), (359, 426), (433, 500), (508, 575), (583, 649), (657, 724), (732, 799), (806, 873), (881, 947), (953, 1021)]),
+    (200, 245, "asdfghjkl\n",
+     [(228, 295), (303, 369), (377, 444), (451, 518), (526, 593), (601, 667), (675, 742), (750, 817), (824, 891), (900, 1021)]),
+    (275, 321, "\x01zxcvbnm.",
+     [(23, 181), (267, 333), (341, 408), (416, 483), (490, 557), (565, 631), (639, 706), (714, 781), (789, 855)]),
+    (340, 397, "\x02; ,",
+     [(23, 95), (97, 163), (395, 727), (879, 946)]),
+]
+
+# 541x201 for the rubber keyboard, 1040x413 for the 128K's plate.
+ARTWORK = {"rubber": (541.0, 201.0), "plus": (1040.0, 413.0)}
+
+
+def skin():
+    """Which keyboard the app is drawing, from its own preferences."""
+    stored = subprocess.run(
+        [ADB, "shell", "run-as", "dev.ldlab.zedex", "cat",
+         "shared_prefs/fuse.xml"], capture_output=True, text=True).stdout
+    found = re.search(r'name="keyboardSkin">([a-z]+)<', stored)
+    return found.group(1) if found and found.group(1) in ARTWORK else "rubber"
+
+
+SKIN = skin()
+ROWS = ROWS_128 if SKIN == "plus" else ROWS_48
 
 CAPS, SYMBOL = "\x01", "\x02"
 NAMED = {"ENTER": "\n", "SPACE": " ", "CS": CAPS, "SS": SYMBOL}
@@ -72,14 +104,20 @@ def keyboard_rect():
         sys.exit("keyboard view not found; is the emulator on screen?")
 
     left, top, right, bottom = view
-    scale = min((right - left) / 541.0, (bottom - top) / 201.0)
-    return (left + ((right - left) - 541 * scale) / 2,
-            top + ((bottom - top) - 201 * scale) / 2,
+    art_w, art_h = ARTWORK[SKIN]
+    scale = min((right - left) / art_w, (bottom - top) / art_h)
+    return (left + ((right - left) - art_w * scale) / 2,
+            top + ((bottom - top) - art_h * scale) / 2,
             scale)
 
 
 def main():
     origin_x, origin_y, scale = keyboard_rect()
+
+    # The dump leaves the accessibility machinery busy for a moment and the
+    # first tap after it goes missing often enough to notice: "border 7" arrives
+    # as "rder 7", and a program's line number is the first thing typed.
+    time.sleep(0.5)
 
     def at(character):
         x, y = KEYS[character]
