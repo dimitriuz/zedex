@@ -209,6 +209,11 @@
     <string name="reset_done">Machine reset</string>
     <string name="nmi_done">NMI sent</string>
     <string name="machine_selected">%1$s</string>
+    <string name="fullscreen_enter">Fullscreen</string>
+    <string name="fullscreen_leave">Leave fullscreen</string>
+    <string name="fullscreen_on">Fullscreen — tap the picture for the bar</string>
+    <string name="fullscreen_off">Fullscreen off</string>
+
     <string name="menu_button">Menu</string>
     <!-- The lamps, spoken rather than drawn: a screen reader gets these. -->
     <string name="lamp_tape">tape</string>

@@ -68,6 +68,8 @@ public class SettingsActivity extends Activity {
     static final String KEY_JOYSTICK = "joystick";
     /** Whether the on-screen pad steps aside for a real controller. */
     static final String KEY_JOYSTICK_AUTO_HIDE = "joystickAutoHide";
+    /** Written from the quick bar: the picture has the window to itself. */
+    static final String KEY_FULLSCREEN = "fullscreen";
     static final String KEY_JOYSTICK_TYPE = "joystickType";
     static final String KEY_KEYBOARD = "keyboard";
     /** Read by EmulatorActivity on resume; there is no immediate push for it. */

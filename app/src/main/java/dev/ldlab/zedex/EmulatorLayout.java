@@ -120,8 +120,18 @@ final class EmulatorLayout extends ViewGroup {
     private static final float SCREEN_ASPECT =
             (float) SOURCE_WIDTH / (float) SOURCE_HEIGHT;
 
-    /** The gap the quick bar keeps from the corner of the picture, in dp. */
+    /** The gap the quick bar keeps from the corner of the window, in dp. */
     private static final int BAR_GAP = 8;
+
+    /**
+     * What the keyboard is kept clear of the window's edges by in portrait, dp.
+     *
+     * The keys in the corners are the hardest to hit on a tall phone: the bottom
+     * two are where the gesture bar and the curve of the glass are, and a thumb
+     * reaching the outer columns arrives at an angle. A few dp costs a fraction
+     * of the key size and gives every key a border to miss into.
+     */
+    private static final int KEYBOARD_PAD = 10;
 
     private final Rect screenBox = new Rect();
     private final Rect keyboardBox = new Rect();
@@ -172,6 +182,14 @@ final class EmulatorLayout extends ViewGroup {
      * so that unplugging brings back whatever the user had chosen.
      */
     private boolean suppressed;
+
+    /**
+     * Fullscreen: the bar is not given a strip of its own and the keyboard is put
+     * away where that would gain the picture anything. Kept apart from the
+     * keyboard the user asked for, like {@link #suppressed}, so that leaving
+     * fullscreen brings back what they had.
+     */
+    private boolean fullscreen;
     private boolean keyboardWanted = true;
 
     /**
@@ -273,6 +291,29 @@ final class EmulatorLayout extends ViewGroup {
         requestLayout();
     }
 
+    /**
+     * Whether the picture has the window to itself.
+     *
+     * The bar stops reserving its strip and starts overlapping the corner as it
+     * used to, and the keyboard goes away in landscape - where it costs the
+     * picture nearly half the window. In portrait it costs the picture nothing,
+     * since a 4:3 image in a tall window is limited by the width and not by the
+     * height, so it stays.
+     */
+    void setFullscreen(boolean on) {
+        // No early return on an unchanged value: whether fullscreen hides the
+        // keyboard depends on the orientation, so this is also how a rotation
+        // gets the rule applied again. Called from onConfigurationChanged for
+        // exactly that, and a config change costs a layout anyway.
+        fullscreen = on;
+        applyKeyboardVisibility();
+        requestLayout();
+    }
+
+    boolean fullscreen() {
+        return fullscreen;
+    }
+
     /** Whether a real controller is standing in for the on-screen one. */
     void setJoystickSuppressed(boolean standingAside) {
         if (suppressed == standingAside) return;
@@ -358,8 +399,10 @@ final class EmulatorLayout extends ViewGroup {
         boolean landscape = getResources().getConfiguration().orientation
                 == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
         boolean hiddenByTemplate = landscape && template == Template.NONE;
+        boolean hiddenByFullscreen = landscape && fullscreen;
 
-        keyboard.setVisibility(!keyboardWanted || hiddenByTemplate ? GONE : VISIBLE);
+        keyboard.setVisibility(!keyboardWanted || hiddenByTemplate
+                               || hiddenByFullscreen ? GONE : VISIBLE);
     }
 
     @Override
@@ -380,11 +423,21 @@ final class EmulatorLayout extends ViewGroup {
 
         // Portrait has one arrangement; the templates are a landscape question.
         // A keyboard the user has put away leaves the same window as the
-        // template that has none, whichever way up the device is.
+        // template that has none, whichever way up the device is - and so does
+        // fullscreen, which is the point of it: hiding the keyboard while still
+        // reserving its share of the height would leave the picture the size it
+        // was with a band of black where the keys had been.
         Template current = landscape ? template : Template.BELOW;
-        if (!keyboardWanted) current = Template.NONE;
+        if (!keyboardWanted || (landscape && fullscreen)) current = Template.NONE;
 
         panelBox.set(0, 0, width, height);
+
+        // The bar first, because in portrait the screen starts underneath it.
+        measureBar(width, height);
+
+        int top = landscape || fullscreen || menuBox.isEmpty()
+                ? 0 : menuBox.bottom + Math.round(BAR_GAP * getResources()
+                        .getDisplayMetrics().density);
 
         switch (current) {
             case NONE: {
@@ -432,19 +485,28 @@ final class EmulatorLayout extends ViewGroup {
                 int natural = Math.round(width / aspect);
                 float cap = landscape ? LANDSCAPE_BELOW : PORTRAIT_BELOW;
                 int keyboardHeight = Math.min(natural, Math.round(height * cap));
-                int room = height - keyboardHeight;
+                int room = height - keyboardHeight - top;
 
                 // Portrait leaves far more height than a 4:3 picture wants, and
                 // the renderer centres inside whatever it is given - which put
                 // the screen in the middle with a band of black above it as well
                 // as below. Giving the box only the height the picture uses puts
-                // it at the top and leaves the spare space in one place.
+                // it under the bar and leaves the spare space in one place.
                 int screenHeight = landscape
                         ? room
                         : Math.min(room, Math.round(width / SCREEN_ASPECT));
 
-                screenBox.set(0, 0, width, screenHeight);
+                screenBox.set(0, top, width, top + screenHeight);
                 keyboardBox.set(0, height - keyboardHeight, width, height);
+
+                // Room to miss into around the keys that are hardest to hit.
+                if (!landscape) {
+                    int pad = Math.round(KEYBOARD_PAD
+                            * getResources().getDisplayMetrics().density);
+
+                    keyboardBox.set(pad, keyboardBox.top - pad,
+                                    width - pad, height - pad);
+                }
                 break;
             }
         }
@@ -795,33 +857,43 @@ final class EmulatorLayout extends ViewGroup {
         measureChild(drawer, panelBox);
         measureChild(lights, lightsBox);
         measureChild(play, playBox);
-        measureBar();
+        measureChild(menu, menuBox);
 
         setMeasuredDimension(width, height);
     }
 
     /**
-     * The quick bar is the one child that decides its own size: how many icons
-     * it has, and whether a group has opened a second row underneath, are its
-     * business and change as it is used. It is asked how big it would like to
-     * be and then hung off the top right corner of the picture — of the
-     * picture rather than of the window, so it follows the screen when the
-     * keyboard is beside it, and inside the picture rather than beside it
-     * because there is no guarantee of any black to sit in.
+     * The quick bar is the one child that decides its own size: how many icons it
+     * has, and whether a group has opened a second row underneath, are its
+     * business and change as it is used. It is asked how big it would like to be
+     * and then hung off the <b>window's</b> top right corner.
+     *
+     * The window's corner and not the picture's, which is where it used to go. It
+     * is on screen the whole time now rather than fading after three seconds, and
+     * a bar that is always there must not be always over the game: in portrait
+     * the screen starts underneath it - see the strip {@link #arrange} reserves -
+     * and in landscape the corner is the black beside a 4:3 picture in a wide
+     * window, which is nobody's picture. The one arrangement where it still
+     * overlaps is a keyboard on the left, where the screen's half reaches the
+     * window's right edge and only a thin band is left above it; the corner of
+     * the border is what it costs.
+     *
+     * In fullscreen it goes back to overlapping, because there it is not there at
+     * all until the picture is tapped and a layout that shifted for a control
+     * about to fade would be worse than the overlap.
      */
-    private void measureBar() {
+    private void measureBar(int width, int height) {
         menuBox.setEmpty();
         if (menu == null || menu.getVisibility() == GONE) return;
 
-        menu.measure(MeasureSpec.makeMeasureSpec(screenBox.width(), MeasureSpec.AT_MOST),
-                     MeasureSpec.makeMeasureSpec(screenBox.height(), MeasureSpec.AT_MOST));
+        menu.measure(MeasureSpec.makeMeasureSpec(width, MeasureSpec.AT_MOST),
+                     MeasureSpec.makeMeasureSpec(height, MeasureSpec.AT_MOST));
 
         int gap = Math.round(BAR_GAP * getResources().getDisplayMetrics().density);
         int wide = menu.getMeasuredWidth();
         int tall = menu.getMeasuredHeight();
 
-        menuBox.set(screenBox.right - gap - wide, screenBox.top + gap,
-                    screenBox.right - gap, screenBox.top + gap + tall);
+        menuBox.set(width - gap - wide, gap, width - gap, gap + tall);
     }
 
     private void measureChild(View child, Rect box) {

@@ -79,12 +79,21 @@ invisible to the emulated machine.
 
 ### The menu
 
-☰ is one icon in a **quick bar**, and the bar fades out three seconds after it
-is last used, because it sits in the corner of the picture and is therefore in
-the way of the thing it belongs to. A tap anywhere on the screen brings it
-back; closing the sheet takes it away again. It starts visible rather than
-hidden — a control nobody knows is there is worse than one briefly in the way —
-and it is **gone entirely while the ROMs panel is showing**, ☰ and all. With no
+☰ is one icon in a **quick bar**, and the bar has a place of its own rather than
+sitting over the picture: in portrait it is a strip across the top and the screen
+starts underneath it, and in landscape it hangs off the window's top right
+corner, which is the black beside a 4:3 picture in a wide window. So it stays up.
+It used to fade after three seconds because it *was* over the picture, and now it
+only fades in fullscreen — a control that is always there needs no discovering,
+and one that has its own strip is in nobody's way.
+
+The one landscape arrangement where it still overlaps is a keyboard on the left:
+there the screen's half reaches the window's right edge and only a thin band is
+left above the picture, so the corner of the border is what it costs. Reserving a
+strip in landscape instead would cost the picture height, which is the scarce
+direction there.
+
+It is **gone entirely while the ROMs panel is showing**, ☰ and all. With no
 machine there is nothing for any of it to act on: no state to save, nothing to
 pause, no picture to photograph, no drives to look in. It kept ☰ for a while so
 that the data folder stayed reachable, but the panel's own three options are the
@@ -92,6 +101,24 @@ doors out of it — download a set, import a folder, import files — and each o
 them puts ROMs where they are wanted, so a bar of actions that cannot act was
 worse than no bar. Nothing reveals it while the panel is up, since startup and
 the sheet closing both ask as well as a tap on the picture.
+
+**Fullscreen** is a quick-bar action and a stored setting: the bar gives up its
+strip, and in landscape the keyboard goes away. Only in landscape, because that
+is the only place it buys anything — a 4:3 picture in a tall window is limited by
+the width, so in portrait the keyboard costs the picture nothing and taking it
+away would leave a black third of the window and nothing gained. Hiding it is not
+enough on its own either: `arrange()` has to treat the window as the *no keyboard*
+template as well, or the picture stays the size it was with a band of black where
+the keys had been.
+
+That rule depends on the orientation, which means turning the device changes the
+answer — so `setFullscreen()` deliberately does *not* return early on an unchanged
+value, and the activity calls it again from `onConfigurationChanged()`. Without
+that, a device turned while fullscreen kept whichever answer was true when it was
+switched on, and the keyboard stayed away in portrait.
+
+Getting out is the same icon, reached the way it always was: a tap on the picture
+brings the bar back for three seconds.
 
 The fade's end action has to check whether the bar is still meant to be hidden.
 Cancelling a `ViewPropertyAnimator` runs its end action anyway, so a reveal
@@ -419,6 +446,13 @@ box is trimmed to the height a 4:3 picture actually uses, 810 px of 1080 wide:
 the renderer centres inside whatever it is given, so a full-height box put the
 picture in the middle with a band of black above it as well as below. One band,
 below, is what was wanted.
+
+In portrait the keyboard is inset from the window's left, right and bottom edges
+by ten dp. The keys in the corners are the hardest to hit on a tall phone — the
+bottom two are where the gesture bar and the curve of the glass are, and a thumb
+reaching the outer columns arrives at an angle — and since the keyboard scales to
+fit whatever box it is given, a few dp costs a fraction of the key size and gives
+every key a border to miss into.
 
 Hiding the keyboard sets it `GONE` rather than giving it an empty box, because
 its keys are accessibility nodes and forty of them with no bounds would still

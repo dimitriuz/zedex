@@ -54,7 +54,9 @@ end.
 - **Five landscape layouts**
 - **On-screen Spectrum keyboard**
 - **On-screen joystick**, and **physical controllers**, which just work
-- **A quick actions bar**, and **pause** — automatic when the app is not in front
+- **A quick actions bar**, always on screen, with a **fullscreen** button that
+  clears it and the keyboard away
+- **Pause** — automatic when the app is not in front
 - **Activity lamps** for the tape, disks, AY, keyboard and joystick
 - **Hardware keyboards**
 
@@ -159,6 +161,11 @@ access**. Whatever is already saved moves with it.
 picker.
 
 ---
+
+**The bar** across the top — down the top right corner sideways — is always
+there: open a file, save or load a state, pause, capture, controls, machine, and
+**fullscreen**, which clears the bar away and, sideways, the keyboard with it. Tap
+the picture to bring it back for a moment.
 
 **Main menu**
 

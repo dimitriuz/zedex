@@ -145,6 +145,9 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     /** The bar's pause icon, which becomes play; see {@link #applyPause}. */
     private ImageButton pauseAction;
 
+    /** The bar's fullscreen icon, which becomes its own way out. */
+    private ImageButton fullscreenAction;
+
     /**
      * Two reasons to be stopped, kept apart. The user's pause survives going
      * away and coming back; the automatic one does not, and must not undo the
@@ -202,7 +205,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // A tap anywhere on the picture brings ☰ back; the sheet closing takes
         // it away again, so it is only ever over the screen while in use.
         screen.setOnClickListener(v -> revealQuickBar());
-        menu.setOnClosed(fadeQuickBar);
+        // Closing the sheet takes the bar with it only where the bar fades at
+        // all; otherwise it has a place of its own and stays in it.
+        menu.setOnClosed(() -> {
+            if (fullscreen()) fadeQuickBar.run();
+        });
 
         keyButtons = new JoystickView[] {
             new JoystickView(this, ControlProfiles.BUTTON_1),
@@ -225,6 +232,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                 preferences.getBoolean(SettingsActivity.KEY_INDICATORS, true));
         applyScale();
         applyControls();
+        applyFullscreen();
 
         revealQuickBar();
         layout.setTemplate(EmulatorLayout.Template.of(
@@ -269,6 +277,10 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     public void onConfigurationChanged(android.content.res.Configuration config) {
         super.onConfigurationChanged(config);
         applyScale();
+
+        // Fullscreen hides the keyboard in landscape and not in portrait, so
+        // turning the device is a change of that answer.
+        applyFullscreen();
     }
 
     /**
@@ -396,6 +408,10 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         bar.addGroup(R.drawable.ic_machine, getString(R.string.menu_machine_group),
                      this::fillMachineBar);
 
+        fullscreenAction = bar.addAction(R.drawable.ic_fullscreen,
+                                         getString(R.string.fullscreen_enter),
+                                         () -> showFullscreen(!fullscreen()));
+
         bar.addAction(R.drawable.ic_menu, getString(R.string.menu_button),
                       () -> menu.open());
 
@@ -479,7 +495,16 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         });
     };
 
-    /** Shows the bar and starts it fading again. Any tap on the screen does this. */
+    /**
+     * Shows the bar, and starts it fading only if it is meant to fade.
+     *
+     * It fades in fullscreen and nowhere else. Everywhere else it has a place of
+     * its own that is not over the picture - a strip at the top in portrait, the
+     * black corner in landscape - so there is nothing to be gained by taking it
+     * away and something to be lost: a control that is always there needs no
+     * discovering. Any tap on the picture still calls this, which in fullscreen
+     * is how the bar is got back.
+     */
     private void revealQuickBar() {
         if (panelUp) return;
 
@@ -489,7 +514,44 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         quickBar.animate().cancel();
         quickBar.setAlpha(1f);
         quickBar.setVisibility(View.VISIBLE);
-        quickBar.postDelayed(fadeQuickBar, BAR_LINGER_MS);
+
+        if (fullscreen()) quickBar.postDelayed(fadeQuickBar, BAR_LINGER_MS);
+    }
+
+    private boolean fullscreen() {
+        return preferences.getBoolean(SettingsActivity.KEY_FULLSCREEN, false);
+    }
+
+    /**
+     * Gives the picture the whole window, or gives the furniture back.
+     *
+     * The bar loses its strip and the keyboard goes away in landscape, where it
+     * is worth nearly half the window; in portrait a 4:3 picture is limited by the
+     * width, so the keyboard costs it nothing and stays. Getting out is the same
+     * icon: a tap on the picture brings the bar back for three seconds, which is
+     * long enough to press it.
+     */
+    private void showFullscreen(boolean on) {
+        preferences.edit()
+                .putBoolean(SettingsActivity.KEY_FULLSCREEN, on).apply();
+
+        applyFullscreen();
+        revealQuickBar();
+        note(on ? R.string.fullscreen_on : R.string.fullscreen_off);
+    }
+
+    private void applyFullscreen() {
+        boolean on = fullscreen();
+
+        layout.setFullscreen(on);
+
+        if (fullscreenAction != null) {
+            quickBar.setAction(fullscreenAction,
+                               on ? R.drawable.ic_fullscreen_exit
+                                  : R.drawable.ic_fullscreen,
+                               getString(on ? R.string.fullscreen_leave
+                                            : R.string.fullscreen_enter));
+        }
     }
 
     /**
