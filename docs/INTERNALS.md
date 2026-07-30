@@ -343,11 +343,37 @@ once `disk.type` is cleared — the same thing Fuse's own save-as does, minus
 format Fuse reads can be written: an `.scl` in particular has to come back as
 a `.trd`, so the interface decides the default extension.
 
-Disks are always written as a new file in the data folder, never back over
-the one that was opened, because what was opened is a copy staged in the
-cache. Expect the bytes to differ from the original even when nothing has
-changed: Fuse writes them out of its own in-memory track representation
-rather than copying the file.
+*Save as…* writes a new file in the data folder. Expect its bytes to differ
+from the original even when nothing has changed: Fuse writes them out of its
+own in-memory track representation rather than copying the file. What the
+machine changed is still only what changed — a TR-DOS `SAVE` of one program
+comes back as three sectors different out of 2560.
+
+**Writing back over the file a disk came from** is the same call with three
+problems in front of it.
+
+The first is that Fuse opens files by path and a picked file is a document:
+what is in the drive is a copy staged in the cache, and its name — the one
+`fdd->disk.filename` reports and the menu shows — is all the two ways a disk
+can arrive have in common. So the app keeps a map from that name to the
+document it was staged from, filled in by `stage()`, which every path goes
+through: picked into a drive, opened as media, or handed over by another app.
+A row appears only when the staged copy is still in the cache as well, since a
+disk Fuse made itself reports *Blank disk* and has no file behind it. The
+picker asks for `FLAG_GRANT_WRITE_URI_PERMISSION` so there is somewhere to
+write to; where the provider will not give it, the write fails and says so.
+
+The second is that `disk_write()` opens its file `"wb"` — truncated — before
+it knows whether it has anything to write. Writing straight into the document
+would destroy an irreplaceable file to save an unformatted disk. So the disk
+goes to a copy in `cache/writeback` under its own name, keeping the extension
+and so the format, and only a copy that exists is streamed over the document.
+
+The third is that the write is a command on the queue and nothing answers
+back. The app waits for the file to appear and stop growing —
+`WRITE_POLL_MS` apart, up to `WRITE_TIMEOUT_MS` — and treats a timeout as a
+failure, which is what a removed file looks like. Fuse has already said why
+through `ui_error` by then.
 
 ### The DivMMC, and three things Fuse cannot ask for
 
@@ -470,6 +496,15 @@ Each slot also gets a `.thumb`: the last frame at half size, written by the
 display backend as a width, a height and RGBA rows, which Android decodes
 straight into a `Bitmap`. It costs 76kB a slot and saves guessing which save
 is which.
+
+Renaming moves both files, since the name is the base name of both and a
+thumbnail left behind is a row with no picture. It keeps the snapshot's
+extension — the format that wrote a state is the format that will load it,
+whatever the setting says now — and refuses a name that already exists rather
+than overwriting: tapping a row while saving is how a state is written over,
+and that asks first. The pencil and the bin on each row do what only a long
+press used to; the long press still works, and both reopen the list they came
+from so several states can be tidied in one visit.
 
 Both directions are queued like any other command and run between frames on
 the emulation thread, which is what makes the state coherent —

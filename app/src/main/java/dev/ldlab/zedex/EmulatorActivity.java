@@ -56,6 +56,8 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -96,6 +98,19 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
     /** Where picked files are staged for Fuse to open. */
     private static final String MEDIA_DIR = "media";
+
+    /** Where a disk is written before it goes back over the file it came from. */
+    private static final String WRITEBACK_DIR = "writeback";
+
+    /**
+     * How long to give the emulation thread to write a disk out.
+     *
+     * A write goes through the command queue and there is nothing to answer
+     * back with, so the file itself is the only report. Generous because the
+     * queue is drained once a frame and this waits in the background.
+     */
+    private static final long WRITE_TIMEOUT_MS = 3000;
+    private static final long WRITE_POLL_MS = 60;
 
     /** Base name for new states: whatever media was loaded last. */
     private static final String PREF_MEDIA_NAME = "mediaName";
@@ -157,6 +172,21 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
     /** Asks for ROMs, and fetches them; shown when there is no machine. */
     private RomsPanel roms;
+
+    /**
+     * Where each staged file came from, by the name Fuse knows it under.
+     *
+     * Fuse opens files by path, so what it is given is the copy in the cache and
+     * what a drive reports is that copy's name; this is how the document behind
+     * it is found again when the disk is to be written back. Keyed on the name
+     * rather than on the drive because a disk arrives either way — picked into a
+     * drive, or opened as media and put in whichever drive its interface has —
+     * and the name is the one thing both paths have.
+     *
+     * Not persisted: the document grant does not outlive the task, and neither
+     * does anything in a drive.
+     */
+    private final Map<String, Uri> mediaOrigins = new ConcurrentHashMap<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -1119,7 +1149,8 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             int index = i;
 
             sheet.addItem(poke.name + "\n" + poke.numbers(), R.drawable.ic_poke,
-                          () -> applyPoke(poke),
+                          () -> applyPoke(poke), R.drawable.ic_trash,
+                          getString(R.string.poke_forget_action, poke.name),
                           () -> confirmForgetPoke(index, poke));
         }
 
@@ -1966,7 +1997,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                     : modified ? getString(R.string.disk_modified, disk) : disk;
 
             sheet.addSubmenu(name + "\n" + state, R.drawable.ic_disk,
-                             page -> fillDrive(page, name, id, !disk.isEmpty()));
+                             page -> fillDrive(page, name, id, disk));
         }
 
         fillCard(sheet);
@@ -2009,18 +2040,51 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         }
     }
 
-    private void fillDrive(MenuDrawer sheet, String name, int id, boolean loaded) {
+    /**
+     * One drive: what to put in it, and what to do with what is in it.
+     *
+     * {@code disk} is the file the drive reports, which is also how the document
+     * it was opened from is found - see {@link #mediaOrigins}. When there is one,
+     * <em>Save over</em> comes first: a disk that came from a file is nearly
+     * always meant to go back to it, and <em>Save as…</em> is the copy.
+     */
+    private void fillDrive(MenuDrawer sheet, String name, int id, String disk) {
+        boolean loaded = !disk.isEmpty();
+
         sheet.addItem(getString(R.string.disk_load), R.drawable.ic_folder,
                       () -> loadDiskInto(id));
         sheet.addItem(getString(R.string.disk_new), R.drawable.ic_plus,
                       () -> confirmNewDisk(name, id, loaded));
 
         if (loaded) {
+            Uri origin = originOf(disk);
+
+            if (origin != null) {
+                sheet.addItem(getString(R.string.disk_save_over, disk),
+                              R.drawable.ic_save,
+                              () -> confirmWriteBack(id, disk, origin));
+            }
+
             sheet.addItem(getString(R.string.disk_save_short), R.drawable.ic_save,
                           () -> saveDisk(name, id));
             sheet.addItem(getString(R.string.disk_eject), R.drawable.ic_eject,
                           () -> confirmEject(name, id));
         }
+    }
+
+    /**
+     * The document a drive's disk was opened from, if it was.
+     *
+     * The staged copy has to still be there as well as the grant: a disk Fuse
+     * made itself reports "Blank disk" and has no file behind it, and the cache
+     * is Android's to empty whenever it likes.
+     */
+    private Uri originOf(String disk) {
+        Uri origin = mediaOrigins.get(disk);
+        if (origin == null) return null;
+
+        return new File(new File(getCacheDir(), MEDIA_DIR), disk).isFile()
+                ? origin : null;
     }
 
     // --- screenshots and recording -----------------------------------------
@@ -2170,6 +2234,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("*/*");
 
+        // Asked for so that a disk can be written back over the file it came
+        // from; the picker grants it for documents that can take it, and
+        // <em>Save over</em> is only offered once a write has somewhere to go.
+        intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+
         Uri start = Storage.contentFolder(this);
         if (start != null) intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, start);
 
@@ -2280,6 +2349,96 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         FuseNative.writeDisk(id >> 8, id & 0xff, target.getAbsolutePath());
         Toast.makeText(this, getString(R.string.tape_saved, target.getName()),
                 Toast.LENGTH_LONG).show();
+    }
+
+    private void confirmWriteBack(int id, String disk, Uri origin) {
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setMessage(getString(R.string.disk_save_over_confirm, disk))
+                .setPositiveButton(R.string.disk_save_over_ok, (dialog, which) ->
+                        writeBack(id, disk, origin))
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    /**
+     * Writes a drive back over the file it was opened from.
+     *
+     * Through a copy in the cache rather than straight into the document, for
+     * two reasons that both come down to the original being irreplaceable.
+     * Fuse writes by path and a document is a Uri, so something has to carry
+     * the bytes across in any case; and {@code disk_write} truncates its file
+     * before it knows whether it has anything to write - a disk that turns out
+     * to be unformatted leaves nothing behind - so writing in place would
+     * destroy the disk in the name of saving it.
+     *
+     * Keeping the name keeps the format: Fuse picks one from the extension, so
+     * a .trd goes back as a .trd. Everything it reads it can also write, apart
+     * from .td0, which fails and leaves the original alone.
+     */
+    private void writeBack(int id, String disk, Uri origin) {
+        File temp = new File(new File(getCacheDir(), WRITEBACK_DIR), disk);
+        File directory = temp.getParentFile();
+
+        if (!directory.isDirectory() && !directory.mkdirs()) {
+            Toast.makeText(this, R.string.state_failed, Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        temp.delete();
+        FuseNative.writeDisk(id >> 8, id & 0xff, temp.getAbsolutePath());
+
+        new Thread(() -> {
+            if (!waitForWrite(temp)) {
+                // Fuse has already said why, through an error box of its own.
+                note(R.string.disk_save_over_failed, disk);
+                temp.delete();
+                return;
+            }
+
+            try (InputStream in = new FileInputStream(temp);
+                 OutputStream out = getContentResolver().openOutputStream(origin, "wt")) {
+                if (out == null) throw new IOException("cannot write " + origin);
+
+                byte[] buffer = new byte[64 * 1024];
+                int read;
+                while ((read = in.read(buffer)) != -1) out.write(buffer, 0, read);
+            } catch (IOException | SecurityException | UnsupportedOperationException e) {
+                Log.e(TAG, "cannot write back " + origin, e);
+                note(R.string.disk_save_over_denied, disk);
+                return;
+            } finally {
+                temp.delete();
+            }
+
+            note(R.string.tape_saved, disk);
+        }).start();
+    }
+
+    /**
+     * Waits for the emulation thread to have written a disk out, which is the
+     * only way to know that it has: the write goes through the command queue and
+     * there is nothing to answer back with.
+     *
+     * A size that has stopped growing rather than a file that exists, because
+     * the file appears as soon as it is opened and is filled afterwards. A
+     * failed write is a file removed again, so this simply times out.
+     */
+    private static boolean waitForWrite(File file) {
+        long previous = -1;
+
+        for (long waited = 0; waited < WRITE_TIMEOUT_MS; waited += WRITE_POLL_MS) {
+            try {
+                Thread.sleep(WRITE_POLL_MS);
+            } catch (InterruptedException e) {
+                return false;
+            }
+
+            long size = file.length();
+            if (size > 0 && size == previous) return true;
+            previous = size;
+        }
+
+        return false;
     }
 
     // --- the DivMMC card ---------------------------------------------------
@@ -2458,6 +2617,14 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         }
     }
 
+    /** The open state list, so a row's own buttons can close it before acting. */
+    private AlertDialog stateList;
+
+    private void dismissStateList() {
+        if (stateList != null) stateList.dismiss();
+        stateList = null;
+    }
+
     private File stateDirectory() {
         return Storage.statesDirectory(this);
     }
@@ -2517,15 +2684,18 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             }
         });
 
+        // Still there beside the buttons, for a finger that already knows: it is
+        // the same two actions.
         list.setOnItemLongClickListener((parent, view, position, id) -> {
             if (saving && position == 0) return false;
 
             SavedState state = states.get(saving ? position - 1 : position);
             dialog.dismiss();
-            confirmDelete(state);
+            showStateActions(state, saving);
             return true;
         });
 
+        stateList = dialog;
         dialog.show();
     }
 
@@ -2563,11 +2733,17 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             TextView title = row.findViewById(R.id.title);
             TextView subtitle = row.findViewById(R.id.subtitle);
             ImageView thumbnail = row.findViewById(R.id.thumbnail);
+            ImageButton rename = row.findViewById(R.id.rename);
+            ImageButton delete = row.findViewById(R.id.delete);
 
             if (saving && position == 0) {
                 title.setText(R.string.state_add);
                 subtitle.setText(R.string.state_add_summary);
                 thumbnail.setImageDrawable(null);
+
+                // Gone rather than invisible: there is nothing yet to rename.
+                rename.setVisibility(View.GONE);
+                delete.setVisibility(View.GONE);
                 return row;
             }
 
@@ -2580,6 +2756,24 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                     when.format(new Date(state.snapshot.lastModified())),
                     state.format()));
             thumbnail.setImageBitmap(readThumbnail(thumbnailFor(state.name)));
+
+            // Named after the state they belong to, so a screen reader - and a
+            // test - can tell one row's buttons from another's.
+            rename.setVisibility(View.VISIBLE);
+            rename.setContentDescription(
+                    getString(R.string.state_rename_action, state.name));
+            rename.setOnClickListener(v -> {
+                dismissStateList();
+                askNewName(state, saving);
+            });
+
+            delete.setVisibility(View.VISIBLE);
+            delete.setContentDescription(
+                    getString(R.string.state_delete_action, state.name));
+            delete.setOnClickListener(v -> {
+                dismissStateList();
+                confirmDelete(state, saving);
+            });
 
             return row;
         }
@@ -2651,12 +2845,84 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                 .show();
     }
 
-    private void confirmDelete(SavedState state) {
+    /**
+     * What can be done to a state other than the thing the list is for.
+     *
+     * Behind a long press because a tap already means something — load it, or
+     * save over it — and rows of their own would double the length of a list
+     * meant to be read at a glance. The list comes back afterwards, so several
+     * states can be tidied up without reopening it each time.
+     */
+    private void showStateActions(SavedState state, boolean saving) {
+        String[] actions = {
+            getString(R.string.state_rename),
+            getString(R.string.state_delete_confirm),
+        };
+
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(state.name)
+                .setItems(actions, (dialog, which) -> {
+                    if (which == 0) askNewName(state, saving);
+                    else confirmDelete(state, saving);
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void askNewName(SavedState state, boolean saving) {
+        EditText input = new EditText(this);
+        input.setSingleLine();
+        input.setText(state.name);
+        input.setSelection(input.getText().length());
+
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(R.string.state_rename)
+                .setView(input)
+                .setPositiveButton(android.R.string.ok, (dialog, which) ->
+                        rename(state, sanitise(input.getText().toString()), saving))
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    /**
+     * A state is two files sharing a base name, so both move or the row loses
+     * its picture.
+     *
+     * A name that is already taken is refused rather than written over: the
+     * list's own tap is how a state is overwritten, and that asks first. The
+     * snapshot keeps its extension — the format it was saved in is the format
+     * that will load it, whatever the setting says now.
+     */
+    private void rename(SavedState state, String name, boolean saving) {
+        if (name.isEmpty() || name.equals(state.name)) return;
+
+        if (findState(name) != null) {
+            Toast.makeText(this, getString(R.string.state_name_taken, name),
+                           Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        String file = state.snapshot.getName();
+        String extension = file.substring(file.lastIndexOf('.'));
+
+        if (!state.snapshot.renameTo(new File(stateDirectory(), name + extension))) {
+            Toast.makeText(this, R.string.state_rename_failed, Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        File thumbnail = thumbnailFor(state.name);
+        if (thumbnail.exists()) thumbnail.renameTo(thumbnailFor(name));
+
+        showStateDialog(saving);
+    }
+
+    private void confirmDelete(SavedState state, boolean saving) {
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setMessage(getString(R.string.state_delete, state.name))
                 .setPositiveButton(R.string.state_delete_confirm, (dialog, which) -> {
                     state.snapshot.delete();
                     thumbnailFor(state.name).delete();
+                    showStateDialog(saving);
                 })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
@@ -2735,6 +3001,10 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("*/*");
+
+        // As for a disk picked into a drive: a .trd opened here goes into one
+        // too, and is worth being able to write back.
+        intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
 
         Uri start = Storage.contentFolder(this);
         if (start != null) intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, start);
@@ -2847,6 +3117,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             return null;
         }
 
+        mediaOrigins.put(staged.getName(), uri);
         return staged;
     }
 

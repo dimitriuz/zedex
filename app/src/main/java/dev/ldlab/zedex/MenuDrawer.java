@@ -5,6 +5,7 @@ import android.graphics.drawable.Drawable;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.FrameLayout;
+import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -147,6 +148,32 @@ final class MenuDrawer extends FrameLayout {
         }, longPress == null ? null : () -> {
             close();
             longPress.run();
+        }, 0, null, null);
+    }
+
+    /**
+     * A row with a button of its own at the end.
+     *
+     * For the same thing the long press is for, said where it can be seen: a
+     * hold is not on the screen anywhere, and nothing tells you it is there.
+     * Both are kept - the button for finding it, the hold for whoever already
+     * knows - and they do the same thing.
+     *
+     * The button carries the label as its description rather than as words, so
+     * it stays a 48dp target next to a row that is still one text view with the
+     * item's name in it.
+     */
+    void addItem(String text, int icon, Runnable action, int trailingIcon,
+                 String trailingLabel, Runnable trailing) {
+        addRow(text, icon, false, () -> {
+            close();
+            action.run();
+        }, trailing == null ? null : () -> {
+            close();
+            trailing.run();
+        }, trailingIcon, trailingLabel, trailing == null ? null : () -> {
+            close();
+            trailing.run();
         });
     }
 
@@ -202,11 +229,19 @@ final class MenuDrawer extends FrameLayout {
      * glyph pasted into the string could not do.
      */
     private void addRow(String label, int icon, boolean leadsOn, Runnable action) {
-        addRow(label, icon, leadsOn, action, null);
+        addRow(label, icon, leadsOn, action, null, 0, null, null);
     }
 
+    /**
+     * The words, and optionally a button after them.
+     *
+     * The button goes in a row beside the text view rather than inside it, so the
+     * text and its click stay on the same node; the container itself is not
+     * clickable, and takes no touches of its own.
+     */
     private void addRow(String label, int icon, boolean leadsOn, Runnable action,
-                        Runnable longPress) {
+                        Runnable longPress, int trailingIcon, String trailingLabel,
+                        Runnable trailing) {
         TextView row = new TextView(getContext());
 
         row.setText(label);
@@ -231,7 +266,31 @@ final class MenuDrawer extends FrameLayout {
             });
         }
 
-        items.addView(row);
+        if (trailing == null) {
+            items.addView(row);
+            return;
+        }
+
+        LinearLayout line = new LinearLayout(getContext());
+        line.setOrientation(LinearLayout.HORIZONTAL);
+        line.setGravity(Gravity.CENTER_VERTICAL);
+
+        // The text view keeps its own end padding for the words; the button sits
+        // in what is left, and the row gives up the space it takes.
+        row.setPadding(unit * 3, unit * 2, unit, unit * 2);
+        line.addView(row, new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+
+        ImageButton button = new ImageButton(getContext());
+        button.setImageDrawable(tinted(trailingIcon, SECTION));
+        button.setContentDescription(trailingLabel);
+        button.setBackgroundResource(android.R.drawable.list_selector_background);
+        button.setPadding(unit * 3 / 2, unit * 3 / 2, unit * 3 / 2, unit * 3 / 2);
+        button.setOnClickListener(v -> trailing.run());
+
+        line.addView(button, new LinearLayout.LayoutParams(unit * 6, unit * 6));
+
+        items.addView(line);
     }
 
     /**

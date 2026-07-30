@@ -29,7 +29,8 @@
     <string name="poke_add">Add a poke\u2026</string>
     <string name="poke_stored">Stored</string>
     <string name="poke_none">None yet. A poke is one byte written into memory \u2014 the cheats printed in magazines, mostly.</string>
-    <string name="poke_hint">Tap one to poke it. Hold to forget it.</string>
+    <string name="poke_hint">Tap one to poke it. The bin forgets it.</string>
+    <string name="poke_forget_action">Forget “%1$s”</string>
     <string name="poke_explain">One byte into memory, now, and not kept. Decimal, or hexadecimal after 0x, $ or #.</string>
     <string name="poke_address">Address, 0 to 65535</string>
     <string name="poke_value">Value, 0 to 255</string>
@@ -213,7 +214,12 @@
     <string name="tape_default_name">Tape %1$d</string>
     <string name="menu_disks">Disks\u2026</string>
     <string name="disk_save">Save %1$s\u2026</string>
-    <string name="disk_save_short">Save\u2026</string>
+    <string name="disk_save_short">Save as\u2026</string>
+    <string name="disk_save_over">Save over \u201c%1$s\u201d</string>
+    <string name="disk_save_over_confirm">Write the disk back over \u201c%1$s\u201d? What is in that file now is replaced.</string>
+    <string name="disk_save_over_ok">Write back</string>
+    <string name="disk_save_over_failed">Nothing was written, so \u201c%1$s\u201d is untouched</string>
+    <string name="disk_save_over_denied">\u201c%1$s\u201d cannot be written where it is. Save as\u2026 writes a copy.</string>
     <string name="disk_load">Load disk\u2026</string>
     <string name="disk_new">New disk</string>
     <string name="disk_new_done">Blank disk in %1$s</string>
@@ -369,6 +375,11 @@
     <string name="state_none">No saved snapshots yet</string>
     <string name="state_overwrite">Overwrite “%1$s”?</string>
     <string name="state_overwrite_confirm">Overwrite</string>
+    <string name="state_rename">Rename…</string>
+    <string name="state_rename_action">Rename “%1$s”</string>
+    <string name="state_delete_action">Delete “%1$s”</string>
+    <string name="state_name_taken">There is already a snapshot called “%1$s”</string>
+    <string name="state_rename_failed">Could not rename the snapshot</string>
     <string name="state_delete">Delete “%1$s”?</string>
     <string name="state_delete_confirm">Delete</string>
     <string name="state_saved">Saved “%1$s”</string>

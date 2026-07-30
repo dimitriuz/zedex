@@ -1,11 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    One saved state. The row itself is what a tap means - load it, or save over
+    it - and the two buttons at the end are what can be done to the state
+    instead. blocksDescendants keeps the list's own row click working: the
+    buttons take the touches inside them and nothing else.
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
+    android:descendantFocusability="blocksDescendants"
     android:paddingStart="24dp"
-    android:paddingEnd="24dp"
+    android:paddingEnd="8dp"
     android:paddingTop="10dp"
     android:paddingBottom="10dp">
 
@@ -38,4 +45,24 @@
             android:textAppearance="?android:attr/textAppearanceSmall"
             android:textColor="?android:attr/textColorSecondary" />
     </LinearLayout>
+
+    <ImageButton
+        android:id="@+id/rename"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:padding="12dp"
+        android:background="?android:attr/selectableItemBackground"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_edit"
+        android:tint="?android:attr/textColorSecondary" />
+
+    <ImageButton
+        android:id="@+id/delete"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:padding="12dp"
+        android:background="?android:attr/selectableItemBackground"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_trash"
+        android:tint="?android:attr/textColorSecondary" />
 </LinearLayout>

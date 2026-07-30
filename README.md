@@ -39,8 +39,9 @@ end.
   `.trd` a Beta-equipped machine
 - **Opens files from other apps**
 - **Fast tape loading**
-- **Save states**
-- **Writes tapes and disks back**
+- **Save states**, named, renamed and deleted from the list itself
+- **Writes tapes and disks back** — a disk over the file it came from, or as a
+  copy
 - **A DivMMC memory card**, for **esxDOS** and a card full of games — bring the
   8K firmware and the card image, and a raw image gets its HDF header written
   for it
@@ -91,7 +92,6 @@ What the app reaches today:
 
 ## Not yet
 
-- Renaming a save state, and writing a disk back over the file it came from
 - A file browser of our own — filtered by type, and reading straight out of zip
   archives. Android's picker cannot filter by extension
 - A debugger, which the core supports and nothing yet exposes
@@ -127,8 +127,8 @@ fingers give a real shifted key; alternatively **hold either shift for 400ms
 to latch it** (it turns amber) until you tap it again. That is how you get
 BREAK — Caps Shift and Space.
 
-**The lamps** beside the picture — tape, disk, AY, keyboard, joystick, mouse,
-memory card — show
+**The lamps** beside the picture — tape, disk, memory card, AY, keyboard,
+joystick, mouse — show
 what the machine is busy with. Blue reads, amber writes, and the disk lamp only
 says it is being used, since the emulator does not report which way. The AY is
 three bars, one per channel, as tall as it is loud. A lit joystick lamp and a
@@ -246,7 +246,8 @@ In full:
   - *NMI* is the magic button of the real hardware; what it does depends on
   the machine.
 - **States…** — *Save state…* and *Load state…*: as many saves as you like,
-  each named and showing the screen as it was when it was written. Long-press deletes.
+  each named and showing the screen as it was when it was written. The pencil on a
+  row renames it, the bin deletes it — a long press does either.
 - **Pokes…** — cheats. When a file is opened it is fingerprinted, and if it is
   one of the 3,682 games the built-in database knows, its cheats are listed at the
   top: tap one and it is poked. *Search the cheat database…* finds a game by name,
@@ -255,7 +256,7 @@ In full:
   A cheat that asks for a number — how many lives — asks before poking.
   *Poke once…* takes an address and a value, writes the byte and keeps nothing;
   *Add a poke…* takes a name as well and puts it on the list. Tapping a stored
-  poke pokes it, holding one forgets it. Decimal, or hex after `0x`, `$` or `#`.
+  poke pokes it, the bin beside it forgets it. Decimal, or hex after `0x`, `$` or `#`.
 - **Media…**
   - *Load a tape…* opens one, and *Play*, *Stop* and *Rewind to the start* work
   the deck. Stop keeps the position, so playing again carries on from there — and
@@ -266,9 +267,13 @@ In full:
   writes what the machine has put on its tape to a `.tap` in the data folder, which is how a BASIC `SAVE "name"` reaches a
   file, and appears once there is something to write;
   - *New tape* throws the current one away so a save does not append to a game you loaded earlier.
-  - *Load disk…*, *New disk*, *Save…* and *Eject*. The
+  - *Load disk…*, *New disk*, *Save as…* and *Eject*. The
   drives follow the machine, so a +3 shows its two and a Pentagon its four
-  Beta ones, and a machine with none says so.
+  Beta ones, and a machine with none says so;
+  - *Save over “name”* is there as well for a disk that came from a file, and
+  writes it back over that file — it asks first, since what is in the file now
+  is replaced. Only what the machine changed changes; the format is the file's
+  own, so a `.trd` goes back as a `.trd`.
   - *Insert card…* puts a card in the DivMMC — see **The memory card** above —
   with *Write changes now* and *Eject card* once there is one in. The page says
   so if the interface is off or has no firmware.
