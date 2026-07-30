@@ -171,6 +171,18 @@ final class FuseNative {
     /** Throws the current tape away and starts an empty one. */
     static native void newTape();
 
+    /**
+     * The tape deck's transport. Stop keeps the position, so it is also the
+     * pause Fuse does not have separately, and rewind goes back to block zero
+     * rather than winding.
+     */
+    static native void tapePlay(boolean playing);
+
+    static native void tapeRewind();
+
+    /** Whether the deck is running, from the once-a-frame snapshot. */
+    static native boolean tapePlaying();
+
     /** Names of the drives that currently have a disk in them. */
     static native String[] driveNames();
 

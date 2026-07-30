@@ -200,7 +200,7 @@ to bring the bar back for a moment.
 | **Open file…** | straight to the picker |
 | **Machine…** | which machine, pause, reset, NMI — with the running one named under it |
 | **States…** | save and load |
-| **Media…** | the tape, and every drive the machine has |
+| **Media…** | the tape deck, and every drive the machine has |
 | **Capture…** | screenshots and recording |
 | **Controls…** | the joystick and the keyboard |
 | **Settings…** | the settings screen |
@@ -223,6 +223,10 @@ In full:
 - **States…** — *Save state…* and *Load state…*: as many saves as you like,
   each named and showing the screen as it was when it was written. Long-press deletes.
 - **Media…**
+  - *Play* and *Stop* work the tape deck, and *Rewind to the start* goes back to
+  the first block. They appear when there is a tape in. Stop keeps the position,
+  so playing again carries on from there — and with *Detect loaders* on, Fuse
+  stops the tape itself whenever nothing is loading;
   - *Save tape…*
   writes what the machine has put on its tape to a `.tap` in the data folder, which is how a BASIC `SAVE "name"` reaches a
   file;

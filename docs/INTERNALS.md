@@ -1389,6 +1389,35 @@ machines that want them will not start, and offers *Run anyway*. The check is
 by filename only — a file called `48.rom` that is not one is Fuse's problem,
 and Fuse says so in its own way.
 
+### The tape deck
+
+Fuse has the transport already — `tape_do_play`, `tape_stop`, `tape_rewind`,
+`tape_is_playing` — so the menu is a few commands on the queue and one more field
+in the once-a-frame snapshot. Three things about it are worth knowing.
+
+**Play and Stop rather than a toggle.** `tape_toggle_play` exists and is the wrong
+call from here: the app decides which way round it is from the published state,
+and by the time a toggle ran on the emulation thread the tape could be the other
+way. So the command carries the state it wants.
+
+**Stop is the pause.** Fuse keeps the position, so playing again carries on from
+where it stopped; rewind is `tape_select_block(0)` and not a wind. There is
+nothing else to offer — no fast wind, no separate pause.
+
+**Fuse stops the tape by itself.** With *Detect loaders* on, playing a tape while
+the machine is not loading anything stops it again within a moment, which looks
+exactly like the button not working. It is Fuse doing what that setting says.
+Testing this needs the setting off, or a machine that is actually loading.
+
+The rows only appear with a tape in, since `tape_play` refuses an empty one, and
+a row that cannot act is worse than no row. `tape_close()` is deliberately *not*
+offered: it is what *New tape* already does, and it asks through Fuse's own modal
+unless `tape_modified` is cleared first — which is why the new-tape command
+clears it.
+
+The tape browser is the piece not built: `tape_block_details()` and
+`tape_select_block()` are there for a list of blocks to skip about in.
+
 ROMs arrive by one of three routes: a document tree walked three deep for
 `.rom` and `.zip` entries, a multiple selection from the file picker, or a
 direct download of the archive.org set. Both pickers are kept because Android

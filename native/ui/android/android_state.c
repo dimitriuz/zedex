@@ -44,6 +44,7 @@ static machine_entry machine_list[ MAX_MACHINES ];
 static int machine_list_count;
 static int machine_list_current = -1;
 static int tape_on_machine;
+static int tape_running;
 
 /* Drives with a disk in them, refreshed every pump for the UI thread.
    MAX_CONTROLLERS and MAX_DRIVES_PER_CONTROLLER are in android_internals.h,
@@ -86,6 +87,7 @@ androidstate_publish( void )
   }
 
   tape_on_machine = tape_present();
+  tape_running = tape_is_playing();
 
   drive_list_count = 0;
   for( i = 0; i < MAX_CONTROLLERS && drive_list_count < MAX_DRIVES; i++ ) {
@@ -189,6 +191,19 @@ Java_dev_ldlab_zedex_FuseNative_hasTape( JNIEnv *env, jclass class )
   pthread_mutex_unlock( &machine_mutex );
 
   return present;
+}
+
+/* Whether the deck is running, for a menu that has to say Play or Stop. */
+JNIEXPORT jboolean JNICALL
+Java_dev_ldlab_zedex_FuseNative_tapePlaying( JNIEnv *env, jclass class )
+{
+  jboolean playing;
+
+  pthread_mutex_lock( &machine_mutex );
+  playing = tape_running ? JNI_TRUE : JNI_FALSE;
+  pthread_mutex_unlock( &machine_mutex );
+
+  return playing;
 }
 
 JNIEXPORT jobjectArray JNICALL

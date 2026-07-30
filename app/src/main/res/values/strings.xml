@@ -144,6 +144,12 @@
     <string name="roms_start_failed">ROMs needed</string>
     <string name="roms_start_failed_message">The machine could not start. The ROMs in\n\n%1$s\n\nare not the ones it needs \u2014 a file may be missing, or not be a ROM at all.\n\nAdd the right ones and restart.</string>
     <string name="open_failed">Could not open that file</string>
+    <string name="tape_play">Play</string>
+    <string name="tape_stop">Stop</string>
+    <string name="tape_rewind">Rewind to the start</string>
+    <string name="tape_playing">Tape playing</string>
+    <string name="tape_stopped">Tape stopped — playing again carries on from here</string>
+    <string name="tape_rewound">Tape rewound</string>
     <string name="tape_save">Save tape\u2026</string>
     <string name="tape_new">New tape</string>
     <string name="tape_new_done">Started an empty tape</string>

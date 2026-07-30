@@ -62,6 +62,8 @@ typedef enum command_type {
   COMMAND_SAVE_THUMBNAIL,		/* text: path to write */
   COMMAND_WRITE_TAPE,			/* text: path to write */
   COMMAND_NEW_TAPE,
+  COMMAND_TAPE_PLAY,			/* a: 1 play, 0 stop */
+  COMMAND_TAPE_REWIND,
   COMMAND_WRITE_DISK,			/* a: controller, b: drive, text: path */
   COMMAND_DISK_INSERT,			/* a: controller, b: drive, text: path */
   COMMAND_DISK_NEW,			/* a: controller, b: drive */
@@ -551,6 +553,18 @@ drain_commands( void )
       ui_media_drive_eject( command.a, command.b );
       break;
     }
+    case COMMAND_TAPE_PLAY:
+      /* Not tape_toggle_play(): the app knows which way round it is from the
+         published state, and a toggle would flip whichever way the tape
+         happened to be by the time this ran. autoplay is 0 because a finger
+         asked - Fuse uses it to tell its own automatic plays apart. */
+      if( command.a ) tape_do_play( 0 ); else tape_stop();
+      break;
+
+    case COMMAND_TAPE_REWIND:
+      tape_rewind();
+      break;
+
     case COMMAND_NEW_TAPE:
       /* Android has asked already; clearing the flag stops Fuse asking
          again through a modal of its own. */
@@ -958,6 +972,20 @@ Java_dev_ldlab_zedex_FuseNative_writeTape( JNIEnv *env, jclass class,
     queue_command_text( COMMAND_WRITE_TAPE, 0, 0, strdup( utf ) );
     (*env)->ReleaseStringUTFChars( env, path, utf );
   }
+}
+
+/* The tape deck's transport; see COMMAND_TAPE_PLAY. */
+JNIEXPORT void JNICALL
+Java_dev_ldlab_zedex_FuseNative_tapePlay( JNIEnv *env, jclass class,
+                                         jboolean playing )
+{
+  queue_command( COMMAND_TAPE_PLAY, playing ? 1 : 0, 0 );
+}
+
+JNIEXPORT void JNICALL
+Java_dev_ldlab_zedex_FuseNative_tapeRewind( JNIEnv *env, jclass class )
+{
+  queue_command( COMMAND_TAPE_REWIND, 0, 0 );
 }
 
 JNIEXPORT void JNICALL

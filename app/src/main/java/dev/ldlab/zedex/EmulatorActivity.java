@@ -1343,7 +1343,35 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      * {@code SAVE "name"} appends to the tape held in memory; that is what
      * <em>Save tape…</em> writes out.
      */
+    private void playTape(boolean playing) {
+        FuseNative.tapePlay(playing);
+        note(playing ? R.string.tape_playing : R.string.tape_stopped);
+    }
+
+    private void rewindTape() {
+        FuseNative.tapeRewind();
+        note(R.string.tape_rewound);
+    }
+
     private void fillMedia(MenuDrawer sheet) {
+        // The deck's transport, and only while there is something on the tape:
+        // Fuse's own play refuses an empty one, and a row that cannot do
+        // anything is worse than no row.
+        //
+        // Stop rather than pause because that is what Fuse has, and it is the
+        // same thing - the position is kept, so playing again carries on from
+        // there. Rewind goes to the first block; there is no winding.
+        if (FuseNative.hasTape()) {
+            boolean playing = FuseNative.tapePlaying();
+
+            sheet.addItem(getString(playing ? R.string.tape_stop
+                                            : R.string.tape_play),
+                          playing ? R.drawable.ic_stop : R.drawable.ic_play,
+                          () -> playTape(!playing));
+            sheet.addItem(getString(R.string.tape_rewind), R.drawable.ic_rewind,
+                          this::rewindTape);
+        }
+
         sheet.addItem(getString(R.string.tape_save), R.drawable.ic_save, this::saveTape);
         sheet.addItem(getString(R.string.tape_new), R.drawable.ic_plus,
                       this::confirmNewTape);
