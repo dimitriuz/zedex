@@ -113,6 +113,26 @@ declare_frame_rate( void )
   declared_rate = rate;
 }
 
+/* Whether there is anywhere to draw at all.
+ *
+ * For the paused loop, which has to hand the last frame over often enough that
+ * surfaceDestroyed() gets its answer promptly - and has nothing to hand it to
+ * when the device is asleep or the app is behind something, which is when
+ * waking sixty times a second is sixty wakeups an emulator that is not running
+ * has no business asking for. See run_while_paused().
+ */
+int
+androidbridge_has_window( void )
+{
+  int have;
+
+  pthread_mutex_lock( &window_mutex );
+  have = window != NULL || have_pending;
+  pthread_mutex_unlock( &window_mutex );
+
+  return have;
+}
+
 void
 androidbridge_present( const void *pixels, int width, int height )
 {

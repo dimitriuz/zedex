@@ -57,7 +57,8 @@ end.
 - **On-screen joystick**, and **physical controllers**, which just work
 - **A quick actions bar**, always on screen, with a **fullscreen** button that
   clears it and the keyboard away
-- **Pause** — automatic when the app is not in front
+- **Pause** — automatic when the app is not in front, and nothing is drawn
+  at all while the device sleeps
 - **Activity lamps** for the tape, disks, AY, keyboard and joystick — the quick
   bar's *Display…* puts them away, along with the keyboard and the joystick, and
   fullscreen gives the picture their strip back

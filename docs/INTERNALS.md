@@ -936,6 +936,23 @@ rotation for free. `androiddisplay_last_frame()` exists for that.
 sound, which in this port is also the clock, so the thread would otherwise sit
 in a blocking AAudio write. It counts, so the pairing matters.
 
+**The paused loop runs at two speeds**, because the reason for its pace goes away
+with the window. While there is a surface, somebody is looking at a paused
+picture: a frame's pace keeps a rotation instant and answers
+`surfaceDestroyed()` long before its one-second timeout. While there is none —
+the device asleep, the app behind something — there is nothing to redraw and
+nobody to hand the surface back to, so waking sixty times a second only keeps the
+CPU out of its deep idle. It waits a quarter of a second instead, which is still
+sooner than coming back can be seen to take. `androidbridge_has_window()` is the
+question.
+
+Measured on an API 36 emulator, in CPU ticks of a hundred a second: running, 52
+in five seconds; paused with the window there, 99 in six; **asleep, zero in
+eight**, with the audio HAL in standby and no wake lock held. The screen going
+off already stopped the machine — `onPause` sets `pausedByAndroid` — so what this
+saves is the wakeups rather than the work, which is exactly what a sleeping phone
+is counting.
+
 The flag is `volatile` rather than a queued command, because the emulation
 thread has to see it while it is *in* the paused loop and the queue is only
 read between frames.

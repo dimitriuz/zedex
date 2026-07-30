@@ -584,7 +584,15 @@ run_while_paused( void )
     drain_commands();
     if( pixels ) androidbridge_present( pixels, width, height );
 
-    usleep( 16000 );
+    /* A window to draw into means somebody is looking at the paused picture:
+       stay at a frame's pace, so a rotation redraws at once and
+       surfaceDestroyed() is answered before it has to time out. With no window
+       - the device asleep, or the app behind something - there is nothing to
+       redraw and nothing to hand back, so the same sixty wakeups a second would
+       be spent keeping the CPU out of its deep idle for no reason at all. A
+       quarter of a second instead, which is still soon enough that coming back
+       is not something you can see happen. */
+    usleep( androidbridge_has_window() ? 16000 : 250000 );
   }
 
   fuse_emulation_unpause();

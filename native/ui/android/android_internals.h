@@ -88,6 +88,10 @@ void androidgl_end( void );
    Called from uidisplay_frame_end(). */
 void androidbridge_present( const void *pixels, int width, int height );
 
+/* Whether there is a surface to draw into. For the paused loop, which slows
+   right down when there is not. Any thread. */
+int androidbridge_has_window( void );
+
 /* Hands one of Fuse's errors to the Android side to show. Called on the
    emulation thread. */
 void androidbridge_report_error( int severity, const char *message );
