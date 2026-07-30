@@ -851,13 +851,6 @@ final class EmulatorLayout extends ViewGroup {
                                            : Math.min(picture.left, lightsBox.left))
                       - screenBox.left;
 
-        // The bar is a column down the same black sideways, so the right one
-        // stops at it: fire is at the bottom of the bar and the column reaches
-        // most of the way down.
-        int rightEdge = menuBox.isEmpty() || menuBox.left <= picture.right
-                ? screenBox.right
-                : Math.min(screenBox.right, menuBox.left - margin);
-        int rightBar = rightEdge - picture.right;
         int barTop = screenBox.top;
         int barBottom = Math.min(screenBox.bottom, floor);
         int size = Math.min(wanted, leftBar - 2 * margin);
@@ -865,6 +858,21 @@ final class EmulatorLayout extends ViewGroup {
         if (size >= minimum && barBottom - barTop >= size + 2 * margin) {
             int centreY = barBottom - margin - size / 2;
             int fireSize = Math.round(size * FIRE_OF_PAD);
+
+            // The right bar reaches the window's edge unless the quick bar is
+            // actually in the way at this height. It used to stop at the bar
+            // unconditionally, from when the bar was a column down this same
+            // black; it is a short row in the corner now, and reserving the
+            // whole height for it left fire a bar barely wider than itself -
+            // which is why the three key buttons beside it shrank past thirty dp
+            // and were dropped altogether in landscape.
+            int rightEdge = screenBox.right;
+            if (!menuBox.isEmpty() && menuBox.left > picture.right
+                    && menuBox.bottom + margin > centreY - size / 2) {
+                rightEdge = Math.min(rightEdge, menuBox.left - margin);
+            }
+
+            int rightBar = rightEdge - picture.right;
 
             square(padBox, screenBox.left + leftBar / 2, centreY, size);
             square(fireBox, rightEdge - rightBar / 2, centreY, fireSize);

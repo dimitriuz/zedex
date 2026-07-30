@@ -122,9 +122,15 @@ the left: there the screen's half reaches the window's right edge, so there is n
 black at that corner at all. Reserving a strip instead would cost the picture
 height, which is the scarce direction sideways.
 
-The joystick keeps out of its way as it keeps out of the lamps': in the side-bar
-branch the right bar stops at the bar's left edge, since fire sits at the bottom
-of the same black.
+The joystick keeps out of its way as it keeps out of the lamps' — but only where
+it actually is. The side-bar branch used to give the whole height of the right
+black to the bar, from when the bar *was* a column down it; a short row in the
+corner needs none of that, and reserving it left fire a bar barely wider than
+itself, so the three key buttons beside it shrank past thirty dp and vanished in
+every landscape layout. The cap now applies only when the bar's box reaches down
+as far as the controls' row, which the compact one never does. Fire moved
+outboard to the window's edge as a result, which is where a thumb was reaching for
+it anyway.
 
 It is **gone entirely while the ROMs panel is showing**, ☰ and all. With no
 machine there is nothing for any of it to act on: no state to save, nothing to
