@@ -1,6 +1,8 @@
 package dev.ldlab.zedex;
 
 import android.app.Activity;
+import android.app.ActivityOptions;
+import android.app.Application;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -202,6 +204,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         super.onCreate(savedInstanceState);
 
         preferences = getSharedPreferences(PREFS, MODE_PRIVATE);
+        getApplication().registerActivityLifecycleCallbacks(screensOfOurs);
         FuseNative.attach(this);
         Storage.createFolders(this);
 
@@ -848,7 +851,90 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         revealQuickBar();
         applyFullscreen();
+        applyGamepad();
     }
+
+    /**
+     * Opens one of the app's own screens - settings, the hotkeys, a profile -
+     * where the controls are.
+     *
+     * With a panel in use that is the panel: a screen asked for by a thumb on
+     * one display should not appear on the other, and the machine's screen is
+     * the machine's. The panel's window steps aside while it is up, because a
+     * presentation sits above activity windows and would otherwise hide the
+     * very thing it just opened; the result coming back is what puts it up
+     * again, and covers the screen being finished any way at all.
+     */
+    void openOwnScreen(Intent intent) {
+        Display panel = secondScreen == null ? null : secondScreen.getDisplay();
+
+        if (panel == null) {
+            startActivity(intent);
+            return;
+        }
+
+        ActivityOptions options = ActivityOptions.makeBasic();
+        options.setLaunchDisplayId(panel.getDisplayId());
+
+        // A task of its own, because a task lives on one display: launched into
+        // ours, the settings screen took the machine with it to the panel and
+        // left the first screen empty.
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+        try {
+            startActivity(intent, options.toBundle());
+        } catch (RuntimeException e) {
+            // A display that will not host activities - then it goes where
+            // everything else does.
+            Log.w(TAG, "cannot open on the second screen", e);
+            startActivity(new Intent(intent).setFlags(0));
+        }
+    }
+
+    /**
+     * Every other screen of ours steps the panel aside while it is up.
+     *
+     * A presentation is drawn above the activity windows on its display, so a
+     * screen opened on the panel would be behind the keyboard without this. A
+     * result would have been a tidier signal, but a new task cannot return one
+     * - and this way the panel also comes back from a screen that was never
+     * opened by us, or dismissed some way of Android's own.
+     */
+    private int ownScreens;
+
+    private final Application.ActivityLifecycleCallbacks screensOfOurs =
+            new Application.ActivityLifecycleCallbacks() {
+
+        @Override
+        public void onActivityStarted(Activity activity) {
+            if (activity == EmulatorActivity.this) return;
+
+            ownScreens++;
+            if (secondScreen != null) secondScreen.hide();
+        }
+
+        @Override
+        public void onActivityStopped(Activity activity) {
+            if (activity == EmulatorActivity.this || ownScreens == 0) return;
+
+            if (--ownScreens == 0 && secondScreen != null) secondScreen.show();
+        }
+
+        @Override
+        public void onActivityCreated(Activity activity, Bundle state) { }
+
+        @Override
+        public void onActivityResumed(Activity activity) { }
+
+        @Override
+        public void onActivityPaused(Activity activity) { }
+
+        @Override
+        public void onActivitySaveInstanceState(Activity activity, Bundle state) { }
+
+        @Override
+        public void onActivityDestroyed(Activity activity) { }
+    };
 
     private void closeSecondScreen() {
         if (secondScreen == null) return;
@@ -860,6 +946,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         layout.setLentAway(false);
 
         applyFullscreen();
+        applyGamepad();
         revealQuickBar();
     }
 
@@ -1066,10 +1153,10 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             sheet.addSubmenu(getString(R.string.menu_controls),
                              R.drawable.ic_controls, this::fillControls);
             sheet.addItem(getString(R.string.menu_settings), R.drawable.ic_settings,
-                    () -> startActivity(new Intent(this, SettingsActivity.class)));
+                    () -> openOwnScreen(new Intent(this, SettingsActivity.class)));
             sheet.addItem(getString(R.string.menu_about, version()),
                           R.drawable.ic_info,
-                          () -> startActivity(new Intent(this, AboutActivity.class)));
+                          () -> openOwnScreen(new Intent(this, AboutActivity.class)));
 
             sheet.addRule();
             sheet.addItem(getString(R.string.menu_quit), R.drawable.ic_quit,
@@ -1803,7 +1890,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
             case MENU: menu.open(); break;
             case QUICK_BAR: revealQuickBar(); break;
-            case SETTINGS: startActivity(new Intent(this, SettingsActivity.class)); break;
+            case SETTINGS: openOwnScreen(new Intent(this, SettingsActivity.class)); break;
 
             default: break;
         }
@@ -3492,6 +3579,12 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     protected void onStop() {
         super.onStop();
         closeSecondScreen();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        getApplication().unregisterActivityLifecycleCallbacks(screensOfOurs);
     }
 
     /**

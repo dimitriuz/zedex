@@ -15,6 +15,9 @@ import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * The controls, on a handheld's second screen.
  *
@@ -47,6 +50,15 @@ final class SecondScreen extends Presentation {
 
     /** Room around the strip, so nothing sits against the panel's edge, dp. */
     private static final int MARGIN = 8;
+
+    /**
+     * The joystick, in the same proportions the machine's screen gives it: the
+     * pad's diameter, fire's share of that, and a key button's share of fire.
+     */
+    private static final int PAD_SIZE = 132;
+    private static final float FIRE_OF_PAD = 0.72f;
+    private static final float KEY_OF_FIRE = 0.46f;
+    private static final int KEY_GAP = 5;
 
     private final View[] borrowed;
     private LinearLayout column;
@@ -81,6 +93,7 @@ final class SecondScreen extends Presentation {
         ActivityLights lamps = null;
         SpectrumKeyboardView keys = null;
         SystemKeyboardView typist = null;
+        List<JoystickView> stick = new ArrayList<>();
         View sheet = null;
 
         for (View view : borrowed) {
@@ -88,6 +101,7 @@ final class SecondScreen extends Presentation {
             else if (view instanceof ActivityLights) lamps = (ActivityLights) view;
             else if (view instanceof SpectrumKeyboardView) keys = (SpectrumKeyboardView) view;
             else if (view instanceof SystemKeyboardView) typist = (SystemKeyboardView) view;
+            else if (view instanceof JoystickView) stick.add((JoystickView) view);
             else sheet = view;                      // the ☰ drawer
         }
 
@@ -100,6 +114,17 @@ final class SecondScreen extends Presentation {
             // simply lose the last of them off the edge.
             bar.setCompact(room - margin * 2);
             column.addView(bar, stacked(false, margin));
+        }
+
+        View joystick = joystick(stick, margin);
+        if (joystick != null) {
+            // The whole width, not the width of what is in it: the pad goes at
+            // one end and fire at the other, which needs both ends.
+            LinearLayout.LayoutParams across = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT);
+            across.bottomMargin = margin;
+            column.addView(joystick, across);
         }
 
         if (keys != null) {
@@ -159,6 +184,60 @@ final class SecondScreen extends Presentation {
     public void dismiss() {
         release();
         super.dismiss();
+    }
+
+    /**
+     * The joystick, laid out across a band of its own.
+     *
+     * The pad at one end and fire at the other, which is how two thumbs hold a
+     * machine, with the three key buttons stacked inside fire's end - the arc
+     * they make on the machine's screen is a way of fitting them into black
+     * that happens to be there, and here there is a row to put them in.
+     */
+    private View joystick(List<JoystickView> parts, int margin) {
+        if (parts.isEmpty()) return null;
+
+        float density = getContext().getResources().getDisplayMetrics().density;
+        int pad = Math.round(PAD_SIZE * density);
+        int fire = Math.round(pad * FIRE_OF_PAD);
+        int key = Math.round(fire * KEY_OF_FIRE);
+        int gap = Math.round(KEY_GAP * density);
+
+        FrameLayout band = new FrameLayout(getContext());
+        int slot = 0;
+
+        for (JoystickView part : parts) {
+            FrameLayout.LayoutParams params;
+
+            switch (part.part()) {
+                case PAD:
+                    params = new FrameLayout.LayoutParams(pad, pad);
+                    params.gravity = Gravity.LEFT | Gravity.CENTER_VERTICAL;
+                    params.leftMargin = margin;
+                    break;
+
+                case FIRE:
+                    params = new FrameLayout.LayoutParams(fire, fire);
+                    params.gravity = Gravity.RIGHT | Gravity.CENTER_VERTICAL;
+                    params.rightMargin = margin;
+                    break;
+
+                default:
+                    // Beside fire, top to bottom in profile order: one above
+                    // the middle, one on it, one below.
+                    params = new FrameLayout.LayoutParams(key, key);
+                    params.gravity = Gravity.RIGHT | Gravity.CENTER_VERTICAL;
+                    params.rightMargin = margin + fire + gap;
+                    params.topMargin = (slot - 1) * (key + gap);
+                    slot++;
+                    break;
+            }
+
+            band.addView(part, params);
+        }
+
+        band.setMinimumHeight(pad);
+        return band;
     }
 
     /**

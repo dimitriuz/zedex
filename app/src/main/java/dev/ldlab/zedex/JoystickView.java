@@ -63,6 +63,11 @@ final class JoystickView extends View {
     /** Which profile slot a {@link Part#KEY} sends; -1 for the other two. */
     private final int slot;
 
+    /** Which control this is, for a parent laying the three of them out. */
+    Part part() {
+        return part;
+    }
+
     private final float density;
 
     private final Paint face = new Paint(Paint.ANTI_ALIAS_FLAG);

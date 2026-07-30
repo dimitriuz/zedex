@@ -652,8 +652,8 @@ and controls that want to be under a thumb. `SecondScreen` is a
 so the app stays one activity with one emulation thread and one surface.
 
 **The views are lent, not copied.** `EmulatorLayout.setLentAway()` detaches the
-keyboard, the lamps and the quick bar, and the presentation adopts those same
-three objects. A second set would be easy to build and wrong: they hold state a
+keyboard, the lamps, the quick bar, the joystick and the ☰ sheet, and the
+presentation adopts those same objects. A second set would be easy to build and wrong: they hold state a
 copy would not — a latched shift, whichever group of the bar is open — and every
 caller that already talks to them (the activity's fades, the ☰ toggles, the
 lamps' polling) would then be talking to the wrong one. The `SurfaceView` is the
@@ -673,8 +673,8 @@ strip they were taking; on a panel of their own they are taking nothing, so only
 "is this wanted at all" applies. And the bar never fades: fading is for a bar
 sitting over the picture, and this one has a home.
 
-The panel's own layout is deliberately dumb — the bar at the top, the keys, the
-lamps at the foot: what a hand does is near the hand and what it only reads is
+The panel's own layout is deliberately dumb — the bar at the top, the joystick,
+the keys, the lamps at the foot: what a hand does is near the hand and what it only reads is
 out of the way. The keyboard gets a weighted box rather than its natural height,
 since a panel is usually shorter than the keys are tall at that width and the
 alternative is losing the bottom row off the edge; it scales into whatever box
@@ -683,6 +683,20 @@ of the middle, so the room left over collects above the keys rather than around
 them. Draw and hit test share the one rectangle, so aligning it moves both. The
 bar is told the panel's width, because a bar sized for a phone loses its last
 icon off a narrow one, and the keys get the width edge to edge.
+
+The joystick gets a band of its own: pad at one end, fire at the other, the
+three key buttons stacked inside fire's end. The arc they make on the machine's
+screen is a way of fitting them into black that happens to be there; a band is a
+row, and a row has somewhere to put them.
+
+The app's own screens — settings, about, the hotkeys — open on the panel, since
+a screen asked for by a thumb on one display should not appear on the other.
+Two things make that work. They are launched into a **new task**, because a task
+lives on one display and launching into ours dragged the machine to the panel
+and left the first screen empty. And the presentation steps aside while one is
+up, because it is drawn above the activity windows on its display and would
+otherwise hide what it just opened — through `ActivityLifecycleCallbacks` rather
+than an activity result, which a new task cannot return.
 
 The window goes in `onStop` and comes back in `onResume`, and a
 `DisplayManager.DisplayListener` covers a panel appearing or being unplugged

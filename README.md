@@ -200,13 +200,17 @@ want to be certain.
 *Settings › Picture › Second screen* moves the **keyboard, the lamps and the
 quick bar** to the other panel: the bar across the top, the keys below it and
 against the foot of the panel, the lamps in a row underneath. The first screen
-is then nothing but the machine, as though fullscreen were on, with the joystick
-still in the black beside it. ☰ opens on the panel too, over the keys — the
-settings screen and the dialogs it leads to are the app's own windows and stay
-with the machine. So does the **phone's own keyboard**, if that is the skin you
-chose: Android decides which screen an input method appears on and a panel has
-to be allowed to host one, so it typically opens over the machine. It still
-types into the Spectrum; the 48K and 128K skins are the ones drawn on the panel.
+is then nothing at all but the machine — not even the joystick, which goes to
+the panel too and sits in a band of its own between the bar and the keys, pad at
+one end and fire at the other.
+
+☰ opens on the panel, over the keys, and so do **settings**, **about** and the
+**controller hotkeys**: a screen asked for by a thumb on one display should not
+appear on the other. What cannot follow is the **phone's own keyboard**, if that
+is the skin you chose — Android decides which screen an input method appears on
+and a panel has to be allowed to host one, so it typically opens over the
+machine. It still types into the Spectrum; the 48K and 128K skins are the ones
+drawn on the panel.
 
 The row says *No second screen on this device* and cannot be switched on when
 there is no panel to move to; unplugging one brings everything back to the first

@@ -194,9 +194,10 @@ final class EmulatorLayout extends ViewGroup {
     private boolean joystick = true;
 
     /**
-     * Set while a real controller is plugged in and the on-screen one is to step
-     * aside for it. Kept apart from {@link #joystick} rather than writing to it,
-     * so that unplugging brings back whatever the user had chosen.
+     * Set while the on-screen joystick is to step aside for something better: a
+     * real controller, or a second screen, which means a handheld with a real
+     * one built in. Kept apart from {@link #joystick} rather than writing to it,
+     * so that the reason going away brings back whatever the user had chosen.
      */
     private boolean suppressed;
 
@@ -318,9 +319,8 @@ final class EmulatorLayout extends ViewGroup {
      * The views themselves move rather than the other screen building a second
      * set: they hold things a copy would not - a latched shift, whichever group
      * of the bar is open - and every caller that already talks to them goes on
-     * working. The picture cannot move, since detaching the SurfaceView would
-     * destroy the surface Fuse draws into, and the joystick does not: a thumb
-     * belongs on the screen the hands are already holding.
+     * working. The picture is the one thing that cannot move, since detaching
+     * the SurfaceView would destroy the surface Fuse draws into.
      *
      * What is left behind is a window with nothing in it but the picture, which
      * is what fullscreen makes of it anyway - {@link #arrange} treats a lent
@@ -360,7 +360,23 @@ final class EmulatorLayout extends ViewGroup {
      * panel sat empty - which is the one place it must not be.
      */
     View[] lendable() {
-        return new View[] { menu, lights, keyboard, system, drawer };
+        List<View> away = new ArrayList<>();
+
+        away.add(menu);
+        away.add(lights);
+        away.add(keyboard);
+        away.add(system);
+
+        // The joystick too: a panel under the picture is a better place for a
+        // thumb than the black beside it, and it leaves the machine's screen
+        // with nothing on it at all.
+        away.add(pad);
+        away.add(fire);
+        away.addAll(Arrays.asList(keys));
+
+        away.add(drawer);
+
+        return away.toArray(new View[0]);
     }
 
     /** Puts a child back where it belongs among the ones still here. */
