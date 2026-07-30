@@ -27,25 +27,34 @@ import android.content.SharedPreferences;
 enum Border {
 
     /** 320x240: the frame as Fuse draws it. */
-    FULL("full", 320, 240),
+    FULL("full", R.string.border_full, 320, 240),
 
     /** 272x204: a quarter of the border, top and bottom, left and right. */
-    SLIM("slim", 272, 204),
+    SLIM("slim", R.string.border_slim, 272, 204),
 
     /** 256x192: the picture and nothing else. */
-    NONE("none", 256, 192);
+    NONE("none", R.string.border_none, 256, 192);
 
     /** What is stored, and what the renderer is sent. */
     final String value;
+
+    /** One word, for a menu row that has no space for the explanation. */
+    final int title;
 
     /** The visible frame, in emulated pixels. */
     final int width;
     final int height;
 
-    Border(String value, int width, int height) {
+    Border(String value, int title, int width, int height) {
         this.value = value;
+        this.title = title;
         this.width = width;
         this.height = height;
+    }
+
+    /** The next one round, for a quick action that steps through them. */
+    Border next() {
+        return values()[ ( ordinal() + 1 ) % values().length ];
     }
 
     static Border of(SharedPreferences preferences) {

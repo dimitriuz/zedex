@@ -550,6 +550,80 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                      getString(lamps ? R.string.quick_lights_hide
                                      : R.string.quick_lights_show),
                      () -> showLights(!lamps));
+
+        // And what the picture itself looks like. The two switches are named for
+        // what they would do and the two choosers for what is chosen, which is
+        // the rule everywhere else: an icon cannot say which way it is going.
+        boolean scanlines = preferences.getBoolean(SettingsActivity.KEY_SCANLINES,
+                                                   false);
+        boolean crt = preferences.getBoolean(SettingsActivity.KEY_CRT, false);
+
+        bar.addToRow(R.drawable.ic_scanlines,
+                     getString(scanlines ? R.string.quick_scanlines_off
+                                         : R.string.quick_scanlines_on),
+                     () -> switchFilter(SettingsActivity.KEY_SCANLINES, !scanlines,
+                                        !scanlines ? R.string.quick_scanlines_on
+                                                   : R.string.quick_scanlines_off));
+        bar.addToRow(R.drawable.ic_crt,
+                     getString(crt ? R.string.quick_crt_off : R.string.quick_crt_on),
+                     () -> switchFilter(SettingsActivity.KEY_CRT, !crt,
+                                        !crt ? R.string.quick_crt_on
+                                             : R.string.quick_crt_off));
+        bar.addToRow(R.drawable.ic_signal,
+                     getString(R.string.quick_video, videoName()),
+                     this::nextVideo);
+        bar.addToRow(R.drawable.ic_border,
+                     getString(R.string.quick_border,
+                               getString(Border.of(preferences).title)),
+                     this::nextBorder);
+    }
+
+    /** One of the two picture switches, written and pushed like the settings do. */
+    private void switchFilter(String key, boolean on, int said) {
+        preferences.edit().putBoolean(key, on).apply();
+        SettingsActivity.applyFilter(preferences);
+
+        note(said);
+    }
+
+    /** The signal, in the one word a row has room for. */
+    private String videoName() {
+        String[] names = getResources().getStringArray(R.array.video_short_names);
+        int now = SettingsActivity.SettingsFragment.number(
+                preferences, SettingsActivity.KEY_VIDEO, 0);
+
+        return names[ Math.max(0, Math.min(names.length - 1, now)) ];
+    }
+
+    /**
+     * Round the three signals, and round the three borders.
+     *
+     * Stepping rather than offering a list: there are three of each, the row
+     * says which one is showing, and a chooser is what the settings screen is
+     * for. Both write the same preference the settings do, so the two agree.
+     */
+    private void nextVideo() {
+        int count = getResources().getStringArray(R.array.video_short_names).length;
+        int next = ( SettingsActivity.SettingsFragment.number(
+                preferences, SettingsActivity.KEY_VIDEO, 0) + 1 ) % count;
+
+        preferences.edit()
+                .putString(SettingsActivity.KEY_VIDEO, String.valueOf(next))
+                .apply();
+        SettingsActivity.applyFilter(preferences);
+
+        note(R.string.quick_video, videoName());
+    }
+
+    private void nextBorder() {
+        Border next = Border.of(preferences).next();
+
+        preferences.edit()
+                .putString(SettingsActivity.KEY_BORDER, next.value)
+                .apply();
+        applyScale();
+
+        note(R.string.quick_border, getString(next.title));
     }
 
     private void showLights(boolean shown) {

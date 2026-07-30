@@ -97,7 +97,14 @@ because what it holds is the furniture around the picture — the keyboard, the
 joystick and the activity lamps — and the lamps are not a control at all. Each is
 a thing worth putting away for one game and wanting back for the next, which is
 why they are a tap from the bar and not only a trip to the settings; both write
-the same preference, so the two never disagree. And **the icons are smaller
+the same preference, so the two never disagree.
+
+The picture's own four are in there for the same reason: scanlines and CRT as
+switches, and the video output and the border as steppers that go round their
+three values. Steppers rather than choosers, because three values with the
+current one written on the row need no dialog, and a dialog is what the settings
+screen is for. They write the same preferences and call the same
+`applyFilter()`/`applyScale()` the settings screen does. And **the icons are smaller
 sideways**, sized from the room there is — the
 black down the side of a 4:3 picture as wide as the window can make it, which is
 the narrowest that black ever gets, since a template giving the screen less makes

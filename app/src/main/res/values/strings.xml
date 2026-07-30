@@ -248,6 +248,17 @@
 
     <string name="settings_display">Display</string>
     <string name="settings_border">Border</string>
+    <string name="border_full">Full</string>
+    <string name="border_slim">Slim</string>
+    <string name="border_none">None</string>
+    <!-- Quick bar rows: the two switches say what they would do, the two
+         choosers say what is chosen, as everywhere else in the app. -->
+    <string name="quick_scanlines_on">Scanlines on</string>
+    <string name="quick_scanlines_off">Scanlines off</string>
+    <string name="quick_crt_on">CRT on</string>
+    <string name="quick_crt_off">CRT off</string>
+    <string name="quick_video">Video: %1$s</string>
+    <string name="quick_border">Border: %1$s</string>
     <string name="settings_scale_portrait">Portrait scale</string>
     <string name="settings_scale_landscape">Landscape scale</string>
     <!-- 3, then the pixel size that scale draws: "3\u00d7 \u2014 960 \u00d7 720". -->

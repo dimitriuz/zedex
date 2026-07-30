@@ -137,6 +137,13 @@
         <item>Slim — a quarter of the border</item>
         <item>None — the picture only, 256×192</item>
     </string-array>
+    <!-- The same three signals as video_names, in the words a quick bar row
+         has room for. -->
+    <string-array name="video_short_names">
+        <item>RGB</item>
+        <item>Composite</item>
+        <item>RF</item>
+    </string-array>
     <string-array name="border_values">
         <item>full</item>
         <item>slim</item>
