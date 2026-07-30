@@ -98,6 +98,12 @@
 
     <PreferenceCategory android:title="@string/settings_display">
         <ListPreference
+            android:key="border"
+            android:title="@string/settings_border"
+            android:entries="@array/border_names"
+            android:entryValues="@array/border_values"
+            android:defaultValue="full" />
+        <ListPreference
             android:key="scalePortrait"
             android:title="@string/settings_scale_portrait"
             android:summary="@string/settings_scale_summary"

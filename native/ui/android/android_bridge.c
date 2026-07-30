@@ -96,6 +96,7 @@ enum {
   OPTION_FILTER_GAP,
   OPTION_FILTER_BACKLIGHT,
   OPTION_SCALE,				/* 0 fits, else pixels per pixel */
+  OPTION_BORDER,			/* 0 all of it, 1 a quarter, 2 none */
 };
 
 /* The filters' shape, kept here because the settings arrive one at a time and
@@ -308,6 +309,10 @@ run_set_option( int option, int value )
 
   case OPTION_SCALE:
     androidgl_set_scale( value );
+    break;
+
+  case OPTION_BORDER:
+    androidgl_set_border( value );
     break;
 
   case OPTION_AY_STEREO: {
@@ -1002,6 +1007,14 @@ Java_dev_ldlab_zedex_FuseNative_setScale( JNIEnv *env, jclass class,
                                          jint pixels )
 {
   queue_command( COMMAND_SET_OPTION, OPTION_SCALE, pixels );
+}
+
+/* How much of the border is shown; see OPTION_BORDER. */
+JNIEXPORT void JNICALL
+Java_dev_ldlab_zedex_FuseNative_setBorder( JNIEnv *env, jclass class,
+                                          jint border )
+{
+  queue_command( COMMAND_SET_OPTION, OPTION_BORDER, border );
 }
 
 JNIEXPORT void JNICALL

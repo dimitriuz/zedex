@@ -114,11 +114,16 @@ final class EmulatorLayout extends ViewGroup {
     /** The play button, as a share of the picture's shorter side. */
     private static final float PLAY_OF_PICTURE = 0.28f;
 
-    /** The emulated screen, border and all: 320x240 whatever the machine. */
-    private static final int SOURCE_WIDTH = 320;
-    private static final int SOURCE_HEIGHT = 240;
-    private static final float SCREEN_ASPECT =
-            (float) SOURCE_WIDTH / (float) SOURCE_HEIGHT;
+    /**
+     * The emulated screen as much of it as is shown, in its own pixels. Follows
+     * the border setting - 320x240, 272x204 or 256x192 - and all three are 4:3,
+     * so only the whole-pixel arithmetic changes and never the shape.
+     */
+    private int sourceWidth = Border.FULL.width;
+    private int sourceHeight = Border.FULL.height;
+
+    /** 4:3, whichever border is shown and whatever the machine. */
+    private static final float SCREEN_ASPECT = 4.0f / 3.0f;
 
     /** The gap the quick bar keeps from the corner of the window, in dp. */
     private static final int BAR_GAP = 8;
@@ -454,6 +459,15 @@ final class EmulatorLayout extends ViewGroup {
      * the emulation thread and this is a layout pass: both apply the same rule
      * to the same box, so both get the same answer.
      */
+    /** How much of the border the renderer is showing; see {@link Border}. */
+    void setBorder(Border border) {
+        if (sourceWidth == border.width && sourceHeight == border.height) return;
+
+        sourceWidth = border.width;
+        sourceHeight = border.height;
+        requestLayout();
+    }
+
     void setScale(int portrait, int landscape) {
         if (scalePortrait == portrait && scaleLandscape == landscape) return;
 
@@ -687,15 +701,15 @@ final class EmulatorLayout extends ViewGroup {
         int wanted = landscape ? scaleLandscape : scalePortrait;
         int wide, tall;
 
-        while (wanted > 1 && (wanted * SOURCE_WIDTH > screenBox.width()
-                              || wanted * SOURCE_HEIGHT > screenBox.height())) {
+        while (wanted > 1 && (wanted * sourceWidth > screenBox.width()
+                              || wanted * sourceHeight > screenBox.height())) {
             wanted--;
         }
 
-        if (wanted >= 1 && wanted * SOURCE_WIDTH <= screenBox.width()
-                        && wanted * SOURCE_HEIGHT <= screenBox.height()) {
-            wide = wanted * SOURCE_WIDTH;
-            tall = wanted * SOURCE_HEIGHT;
+        if (wanted >= 1 && wanted * sourceWidth <= screenBox.width()
+                        && wanted * sourceHeight <= screenBox.height()) {
+            wide = wanted * sourceWidth;
+            tall = wanted * sourceHeight;
         } else {
             wide = Math.min(screenBox.width(),
                             Math.round(screenBox.height() * SCREEN_ASPECT));

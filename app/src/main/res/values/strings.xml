@@ -247,6 +247,7 @@
     <string name="settings_filter_glow">Glow</string>
 
     <string name="settings_display">Display</string>
+    <string name="settings_border">Border</string>
     <string name="settings_scale_portrait">Portrait scale</string>
     <string name="settings_scale_landscape">Landscape scale</string>
     <!-- 3, then the pixel size that scale draws: "3\u00d7 \u2014 960 \u00d7 720". -->

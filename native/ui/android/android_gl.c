@@ -43,7 +43,7 @@ static GLuint program, texture, vbo;
 static int texture_width, texture_height;
 
 static struct {
-  GLint scale, offset, source, output, frame;
+  GLint scale, offset, source, output, frame, crop, crop_at;
   GLint scanlines, crt, dots, video;
   GLint sharpness, scanline, curve, mask, glow, bleed, noise, gap, backlight;
 } uniform;
@@ -61,8 +61,14 @@ static struct {
      was given - in portrait with the keyboard below, that box is wider than it
      is tall - so Java picks and this is only ever told the answer. */
   int scale;
+  /* How much of the Spectrum's border to show: 0 all of it, 1 a quarter, 2
+     none. The border is a tenth of the frame on every side - 32 of 320 across,
+     24 of 240 down - so cropping it is a fraction of whatever size the frame
+     is, which is what keeps this right for the Timex modes, where the frame is
+     drawn at twice the size. All three are exactly 4:3. */
+  int border;
   float sharpness, scanline, curve, mask, glow, bleed, noise, gap, backlight;
-} settings = { 0, 0, 0, 0, 0, 1.0f, 0.5f, 0.4f, 0.4f, 0.3f, 0.5f, 0.2f,
+} settings = { 0, 0, 0, 0, 0, 0, 1.0f, 0.5f, 0.4f, 0.4f, 0.3f, 0.5f, 0.2f,
                0.6f, 0.2f };
 
 /* Counts frames, for the parts of a signal that move: snow is different every
@@ -98,6 +104,12 @@ static const char fragment_shader_src[] =
   "uniform sampler2D u_tex;\n"
   "uniform vec2 u_source;\n"
   "uniform vec2 u_output;\n"
+  /* The part of the frame that is shown: a scale and an offset into the
+     texture, so the border can be cropped without the effects having to know.
+     Everything works in v_uv, which is the *visible* picture from 0 to 1;
+     crop() is the last step before a sample. */
+  "uniform vec2 u_crop;\n"
+  "uniform vec2 u_crop_at;\n"
   "uniform int u_scanlines;\n"
   "uniform int u_crt;\n"
   "uniform int u_dots;\n"
@@ -115,6 +127,13 @@ static const char fragment_shader_src[] =
   "out vec4 colour;\n"
   "\n"
   "const float PI = 3.14159265;\n"
+  "\n"
+  /* uv is in units of the visible frame and u_crop scales it to the texture's,
+     so a step of one visible pixel is still a step of one texel: the two are
+     the same size, and only where the picture starts has changed. */
+  "vec2 crop( vec2 uv ) {\n"
+  "  return uv * u_crop + u_crop_at;\n"
+  "}\n"
   "\n"
   /* Sampling pulled towards the middle of each source pixel: at full sharpness
      it lands exactly on the middle, which is the pixel itself and nothing else,
@@ -177,10 +196,10 @@ static const char fragment_shader_src[] =
   /* Four taps around the pixel, squared so only the bright parts bloom. */
   "vec3 bloom( vec2 uv ) {\n"
   "  vec2 step = 1.5 / u_source;\n"
-  "  vec3 sum = texture( u_tex, uv + vec2( step.x, 0.0 ) ).rgb\n"
-  "           + texture( u_tex, uv - vec2( step.x, 0.0 ) ).rgb\n"
-  "           + texture( u_tex, uv + vec2( 0.0, step.y ) ).rgb\n"
-  "           + texture( u_tex, uv - vec2( 0.0, step.y ) ).rgb;\n"
+  "  vec3 sum = texture( u_tex, crop( uv + vec2( step.x, 0.0 ) ) ).rgb\n"
+  "           + texture( u_tex, crop( uv - vec2( step.x, 0.0 ) ) ).rgb\n"
+  "           + texture( u_tex, crop( uv + vec2( 0.0, step.y ) ) ).rgb\n"
+  "           + texture( u_tex, crop( uv - vec2( 0.0, step.y ) ) ).rgb;\n"
   "  vec3 average = sum * 0.25;\n"
   "  return average * average;\n"
   "}\n"
@@ -208,8 +227,8 @@ static const char fragment_shader_src[] =
   "\n"
   "  for( int tap = -3; tap <= 3; tap++ ) {\n"
   "    float weight = 1.0 - abs( float( tap ) ) / 4.0;\n"
-  "    vec3 near = TO_YIQ * texture( u_tex, uv + vec2( float( tap ) * spread,\n"
-  "                                                    0.0 ) ).rgb;\n"
+  "    vec3 near = TO_YIQ * texture( u_tex, crop( uv + vec2( float( tap ) * spread,\n"
+  "                                                          0.0 ) ) ).rgb;\n"
   "    chroma += weight * near.yz;\n"
   "    total += weight;\n"
   "  }\n"
@@ -241,7 +260,7 @@ static const char fragment_shader_src[] =
   "    }\n"
   "  }\n"
   "\n"
-  "  vec3 rgb = texture( u_tex, sharpen( uv ) ).rgb;\n"
+  "  vec3 rgb = texture( u_tex, crop( sharpen( uv ) ) ).rgb;\n"
   "\n"
   /* The signal first: it is what arrived, and the glass acts on that. */
   "  if( u_video > 0 && u_bleed > 0.0 ) rgb = modulated( uv, rgb );\n"
@@ -360,6 +379,8 @@ create_program( void )
   uniform.scale     = glGetUniformLocation( program, "u_scale" );
   uniform.offset    = glGetUniformLocation( program, "u_offset" );
   uniform.source    = glGetUniformLocation( program, "u_source" );
+  uniform.crop      = glGetUniformLocation( program, "u_crop" );
+  uniform.crop_at   = glGetUniformLocation( program, "u_crop_at" );
   uniform.output    = glGetUniformLocation( program, "u_output" );
   uniform.scanlines = glGetUniformLocation( program, "u_scanlines" );
   uniform.dots      = glGetUniformLocation( program, "u_dots" );
@@ -520,6 +541,12 @@ androidgl_set_scale( int pixels )
 }
 
 void
+androidgl_set_border( int border )
+{
+  settings.border = border;
+}
+
+void
 androidgl_set_filter( const android_filter *filter )
 {
   settings.scanlines = filter->scanlines;
@@ -635,11 +662,28 @@ androidgl_frame( ANativeWindow *window, unsigned generation,
                      GL_UNSIGNED_BYTE, pixels );
   }
 
-  place( view_width, view_height, width, height );
+  /* What of the frame is shown. A tenth of each side is border, and the
+     setting says how much of that tenth to keep - all, a quarter, or none - so
+     the numbers come out whole for a 320x240 frame and for a doubled Timex one
+     alike, and 4:3 in every case. */
+  float keep = settings.border == 2 ? 0.0f : settings.border == 1 ? 0.25f : 1.0f;
+  int inset_x = (int) ( width * 0.1f * ( 1.0f - keep ) + 0.5f );
+  int inset_y = (int) ( height * 0.1f * ( 1.0f - keep ) + 0.5f );
+  int shown_width = width - 2 * inset_x;
+  int shown_height = height - 2 * inset_y;
+
+  /* Everything downstream is in units of the visible frame: the picture is
+     placed by its own size, a scanline is one of its rows, and a whole-pixel
+     scale is a whole number of device pixels per one of its pixels. */
+  place( view_width, view_height, shown_width, shown_height );
 
   apply_sampler();
 
-  glUniform2f( uniform.source, (float) width, (float) height );
+  glUniform2f( uniform.source, (float) shown_width, (float) shown_height );
+  glUniform2f( uniform.crop, (float) shown_width / width,
+               (float) shown_height / height );
+  glUniform2f( uniform.crop_at, (float) inset_x / width,
+               (float) inset_y / height );
   glUniform2f( uniform.output, (float) view_width, (float) view_height );
   glUniform1i( uniform.scanlines, settings.scanlines );
   glUniform1i( uniform.crt, settings.crt );

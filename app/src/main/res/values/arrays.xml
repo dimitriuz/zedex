@@ -131,4 +131,15 @@
         <item>z80</item>
         <item>sna</item>
     </string-array>
+    <!-- How much of the Spectrum's border to show; see Border.java. -->
+    <string-array name="border_names">
+        <item>Full — every pixel the machine draws</item>
+        <item>Slim — a quarter of the border</item>
+        <item>None — the picture only, 256×192</item>
+    </string-array>
+    <string-array name="border_values">
+        <item>full</item>
+        <item>slim</item>
+        <item>none</item>
+    </string-array>
 </resources>

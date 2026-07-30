@@ -49,6 +49,9 @@ void androidgl_frame( ANativeWindow *window, unsigned generation,
    many device pixels per emulated pixel. */
 void androidgl_set_scale( int pixels );
 
+/* How much of the Spectrum's border to show: 0 all, 1 a quarter, 2 none. */
+void androidgl_set_border( int border );
+
 /* The picture filters: three displays, each on or off, the signal that reached
    them, and a strength from 0 to 100 for every dial.
 

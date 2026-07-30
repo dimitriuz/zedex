@@ -293,6 +293,14 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      * rather than where a fitted one would have been.
      */
     private void applyScale() {
+        // The border first: it decides how many emulated pixels there are, which
+        // is what a whole-pixel scale is a multiple of, and the layout has to
+        // agree with the renderer about that or the joystick sits on the picture.
+        Border border = Border.of(preferences);
+
+        layout.setBorder(border);
+        SettingsActivity.applyBorder(preferences);
+
         layout.setScale(SettingsActivity.scale(preferences, false),
                         SettingsActivity.scale(preferences, true));
         SettingsActivity.applyScale(this, preferences);

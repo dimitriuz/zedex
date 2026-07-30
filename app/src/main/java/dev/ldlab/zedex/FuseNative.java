@@ -284,6 +284,14 @@ final class FuseNative {
      */
     static native void setScale(int pixels);
 
+    /**
+     * How much of the Spectrum's border to show: 0 all of it, 1 a quarter,
+     * 2 none. Cropping it gives the picture the rest of the window, and all
+     * three are exactly 4:3, so nothing about fitting it changes - only how
+     * many emulated pixels there are to scale.
+     */
+    static native void setBorder(int border);
+
     /** The scale that fits the picture to the space, whatever size that is. */
     static final int SCALE_FIT = 0;
 

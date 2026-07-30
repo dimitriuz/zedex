@@ -889,6 +889,51 @@ Measured on an API 36 emulator by counting emulated frames: 50 a second at 100%,
 AVD not quite managing the last one per cent — and 48 again the moment it was let
 go.
 
+### The border, and the three places that count pixels
+
+The machine draws 256x192 pixels inside a border 32 across and 24 deep, which is
+why Fuse's frame is 320x240 and why a tenth of every side of it is usually one
+flat colour. *Border* in the picture settings shows all of it, a quarter of it, or
+none.
+
+**A quarter, where a fifth was asked for.** The border has to come off in whole
+pixels, because a source frame of fractional ones makes a nonsense of asking for a
+whole number of device pixels per emulated one — and it has to stay 4:3, or the
+picture is subtly the wrong shape. Both hold when the same fraction comes off
+each axis and the result is integral on both: a quarter is 8 of 32 across and 6 of 24
+down. A fifth would be 6.4 and 4.8. So the three sizes are 320x240, 272x204 and
+256x192, all exactly 4:3.
+
+The crop is a **fraction of the frame** rather than a count of pixels, which is
+what keeps it right for the Timex hi-res modes: there the frame is drawn at twice
+the size, and a tenth of 640 is 64 where a tenth of 320 is 32. Both come out
+whole.
+
+In the shader everything works in `v_uv`, the *visible* picture from 0 to 1, and
+`crop()` is the last thing before a sample — `uv * u_crop + u_crop_at`. That is
+what lets the effects stay as they were: `u_source` becomes the visible frame, so
+a scanline is still one emulated row and the sharpening still snaps to a texel
+(the map is uniform, so a visible pixel and a texel are the same size). Every
+sample goes through it, including the blur taps and the composite's seven.
+
+Three places count emulated pixels and all three have to agree, or the joystick
+ends up over the picture and a whole-pixel scale stops being whole:
+
+- `place()` in the renderer, which is handed the *visible* size;
+- `EmulatorLayout`, which mirrors the renderer's rule to know where the picture
+  lands — the aspect is unchanged, so only its whole-pixel arithmetic moves;
+- the scale list in the settings, whose entries are the visible size times the
+  scale, and whose largest offer is what the display has room for. Changing the
+  border rebuilds it: a slim border reads 1x - 272 x 204.
+
+`Border` is the one enum all of them read.
+
+**Captures are not cropped.** Screenshots, recordings and save-state thumbnails
+are built from the palette-index buffer rather than from the shader, so they are
+the whole 320x240 frame whatever the setting says. That is arguably the honest
+capture and is certainly the simpler one; if it should follow the setting, the
+crop has to be repeated in `Recorder` and in the thumbnail writer.
+
 ### Stutter, and the three clocks
 
 Dropping the frames a fast machine could not show fixed the speed, and left the

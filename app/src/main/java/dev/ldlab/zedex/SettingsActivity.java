@@ -53,6 +53,7 @@ public class SettingsActivity extends Activity {
     static final String KEY_ISSUE2 = "issue2";
     static final String KEY_BW_TV = "bwTv";
     static final String KEY_SPEED = "speed";
+    static final String KEY_BORDER = "border";
     static final String KEY_SOUND = "sound";
     static final String KEY_AY_VOLUME = "volumeAy";
     /** Fuse's own three words; it matches them with strcmp. */
@@ -168,6 +169,11 @@ public class SettingsActivity extends Activity {
         FuseNative.setScale(scale(preferences, isLandscape(context)));
     }
 
+    /** The border, which the renderer crops and the scale list counts. */
+    static void applyBorder(android.content.SharedPreferences preferences) {
+        FuseNative.setBorder(Border.of(preferences).ordinal());
+    }
+
     /** Which way up the device is; both the scale settings hang off this. */
     static boolean isLandscape(Context context) {
         return context.getResources().getConfiguration().orientation
@@ -194,12 +200,10 @@ public class SettingsActivity extends Activity {
         int width = landscape ? longer : shorter;
         int height = landscape ? shorter : longer;
 
-        return Math.max(1, Math.min(width / SOURCE_WIDTH, height / SOURCE_HEIGHT));
-    }
+        Border border = Border.of(context.getSharedPreferences(PREFS, MODE_PRIVATE));
 
-    /** The emulated frame, border and all, in pixels. */
-    private static final int SOURCE_WIDTH = 320;
-    private static final int SOURCE_HEIGHT = 240;
+        return Math.max(1, Math.min(width / border.width, height / border.height));
+    }
 
     /** Whether a key is one of the filters'. */
     private static boolean isFilterKey(String key) {
@@ -640,9 +644,12 @@ public class SettingsActivity extends Activity {
                 String[] names = new String[most + 1];
                 String[] values = new String[most + 1];
 
+                Border border = Border.of(getPreferenceManager()
+                        .getSharedPreferences());
+
                 for (int n = 1; n <= most; n++) {
                     names[n - 1] = getString(R.string.settings_scale_integer,
-                                             n, n * SOURCE_WIDTH, n * SOURCE_HEIGHT);
+                                             n, n * border.width, n * border.height);
                     values[n - 1] = String.valueOf(n);
                 }
                 names[most] = getString(R.string.settings_scale_fit);
@@ -775,6 +782,13 @@ public class SettingsActivity extends Activity {
                 case KEY_SCALE_LANDSCAPE:
                     applyScale(getActivity(), preferences);
                     break;
+                // A different border is a different number of pixels to scale,
+                // so the scale list is rebuilt as well as the renderer told.
+                case KEY_BORDER:
+                    applyBorder(preferences);
+                    applyScale(getActivity(), preferences);
+                    populateScales();
+                    break;
                 case KEY_AY_STEREO:
                     FuseNative.setAyStereo(ayStereo(preferences));
                     break;
@@ -873,6 +887,7 @@ public class SettingsActivity extends Activity {
             for (String key : new String[] { KEY_MACHINE, KEY_SPEED, KEY_SNAPSHOT_FORMAT,
                                              KEY_LOADER, KEY_AY_STEREO,
                                              KEY_TAPE_FORMAT,
+                                             KEY_BORDER,
                                              KEY_SCALE_PORTRAIT, KEY_SCALE_LANDSCAPE,
                                              KEY_FILTER_SHARPNESS,
                                              KEY_FILTER_SCANLINE, KEY_FILTER_CURVE,

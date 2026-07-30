@@ -50,7 +50,8 @@ end.
 **Comfort**
 
 - **GPU-scaled display**, fitted or at a **whole-pixel scale**, with
-  **scanline, CRT, dot-matrix and composite/RF filters**
+  **scanline, CRT, dot-matrix and composite/RF filters**, and the **border**
+  shown in full, slimmed to a quarter, or cropped away
 - **Five landscape layouts**
 - **On-screen Spectrum keyboard**, as the rubber **48K** or the **128K** plate —
   or **your phone's own keyboard** instead
@@ -270,6 +271,7 @@ In full:
 | **Dot matrix** | a handheld LCD: one square dot per emulated pixel, with a gap and a backlight |
 | **Video output** | RGB, composite or RF — what the picture cost on the way to the telly, with colour bleed and noise |
 | **Sharpness** | 100% is pixel for pixel; less softens the edges |
+| **Border** | full, slim (a quarter of it) or none — less border is more picture |
 | **Portrait scale**, **Landscape scale** | fit to the screen, or a whole number of device pixels per emulated one |
 | **Activity indicators** | the lamps beside the picture |
 | **Keep the screen on** | Android's, not the emulator's |
