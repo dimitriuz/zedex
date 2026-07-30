@@ -722,7 +722,19 @@ to mean a real interface if that table ever grows.
 
 Beside fire are **three key buttons**, which are keys whatever the type is: a
 game that wants a joystick usually also wants Enter to start it, and reaching for
-the keyboard for one key is why the keyboard has to be on screen at all.
+the keyboard for one key is why the keyboard has to be on screen at all. Enter,
+Space and CAPS SHIFT by default — CAPS SHIFT because it is half of BREAK and half
+of the cursor keys and games ask for it by name, where SYMBOL SHIFT is punctuation,
+which is a thing you type rather than a thing you play with.
+
+**The arc is turned up out of fire's way.** Level with fire, the lowest of the
+three sat below and inboard of it, which is exactly where a thumb arrives when it
+reaches for fire, and in a shallow band it was also the button nearest the bottom
+of the window. A quarter turn puts the lowest level with fire and the highest
+straight above it. That wants room above, which a narrow strip of black may not
+have, so `placeKeyButtons()` takes as much of the turn as fits — a full step, half
+a step, or the arc as it was — rather than dropping the buttons, which is what it
+has to do when nothing fits at all.
 
 What each control sends comes from a **profile**: eight keys, the pad's five in
 Fuse's own `joystick_button` order so a button number indexes it directly, then

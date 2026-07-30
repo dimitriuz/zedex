@@ -940,8 +940,10 @@ final class EmulatorLayout extends ViewGroup {
      *
      * Round the inboard side because that is the side with room: fire is at the
      * far end of whatever space the joystick found, so outboard of it is the
-     * window's edge. Up-left, left and down-left, in profile order top to
-     * bottom, at a radius that clears both rings.
+     * window's edge. In profile order, from the top of the arc round, at a radius
+     * that clears both rings - and turned up out of fire's way as far as the room
+     * above allows, since level with fire the last of the three sat where a thumb
+     * arrives at fire itself.
      *
      * Two things can be in the way, and both are handled by moving rather than
      * by giving up. If the arc would reach past the space fire was placed in,
@@ -988,19 +990,43 @@ final class EmulatorLayout extends ViewGroup {
             reach = fireRadius + gap + size;
         }
 
-        // Vertically the corner buttons reach less far than the middle one, by
-        // the cosine of forty-five degrees, but the box still has to fit.
         int distance = fireRadius + gap + size / 2;
-        int corner = Math.round(distance * 0.7071f);
 
-        if (centreY - corner - size / 2 < fireArea.top
-                || centreY + corner + size / 2 > fireArea.bottom) {
-            if (!joystickFloating) return;
+        // The arc is turned up out of fire's way. Level with fire, the lowest of
+        // the three sat below and inboard of it, which is where a thumb goes to
+        // reach fire itself - and in a tight band it was the button nearest the
+        // bottom of the window. Turned a quarter turn the other way, the lowest
+        // is level with fire and the highest is straight above it.
+        //
+        // That wants room above, which a narrow strip of black may not have, so
+        // the turn is as much as fits: a full step, half a step, or the arc as
+        // it was. Deciding is better than dropping the buttons, which is what
+        // the fit test does when nothing works.
+        for (double turn : new double[] { Math.PI / 4, Math.PI / 8, 0 }) {
+            boolean fits = true;
+
+            for (int i = 0; i < keyBoxes.length; i++) {
+                // Measured from the inboard horizontal, positive upwards, one
+                // eighth turn apart, top of the arc first.
+                double angle = turn + ( 1 - i ) * Math.PI / 4;
+                int x = centreX - (int) Math.round( Math.cos( angle ) * distance );
+                int y = centreY - (int) Math.round( Math.sin( angle ) * distance );
+
+                square(keyBoxes[i], x, y, size);
+
+                if (y - size / 2 < fireArea.top || y + size / 2 > fireArea.bottom) {
+                    fits = false;
+                }
+            }
+
+            // Floating over the picture there is no band to fit inside, so the
+            // first and largest turn is taken.
+            if (fits || joystickFloating) return;
         }
 
-        square(keyBoxes[0], centreX - corner, centreY - corner, size);
-        square(keyBoxes[1], centreX - distance, centreY, size);
-        square(keyBoxes[2], centreX - corner, centreY + corner, size);
+        // Not even the old arc fits: below thirty dp they are not worth aiming
+        // at, and a button off the bottom of the window is worth less again.
+        for (Rect box : keyBoxes) box.setEmpty();
     }
 
     /** The pad at one end of a strip and the fire button at the other. */

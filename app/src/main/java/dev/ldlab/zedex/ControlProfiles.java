@@ -54,7 +54,12 @@ final class ControlProfiles {
     /**
      * The classic one, and what every new profile starts from: Q up, A down,
      * O left, P right, M fire - QAOPM, which is what the games that wanted it
-     * called it - then Enter, Space and SYMBOL SHIFT.
+     * called it - then Enter, Space and CAPS SHIFT.
+     *
+     * CAPS SHIFT rather than SYMBOL SHIFT because of what each is for: CAPS
+     * SHIFT is half of BREAK and half of the cursor keys, and games ask for it
+     * by name. SYMBOL SHIFT is punctuation, which is a thing you type and not a
+     * thing you play with - and either is a tap away in the profile editor.
      *
      * In slot order, so the first five are in Fuse's button order rather than
      * the order they are read out in.
@@ -67,7 +72,7 @@ final class ControlProfiles {
         KeyEvent.KEYCODE_M,             // JOYSTICK_FIRE
         KeyEvent.KEYCODE_ENTER,
         KeyEvent.KEYCODE_SPACE,
-        KeyEvent.KEYCODE_CTRL_LEFT,     // SYMBOL SHIFT
+        KeyEvent.KEYCODE_SHIFT_LEFT,    // CAPS SHIFT
     };
 
     /**

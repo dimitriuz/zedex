@@ -143,7 +143,8 @@ three bars, one per channel, as tall as it is loud. A lit joystick lamp and a
 dead stick means the game wants a different interface. Off in settings.
 
 **The joystick** is a thumb pad, a fire button and three key buttons in an arc
-beside it, and it goes wherever the picture is not.
+above and beside it — Enter, Space and CAPS SHIFT unless you change them — and it
+goes wherever the picture is not.
 
 ☰ *Controls… › Joystick…* turns it off and on, chooses which interface it comes
 out as — including **Keyboard**, for the games that want QAOP rather than a
