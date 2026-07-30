@@ -74,6 +74,12 @@ final class ActivityLights extends View {
         // use the mouse?", and the moment to go and turn it on.
         new Lamp(FuseNative.ACTIVITY_MOUSE, R.drawable.ic_mouse,
                  R.string.lamp_mouse),
+        // The only lamp whose two colours really are read and write: an MMC card
+        // is driven a sector at a time and the command says which way. Blue is
+        // esxDOS reading the card, amber is something on its way onto it - and
+        // amber is the one to watch, because that is what has to reach the file.
+        new Lamp(FuseNative.ACTIVITY_CARD, R.drawable.ic_card,
+                 R.string.lamp_card),
     };
 
     /** Dark enough to read against any Spectrum screen, like the quick bar. */

@@ -114,6 +114,33 @@ void androidbridge_pump_commands( void );
 #define MAX_CONTROLLERS 8
 #define MAX_DRIVES_PER_CONTROLLER 4
 
+/* --- the DivMMC and its card (android_card.c) ------------------------- */
+
+/* All of these run on the emulation thread, from the command queue. */
+
+/* Plugs the interface in or takes it out, hard resetting either way. Refuses
+   to plug it in without firmware: a blank EPROM automaps into the reset and
+   hangs the machine. */
+void androidcard_set_enabled( int on );
+
+/* Reads an 8K firmware image and writes it into the EPROM. Non-zero if the
+   file is not one; the user has already been told. */
+int androidcard_load_firmware( const char *path );
+
+/* Puts the interface back after a snapshot load has unplugged it. */
+void androidcard_restore( void );
+
+/* The card: in, written back, out. Ejecting and replacing both commit first,
+   so Fuse never has to ask about unsaved changes through a modal. */
+void androidcard_insert( const char *path );
+void androidcard_commit( void );
+void androidcard_eject( void );
+
+/* Commits by itself, once a second. Called every frame from the pump: what the
+   machine writes to a card has to reach the file without anyone remembering a
+   menu item. */
+void androidcard_tick( void );
+
 /* --- state for the UI thread (android_state.c) ------------------------ */
 
 /* Copy everything the UI thread may read - the machine list, which machine is

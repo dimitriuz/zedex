@@ -127,6 +127,7 @@ final class FuseNative {
     static final int ACTIVITY_KEYBOARD = 1 << 3;
     static final int ACTIVITY_JOYSTICK = 1 << 4;
     static final int ACTIVITY_MOUSE = 1 << 5;
+    static final int ACTIVITY_CARD = 1 << 6;
 
     /**
      * The same five bits again, this far up, mean "and it is writing rather
@@ -242,6 +243,46 @@ final class FuseNative {
     static native void newDisk(int controller, int drive);
 
     static native void ejectDisk(int controller, int drive);
+
+    // --- the DivMMC --------------------------------------------------------
+
+    /*
+     * A memory card interface, and the way to run esxDOS: it brings its own
+     * 8K firmware in an EPROM, its own 128K of RAM, and a card holding an
+     * ordinary FAT filesystem full of games.
+     *
+     * The firmware is the user's to supply - esxDOS is not ours to ship - and
+     * it has to be in hand before the interface goes in, because a DivMMC with
+     * a blank EPROM pages itself into the machine's reset and hangs it. See
+     * native/ui/android/android_card.c, which does the flashing the firmware's
+     * own installer tape would do.
+     */
+
+    /** Plugs the interface in or takes it out. Hard resets the machine. */
+    static native void setDivmmc(boolean on);
+
+    /** Whether Fuse has the interface right now, from the frame's snapshot. */
+    static native boolean hasDivmmc();
+
+    /** Reads an 8K firmware image and writes it into the EPROM. */
+    static native void loadDivmmcFirmware(String path);
+
+    /**
+     * Puts a card in. The image has to be an HDF - that is the only format
+     * libspectrum's IDE code reads - and it is written to in place, so it
+     * belongs somewhere permanent rather than in the cache. See
+     * {@link CardImage}.
+     */
+    static native void insertCard(String path);
+
+    /** Writes the machine's changes back into the image. */
+    static native void commitCard();
+
+    /** Commits, then takes the card out. */
+    static native void ejectCard();
+
+    /** The card in the slot, or "" when there is none. */
+    static native String cardName();
 
     /** Index of the running machine, or -1 if Fuse has not started yet. */
     static native int currentMachine();

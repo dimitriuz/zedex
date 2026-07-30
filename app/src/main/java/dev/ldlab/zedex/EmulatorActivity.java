@@ -85,6 +85,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
     private static final int REQUEST_OPEN_FILE = 1;
     private static final int REQUEST_LOAD_DISK = 4;
+    private static final int REQUEST_LOAD_CARD = 6;
 
     /**
      * How long Fuse gets to publish a machine before its start is called
@@ -98,6 +99,15 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
     /** Base name for new states: whatever media was loaded last. */
     private static final String PREF_MEDIA_NAME = "mediaName";
+
+    /**
+     * The card image in the DivMMC, so it is still there next time.
+     *
+     * Remembered here rather than left to Fuse: its own {@code divmmc_file}
+     * setting is in the configuration file it writes on exit, and this port
+     * never gets an orderly exit - Android stops the process.
+     */
+    private static final String PREF_CARD = "card";
 
     /** Kempston's place in Fuse's {@code joystick_type_t}. */
     private static final int JOYSTICK_KEMPSTON = 2;
@@ -1944,7 +1954,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         if (count == 0) {
             sheet.addNote(getString(R.string.disk_no_drives));
-            return;
         }
 
         for (int i = 0; i < count; i++) {
@@ -1958,6 +1967,45 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
             sheet.addSubmenu(name + "\n" + state, R.drawable.ic_disk,
                              page -> fillDrive(page, name, id, !disk.isEmpty()));
+        }
+
+        fillCard(sheet);
+    }
+
+    /**
+     * The DivMMC's card slot.
+     *
+     * Here rather than among the drives because it is not one: Fuse's drive list
+     * is floppy drives, the card is one slot whatever the machine, and what it
+     * holds is a filesystem rather than a disk image. Its own section says both
+     * things at once.
+     */
+    private void fillCard(MenuDrawer sheet) {
+        String card = FuseNative.cardName();
+        boolean loaded = !card.isEmpty();
+
+        sheet.addRule();
+        sheet.addSection(getString(R.string.menu_card_section));
+
+        // Said before the rows rather than instead of them: a card can be put in
+        // before the interface is switched on, and it will be waiting when it is.
+        if (!Storage.divmmcFirmware(this).isFile()) {
+            sheet.addNote(getString(R.string.card_no_firmware));
+        } else if (!FuseNative.hasDivmmc()) {
+            sheet.addNote(getString(R.string.card_off));
+        }
+
+        if (loaded) sheet.addNote(card);
+
+        sheet.addItem(getString(loaded ? R.string.card_replace
+                                       : R.string.card_insert),
+                      R.drawable.ic_folder, this::loadCard);
+
+        if (loaded) {
+            sheet.addItem(getString(R.string.card_save), R.drawable.ic_save,
+                          this::writeCard);
+            sheet.addItem(getString(R.string.card_eject), R.drawable.ic_eject,
+                          this::confirmEjectCard);
         }
     }
 
@@ -2232,6 +2280,85 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         FuseNative.writeDisk(id >> 8, id & 0xff, target.getAbsolutePath());
         Toast.makeText(this, getString(R.string.tape_saved, target.getName()),
                 Toast.LENGTH_LONG).show();
+    }
+
+    // --- the DivMMC card ---------------------------------------------------
+
+    private void loadCard() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+
+        Uri start = Storage.contentFolder(this);
+        if (start != null) intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, start);
+
+        try {
+            startActivityForResult(intent, REQUEST_LOAD_CARD);
+        } catch (android.content.ActivityNotFoundException e) {
+            Toast.makeText(this, R.string.open_failed, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    /**
+     * Copies a picked card image into the cards folder, wrapping it in an HDF
+     * header if it needs one, and puts it in the slot.
+     *
+     * Not {@link #stage}, which every other kind of media goes through: that
+     * copies into the cache, and a card is written to by the machine - the saves
+     * and the high scores are on it. A card swept away with the cache is a card
+     * that lost them. {@link CardImage} has the rest of it.
+     */
+    private void insertCard(Uri picked) {
+        String name = CardImage.nameFor(Storage.displayName(this, picked));
+        File directory = Storage.cardsDirectory(this);
+
+        // Before the copy, not after: the copy replaces the file it writes to,
+        // and if that is the card in the slot then anything the machine has
+        // written and not committed would go down with the old one.
+        if (!FuseNative.cardName().isEmpty()) FuseNative.commitCard();
+
+        note(R.string.card_preparing, name);
+
+        if (!directory.isDirectory() && !directory.mkdirs()) {
+            note(R.string.card_failed);
+            return;
+        }
+
+        File target;
+        try (java.io.InputStream in = getContentResolver().openInputStream(picked)) {
+            if (in == null) throw new IOException("cannot read " + picked);
+            target = CardImage.wrap(in, new File(directory, name));
+        } catch (IOException | SecurityException e) {
+            Log.w(TAG, "cannot read the card image " + picked, e);
+            target = null;
+        }
+
+        if (target == null) {
+            note(R.string.card_failed);
+            return;
+        }
+
+        preferences.edit().putString(PREF_CARD, target.getAbsolutePath()).apply();
+
+        FuseNative.insertCard(target.getAbsolutePath());
+        note(R.string.card_inserted, target.getName());
+    }
+
+    private void writeCard() {
+        FuseNative.commitCard();
+        note(R.string.card_written);
+    }
+
+    private void confirmEjectCard() {
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setMessage(R.string.card_eject_confirm)
+                .setPositiveButton(R.string.card_eject, (dialog, which) -> {
+                    FuseNative.ejectCard();
+                    preferences.edit().remove(PREF_CARD).apply();
+                    note(R.string.card_ejected);
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
     }
 
     private void saveTape() {
@@ -2645,6 +2772,15 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             return;
         }
 
+        if (request == REQUEST_LOAD_CARD) {
+            Uri uri = data.getData();
+
+            // Off the UI thread: a card image is tens of megabytes and it is
+            // copied whole.
+            if (uri != null) new Thread(() -> insertCard(uri)).start();
+            return;
+        }
+
         if (request != REQUEST_OPEN_FILE) return;
 
         Uri uri = data.getData();
@@ -3004,6 +3140,33 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // starting is safe.
         SettingsActivity.applyFilter(preferences);
         SettingsActivity.applyScale(this, preferences);
+        startDivmmc();
+    }
+
+    /**
+     * The DivMMC, in the order it has to happen: the firmware, then the
+     * interface, then whatever card was in it.
+     *
+     * Queued rather than passed on the command line, and deliberately so.
+     * {@code --divmmc} would have Fuse plug the interface in during its own
+     * startup, before anything here could put firmware in the EPROM, and a
+     * DivMMC with a blank EPROM pages itself into the machine's reset and hangs
+     * it - a black screen before the first frame. The queue keeps these three in
+     * order, so the firmware is always in place first.
+     */
+    private void startDivmmc() {
+        File firmware = Storage.divmmcFirmware(this);
+
+        if (!firmware.isFile()) return;
+
+        FuseNative.loadDivmmcFirmware(firmware.getAbsolutePath());
+
+        if (!preferences.getBoolean(SettingsActivity.KEY_DIVMMC, false)) return;
+
+        FuseNative.setDivmmc(true);
+
+        String card = preferences.getString(PREF_CARD, null);
+        if (card != null && new File(card).isFile()) FuseNative.insertCard(card);
     }
 
     /**

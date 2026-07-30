@@ -349,6 +349,102 @@ cache. Expect the bytes to differ from the original even when nothing has
 changed: Fuse writes them out of its own in-memory track representation
 rather than copying the file.
 
+### The DivMMC, and three things Fuse cannot ask for
+
+Fuse emulates the whole interface — `peripherals/ide/divmmc.c` with
+libspectrum's MMC card behind it — and the app supplies the three things its
+desktop UI does through dialogs and one it does not do at all. All of it is in
+`native/ui/android/android_card.c`; the settings switch and the *Memory card*
+rows in the ☰ *Media* page are the whole of the UI.
+
+**The firmware.** A DivMMC is an 8K EPROM, 128K of RAM and a card slot, and
+without firmware in the EPROM it does nothing — esxDOS is what makes it a
+filesystem. Fuse has no setting for the EPROM's contents, because on real
+hardware you flash it *from the Spectrum*: the firmware ships as a tape that
+writes the EPROM through the interface. That works here too, but it is a
+five-minute ritual to repeat on every phone, so `flash_eprom()` does what the
+tape does — drop the write protect, set CONMEM to page the EPROM in at 0x0000,
+write eight kilobytes with `writebyte_internal()`, page out, protect again.
+
+The write protect **has to go back on**. `divxxx_refresh_page_state()` only
+automaps while the EPROM is protected, so an unprotected DivMMC never pages
+itself in and the firmware never runs. It comes off only to write.
+
+The readback afterwards is not distrust of the memory write: port 0xe3 belongs
+to the +D and the DivIDE as well, so if either were ever plugged in it would
+answer first, the write would land in a ROM that is not writable, and the
+machine would then automap eight kilobytes of 0xff — which is `RST 38h` eight
+thousand times over, and a dead Spectrum. For the same reason the interface is
+refused without firmware rather than plugged in blank: that hangs the machine
+before the first frame is drawn, which looks exactly like the app being broken.
+
+The firmware is not shipped — esxDOS is not ours to distribute — so *Settings,
+Machine, DivMMC firmware* takes a file and keeps it as `roms/divmmc.bin`.
+Deliberately not `.rom`: `Storage.haveRoms()` treats any `.rom` as proof the
+emulator can start, and a folder holding only this would start it into a
+machine with no ROM at all.
+
+**Hard resets, and the error that took an afternoon.** esxDOS reads the card
+once, while it starts, and keeps what it found — so a card inserted afterwards
+needs a reset. That reset must be a *hard* one. `divxxx_reset()` keeps the
+MAPRAM bit through a soft reset, so the machine comes back up out of the
+DivMMC's RAM page 3, where esxDOS left a copy of itself and of the drive it had
+then, instead of out of the EPROM. It boots, it prints its banner, and every
+path is then invalid: `ESXDOS error #19, 0:1`, which reads exactly like a
+broken card image and is not. Inserting a card hard resets, and so does the ☰
+*Reset* row while the interface is in — there is one Reset in this app and it
+has to be the one that works.
+
+**HDF, and why a card image is copied.** libspectrum reads exactly one kind of
+mass storage image: an HDF, a 128 byte header saying how big the drive is
+followed by its sectors. A card image from anywhere else — a `.vhd` off a
+MiSTer, an `.img` from `dd` — is those sectors and no header, and Fuse turns it
+away as *not a valid HDF file*. `CardImage` writes the header round it: the
+sectors are copied through unchanged, so the games stay exactly where the card
+said they were.
+
+It is a copy because the header goes at the *front* — adding it in place would
+mean moving sixty-four megabytes up by 128 bytes — and because a card is
+written to. Cards therefore live in `cards/` beside the tapes and the disks,
+never in the cache: a card swept away with the cache is a card that lost its
+saves. The copy goes through a `.part` file and is renamed over the target,
+since picking the card that is already in the slot is an obvious thing to do and
+writing straight to it would be reading and truncating the same file at once.
+
+libspectrum wants a whole number of 1024-sector blocks — an SD card's capacity
+is measured in half megabytes — and a real card image usually is not one: the
+MiSTer image this was written against is a 64MB partition with a partition
+table in front of it, one sector over. The last block is padded with zeros
+rather than the geometry rounded down, because rounding down cuts the end off
+the filesystem, and a sector the card claims to have but the file does not is a
+read error waiting for whatever lands there.
+
+**Writing back, without being asked.** libspectrum keeps written sectors in a
+hash table and puts them on the card only when it is told to, so a card nobody
+commits loses everything the machine wrote. A menu item alone would mean a save
+survives only if the user remembers a menu item, on a device that gets put in a
+pocket mid-game — so `androidcard_tick()` commits once a second from the pump,
+`run_while_paused()` commits on the way into a pause, which is where the app
+goes when Android takes it away, and inserting or ejecting commits first. An
+empty commit walks an empty hash table and costs nothing; a commit that writes
+is doing the I/O that had to happen anyway. *Write changes now* stays in the
+menu for the moment you want to be certain.
+
+Committing before an eject or a replacement is also what keeps Fuse from asking
+about unsaved changes through a modal only Enter or Escape dismisses: there is
+nothing left to ask about.
+
+**The lamp.** The card is the one indicator that can honestly say which way the
+data is going, and it comes from the same trick as the others — a peripheral
+registered on port 0xeb that only watches writes, so it cannot affect what the
+machine reads back. An MMC card is driven a byte at a time over SPI and the
+direction is in the command: 17 reads a sector, 24 writes one. Blue is esxDOS
+reading, amber is something on its way onto the card.
+
+Verified on the emulator with esxDOS 0.8.9 and a 64MB MiSTer card image: the
+firmware flashed, esxDOS booted, `.ls` listed the card, the NMI browser opened
+it, and *Alien 8* loaded off it and ran.
+
 ### Save states
 
 States live under `files/states`, named rather than numbered, so there can be

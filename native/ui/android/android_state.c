@@ -139,6 +139,12 @@ typedef struct drive_entry {
 static drive_entry drive_list[ MAX_DRIVES ];
 static int drive_list_count;
 
+/* The DivMMC: whether Fuse has the interface, and the card in it. One name
+   rather than a list because Fuse's own divmmc.c emulates one slot - "for now,
+   we emulate only one card", as it says. */
+static int card_interface;
+static char card_file[ 96 ];
+
 /* Copies everything the UI thread may read. Called once a frame from the
    pump, on the emulation thread. */
 void
@@ -205,6 +211,15 @@ androidstate_publish( void )
 
       drive_list_count++;
     }
+  }
+
+  card_interface = settings_current.divmmc_enabled;
+  if( settings_current.divmmc_file ) {
+    const char *base = strrchr( settings_current.divmmc_file, '/' );
+    snprintf( card_file, sizeof( card_file ), "%s",
+              base ? base + 1 : settings_current.divmmc_file );
+  } else {
+    card_file[0] = '\0';
   }
 
   machine_list_current = -1;
@@ -398,6 +413,33 @@ Java_dev_ldlab_zedex_FuseNative_driveDetails( JNIEnv *env, jclass class )
   pthread_mutex_unlock( &machine_mutex );
 
   return result;
+}
+
+/* The card in the DivMMC, or "" for an empty slot. The interface being out
+   is a third state, and the menu wants to tell them apart: a card with no
+   interface to read it is worth saying something about. */
+JNIEXPORT jstring JNICALL
+Java_dev_ldlab_zedex_FuseNative_cardName( JNIEnv *env, jclass class )
+{
+  jstring name;
+
+  pthread_mutex_lock( &machine_mutex );
+  name = (*env)->NewStringUTF( env, card_file );
+  pthread_mutex_unlock( &machine_mutex );
+
+  return name;
+}
+
+JNIEXPORT jboolean JNICALL
+Java_dev_ldlab_zedex_FuseNative_hasDivmmc( JNIEnv *env, jclass class )
+{
+  jboolean present;
+
+  pthread_mutex_lock( &machine_mutex );
+  present = card_interface ? JNI_TRUE : JNI_FALSE;
+  pthread_mutex_unlock( &machine_mutex );
+
+  return present;
 }
 
 JNIEXPORT jint JNICALL

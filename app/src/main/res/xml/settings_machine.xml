@@ -12,6 +12,16 @@
             android:summary="@string/settings_issue2_summary"
             android:defaultValue="false" />
 
+        <SwitchPreference
+            android:key="divmmc"
+            android:title="@string/settings_divmmc"
+            android:summary="@string/settings_divmmc_summary"
+            android:defaultValue="false" />
+        <Preference
+            android:key="divmmcFirmware"
+            android:title="@string/settings_firmware"
+            android:persistent="false" />
+
         <ListPreference
             android:key="speed"
             android:title="@string/settings_speed"

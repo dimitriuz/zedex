@@ -53,6 +53,7 @@
 #define ACTIVITY_KEYBOARD ( 1 << 3 )
 #define ACTIVITY_JOYSTICK ( 1 << 4 )
 #define ACTIVITY_MOUSE    ( 1 << 5 )
+#define ACTIVITY_CARD     ( 1 << 6 )
 
 /* The same five bits again, this far up, for "and it is writing rather than
    reading". Only some of the lamps can say: see the notes at each of them. */
@@ -89,6 +90,8 @@ static int ay_written;
 static int tape_reading;
 static int tape_writing;
 static int disk_reading;
+static int card_reading;
+static int card_writing;
 
 /* Where each drive's head was a frame ago; -1 for a drive with nothing in it. */
 static int disk_was_at[ MAX_CONTROLLERS ][ MAX_DRIVES_PER_CONTROLLER ];
@@ -201,6 +204,37 @@ watch_ay( libspectrum_word port, libspectrum_byte data )
   ay_written = 1;
 }
 
+/* The DivMMC's card, and the one lamp here that can say which way the data is
+   going - because an MMC card is driven a byte at a time over SPI and the
+   direction is in the command. A byte with bits 7-6 = 01 starts one, so the
+   card's own read (17) and write (24) are visible in the stream the machine
+   writes; libspectrum's mmc.c frames it exactly this way.
+
+   Only the write side of the port is watched, so nothing here can affect what
+   the machine reads back from the card. */
+static void
+watch_card( libspectrum_word port, libspectrum_byte data )
+{
+  /* Where in a command we are: -1 between them, else how many of the four
+     argument bytes are still to come. Tracked because an argument byte can
+     look exactly like a command byte. */
+  static int argument_bytes = -1;
+
+  if( argument_bytes >= 0 ) {
+    argument_bytes--;
+    return;
+  }
+
+  if( ( data & 0xc0 ) != 0x40 ) return;
+
+  argument_bytes = 4;
+
+  switch( data & 0x3f ) {
+  case 17: card_reading = HOLD_FRAMES; break;	/* READ_SINGLE_BLOCK */
+  case 24: card_writing = HOLD_FRAMES; break;	/* WRITE_BLOCK */
+  }
+}
+
 static const periph_port_t monitor_ports[] = {
   /* Any even port is the ULA, and reading the ULA is how the keyboard is
      scanned. It is also how a tape is read, so the keyboard lamp flickers
@@ -231,6 +265,9 @@ static const periph_port_t monitor_ports[] = {
      a machine makes a sound, which is why the AY lamp has only the one
      colour: what the chip does is data on its way out. */
   { 0xc002, 0x8000, NULL, watch_ay },
+
+  /* The DivMMC's data port, decoded as divmmc.c decodes it. */
+  { 0x00ff, 0x00eb, NULL, watch_card },
 
   { 0, 0, NULL, NULL }
 };
@@ -369,6 +406,8 @@ androidstatus_frame( void )
   if( tape_reading ) tape_reading--;
   if( tape_writing ) tape_writing--;
   if( disk_reading ) disk_reading--;
+  if( card_reading ) card_reading--;
+  if( card_writing ) card_writing--;
 
   /* A write shows as a write and as activity: the lamp is on either way, and
      the colour is what says which. A tape being saved is not "playing", so it
@@ -405,6 +444,15 @@ androidstatus_frame( void )
     }
   }
 
+  /* The one lamp that really can say which way: a card is read a sector at a
+     time and written a sector at a time, and the command says which. A write in
+     the same fifth of a second wins the colour, because a write is the thing
+     worth noticing - it is what has to reach the file. */
+  if( card_reading || card_writing ) {
+    state |= ACTIVITY_CARD;
+    if( card_writing ) state |= ACTIVITY_CARD << ACTIVITY_WRITING;
+  }
+
   keyboard_seen = 0;
   joystick_seen = 0;
   mouse_seen = 0;
@@ -425,6 +473,8 @@ androidstatus_idle( void )
   tape_reading = 0;
   tape_writing = 0;
   disk_reading = 0;
+  card_reading = 0;
+  card_writing = 0;
   keyboard_seen = 0;
   joystick_seen = 0;
   ay_written = 0;

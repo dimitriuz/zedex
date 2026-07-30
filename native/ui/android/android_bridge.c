@@ -70,6 +70,16 @@ restore_mouse( void )
   periph_update();
 }
 
+/* The DivMMC is unplugged by the same thing for the same reason, and putting
+   it back means the firmware as well as the setting - so that lives with the
+   rest of the interface, in android_card.c. */
+static void
+restore_peripherals( void )
+{
+  restore_mouse();
+  androidcard_restore();
+}
+
 
 /* --- command queue ---------------------------------------------------- */
 
@@ -99,6 +109,10 @@ typedef enum command_type {
   COMMAND_DISK_INSERT,			/* a: controller, b: drive, text: path */
   COMMAND_DISK_NEW,			/* a: controller, b: drive */
   COMMAND_DISK_EJECT,			/* a: controller, b: drive */
+  COMMAND_CARD_FIRMWARE,		/* text: an 8K DivMMC firmware to flash */
+  COMMAND_CARD_INSERT,			/* text: path to a card image */
+  COMMAND_CARD_COMMIT,
+  COMMAND_CARD_EJECT,
 } command_type;
 
 /* Options the Android UI can set. Values are integers; booleans are 0 or 1. */
@@ -131,6 +145,7 @@ enum {
   OPTION_SCALE,				/* 0 fits, else pixels per pixel */
   OPTION_BORDER,			/* 0 all of it, 1 a quarter, 2 none */
   OPTION_KEMPSTON_MOUSE,
+  OPTION_DIVMMC,			/* the interface, not the card */
 };
 
 /* The filters' shape, kept here because the settings arrive one at a time and
@@ -359,6 +374,13 @@ run_set_option( int option, int value )
     periph_update();
     break;
 
+  case OPTION_DIVMMC:
+    /* Hardware again, and rather more of it than a mouse: the interface has
+       its own memory and its own firmware, and the machine resets around it.
+       android_card.c has the whole of that. */
+    androidcard_set_enabled( value );
+    break;
+
   case OPTION_AY_STEREO: {
     /* Fuse takes this as one of its own three words and matches it with
        strcmp, so anything else silently means None. It reads it when the sound
@@ -503,7 +525,12 @@ drain_commands( void )
          otherwise leave the RZX out of step with the machine. */
       rzx_stop_recording();
       rzx_stop_playback( 1 );
-      machine_reset( 0 );
+      /* Hard when the DivMMC is in, because a soft reset keeps its MAPRAM bit
+         set and the machine then restarts out of the interface's RAM rather
+         than its EPROM - which leaves esxDOS running but unable to reach the
+         card. See androidcard_insert(). There is only one Reset in this app's
+         menu, and it has to be the one that works. */
+      machine_reset( settings_current.divmmc_enabled );
       break;
     case COMMAND_NMI:
       android_log( "nmi" );
@@ -518,7 +545,7 @@ drain_commands( void )
       if( command.text )
         utils_open_file( command.text, tape_can_autoload(), NULL );
       /* A snapshot among them unplugs the optional peripherals. */
-      restore_mouse();
+      restore_peripherals();
       /* Whatever it was, it may have been a tape: two different ones can have
          the same number of blocks and both be at the start, so the browser's
          list cannot tell by looking. */
@@ -536,7 +563,7 @@ drain_commands( void )
     case COMMAND_LOAD_SNAPSHOT:
       android_log( "loading snapshot %s", command.text ? command.text : "" );
       if( command.text ) snapshot_read( command.text );
-      restore_mouse();
+      restore_peripherals();
       break;
     case COMMAND_SAVE_THUMBNAIL:
       if( command.text ) androiddisplay_write_thumbnail( command.text );
@@ -602,6 +629,22 @@ drain_commands( void )
       ui_media_drive_eject( command.a, command.b );
       break;
     }
+
+    case COMMAND_CARD_FIRMWARE:
+      if( command.text ) androidcard_load_firmware( command.text );
+      break;
+
+    case COMMAND_CARD_INSERT:
+      if( command.text ) androidcard_insert( command.text );
+      break;
+
+    case COMMAND_CARD_COMMIT:
+      androidcard_commit();
+      break;
+
+    case COMMAND_CARD_EJECT:
+      androidcard_eject();
+      break;
     case COMMAND_TAPE_PLAY:
       /* Not tape_toggle_play(): the app knows which way round it is from the
          published state, and a toggle would flip whichever way the tape
@@ -680,6 +723,11 @@ run_while_paused( void )
   fuse_emulation_pause();
   androidstatus_idle();
 
+  /* Pausing is where the app goes when Android takes it away, and after that
+     the process can be killed without another word. Anything the machine wrote
+     to the card goes to the file now rather than on the next tick. */
+  androidcard_commit();
+
   while( pause_wanted && !fuse_exiting ) {
     int width, height;
     const void *pixels = androiddisplay_last_frame( &width, &height );
@@ -707,6 +755,9 @@ androidbridge_pump_commands( void )
   /* Once a frame, and on the emulation thread, which is what the lamps need. */
   androidstatus_frame();
 
+  /* Same place for the same reason: the card is written back on a count of
+     frames, and this is the once-a-frame that the emulation thread reaches. */
+  androidcard_tick();
 
   drain_commands();
 
@@ -1024,6 +1075,55 @@ Java_dev_ldlab_zedex_FuseNative_newDisk( JNIEnv *env, jclass class,
                                         jint controller, jint drive )
 {
   queue_command( COMMAND_DISK_NEW, controller, drive );
+}
+
+/* --- the DivMMC ------------------------------------------------------- */
+
+/* The interface, the firmware and the card, in that order: the firmware has to
+   be in hand before the interface goes in - see androidcard_set_enabled() -
+   and the queue keeps them in the order they were asked for. */
+
+JNIEXPORT void JNICALL
+Java_dev_ldlab_zedex_FuseNative_setDivmmc( JNIEnv *env, jclass class,
+                                          jboolean on )
+{
+  queue_command( COMMAND_SET_OPTION, OPTION_DIVMMC, on ? 1 : 0 );
+}
+
+JNIEXPORT void JNICALL
+Java_dev_ldlab_zedex_FuseNative_loadDivmmcFirmware( JNIEnv *env, jclass class,
+                                                   jstring path )
+{
+  const char *utf = (*env)->GetStringUTFChars( env, path, NULL );
+
+  if( utf ) {
+    queue_command_text( COMMAND_CARD_FIRMWARE, 0, 0, strdup( utf ) );
+    (*env)->ReleaseStringUTFChars( env, path, utf );
+  }
+}
+
+JNIEXPORT void JNICALL
+Java_dev_ldlab_zedex_FuseNative_insertCard( JNIEnv *env, jclass class,
+                                           jstring path )
+{
+  const char *utf = (*env)->GetStringUTFChars( env, path, NULL );
+
+  if( utf ) {
+    queue_command_text( COMMAND_CARD_INSERT, 0, 0, strdup( utf ) );
+    (*env)->ReleaseStringUTFChars( env, path, utf );
+  }
+}
+
+JNIEXPORT void JNICALL
+Java_dev_ldlab_zedex_FuseNative_commitCard( JNIEnv *env, jclass class )
+{
+  queue_command( COMMAND_CARD_COMMIT, 0, 0 );
+}
+
+JNIEXPORT void JNICALL
+Java_dev_ldlab_zedex_FuseNative_ejectCard( JNIEnv *env, jclass class )
+{
+  queue_command( COMMAND_CARD_EJECT, 0, 0 );
 }
 
 JNIEXPORT void JNICALL

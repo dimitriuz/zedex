@@ -225,6 +225,22 @@
     <string name="disk_no_drives">This machine has no disk drives</string>
     <string name="disk_replace">Replace the disk in %1$s with a blank one? Unsaved changes are lost.</string>
     <string name="disk_eject_confirm">Eject the disk in %1$s? Unsaved changes are lost.</string>
+
+    <!-- The DivMMC card, in the Media page. -->
+    <string name="menu_card_section">Memory card</string>
+    <string name="card_insert">Insert card…</string>
+    <string name="card_replace">Change card…</string>
+    <string name="card_save">Write changes now</string>
+    <string name="card_eject">Eject card</string>
+    <string name="card_empty">No card</string>
+    <string name="card_off">The DivMMC is switched off. Settings, Machine turns it on.</string>
+    <string name="card_no_firmware">The DivMMC needs its firmware — an 8K esxDOS ROM. Load one in Settings, Machine.</string>
+    <string name="card_preparing">Preparing “%1$s” — a card image is large, so this takes a moment.</string>
+    <string name="card_inserted">Card “%1$s” in the DivMMC — the machine was reset so esxDOS can read it</string>
+    <string name="card_written">Wrote the card’s changes</string>
+    <string name="card_ejected">Card ejected</string>
+    <string name="card_failed">Couldn’t prepare that card image</string>
+    <string name="card_eject_confirm">Eject the card? Changes are written back to the image first.</string>
     <string name="tape_saved">Wrote %1$s</string>
 
 
@@ -257,6 +273,13 @@
     <string name="settings_default_machine_summary">Also set by the machine switcher</string>
     <string name="settings_issue2">Issue 2 keyboard</string>
     <string name="settings_issue2_summary">Early 48K keyboard behaviour some games expect</string>
+
+    <string name="settings_divmmc">DivMMC interface</string>
+    <string name="settings_divmmc_summary">A memory card and esxDOS, on any machine. Resets it.</string>
+    <string name="settings_firmware">DivMMC firmware</string>
+    <string name="settings_firmware_none">None — the interface needs an 8K esxDOS ROM</string>
+    <string name="settings_firmware_loaded">Loaded</string>
+    <string name="settings_firmware_wrong">That is not an 8K DivMMC firmware</string>
 
     <string name="settings_storage">Folders</string>
     <string name="settings_data_folder">Data folder</string>
@@ -369,6 +392,7 @@
     <string name="lamp_keyboard">keyboard</string>
     <string name="lamp_joystick">joystick</string>
     <string name="lamp_mouse">mouse</string>
+    <string name="lamp_card">card</string>
     <string name="lights_name">Machine activity indicators</string>
     <string name="settings_indicators">Activity indicators</string>
     <string name="settings_indicators_summary">Lamps beside the picture for the tape, disks, sound, keyboard and joystick</string>

@@ -51,6 +51,13 @@ public class SettingsActivity extends Activity {
     static final String KEY_TAPE_SOUND = "tapeSound";
     static final String KEY_AUTOLOAD = "autoLoad";
     static final String KEY_ISSUE2 = "issue2";
+    /** The DivMMC interface; the card itself is in the ☰ Media page. */
+    static final String KEY_DIVMMC = "divmmc";
+    /** Not a stored value: the row that imports the firmware file. */
+    static final String KEY_DIVMMC_FIRMWARE = "divmmcFirmware";
+
+    /** The size of the DivMMC's EPROM, and so of any firmware for it. */
+    private static final int FIRMWARE_LENGTH = 8 * 1024;
     static final String KEY_BW_TV = "bwTv";
     static final String KEY_SPEED = "speed";
     static final String KEY_BORDER = "border";
@@ -270,6 +277,7 @@ public class SettingsActivity extends Activity {
 
     private static final int REQUEST_CONTENT_TREE = 2;
     private static final int REQUEST_DATA_TREE = 3;
+    private static final int REQUEST_FIRMWARE = 4;
 
     /** One tab: what it is called, what it looks like, and what is on it. */
     private static final class Tab {
@@ -492,6 +500,89 @@ public class SettingsActivity extends Activity {
                     return true;
                 });
             }
+
+            Preference firmware = findPreference(KEY_DIVMMC_FIRMWARE);
+            if (firmware != null) {
+                firmware.setOnPreferenceClickListener(preference -> {
+                    pickFirmware();
+                    return true;
+                });
+            }
+        }
+
+        /**
+         * The DivMMC's firmware, which is esxDOS and is not ours to ship: the
+         * picked file is copied into the ROM folder under a name of our own, so
+         * that from then on the interface has it whatever happens to the
+         * document that was picked.
+         */
+        private void pickFirmware() {
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("*/*");
+
+            try {
+                startActivityForResult(intent, REQUEST_FIRMWARE);
+            } catch (android.content.ActivityNotFoundException e) {
+                Toast.makeText(getActivity(), R.string.open_failed,
+                        Toast.LENGTH_LONG).show();
+            }
+        }
+
+        /**
+         * Copies the firmware in and hands it to the emulator.
+         *
+         * The length is checked here rather than only in the native side,
+         * because the file that gets copied is the one the app will use from
+         * now on and there is no point keeping something that is not firmware.
+         * 8K is not a guess: the DivMMC's EPROM is exactly that, and every
+         * firmware built for it fills it.
+         */
+        private void useFirmware(Uri picked) {
+            File target = Storage.divmmcFirmware(getActivity());
+
+            if (!Storage.romsDirectory(getActivity()).isDirectory()) {
+                Storage.createFolders(getActivity());
+            }
+
+            try (java.io.InputStream in = getActivity().getContentResolver()
+                                                       .openInputStream(picked)) {
+                if (in == null) throw new java.io.IOException("cannot read " + picked);
+
+                byte[] image = new byte[FIRMWARE_LENGTH + 1];
+                int read = 0, step;
+
+                while (read < image.length
+                       && (step = in.read(image, read, image.length - read)) != -1) {
+                    read += step;
+                }
+
+                if (read != FIRMWARE_LENGTH) {
+                    Toast.makeText(getActivity(), R.string.settings_firmware_wrong,
+                            Toast.LENGTH_LONG).show();
+                    return;
+                }
+
+                try (java.io.OutputStream out = new java.io.FileOutputStream(target)) {
+                    out.write(image, 0, FIRMWARE_LENGTH);
+                }
+            } catch (java.io.IOException | SecurityException e) {
+                android.util.Log.w("Zedex", "cannot import firmware", e);
+                Toast.makeText(getActivity(), R.string.open_failed,
+                        Toast.LENGTH_LONG).show();
+                return;
+            }
+
+            FuseNative.loadDivmmcFirmware(target.getAbsolutePath());
+
+            // The switch may have been turned on before there was firmware to
+            // honour it, in which case the interface was left out.
+            if (getPreferenceManager().getSharedPreferences()
+                                      .getBoolean(KEY_DIVMMC, false)) {
+                FuseNative.setDivmmc(true);
+            }
+
+            updateSummaries();
         }
 
         /**
@@ -587,6 +678,11 @@ public class SettingsActivity extends Activity {
             }
 
             Uri tree = data.getData();
+
+            if (request == REQUEST_FIRMWARE) {
+                useFirmware(tree);
+                return;
+            }
 
             if (request == REQUEST_DATA_TREE) {
                 File folder = Storage.pathFor(tree);
@@ -771,6 +867,9 @@ public class SettingsActivity extends Activity {
                 case KEY_ISSUE2:
                     FuseNative.setIssue2(preferences.getBoolean(key, false));
                     break;
+                case KEY_DIVMMC:
+                    FuseNative.setDivmmc(preferences.getBoolean(key, false));
+                    break;
                 case KEY_BW_TV:
                     FuseNative.setBlackAndWhite(preferences.getBoolean(key, false));
                     break;
@@ -884,6 +983,13 @@ public class SettingsActivity extends Activity {
                         .getString(Storage.KEY_CONTENT_TREE, null));
                 content.setSummary(described != null ? described
                         : getString(R.string.settings_content_folder_none));
+            }
+
+            Preference firmware = findPreference(KEY_DIVMMC_FIRMWARE);
+            if (firmware != null) {
+                boolean have = Storage.divmmcFirmware(getActivity()).isFile();
+                firmware.setSummary(have ? R.string.settings_firmware_loaded
+                                         : R.string.settings_firmware_none);
             }
 
             for (String key : new String[] { KEY_MACHINE, KEY_SPEED, KEY_SNAPSHOT_FORMAT,

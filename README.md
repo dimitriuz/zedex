@@ -41,6 +41,9 @@ end.
 - **Fast tape loading**
 - **Save states**
 - **Writes tapes and disks back**
+- **A DivMMC memory card**, for **esxDOS** and a card full of games — bring the
+  8K firmware and the card image, and a raw image gets its HDF header written
+  for it
 
 **Capture**
 
@@ -79,6 +82,7 @@ What the app reaches today:
 | **+3 floppy**, drives A: and B: | on a +3 or +3e |
 | **AY-3-8912** | on the 128K-family machines |
 | **Timex SCLD** video, including hi-res modes | on the Timex machines |
+| **DivMMC** and its memory card | any machine, with the esxDOS firmware |
 | **Tape deck** | loading and saving |
 | **Keyboard** | on screen or physical |
 | **Joystick** | Kempston · Cursor · Sinclair 1/2 · Timex 1/2 · Fuller · keyboard |
@@ -91,7 +95,7 @@ What the app reaches today:
 emulated, and each of them is one setting away:
 
 - Multiface One, 128 and 3
-- DivIDE, DivMMC, ZXATASP, ZXCF, SimpleIDE, ZXMMC storage
+- DivIDE, ZXATASP, ZXCF, SimpleIDE, ZXMMC storage
 - SpecDrum, Fuller Box, Melodik, Covox and Currah µSpeech sound
 - ZX Printer
 
@@ -140,7 +144,8 @@ fingers give a real shifted key; alternatively **hold either shift for 400ms
 to latch it** (it turns amber) until you tap it again. That is how you get
 BREAK — Caps Shift and Space.
 
-**The lamps** beside the picture — tape, disk, AY, keyboard, joystick, mouse — show
+**The lamps** beside the picture — tape, disk, AY, keyboard, joystick, mouse,
+memory card — show
 what the machine is busy with. Blue reads, amber writes, and the disk lamp only
 says it is being used, since the emulator does not report which way. The AY is
 three bars, one per channel, as tall as it is loud. A lit joystick lamp and a
@@ -182,6 +187,29 @@ Two dozen actions to choose from in ☰ *Controls… › Controller hotkeys…*:
 row, press the button. The hotkey can be set to *None*, and then bindings fire on
 their own.
 
+
+**The memory card** — a **DivMMC** with **esxDOS** on it, which is a card full of
+games and a filesystem the Spectrum can browse. Two things are yours to bring,
+because neither is ours to ship:
+
+1. **The firmware.** Get esxDOS from [esxdos.org](http://www.esxdos.org/) and
+   take `ESXMMC.BIN` out of it — the 8K DivMMC build. In *Settings › Machine*,
+   tap **DivMMC firmware** and pick it. The row then says *Loaded*.
+2. **Switch on** *DivMMC interface*, in the same place. The machine resets: it
+   is a card interface being plugged in, and esxDOS takes over the reset.
+3. **The card.** ☰ *Media… › Insert card…*. Any card image will do — a `.hdf`,
+   or a raw image such as a MiSTer `.vhd` or something `dd` wrote, which gets
+   its HDF header written for it on the way in. It is copied into `cards/` in
+   the data folder, because the machine writes to it, and the machine is reset
+   so esxDOS reads the new card.
+   The card needs esxDOS's own `BIN` and `SYS` folders on it — the same download
+   — or nothing will run.
+
+Then `.ls` at the BASIC prompt lists the card, `.` commands are esxDOS's, and ☰
+*Machine… › NMI* opens its file browser: pick a game and it loads. **Changes are
+written back for you**, once a second and whenever the app is paused, so a save
+survives the phone being put away; *Write changes now* is there for when you
+want to be certain.
 
 **Folders** are yours to choose, in settings:
 
@@ -258,6 +286,9 @@ In full:
   - *Load disk…*, *New disk*, *Save…* and *Eject*. The
   drives follow the machine, so a +3 shows its two and a Pentagon its four
   Beta ones, and a machine with none says so.
+  - *Insert card…* puts a card in the DivMMC — see **The memory card** above —
+  with *Write changes now* and *Eject card* once there is one in. The page says
+  so if the interface is off or has no firmware.
 - **Capture…**
   - *Save screenshot* writes the emulated screen as a PNG at
   its own size.
@@ -289,6 +320,8 @@ In full:
 | --- | --- |
 | **Machine at startup** | which machine to boot |
 | **Issue 2 keyboard** | early 48K keyboard behaviour a few games depend on |
+| **DivMMC interface** | a memory card and esxDOS, on any machine; resets it |
+| **DivMMC firmware** | the 8K esxDOS ROM the interface needs, which is yours to bring |
 | **Fast loading** | off, safe (ROM loaders) or turbo (custom loaders too) |
 | **Detect loaders** | start and stop the tape when a loader asks for it |
 | **Loading sound** | the loading sound, which only exists when a tape runs in real time |

@@ -41,8 +41,20 @@ final class Storage {
     private static final String ROMS = "roms";
     private static final String TAPES = "tapes";
     private static final String DISKS = "disks";
+    private static final String CARDS = "cards";
     private static final String SHOTS = "screenshots";
     private static final String FILMS = "recordings";
+
+    /**
+     * The DivMMC's firmware, which is not a machine ROM and not ours to ship.
+     *
+     * In the ROM folder because that is where the machine's own firmware goes
+     * and where the user is already looking, but deliberately not named
+     * {@code .rom}: {@link #haveRoms} takes any {@code .rom} as proof that the
+     * emulator can start, and a folder holding this and nothing else would
+     * start it into a machine with no ROM at all.
+     */
+    private static final String FIRMWARE = "divmmc.bin";
 
     private Storage() {
     }
@@ -212,6 +224,24 @@ final class Storage {
         return new File(root(context), DISKS);
     }
 
+    /**
+     * Where DivMMC card images are kept.
+     *
+     * Their own folder rather than living with the disks, because they are not
+     * disks in any sense the rest of the app means it: one is tens of megabytes
+     * of filesystem, it is written to in place while the machine runs, and it
+     * has to stay put - a card in the cache would be swept away with the game
+     * saves on it.
+     */
+    static File cardsDirectory(Context context) {
+        return new File(root(context), CARDS);
+    }
+
+    /** The DivMMC firmware, whether or not it is there yet. */
+    static File divmmcFirmware(Context context) {
+        return new File(romsDirectory(context), FIRMWARE);
+    }
+
     /** Where screenshots are written. */
     static File screenshotsDirectory(Context context) {
         return new File(root(context), SHOTS);
@@ -228,6 +258,7 @@ final class Storage {
         romsDirectory(context).mkdirs();
         tapesDirectory(context).mkdirs();
         disksDirectory(context).mkdirs();
+        cardsDirectory(context).mkdirs();
         screenshotsDirectory(context).mkdirs();
         recordingsDirectory(context).mkdirs();
     }
