@@ -43,6 +43,7 @@ extern int androidstate_tape_changed;
 #include "peripherals/disk/disk.h"
 #include "peripherals/disk/fdd.h"
 #include "peripherals/joystick.h"
+#include "peripherals/kempmouse.h"
 #include "utils.h"
 #include "z80/z80.h"
 
@@ -68,6 +69,8 @@ typedef enum command_type {
   COMMAND_TAPE_PLAY,			/* a: 1 play, 0 stop */
   COMMAND_TAPE_REWIND,
   COMMAND_TAPE_BLOCK,			/* a: which block to wind to */
+  COMMAND_MOUSE_MOVE,			/* a: dx, b: dy, in the mouse's own units */
+  COMMAND_MOUSE_BUTTON,			/* a: 0 left 1 right, b: down */
   COMMAND_WRITE_DISK,			/* a: controller, b: drive, text: path */
   COMMAND_DISK_INSERT,			/* a: controller, b: drive, text: path */
   COMMAND_DISK_NEW,			/* a: controller, b: drive */
@@ -103,6 +106,7 @@ enum {
   OPTION_FILTER_BACKLIGHT,
   OPTION_SCALE,				/* 0 fits, else pixels per pixel */
   OPTION_BORDER,			/* 0 all of it, 1 a quarter, 2 none */
+  OPTION_KEMPSTON_MOUSE,
 };
 
 /* The filters' shape, kept here because the settings arrive one at a time and
@@ -319,6 +323,15 @@ run_set_option( int option, int value )
 
   case OPTION_BORDER:
     androidgl_set_border( value );
+    break;
+
+  case OPTION_KEMPSTON_MOUSE:
+    /* Plugging an interface in is a change of hardware, so periph_update() has
+       to be told; the peripheral itself points at this setting. It is only
+       plugged when it is asked for, since it answers three ports a game might
+       otherwise read for something else. */
+    settings_current.kempston_mouse = value;
+    periph_update();
     break;
 
   case OPTION_AY_STEREO: {
@@ -576,6 +589,24 @@ drain_commands( void )
     case COMMAND_TAPE_BLOCK:
       tape_select_block( command.a );
       break;
+
+    /* The mouse is relative and Fuse takes it that way: kempmouse keeps the
+       counters and negates y itself, so what goes in is the movement in screen
+       terms - down is positive - and nothing here has to know where any pointer
+       is. Fuse's own ui.c is bypassed on purpose: its mouse path is gated on a
+       grab that belongs to a desktop with a cursor to capture. */
+    case COMMAND_MOUSE_MOVE:
+      kempmouse_update( command.a, command.b, -1, 0 );
+      break;
+
+    case COMMAND_MOUSE_BUTTON: {
+      /* Fuse's numbering, from ui_mouse_button(): the left button is bit one
+         and the right bit zero, unless the swap setting says otherwise. */
+      int left = !settings_current.mouse_swap_buttons;
+
+      kempmouse_update( 0, 0, command.a == 0 ? left : !left, command.b );
+      break;
+    }
 
     case COMMAND_NEW_TAPE:
       /* Android has asked already; clearing the flag stops Fuse asking
@@ -1056,6 +1087,28 @@ Java_dev_ldlab_zedex_FuseNative_setScale( JNIEnv *env, jclass class,
                                          jint pixels )
 {
   queue_command( COMMAND_SET_OPTION, OPTION_SCALE, pixels );
+}
+
+/* The Kempston mouse: whether it is plugged in, and what it is doing. */
+JNIEXPORT void JNICALL
+Java_dev_ldlab_zedex_FuseNative_setKempstonMouse( JNIEnv *env, jclass class,
+                                                 jboolean on )
+{
+  queue_command( COMMAND_SET_OPTION, OPTION_KEMPSTON_MOUSE, on ? 1 : 0 );
+}
+
+JNIEXPORT void JNICALL
+Java_dev_ldlab_zedex_FuseNative_mouseMove( JNIEnv *env, jclass class,
+                                          jint dx, jint dy )
+{
+  queue_command( COMMAND_MOUSE_MOVE, dx, dy );
+}
+
+JNIEXPORT void JNICALL
+Java_dev_ldlab_zedex_FuseNative_mouseButton( JNIEnv *env, jclass class,
+                                            jint which, jboolean down )
+{
+  queue_command( COMMAND_MOUSE_BUTTON, which, down ? 1 : 0 );
 }
 
 /* How much of the border is shown; see OPTION_BORDER. */

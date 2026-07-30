@@ -69,6 +69,11 @@ final class ActivityLights extends View {
                  R.string.lamp_keyboard),
         new Lamp(FuseNative.ACTIVITY_JOYSTICK, R.drawable.ic_joystick,
                  R.string.lamp_joystick),
+        // Lit when the machine reads the Kempston mouse's ports, whether or not
+        // the mouse is plugged in - which makes it the answer to "does this game
+        // use the mouse?", and the moment to go and turn it on.
+        new Lamp(FuseNative.ACTIVITY_MOUSE, R.drawable.ic_mouse,
+                 R.string.lamp_mouse),
     };
 
     /** Dark enough to read against any Spectrum screen, like the quick bar. */

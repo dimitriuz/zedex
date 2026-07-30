@@ -57,6 +57,7 @@ end.
   or **your phone's own keyboard** instead
 - **On-screen joystick**, and **physical controllers**, which just work — with
   RetroArch-style **hotkeys** for two dozen of the app's own actions
+- **Kempston mouse**, driven by a drag on the picture or by the joystick
 - **A quick actions bar**, always on screen, with a **fullscreen** button that
   clears it and the keyboard away
 - **Pause** — automatic when the app is not in front, and nothing is drawn
@@ -79,6 +80,7 @@ What the app reaches today:
 | **Tape deck** | loading and saving |
 | **Keyboard** | on screen or physical |
 | **Joystick** | Kempston · Cursor · Sinclair 1/2 · Timex 1/2 · Fuller · keyboard |
+| **Kempston mouse** | a drag on the picture, or the pad and a controller's stick |
 
 
 ## Not yet
@@ -89,7 +91,7 @@ emulated, and each of them is one setting away:
 - Multiface One, 128 and 3
 - DivIDE, DivMMC, ZXATASP, ZXCF, SimpleIDE, ZXMMC storage
 - SpecDrum, Fuller Box, Melodik, Covox and Currah µSpeech sound
-- Kempston mouse, ZX Printer
+- ZX Printer
 
 
 **Playing**
@@ -136,7 +138,7 @@ fingers give a real shifted key; alternatively **hold either shift for 400ms
 to latch it** (it turns amber) until you tap it again. That is how you get
 BREAK — Caps Shift and Space.
 
-**The lamps** beside the picture — tape, disk, AY, keyboard, joystick — show
+**The lamps** beside the picture — tape, disk, AY, keyboard, joystick, mouse — show
 what the machine is busy with. Blue reads, amber writes, and the disk lamp only
 says it is being used, since the emulator does not report which way. The AY is
 three bars, one per channel, as tall as it is loud. A lit joystick lamp and a
@@ -152,6 +154,14 @@ joystick — and picks the **key profile**: eight keys, five for the pad and thr
 for the buttons, named and switchable, with QAOPM, QAOP + Space, cursor keys,
 both Sinclair sets and WASD built in. *Edit keys…* binds one by tapping the
 control and then the key.
+
+**The Kempston mouse** is a mode, from ☰ *Controls… › Mouse…*. While it is on, a
+drag across the picture moves the pointer, the pad and a controller's stick move
+it too, and fire and the first button beside it are the mouse's two buttons —
+there is a *Sensitivity* setting for how far a drag goes. It is only plugged in
+while the mode is on, since it answers three ports a game might read for
+something else, and the **mouse lamp** lights whenever a game reads them, which
+is how you find out a game supports it.
 
 **A physical controller** needs no setting up: plug one in and it drives the same
 five controls, through the same profile. The stick, the hat and the D-pad steer,

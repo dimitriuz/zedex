@@ -54,6 +54,8 @@ public class SettingsActivity extends Activity {
     static final String KEY_BW_TV = "bwTv";
     static final String KEY_SPEED = "speed";
     static final String KEY_BORDER = "border";
+    static final String KEY_MOUSE = "kempstonMouse";
+    static final String KEY_MOUSE_SENSITIVITY = "mouseSensitivity";
     static final String KEY_SOUND = "sound";
     static final String KEY_AY_VOLUME = "volumeAy";
     /** Fuse's own three words; it matches them with strcmp. */

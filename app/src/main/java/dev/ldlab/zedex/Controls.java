@@ -64,6 +64,20 @@ final class Controls {
      * also its slot in the profile — see {@link ControlProfiles}.
      */
     static void press(int button, boolean pressed) {
+        // Mouse mode first, since it takes the pad away from the machine
+        // altogether: the four directions move the pointer and fire is the left
+        // button. Here rather than in each view, for the same reason the rest of
+        // this class is here - the pad, the gamepad and a screen reader all
+        // arrive at this one door.
+        if (Mouse.enabled()) {
+            if (button == FuseNative.JOYSTICK_FIRE) {
+                Mouse.button(Mouse.LEFT, pressed);
+            } else {
+                Mouse.steer(button, pressed);
+            }
+            return;
+        }
+
         if (padSendsKeys) {
             FuseNative.key(key(button), pressed);
         } else {
@@ -71,8 +85,13 @@ final class Controls {
         }
     }
 
-    /** One of the three buttons, which is always a key. */
+    /** One of the three buttons, which is always a key - or the right button. */
     static void pressKey(int slot, boolean pressed) {
+        if (Mouse.enabled() && slot == ControlProfiles.BUTTON_1) {
+            Mouse.button(Mouse.RIGHT, pressed);
+            return;
+        }
+
         FuseNative.key(key(slot), pressed);
     }
 }

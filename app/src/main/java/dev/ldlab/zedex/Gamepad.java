@@ -246,6 +246,13 @@ final class Gamepad {
         float x = axis(event, MotionEvent.AXIS_X, MotionEvent.AXIS_HAT_X);
         float y = axis(event, MotionEvent.AXIS_Y, MotionEvent.AXIS_HAT_Y);
 
+        // In mouse mode the stick is a stick: how far it is pushed is how fast
+        // the pointer goes, which four on-or-off directions cannot say.
+        if (Mouse.enabled()) {
+            Mouse.stick(Math.abs(x) >= DEAD_ZONE ? x : 0,
+                        Math.abs(y) >= DEAD_ZONE ? y : 0);
+        }
+
         fromAxes[0] = x <= -DEAD_ZONE;
         fromAxes[1] = x >= DEAD_ZONE;
         fromAxes[2] = y <= -DEAD_ZONE;

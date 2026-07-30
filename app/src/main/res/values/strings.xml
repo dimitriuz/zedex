@@ -28,6 +28,14 @@
     <string name="menu_display">Display…</string>
     <string name="menu_joystick">Joystick…</string>
     <string name="menu_keyboard">Keyboard…</string>
+    <string name="menu_mouse">Mouse…</string>
+    <string name="mouse_on">Turn the Kempston mouse on</string>
+    <string name="mouse_off">Turn the Kempston mouse off</string>
+    <string name="mouse_on_done">Kempston mouse on — drag the picture, or use the pad</string>
+    <string name="mouse_off_done">Kempston mouse off</string>
+    <string name="mouse_sensitivity">Sensitivity: %1$d%%</string>
+    <string name="mouse_sensitivity_title">Mouse sensitivity</string>
+    <string name="mouse_explain">While it is on, a drag across the picture moves the pointer, the pad and a controller\'s stick move it too, and fire and the first button beside it are the mouse\'s two buttons. The interface is only plugged in while this is on, since it answers three ports a game might read for something else.</string>
     <string name="menu_gamepad">Controller hotkeys…</string>
     <string name="gamepad_activity">Controller hotkeys</string>
     <string name="gamepad_explain">One button is the hotkey, and every action is that button and another — so a button means one thing while the hotkey is down and another while it is not, and nothing is taken away from the game.</string>
@@ -317,6 +325,7 @@
     <string name="lamp_ay">AY</string>
     <string name="lamp_keyboard">keyboard</string>
     <string name="lamp_joystick">joystick</string>
+    <string name="lamp_mouse">mouse</string>
     <string name="lights_name">Machine activity indicators</string>
     <string name="settings_indicators">Activity indicators</string>
     <string name="settings_indicators_summary">Lamps beside the picture for the tape, disks, sound, keyboard and joystick</string>

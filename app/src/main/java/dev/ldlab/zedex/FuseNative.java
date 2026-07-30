@@ -126,13 +126,14 @@ final class FuseNative {
     static final int ACTIVITY_AY = 1 << 2;
     static final int ACTIVITY_KEYBOARD = 1 << 3;
     static final int ACTIVITY_JOYSTICK = 1 << 4;
+    static final int ACTIVITY_MOUSE = 1 << 5;
 
     /**
      * The same five bits again, this far up, mean "and it is writing rather
      * than reading". Only some of them can say: a keyboard is only ever read,
      * and what the AY does is sound on its way out.
      */
-    static final int ACTIVITY_WRITING = 5;
+    static final int ACTIVITY_WRITING = 8;
 
     /**
      * What the machine is doing right now, as ACTIVITY_* bits.
@@ -195,6 +196,25 @@ final class FuseNative {
 
     /** Winds to one of them. */
     static native void tapeBlockSelect(int block);
+
+    /**
+     * The Kempston mouse.
+     *
+     * Only plugged in while it is asked for: it answers three ports - 0xfadf,
+     * 0xfbdf and 0xffdf - that a game might read for something else, and Fuse
+     * has to be told through periph_update() either way.
+     *
+     * The movement is <b>relative</b>, in the mouse's own units and in screen
+     * terms - down is positive - because that is what a Kempston mouse is: a
+     * pair of counters the program does its own arithmetic on, with no notion of
+     * where any pointer is.
+     */
+    static native void setKempstonMouse(boolean on);
+
+    static native void mouseMove(int dx, int dy);
+
+    /** 0 is the left button, 1 the right. */
+    static native void mouseButton(int which, boolean down);
 
     /** Names of the drives that currently have a disk in them. */
     static native String[] driveNames();

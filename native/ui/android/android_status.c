@@ -51,10 +51,11 @@
 #define ACTIVITY_AY       ( 1 << 2 )
 #define ACTIVITY_KEYBOARD ( 1 << 3 )
 #define ACTIVITY_JOYSTICK ( 1 << 4 )
+#define ACTIVITY_MOUSE    ( 1 << 5 )
 
 /* The same five bits again, this far up, for "and it is writing rather than
    reading". Only some of the lamps can say: see the notes at each of them. */
-#define ACTIVITY_WRITING  5
+#define ACTIVITY_WRITING  8
 
 /* Some of this is an instant rather than a state - a block appended, a sector
    put down, a tape wound on by a trap - so it is held for long enough to see.
@@ -80,6 +81,7 @@ static int disk_running;
    game read the port once, half a minute ago, would say nothing at all. */
 static int keyboard_seen;
 static int joystick_seen;
+static int mouse_seen;
 static int ay_written;
 
 /* Counting down while something that already happened is worth showing. */
@@ -183,6 +185,13 @@ watch_joystick( libspectrum_word port, libspectrum_byte *attached )
   return 0xff;
 }
 
+static libspectrum_byte
+watch_mouse( libspectrum_word port, libspectrum_byte *attached )
+{
+  mouse_seen = 1;
+  return 0xff;
+}
+
 /* Writes need no such care: a write function is told what was written and its
    return value is nobody's business. */
 static void
@@ -202,6 +211,20 @@ static const periph_port_t monitor_ports[] = {
      lit lamp and a dead stick is exactly the moment to go and choose
      Kempston in the menu. */
   { 0x0020, 0x0000, watch_joystick, NULL },
+
+  /* The Kempston mouse's three, decoded exactly as kempmouse.c decodes them:
+     the buttons, then x, then y. Tight rather than loose because the point of
+     this lamp is that it answers "does this game use the mouse?", and a loose
+     decode would answer yes to half the ports on the machine.
+
+     One thing it cannot avoid: those ports all have bit five clear, which is
+     what the joystick watcher above catches, so reading the mouse lights the
+     joystick lamp as well. Both are true - the game is reaching for a Kempston
+     something - and separating them would mean giving up the loose decode that
+     makes the joystick lamp useful. */
+  { 0x0121, 0x0001, watch_mouse, NULL },
+  { 0x0521, 0x0101, watch_mouse, NULL },
+  { 0x0521, 0x0501, watch_mouse, NULL },
 
   /* The AY's register and data ports, 0xfffd and 0xbffd. Writing them is how
      a machine makes a sound, which is why the AY lamp has only the one
@@ -369,9 +392,11 @@ androidstatus_frame( void )
      keyboard or a joystick. */
   if( keyboard_seen ) state |= ACTIVITY_KEYBOARD;
   if( joystick_seen ) state |= ACTIVITY_JOYSTICK;
+  if( mouse_seen ) state |= ACTIVITY_MOUSE;
 
   keyboard_seen = 0;
   joystick_seen = 0;
+  mouse_seen = 0;
   ay_written = 0;
 
   published = state;

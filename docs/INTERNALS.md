@@ -790,6 +790,60 @@ routed the on-screen controls through one place first.
 A is fire; B, X and Y are the three key buttons; **Start** is Enter — as itself,
 not as whatever Button 1 holds, because a game that says PRESS ENTER wants Enter.
 
+### The Kempston mouse
+
+A Kempston mouse is two 8-bit counters and a button byte, and the counters are
+**relative**: the program reads them, does its own arithmetic and keeps its own
+pointer. Nothing ever tells the machine where a pointer is, which is the only
+reason a touchscreen can drive one at all — a drag *is* a delta, and there is no
+absolute position to disagree about.
+
+`kempmouse_update( dx, dy, button, down )` is the whole interface, and
+`settings_current.kempston_mouse` plugs it in through `periph_update()`. Three
+things are worth writing down:
+
+- **Fuse's own `ui_mouse_*` path is bypassed.** It gates everything on
+  `ui_mouse_grabbed`, which belongs to a desktop with a cursor to capture and a
+  middle button to toggle the capture with. The bridge calls `kempmouse_update()`
+  directly and lets the mode be the grab.
+- **The signs and the bits are Fuse's.** `kempmouse` does `pos.y -= dy`, so what
+  goes in is movement in screen terms — down is positive — and the buttons are
+  active low with **the left button on bit 1 and the right on bit 0**, which is
+  what `ui_mouse_button()` does with the default `mouse_swap_buttons`. Measured
+  from BASIC: `IN 64223` reads 255 with nothing pressed, 253 with the left button
+  and 254 with the right.
+- **It is only plugged in while the mode is on.** The interface answers 0xfadf,
+  0xfbdf and 0xffdf, and a game that reads those for something else would get the
+  mouse's answer instead. `periph_update()` is told either way; the hard reset it
+  offers to do is declined, since plugging a mouse in is not worth losing the
+  program in memory.
+
+`Mouse` holds the mode, and everything arrives there: a drag from the
+`SurfaceView`'s touch listener, the pad and the D-pad through `Controls` — which
+is why that class exists — and a physical stick from `Gamepad.motion()`, where the
+analogue value is used rather than the four directions, since how far the stick is
+pushed is how fast the pointer should go. A held direction runs a 60Hz nudge, and
+the fractions left over by the scaling are kept: a drag scaled down to mouse units
+is mostly fractions, and throwing them away means a slow drag moves nothing at all.
+
+**A drag, not a tap.** A tap on the picture already reveals the quick bar, so the
+touch listener only takes over once the finger has moved past ten dp — under that
+it returns false and the click listener gets it as before.
+
+The **mouse lamp** lights when the machine reads those three ports, whether or not
+the mouse is plugged in, which makes it the answer to "does this game use the
+mouse?". It also lights the joystick lamp, because the mouse ports have bit five
+clear and that is what the joystick watcher's deliberately loose decode catches.
+Both are true — something is reaching for a Kempston — and tightening the joystick
+decode would cost more than the overlap does. Adding a sixth lamp also moved
+`ACTIVITY_WRITING` from 5 to 8: the low bits are the lamps and the shifted ones
+their write flags, and a sixth lamp would have landed on the tape's write bit.
+
+Measured end to end on the API 36 emulator with `10 PRINT AT 0,0;IN 64479: GO TO
+10` running on a 48K: a 550 pixel drag right moved the x counter 171 to 110, which
+is +195 through 256 at 0.35 units a pixel, and holding the pad's right took it 110
+to 22 while it was held.
+
 ### Hotkeys, and why they need a modifier
 
 Everything the app wants of a controller for *itself* is behind one button. The

@@ -192,6 +192,55 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // A tap anywhere on the picture brings ☰ back; the sheet closing takes
         // it away again, so it is only ever over the screen while in use.
         screen.setOnClickListener(v -> revealQuickBar());
+
+        // And a drag across it is the Kempston mouse, while that mode is on. A
+        // drag rather than a tap on purpose: a tap has a job already, and the
+        // click listener above still gets it, because a touch that never moves
+        // beyond the slop is not a drag and is not consumed here.
+        screen.setOnTouchListener(new View.OnTouchListener() {
+            private final float slop = MOUSE_SLOP
+                    * getResources().getDisplayMetrics().density;
+            private float lastX, lastY;
+            private boolean dragging;
+
+            @Override
+            public boolean onTouch(View view, MotionEvent event) {
+                if (!Mouse.enabled()) return false;
+
+                switch (event.getActionMasked()) {
+                    case MotionEvent.ACTION_DOWN:
+                        lastX = event.getX();
+                        lastY = event.getY();
+                        dragging = false;
+                        return false;
+
+                    case MotionEvent.ACTION_MOVE: {
+                        float dx = event.getX() - lastX;
+                        float dy = event.getY() - lastY;
+
+                        if (!dragging
+                                && Math.hypot(dx, dy) < slop) {
+                            return false;
+                        }
+
+                        dragging = true;
+                        lastX = event.getX();
+                        lastY = event.getY();
+                        Mouse.drag(dx, dy);
+                        return true;
+                    }
+
+                    case MotionEvent.ACTION_UP:
+                    case MotionEvent.ACTION_CANCEL:
+                        // Consumed only if it was a drag, so a tap still reveals
+                        // the bar through the click listener.
+                        return dragging;
+
+                    default:
+                        return false;
+                }
+            }
+        });
         // Closing the sheet takes the bar with it only where the bar fades at
         // all; otherwise it has a place of its own and stays in it.
         menu.setOnClosed(() -> {
@@ -367,6 +416,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                 preferences.getBoolean(SettingsActivity.KEY_INDICATORS, true));
         applyScale();
         applyControls();
+        applyMouse();
 
         // Connecting or disconnecting one while the app was away.
         InputManager input = getSystemService(InputManager.class);
@@ -864,11 +914,67 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                          this::fillJoystick);
         sheet.addSubmenu(getString(R.string.menu_keyboard), R.drawable.ic_keyboard,
                          this::fillKeyboard);
+        sheet.addSubmenu(getString(R.string.menu_mouse), R.drawable.ic_mouse,
+                         this::fillMouse);
         // Not under Joystick…, which is about what the pad sends the *machine*.
         // These are what a controller asks of the app, and they work whether the
         // pad is a joystick or a set of keys.
         sheet.addItem(getString(R.string.menu_gamepad), R.drawable.ic_controls,
                       () -> GamepadActivity.open(this));
+    }
+
+    /**
+     * The Kempston mouse, which is a mode rather than a peripheral you forget
+     * about: while it is on the pad and the stick move the pointer instead of
+     * the joystick, so the page says so rather than leaving it to be discovered.
+     */
+    private void fillMouse(MenuDrawer sheet) {
+        boolean on = Mouse.enabled();
+
+        sheet.addItem(getString(on ? R.string.mouse_off : R.string.mouse_on),
+                      on ? R.drawable.ic_hide : R.drawable.ic_mouse,
+                      () -> showMouse(!on));
+        sheet.addItem(getString(R.string.mouse_sensitivity,
+                                SettingsActivity.SettingsFragment.number(
+                                        preferences,
+                                        SettingsActivity.KEY_MOUSE_SENSITIVITY,
+                                        100)),
+                      R.drawable.ic_swap, this::showMouseSensitivityDialog);
+        sheet.addNote(getString(R.string.mouse_explain));
+    }
+
+    private void showMouse(boolean on) {
+        preferences.edit().putBoolean(SettingsActivity.KEY_MOUSE, on).apply();
+        Mouse.setEnabled(on);
+
+        note(on ? R.string.mouse_on_done : R.string.mouse_off_done);
+    }
+
+    private void showMouseSensitivityDialog() {
+        String[] names = getResources().getStringArray(R.array.percent_names);
+        String[] values = getResources().getStringArray(R.array.percent_values);
+
+        int now = SettingsActivity.SettingsFragment.number(
+                preferences, SettingsActivity.KEY_MOUSE_SENSITIVITY, 100);
+        int checked = 0;
+        for (int i = 0; i < values.length; i++) {
+            if (Integer.parseInt(values[i]) == now) checked = i;
+        }
+
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(R.string.mouse_sensitivity_title)
+                .setSingleChoiceItems(names, checked, (dialog, which) -> {
+                    preferences.edit()
+                            .putString(SettingsActivity.KEY_MOUSE_SENSITIVITY,
+                                       values[which])
+                            .apply();
+                    Mouse.apply(preferences);
+
+                    dialog.dismiss();
+                    note(R.string.mouse_sensitivity, Integer.parseInt(values[which]));
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
     }
 
     private void fillKeyboard(MenuDrawer sheet) {
@@ -1073,6 +1179,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      * pad unplugged should bring the controls back, and it cannot if plugging one
      * in threw the setting away.
      */
+    private void applyMouse() {
+        Mouse.apply(preferences);
+        Mouse.setEnabled(preferences.getBoolean(SettingsActivity.KEY_MOUSE, false));
+    }
+
     private void applyGamepad() {
         layout.setJoystickSuppressed(autoHide() && Gamepad.connected());
         gamepad.setHotkeys(Hotkeys.load(preferences));
@@ -1134,6 +1245,13 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             default: break;
         }
     }
+
+    /**
+     * How far a finger may wander before it is a mouse drag rather than a tap,
+     * in dp. Android's own touch slop is about eight; a finger aiming at a tap
+     * moves further than that on a phone held in one hand.
+     */
+    private static final int MOUSE_SLOP = 10;
 
     /** The one state a hotkey writes, and writes over. */
     private static final String QUICK_STATE = "Quick";
