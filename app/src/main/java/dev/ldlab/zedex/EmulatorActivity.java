@@ -453,14 +453,16 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         bar.addGroup(R.drawable.ic_folder, getString(R.string.menu_files),
                      this::fillFilesBar);
+        // The machine second here as in the sheet, since it holds pause and the
+        // two menus reading the same way is worth more than either order is.
+        bar.addGroup(R.drawable.ic_chip, getString(R.string.menu_machine_group),
+                     this::fillMachineBar);
         bar.addGroup(R.drawable.ic_camera, getString(R.string.menu_capture),
                      this::fillCaptureBar);
         // Display rather than Controls: the group is what is on the screen
         // beside the picture, and one of the three is not a control at all.
         bar.addGroup(R.drawable.ic_display, getString(R.string.menu_display),
                      this::fillControlsBar);
-        bar.addGroup(R.drawable.ic_chip, getString(R.string.menu_machine_group),
-                     this::fillMachineBar);
 
         bar.addHold(R.drawable.ic_fast_forward, getString(R.string.fast_forward),
                     () -> fastForward(true), () -> fastForward(false));

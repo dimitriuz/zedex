@@ -170,8 +170,8 @@ picker.
 
 **The bar** is always there: across the top in portrait, smaller in the top right
 corner sideways. Seven icons — **Files** (open, save a state, load one),
-**Capture**, **Display** (hide the keyboard, the joystick or the lamps),
-**Machine** (pause, change machine, reset), **Fast
+**Machine** (pause, change machine, reset), **Capture**, **Display** (hide the
+keyboard, the joystick or the lamps), **Fast
 forward** (hold it: 500% while held, silent, and back to your speed on release),
 **Fullscreen**, and ☰.
 Fullscreen clears the bar away and, sideways, the keyboard with it; tap the picture
