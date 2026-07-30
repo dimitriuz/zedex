@@ -816,7 +816,22 @@ things are worth writing down:
   0xfbdf and 0xffdf, and a game that reads those for something else would get the
   mouse's answer instead. `periph_update()` is told either way; the hard reset it
   offers to do is declined, since plugging a mouse in is not worth losing the
-  program in memory.
+  program in memory. `periph_activate_type()` registers the ports there and then,
+  so nothing has to be reset for the mouse to start answering.
+- **A snapshot load unplugs it, and that was a real bug.** `snapshot.c` calls
+  `periph_disable_optional()` before every load, which zeroes *every* optional
+  peripheral's setting; each module then puts itself back only if the snapshot
+  recorded it as active. An `.sna` cannot record a Kempston mouse at all and most
+  `.szx` files do not, so loading a save state took the mouse away — while the lamp
+  went on lighting, because the port monitor is attached either way. A game read
+  the ports, got the floating bus, and its pointer sat still. The bridge keeps
+  `mouse_wanted` and calls `restore_mouse()` after a snapshot load and after
+  opening a file, which is where that clearing happens.
+
+  Reported from SimCity 128 and found by logging what the ports were doing: reads
+  of the buttons 150 times a second and of x and y 22 times each, with
+  `settings_current.kempston_mouse` at 0. Everything about the emulation was
+  right; the interface simply was not there.
 
 `Mouse` holds the mode, and everything arrives there: a drag from the
 `SurfaceView`'s touch listener, the pad and the D-pad through `Controls` — which
@@ -832,7 +847,12 @@ it returns false and the click listener gets it as before.
 
 The **mouse lamp** lights when the machine reads those three ports, whether or not
 the mouse is plugged in, which makes it the answer to "does this game use the
-mouse?". It also lights the joystick lamp, because the mouse ports have bit five
+mouse?" — and its amber says which. Blue is a mouse being read; **amber is the
+machine asking for a mouse that is not plugged in**, which is the one thing the
+lamp used to hide. On the other lamps amber means writing; here there is nothing
+to write to a mouse, and both meanings are "look at this". The first time it
+happens the app also says so in words, once per run, because a lit lamp and a
+cursor that will not move is a puzzle rather than a hint. It also lights the joystick lamp, because the mouse ports have bit five
 clear and that is what the joystick watcher's deliberately loose decode catches.
 Both are true — something is reaching for a Kempston — and tightening the joystick
 decode would cost more than the overlap does. Adding a sixth lamp also moved

@@ -161,7 +161,8 @@ it too, and fire and the first button beside it are the mouse's two buttons —
 there is a *Sensitivity* setting for how far a drag goes. It is only plugged in
 while the mode is on, since it answers three ports a game might read for
 something else, and the **mouse lamp** lights whenever a game reads them, which
-is how you find out a game supports it.
+is how you find out a game supports it — blue while a mouse is plugged in, amber
+while the game is asking for one you have not turned on.
 
 **A physical controller** needs no setting up: plug one in and it drives the same
 five controls, through the same profile. The stick, the hat and the D-pad steer,

@@ -82,6 +82,12 @@ final class ActivityLights extends View {
     /** Off, taking something in, and putting something out. */
     private static final int IDLE = 0x59ededf2;
     private static final int READING = 0xff00b0c8;
+
+    /**
+     * Amber: something going out, and on the mouse lamp something else - the
+     * machine asking for a mouse that is not plugged in. Both are "look at
+     * this", which is what the colour is for.
+     */
     private static final int WRITING = 0xffffb000;
 
     private static final int ICON_DP = 18;
@@ -101,6 +107,17 @@ final class ActivityLights extends View {
     private int state;
     private int levels;
 
+    /** Told when the machine asks for a mouse that is not plugged in. */
+    interface Wants {
+        void mouse();
+    }
+
+    private Wants wants;
+
+    void setWants(Wants listener) {
+        wants = listener;
+    }
+
     private final Handler handler = new Handler(Looper.getMainLooper());
 
     private final Runnable poll = new Runnable() {
@@ -113,6 +130,15 @@ final class ActivityLights extends View {
                 state = now;
                 levels = loudness;
                 invalidate();
+            }
+
+            // The mouse lamp's amber means the machine is reading the mouse's
+            // ports with no mouse plugged in; the activity says what to do about
+            // it, once.
+            if (wants != null
+                    && (now & (FuseNative.ACTIVITY_MOUSE
+                               << FuseNative.ACTIVITY_WRITING)) != 0) {
+                wants.mouse();
             }
 
             handler.postDelayed(this, POLL_MS);

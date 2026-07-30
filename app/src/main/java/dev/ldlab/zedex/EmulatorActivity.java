@@ -253,13 +253,16 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             new JoystickView(this, ControlProfiles.BUTTON_3),
         };
 
+        ActivityLights lights = new ActivityLights(this);
+        lights.setWants(this::mouseWanted);
+
         layout = new EmulatorLayout(this);
         layout.setChildren(screen, new SpectrumKeyboardView(this),
                            new SystemKeyboardView(this),
                            new JoystickView(this, JoystickView.Part.PAD),
                            new JoystickView(this, JoystickView.Part.FIRE),
                            keyButtons,
-                           new ActivityLights(this), playButton,
+                           lights, playButton,
                            roms.view(), quickBar, menu);
         layout.setJoystickVisible(
                 preferences.getBoolean(SettingsActivity.KEY_JOYSTICK, true));
@@ -1179,6 +1182,23 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      * pad unplugged should bring the controls back, and it cannot if plugging one
      * in threw the setting away.
      */
+    /**
+     * Said once, the first time a game reaches for a mouse that is not there.
+     *
+     * The lamp lights whether or not the mouse is plugged in, because reading
+     * the ports is the interesting part - but a lit lamp and a cursor that will
+     * not move is a puzzle, and this is the answer to it. Once per run: it is
+     * help, not a warning, and a game polls those ports fifty times a second.
+     */
+    private boolean saidAboutMouse;
+
+    private void mouseWanted() {
+        if (saidAboutMouse || Mouse.enabled()) return;
+
+        saidAboutMouse = true;
+        Toast.makeText(this, R.string.mouse_wanted, Toast.LENGTH_LONG).show();
+    }
+
     private void applyMouse() {
         Mouse.apply(preferences);
         Mouse.setEnabled(preferences.getBoolean(SettingsActivity.KEY_MOUSE, false));

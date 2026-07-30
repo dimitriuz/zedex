@@ -36,6 +36,7 @@
 
 #include "machine.h"
 #include "periph.h"
+#include "settings.h"
 #include "tape.h"
 #include "ui/ui.h"
 #include "ui/uimedia.h"
@@ -392,7 +393,17 @@ androidstatus_frame( void )
      keyboard or a joystick. */
   if( keyboard_seen ) state |= ACTIVITY_KEYBOARD;
   if( joystick_seen ) state |= ACTIVITY_JOYSTICK;
-  if( mouse_seen ) state |= ACTIVITY_MOUSE;
+  /* The mouse lamp's second colour does not mean writing - there is nothing to
+     write to a mouse - it means the machine is reading the mouse's ports while
+     no mouse is plugged in. That is worth its own colour, because it is exactly
+     the moment the lamp used to lie: a game asking for a mouse it cannot have
+     lit the same lamp as one happily using it. */
+  if( mouse_seen ) {
+    state |= ACTIVITY_MOUSE;
+    if( !settings_current.kempston_mouse ) {
+      state |= ACTIVITY_MOUSE << ACTIVITY_WRITING;
+    }
+  }
 
   keyboard_seen = 0;
   joystick_seen = 0;

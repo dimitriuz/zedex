@@ -27,6 +27,7 @@
 
 /* Set here, cleared in android_state.c once the list is rebuilt. */
 extern int androidstate_tape_changed;
+
 #include "display.h"
 #include "event.h"
 #include "fuse.h"
@@ -46,6 +47,27 @@ extern int androidstate_tape_changed;
 #include "peripherals/kempmouse.h"
 #include "utils.h"
 #include "z80/z80.h"
+
+
+/* Whether the app has asked for the Kempston mouse.
+ *
+ * Kept because a snapshot load unplugs it: snapshot.c calls
+ * periph_disable_optional(), which zeroes every optional peripheral's setting,
+ * and each module then puts itself back only if the snapshot recorded it as
+ * active. An .sna cannot record it at all and most .szx files do not, so
+ * loading a state silently took the mouse away - the lamp went on lighting,
+ * because the port monitor is attached either way, and the pointer stopped
+ * moving. That is the whole of the bug it fixes. */
+static int mouse_wanted;
+
+static void
+restore_mouse( void )
+{
+  if( !mouse_wanted || settings_current.kempston_mouse ) return;
+
+  settings_current.kempston_mouse = 1;
+  periph_update();
+}
 
 
 /* --- command queue ---------------------------------------------------- */
@@ -330,6 +352,7 @@ run_set_option( int option, int value )
        to be told; the peripheral itself points at this setting. It is only
        plugged when it is asked for, since it answers three ports a game might
        otherwise read for something else. */
+    mouse_wanted = value;
     settings_current.kempston_mouse = value;
     periph_update();
     break;
@@ -492,6 +515,8 @@ drain_commands( void )
       android_log( "opening %s", command.text ? command.text : "(null)" );
       if( command.text )
         utils_open_file( command.text, tape_can_autoload(), NULL );
+      /* A snapshot among them unplugs the optional peripherals. */
+      restore_mouse();
       /* Whatever it was, it may have been a tape: two different ones can have
          the same number of blocks and both be at the start, so the browser's
          list cannot tell by looking. */
@@ -509,6 +534,7 @@ drain_commands( void )
     case COMMAND_LOAD_SNAPSHOT:
       android_log( "loading snapshot %s", command.text ? command.text : "" );
       if( command.text ) snapshot_read( command.text );
+      restore_mouse();
       break;
     case COMMAND_SAVE_THUMBNAIL:
       if( command.text ) androiddisplay_write_thumbnail( command.text );
