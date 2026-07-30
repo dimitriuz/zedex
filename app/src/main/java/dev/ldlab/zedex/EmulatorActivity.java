@@ -455,7 +455,9 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                      this::fillFilesBar);
         bar.addGroup(R.drawable.ic_camera, getString(R.string.menu_capture),
                      this::fillCaptureBar);
-        bar.addGroup(R.drawable.ic_controls, getString(R.string.menu_controls),
+        // Display rather than Controls: the group is what is on the screen
+        // beside the picture, and one of the three is not a control at all.
+        bar.addGroup(R.drawable.ic_picture, getString(R.string.menu_display),
                      this::fillControlsBar);
         bar.addGroup(R.drawable.ic_machine, getString(R.string.menu_machine_group),
                      this::fillMachineBar);
@@ -523,13 +525,19 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     }
 
     /**
-     * The two toggles, named for what they would do rather than for what they
+     * The three toggles, named for what they would do rather than for what they
      * are, since an icon that means "joystick" cannot also say which way it is
      * about to go.
+     *
+     * The lamps are here rather than only in the settings because whether they
+     * are worth their strip is a decision of the moment - watching a tape load
+     * wants them, playing the game afterwards does not - and it is the same kind
+     * of decision as the other two. Both places write the same preference.
      */
     private void fillControlsBar(QuickBar bar) {
         boolean pad = layout.joystickVisible();
         boolean keys = layout.keyboardVisible();
+        boolean lamps = layout.lightsVisible();
 
         bar.addToRow(R.drawable.ic_joystick,
                      getString(pad ? R.string.quick_joystick_hide
@@ -539,6 +547,17 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                      getString(keys ? R.string.quick_keyboard_hide
                                     : R.string.quick_keyboard_show),
                      () -> showKeyboard(!keys));
+        bar.addToRow(R.drawable.ic_indicators,
+                     getString(lamps ? R.string.quick_lights_hide
+                                     : R.string.quick_lights_show),
+                     () -> showLights(!lamps));
+    }
+
+    private void showLights(boolean shown) {
+        layout.setLightsVisible(shown);
+        preferences.edit().putBoolean(SettingsActivity.KEY_INDICATORS, shown).apply();
+
+        note(shown ? R.string.lights_shown : R.string.lights_hidden);
     }
 
     /**

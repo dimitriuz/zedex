@@ -20,6 +20,7 @@
     <!-- The chooser, on the Machine page; the page itself is menu_machine_group. -->
     <string name="menu_machine">Change machine\u2026</string>
     <string name="menu_controls">Controls…</string>
+    <string name="menu_display">Display…</string>
     <string name="menu_joystick">Joystick…</string>
     <string name="menu_keyboard">Keyboard…</string>
     <!-- Shared by the joystick and the keyboard: the same choice about both. -->
@@ -247,10 +248,14 @@
     <string name="lights_name">Machine activity indicators</string>
     <string name="settings_indicators">Activity indicators</string>
     <string name="settings_indicators_summary">Lamps beside the picture for the tape, disks, sound, keyboard and joystick</string>
-    <string name="quick_joystick_show">Show the joystick</string>
-    <string name="quick_joystick_hide">Hide the joystick</string>
-    <string name="quick_keyboard_show">Show the keyboard</string>
-    <string name="quick_keyboard_hide">Hide the keyboard</string>
+    <string name="quick_joystick_show">Show joystick</string>
+    <string name="quick_joystick_hide">Hide joystick</string>
+    <string name="quick_keyboard_show">Show keyboard</string>
+    <string name="quick_keyboard_hide">Hide keyboard</string>
+    <string name="quick_lights_show">Show indicators</string>
+    <string name="quick_lights_hide">Hide indicators</string>
+    <string name="lights_shown">Indicators shown</string>
+    <string name="lights_hidden">Indicators hidden</string>
     <string name="menu_files">Files…</string>
     <string name="menu_capture">Capture…</string>
     <string name="capture_screenshot">Save screenshot</string>

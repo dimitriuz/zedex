@@ -92,7 +92,13 @@ and one that has its own strip is in nobody's way.
 
 Two things make it fit that black. **Six icons, not nine**: everything that is a
 file went into one group behind a folder, and pause went into *Machine* with the
-reset. And **the icons are smaller sideways**, sized from the room there is — the
+reset. The group behind the picture icon is *Display* rather than *Controls*,
+because what it holds is the furniture around the picture — the keyboard, the
+joystick and the activity lamps — and the lamps are not a control at all. Each is
+a thing worth putting away for one game and wanting back for the next, which is
+why they are a tap from the bar and not only a trip to the settings; both write
+the same preference, so the two never disagree. And **the icons are smaller
+sideways**, sized from the room there is — the
 black down the side of a 4:3 picture as wide as the window can make it, which is
 the narrowest that black ever gets, since a template giving the screen less makes
 the picture smaller and the black wider. On a 2400x1080 phone that comes out at

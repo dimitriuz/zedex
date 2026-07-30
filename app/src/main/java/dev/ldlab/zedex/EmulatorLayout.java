@@ -200,6 +200,14 @@ final class EmulatorLayout extends ViewGroup {
     private boolean fullscreen;
 
     /**
+     * Whether the lamps are wanted, as against whether they are showing:
+     * fullscreen hides them without changing the answer. True to begin with
+     * because a freshly built view is visible, so a setting that says otherwise
+     * still has something to change.
+     */
+    private boolean lightsWanted = true;
+
+    /**
      * How much of the bottom of the window the system keyboard is covering, or
      * zero while it is not up. Only the Android keyboard produces this: the two
      * drawn ones are children of this layout and have boxes of their own.
@@ -333,6 +341,7 @@ final class EmulatorLayout extends ViewGroup {
         // exactly that, and a config change costs a layout anyway.
         fullscreen = on;
         applyKeyboardVisibility();
+        applyLightsVisibility();
         requestLayout();
     }
 
@@ -399,15 +408,43 @@ final class EmulatorLayout extends ViewGroup {
         return keyboardWanted;
     }
 
+    /** Whether the lamps are wanted, which is not whether they are showing. */
+    boolean lightsVisible() {
+        return lightsWanted;
+    }
+
     /**
      * Whether the lamps are shown at all. They are a diagnostic, and once you
      * know what a game wants there is nothing left for them to tell you.
+     *
+     * Separate from whether they are showing, the way the keyboard's own choice
+     * is: fullscreen takes them away without touching this, and leaving
+     * fullscreen brings back whatever it was.
      */
     void setLightsVisible(boolean visible) {
-        if (lights == null || (lights.getVisibility() == VISIBLE) == visible) return;
+        if (lightsWanted == visible) return;
 
-        lights.setVisibility(visible ? VISIBLE : GONE);
+        lightsWanted = visible;
+        applyLightsVisibility();
         requestLayout();
+    }
+
+    /**
+     * The lamps take a strip beside the picture rather than floating over it, so
+     * dropping them in fullscreen gives the picture that strip back - which is
+     * what fullscreen is for.
+     *
+     * They do not come back with the quick bar on a tap: they are in the layout
+     * rather than over it, so that would move the picture every time anyone
+     * touched it. The quick bar's own toggle is the way to have them.
+     */
+    private void applyLightsVisibility() {
+        if (lights == null) return;
+
+        boolean showing = lightsWanted && !fullscreen;
+        if ((lights.getVisibility() == VISIBLE) == showing) return;
+
+        lights.setVisibility(showing ? VISIBLE : GONE);
     }
 
     /**
