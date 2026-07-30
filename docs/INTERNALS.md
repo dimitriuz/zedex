@@ -698,8 +698,19 @@ stack — it slides in over everything, scrim and all — so the presentation pu
 the column and the sheet in a frame together rather than in the column. What
 cannot follow is anything that is a window of its own: the settings screen, the
 file picker and every dialog are the activity's, and appear where the activity
-is. So is the Android keyboard skin, being an input method attached to the
-focused window; with that skin the panel is the bar and the lamps.
+is.
+
+The Android keyboard skin is a case of its own. The one pixel an input method
+types into is lent to the panel like the rest, so the IME is talking to the
+panel's window and what it types reaches Fuse either way — but **which display
+an IME is drawn on is not the app's to choose.** A secondary display's IME
+policy defaults to *fall back to the default display*, and only the device can
+set it otherwise (`setDisplayImePolicy` is a system call; the developer option
+that forces desktop mode on external displays is the other way in). So on most
+hardware the phone's keyboard appears over the machine while the panel shows the
+bar and the lamps, and the ☰ keyboard page says so rather than leaving it a
+mystery. The drawn skins have no such problem: they are views, and views go
+where they are put.
 
 ### Three keyboards
 

@@ -1163,6 +1163,15 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                       R.drawable.ic_picture, this::showSkinDialog);
         sheet.addItem(getString(R.string.menu_layout), R.drawable.ic_layout,
                       this::showLayoutDialog);
+
+        // Said here because here is where the skin is chosen. What it types
+        // still reaches the machine - the panel's window is what the input
+        // method is talking to - but which screen it is drawn on is Android's
+        // to decide, and a second screen has to be allowed to host one.
+        if (secondScreen != null
+                && keyboardSkin() == SpectrumKeyboardView.Skin.SYSTEM) {
+            sheet.addNote(getString(R.string.keyboard_system_elsewhere));
+        }
     }
 
     /**

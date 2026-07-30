@@ -1,10 +1,12 @@
 package dev.ldlab.zedex;
 
+import android.app.Activity;
 import android.app.Presentation;
 import android.content.Context;
 import android.os.Bundle;
 import android.view.Display;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowInsets;
@@ -78,12 +80,14 @@ final class SecondScreen extends Presentation {
         QuickBar bar = null;
         ActivityLights lamps = null;
         SpectrumKeyboardView keys = null;
+        SystemKeyboardView typist = null;
         View sheet = null;
 
         for (View view : borrowed) {
             if (view instanceof QuickBar) bar = (QuickBar) view;
             else if (view instanceof ActivityLights) lamps = (ActivityLights) view;
             else if (view instanceof SpectrumKeyboardView) keys = (SpectrumKeyboardView) view;
+            else if (view instanceof SystemKeyboardView) typist = (SystemKeyboardView) view;
             else sheet = view;                      // the ☰ drawer
         }
 
@@ -114,20 +118,25 @@ final class SecondScreen extends Presentation {
             column.addView(lamps, stacked(false, 0));
         }
 
-        // The sheet is not part of the stack: it slides in over the whole panel,
-        // scrim and all, which is what it does over the machine's window.
-        if (sheet == null) {
-            setContentView(column);
-        } else {
-            FrameLayout root = new FrameLayout(getContext());
-            root.addView(column, new FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT));
+        // Two things are not part of the stack. The sheet slides in over the
+        // whole panel, scrim and all, which is what it does over the machine's
+        // window; and the pixel the device's own keyboard types into is a pixel.
+        FrameLayout root = new FrameLayout(getContext());
+        root.addView(column, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
+
+        if (typist != null) {
+            root.addView(typist, new FrameLayout.LayoutParams(1, 1));
+        }
+
+        if (sheet != null) {
             root.addView(sheet, new FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT));
-            setContentView(root);
         }
+
+        setContentView(root);
 
         // After the content, not before: until there is a decor view there is
         // no insets controller to ask, and asking is a crash. No status bar
@@ -150,6 +159,27 @@ final class SecondScreen extends Presentation {
     public void dismiss() {
         release();
         super.dismiss();
+    }
+
+    /**
+     * Hardware keys belong to the machine, wherever they arrive.
+     *
+     * A window that can host an input method is a window that takes the input
+     * focus, and on a handheld the panel is the screen a hand touches last - so
+     * without this the gamepad and any real keyboard would be talking to a
+     * window whose only job is to hold a keyboard picture. The activity gets
+     * first refusal on everything, exactly as it would with one screen.
+     */
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        Context owner = getContext();
+
+        if (owner instanceof Activity
+                && ((Activity) owner).dispatchKeyEvent(event)) {
+            return true;
+        }
+
+        return super.dispatchKeyEvent(event);
     }
 
     /**

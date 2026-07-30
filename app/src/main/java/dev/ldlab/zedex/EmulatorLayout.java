@@ -353,9 +353,14 @@ final class EmulatorLayout extends ViewGroup {
      * answer appears on the other is a button that looks broken. It is not part
      * of the panel's stack - it covers whatever is under it - which the second
      * screen sorts out for itself.
+     *
+     * So does the one pixel the device's own keyboard types into. An input
+     * method appears on the display of the window it is talking to, so leaving
+     * that pixel here would put the phone's keyboard over the machine while the
+     * panel sat empty - which is the one place it must not be.
      */
     View[] lendable() {
-        return new View[] { menu, lights, keyboard, drawer };
+        return new View[] { menu, lights, keyboard, system, drawer };
     }
 
     /** Puts a child back where it belongs among the ones still here. */

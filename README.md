@@ -203,7 +203,10 @@ against the foot of the panel, the lamps in a row underneath. The first screen
 is then nothing but the machine, as though fullscreen were on, with the joystick
 still in the black beside it. ☰ opens on the panel too, over the keys — the
 settings screen and the dialogs it leads to are the app's own windows and stay
-with the machine.
+with the machine. So does the **phone's own keyboard**, if that is the skin you
+chose: Android decides which screen an input method appears on and a panel has
+to be allowed to host one, so it typically opens over the machine. It still
+types into the Spectrum; the 48K and 128K skins are the ones drawn on the panel.
 
 The row says *No second screen on this device* and cannot be switched on when
 there is no panel to move to; unplugging one brings everything back to the first
