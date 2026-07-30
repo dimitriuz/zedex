@@ -66,6 +66,22 @@ framework attributes in `values-v31/styles.xml` rather than
 `androidx.core:core-splashscreen`, since the library exists to back-port it
 below API 31 and the app has no dependencies.
 
+### The cheat database
+
+`app/src/main/assets/pokes.db` is built, not written:
+
+```sh
+scripts/build-poke-db.py ~/apps/ZX_Pokemaster-.../pokemaster.db
+```
+
+It reduces ZX Pokemaster's 20 MB database to the two things an emulator needs —
+the games that actually have pokes, and one md5 per known dump of them — which is
+2.7 MB on disk and **1.08 MB in the APK**. The asset is committed, because a build
+should not need a copy of somebody else's database; the script is committed
+because an asset nobody can rebuild is an asset nobody can check. Bump
+`PokeDatabase.VERSION` when the asset changes, or the copy already unpacked on a
+device will be kept.
+
 The app is a handful of classes: `EmulatorActivity` holds the menus,
 `SpectrumKeyboardView` the keyboard, `Storage` decides where things live,
 `Recorder` takes frames off the emulation thread and `GifRecording` /

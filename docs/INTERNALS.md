@@ -1490,6 +1490,54 @@ lists in the wild are written both ways. Anything else, and anything out of
 range, is refused with a note rather than silently clamped: a poke to the wrong
 address is worse than no poke.
 
+### The cheat database
+
+Three and a half thousand games with cheats, thirty four thousand fingerprints to
+find them by, one megabyte of APK. It is ZX Pokemaster's database with everything
+an emulator has no use for taken out — see `scripts/build-poke-db.py`, which is
+where the shape of it is explained.
+
+**Matched by hash, not by name.** A name is whatever the person who dumped the
+file felt like typing; an md5 is the same everywhere. Measured against a real
+10,794-file collection: **73% of the files were recognised** and **a third had
+cheats**. The misses are almost all releases newer than the database and Russian
+`.scl` images with 8.3 names — and a sample of them showed only 3 in 14 present in
+the database *under any name*, which is why there is a search by name but no
+fuzzy matching: the data is not there to be found.
+
+The hash is taken in `stage()`, while the picked document is being copied to
+somewhere Fuse can open by path. The bytes are already going past, so it costs one
+pass rather than a second read, and what gets hashed is the file as distributed —
+which is what the fingerprints are of.
+
+Two things about Android's SQLite shaped the code. It cannot open a database
+inside an APK, so the asset is copied to `files/` on first use, with the version
+stamp written *after* the copy so an interrupted one is done again. And
+`rawQuery` binds only strings while a compiled statement binds a blob but returns
+only one value, so a lookup is two steps: the hash finds the game's id through
+`bindBlob`, the id finds the row. The alternative — hex strings — is a megabyte
+more asset for nothing.
+
+**The .pok format is kept verbatim** and parsed in the app: `N` names a cheat,
+`M` and `Z` are its pokes with `Z` the last, `Y` ends the file. Twenty lines of
+parsing against three tables and a join, and the format has not changed in thirty
+years. Two conventions in it matter:
+
+- **Bank 8 means "wherever the machine is paged now"**, which is what
+  `writebyte_internal()` does and all this app can offer. 72,024 of the 72,046
+  pokes are bank 8; the rest name a RAM page, are skipped, and are counted in the
+  note so nobody is told a cheat worked when half of it did not.
+- **Value 256 means "ask"** — a number of lives, usually. 2,585 pokes are marked
+  that way, and the cheat's row ends in an ellipsis to say so before it is tapped.
+
+**The data is not ours, and it has no licence.** The pokes are The Tipshop's,
+gathered as AllTipshopPokes; neither states terms, though the Tipshop invites
+linking, which is what *Look it up at The Tipshop…* does. The About screen and the
+README credit all three sources, and the counts on that screen are read out of the
+database's own `meta` table rather than typed in, so they cannot go stale. If this
+ever has to come out of the app, the ROM policy is the model: import it rather
+than ship it.
+
 ### The tape deck
 
 Fuse has the transport already — `tape_do_play`, `tape_stop`, `tape_rewind`,

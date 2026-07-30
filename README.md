@@ -58,6 +58,8 @@ end.
 - **On-screen joystick**, and **physical controllers**, which just work — with
   RetroArch-style **hotkeys** for two dozen of the app's own actions
 - **Kempston mouse**, driven by a drag on the picture or by the joystick
+- **Cheats for 3,682 games** built in — found by the file's fingerprint, or by
+  name — and pokes of your own
 - **A quick actions bar**, always on screen, with a **fullscreen** button that
   clears it and the keyboard away
 - **Pause** — automatic when the app is not in front, and nothing is drawn
@@ -234,10 +236,15 @@ In full:
   the machine.
 - **States…** — *Save state…* and *Load state…*: as many saves as you like,
   each named and showing the screen as it was when it was written. Long-press deletes.
-- **Pokes…** — *Poke once…* takes an address and a value, writes the byte and
-  keeps nothing; *Add a poke…* takes a name as well and puts it on the list.
-  Tapping a stored poke pokes it, holding one forgets it. Decimal, or hex after
-  `0x`, `$` or `#`.
+- **Pokes…** — cheats. When a file is opened it is fingerprinted, and if it is
+  one of the 3,682 games the built-in database knows, its cheats are listed at the
+  top: tap one and it is poked. *Search the cheat database…* finds a game by name,
+  for a save state or an odd dump; *Look it up at The Tipshop…* opens the site
+  these cheats come from, which has the ones the database has not.
+  A cheat that asks for a number — how many lives — asks before poking.
+  *Poke once…* takes an address and a value, writes the byte and keeps nothing;
+  *Add a poke…* takes a name as well and puts it on the list. Tapping a stored
+  poke pokes it, holding one forgets it. Decimal, or hex after `0x`, `$` or `#`.
 - **Media…**
   - *Load a tape…* opens one, and *Play*, *Stop* and *Rewind to the start* work
   the deck. Stop keeps the position, so playing again carries on from there — and
@@ -316,3 +323,9 @@ no trademark rights. Fork the code freely; ship it under your own name.
 The Spectrum ROMs are neither included nor licensed here; **ROMs first** above
 says where the app can fetch a set from, and whether you may use them is the
 law where you are.
+
+**The cheats are not ours.** They come from
+[The Tipshop](https://www.the-tipshop.co.uk/), run by Gerard Sweeney, which is
+where three decades of Spectrum pokes have been collected; the machine-readable
+form is *AllTipshopPokes*, gathered by Lady Eklipse and distributed with
+[ZX Pokemaster](https://github.com/eklipse2009/all-tipshop-pokes).

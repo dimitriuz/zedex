@@ -44,6 +44,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.ByteBuffer;
@@ -1071,6 +1073,22 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      * away".
      */
     private void fillPokes(MenuDrawer sheet) {
+        // What came with the app, for whatever is loaded. First, because it is
+        // the answer to the question anyone opening this page is asking.
+        PokeDatabase.Game found = foundGame();
+
+        if (found != null) {
+            sheet.addSection(getString(R.string.poke_for_game, found.name));
+            fillTrainers(sheet, found);
+            sheet.addRule();
+        }
+
+        sheet.addItem(getString(R.string.poke_search), R.drawable.ic_poke,
+                      this::showPokeSearchDialog);
+        sheet.addItem(getString(R.string.poke_tipshop), R.drawable.ic_info,
+                      this::openTipshop);
+
+        sheet.addRule();
         sheet.addItem(getString(R.string.poke_quick), R.drawable.ic_poke,
                       this::showQuickPokeDialog);
         sheet.addItem(getString(R.string.poke_add), R.drawable.ic_plus,
@@ -1096,6 +1114,212 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         }
 
         sheet.addNote(getString(R.string.poke_hint));
+    }
+
+    /** The cheat database, opened once and kept; null if it will not open. */
+    private PokeDatabase pokeDatabase;
+
+    private PokeDatabase pokes() {
+        if (pokeDatabase == null) pokeDatabase = PokeDatabase.open(this);
+        return pokeDatabase;
+    }
+
+    /** The game whose file is loaded, if the database knows its hash. */
+    private PokeDatabase.Game foundGame() {
+        PokeDatabase database = pokes();
+
+        return database == null || mediaHash == null
+                ? null : database.forHash(mediaHash);
+    }
+
+    /**
+     * One row per cheat. Tapping it pokes every byte the cheat is made of - most
+     * are one, some are dozens - and a cheat that wants a number asks for it
+     * first, which is what a value of 256 means in the format.
+     */
+    private void fillTrainers(MenuDrawer sheet, PokeDatabase.Game game) {
+        List<PokeDatabase.Trainer> trainers = game.trainers();
+
+        if (trainers.isEmpty()) {
+            sheet.addNote(getString(R.string.poke_none_for_game));
+            return;
+        }
+
+        for (PokeDatabase.Trainer trainer : trainers) {
+            String label = trainer.name.isEmpty()
+                    ? getString(R.string.poke_unnamed) : trainer.name;
+
+            sheet.addItem(trainer.asks() ? label + "…" : label,
+                          R.drawable.ic_poke,
+                          () -> applyTrainer(game, trainer));
+        }
+    }
+
+    private void applyTrainer(PokeDatabase.Game game,
+                              PokeDatabase.Trainer trainer) {
+        if (trainer.asks()) {
+            askTrainerValue(game, trainer);
+            return;
+        }
+
+        pokeTrainer(game, trainer, -1);
+    }
+
+    /**
+     * The value a cheat left to the player: how many lives, usually.
+     *
+     * The format writes 256 where the number goes, and every poke of the cheat
+     * marked that way gets the same answer - which is what the tools that came
+     * before do, and what a cheat like "lives (0-255)" means.
+     */
+    private void askTrainerValue(PokeDatabase.Game game,
+                                 PokeDatabase.Trainer trainer) {
+        EditText input = numberField(R.string.poke_value);
+
+        LinearLayout fields = new LinearLayout(this);
+        fields.setOrientation(LinearLayout.VERTICAL);
+        fields.setPadding(pokePadding(), 0, pokePadding(), 0);
+        fields.addView(input);
+
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(trainer.name)
+                .setMessage(R.string.poke_asks)
+                .setView(fields)
+                .setPositiveButton(R.string.poke_apply, (dialog, which) -> {
+                    int value = Pokes.number(input.getText().toString(), 0xff);
+
+                    if (value < 0) {
+                        note(R.string.poke_bad);
+                        return;
+                    }
+
+                    pokeTrainer(game, trainer, value);
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void pokeTrainer(PokeDatabase.Game game,
+                             PokeDatabase.Trainer trainer, int answer) {
+        int done = 0;
+        int skipped = 0;
+
+        for (PokeDatabase.Poke poke : trainer.pokes) {
+            // A poke into a numbered RAM bank needs paging this app cannot do.
+            // Twenty two of them in the whole collection; saying so is better
+            // than writing the byte into whatever happens to be paged in.
+            if (!poke.plain()) {
+                skipped++;
+                continue;
+            }
+
+            FuseNative.poke(poke.address, poke.asks() ? answer : poke.value);
+            done++;
+        }
+
+        if (skipped > 0) {
+            note(R.string.poke_partly, trainer.name, done, skipped);
+        } else {
+            note(R.string.poke_trainer_done, trainer.name, done);
+        }
+    }
+
+    /** The database by name, for a state, a new release, or an odd dump. */
+    private void showPokeSearchDialog() {
+        EditText input = new EditText(this);
+        input.setSingleLine(true);
+        input.setHint(R.string.poke_search_hint);
+        input.setText(searchableName(preferences.getString(PREF_MEDIA_NAME, "")));
+        input.selectAll();
+
+        LinearLayout fields = new LinearLayout(this);
+        fields.setOrientation(LinearLayout.VERTICAL);
+        fields.setPadding(pokePadding(), 0, pokePadding(), 0);
+        fields.addView(input);
+
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(R.string.poke_search)
+                .setView(fields)
+                .setPositiveButton(R.string.poke_search_go, (dialog, which) ->
+                        showPokeResults(input.getText().toString()))
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    /**
+     * A file's name reduced to something worth searching for.
+     *
+     * Files are named the way TOSEC names them - "Sim City 48K (1990)(Infogrames)"
+     * - and none of that trailing apparatus is in a game's title, so a search for
+     * the lot finds nothing. The bracket is where the title stops, and the machine
+     * size before it goes too. Selected rather than merely filled in, so a name
+     * that is still wrong is one keystroke from gone.
+     */
+    private static String searchableName(String file) {
+        if (file == null) return "";
+
+        String name = file.split("[(\\[]")[0];
+        name = name.replaceAll("(?i)\\s+(16|48|128)K([-/](16|48|128)K)?\\s*$", "");
+
+        return name.trim();
+    }
+
+    /** How many names a dialog can offer before it is a list to scroll. */
+    private static final int POKE_RESULTS = 30;
+
+    private void showPokeResults(String text) {
+        PokeDatabase database = pokes();
+        List<PokeDatabase.Game> games = database == null
+                ? new ArrayList<>() : database.search(text, POKE_RESULTS);
+
+        if (games.isEmpty()) {
+            note(R.string.poke_search_none, text.trim());
+            return;
+        }
+
+        String[] names = new String[games.size()];
+        for (int i = 0; i < games.size(); i++) names[i] = games.get(i).name;
+
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(getString(R.string.poke_search_found, games.size()))
+                .setItems(names, (dialog, which) -> showGamePokes(games.get(which)))
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    /** A page of one game's cheats, reached from a search. */
+    private void showGamePokes(PokeDatabase.Game game) {
+        menu.go(game.name, sheet -> {
+            fillTrainers(sheet, game);
+            sheet.addNote(getString(R.string.poke_from_search, game.name));
+        });
+    }
+
+    /**
+     * The Tipshop, which is where these cheats come from and where the ones
+     * this database has not got will be. It invites linking to its pages, so a
+     * search for whatever is loaded is the neighbourly way to use it.
+     */
+    private void openTipshop() {
+        // The database's own title where the file was recognised, and the file's
+        // name reduced to something searchable where it was not: the site turns
+        // what it is given into wildcards, so "Sim City 48K (1990)(Infogrames)"
+        // goes looking for %sim%city%48k%1990infogrames% and finds nothing.
+        PokeDatabase.Game found = foundGame();
+        String name = found != null ? found.name
+                : searchableName(preferences.getString(PREF_MEDIA_NAME, ""));
+
+        String url = "https://www.the-tipshop.co.uk/";
+        if (name != null && !name.isEmpty()) {
+            url += "cgi-bin/search.pl?name=" + Uri.encode(name)
+                 + "&searchtype=poke&checkalias=y";
+        }
+
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+        } catch (android.content.ActivityNotFoundException e) {
+            note(R.string.poke_no_browser);
+        }
     }
 
     private void applyPoke(Pokes.Poke poke) {
@@ -1413,6 +1637,14 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      * moves further than that on a phone held in one hand.
      */
     private static final int MOUSE_SLOP = 10;
+
+    /**
+     * The md5 of the file last opened, which is how its cheats are found, or
+     * null when nothing has been opened this run. Not stored: a hash is only
+     * meaningful next to the machine that is running, and a state loaded later
+     * is not the file it came from.
+     */
+    private byte[] mediaHash;
 
     /** The one state a hotkey writes, and writes over. */
     private static final String QUICK_STATE = "Quick";
@@ -2436,7 +2668,16 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         rememberMediaName(sanitise(dot > 0 ? name.substring(0, dot) : name));
     }
 
-    /** Copies a picked document somewhere Fuse can open by path. */
+    /**
+     * Copies a picked document somewhere Fuse can open by path, and takes its
+     * md5 on the way through.
+     *
+     * On the way through because the bytes are already going past: hashing here
+     * costs one pass that was happening anyway, where reading the file again
+     * afterwards would cost another. The hash is what finds a game's cheats -
+     * see {@link PokeDatabase} - and it is the file as distributed that is
+     * hashed, which is what the fingerprints in that database are of.
+     */
     private File stage(Uri uri) {
         File dir = new File(getCacheDir(), MEDIA_DIR);
         File staged = new File(dir, Storage.displayName(this, uri));
@@ -2446,15 +2687,24 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             return null;
         }
 
+        mediaHash = null;
+
         try (InputStream in = getContentResolver().openInputStream(uri);
              OutputStream out = new FileOutputStream(staged)) {
             if (in == null) throw new IOException("cannot read " + uri);
 
+            MessageDigest md5 = MessageDigest.getInstance("MD5");
             byte[] buffer = new byte[64 * 1024];
             int read;
             while ((read = in.read(buffer)) != -1) {
                 out.write(buffer, 0, read);
+                md5.update(buffer, 0, read);
             }
+
+            mediaHash = md5.digest();
+        } catch (NoSuchAlgorithmException e) {
+            // MD5 is in every Android; if it were not, the copy still stands.
+            Log.e(TAG, "no MD5 on this device", e);
         } catch (IOException | SecurityException e) {
             Log.e(TAG, "failed to stage " + uri, e);
             reportOpenFailed();

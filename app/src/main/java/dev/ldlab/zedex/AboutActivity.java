@@ -67,6 +67,7 @@ public final class AboutActivity extends Activity {
         column.addView(text(getString(R.string.about_what), 14, TEXT, pixels(20)));
         column.addView(text(build(), 14, DIM, pixels(20)));
         column.addView(text(getString(R.string.about_licence), 13, DIM, pixels(16)));
+        column.addView(text(cheats(), 13, DIM, pixels(16)));
         column.addView(link());
 
         return column;
@@ -94,6 +95,30 @@ public final class AboutActivity extends Activity {
         }
 
         return built;
+    }
+
+    /**
+     * Whose cheats these are.
+     *
+     * The pokes shipped with the app are other people's work - The Tipshop's
+     * collection, gathered by somebody else again - so the screen that says
+     * what this program is made of has to say so, with the numbers read out of
+     * the database itself rather than typed in here where they would go stale.
+     */
+    private String cheats() {
+        PokeDatabase database = PokeDatabase.open(this);
+        if (database == null) return getString(R.string.about_cheats_source);
+
+        String source = database.meta("source");
+        String games = database.meta("games");
+        String trainers = database.meta("trainers");
+        database.close();
+
+        if (source == null || games == null || trainers == null) {
+            return getString(R.string.about_cheats_source);
+        }
+
+        return getString(R.string.about_cheats, games, trainers) + "\n" + source;
     }
 
     /** The source, which the licence obliges and curiosity wants. */

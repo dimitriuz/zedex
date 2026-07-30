@@ -252,6 +252,16 @@ final class MenuDrawer extends FrameLayout {
 
     // --- moving between pages -----------------------------------------------
 
+    /**
+     * Opens the sheet straight onto a page, for one that was chosen somewhere
+     * else - a game picked out of a search, say. Back still leads out of it,
+     * since it is entered the same way a row would enter it.
+     */
+    void go(String heading, Page page) {
+        open();
+        enter(heading, page);
+    }
+
     private void enter(String name, Page page) {
         trail.add(page);
         names.add(name);

@@ -6,6 +6,25 @@
     <string name="menu_media">Media\u2026</string>
     <string name="menu_states">States\u2026</string>
     <string name="menu_pokes">Pokes\u2026</string>
+    <!-- %1$s is the game the loaded file was recognised as. -->
+    <string name="poke_for_game">Cheats for %1$s</string>
+    <string name="poke_none_for_game">Nothing usable in the database for this one</string>
+    <string name="poke_search">Search the cheat database\u2026</string>
+    <string name="poke_search_hint">Game name</string>
+    <string name="poke_search_go">Search</string>
+    <!-- %1$d is how many games matched. -->
+    <string name="poke_search_found">%1$d games</string>
+    <!-- %1$s is what was searched for. -->
+    <string name="poke_search_none">Nothing called \u201c%1$s\u201d</string>
+    <!-- %1$s is the game whose cheats are listed. -->
+    <string name="poke_from_search">From the database, for %1$s. Load the game first \u2014 a poke is a byte in memory, and there is nothing to poke until it is there.</string>
+    <string name="poke_tipshop">Look it up at The Tipshop\u2026</string>
+    <string name="poke_no_browser">No browser to open it with</string>
+    <string name="poke_asks">This one asks for a number \u2014 how many lives, usually. 0 to 255.</string>
+    <!-- %1$s is the cheat's name, %2$d how many bytes it wrote. -->
+    <string name="poke_trainer_done">%1$s \u2014 %2$d poke(s)</string>
+    <!-- %3$d is how many needed a RAM bank this app cannot reach. -->
+    <string name="poke_partly">%1$s \u2014 %2$d poke(s), %3$d skipped: they need a RAM bank</string>
     <string name="poke_quick">Poke once\u2026</string>
     <string name="poke_add">Add a poke\u2026</string>
     <string name="poke_stored">Stored</string>
@@ -220,6 +239,9 @@
     <string name="about_version">Version %1$s (%2$d)</string>
     <!-- The commit it was built from and the date of that commit. -->
     <string name="about_built">Built #%1$s on %2$s</string>
+    <!-- %1$s games, %2$s cheats; the source line follows, out of the database. -->
+    <string name="about_cheats">Cheats: %1$s games, %2$s of them.</string>
+    <string name="about_cheats_source">Cheats from The Tipshop (the-tipshop.co.uk, run by Gerard Sweeney), collected as AllTipshopPokes by Lady Eklipse and distributed with ZX Pokemaster. File fingerprints from ZXDB.</string>
     <string name="about_licence">Free software under the GNU General Public License, version 2 or later. Fuse and libspectrum are unmodified and under their own copyright.</string>
     <string name="menu_settings">Settings\u2026</string>
 
