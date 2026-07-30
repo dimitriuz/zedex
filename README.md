@@ -201,8 +201,9 @@ want to be certain.
 quick bar** to the other panel: the bar across the top, the keys below it and
 against the foot of the panel, the lamps in a row underneath. The first screen
 is then nothing but the machine, as though fullscreen were on, with the joystick
-still in the black beside it. ☰ opens on the machine's screen, since that is
-where there is room for it.
+still in the black beside it. ☰ opens on the panel too, over the keys — the
+settings screen and the dialogs it leads to are the app's own windows and stay
+with the machine.
 
 The row says *No second screen on this device* and cannot be switched on when
 there is no panel to move to; unplugging one brings everything back to the first

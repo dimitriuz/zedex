@@ -346,9 +346,16 @@ final class EmulatorLayout extends ViewGroup {
         return lent;
     }
 
-    /** What the second screen borrows, in the order it stacks them. */
+    /**
+     * What the second screen borrows.
+     *
+     * The ☰ sheet goes with the bar that opens it: a button on one screen whose
+     * answer appears on the other is a button that looks broken. It is not part
+     * of the panel's stack - it covers whatever is under it - which the second
+     * screen sorts out for itself.
+     */
     View[] lendable() {
-        return new View[] { menu, lights, keyboard };
+        return new View[] { menu, lights, keyboard, drawer };
     }
 
     /** Puts a child back where it belongs among the ones still here. */

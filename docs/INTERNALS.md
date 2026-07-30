@@ -692,10 +692,14 @@ so the activity can end up on the panel itself, and a presentation over the
 machine's own screen would take away the picture rather than the furniture. Dismissing hands the views back first: a view left parented
 to a window that has gone is a view its layout will never see again.
 
-Two things stay on the machine's screen. ☰ opens there, since a sheet with pages
-and the dialogs behind it want the room; and the Android keyboard skin, being an
-input method, follows the focused window rather than moving — with that skin the
-panel is the bar and the lamps.
+The ☰ sheet is lent as well, and for a plain reason: a button on one screen
+whose answer appears on the other looks broken. It is not part of the panel's
+stack — it slides in over everything, scrim and all — so the presentation puts
+the column and the sheet in a frame together rather than in the column. What
+cannot follow is anything that is a window of its own: the settings screen, the
+file picker and every dialog are the activity's, and appear where the activity
+is. So is the Android keyboard skin, being an input method attached to the
+focused window; with that skin the panel is the bar and the lamps.
 
 ### Three keyboards
 

@@ -10,6 +10,7 @@ import android.view.ViewGroup;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 
 /**
@@ -77,11 +78,13 @@ final class SecondScreen extends Presentation {
         QuickBar bar = null;
         ActivityLights lamps = null;
         SpectrumKeyboardView keys = null;
+        View sheet = null;
 
         for (View view : borrowed) {
             if (view instanceof QuickBar) bar = (QuickBar) view;
-            if (view instanceof ActivityLights) lamps = (ActivityLights) view;
-            if (view instanceof SpectrumKeyboardView) keys = (SpectrumKeyboardView) view;
+            else if (view instanceof ActivityLights) lamps = (ActivityLights) view;
+            else if (view instanceof SpectrumKeyboardView) keys = (SpectrumKeyboardView) view;
+            else sheet = view;                      // the ☰ drawer
         }
 
         // The bar at the top, the keys under it and against them, the lamps at
@@ -111,7 +114,20 @@ final class SecondScreen extends Presentation {
             column.addView(lamps, stacked(false, 0));
         }
 
-        setContentView(column);
+        // The sheet is not part of the stack: it slides in over the whole panel,
+        // scrim and all, which is what it does over the machine's window.
+        if (sheet == null) {
+            setContentView(column);
+        } else {
+            FrameLayout root = new FrameLayout(getContext());
+            root.addView(column, new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT));
+            root.addView(sheet, new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT));
+            setContentView(root);
+        }
 
         // After the content, not before: until there is a decor view there is
         // no insets controller to ask, and asking is a crash. No status bar
@@ -156,6 +172,9 @@ final class SecondScreen extends Presentation {
     /** Undoes everything this window did to the views it borrowed. */
     void release() {
         if (column == null) return;
+
+        ViewGroup root = (ViewGroup) column.getParent();
+        if (root != null) root.removeAllViews();
 
         for (View view : borrowed) {
             if (view instanceof ActivityLights) {
