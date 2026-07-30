@@ -488,6 +488,16 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                      this::showMachineDialog);
         bar.addToRow(R.drawable.ic_reset, getString(R.string.menu_reset),
                      this::confirmReset);
+        // No confirming, unlike reset: the magic button interrupts the machine
+        // rather than throwing its state away, and half of what it is for is
+        // pressing it at a particular moment.
+        bar.addToRow(R.drawable.ic_bolt, getString(R.string.menu_nmi), this::nmi);
+    }
+
+    /** The magic button of the real hardware; what it does is the machine's. */
+    private void nmi() {
+        FuseNative.nmi();
+        note(R.string.nmi_done);
     }
 
     private void fillCaptureBar(QuickBar bar) {
@@ -873,10 +883,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                       () -> pause(!pausedByUser));
         sheet.addItem(getString(R.string.menu_reset), R.drawable.ic_reset,
                       this::confirmReset);
-        sheet.addItem(getString(R.string.menu_nmi), R.drawable.ic_bolt, () -> {
-            FuseNative.nmi();
-            note(R.string.nmi_done);
-        });
+        sheet.addItem(getString(R.string.menu_nmi), R.drawable.ic_bolt, this::nmi);
     }
 
     // --- pause ---------------------------------------------------------------
