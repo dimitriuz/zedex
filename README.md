@@ -98,6 +98,8 @@ emulated, and each of them is one setting away:
 **Odds and ends**
 
 - Renaming a save state, and writing a disk back over the file it came from
+- A file browser of our own — filtered by type, and reading straight out of zip
+  archives. Android's picker cannot filter by extension
 - A debugger, which the core supports and nothing yet exposes
 
 

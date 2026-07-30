@@ -1240,6 +1240,21 @@ app-specific external directory, not an arbitrary tree from the document
 picker. The folder to read *content* from has no such restriction, since that
 goes through the picker: any granted tree works as its starting point.
 
+**Every picker asks for `*/*`, and has to.** It is tempting to narrow *Load
+disk* to disk images, but the document picker filters on MIME type and never on
+extension, and an Android 16 device answers `application/octet-stream` for
+`.trd`, `.scl`, `.dsk`, `.tap`, `.tzx`, `.z80` and `.rom` alike. So no filter can
+tell a TR-DOS image from a +3 one; asking for octet-stream would let every tape
+and snapshot through regardless, and would *hide* files a cloud provider chose to
+label something else. A browser of the app's own is the way to filter by type,
+and is planned rather than written.
+
+Worth knowing before writing it: Fuse does not gate disks by drive either.
+`disk_open()` identifies the image from its content and builds the geometry for
+whatever drive it was handed, so a `.trd` goes into a +3's drive A: happily and
+simply will not boot — the +3's ROM cannot read a TR-DOS filesystem. Filtering
+by drive is guidance, not validation.
+
 ### Data files and environment
 
 Fuse resolves ROMs and its widget font against the compile-time `FUSEDATADIR`,
