@@ -195,7 +195,7 @@ to bring the bar back for a moment.
 | | |
 | --- | --- |
 | **Open file…** | straight to the picker |
-| **Machine…** | which machine, pause, reset, NMI |
+| **Machine…** | which machine, pause, reset, NMI — with the running one named under it |
 | **States…** | save and load |
 | **Media…** | the tape, and every drive the machine has |
 | **Capture…** | screenshots and recording |

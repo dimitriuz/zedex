@@ -484,7 +484,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                      getString(paused ? R.string.pause_resume
                                       : R.string.pause_pause),
                      () -> pause(!pausedByUser));
-        bar.addToRow(R.drawable.ic_swap, getString(R.string.menu_machine),
+        bar.addToRow(R.drawable.ic_swap, withMachine(R.string.menu_machine),
                      this::showMachineDialog);
         bar.addToRow(R.drawable.ic_reset, getString(R.string.menu_reset),
                      this::confirmReset);
@@ -733,7 +733,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                           this::pickFile);
             // The machine second: what is running is asked about more often than
             // anything filed away, and it holds pause.
-            sheet.addSubmenu(getString(R.string.menu_machine_group),
+            sheet.addSubmenu(withMachine(R.string.menu_machine_group),
                              R.drawable.ic_chip, this::fillMachine);
             sheet.addSubmenu(getString(R.string.menu_states), R.drawable.ic_bookmark,
                              this::fillStates);
@@ -863,7 +863,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     }
 
     private void fillMachine(MenuDrawer sheet) {
-        sheet.addItem(getString(R.string.menu_machine), R.drawable.ic_swap,
+        sheet.addItem(withMachine(R.string.menu_machine), R.drawable.ic_swap,
                       this::showMachineDialog);
 
         sheet.addRule();
@@ -2191,6 +2191,27 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         }
 
         return names.length() > 0 ? names.toString() : null;
+    }
+
+    /**
+     * What the machine calls itself, or nothing at all before there is one.
+     *
+     * Asked of Fuse rather than read from the setting, because the two can
+     * disagree: media brings its own machine with it - a .dsk switches to a +3 -
+     * and Fuse falls back to 48K when the ROMs for the one that was asked for are
+     * not there. What is running is the only answer worth showing.
+     */
+    private String machineName() {
+        int current = FuseNative.currentMachine();
+        String[] names = FuseNative.machineNames();
+
+        return current >= 0 && current < names.length ? names[current] : null;
+    }
+
+    /** A menu label with the machine under it, where there is one. */
+    private String withMachine(int label) {
+        String name = machineName();
+        return name == null ? getString(label) : getString(label) + "\n" + name;
     }
 
     private void rememberMachine() {
