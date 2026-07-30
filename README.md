@@ -91,23 +91,6 @@ What the app reaches today:
 
 ## Not yet
 
-**Would unlock the most:** a peripherals screen. All of this is already
-emulated, and each of them is one setting away:
-
-- Multiface One, 128 and 3
-- DivIDE, ZXATASP, ZXCF, SimpleIDE, ZXMMC storage
-- SpecDrum, Fuller Box, Melodik, Covox and Currah µSpeech sound
-- ZX Printer
-
-
-**Playing**
-
-- A second joystick
-- Rewind, and playing back RZX recordings
-
-
-**Odds and ends**
-
 - Renaming a save state, and writing a disk back over the file it came from
 - A file browser of our own — filtered by type, and reading straight out of zip
   archives. Android's picker cannot filter by extension
