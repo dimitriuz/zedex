@@ -5,6 +5,10 @@ import android.graphics.Rect;
 import android.view.View;
 import android.view.ViewGroup;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 /**
  * Arranges the emulated screen and the keyboard.
  *
@@ -236,6 +240,16 @@ final class EmulatorLayout extends ViewGroup {
     private int scalePortrait = FuseNative.SCALE_FIT;
     private int scaleLandscape = FuseNative.SCALE_FIT;
 
+    /**
+     * Set while the keyboard, the lamps and the bar are in another window - a
+     * handheld's second screen. What is left here is the picture and the
+     * joystick, which is the window fullscreen leaves anyway.
+     */
+    private boolean lent;
+
+    /** Every child, back to front: the order {@link #attach} has to keep. */
+    private View[] order = new View[0];
+
     /** Set by {@link #placeJoystick}: it found no black and used the picture. */
     private boolean joystickFloating;
 
@@ -245,13 +259,17 @@ final class EmulatorLayout extends ViewGroup {
     }
 
     /**
-     * The children, in the order they are added; none is ever removed.
+     * The children, in the order they are added.
      *
      * The panel is the ROMs message and takes the whole window rather than the
      * screen's share of it - it is a takeover, not part of the picture. The
      * quick bar is last so it stays reachable over the panel, and sits at the
      * top right of the screen rather than of the window, so it follows the
      * picture when the keyboard is beside it.
+     *
+     * Three of them can leave for a second screen and come back - see
+     * {@link #setLentAway} - which is why the order is kept rather than being
+     * implied by the calls below.
      */
     void setChildren(View screen, SpectrumKeyboardView keyboard,
                      SystemKeyboardView system,
@@ -273,20 +291,87 @@ final class EmulatorLayout extends ViewGroup {
         // Front to back is the order below: the drawer covers everything, the
         // button stays over the panel, the panel covers the screen and the
         // joystick, which sits over the picture when it has to.
-        addView(screen);
-        addView(keyboard);
-        addView(system);
-        addView(pad);
-        addView(fire);
-        for (JoystickView key : keys) addView(key);
-        addView(lights);
-        addView(play);
-        addView(panel);
-        addView(bar);
-        addView(drawer);
+        List<View> all = new ArrayList<>();
+        all.add(screen);
+        all.add(keyboard);
+        all.add(system);
+        all.add(pad);
+        all.add(fire);
+        all.addAll(Arrays.asList(keys));
+        all.add(lights);
+        all.add(play);
+        all.add(panel);
+        all.add(bar);
+        all.add(drawer);
+
+        order = all.toArray(new View[0]);
+        for (View child : order) addView(child);
 
         applyBarMetrics();
         applyJoystickVisibility();
+    }
+
+    /**
+     * Lends the keyboard, the lamps and the bar to another window, or takes them
+     * back.
+     *
+     * The views themselves move rather than the other screen building a second
+     * set: they hold things a copy would not - a latched shift, whichever group
+     * of the bar is open - and every caller that already talks to them goes on
+     * working. The picture cannot move, since detaching the SurfaceView would
+     * destroy the surface Fuse draws into, and the joystick does not: a thumb
+     * belongs on the screen the hands are already holding.
+     *
+     * What is left behind is a window with nothing in it but the picture, which
+     * is what fullscreen makes of it anyway - {@link #arrange} treats a lent
+     * layout as {@link Template#NONE}.
+     */
+    void setLentAway(boolean away) {
+        if (lent == away) return;
+        lent = away;
+
+        for (View child : lendable()) {
+            if (away) detach(child); else attach(child);
+        }
+
+        applyKeyboardVisibility();
+        applyLightsVisibility();
+        // The second screen sizes the bar to its own panel, so coming back means
+        // being sized to this window again.
+        if (!away) applyBarMetrics();
+        requestLayout();
+    }
+
+    boolean lentAway() {
+        return lent;
+    }
+
+    /** What the second screen borrows, in the order it stacks them. */
+    View[] lendable() {
+        return new View[] { menu, lights, keyboard };
+    }
+
+    /** Puts a child back where it belongs among the ones still here. */
+    private void attach(View child) {
+        if (child == null || child.getParent() == this) return;
+
+        int index = 0;
+        for (View other : order) {
+            if (other == child) break;
+            if (other != null && other.getParent() == this) index++;
+        }
+
+        addView(child, index);
+    }
+
+    private void detach(View child) {
+        if (child != null && child.getParent() == this) removeView(child);
+    }
+
+    /** Whether a child is this layout's to measure and place at all. */
+    private boolean here(View child) {
+        return child != null && child.getParent() == this
+                && child.getVisibility() != GONE;
     }
 
     Template template() {
@@ -446,7 +531,9 @@ final class EmulatorLayout extends ViewGroup {
     private void applyLightsVisibility() {
         if (lights == null) return;
 
-        boolean showing = lightsWanted && !fullscreen;
+        // Fullscreen is about giving the picture the strip back, and on a second
+        // screen the lamps are not taking it from anything.
+        boolean showing = lightsWanted && (lent || !fullscreen);
         if ((lights.getVisibility() == VISIBLE) == showing) return;
 
         lights.setVisibility(showing ? VISIBLE : GONE);
@@ -501,6 +588,15 @@ final class EmulatorLayout extends ViewGroup {
      */
     private void applyKeyboardVisibility() {
         if (keyboard == null) return;
+
+        // On a second screen the keyboard has a window of its own, so the rules
+        // about what it costs the picture do not apply; only whether it is
+        // wanted at all, and whether this skin is one we draw.
+        if (lent) {
+            keyboard.setVisibility(keyboardWanted && keyboard.skin().drawn()
+                                   ? VISIBLE : GONE);
+            return;
+        }
 
         boolean landscape = getResources().getConfiguration().orientation
                 == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
@@ -569,6 +665,9 @@ final class EmulatorLayout extends ViewGroup {
         // was with a band of black where the keys had been.
         Template current = landscape ? template : Template.BELOW;
         if (!keyboardWanted || (landscape && fullscreen)) current = Template.NONE;
+
+        // Lent away, there is no keyboard in this window to leave room for.
+        if (lent) current = Template.NONE;
 
         // The system keyboard is Android's own and comes up over the window
         // whenever it is asked to, so there is nothing here to leave room for.
@@ -754,7 +853,7 @@ final class EmulatorLayout extends ViewGroup {
      */
     private void placeLights() {
         lightsBox.setEmpty();
-        if (lights == null || lights.getVisibility() == GONE) return;
+        if (!here(lights)) return;
 
         lights.measure(MeasureSpec.makeMeasureSpec(screenBox.width(), MeasureSpec.AT_MOST),
                        MeasureSpec.makeMeasureSpec(screenBox.height(), MeasureSpec.AT_MOST));
@@ -1094,7 +1193,10 @@ final class EmulatorLayout extends ViewGroup {
      */
     private void measureBar(int width, int height) {
         menuBox.setEmpty();
-        if (menu == null || menu.getVisibility() == GONE) return;
+        if (!here(menu)) {
+            menuBox.setEmpty();
+            return;
+        }
 
         menu.measure(MeasureSpec.makeMeasureSpec(width, MeasureSpec.AT_MOST),
                      MeasureSpec.makeMeasureSpec(height, MeasureSpec.AT_MOST));
@@ -1107,7 +1209,7 @@ final class EmulatorLayout extends ViewGroup {
     }
 
     private void measureChild(View child, Rect box) {
-        if (child == null || child.getVisibility() == GONE) return;
+        if (!here(child)) return;
 
         child.measure(MeasureSpec.makeMeasureSpec(box.width(), MeasureSpec.EXACTLY),
                       MeasureSpec.makeMeasureSpec(box.height(), MeasureSpec.EXACTLY));
@@ -1131,7 +1233,7 @@ final class EmulatorLayout extends ViewGroup {
     }
 
     private void placeChild(View child, Rect box) {
-        if (child == null || child.getVisibility() == GONE) return;
+        if (!here(child)) return;
 
         child.layout(box.left, box.top, box.right, box.bottom);
     }

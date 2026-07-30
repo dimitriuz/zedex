@@ -484,8 +484,27 @@ public class SpectrumKeyboardView extends View {
 
         int drawWidth = Math.round(keyboard.getWidth() * scale);
         int drawHeight = Math.round(keyboard.getHeight() * scale);
-        destination.set((width - drawWidth) / 2, (height - drawHeight) / 2,
-                        (width + drawWidth) / 2, (height + drawHeight) / 2);
+        int top = bottom ? height - drawHeight : (height - drawHeight) / 2;
+
+        destination.set((width - drawWidth) / 2, top,
+                        (width + drawWidth) / 2, top + drawHeight);
+    }
+
+    /**
+     * Where the keys sit in a box taller than they need.
+     *
+     * Centred everywhere the box is cut to fit them anyway, and against the
+     * foot of it on a second screen, where the room left over is the panel's
+     * and keys halfway up it are keys away from the thumbs holding it.
+     */
+    private boolean bottom;
+
+    void setBottomAligned(boolean against) {
+        if (bottom == against) return;
+
+        bottom = against;
+        fit(getWidth(), getHeight());
+        invalidate();
     }
 
     @Override

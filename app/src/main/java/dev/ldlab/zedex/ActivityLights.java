@@ -180,8 +180,25 @@ final class ActivityLights extends View {
         describe();
     }
 
+    /**
+     * Which way the lamps run when the window is not the one to ask: on a second
+     * screen they are a strip of their own rather than something beside a
+     * picture, and that screen has a shape of its own. Null follows the window.
+     */
+    private Boolean forced;
+
+    void setHorizontal(Boolean row) {
+        if (forced == null ? row == null : forced.equals(row)) return;
+
+        forced = row;
+        requestLayout();
+        invalidate();
+    }
+
     /** A row in portrait, a column in landscape; see the class comment. */
     private boolean horizontal() {
+        if (forced != null) return forced;
+
         return getResources().getConfiguration().orientation
                 != Configuration.ORIENTATION_LANDSCAPE;
     }

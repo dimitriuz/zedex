@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
+import android.hardware.display.DisplayManager;
 import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Bundle;
@@ -69,6 +70,11 @@ public class SettingsActivity extends Activity {
     static final String KEY_AY_STEREO = "ayStereo";
     static final String KEY_BEEPER_VOLUME = "volumeBeeper";
     static final String KEY_KEEP_SCREEN_ON = "keepScreenOn";
+    /**
+     * The keyboard, the lamps and the bar on a second display, for a handheld
+     * built with one. Read by EmulatorActivity, which owns that window.
+     */
+    static final String KEY_SECOND_SCREEN = "secondScreen";
     /** Read by EmulatorLayout; the ☰ layout switcher writes here too. */
     static final String KEY_LANDSCAPE_LAYOUT = "landscapeLayout";
     static final String KEY_SNAPSHOT_FORMAT = "snapshotFormat";
@@ -990,6 +996,21 @@ public class SettingsActivity extends Activity {
                 boolean have = Storage.divmmcFirmware(getActivity()).isFile();
                 firmware.setSummary(have ? R.string.settings_firmware_loaded
                                          : R.string.settings_firmware_none);
+            }
+
+            // A switch for hardware that may not be there. Left visible rather
+            // than hidden, so a handheld that has a panel is not a feature
+            // nobody knew about - it says why it cannot be turned on.
+            Preference second = findPreference(KEY_SECOND_SCREEN);
+            if (second != null) {
+                DisplayManager displays =
+                        getActivity().getSystemService(DisplayManager.class);
+                boolean have = displays != null && displays.getDisplays(
+                        DisplayManager.DISPLAY_CATEGORY_PRESENTATION).length > 0;
+
+                second.setEnabled(have);
+                second.setSummary(have ? R.string.settings_second_screen_summary
+                                       : R.string.settings_second_screen_none);
             }
 
             for (String key : new String[] { KEY_MACHINE, KEY_SPEED, KEY_SNAPSHOT_FORMAT,

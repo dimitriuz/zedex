@@ -643,6 +643,60 @@ screen's share, since it is a takeover rather than part of the picture, and the
 at the top right of the *screen*, so it follows the picture when the keyboard is
 beside it. The joystick's two controls are children here too, placed as below.
 
+### A second screen
+
+A dual-screen handheld — the AYN Thor and its like — is the shape this app has
+been folding itself into on one screen: a picture that wants a whole display,
+and controls that want to be under a thumb. `SecondScreen` is a
+`Presentation`, which is Android's own answer for a window on another display,
+so the app stays one activity with one emulation thread and one surface.
+
+**The views are lent, not copied.** `EmulatorLayout.setLentAway()` detaches the
+keyboard, the lamps and the quick bar, and the presentation adopts those same
+three objects. A second set would be easy to build and wrong: they hold state a
+copy would not — a latched shift, whichever group of the bar is open — and every
+caller that already talks to them (the activity's fades, the ☰ toggles, the
+lamps' polling) would then be talking to the wrong one. The `SurfaceView` is the
+one thing that cannot go: detaching it destroys the surface Fuse draws into.
+
+Lending is why the layout keeps its children in an explicit order. Front-to-back
+is what `addView` order means here, so a view coming back has to land where it
+was, which `attach()` works out by counting the ones still present. Everything
+that measures or places a child asks `here()` first — is this mine, and is it
+visible — since a view parented to another window must not be measured by this
+one. `arrange()` treats a lent layout as the keyboardless template, which is
+how the machine's screen ends up looking exactly like fullscreen.
+
+Two rules change while the views are away. The keyboard and the lamps normally
+disappear in fullscreen, because there the point is to give the picture back the
+strip they were taking; on a panel of their own they are taking nothing, so only
+"is this wanted at all" applies. And the bar never fades: fading is for a bar
+sitting over the picture, and this one has a home.
+
+The panel's own layout is deliberately dumb — the bar at the top, the keys, the
+lamps at the foot: what a hand does is near the hand and what it only reads is
+out of the way. The keyboard gets a weighted box rather than its natural height,
+since a panel is usually shorter than the keys are tall at that width and the
+alternative is losing the bottom row off the edge; it scales into whatever box
+it gets, and `setBottomAligned` puts it against the bottom of that box instead
+of the middle, so the room left over collects above the keys rather than around
+them. Draw and hit test share the one rectangle, so aligning it moves both. The
+bar is told the panel's width, because a bar sized for a phone loses its last
+icon off a narrow one, and the keys get the width edge to edge.
+
+The window goes in `onStop` and comes back in `onResume`, and a
+`DisplayManager.DisplayListener` covers a panel appearing or being unplugged
+while the app runs. The display it goes to is the last one attached that is not
+the one the activity is on — Android launches an app where the last touch was,
+so the activity can end up on the panel itself, and a presentation over the
+machine's own screen would take away the picture rather than the furniture. Dismissing hands the views back first: a view left parented
+to a window that has gone is a view its layout will never see again.
+
+Two things stay on the machine's screen. ☰ opens there, since a sheet with pages
+and the dialogs behind it want the room; and the Android keyboard skin, being an
+input method, follows the focused window rather than moving — with that skin the
+panel is the bar and the lamps.
+
 ### Three keyboards
 
 A skin is a picture and a table of key rectangles in that picture's own pixels.

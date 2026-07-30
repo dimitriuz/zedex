@@ -71,6 +71,8 @@ end.
 - **Activity lamps** for the tape, disks, AY, keyboard and joystick — the quick
   bar's *Display…* puts them away, along with the keyboard and the joystick, and
   fullscreen gives the picture their strip back
+- **Two screens**, on a handheld built with them: the controls move to the
+  other panel and the machine gets a whole screen to itself
 - **Hardware keyboards**
 
 ## Hardware
@@ -193,6 +195,18 @@ Then `.ls` at the BASIC prompt lists the card, `.` commands are esxDOS's, and �
 written back for you**, once a second and whenever the app is paused, so a save
 survives the phone being put away; *Write changes now* is there for when you
 want to be certain.
+
+**Two screens.** On a dual-screen handheld — an AYN Thor and its like —
+*Settings › Picture › Second screen* moves the **keyboard, the lamps and the
+quick bar** to the other panel: the bar across the top, the keys below it and
+against the foot of the panel, the lamps in a row underneath. The first screen
+is then nothing but the machine, as though fullscreen were on, with the joystick
+still in the black beside it. ☰ opens on the machine's screen, since that is
+where there is room for it.
+
+The row says *No second screen on this device* and cannot be switched on when
+there is no panel to move to; unplugging one brings everything back to the first
+screen, and so does putting the app away.
 
 **Folders** are yours to choose, in settings:
 
@@ -325,6 +339,7 @@ In full:
 | **Border** | full, slim (a quarter of it) or none — less border is more picture |
 | **Portrait scale**, **Landscape scale** | fit to the screen, or a whole number of device pixels per emulated one |
 | **Activity indicators** | the lamps beside the picture |
+| **Second screen** | the keyboard, the lamps and the bar on a handheld's other panel |
 | **Keep the screen on** | Android's, not the emulator's |
 | **Speed** | 25% to 500% |
 

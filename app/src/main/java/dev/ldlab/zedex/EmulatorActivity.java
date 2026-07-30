@@ -7,6 +7,7 @@ import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.hardware.display.DisplayManager;
 import android.hardware.input.InputManager;
 import android.net.Uri;
 import android.os.Bundle;
@@ -15,6 +16,7 @@ import android.provider.OpenableColumns;
 import android.system.ErrnoException;
 import android.system.Os;
 import android.util.Log;
+import android.view.Display;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
@@ -155,6 +157,13 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
     /** The ☰ button itself, which fades out when it is not being used. */
     private QuickBar quickBar;
+
+    /**
+     * The window on the other panel, while there is one; null the rest of the
+     * time, which is also how everything else asks whether the controls are
+     * here or over there. See {@link #applySecondScreen}.
+     */
+    private SecondScreen secondScreen;
 
     /** The big play button over the picture, shown only while paused. */
     private ImageButton playButton;
@@ -468,6 +477,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         if (input != null) input.registerInputDeviceListener(devices, null);
         applyGamepad();
 
+        // The same for a second panel, and for the setting that wants one.
+        DisplayManager displays = getSystemService(DisplayManager.class);
+        if (displays != null) displays.registerDisplayListener(screens, null);
+        applySecondScreen();
+
         pausedByAndroid = false;
         applyPause();
 
@@ -753,6 +767,10 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     private boolean barWanted;
 
     private final Runnable fadeQuickBar = () -> {
+        // On a second screen the bar has a panel of its own and is never over
+        // the picture, so there is nothing to fade out of the way of.
+        if (secondScreen != null) return;
+
         barWanted = false;
         // A group left open would be waiting there on the way back, which is
         // not where the bar was left off.
@@ -782,8 +800,118 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         quickBar.setAlpha(1f);
         quickBar.setVisibility(View.VISIBLE);
 
-        if (fullscreen()) quickBar.postDelayed(fadeQuickBar, BAR_LINGER_MS);
+        if (fullscreen() && secondScreen == null) {
+            quickBar.postDelayed(fadeQuickBar, BAR_LINGER_MS);
+        }
     }
+
+    // --- a second screen ----------------------------------------------------
+
+    /**
+     * Puts the keyboard, the lamps and the bar on a second screen, or brings
+     * them back.
+     *
+     * Called from every place the answer can change - the setting, coming back
+     * to the front, a panel being plugged in or unplugged - and works out the
+     * whole answer each time rather than tracking what changed, since there are
+     * only two states and the cost is a comparison.
+     */
+    private void applySecondScreen() {
+        Display display = preferences.getBoolean(
+                SettingsActivity.KEY_SECOND_SCREEN, false) ? secondDisplay() : null;
+
+        if (secondScreen != null) {
+            Display showing = secondScreen.getDisplay();
+
+            if (display != null && showing != null
+                    && showing.getDisplayId() == display.getDisplayId()) {
+                return;
+            }
+            closeSecondScreen();
+        }
+
+        if (display == null) return;
+
+        // Lending first: the views have to be parentless before another window
+        // can adopt them.
+        layout.setLentAway(true);
+        secondScreen = new SecondScreen(this, display, layout.lendable());
+
+        try {
+            secondScreen.show();
+        } catch (WindowManager.InvalidDisplayException e) {
+            // The panel went away between being listed and being shown.
+            Log.w(TAG, "second screen vanished", e);
+            closeSecondScreen();
+            return;
+        }
+
+        revealQuickBar();
+        applyFullscreen();
+    }
+
+    private void closeSecondScreen() {
+        if (secondScreen == null) return;
+
+        SecondScreen going = secondScreen;
+        secondScreen = null;
+
+        going.dismiss();
+        layout.setLentAway(false);
+
+        applyFullscreen();
+        revealQuickBar();
+    }
+
+    /**
+     * A display worth putting controls on: Android's own definition, which is
+     * the displays that are not the one the activity is on and are meant to be
+     * presented to. The last is taken, since that is the one most recently
+     * attached.
+     */
+    private Display secondDisplay() {
+        DisplayManager displays = getSystemService(DisplayManager.class);
+        if (displays == null) return null;
+
+        Display[] found = displays.getDisplays(
+                DisplayManager.DISPLAY_CATEGORY_PRESENTATION);
+        Display here = getDisplay();
+
+        // The last one attached, but never the one we are on ourselves: Android
+        // can put the activity on the panel - it launches an app where the last
+        // touch was - and a window over the machine's own screen would take the
+        // picture away rather than the furniture.
+        for (int i = found.length - 1; i >= 0; i--) {
+            if (here == null || found[i].getDisplayId() != here.getDisplayId()) {
+                return found[i];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * A panel appearing or going away. Like the controller listener, all three
+     * do the same thing: look again.
+     */
+    private final DisplayManager.DisplayListener screens =
+            new DisplayManager.DisplayListener() {
+
+        @Override
+        public void onDisplayAdded(int displayId) {
+            applySecondScreen();
+        }
+
+        @Override
+        public void onDisplayRemoved(int displayId) {
+            applySecondScreen();
+        }
+
+        @Override
+        public void onDisplayChanged(int displayId) {
+            applySecondScreen();
+        }
+    };
 
     /** What holding fast forward runs at, in per cent of a real Spectrum. */
     private static final int FAST_FORWARD = 500;
@@ -3335,12 +3463,26 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         InputManager input = getSystemService(InputManager.class);
         if (input != null) input.unregisterInputDeviceListener(devices);
 
+        DisplayManager displays = getSystemService(DisplayManager.class);
+        if (displays != null) displays.unregisterDisplayListener(screens);
+
         // A held direction has nobody to let go of it once we are not being sent
         // events any more.
         gamepad.releaseAll();
 
         pausedByAndroid = true;
         applyPause();
+    }
+
+    /**
+     * The second screen goes when the app does. It is a window this activity
+     * owns, so leaving it up would leak it, and there is nothing to control
+     * while the machine is paused anyway; {@link #onResume} puts it back.
+     */
+    @Override
+    protected void onStop() {
+        super.onStop();
+        closeSecondScreen();
     }
 
     /**

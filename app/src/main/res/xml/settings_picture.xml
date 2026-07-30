@@ -121,6 +121,11 @@
             android:entryValues="@array/layout_values"
             android:defaultValue="below" />
         <SwitchPreference
+            android:key="secondScreen"
+            android:title="@string/settings_second_screen"
+            android:summary="@string/settings_second_screen_summary"
+            android:defaultValue="false" />
+        <SwitchPreference
             android:key="keepScreenOn"
             android:title="@string/settings_keep_screen_on"
             android:defaultValue="true" />

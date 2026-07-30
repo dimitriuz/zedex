@@ -363,6 +363,9 @@
     <string name="settings_landscape_layout_summary">How the screen and the keyboard share a sideways window</string>
     <string name="settings_bw_tv">Black and white TV</string>
     <string name="settings_bw_tv_summary">Render as a monochrome set would</string>
+    <string name="settings_second_screen">Second screen</string>
+    <string name="settings_second_screen_summary">Put the keyboard, the lamps and the quick bar on the other panel, and give the machine this whole screen</string>
+    <string name="settings_second_screen_none">No second screen on this device</string>
     <string name="settings_keep_screen_on">Keep the screen on</string>
 
     <string name="settings_emulation">Emulation</string>
