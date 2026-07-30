@@ -118,11 +118,13 @@ final class SecondScreen extends Presentation {
 
         View joystick = joystick(stick, margin);
         if (joystick != null) {
-            // The whole width, not the width of what is in it: the pad goes at
-            // one end and fire at the other, which needs both ends.
+            // The whole width, because the pad goes at one end and fire at the
+            // other; and all the height left over, because its contents centre
+            // themselves in it - which is what puts the joystick in the middle
+            // of the space between the bar and the keys rather than under the
+            // bar with the emptiness below it.
             LinearLayout.LayoutParams across = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT);
+                    ViewGroup.LayoutParams.MATCH_PARENT, 0, 1);
             across.bottomMargin = margin;
             column.addView(joystick, across);
         }
@@ -133,7 +135,16 @@ final class SecondScreen extends Presentation {
             // for that height loses the bottom row off the edge. It scales into
             // whatever box it gets, and sits at the bottom of it.
             keys.setBottomAligned(true);
-            column.addView(keys, stacked(true, margin));
+
+            // As tall as the keys need and no taller: the room left over goes
+            // to the joystick above them. The view caps itself at the height it
+            // is offered, so a panel too short for the whole keyboard still
+            // gets all of it, smaller.
+            LinearLayout.LayoutParams row = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT);
+            row.bottomMargin = margin;
+            column.addView(keys, row);
         }
 
         if (lamps != null) {

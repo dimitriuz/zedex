@@ -447,9 +447,16 @@ public class SpectrumKeyboardView extends View {
         // when left to choose does the natural aspect apply, and then a
         // landscape window would otherwise hand the keyboard four fifths of
         // the height.
-        int height = MeasureSpec.getMode(heightMeasureSpec) == MeasureSpec.EXACTLY
-                ? MeasureSpec.getSize(heightMeasureSpec)
-                : Math.round(width / aspect());
+        int mode = MeasureSpec.getMode(heightMeasureSpec);
+        int given = MeasureSpec.getSize(heightMeasureSpec);
+        int natural = Math.round(width / aspect());
+
+        // A limit is still a limit: asked to wrap inside a box shorter than the
+        // natural shape - a second screen's panel, say - the keys have to fit
+        // in it rather than run off the bottom of it.
+        int height = mode == MeasureSpec.EXACTLY ? given
+                   : mode == MeasureSpec.AT_MOST ? Math.min(natural, given)
+                   : natural;
 
         setMeasuredDimension(width, height);
     }
