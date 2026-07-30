@@ -15,18 +15,18 @@ import android.view.MotionEvent;
  * the gamepad knowing what a Q is.
  *
  * <b>A is fire</b>, and B, X and Y are the three key buttons beside it, in that
- * order. The stick, the hat and the D-pad all steer.
+ * order. The stick, the hat and the D-pad all steer. <b>Start</b> is Enter, which
+ * is what a game asks for whatever its own keys are.
  *
- * The shoulders and the middle two are the app rather than the machine, because
- * a controller is usually the only thing in reach: <b>Start</b> is Enter, which
- * is what a game asks for whatever its own keys are; <b>Select</b> puts the
- * on-screen keyboard away and brings it back; <b>L1</b> loads a state, <b>R1</b>
- * saves one, and <b>R2</b> held runs the machine fast. Those are not part of a
- * profile - they are the app's own, and rebinding them would only hide them.
+ * Everything the app wants for itself is behind a <b>hotkey</b> instead — see
+ * {@link Hotkeys}. A pad has no spare buttons, so rather than take four of them
+ * away from the game, one button is a modifier and the rest mean one thing while
+ * it is down and another while it is not.
  *
- * R2 is read twice over. A trigger is a button on some pads and an axis on
- * others, and on a few it is both, so the axis is watched as well and whichever
- * arrives first wins - {@code fastForward()} is told a change and not a press.
+ * The triggers are read twice over. A trigger is a button on some pads and an
+ * axis on others, and on a few it is both, so the axes are watched as well and
+ * turned back into the buttons they would have been; only a change is passed on,
+ * since motion events arrive in a stream.
  *
  * The two ways a direction can arrive are tracked apart and combined, because
  * many pads report the hat as both an axis and a D-pad key: a release down one
@@ -37,18 +37,45 @@ final class Gamepad {
 
     /** What a controller can ask of the app rather than of the machine. */
     interface Actions {
-        void toggleKeyboard();
-        void loadState();
-        void saveState();
-
-        /** Held down rather than tapped: on going down, off coming up. */
-        void fastForward(boolean on);
+        /**
+         * Runs one. {@code pressed} is only ever false for the held kind - the
+         * others are told once, when the buttons go down.
+         */
+        void run(Hotkeys.Action action, boolean pressed);
     }
 
     private final Actions actions;
 
+    /** The hotkey and what it carries. Replaced when the settings change. */
+    private Hotkeys.Bindings keys = new Hotkeys.Bindings(0);
+
+    /** Whether the hotkey is down now. */
+    private boolean hotkeyDown;
+
+    /** The held action currently running, so it can be ended once. */
+    private Hotkeys.Action holding;
+
     Gamepad(Actions actions) {
         this.actions = actions;
+    }
+
+    void setHotkeys(Hotkeys.Bindings bindings) {
+        // Whatever was held was held under the old arrangement.
+        endHold();
+        hotkeyDown = false;
+        keys = bindings;
+    }
+
+    /** Whether a bound button would fire: the hotkey is down, or there is none. */
+    private boolean armed() {
+        return keys.modifier == 0 || hotkeyDown;
+    }
+
+    private void endHold() {
+        if (holding == null) return;
+
+        actions.run(holding, false);
+        holding = null;
     }
 
     /** Past this, from the middle, a stick is pushed. */
@@ -104,6 +131,8 @@ final class Gamepad {
 
         boolean pressed = event.getAction() == KeyEvent.ACTION_DOWN;
 
+        if (hotkey(event.getKeyCode(), pressed)) return true;
+
         switch (event.getKeyCode()) {
             case KeyEvent.KEYCODE_DPAD_LEFT:  return way(0, pressed);
             case KeyEvent.KEYCODE_DPAD_RIGHT: return way(1, pressed);
@@ -128,28 +157,11 @@ final class Gamepad {
                 return true;
 
             // Enter as itself, not as whatever Button 1 happens to hold: a game
-            // that says PRESS ENTER wants Enter.
+            // that says PRESS ENTER wants Enter. On its own, that is - with the
+            // hotkey down it is whatever the hotkey list says, which by default
+            // is the way out of the app.
             case KeyEvent.KEYCODE_BUTTON_START:
                 FuseNative.key(KeyEvent.KEYCODE_ENTER, pressed);
-                return true;
-
-            // The app's own three, on the press only - a release has nothing to
-            // undo, and doing them twice per push would open and close a dialog.
-            case KeyEvent.KEYCODE_BUTTON_SELECT:
-                if (pressed) actions.toggleKeyboard();
-                return true;
-
-            case KeyEvent.KEYCODE_BUTTON_L1:
-                if (pressed) actions.loadState();
-                return true;
-
-            case KeyEvent.KEYCODE_BUTTON_R1:
-                if (pressed) actions.saveState();
-                return true;
-
-            // The one that is held rather than tapped, so both ends matter.
-            case KeyEvent.KEYCODE_BUTTON_R2:
-                actions.fastForward(pressed);
                 return true;
 
             default:
@@ -157,10 +169,72 @@ final class Gamepad {
         }
     }
 
+    /**
+     * The hotkey and anything bound behind it. Returns whether the button was
+     * spoken for, in which case the machine never hears it.
+     *
+     * Taken by button rather than by event so a trigger can come through here
+     * too: on some pads L2 and R2 are buttons and on others they are axes, and a
+     * hotkey has no business knowing which sort it was given.
+     */
+    private boolean hotkey(int keycode, boolean pressed) {
+        // The hotkey first, since it decides what everything else means, and it
+        // is swallowed either way: a modifier that also did something of its own
+        // would do it every time anyone reached past it.
+        if (keys.modifier != 0 && keycode == keys.modifier) {
+            hotkeyDown = pressed;
+            if (!pressed) endHold();
+            return true;
+        }
+
+        Hotkeys.Action bound = keys.forButton(keycode);
+        if (bound == null) return false;
+
+        // Held actions have two ends and the hotkey may be let go first, so what
+        // matters is whether both are down now - and only a change is sent on.
+        if (bound.held) {
+            boolean on = pressed && armed();
+
+            if (on && holding != bound) {
+                holding = bound;
+                actions.run(bound, true);
+            } else if (!on && holding == bound) {
+                endHold();
+            }
+
+            // Let go of it unarmed and it is an ordinary button again.
+            return armed();
+        }
+
+        if (!armed()) return false;
+
+        // On the press only: a release has nothing to undo, and doing it twice
+        // per push would open a dialog and close it again.
+        if (pressed) actions.run(bound, true);
+        return true;
+    }
+
     private boolean way(int index, boolean pressed) {
         fromKeys[index] = pressed;
         steer();
         return true;
+    }
+
+    /**
+     * Whether each trigger was past the line last time it was looked at: L2 then
+     * R2. Motion events arrive in a stream, so without this a hotkey on a trigger
+     * would fire again with every one of them.
+     */
+    private final boolean[] triggerDown = new boolean[2];
+
+    private void trigger(int keycode, float value) {
+        int index = keycode == KeyEvent.KEYCODE_BUTTON_L2 ? 0 : 1;
+        boolean down = value >= DEAD_ZONE;
+
+        if (down == triggerDown[index]) return;
+
+        triggerDown[index] = down;
+        hotkey(keycode, down);
     }
 
     /** The stick and the hat, which arrive as axes rather than as keys. */
@@ -177,10 +251,15 @@ final class Gamepad {
         fromAxes[2] = y <= -DEAD_ZONE;
         fromAxes[3] = y >= DEAD_ZONE;
 
-        // The right trigger, where it is an axis rather than a button.
-        float trigger = Math.max(event.getAxisValue(MotionEvent.AXIS_RTRIGGER),
-                                 event.getAxisValue(MotionEvent.AXIS_GAS));
-        actions.fastForward(trigger >= DEAD_ZONE);
+        // The triggers, where they are axes rather than buttons, as the same
+        // buttons they would have been. Whichever way round a pad reports them,
+        // whatever is bound to L2 or R2 works.
+        trigger(KeyEvent.KEYCODE_BUTTON_L2,
+                Math.max(event.getAxisValue(MotionEvent.AXIS_LTRIGGER),
+                         event.getAxisValue(MotionEvent.AXIS_BRAKE)));
+        trigger(KeyEvent.KEYCODE_BUTTON_R2,
+                Math.max(event.getAxisValue(MotionEvent.AXIS_RTRIGGER),
+                         event.getAxisValue(MotionEvent.AXIS_GAS)));
 
         steer();
         return true;
@@ -228,7 +307,9 @@ final class Gamepad {
      * nothing is going to let go of.
      */
     void releaseAll() {
-        actions.fastForward(false);
+        endHold();
+        hotkeyDown = false;
+        triggerDown[0] = triggerDown[1] = false;
 
         for (int i = 0; i < fromKeys.length; i++) {
             fromKeys[i] = false;

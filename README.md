@@ -54,7 +54,8 @@ end.
 - **Five landscape layouts**
 - **On-screen Spectrum keyboard**, as the rubber **48K** or the **128K** plate —
   or **your phone's own keyboard** instead
-- **On-screen joystick**, and **physical controllers**, which just work
+- **On-screen joystick**, and **physical controllers**, which just work — with
+  RetroArch-style **hotkeys** for two dozen of the app's own actions
 - **A quick actions bar**, always on screen, with a **fullscreen** button that
   clears it and the keyboard away
 - **Pause** — automatic when the app is not in front, and nothing is drawn
@@ -152,10 +153,17 @@ control and then the key.
 
 **A physical controller** needs no setting up: plug one in and it drives the same
 five controls, through the same profile. The stick, the hat and the D-pad steer,
-**A** is fire, and **B**, **X** and **Y** are the three key buttons. The rest are
-the app: **Start** is Enter, **Select** puts the keyboard away and brings it back,
-**L1** loads a state, **R1** saves one, and **R2** held runs the machine fast. The on-screen pad steps aside while a
-controller is connected, which *Hide for a controller* turns off.
+**A** is fire, **B**, **X** and **Y** are the three key buttons, and **Start** is
+Enter. The on-screen pad steps aside while a controller is connected, which
+*Hide for a controller* turns off.
+
+**Hotkeys** work like RetroArch's: one button is the hotkey — **Select** unless
+you change it — and everything else is that button *and* another, so nothing is
+taken away from the game. Out of the box **Select+Start** quits, **+R1** saves a
+state, **+L1** loads one, **+R2** held runs fast and **+Y** hides the keyboard.
+Two dozen actions to choose from in ☰ *Controls… › Controller hotkeys…*: tap a
+row, press the button. The hotkey can be set to *None*, and then bindings fire on
+their own.
 
 
 **Folders** are yours to choose, in settings:

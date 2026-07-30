@@ -762,14 +762,63 @@ type is Keyboard, which makes a game that wants QAOP playable on a gamepad
 without the gamepad knowing what a Q is. That is the whole benefit of having
 routed the on-screen controls through one place first.
 
-A is fire; B, X and Y are the three key buttons. The shoulders and the middle two
-are the app rather than the machine, because a controller is usually the only
-thing in reach: **Start** is Enter — as itself, not as whatever Button 1 holds,
-because a game that says PRESS ENTER wants Enter — **Select** puts the on-screen
-keyboard away and brings it back, **L1** loads a state and **R1** saves one.
-Those are the app's own and are not part of a profile; rebinding them would only
-hide them. They act on the press alone, since a release has nothing to undo and
-doing them twice a push would open and close a dialog.
+A is fire; B, X and Y are the three key buttons; **Start** is Enter — as itself,
+not as whatever Button 1 holds, because a game that says PRESS ENTER wants Enter.
+
+### Hotkeys, and why they need a modifier
+
+Everything the app wants of a controller for *itself* is behind one button. The
+five app actions used to be hard-wired to Select, Start, L1, R1 and R2, which
+worked and could not be changed, and could not grow either: **a pad has no spare
+buttons.** Four faces are fire and the key profile, the stick and hat steer, and
+anything the app takes is taken from the game.
+
+So `Hotkeys` does what RetroArch does. One button is the **hotkey** — Select
+unless it is changed — and every action is that button *and* another. A button
+means one thing while the hotkey is down and another while it is not, nothing is
+taken from the game, and there is never a question which was meant. The hotkey may
+also be set to **none**, and then the bindings fire on their own, for a pad with
+buttons to spare.
+
+The rules `Gamepad.hotkey()` follows, all of which are the tricky part rather than
+the obvious part:
+
+- **The hotkey is swallowed whether or not anything follows it.** A modifier that
+  also did something of its own would do it every time anyone reached past it.
+- **The hotkey has to be down first**, as on a keyboard. Whether it is down is
+  asked at the moment the other button goes down, not afterwards.
+- **A held action ends on whichever comes up first.** Fast forward is the only one,
+  and letting go of the hotkey is the ordinary way out of a chord — miss that and
+  the machine is left running at 500%. `holding` remembers what is running so it
+  is ended exactly once, however the two buttons are released.
+- **Unarmed, a bound button is an ordinary button again**, so R1 without the
+  hotkey still reaches the machine if the machine has a use for it.
+- **A trigger is a button on some pads and an axis on others**, so the axes are
+  turned back into `BUTTON_L2`/`BUTTON_R2` and pushed through the same path — and
+  only on a change, since motion events arrive in a stream and a one-shot action
+  would otherwise fire with every one of them.
+
+**Bindings are captured, not chosen.** `GamepadActivity` lists the *actions* —
+they are a fixed two dozen, while pads are not — and each row waits for a press.
+Pads disagree about what their own buttons are called, and some report Select as
+`KEYCODE_BACK`, so the only reliable question is "what did it just send?". The
+capture reads `dispatchKeyEvent` rather than `onKeyDown` because a dialog is up
+and Start and B are both ways of dismissing one. `onKeyDown` in the emulator gives
+the pad the event before Back is looked at, so a pad that sends Back for Select
+works as a hotkey if that is what it is bound to.
+
+Every action is something a menu already does, called the same way the menu calls
+it. That is the test for being on the list: a hotkey is a shortcut to something
+that exists, so nothing here is reachable only from a controller and there is no
+second implementation to keep in step. Reset is the one that does *not* ask first
+— a dialog is the one thing a pad in a stand across the room cannot dismiss, and a
+chord behind a modifier is deliberate enough.
+
+The chord arithmetic is the one part of this port with a test of its own that is
+not a UI Automator test: `HotkeyTest` feeds synthetic gamepad `KeyEvent`s straight
+into `Gamepad`, because no build machine's emulator has a controller plugged into
+it. It binds L1 and R2 and nothing else, since a bound face button or Start falls
+through to Fuse, which is not running in a test that never launched the activity.
 
 Three details that are easy to get wrong:
 

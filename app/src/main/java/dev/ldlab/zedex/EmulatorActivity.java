@@ -117,28 +117,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     private boolean imeSeen;
 
     /** A physical controller, when there is one; harmless when there is not. */
-    private final Gamepad gamepad = new Gamepad(new Gamepad.Actions() {
-
-        @Override
-        public void toggleKeyboard() {
-            showKeyboard(!layout.keyboardVisible());
-        }
-
-        @Override
-        public void loadState() {
-            showStateDialog(false);
-        }
-
-        @Override
-        public void saveState() {
-            showStateDialog(true);
-        }
-
-        @Override
-        public void fastForward(boolean on) {
-            EmulatorActivity.this.fastForward(on);
-        }
-    });
+    private final Gamepad gamepad = new Gamepad(this::runHotkey);
     private boolean started;
 
     /** Holds the screen and the keyboard, and decides how they share the window. */
@@ -790,6 +769,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                          this::fillJoystick);
         sheet.addSubmenu(getString(R.string.menu_keyboard), R.drawable.ic_keyboard,
                          this::fillKeyboard);
+        // Not under Joystick…, which is about what the pad sends the *machine*.
+        // These are what a controller asks of the app, and they work whether the
+        // pad is a joystick or a set of keys.
+        sheet.addItem(getString(R.string.menu_gamepad), R.drawable.ic_controls,
+                      () -> GamepadActivity.open(this));
     }
 
     private void fillKeyboard(MenuDrawer sheet) {
@@ -999,6 +983,130 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      */
     private void applyGamepad() {
         layout.setJoystickSuppressed(autoHide() && Gamepad.connected());
+        gamepad.setHotkeys(Hotkeys.load(preferences));
+    }
+
+    /**
+     * One of the controller's hotkeys, on the UI thread.
+     *
+     * Every one of them is a thing a menu already does, called the same way the
+     * menu calls it - which is the point of the list being closed rather than
+     * open: a hotkey is a shortcut to something that exists, so there is nothing
+     * here that can only be reached from a controller and nothing to keep in step
+     * with a second implementation.
+     *
+     * {@code pressed} is false only for the held kind, and only
+     * {@link Hotkeys.Action#FAST_FORWARD} is that.
+     */
+    private void runHotkey(Hotkeys.Action action, boolean pressed) {
+        switch (action) {
+            case FAST_FORWARD: fastForward(pressed); return;
+            default: break;
+        }
+
+        if (!pressed) return;
+
+        switch (action) {
+            case PAUSE: pause(!isPaused()); break;
+            // No confirming: a hotkey behind a modifier is deliberate enough,
+            // and a dialog is the one thing a pad in a stand cannot dismiss.
+            case RESET: FuseNative.reset(); note(R.string.hotkey_reset_done); break;
+            case NMI: FuseNative.nmi(); break;
+            case QUIT: quit(); break;
+
+            case QUICK_SAVE: save(QUICK_STATE); break;
+            case QUICK_LOAD: quickLoad(); break;
+            case SAVE_STATE: showStateDialog(true); break;
+            case LOAD_STATE: showStateDialog(false); break;
+
+            case SPEED_UP: stepSpeed(1); break;
+            case SPEED_DOWN: stepSpeed(-1); break;
+
+            case FULLSCREEN: showFullscreen(!fullscreen()); break;
+            case SCREENSHOT: takeScreenshot(); break;
+            case RECORD:
+                if (Recorder.isRecording()) Recorder.stop();
+                else startRecording(Recorder.Format.GIF);
+                break;
+
+            case KEYBOARD: showKeyboard(!layout.keyboardVisible()); break;
+            case JOYSTICK: showJoystick(!layout.joystickVisible()); break;
+            case INDICATORS: showLights(!layout.lightsVisible()); break;
+            case NEXT_PROFILE: nextKeyProfile(); break;
+            case NEXT_JOYSTICK: nextJoystickType(); break;
+
+            case MENU: menu.open(); break;
+            case QUICK_BAR: revealQuickBar(); break;
+            case SETTINGS: startActivity(new Intent(this, SettingsActivity.class)); break;
+
+            default: break;
+        }
+    }
+
+    /** The one state a hotkey writes, and writes over. */
+    private static final String QUICK_STATE = "Quick";
+
+    private void quickLoad() {
+        for (SavedState state : savedStates()) {
+            if (state.name.equals(QUICK_STATE)) {
+                load(state);
+                return;
+            }
+        }
+
+        note(R.string.hotkey_no_quick_save);
+    }
+
+    /**
+     * The next speed up or down the settings' own list, so a hotkey and the
+     * setting cannot disagree about what the speeds are.
+     */
+    private void stepSpeed(int direction) {
+        String[] values = getResources().getStringArray(R.array.speed_values);
+        String current = preferences.getString(SettingsActivity.KEY_SPEED, "100");
+
+        int at = 0;
+        for (int i = 0; i < values.length; i++) {
+            if (values[i].equals(current)) at = i;
+        }
+
+        int next = Math.max(0, Math.min(values.length - 1, at + direction));
+        if (next == at) return;
+
+        preferences.edit().putString(SettingsActivity.KEY_SPEED, values[next]).apply();
+        FuseNative.setSpeed(Integer.parseInt(values[next]));
+        note(R.string.hotkey_speed, values[next]);
+    }
+
+    private void nextKeyProfile() {
+        List<ControlProfiles.Profile> all = ControlProfiles.all(preferences);
+        int next = (ControlProfiles.currentIndex(preferences) + 1) % all.size();
+
+        ControlProfiles.store(preferences, all, next);
+        applyControls();
+        note(R.string.profile_set, all.get(next).name);
+    }
+
+    /**
+     * Round Fuse's list of interfaces and then Keyboard, in the order the
+     * chooser offers them - so the stored value has to be turned into that
+     * position and back, since Keyboard is a number of our own rather than the
+     * one after Fuse's last.
+     */
+    private void nextJoystickType() {
+        String[] fuseTypes = FuseNative.joystickTypeNames();
+        if (fuseTypes.length == 0) return;
+
+        int type = joystickType();
+        int at = type == Controls.JOYSTICK_KEYBOARD ? fuseTypes.length : type;
+        int next = (at + 1) % (fuseTypes.length + 1);
+        int chosen = next == fuseTypes.length ? Controls.JOYSTICK_KEYBOARD : next;
+
+        preferences.edit().putInt(SettingsActivity.KEY_JOYSTICK_TYPE, chosen).apply();
+        setJoystickType(chosen);
+
+        note(R.string.joystick_type_set, next == fuseTypes.length
+                ? getString(R.string.joystick_keyboard) : fuseTypes[next]);
     }
 
     /**
