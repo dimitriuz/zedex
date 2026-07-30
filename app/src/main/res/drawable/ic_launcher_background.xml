@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The launcher icon's body, and the reason it is here rather than a flat
+    colour: an adaptive icon's background layer is what the launcher's mask
+    cuts its circle out of, so whatever fills this is the shape people see.
+    It used to be near-black while the artwork's plate sat in the *foreground*
+    at half the canvas width, which drew the plate as a small square inside a
+    black circle - the black ring around the icon that nothing else on the home
+    screen had.
+
+    So the plate's own vertical gradient, read off the artwork and stretched
+    edge to edge, lives here, and the foreground carries only the wordmark.
+    Three stops rather than a picture: it is sharp at every density and costs
+    no files.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+       android:shape="rectangle">
+    <gradient
+        android:type="linear"
+        android:angle="270"
+        android:startColor="#5F5F63"
+        android:centerColor="#2D2D35"
+        android:endColor="#0E0E11" />
+</shape>

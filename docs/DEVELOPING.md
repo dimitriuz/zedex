@@ -39,6 +39,22 @@ copy the launcher showed the new icon while the splash showed the old one. Resca
 the missing densities from the 432 px master (108 dp: 108, 162, 216, 324, 432) and
 check both.
 
+**And the pack's own layer split is wrong for a launcher.** It draws the whole
+device - the plate, its gradient, the `48K`/`Z80` labels and the coloured
+dashes - into `ic_launcher_foreground` at about half the canvas width, and
+leaves the background a flat near-black. But the background is what the
+launcher's mask cuts its circle out of, so that composition shows a small dark
+square inside a black circle: a ring around the icon that nothing else on the
+home screen has. The same applies to `ic_launcher_monochrome`, which shipped as
+an outlined box with tiny lettering inside it.
+
+So the layers here are *rebuilt* from the pack's artwork rather than copied:
+`drawable/ic_launcher_background.xml` is the plate's own vertical gradient, read
+off the art and stretched edge to edge, and the foreground carries only the
+wordmark and the dashes at about 60% of what the mask shows. The corner labels
+are dropped - they are unreadable at 48 dp and fall outside a circular mask
+anyway. If a new pack is ever copied in wholesale, the ring comes back.
+
 Two files in the pack are deliberately not taken. `values/themes-splash.xml`
 inherits from `Theme.SplashScreen`, which is `androidx.core:core-splashscreen` -
 `values-v31/styles.xml` already says the same thing in framework attributes, for
