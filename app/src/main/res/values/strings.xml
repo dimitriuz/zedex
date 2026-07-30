@@ -9,6 +9,10 @@
     <string name="menu_machine_group">Machine\u2026</string>
     <string name="menu_app">Zedex\u2026</string>
     <string name="menu_back">Back</string>
+    <string name="menu_quit">Quit</string>
+    <string name="quit_unsaved_title">Unsaved disk changes</string>
+    <!-- %1$s is one or more drive names: "Beta disk A:", "+3 disk A:, B:". -->
+    <string name="quit_unsaved">%1$s has changes that have not been written back, and quitting loses them.\n\nWrite the disk from Media… first, or quit anyway.</string>
     <string name="menu_disks_section">Drives</string>
     <string name="keyboard_skin">Skin: %1$s</string>
     <string name="keyboard_skin_title">Keyboard</string>

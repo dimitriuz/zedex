@@ -771,6 +771,10 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             sheet.addItem(getString(R.string.menu_about, version()),
                           R.drawable.ic_info,
                           () -> startActivity(new Intent(this, AboutActivity.class)));
+
+            sheet.addRule();
+            sheet.addItem(getString(R.string.menu_quit), R.drawable.ic_quit,
+                          this::quit);
         });
 
         return menu;
@@ -2006,6 +2010,81 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     }
 
     /** Persists whichever machine is really running, for the next launch. */
+    /**
+     * How long to let the recorder finish its file before going anyway.
+     *
+     * {@link Recorder#stop} does not block - it cannot, being called from the UI
+     * thread - so the encoder is still writing when it returns, and a process
+     * that exits underneath it leaves a truncated film. A second is far more
+     * than the queue takes to drain, and quitting is not the moment to be exact.
+     */
+    private static final long RECORDER_GRACE_MS = 1000;
+
+    /**
+     * Closes the app rather than leaving it in the background.
+     *
+     * Back and Home only put a Spectrum away - the emulator pauses itself and
+     * waits, which is what an emulator should do. This is for meaning it, and it
+     * ends the *process*, not just the activity: the emulation thread is a plain
+     * pthread inside Fuse's main loop, Fuse's globals cannot be initialised
+     * twice, and the next launch has to be able to start it again. See
+     * {@code Java_dev_ldlab_zedex_FuseNative_start}.
+     *
+     * Two things are worth a moment on the way out - a recording being written,
+     * and a disk with changes nothing has written back - because both are work
+     * the machine cannot get back for you.
+     */
+    private void quit() {
+        String unsaved = modifiedDisks();
+
+        if (unsaved == null) {
+            quitNow();
+            return;
+        }
+
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(R.string.quit_unsaved_title)
+                .setMessage(getString(R.string.quit_unsaved, unsaved))
+                .setPositiveButton(R.string.menu_quit, (dialog, which) -> quitNow())
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void quitNow() {
+        rememberMachine();
+
+        if (Recorder.isRecording()) {
+            Recorder.stop();
+            Recorder.waitForFile(RECORDER_GRACE_MS);
+        }
+
+        // Off the recents list too: a task left there offers to resume a machine
+        // whose process has gone, and Android would answer that by starting a
+        // fresh one - which is what happens anyway, only having looked like the
+        // old one was still there.
+        finishAndRemoveTask();
+        Runtime.getRuntime().exit(0);
+    }
+
+    /**
+     * The drives holding changes that have not been written back, or null when
+     * there are none. Fuse's own flag, asked the same way the Media page asks
+     * it - the details arrive as name, disk, modified for each drive.
+     */
+    private String modifiedDisks() {
+        String[] details = FuseNative.driveDetails();
+        StringBuilder names = new StringBuilder();
+
+        for (int i = 0; i + 2 < details.length; i += 3) {
+            if (!"1".equals(details[i + 2])) continue;
+
+            if (names.length() > 0) names.append(", ");
+            names.append(details[i]);
+        }
+
+        return names.length() > 0 ? names.toString() : null;
+    }
+
     private void rememberMachine() {
         int current = FuseNative.currentMachine();
         String[] ids = FuseNative.machineIds();

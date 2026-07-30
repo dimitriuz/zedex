@@ -895,6 +895,25 @@ a phone with more than one refresh rate may pick one that suits. It needs
 `-lnativewindow`: `libandroid.so` re-exports the older `ANativeWindow_`
 functions but not that one.
 
+### Quitting
+
+Back and Home leave the app paused in the background, which is right for an
+emulator and is not a way out of it, so ☰ has a *Quit* that means it. It ends the
+**process** rather than the activity: the emulation thread is a plain pthread
+inside Fuse's main loop, Fuse's globals cannot be initialised twice, and the next
+launch has to be able to start it again — the same constraint that makes the ROMs
+panel restart rather than retry. `finishAndRemoveTask()` then
+`Runtime.getRuntime().exit(0)`, which is what `restartForRoms()` already does.
+
+Two things get a moment on the way out. A **recording** is still being written
+when `Recorder.stop()` returns — it cannot block, being called from the UI thread
+— so `waitForFile()` joins the encoder for up to a second, or the film ends
+mid-frame. And a **disk with changes** nothing has written back is worth asking
+about, since Fuse's modified flag is already there in `driveDetails()` and the
+disk is work the machine cannot get back for you. Nothing else is saved: the
+machine's state is volatile and always has been, which is what save states are
+for.
+
 ### Pausing
 
 Fuse has no pause of its own to borrow. `fuse_emulation_pause()` sounds like

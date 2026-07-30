@@ -190,6 +190,7 @@ to bring the bar back for a moment.
 | **Capture…** | screenshots and recording |
 | **Controls…** | the joystick and the keyboard |
 | **Settings…** | the settings screen |
+| **Quit** | closes the app, rather than leaving it paused in the background |
 
 In full:
 
@@ -235,6 +236,8 @@ In full:
   keyboard**, which puts your own input method up instead and types through it —
   and *Landscape layout…*, which is where the keyboard goes when it is out.
 - **Settings…** — see below.
+- **Quit** — ends the app rather than putting it away, which is all Back and
+  Home do. A disk with changes nothing has written back gets a warning first.
 - **About Zedex** — which version this is, which commit it was built from and
   when, and where the source is.
 

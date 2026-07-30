@@ -143,6 +143,31 @@ final class Recorder {
         for (int i = 0; i <= SPARE_FRAMES && !queued.offer(end); i++) queued.poll();
     }
 
+    /**
+     * Waits for the encoder to close the file, for as long as it is given.
+     *
+     * Only for shutting down. {@link #stop} deliberately does not wait - it runs
+     * on the UI thread - but a process about to exit has to, or the film it was
+     * writing ends mid-frame. Returns whether the encoder actually finished.
+     */
+    static boolean waitForFile(long milliseconds) {
+        Thread encoder;
+
+        synchronized (Recorder.class) {
+            encoder = worker;
+        }
+
+        if (encoder == null) return true;
+
+        try {
+            encoder.join(milliseconds);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        return !encoder.isAlive();
+    }
+
     // --- called on the emulation thread ----------------------------------
 
     /** One frame, straight from {@code uidisplay_frame_end}. */
