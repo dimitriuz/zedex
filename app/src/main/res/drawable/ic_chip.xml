@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 24dp outline, 1.8 stroke, tinted by the row that draws it.
+
+     The machine, as a chip rather than as a monitor: a Spectrum is a Z80 and
+     the screen belongs to whatever it is plugged into. The monitor is
+     ic_display now, on the group that holds what is drawn around the picture. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:pathData="M6.5,6.5 h11 v11 h-11 z" android:strokeColor="#ffffff"
+        android:strokeWidth="1.8" android:strokeLineCap="round"
+        android:strokeLineJoin="round" android:fillColor="#00000000"/>
+    <path android:pathData="M9.5,6.5 V3.5 M14.5,6.5 V3.5 M9.5,17.5 V20.5 M14.5,17.5 V20.5"
+        android:strokeColor="#ffffff"
+        android:strokeWidth="1.8" android:strokeLineCap="round"
+        android:strokeLineJoin="round" android:fillColor="#00000000"/>
+    <path android:pathData="M6.5,9.5 H3.5 M6.5,14.5 H3.5 M17.5,9.5 H20.5 M17.5,14.5 H20.5"
+        android:strokeColor="#ffffff"
+        android:strokeWidth="1.8" android:strokeLineCap="round"
+        android:strokeLineJoin="round" android:fillColor="#00000000"/>
+</vector>

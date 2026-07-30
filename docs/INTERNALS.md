@@ -186,8 +186,8 @@ The sheet has **pages**. Everything at one level came to a dozen rows, four
 headings and three rules — taller than a landscape window, so the last of it
 had to be scrolled to, and scrolling to find a menu item is the thing a menu
 exists to avoid. What is at the top now is the one thing done constantly,
-opening something, and a handful of doors: *States*, *Media*, *Capture*,
-*Machine*, *Controls*, *Settings*.
+opening something, then the machine that is running, and then a handful of
+doors: *States*, *Media*, *Capture*, *Controls*, *Settings*.
 
 A page is a function, not a list, and it is called every time the page is
 shown. That is what lets *Media* list the drives this machine has today,

@@ -170,7 +170,8 @@ picker.
 
 **The bar** is always there: across the top in portrait, smaller in the top right
 corner sideways. Seven icons — **Files** (open, save a state, load one),
-**Capture**, **Controls**, **Machine** (pause, change machine, reset), **Fast
+**Capture**, **Display** (hide the keyboard, the joystick or the lamps),
+**Machine** (pause, change machine, reset), **Fast
 forward** (hold it: 500% while held, silent, and back to your speed on release),
 **Fullscreen**, and ☰.
 Fullscreen clears the bar away and, sideways, the keyboard with it; tap the picture
@@ -181,10 +182,10 @@ to bring the bar back for a moment.
 | | |
 | --- | --- |
 | **Open file…** | straight to the picker |
+| **Machine…** | which machine, pause, reset, NMI |
 | **States…** | save and load |
 | **Media…** | the tape, and every drive the machine has |
 | **Capture…** | screenshots and recording |
-| **Machine…** | which machine, pause, reset, NMI |
 | **Controls…** | the joystick and the keyboard |
 | **Settings…** | the settings screen |
 
@@ -193,6 +194,15 @@ In full:
 - **Open file…** — anything the emulator can read: snapshots (`.z80`, `.sna`,
   `.szx`, …), tapes (`.tap`, `.tzx`, `.pzx`, `.csw`, …), disks (`.dsk`,
   `.trd`, `.scl`, `.mgt`, `.udi`, …).
+- **Machine…**
+  - *Change machine…* lists all sixteen with the running one
+  checked, and the choice is remembered for the next launch.
+  - *Reset* asks
+  first, since it discards machine state.
+  - *Pause* stops the machine; a big play button over the picture starts it
+  again. It pauses itself whenever the app is not in front.
+  - *NMI* is the magic button of the real hardware; what it does depends on
+  the machine.
 - **States…** — *Save state…* and *Load state…*: as many saves as you like,
   each named and showing the screen as it was when it was written. Long-press deletes.
 - **Media…**
@@ -211,15 +221,6 @@ In full:
   - *Stop recording*
   - *Open recordings folder* hands that folder to the file
   manager.
-- **Machine…**
-  - *Change machine…* lists all sixteen with the running one
-  checked, and the choice is remembered for the next launch.
-  - *Reset* asks
-  first, since it discards machine state.
-  - *Pause* stops the machine; a big play button over the picture starts it
-  again. It pauses itself whenever the app is not in front.
-  - *NMI* is the magic button of the real hardware; what it does depends on
-  the machine.
 - **Controls…** — the two things you play with, each of which can be put away
   and neither of which the other replaces.
   - *Joystick…* has *Show on screen*, which of the Spectrum's seven interfaces

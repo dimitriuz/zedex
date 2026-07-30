@@ -457,9 +457,9 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                      this::fillCaptureBar);
         // Display rather than Controls: the group is what is on the screen
         // beside the picture, and one of the three is not a control at all.
-        bar.addGroup(R.drawable.ic_picture, getString(R.string.menu_display),
+        bar.addGroup(R.drawable.ic_display, getString(R.string.menu_display),
                      this::fillControlsBar);
-        bar.addGroup(R.drawable.ic_machine, getString(R.string.menu_machine_group),
+        bar.addGroup(R.drawable.ic_chip, getString(R.string.menu_machine_group),
                      this::fillMachineBar);
 
         bar.addHold(R.drawable.ic_fast_forward, getString(R.string.fast_forward),
@@ -750,6 +750,10 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         menu.setRoot(sheet -> {
             sheet.addItem(getString(R.string.menu_open), R.drawable.ic_folder,
                           this::pickFile);
+            // The machine second: what is running is asked about more often than
+            // anything filed away, and it holds pause.
+            sheet.addSubmenu(getString(R.string.menu_machine_group),
+                             R.drawable.ic_chip, this::fillMachine);
             sheet.addSubmenu(getString(R.string.menu_states), R.drawable.ic_bookmark,
                              this::fillStates);
             sheet.addSubmenu(getString(R.string.menu_media), R.drawable.ic_tape,
@@ -758,8 +762,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                              this::fillCapture);
 
             sheet.addRule();
-            sheet.addSubmenu(getString(R.string.menu_machine_group),
-                             R.drawable.ic_machine, this::fillMachine);
             sheet.addSubmenu(getString(R.string.menu_controls),
                              R.drawable.ic_controls, this::fillControls);
             sheet.addItem(getString(R.string.menu_settings), R.drawable.ic_settings,

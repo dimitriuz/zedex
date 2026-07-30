@@ -286,7 +286,7 @@ public class SettingsActivity extends Activity {
      * and the rest need no headings at all.
      */
     private static final Tab[] TABS = {
-        new Tab(R.string.settings_tab_machine, R.drawable.ic_machine,
+        new Tab(R.string.settings_tab_machine, R.drawable.ic_chip,
                 R.xml.settings_machine),
         new Tab(R.string.settings_tab_tape, R.drawable.ic_tape,
                 R.xml.settings_tape),
