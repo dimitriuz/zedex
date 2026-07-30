@@ -143,6 +143,18 @@ final class MenuDrawer extends FrameLayout {
         addRow(text, icon, true, () -> enter(text, page));
     }
 
+    /**
+     * A submenu whose page calls itself something else.
+     *
+     * For a page whose heading sits over the first of two sections rather than
+     * over the whole page: <i>Media…</i> leads to the tape and the drives, and
+     * the heading it lands under belongs to the tape rows beneath it, so it says
+     * TAPE and the drives keep their own DRIVES below.
+     */
+    void addSubmenu(String text, String heading, int icon, Page page) {
+        addRow(text, icon, true, () -> enter(heading, page));
+    }
+
     /** Something to read rather than to press: an empty list saying so. */
     void addNote(String text) {
         TextView note = new TextView(getContext());

@@ -829,8 +829,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                              R.drawable.ic_chip, this::fillMachine);
             sheet.addSubmenu(getString(R.string.menu_states), R.drawable.ic_bookmark,
                              this::fillStates);
-            sheet.addSubmenu(getString(R.string.menu_media), R.drawable.ic_tape,
-                             this::fillMedia);
+            // The page's own heading, which sits over the tape rows: the
+            // drives that follow have DRIVES of their own.
+            sheet.addSubmenu(getString(R.string.menu_media),
+                             getString(R.string.menu_tape_section),
+                             R.drawable.ic_tape, this::fillMedia);
             sheet.addSubmenu(getString(R.string.menu_capture), R.drawable.ic_camera,
                              this::fillCapture);
 
