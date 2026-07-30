@@ -87,19 +87,35 @@ final class Hotkeys {
     static final String KEY_BINDINGS = "hotkeyBindings";
 
     /**
-     * What a pad does before anyone changes anything — the five that were
-     * hard-wired before this existed, with Select promoted from "hide the
-     * keyboard" to the hotkey itself and the keyboard moved to Y.
+     * What a pad does before anyone changes anything.
      *
-     * Quit on Start is RetroArch's, and it is the one worth having by default:
-     * a pad in a stand with the phone across the room needs a way out.
+     * The shoulders get the two that want no dialog: <b>quick load on L1, quick
+     * save on R1</b>, one slot, hit without looking, which is the whole reason a
+     * pad wants them. The dialogs are left unbound — they are a menu's job, and
+     * a list to read is not something to reach for mid-game.
+     *
+     * The faces are free while the hotkey is down, so <b>B</b> pauses, <b>X</b>
+     * is fullscreen and <b>Y</b> hides the keyboard. <b>R2</b> held runs the
+     * machine fast.
+     *
+     * The two <b>stick clicks</b> take the two "which set of controls is this"
+     * settings — L3 the joystick type, R3 the key profile — because those are
+     * what a game disagrees with, and a click of the stick you are already
+     * holding is the easiest thing on a pad to find without looking.
+     *
+     * Quit on <b>Start</b> is RetroArch's, and worth having by default: a pad in
+     * a stand with the phone across the room needs a way out.
      */
     private static final Object[][] DEFAULTS = {
         { Action.QUIT, KeyEvent.KEYCODE_BUTTON_START },
-        { Action.LOAD_STATE, KeyEvent.KEYCODE_BUTTON_L1 },
-        { Action.SAVE_STATE, KeyEvent.KEYCODE_BUTTON_R1 },
+        { Action.QUICK_LOAD, KeyEvent.KEYCODE_BUTTON_L1 },
+        { Action.QUICK_SAVE, KeyEvent.KEYCODE_BUTTON_R1 },
         { Action.FAST_FORWARD, KeyEvent.KEYCODE_BUTTON_R2 },
+        { Action.PAUSE, KeyEvent.KEYCODE_BUTTON_B },
+        { Action.FULLSCREEN, KeyEvent.KEYCODE_BUTTON_X },
         { Action.KEYBOARD, KeyEvent.KEYCODE_BUTTON_Y },
+        { Action.NEXT_JOYSTICK, KeyEvent.KEYCODE_BUTTON_THUMBL },
+        { Action.NEXT_PROFILE, KeyEvent.KEYCODE_BUTTON_THUMBR },
     };
 
     /**

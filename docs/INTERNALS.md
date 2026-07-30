@@ -780,6 +780,15 @@ taken from the game, and there is never a question which was meant. The hotkey m
 also be set to **none**, and then the bindings fire on their own, for a pad with
 buttons to spare.
 
+The defaults put the two that want no dialog on the shoulders — quick load on L1,
+quick save on R1 — and leave the state *dialogs* unbound, since a list to read is
+not something to reach for mid-game. The faces are free while the hotkey is down,
+so B pauses, X is fullscreen and Y hides the keyboard, and R2 held runs the machine
+fast. The two stick clicks take the "which set of controls is this" settings — L3
+the joystick type, R3 the key profile — since those are what a game disagrees with,
+and a click of the stick already under your thumb is the easiest thing on a pad to
+find without looking. Start quits, as RetroArch has it.
+
 The rules `Gamepad.hotkey()` follows, all of which are the tricky part rather than
 the obvious part:
 
