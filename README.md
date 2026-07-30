@@ -211,6 +211,7 @@ to bring the bar back for a moment.
 | **Open file…** | straight to the picker |
 | **Machine…** | which machine, pause, reset, NMI — with the running one named under it |
 | **States…** | save and load |
+| **Pokes…** | one byte into memory: try one, or keep the ones that work |
 | **Media…** | the tape deck, and every drive the machine has |
 | **Capture…** | screenshots and recording |
 | **Controls…** | the joystick and the keyboard |
@@ -233,6 +234,10 @@ In full:
   the machine.
 - **States…** — *Save state…* and *Load state…*: as many saves as you like,
   each named and showing the screen as it was when it was written. Long-press deletes.
+- **Pokes…** — *Poke once…* takes an address and a value, writes the byte and
+  keeps nothing; *Add a poke…* takes a name as well and puts it on the list.
+  Tapping a stored poke pokes it, holding one forgets it. Decimal, or hex after
+  `0x`, `$` or `#`.
 - **Media…**
   - *Load a tape…* opens one, and *Play*, *Stop* and *Rewind to the start* work
   the deck. Stop keeps the position, so playing again carries on from there — and

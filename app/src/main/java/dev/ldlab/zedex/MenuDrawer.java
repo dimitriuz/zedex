@@ -130,11 +130,23 @@ final class MenuDrawer extends FrameLayout {
 
     /** A row that does something, and closes the sheet on its way. */
     void addItem(String text, int icon, Runnable action) {
+        addItem(text, icon, action, null);
+    }
+
+    /**
+     * The same, with something else on a long press - which is where deleting
+     * belongs: a row whose tap is "use this" cannot also be "throw this away",
+     * and a second row per item would double the list.
+     */
+    void addItem(String text, int icon, Runnable action, Runnable longPress) {
         // Closing first keeps the sheet from sitting over whatever the item
         // opens, and makes the two feel like one gesture.
         addRow(text, icon, false, () -> {
             close();
             action.run();
+        }, longPress == null ? null : () -> {
+            close();
+            longPress.run();
         });
     }
 
@@ -190,6 +202,11 @@ final class MenuDrawer extends FrameLayout {
      * glyph pasted into the string could not do.
      */
     private void addRow(String label, int icon, boolean leadsOn, Runnable action) {
+        addRow(label, icon, leadsOn, action, null);
+    }
+
+    private void addRow(String label, int icon, boolean leadsOn, Runnable action,
+                        Runnable longPress) {
         TextView row = new TextView(getContext());
 
         row.setText(label);
@@ -205,6 +222,14 @@ final class MenuDrawer extends FrameLayout {
         row.setClickable(true);
         row.setFocusable(true);
         row.setOnClickListener(v -> action.run());
+
+        if (longPress != null) {
+            row.setLongClickable(true);
+            row.setOnLongClickListener(v -> {
+                longPress.run();
+                return true;
+            });
+        }
 
         items.addView(row);
     }

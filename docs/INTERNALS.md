@@ -1463,6 +1463,33 @@ machines that want them will not start, and offers *Run anyway*. The check is
 by filename only — a file called `48.rom` that is not one is Fuse's problem,
 and Fuse says so in its own way.
 
+### Pokes
+
+One byte into the sixteen bit space as it is paged now, which is what POKE means
+and what Fuse's own `poke_apply()` does for a poke with no bank of its own:
+`writebyte_internal()`, not `writebyte()` — this is a debugger's write, not the
+machine's, and it has no business waiting for contention or telling the ULA about
+it. Queued like every other input, so it lands between frames rather than under
+the Z80's feet.
+
+Two ways in, because they are two different things. *Poke once…* is a byte being
+tried: two fields, applied, kept nowhere. *Add a poke…* takes a name as well and
+puts it on the list, and **nothing on the list is applied by being there** — a
+stored poke is a thing to press. That is what makes it survive a reset: load the
+game again, press the poke again. The name defaults to whatever media was last
+opened, since a poke without a game's name against it is a poke nobody will
+recognise in a month.
+
+Tapping a stored poke pokes it and holding one forgets it, with a confirmation.
+A row whose tap means "use this" cannot also mean "throw this away", and a second
+row per poke would double the list — so `MenuDrawer.addItem()` grew an optional
+long press.
+
+Numbers are read as decimal, or as hex behind `0x`, `$` or `#`, because poke
+lists in the wild are written both ways. Anything else, and anything out of
+range, is refused with a note rather than silently clamped: a poke to the wrong
+address is worse than no poke.
+
 ### The tape deck
 
 Fuse has the transport already — `tape_do_play`, `tape_stop`, `tape_rewind`,

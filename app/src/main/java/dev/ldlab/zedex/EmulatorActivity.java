@@ -882,6 +882,8 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                              R.drawable.ic_chip, this::fillMachine);
             sheet.addSubmenu(getString(R.string.menu_states), R.drawable.ic_bookmark,
                              this::fillStates);
+            sheet.addSubmenu(getString(R.string.menu_pokes), R.drawable.ic_poke,
+                             this::fillPokes);
             // The page's own heading, which sits over the tape rows: the
             // drives that follow have DRIVES of their own.
             sheet.addSubmenu(getString(R.string.menu_media),
@@ -1057,6 +1059,145 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         preferences.edit().putBoolean(SettingsActivity.KEY_KEYBOARD, shown).apply();
 
         note(shown ? R.string.keyboard_shown : R.string.keyboard_hidden);
+    }
+
+    /**
+     * Pokes: one to try now, and the ones worth keeping.
+     *
+     * A stored poke is a thing to press - nothing is applied by being on the
+     * list - so loading a game and pressing it is the whole flow, and the same
+     * poke survives a reset without being typed again. Long press removes one,
+     * because a row whose tap means "use this" cannot also mean "throw this
+     * away".
+     */
+    private void fillPokes(MenuDrawer sheet) {
+        sheet.addItem(getString(R.string.poke_quick), R.drawable.ic_poke,
+                      this::showQuickPokeDialog);
+        sheet.addItem(getString(R.string.poke_add), R.drawable.ic_plus,
+                      this::showAddPokeDialog);
+
+        List<Pokes.Poke> pokes = Pokes.all(preferences);
+
+        sheet.addRule();
+        sheet.addSection(getString(R.string.poke_stored));
+
+        if (pokes.isEmpty()) {
+            sheet.addNote(getString(R.string.poke_none));
+            return;
+        }
+
+        for (int i = 0; i < pokes.size(); i++) {
+            Pokes.Poke poke = pokes.get(i);
+            int index = i;
+
+            sheet.addItem(poke.name + "\n" + poke.numbers(), R.drawable.ic_poke,
+                          () -> applyPoke(poke),
+                          () -> confirmForgetPoke(index, poke));
+        }
+
+        sheet.addNote(getString(R.string.poke_hint));
+    }
+
+    private void applyPoke(Pokes.Poke poke) {
+        FuseNative.poke(poke.address, poke.value);
+        note(R.string.poke_done, poke.numbers());
+    }
+
+    /** Two numbers, applied and forgotten: for a poke being tried out. */
+    private void showQuickPokeDialog() {
+        EditText address = numberField(R.string.poke_address);
+        EditText value = numberField(R.string.poke_value);
+
+        LinearLayout fields = new LinearLayout(this);
+        fields.setOrientation(LinearLayout.VERTICAL);
+        fields.setPadding(pokePadding(), 0, pokePadding(), 0);
+        fields.addView(address);
+        fields.addView(value);
+
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(R.string.poke_quick)
+                .setMessage(R.string.poke_explain)
+                .setView(fields)
+                .setPositiveButton(R.string.poke_apply, (dialog, which) -> {
+                    int where = Pokes.number(address.getText().toString(), 0xffff);
+                    int what = Pokes.number(value.getText().toString(), 0xff);
+
+                    if (where < 0 || what < 0) {
+                        note(R.string.poke_bad);
+                        return;
+                    }
+
+                    applyPoke(new Pokes.Poke("", where, what));
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    /** The same two numbers and a name, kept for next time. */
+    private void showAddPokeDialog() {
+        EditText name = new EditText(this);
+        name.setSingleLine(true);
+        name.setHint(R.string.poke_name);
+        name.setText(preferences.getString(PREF_MEDIA_NAME, ""));
+        name.setSelection(name.getText().length());
+
+        EditText address = numberField(R.string.poke_address);
+        EditText value = numberField(R.string.poke_value);
+
+        LinearLayout fields = new LinearLayout(this);
+        fields.setOrientation(LinearLayout.VERTICAL);
+        fields.setPadding(pokePadding(), 0, pokePadding(), 0);
+        fields.addView(name);
+        fields.addView(address);
+        fields.addView(value);
+
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(R.string.poke_add)
+                .setView(fields)
+                .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                    int where = Pokes.number(address.getText().toString(), 0xffff);
+                    int what = Pokes.number(value.getText().toString(), 0xff);
+
+                    if (where < 0 || what < 0) {
+                        note(R.string.poke_bad);
+                        return;
+                    }
+
+                    String called = sanitise(name.getText().toString());
+                    if (called.isEmpty()) called = getString(R.string.poke_unnamed);
+
+                    Pokes.add(preferences, called, where, what);
+                    note(R.string.poke_stored_one, called);
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void confirmForgetPoke(int index, Pokes.Poke poke) {
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(getString(R.string.poke_forget_ask, poke.name))
+                .setMessage(poke.numbers())
+                .setPositiveButton(R.string.poke_forget, (dialog, which) -> {
+                    Pokes.remove(preferences, index);
+                    note(R.string.poke_forgotten, poke.name);
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    /** Decimal by habit, hex if it is written as hex; see Pokes.number(). */
+    private EditText numberField(int hint) {
+        EditText field = new EditText(this);
+
+        field.setSingleLine(true);
+        field.setHint(hint);
+        field.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
+
+        return field;
+    }
+
+    private int pokePadding() {
+        return Math.round(12 * getResources().getDisplayMetrics().density);
     }
 
     private void fillStates(MenuDrawer sheet) {

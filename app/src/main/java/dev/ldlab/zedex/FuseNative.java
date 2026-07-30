@@ -198,6 +198,13 @@ final class FuseNative {
     static native void tapeBlockSelect(int block);
 
     /**
+     * Writes one byte into the sixteen bit address space as it is paged now,
+     * which is what POKE means. Queued like every other input, so it lands
+     * between frames rather than under the Z80's feet.
+     */
+    static native void poke(int address, int value);
+
+    /**
      * The Kempston mouse.
      *
      * Only plugged in while it is asked for: it answers three ports - 0xfadf,

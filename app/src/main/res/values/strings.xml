@@ -5,6 +5,26 @@
     <string name="menu_open">Open file\u2026</string>
     <string name="menu_media">Media\u2026</string>
     <string name="menu_states">States\u2026</string>
+    <string name="menu_pokes">Pokes\u2026</string>
+    <string name="poke_quick">Poke once\u2026</string>
+    <string name="poke_add">Add a poke\u2026</string>
+    <string name="poke_stored">Stored</string>
+    <string name="poke_none">None yet. A poke is one byte written into memory \u2014 the cheats printed in magazines, mostly.</string>
+    <string name="poke_hint">Tap one to poke it. Hold to forget it.</string>
+    <string name="poke_explain">One byte into memory, now, and not kept. Decimal, or hexadecimal after 0x, $ or #.</string>
+    <string name="poke_address">Address, 0 to 65535</string>
+    <string name="poke_value">Value, 0 to 255</string>
+    <string name="poke_name">Name</string>
+    <string name="poke_unnamed">Poke</string>
+    <string name="poke_apply">Poke</string>
+    <string name="poke_bad">An address is 0 to 65535 and a value 0 to 255</string>
+    <!-- %1$s is the two numbers: "44676, 0". -->
+    <string name="poke_done">Poked %1$s</string>
+    <!-- %1$s is the poke's name. -->
+    <string name="poke_stored_one">Kept as \u201c%1$s\u201d</string>
+    <string name="poke_forget_ask">Forget \u201c%1$s\u201d?</string>
+    <string name="poke_forget">Forget</string>
+    <string name="poke_forgotten">Forgot \u201c%1$s\u201d</string>
     <!-- The page of machine things; menu_machine is the chooser on it. -->
     <string name="menu_machine_group">Machine\u2026</string>
     <string name="menu_app">Zedex\u2026</string>

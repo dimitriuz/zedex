@@ -34,6 +34,7 @@ extern int androidstate_tape_changed;
 #include "input.h"
 #include "keyboard.h"
 #include "machine.h"
+#include "memory_pages.h"
 #include "periph.h"
 #include "rzx.h"
 #include "settings.h"
@@ -93,6 +94,7 @@ typedef enum command_type {
   COMMAND_TAPE_BLOCK,			/* a: which block to wind to */
   COMMAND_MOUSE_MOVE,			/* a: dx, b: dy, in the mouse's own units */
   COMMAND_MOUSE_BUTTON,			/* a: 0 left 1 right, b: down */
+  COMMAND_POKE,				/* a: address, b: value */
   COMMAND_WRITE_DISK,			/* a: controller, b: drive, text: path */
   COMMAND_DISK_INSERT,			/* a: controller, b: drive, text: path */
   COMMAND_DISK_NEW,			/* a: controller, b: drive */
@@ -625,6 +627,18 @@ drain_commands( void )
       kempmouse_update( command.a, command.b, -1, 0 );
       break;
 
+    /* One byte into the sixteen bit space as it is paged right now, which is
+       what POKE means and what Fuse's own poke code does for a poke with no bank
+       of its own - see poke_apply() in pokefinder/pokemem.c. writebyte_internal
+       rather than writebyte: this is a debugger's write, not the machine's, and
+       it has no business waiting for contention or telling the ULA about it. */
+    case COMMAND_POKE:
+      if( command.a >= 0 && command.a <= 0xffff &&
+          command.b >= 0 && command.b <= 0xff ) {
+        writebyte_internal( command.a, command.b );
+      }
+      break;
+
     case COMMAND_MOUSE_BUTTON: {
       /* Fuse's numbering, from ui_mouse_button(): the left button is bit one
          and the right bit zero, unless the swap setting says otherwise. */
@@ -1113,6 +1127,14 @@ Java_dev_ldlab_zedex_FuseNative_setScale( JNIEnv *env, jclass class,
                                          jint pixels )
 {
   queue_command( COMMAND_SET_OPTION, OPTION_SCALE, pixels );
+}
+
+/* One byte of memory; see COMMAND_POKE. */
+JNIEXPORT void JNICALL
+Java_dev_ldlab_zedex_FuseNative_poke( JNIEnv *env, jclass class,
+                                     jint address, jint value )
+{
+  queue_command( COMMAND_POKE, address, value );
 }
 
 /* The Kempston mouse: whether it is plugged in, and what it is doing. */
