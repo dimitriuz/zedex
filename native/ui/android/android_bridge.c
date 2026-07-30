@@ -24,6 +24,9 @@
 #include <android/native_window_jni.h>
 
 #include "android_internals.h"
+
+/* Set here, cleared in android_state.c once the list is rebuilt. */
+extern int androidstate_tape_changed;
 #include "display.h"
 #include "event.h"
 #include "fuse.h"
@@ -64,6 +67,7 @@ typedef enum command_type {
   COMMAND_NEW_TAPE,
   COMMAND_TAPE_PLAY,			/* a: 1 play, 0 stop */
   COMMAND_TAPE_REWIND,
+  COMMAND_TAPE_BLOCK,			/* a: which block to wind to */
   COMMAND_WRITE_DISK,			/* a: controller, b: drive, text: path */
   COMMAND_DISK_INSERT,			/* a: controller, b: drive, text: path */
   COMMAND_DISK_NEW,			/* a: controller, b: drive */
@@ -475,6 +479,10 @@ drain_commands( void )
       android_log( "opening %s", command.text ? command.text : "(null)" );
       if( command.text )
         utils_open_file( command.text, tape_can_autoload(), NULL );
+      /* Whatever it was, it may have been a tape: two different ones can have
+         the same number of blocks and both be at the start, so the browser's
+         list cannot tell by looking. */
+      androidstate_tape_changed = 1;
       break;
     case COMMAND_SET_OPTION:
       run_set_option( command.a, command.b );
@@ -565,11 +573,16 @@ drain_commands( void )
       tape_rewind();
       break;
 
+    case COMMAND_TAPE_BLOCK:
+      tape_select_block( command.a );
+      break;
+
     case COMMAND_NEW_TAPE:
       /* Android has asked already; clearing the flag stops Fuse asking
          again through a modal of its own. */
       tape_modified = 0;
       tape_close();
+      androidstate_tape_changed = 1;
       break;
     }
 
@@ -986,6 +999,14 @@ JNIEXPORT void JNICALL
 Java_dev_ldlab_zedex_FuseNative_tapeRewind( JNIEnv *env, jclass class )
 {
   queue_command( COMMAND_TAPE_REWIND, 0, 0 );
+}
+
+/* Winds to one of the blocks the browser listed. */
+JNIEXPORT void JNICALL
+Java_dev_ldlab_zedex_FuseNative_tapeBlockSelect( JNIEnv *env, jclass class,
+                                                jint block )
+{
+  queue_command( COMMAND_TAPE_BLOCK, block, 0 );
 }
 
 JNIEXPORT void JNICALL

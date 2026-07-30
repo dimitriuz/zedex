@@ -46,6 +46,82 @@ static int machine_list_current = -1;
 static int tape_on_machine;
 static int tape_running;
 
+/* The tape's blocks, for the browser.
+ *
+ * Rebuilt only when something about them changes - the count, or which one is
+ * current, or a command that touches the tape has run - because formatting a
+ * long tape's descriptions is not work to do fifty times a second for a dialog
+ * nobody has opened. Capped: a TZX can carry thousands of pulse blocks, and a
+ * list nobody can scroll is no more use than a shorter one.
+ */
+#define MAX_TAPE_BLOCKS 128
+
+static char tape_blocks[ MAX_TAPE_BLOCKS ][ 128 ];
+static int tape_block_count;
+static int tape_block_current = -1;
+
+/* Set by the bridge when it runs anything that can change the tape, since two
+   different tapes can have the same number of blocks and both be at the start. */
+int androidstate_tape_changed;
+
+/* Counting and formatting both walk the same list; which one this is doing
+   depends on whether there is room left to write into. */
+typedef struct block_walk {
+  int count;
+  int format;
+} block_walk;
+
+static void
+count_block( libspectrum_tape_block *block, void *user_data )
+{
+  block_walk *walk = user_data;
+
+  if( walk->format && walk->count < MAX_TAPE_BLOCKS ) {
+    char type[ 64 ], details[ 96 ];
+
+    type[0] = details[0] = '\0';
+    libspectrum_tape_block_description( type, sizeof( type ), block );
+    tape_block_details( details, sizeof( details ), block );
+
+    if( details[0] ) {
+      snprintf( tape_blocks[ walk->count ], sizeof( tape_blocks[0] ),
+                "%d. %s: %s", walk->count + 1, type, details );
+    } else {
+      snprintf( tape_blocks[ walk->count ], sizeof( tape_blocks[0] ),
+                "%d. %s", walk->count + 1, type );
+    }
+  }
+
+  walk->count++;
+}
+
+static void
+publish_tape_blocks( void )
+{
+  block_walk walk = { 0, 0 };
+  int current = tape_get_current_block();
+
+  if( !tape_on_machine ) {
+    tape_block_count = 0;
+    tape_block_current = -1;
+    androidstate_tape_changed = 0;
+    return;
+  }
+
+  tape_foreach( count_block, &walk );
+
+  if( walk.count != tape_block_count || current != tape_block_current
+      || androidstate_tape_changed ) {
+    walk.count = 0;
+    walk.format = 1;
+    tape_foreach( count_block, &walk );
+
+    tape_block_count = walk.count;
+    tape_block_current = current;
+    androidstate_tape_changed = 0;
+  }
+}
+
 /* Drives with a disk in them, refreshed every pump for the UI thread.
    MAX_CONTROLLERS and MAX_DRIVES_PER_CONTROLLER are in android_internals.h,
    since the disk lamp walks the same controllers. */
@@ -88,6 +164,7 @@ androidstate_publish( void )
 
   tape_on_machine = tape_present();
   tape_running = tape_is_playing();
+  publish_tape_blocks();
 
   drive_list_count = 0;
   for( i = 0; i < MAX_CONTROLLERS && drive_list_count < MAX_DRIVES; i++ ) {
@@ -191,6 +268,43 @@ Java_dev_ldlab_zedex_FuseNative_hasTape( JNIEnv *env, jclass class )
   pthread_mutex_unlock( &machine_mutex );
 
   return present;
+}
+
+/* The tape's blocks as the browser lists them, and which one is current. */
+JNIEXPORT jobjectArray JNICALL
+Java_dev_ldlab_zedex_FuseNative_tapeBlocks( JNIEnv *env, jclass class )
+{
+  jobjectArray result;
+  int i;
+
+  pthread_mutex_lock( &machine_mutex );
+
+  result = (*env)->NewObjectArray( env, tape_block_count,
+                                   (*env)->FindClass( env, "java/lang/String" ),
+                                   NULL );
+  if( result ) {
+    for( i = 0; i < tape_block_count; i++ ) {
+      jstring text = (*env)->NewStringUTF( env, tape_blocks[i] );
+      (*env)->SetObjectArrayElement( env, result, i, text );
+      (*env)->DeleteLocalRef( env, text );
+    }
+  }
+
+  pthread_mutex_unlock( &machine_mutex );
+
+  return result;
+}
+
+JNIEXPORT jint JNICALL
+Java_dev_ldlab_zedex_FuseNative_tapeBlock( JNIEnv *env, jclass class )
+{
+  jint current;
+
+  pthread_mutex_lock( &machine_mutex );
+  current = tape_block_current;
+  pthread_mutex_unlock( &machine_mutex );
+
+  return current;
 }
 
 /* Whether the deck is running, for a menu that has to say Play or Stop. */

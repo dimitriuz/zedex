@@ -223,13 +223,14 @@ In full:
 - **States…** — *Save state…* and *Load state…*: as many saves as you like,
   each named and showing the screen as it was when it was written. Long-press deletes.
 - **Media…**
-  - *Play* and *Stop* work the tape deck, and *Rewind to the start* goes back to
-  the first block. They appear when there is a tape in. Stop keeps the position,
-  so playing again carries on from there — and with *Detect loaders* on, Fuse
-  stops the tape itself whenever nothing is loading;
+  - *Load a tape…* opens one, and *Play*, *Stop* and *Rewind to the start* work
+  the deck. Stop keeps the position, so playing again carries on from there — and
+  with *Detect loaders* on, Fuse stops the tape itself whenever nothing is loading;
+  - *Blocks…* lists what is on the tape, marks the one the deck is at and winds to
+  whichever you pick — for a multi-load game, or to skip past a side;
   - *Save tape…*
   writes what the machine has put on its tape to a `.tap` in the data folder, which is how a BASIC `SAVE "name"` reaches a
-  file;
+  file, and appears once there is something to write;
   - *New tape* throws the current one away so a save does not append to a game you loaded earlier.
   - *Load disk…*, *New disk*, *Save…* and *Eject*. The
   drives follow the machine, so a +3 shows its two and a Pentagon its four

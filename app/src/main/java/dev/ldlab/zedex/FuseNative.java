@@ -183,6 +183,19 @@ final class FuseNative {
     /** Whether the deck is running, from the once-a-frame snapshot. */
     static native boolean tapePlaying();
 
+    /**
+     * The tape's blocks as the browser lists them, already numbered and
+     * described by libspectrum - "3. Program: Tujad" - and capped at a hundred
+     * and twenty-eight, since a TZX can carry thousands of pulse blocks.
+     */
+    static native String[] tapeBlocks();
+
+    /** Which of them the deck is at, or -1 with no tape. */
+    static native int tapeBlock();
+
+    /** Winds to one of them. */
+    static native void tapeBlockSelect(int block);
+
     /** Names of the drives that currently have a disk in them. */
     static native String[] driveNames();
 

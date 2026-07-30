@@ -1410,13 +1410,31 @@ exactly like the button not working. It is Fuse doing what that setting says.
 Testing this needs the setting off, or a machine that is actually loading.
 
 The rows only appear with a tape in, since `tape_play` refuses an empty one, and
-a row that cannot act is worse than no row. `tape_close()` is deliberately *not*
+a row that cannot act is worse than no row — which is what *Save tape…* was, since
+it answered a tap with a toast saying there was nothing to write. `tape_close()` is deliberately *not*
 offered: it is what *New tape* already does, and it asks through Fuse's own modal
 unless `tape_modified` is cleared first — which is why the new-tape command
 clears it.
 
-The tape browser is the piece not built: `tape_block_details()` and
-`tape_select_block()` are there for a list of blocks to skip about in.
+**The browser is a list from the snapshot, not a walk on demand.** Blocks are
+described by `libspectrum_tape_block_description()` for the type and Fuse's
+`tape_block_details()` for the specifics, both formatted on the emulation thread
+into `android_state.c`'s array — because a tape that is playing is a list being
+mutated, and the UI thread has no business walking it. Two things keep the cost
+down: the descriptions are rebuilt only when the block count or the current block
+changes, or when the bridge says the tape may have changed, and the list is capped
+at 128 blocks, since a TZX can carry thousands of pulse blocks and a list nobody
+can scroll is no more use than a shorter one.
+
+That dirty flag exists because **two different tapes can have the same number of
+blocks and both be at the start**, so the count and the position cannot tell one
+from the other. Anything that opens a file sets it, which covers autoloading too,
+since that goes through the same command.
+
+A single-choice dialog rather than a table: the tape is at exactly one block, and
+tapping another winds to it with `tape_select_block()`. Fuse's own browser has two
+columns; a phone-width row has space for one line, so the type and the details go
+into it together.
 
 ROMs arrive by one of three routes: a document tree walked three deep for
 `.rom` and `.zip` entries, a multiple selection from the file picker, or a

@@ -1351,6 +1351,38 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         note(playing ? R.string.tape_playing : R.string.tape_stopped);
     }
 
+    /**
+     * The tape's blocks, and which one the deck is at.
+     *
+     * A single-choice list because that is what it is - the tape is at exactly
+     * one block, and tapping another winds to it. Fuse's own browser is a
+     * two-column table of type and details; libspectrum writes both into one
+     * line here, which is what a phone-width row has room for.
+     *
+     * Built from the snapshot the emulation thread publishes, so a tape that is
+     * playing does not have its list read out from under it.
+     */
+    private void showTapeBrowser() {
+        String[] blocks = FuseNative.tapeBlocks();
+
+        if (blocks == null || blocks.length == 0) {
+            note(R.string.tape_no_blocks);
+            return;
+        }
+
+        int current = Math.max(0, Math.min(blocks.length - 1, FuseNative.tapeBlock()));
+
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(R.string.tape_browser_title)
+                .setSingleChoiceItems(blocks, current, (dialog, which) -> {
+                    FuseNative.tapeBlockSelect(which);
+                    dialog.dismiss();
+                    note(R.string.tape_wound, which + 1);
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
     private void rewindTape() {
         FuseNative.tapeRewind();
         note(R.string.tape_rewound);
@@ -1364,7 +1396,12 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // Stop rather than pause because that is what Fuse has, and it is the
         // same thing - the position is kept, so playing again carries on from
         // there. Rewind goes to the first block; there is no winding.
-        if (FuseNative.hasTape()) {
+        boolean tape = FuseNative.hasTape();
+
+        sheet.addItem(getString(R.string.tape_load), R.drawable.ic_folder,
+                      this::pickFile);
+
+        if (tape) {
             boolean playing = FuseNative.tapePlaying();
 
             sheet.addItem(getString(playing ? R.string.tape_stop
@@ -1373,9 +1410,15 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                           () -> playTape(!playing));
             sheet.addItem(getString(R.string.tape_rewind), R.drawable.ic_rewind,
                           this::rewindTape);
+            sheet.addItem(getString(R.string.tape_browser), R.drawable.ic_tape,
+                          this::showTapeBrowser);
+            // Only with something on the tape: it used to be here always and
+            // answered a tap with a toast saying there was nothing to write,
+            // which is a row that exists to say it does not work.
+            sheet.addItem(getString(R.string.tape_save), R.drawable.ic_save,
+                          this::saveTape);
         }
 
-        sheet.addItem(getString(R.string.tape_save), R.drawable.ic_save, this::saveTape);
         sheet.addItem(getString(R.string.tape_new), R.drawable.ic_plus,
                       this::confirmNewTape);
 
