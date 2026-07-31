@@ -52,15 +52,9 @@ import java.util.zip.ZipInputStream;
  * simply stay black with no way out of it. This is the way out — what is
  * missing, and three routes to fixing it.
  *
- * Its own class because it is a feature and not a part of hosting an emulator.
- * It arrived inside {@link EmulatorActivity}'s surface lifecycle, where nearly
- * four hundred lines of panel, HTTP download, zip extraction and document-tree
- * walking sat among four lines of surface callbacks. The whole of what it needs
- * from the activity is {@link Host}.
- *
- * ROMs arrive by one of three routes, and all three are kept because Android
- * refuses to grant a document tree on {@code Download}, where a downloaded set
- * usually lands, while the file picker opens it without complaint.
+ * ROMs arrive by one of three routes and all three are kept, because Android
+ * refuses to grant a document tree on {@code Download} — where a downloaded set
+ * usually lands — while the file picker opens it without complaint.
  */
 public final class StartPanel {
 
@@ -838,9 +832,6 @@ public final class StartPanel {
      * Says what arrived and gets a machine going, or says what is still missing
      * and offers to go anyway.
      *
-     * The machine starts by itself now. It used to need a restart pressed by
-     * hand whenever Fuse had already given up, which read as the app having
-     * nothing more to offer - the ROMs were there and the panel was still up.
      */
     private void reportRoms(int copied) {
         List<String> missing = Storage.missingRoms(activity);

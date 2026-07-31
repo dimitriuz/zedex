@@ -207,10 +207,9 @@ public final class EmulatorLayout extends ViewGroup {
     private boolean joystickFloating;
 
     /**
-     * How much of the top of the window {@link #arrange} has kept for the quick
-     * bar, or zero in fullscreen where the bar overlaps instead. Everything else
-     * starts below it, which includes the joystick's band above a keyboard set
-     * beside the screen.
+     * How much of the top of the window {@link #arrange} keeps for the quick bar,
+     * or zero in fullscreen where the bar overlaps instead. Everything else
+     * starts below it.
      */
     private int barStrip;
 
@@ -220,17 +219,15 @@ public final class EmulatorLayout extends ViewGroup {
     }
 
     /**
-     * The children, in the order they are added.
+     * The children, back to front.
      *
-     * The panel is the ROMs message and takes the whole window rather than the
-     * screen's share of it - it is a takeover, not part of the picture. The
-     * quick bar is last so it stays reachable over the panel, and sits at the
-     * top right of the screen rather than of the window, so it follows the
-     * picture when the keyboard is beside it.
+     * The panel is the ROMs message and takes the whole window - it is a
+     * takeover, not part of the picture - so the bar goes after it to stay
+     * reachable over it, and the sheet after that to cover everything.
      *
-     * Three of them can leave for a second screen and come back - see
-     * {@link #setLentAway} - which is why the order is kept rather than being
-     * implied by the calls below.
+     * The order is kept in a field rather than left implied by these calls,
+     * because most of these views leave for a second screen and have to come
+     * back in the same order; see {@link #setLentAway}.
      */
     public void setChildren(View screen, SpectrumKeyboardView keyboard,
                      SystemKeyboardView system,
@@ -273,18 +270,17 @@ public final class EmulatorLayout extends ViewGroup {
     }
 
     /**
-     * Lends the keyboard, the lamps and the bar to another window, or takes them
-     * back.
+     * Lends everything but the picture to another window, or takes it back; see
+     * {@link #lendable}.
      *
-     * The views themselves move rather than the other screen building a second
-     * set: they hold things a copy would not - a latched shift, whichever group
-     * of the bar is open - and every caller that already talks to them goes on
-     * working. The picture is the one thing that cannot move, since detaching
-     * the SurfaceView would destroy the surface Fuse draws into.
+     * The views move rather than the other screen building a second set: they
+     * hold what a copy would not - a latched shift, whichever bar group is open -
+     * and every caller that already talks to them goes on working. The picture is
+     * the one thing that cannot move, since detaching the SurfaceView would
+     * destroy the surface Fuse draws into.
      *
-     * What is left behind is a window with nothing in it but the picture, which
-     * is what fullscreen makes of it anyway - {@link #arrange} treats a lent
-     * layout as one with no keyboard in it.
+     * What is left is a window holding the picture alone, which is what
+     * fullscreen makes of it anyway.
      */
     public void setLentAway(boolean away) {
         if (lent == away) return;
@@ -373,10 +369,9 @@ public final class EmulatorLayout extends ViewGroup {
      * changed: the pad's four ways, fire and the three buttons all show which
      * key they send.
      *
-     * Here rather than in the activity because this is the one place that has
-     * all of them - the activity would need three sets of references, and it
-     * forgetting one of them is exactly how fire and then the pad came to be
-     * showing yesterday's keys.
+     * Here rather than in the activity because this is the one place holding all
+     * of them - and forgetting one is exactly how fire and then the pad came to
+     * be showing yesterday's keys.
      */
     public void refreshControls() {
         if (pad != null) pad.invalidate();
@@ -765,15 +760,13 @@ public final class EmulatorLayout extends ViewGroup {
      * The lamps go against the edge of the picture: a row under it in
      * portrait, a column beside it in landscape.
      *
-     * Against the <em>picture</em> and not the window, so they stay with the
-     * thing they describe when the keyboard is beside the screen. Which way
-     * round they run is the strip's own decision — it reads the orientation —
-     * so this only has to ask how big it wants to be, the way the quick bar
-     * does.
+     * Against the <em>picture</em> and not the window, so they stay beside the
+     * thing they describe whatever size it comes out. Which way round they run is
+     * the strip's own decision, so this only asks how big it wants to be.
      *
-     * They come first, and {@link #placeJoystick} is told to keep clear of
-     * them: both want the space under the picture in portrait, and of the two
-     * it is the joystick that has somewhere else to go.
+     * They are placed first and {@link #placeJoystick} keeps clear of them: both
+     * want the space under the picture in portrait, and the joystick is the one
+     * with somewhere else to go.
      */
     private void placeLights() {
         lightsBox.setEmpty();
@@ -860,12 +853,9 @@ public final class EmulatorLayout extends ViewGroup {
             int fireSize = Math.round(size * FIRE_OF_PAD);
 
             // The right bar reaches the window's edge unless the quick bar is
-            // actually in the way at this height. It used to stop at the bar
-            // unconditionally, from when the bar was a column down this same
-            // black; it is a short row in the corner now, and reserving the
-            // whole height for it left fire a bar barely wider than itself -
-            // which is why the three key buttons beside it shrank past thirty dp
-            // and were dropped altogether in landscape.
+            // in the way at this height. Reserving the bar's whole height
+            // unconditionally left fire a strip barely wider than itself, which
+            // shrank the three key buttons past thirty dp and dropped them.
             int rightEdge = screenBox.right;
             if (!menuBox.isEmpty() && menuBox.left > picture.right
                     && menuBox.bottom + margin > centreY - size / 2) {
@@ -912,20 +902,14 @@ public final class EmulatorLayout extends ViewGroup {
     /**
      * The three key buttons, in an arc on the inboard side of fire.
      *
-     * Round the inboard side because that is the side with room: fire is at the
-     * far end of whatever space the joystick found, so outboard of it is the
-     * window's edge. In profile order, from the top of the arc round, at a radius
-     * that clears both rings - and turned up out of fire's way as far as the room
-     * above allows, since level with fire the last of the three sat where a thumb
-     * arrives at fire itself.
+     * Inboard because that is the side with room: fire is at the far end of
+     * whatever space the joystick found, so outboard of it is the window's edge.
+     * In profile order, at a radius that clears both rings.
      *
-     * Two things can be in the way, and both are handled by moving rather than
-     * by giving up. If the arc would reach past the space fire was placed in,
-     * the whole cluster slides outboard as far as the margin allows - fire is
-     * centred in its bar, so there is usually slack there and nothing else
-     * wants it. If it would reach the pad, or there is still not enough room,
-     * the buttons shrink; below thirty dp they are not worth aiming at and are
-     * dropped altogether.
+     * Two things can be in the way and both are handled by moving, not by giving
+     * up. Reaching past fire's own space slides the cluster outboard, where fire's
+     * centring usually leaves slack. Reaching the pad shrinks the buttons; below
+     * thirty dp they are not worth aiming at and are dropped.
      */
     private void placeKeyButtons() {
         for (Rect box : keyBoxes) box.setEmpty();
@@ -966,16 +950,10 @@ public final class EmulatorLayout extends ViewGroup {
 
         int distance = fireRadius + gap + size / 2;
 
-        // The arc is turned up out of fire's way. Level with fire, the lowest of
-        // the three sat below and inboard of it, which is where a thumb goes to
-        // reach fire itself - and in a tight band it was the button nearest the
-        // bottom of the window. Turned a quarter turn the other way, the lowest
-        // is level with fire and the highest is straight above it.
-        //
-        // That wants room above, which a narrow strip of black may not have, so
-        // the turn is as much as fits: a full step, half a step, or the arc as
-        // it was. Deciding is better than dropping the buttons, which is what
-        // the fit test does when nothing works.
+        // Turned up out of fire's way: level with it, the lowest of the three sat
+        // where a thumb arrives at fire itself. That wants room above, which a
+        // narrow strip of black may not have, so the turn is as much as fits -
+        // a full step, half a step, or none.
         for (double turn : new double[] { Math.PI / 4, Math.PI / 8, 0 }) {
             boolean fits = true;
 

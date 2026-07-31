@@ -30,9 +30,9 @@ import java.util.List;
  * app-specific external ones — rather than an arbitrary folder granted
  * through the document picker.
  *
- * Two things cannot move. Fuse's own UI data, the widget font and the status
- * bitmaps, is unpacked to the {@code FUSEDATADIR} baked in when it was
- * compiled, and Android owns the preferences file.
+ * One thing cannot move: Android owns the preferences file. Fuse's own UI data —
+ * the widget font, the status bitmaps — goes under {@code getFilesDir()} and is
+ * found through argv[0]; see {@code Machine}.
  *
  * The folder to open files *from* has no such limit, because that goes through
  * the picker: any tree the user grants is fine.

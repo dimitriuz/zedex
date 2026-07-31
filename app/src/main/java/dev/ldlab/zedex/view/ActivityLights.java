@@ -13,7 +13,7 @@ import android.os.Looper;
 import android.view.View;
 
 /**
- * Five lamps saying what the machine is busy with.
+ * Seven lamps saying what the machine is busy with.
  *
  * A Spectrum gives almost nothing away. A tape that is not running looks like
  * a tape that is, a game that has stopped reading the keyboard looks like one

@@ -41,12 +41,19 @@ public final class Machine {
     private static final String TAG = "Zedex";
 
     /**
-     * Where Fuse's own data files go, under the app's files directory.
+     * Where Fuse's own data files go, and how it is told to find them.
      *
-     * argv[0] is never run - it is only read for the directory it names, which
-     * is how Fuse is pointed at its font: {@code compat_get_next_path} looks in
-     * {@code lib} beside the program before it falls back to the compile-time
-     * FUSEDATADIR, and that is an absolute path with a package name in it.
+     * {@code compat_get_next_path()} tries the working directory, then a
+     * directory beside the program named in argv[0] — {@code lib}, {@code roms}
+     * or {@code ui/widget}, by what kind of file is wanted — and only then the
+     * FUSEDATADIR baked in at compile time. Everything the app ships is read as a
+     * widget file, {@code fuse.font} included, so {@code ui/widget} is where they
+     * go.
+     *
+     * argv[0] is never run; naming it inside our own files is what makes the
+     * second place land here, and that frees the app from the third. FUSEDATADIR
+     * is an absolute path with the package name in it and could only ever be
+     * right for one build.
      */
     private static final String DATA_DIR = "fuse";
     private static final String LIB_DIR = DATA_DIR + "/ui/widget";

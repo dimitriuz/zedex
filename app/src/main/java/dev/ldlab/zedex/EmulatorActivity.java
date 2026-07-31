@@ -76,21 +76,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
     private static final String TAG = "Zedex";
 
-    /**
-     * Where Fuse's own data files go, and how it is told to find them.
-     *
-     * {@code getFilesDir()/fuse/ui/widget}, because that is the second place
-     * Fuse looks for them: {@code compat_get_next_path()} tries the working
-     * directory, then a directory beside the program named in argv[0] - lib,
-     * roms or ui/widget, by what kind of file is wanted - and only then the
-     * FUSEDATADIR baked in at compile time. Everything the app ships is read as
-     * a widget file, fuse.font included, so ui/widget is where they go.
-     *
-     * Naming argv[0] as a path inside our own files is what makes the second
-     * one land here, and that is what frees the app from the third: FUSEDATADIR
-     * is an absolute path with the package name in it, and could only ever be
-     * right for one build of the app.
-     */
     private static final String PREFS = SettingsActivity.PREFS;
 
 
@@ -436,20 +421,16 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         /*
          * The system keyboard's own comings and goings.
          *
-         * Two things depend on them. The picture moves out of its way, and the
-         * menu has to agree with it: the keyboard can be dismissed from the
-         * keyboard, with its own key or a back gesture, and until this listener
-         * existed the app went on offering to hide something already gone.
+         * The picture moves out of its way, and the menu has to agree with it:
+         * the keyboard can be dismissed from the keyboard, so without this the
+         * app went on offering to hide something already gone.
          *
-         * One way only. Asking the keyboard to appear is done elsewhere; this
-         * merely records what happened, so that noticing it cannot turn into
-         * asking for it again.
-         *
-         * And only once the keyboard has actually been seen. The insets arrive
-         * before it does, so at startup the first thing this heard was "not
-         * visible" - which it dutifully recorded, whereupon the app decided the
-         * keyboard was not wanted and closed the one it had just asked for. A
-         * dismissal can only follow an appearance.
+         * Two traps. It records only - asking the keyboard to appear happens
+         * elsewhere - so noticing cannot turn into asking again. And it ignores
+         * everything until the keyboard has been seen once: the insets arrive
+         * before it does, so the first thing heard at startup was "not visible",
+         * which the app took as "not wanted" and used to close the keyboard it
+         * had just asked for.
          */
         layout.setOnApplyWindowInsetsListener((ignored, insets) -> {
             boolean visible = insets.isVisible(WindowInsets.Type.ime());
@@ -617,8 +598,8 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      * controls out of the way \u2014 while everything that is chosen rather than
      * reached for stays in the sheet.
      *
-     * Where the bar goes is {@link EmulatorLayout}'s business: it follows the
-     * screen, which moves with the template.
+     * Where it goes is {@link EmulatorLayout}'s business: a strip across the top
+     * of the window, with the picture starting below it.
      */
     private QuickBar buildQuickBar() {
         QuickBar bar = new QuickBar(this);
@@ -986,16 +967,12 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      * Takes the bar away entirely while the ROMs panel is covering everything,
      * and puts it back when a machine is running.
      *
-     * There is nothing for it to do with no machine: no state to save, nothing
-     * to pause, no picture to photograph, no drives to look in. It kept ☰ for a
-     * while so that the data folder stayed reachable, but the panel's own three
-     * options are the doors out of it - download a set, import a folder, import
-     * files - and each of them puts ROMs where this needs them. A bar of
+     * With no machine there is nothing for it to do - no state to save, nothing
+     * to pause, no picture to photograph, no drives to look in - and a bar of
      * actions that cannot act is worse than no bar.
      *
-     * Nothing reveals it while the panel is up: the panel covers the screen, so
-     * a tap lands on the panel rather than on the picture, but startup and the
-     * sheet closing both ask as well.
+     * The flag is needed because a tap on the panel is not the only thing that
+     * would bring the bar back: startup and the sheet closing both ask too.
      */
     private void hideBarForPanel(boolean covering) {
         panelUp = covering;
@@ -1163,11 +1140,10 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     /**
      * One of the controller's hotkeys, on the UI thread.
      *
-     * Every one of them is a thing a menu already does, called the same way the
-     * menu calls it - which is the point of the list being closed rather than
-     * open: a hotkey is a shortcut to something that exists, so there is nothing
-     * here that can only be reached from a controller and nothing to keep in step
-     * with a second implementation.
+     * Every one is a thing a menu already does, called the way the menu calls it.
+     * That is the point of the list being closed: nothing here can only be
+     * reached from a controller, and there is no second implementation to keep in
+     * step.
      *
      * {@code pressed} is false only for the held kind, and only
      * {@link Hotkeys.Action#FAST_FORWARD} is that.
