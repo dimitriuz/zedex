@@ -40,7 +40,7 @@ import java.util.List;
  * The rows are ordinary text views with the words in them, which is what lets
  * the tests and {@code scripts/ui-tap.py} keep addressing the menu by name.
  */
-final class MenuDrawer extends FrameLayout {
+final class MenuDrawer extends FrameLayout implements Rows {
 
     /**
      * What goes on one page. Called every time the page is shown, so it can
@@ -48,6 +48,22 @@ final class MenuDrawer extends FrameLayout {
      */
     interface Page {
         void fill(MenuDrawer sheet);
+    }
+
+    /**
+     * {@link Rows}: the sheet's half of a list both surfaces can show. The
+     * argument order is the interface's, and it delegates rather than being the
+     * real method, because a sheet row can do more than a shared list needs -
+     * a long press, a trailing button - and those callers say so by name.
+     */
+    @Override
+    public void item(int icon, String text, Runnable action) {
+        addItem(text, icon, action);
+    }
+
+    @Override
+    public void rule() {
+        addRule();
     }
 
     /** Wide enough for the longest item, narrow enough to leave the screen. */

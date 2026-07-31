@@ -596,26 +596,35 @@ final class EmulatorLayout extends ViewGroup {
     }
 
     /**
-     * Full sized, whichever way up the device is.
+     * The whole width of the window, which is nearly always full size.
      *
      * It used to shrink to the size of the activity lamps in landscape, where it
-     * hung in the black beside a 4:3 picture: nine full sized icons came to
-     * nearly a thousand pixels of a four hundred and eighty pixel gap, so they
-     * had to be the size of the lamps or they lay across the game. Icons that
-     * small are hard to hit and hard to tell apart, and the choice was only ever
-     * forced because the bar was squeezing into space left over. It has a strip
-     * of its own across the top now, sideways as well as upright — see the room
-     * {@link #arrange} keeps for it — and a strip has the whole width to spend.
+     * hung in the black beside a 4:3 picture: the icons came to nearly a
+     * thousand pixels of a four hundred and eighty pixel gap, so they had to be
+     * the size of the lamps or they lay across the game. Icons that small are
+     * hard to hit and hard to tell apart, and the choice was only ever forced
+     * because the bar was squeezing into space left over. It has a strip of its
+     * own across the top now, sideways as well as upright — see the room
+     * {@link #arrange} keeps for it.
      *
-     * Still a method rather than a constant: the second screen sizes the bar to
-     * its own panel, and this is how it is put back.
+     * The width is passed rather than zero, which would mean "full size, and
+     * never mind the room". Nine icons at 44dp is 396dp and a small phone in
+     * portrait is 360dp across, so the one case where the strip is not enough is
+     * a real one; there they shrink a little rather than running off the end.
+     *
+     * From the display and not from a measured width, because this is called
+     * before the first layout and because changing a child's size during a
+     * measure pass is how layout loops start.
      */
     private void applyBarMetrics() {
         // Not while it is over there: the panel sized it to itself, and this
         // window rotating is none of its business.
         if (menu == null || lent) return;
 
-        menu.setCompact(0);
+        android.util.DisplayMetrics metrics = getResources().getDisplayMetrics();
+
+        menu.setCompact(metrics.widthPixels
+                        - 2 * Math.round(BAR_GAP * metrics.density));
     }
 
     @Override

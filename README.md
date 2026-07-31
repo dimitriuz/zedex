@@ -69,7 +69,7 @@ end.
 - **Pause** — automatic when the app is not in front, and nothing is drawn
   at all while the device sleeps
 - **Activity lamps** for the tape, disks, AY, keyboard and joystick — the quick
-  bar's *Display…* puts them away, along with the keyboard and the joystick, and
+  bar's *On screen…* puts them away, along with the keyboard and the joystick, and
   fullscreen gives the picture their strip back
 - **Two screens**, on a handheld built with them: the controls move to the
   other panel and the machine gets a whole screen to itself
@@ -240,13 +240,21 @@ picker.
 
 ---
 
-**The bar** is always there: across the top in portrait, smaller in the top right
-corner sideways. Seven icons — **Files** (open, save a state, load one),
-**Machine** (pause, change machine, reset, NMI), **Capture**, **Display** (hide
-the keyboard, the joystick or the lamps; scanlines, CRT, video output and
-border), **Fast
-forward** (hold it: 500% while held, silent, and back to your speed on release),
-**Fullscreen**, and ☰.
+**The bar** is always there, in a strip across the top of the window whichever
+way up the device is. Nine icons:
+
+| | |
+| --- | --- |
+| **Files** | open one, and the last ten you opened |
+| **States** | save one, load one, and the quick pair named after what is running |
+| **Machine** | pause, change machine, reset, NMI |
+| **Capture** | a screenshot, a GIF, an MP4, and the folder they go to |
+| **On screen** | the keyboard, the joystick and the lamps, away or back |
+| **Display** | scanlines, CRT, video output and border |
+| **Fast forward** | hold it: 500% while held, silent, back to your speed on release |
+| **Fullscreen** | |
+| **☰** | |
+
 Fullscreen leaves the picture and the joystick and takes everything else away —
 the bar, the keyboard and the lamps, whichever way up the device is. Tap the
 picture to bring the bar back for a moment, or press **Back** to leave

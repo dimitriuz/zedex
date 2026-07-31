@@ -102,6 +102,34 @@ had always made. `setCompact` is still there for the one place the bar really is
 a guest: a handheld's second screen, where it shares a short panel with the
 keyboard and the joystick.
 
+**One list, two places to show it.** The sheet and a bar group are different
+shapes built from different views, but *Screenshot · GIF · MP4* is the same list
+in both — and it was written twice, once as `fillCapture(MenuDrawer)` and once
+as `fillCaptureBar(QuickBar)`, because `addItem` and `addToRow` take the same
+three things in a different order. They drifted, which is what always happens:
+the sheet offered *Open recordings folder* and the bar did not, the sheet drew
+MP4 with a record dot and the bar with a reel of film, and the machine page put
+its rows in one order in the sheet and another on the bar. None of it was
+decided.
+
+`Rows` is the two methods both surfaces can do — `item(icon, text, action)` and
+`rule()` — and each implements it by delegating to what it already had. The
+shared lists are written once against the interface, and a method reference
+still satisfies both `MenuDrawer.Page` and `QuickBar.Row` because both take a
+subtype of `Rows`. What is *not* shared stays where it is: the sheet carries
+submenus, fields, notes and headings that a dropdown cannot, so anything needing
+those takes a `MenuDrawer` and says so.
+
+**Six bar groups, not four.** Files used to hold the save states as well as the
+files, and Display used to hold the three show/hide toggles as well as the
+picture. Each was two lists sharing one icon, so the icon could not say what was
+behind it and the list had to be read to the end to find out which half you were
+in — and the two quick states, which are the most reached-for things in the app,
+were on a controller hotkey and nowhere else, so anyone without a controller
+could not reach them at all. `setCompact` is now given the window's width rather
+than zero, because nine icons at 44dp is 396dp and a small phone in portrait is
+360dp across.
+
 **Choices, questions and fields are pages, not dialogs.** A dialog is the
 activity's window, so it always opens on the machine's screen — which with a
 second screen means a question asked by a thumb on the panel gets answered over

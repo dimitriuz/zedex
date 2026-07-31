@@ -563,18 +563,25 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     private QuickBar buildQuickBar() {
         QuickBar bar = new QuickBar(this);
 
+        // Six groups where there were four. Files used to carry the save
+        // states as well as the files, and Display used to carry the three
+        // show/hide toggles as well as the picture - each of them two lists
+        // that happened to share an icon, so the icon could not say what was
+        // behind it and the list had to be read to the end.
         bar.addGroup(R.drawable.ic_folder, getString(R.string.menu_files),
-                     this::fillFilesBar);
-        // The machine second here as in the sheet, since it holds pause and the
-        // two menus reading the same way is worth more than either order is.
+                     this::fillFiles);
+        bar.addGroup(R.drawable.ic_bookmark, getString(R.string.menu_states),
+                     this::fillStates);
+        // The machine here as in the sheet, since it holds pause and the two
+        // menus reading the same way is worth more than either order is.
         bar.addGroup(R.drawable.ic_chip, getString(R.string.menu_machine_group),
-                     this::fillMachineBar);
+                     this::fillMachine);
         bar.addGroup(R.drawable.ic_camera, getString(R.string.menu_capture),
-                     this::fillCaptureBar);
-        // Display rather than Controls: the group is what is on the screen
-        // beside the picture, and one of the three is not a control at all.
+                     this::fillCapture);
+        bar.addGroup(R.drawable.ic_controls, getString(R.string.menu_on_screen),
+                     this::fillOnScreen);
         bar.addGroup(R.drawable.ic_display, getString(R.string.menu_display),
-                     this::fillControlsBar);
+                     this::fillDisplay);
 
         bar.addHold(R.drawable.ic_fast_forward, getString(R.string.fast_forward),
                     () -> fastForward(true), () -> fastForward(false));
@@ -589,34 +596,27 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         return bar;
     }
 
-    /** Reset is here rather than on the bar itself: it asks first, and an icon
-     *  that throws the game away wants a word beside it. */
     /**
-     * Everything that is a file: what to open, and the states either way.
+     * Opening something: the picker, and then what was opened before.
      *
-     * Grouped rather than three icons of their own because the bar is a column
-     * sideways and a column has a height to fit into - and because a folder, a
-     * disk going down and a disk coming up are three pictures that have to be
-     * learned, while a list says which is which.
+     * The save states used to be in here as well, which made the folder icon
+     * mean "files and states" - two lists sharing one picture, so the picture
+     * said neither and the list had to be read to the end to find out which
+     * half you were in. They have a group of their own now.
+     *
+     * The names go last and under a line, because the picker above them is what
+     * the group is for and ten filenames in front of it would be ten things to
+     * read past every time.
      */
-    private void fillFilesBar(QuickBar bar) {
-        bar.addToRow(R.drawable.ic_folder, getString(R.string.menu_open),
-                     this::pickFile);
-        bar.addToRow(R.drawable.ic_save, getString(R.string.menu_save_state),
-                     () -> showStates(true));
-        bar.addToRow(R.drawable.ic_load, getString(R.string.menu_load_state),
-                     () -> showStates(false));
+    private void fillFiles(Rows rows) {
+        rows.item(R.drawable.ic_folder, getString(R.string.menu_open),
+                  this::pickFile);
 
-        // The files themselves last and under a line: the three above are what
-        // the group is for, and a list of names among them would be three
-        // things to read past every time.
         List<Recents.Item> recent = Recents.all(preferences);
         if (recent.isEmpty()) return;
 
-        bar.addToRowRule();
-        for (Recents.Item item : recent) {
-            bar.addToRow(R.drawable.ic_file, item.name, () -> openRecent(item));
-        }
+        rows.rule();
+        fillRecent(rows);
     }
 
     /**
@@ -626,9 +626,9 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      * an emulator, and through the picker it costs three taps and remembering
      * what the file was called.
      */
-    private void fillRecent(MenuDrawer sheet) {
+    private void fillRecent(Rows rows) {
         for (Recents.Item item : Recents.all(preferences)) {
-            sheet.addItem(item.name, R.drawable.ic_file, () -> openRecent(item));
+            rows.item(R.drawable.ic_file, item.name, () -> openRecent(item));
         }
     }
 
@@ -655,23 +655,33 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         }).start();
     }
 
-    private void fillMachineBar(QuickBar bar) {
-        boolean paused = isPaused();
+    /**
+     * What is running: stop it, swap it, start it over, interrupt it.
+     *
+     * Built when the page is opened, so pause says which way round it is
+     * without anything having to keep it up to date. It reads
+     * {@link #pausedByUser} and not {@link #isPaused}: the row toggles the
+     * user's pause, so it has to say what the user's pause is - Android's own,
+     * which is the other half of isPaused, is never on while a menu is being
+     * looked at anyway.
+     */
+    private void fillMachine(Rows rows) {
+        rows.item(pausedByUser ? R.drawable.ic_play : R.drawable.ic_pause,
+                  getString(pausedByUser ? R.string.pause_resume
+                                         : R.string.pause_pause),
+                  () -> pause(!pausedByUser));
 
-        // Built when the group is opened, so it says which way round it is
-        // without anything having to keep it up to date.
-        bar.addToRow(paused ? R.drawable.ic_play : R.drawable.ic_pause,
-                     getString(paused ? R.string.pause_resume
-                                      : R.string.pause_pause),
-                     () -> pause(!pausedByUser));
-        bar.addToRow(R.drawable.ic_swap, withMachine(R.string.menu_machine),
-                     this::showMachineDialog);
-        bar.addToRow(R.drawable.ic_reset, getString(R.string.menu_reset),
-                     () -> menu.go(getString(R.string.menu_reset), resetMachine()));
+        rows.rule();
+        rows.item(R.drawable.ic_swap, withMachine(R.string.menu_machine),
+                  this::showMachineDialog);
+        // Reset asks first, and asking is a sheet page - so the bar's row opens
+        // the sheet on it rather than the two surfaces doing it differently.
+        rows.item(R.drawable.ic_reset, getString(R.string.menu_reset),
+                  () -> menu.go(getString(R.string.menu_reset), resetMachine()));
         // No confirming, unlike reset: the magic button interrupts the machine
         // rather than throwing its state away, and half of what it is for is
         // pressing it at a particular moment.
-        bar.addToRow(R.drawable.ic_bolt, getString(R.string.menu_nmi), this::nmi);
+        rows.item(R.drawable.ic_bolt, getString(R.string.menu_nmi), this::nmi);
     }
 
     /** The magic button of the real hardware; what it does is the machine's. */
@@ -680,86 +690,82 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         note(R.string.nmi_done);
     }
 
-    private void fillCaptureBar(QuickBar bar) {
-        bar.addToRow(R.drawable.ic_camera, getString(R.string.capture_screenshot),
-                     this::takeScreenshot);
-
-        if (Recorder.isRecording()) {
-            bar.addToRow(R.drawable.ic_stop, getString(R.string.capture_stop),
-                         Recorder::stop);
-        } else {
-            bar.addToRow(R.drawable.ic_record, getString(R.string.capture_gif),
-                         () -> startRecording(Recorder.Format.GIF));
-            bar.addToRow(R.drawable.ic_film, getString(R.string.capture_mp4),
-                         () -> startRecording(Recorder.Format.MP4));
-        }
-    }
 
     /**
-     * The three toggles, named for what they would do rather than for what they
-     * are, since an icon that means "joystick" cannot also say which way it is
-     * about to go.
+     * What is on the glass beside the picture, and whether it is there.
+     *
+     * Named for what they would do rather than for what they are, since an icon
+     * that means "joystick" cannot also say which way it is about to go.
      *
      * The lamps are here rather than only in the settings because whether they
      * are worth their strip is a decision of the moment - watching a tape load
      * wants them, playing the game afterwards does not - and it is the same kind
      * of decision as the other two. Both places write the same preference.
      */
-    private void fillControlsBar(QuickBar bar) {
+    private void fillOnScreen(Rows rows) {
         boolean pad = layout.joystickVisible();
         boolean keys = layout.keyboardVisible();
         boolean lamps = layout.lightsVisible();
 
-        bar.addToRow(R.drawable.ic_joystick,
-                     getString(pad ? R.string.quick_joystick_hide
-                                   : R.string.quick_joystick_show),
-                     () -> showJoystick(!pad));
+        rows.item(R.drawable.ic_joystick,
+                  getString(pad ? R.string.quick_joystick_hide
+                                : R.string.quick_joystick_show),
+                  () -> showJoystick(!pad));
+
         // Neither while fullscreen: it has both of them away whatever these say,
         // so a row offering to hide one does nothing and a row offering to show
         // one is a promise the layout will not keep. The joystick stays,
         // because fullscreen leaves that where it is.
-        if (!fullscreen()) {
-            bar.addToRow(R.drawable.ic_keyboard,
-                         getString(keys ? R.string.quick_keyboard_hide
-                                        : R.string.quick_keyboard_show),
-                         () -> showKeyboard(!keys));
-            bar.addToRow(R.drawable.ic_indicators,
-                         getString(lamps ? R.string.quick_lights_hide
-                                         : R.string.quick_lights_show),
-                         () -> showLights(!lamps));
-        }
+        if (fullscreen()) return;
 
-        // And what the picture itself looks like. The two switches are named for
-        // what they would do and the two choosers for what is chosen, which is
-        // the rule everywhere else: an icon cannot say which way it is going.
-        //
-        // Two rows for what the settings screen keeps as one choice of four,
-        // because turning scanlines off to read something is a decision of the
-        // moment and should not cost a trip through a list. Filter is what
-        // keeps them from treading on each other: each row changes its own half
-        // and leaves the other alone.
+        rows.item(R.drawable.ic_keyboard,
+                  getString(keys ? R.string.quick_keyboard_hide
+                                 : R.string.quick_keyboard_show),
+                  () -> showKeyboard(!keys));
+        rows.item(R.drawable.ic_indicators,
+                  getString(lamps ? R.string.quick_lights_hide
+                                  : R.string.quick_lights_show),
+                  () -> showLights(!lamps));
+    }
+
+    /**
+     * What the picture itself looks like.
+     *
+     * It shared a group with the three toggles above, under the display icon,
+     * which made that icon mean "the screen furniture and also the screen" -
+     * seven rows to read for one of them. Two switches, named for what they
+     * would do, and two choosers, named for what is chosen: an icon cannot say
+     * which way it is going, but a chooser can say where it is.
+     *
+     * Scanlines and CRT are two rows here and one choice of four in the
+     * settings, because turning scanlines off to read something is a decision
+     * of the moment and should not cost a trip through a list. {@link Filter}
+     * is what keeps them from treading on each other: each row changes its own
+     * half and leaves the other alone.
+     */
+    private void fillDisplay(Rows rows) {
         Filter filter = Filter.of(preferences);
 
-        bar.addToRow(R.drawable.ic_scanlines,
-                     getString(filter.scanlines ? R.string.quick_scanlines_off
-                                                : R.string.quick_scanlines_on),
-                     () -> switchFilter(filter.withScanlines(!filter.scanlines),
-                                        filter.scanlines
-                                                ? R.string.quick_scanlines_off
-                                                : R.string.quick_scanlines_on));
-        bar.addToRow(R.drawable.ic_crt,
-                     getString(filter.crt ? R.string.quick_crt_off
-                                          : R.string.quick_crt_on),
-                     () -> switchFilter(filter.withCrt(!filter.crt),
-                                        filter.crt ? R.string.quick_crt_off
-                                                   : R.string.quick_crt_on));
-        bar.addToRow(R.drawable.ic_signal,
-                     getString(R.string.quick_video, videoName()),
-                     this::nextVideo);
-        bar.addToRow(R.drawable.ic_border,
-                     getString(R.string.quick_border,
-                               getString(Border.of(preferences).title)),
-                     this::nextBorder);
+        rows.item(R.drawable.ic_scanlines,
+                  getString(filter.scanlines ? R.string.quick_scanlines_off
+                                             : R.string.quick_scanlines_on),
+                  () -> switchFilter(filter.withScanlines(!filter.scanlines),
+                                     filter.scanlines
+                                             ? R.string.quick_scanlines_off
+                                             : R.string.quick_scanlines_on));
+        rows.item(R.drawable.ic_crt,
+                  getString(filter.crt ? R.string.quick_crt_off
+                                       : R.string.quick_crt_on),
+                  () -> switchFilter(filter.withCrt(!filter.crt),
+                                     filter.crt ? R.string.quick_crt_off
+                                                : R.string.quick_crt_on));
+        rows.item(R.drawable.ic_signal,
+                  getString(R.string.quick_video, videoName()),
+                  this::nextVideo);
+        rows.item(R.drawable.ic_border,
+                  getString(R.string.quick_border,
+                            getString(Border.of(preferences).title)),
+                  this::nextBorder);
     }
 
     /** Either of the picture switches, written and pushed like the settings do. */
@@ -1761,26 +1767,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         return Math.round(12 * getResources().getDisplayMetrics().density);
     }
 
-    private void fillStates(MenuDrawer sheet) {
-        sheet.addItem(getString(R.string.menu_save_state), R.drawable.ic_save,
-                      () -> showStates(true));
-        sheet.addItem(getString(R.string.menu_load_state), R.drawable.ic_load,
-                      () -> showStates(false));
-    }
-
-    private void fillMachine(MenuDrawer sheet) {
-        sheet.addItem(withMachine(R.string.menu_machine), R.drawable.ic_swap,
-                      this::showMachineDialog);
-
-        sheet.addRule();
-        sheet.addItem(getString(pausedByUser ? R.string.pause_resume
-                                             : R.string.pause_pause),
-                      pausedByUser ? R.drawable.ic_play : R.drawable.ic_pause,
-                      () -> pause(!pausedByUser));
-        sheet.addSubmenu(getString(R.string.menu_reset), R.drawable.ic_reset,
-                         resetMachine());
-        sheet.addItem(getString(R.string.menu_nmi), R.drawable.ic_bolt, this::nmi);
-    }
 
     // --- pause ---------------------------------------------------------------
 
@@ -2016,6 +2002,26 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         }
 
         return media + " " + QUICK_STATE;
+    }
+
+    /**
+     * What the quick pair are named after - the file that is open - or null
+     * when nothing is, where they are just "Quick save" and "Quick load".
+     *
+     * The stored name may already carry the suffix, since loading a state sets
+     * it; {@link #quickStateName} tolerates that and so does this, from the
+     * other end.
+     */
+    private String quickSubject() {
+        String media = preferences.getString(States.KEY_MEDIA_NAME, null);
+
+        if (media == null || media.isEmpty() || media.equals(QUICK_STATE)) {
+            return null;
+        }
+
+        return media.endsWith(" " + QUICK_STATE)
+                ? media.substring(0, media.length() - QUICK_STATE.length() - 1)
+                : media;
     }
 
     private void quickSave() {
@@ -2454,25 +2460,29 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      * and keeps the palette exactly, an MP4 is smaller and takes sound
      * eventually.
      */
-    private void fillCapture(MenuDrawer sheet) {
-        sheet.addItem(getString(R.string.capture_screenshot), R.drawable.ic_camera,
-                      this::takeScreenshot);
+    /**
+     * A picture of the machine, or a film of it.
+     *
+     * Built when the page is opened, so it offers the one thing that makes
+     * sense: there is nothing to stop until something is running.
+     */
+    private void fillCapture(Rows rows) {
+        rows.item(R.drawable.ic_camera, getString(R.string.capture_screenshot),
+                  this::takeScreenshot);
 
-        // Built when the page opens, so it offers the one thing that makes
-        // sense: there is nothing to stop until something is running.
         if (Recorder.isRecording()) {
-            sheet.addItem(getString(R.string.capture_stop), R.drawable.ic_stop,
-                          Recorder::stop);
+            rows.item(R.drawable.ic_stop, getString(R.string.capture_stop),
+                      Recorder::stop);
         } else {
-            sheet.addItem(getString(R.string.capture_gif), R.drawable.ic_record,
-                          () -> startRecording(Recorder.Format.GIF));
-            sheet.addItem(getString(R.string.capture_mp4), R.drawable.ic_record,
-                          () -> startRecording(Recorder.Format.MP4));
+            rows.item(R.drawable.ic_record, getString(R.string.capture_gif),
+                      () -> startRecording(Recorder.Format.GIF));
+            rows.item(R.drawable.ic_film, getString(R.string.capture_mp4),
+                      () -> startRecording(Recorder.Format.MP4));
         }
 
-        sheet.addRule();
-        sheet.addItem(getString(R.string.capture_open_folder), R.drawable.ic_folder,
-                      this::openRecordingsFolder);
+        rows.rule();
+        rows.item(R.drawable.ic_folder, getString(R.string.capture_open_folder),
+                  this::openRecordingsFolder);
     }
 
     /**
@@ -2939,6 +2949,38 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      */
     private void showStates(boolean saving) {
         openOwnScreen(StatesActivity.intent(this, saving));
+    }
+
+    /**
+     * Saving and loading, both ways round: the list, which asks for a name and
+     * shows the pictures, and the one state a hotkey writes without asking.
+     *
+     * A group of its own on the bar. It used to be three rows under the folder
+     * icon along with the picker and the recent files, which meant a folder
+     * standing for "files and states" - and the quick pair, which are the two
+     * most reached-for things in the app, were on a hotkey and nowhere else.
+     * Anyone without a controller could not reach them at all.
+     */
+    private void fillStates(Rows rows) {
+        rows.item(R.drawable.ic_save, getString(R.string.menu_save_state),
+                  () -> showStates(true));
+        rows.item(R.drawable.ic_load, getString(R.string.menu_load_state),
+                  () -> showStates(false));
+
+        // Named after what is running rather than after the state: the state is
+        // called "Tujad Quick", and a row reading "Quick save - Tujad Quick"
+        // says quick twice and tells you nothing the first one did not.
+        String subject = quickSubject();
+
+        rows.rule();
+        rows.item(R.drawable.ic_save,
+                  subject == null ? getString(R.string.hotkey_quick_save)
+                                  : getString(R.string.quick_save, subject),
+                  this::quickSave);
+        rows.item(R.drawable.ic_load,
+                  subject == null ? getString(R.string.hotkey_quick_load)
+                                  : getString(R.string.quick_load, subject),
+                  this::quickLoad);
     }
 
     /** Keeps names to something that is safe as a filename. */

@@ -37,11 +37,26 @@ import android.widget.TextView;
  * reader announces and what the tests and {@code scripts/ui-tap.py} address it
  * by.
  */
-final class QuickBar extends LinearLayout {
+final class QuickBar extends LinearLayout implements Rows {
 
     /** What goes in the list when a group is opened. */
     interface Row {
         void fill(QuickBar bar);
+    }
+
+    /**
+     * {@link Rows}: the bar's half of a list both surfaces can show. Delegates
+     * for the same reason the sheet's does - the bar's own callers pass an icon
+     * first because that is what a bar is made of.
+     */
+    @Override
+    public void item(int icon, String text, Runnable action) {
+        addToRow(icon, text, action);
+    }
+
+    @Override
+    public void rule() {
+        addToRowRule();
     }
 
     /** Big enough for a thumb, small enough to leave the picture alone. */
