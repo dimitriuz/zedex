@@ -83,7 +83,7 @@
         <activity
             android:name=".screen.SettingsActivity"
             android:label="@string/settings_title"
-            android:theme="@android:style/Theme.DeviceDefault.Settings"
+            android:theme="@style/SettingsTheme"
             android:exported="false" />
 
         <activity

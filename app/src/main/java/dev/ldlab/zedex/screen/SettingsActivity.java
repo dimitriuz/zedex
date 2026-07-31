@@ -20,11 +20,12 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.Settings;
-import android.preference.ListPreference;
-import android.preference.Preference;
-import android.preference.PreferenceFragment;
-import android.preference.PreferenceGroup;
-import android.preference.PreferenceManager;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.preference.ListPreference;
+import androidx.preference.Preference;
+import androidx.preference.PreferenceFragmentCompat;
+import androidx.preference.PreferenceGroup;
+import androidx.preference.PreferenceManager;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
@@ -48,7 +49,9 @@ import java.util.List;
  * machine waits for the next launch, since changing machine mid-game is
  * what the ☰ menu is for.
  */
-public class SettingsActivity extends Activity {
+public class SettingsActivity extends AppCompatActivity
+        implements androidx.preference.PreferenceFragmentCompat
+                   .OnPreferenceStartScreenCallback {
 
     public static final String PREFS = "fuse";
 
@@ -353,9 +356,9 @@ public class SettingsActivity extends Activity {
      * ViewPager2 and a TabLayout, which would be the app's first dependencies
      * for a row of buttons and a fragment swap.
      *
-     * The colours come from the theme rather than from here. That is the lesson
-     * of {@link FadingListPreference} — this screen follows the device's light
-     * or dark setting, and anything hardcoded is wrong under one of them.
+     * The colours come from the theme rather than from here: this screen follows
+     * the device's light or dark setting, and anything hardcoded is wrong under
+     * one of them.
      */
     private View buildTabs() {
         LinearLayout root = new LinearLayout(this);
@@ -426,21 +429,53 @@ public class SettingsActivity extends Activity {
         return holder;
     }
 
+    /**
+     * A nested PreferenceScreen — <i>Advanced…</i> — being entered.
+     *
+     * The framework's preferences opened one by themselves; AndroidX asks
+     * instead, and does nothing at all if nobody answers. The answer is another
+     * fragment over the same file, rooted at that screen's key.
+     */
+    @Override
+    public boolean onPreferenceStartScreen(
+            androidx.preference.PreferenceFragmentCompat caller,
+            androidx.preference.PreferenceScreen screen) {
+        swap(TABS[selected].screen, screen.getKey(), true);
+        return true;
+    }
+
     /** Swaps in a tab's preferences and marks it as the one you are on. */
     private void show(int index) {
         selected = index;
 
+        swap(TABS[index].screen, null, false);
+        paintTabs();
+    }
+
+    /**
+     * The fragment showing one screen, or one nested screen of it.
+     *
+     * A nested one goes on the back stack so Back leaves it; a tab does not,
+     * since Back from a tab should leave the settings.
+     */
+    private void swap(int resource, String rootKey, boolean nested) {
         SettingsFragment fragment = new SettingsFragment();
         Bundle arguments = new Bundle();
 
-        arguments.putInt(SettingsFragment.ARG_SCREEN, TABS[index].screen);
+        arguments.putInt(SettingsFragment.ARG_SCREEN, resource);
+        if (rootKey != null) {
+            arguments.putString(
+                    androidx.preference.PreferenceFragmentCompat.ARG_PREFERENCE_ROOT,
+                    rootKey);
+        }
         fragment.setArguments(arguments);
 
-        getFragmentManager().beginTransaction()
-                .replace(CONTENT_ID, fragment)
-                .commit();
+        androidx.fragment.app.FragmentTransaction change =
+                getSupportFragmentManager().beginTransaction()
+                        .replace(CONTENT_ID, fragment);
 
-        paintTabs();
+        if (nested) change.addToBackStack(null);
+        change.commit();
     }
 
     private void paintTabs() {
@@ -469,24 +504,25 @@ public class SettingsActivity extends Activity {
         return colour;
     }
 
-    public static class SettingsFragment extends PreferenceFragment
+    public static class SettingsFragment extends PreferenceFragmentCompat
             implements android.content.SharedPreferences.OnSharedPreferenceChangeListener {
 
         /** Which tab's preferences this instance is showing. */
         static final String ARG_SCREEN = "screen";
 
+        /**
+         * One class over every screen rather than one class each: everything
+         * below asks findPreference() whether a setting is on this screen
+         * before touching it, because it had to cope with an absent one anyway.
+         *
+         * {@code rootKey} is how a nested PreferenceScreen is entered - see
+         * {@link SettingsActivity#onPreferenceStartScreen}. Null is the whole
+         * file.
+         */
         @Override
-        public void onCreate(Bundle savedInstanceState) {
-            super.onCreate(savedInstanceState);
-
-            PreferenceManager manager = getPreferenceManager();
-            manager.setSharedPreferencesName(PREFS);
-
-            /* One class over five screens rather than five classes: everything
-               below already asks findPreference() whether a setting is on this
-               screen before touching it, because it had to cope with a
-               preference being absent anyway. */
-            addPreferencesFromResource(getArguments().getInt(ARG_SCREEN));
+        public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
+            getPreferenceManager().setSharedPreferencesName(PREFS);
+            setPreferencesFromResource(getArguments().getInt(ARG_SCREEN), rootKey);
 
             populateMachines();
             populateScales();

@@ -797,6 +797,35 @@ if it cannot have it. `settings_set_string()` does the assignment, because the
 setting owns its copy and handing it a literal would leave Fuse freeing static
 storage later.
 
+### The one dependency
+
+`androidx.preference`, and it buys one screen. `android.preference` has been
+deprecated since API 29, and its disabled rows are not dimmed at all — measured
+on API 36, the darkest pixel of a disabled title is the same as an enabled one.
+That took a `FadingListPreference` of our own to work around and made every
+`android:dependency` in the app decorative. AndroidX does it correctly.
+
+Three things came with it.
+
+`SettingsActivity` is an `AppCompatActivity`, because `PreferenceFragmentCompat`
+will not attach to anything else — and an AppCompatActivity refuses any theme
+that is not a `Theme.AppCompat` descendant, so `Theme.DeviceDefault.Settings` had
+to go. `SettingsTheme` is `Theme.AppCompat.DayNight`, which is the nearest
+equivalent: it follows the device's light or dark setting, which is what
+DeviceDefault did.
+
+The preferences are inflated in `onCreatePreferences` rather than `onCreate`,
+which is where AndroidX passes the root key.
+
+**A nested `PreferenceScreen` no longer opens itself.** The framework's
+preferences did; AndroidX asks through `OnPreferenceStartScreenCallback` and does
+nothing at all if nobody answers — so *Advanced…* was a dead row until the
+activity implemented it. The answer is another fragment over the same XML file,
+rooted at that screen's key, on the back stack so Back leaves it.
+
+The APK went from 5.7 MB to 12.3 MB. That is the price, and it is paid for one
+screen; nothing else in the app touches appcompat.
+
 ### How the code is laid out
 
 Two classes stay at the root and both are pinned there.

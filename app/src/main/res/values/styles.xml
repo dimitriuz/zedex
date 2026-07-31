@@ -1,4 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="AppTheme" parent="android:Theme.NoTitleBar.Fullscreen" />
+
+    <!--
+      The settings screen, and the only theme in the app that is not the
+      framework's own.
+
+      androidx.preference draws through appcompat and an AppCompatActivity
+      refuses anything but a Theme.AppCompat descendant, so
+      Theme.DeviceDefault.Settings - which is what this screen used - is not an
+      option. DayNight is the nearest equivalent: it follows the device's light
+      or dark setting, which is what DeviceDefault did.
+    -->
+    <style name="SettingsTheme" parent="Theme.AppCompat.DayNight">
+        <item name="android:windowActionBar">true</item>
+    </style>
 </resources>

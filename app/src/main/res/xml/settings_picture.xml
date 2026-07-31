@@ -24,7 +24,7 @@
             android:summary="@string/settings_filter_advanced_summary">
 
             <PreferenceCategory android:title="@string/settings_filter_beam">
-            <dev.ldlab.zedex.FadingListPreference
+            <ListPreference
                 android:key="filterScanline"
                 android:title="@string/settings_filter_scanline"
                 android:entries="@array/percent_names"
@@ -33,19 +33,19 @@
             </PreferenceCategory>
 
             <PreferenceCategory android:title="@string/settings_filter_glass">
-            <dev.ldlab.zedex.FadingListPreference
+            <ListPreference
                 android:key="filterCurve"
                 android:title="@string/settings_filter_curve"
                 android:entries="@array/percent_names"
                 android:entryValues="@array/percent_values"
                 android:defaultValue="40" />
-            <dev.ldlab.zedex.FadingListPreference
+            <ListPreference
                 android:key="filterMask"
                 android:title="@string/settings_filter_mask"
                 android:entries="@array/percent_names"
                 android:entryValues="@array/percent_values"
                 android:defaultValue="40" />
-            <dev.ldlab.zedex.FadingListPreference
+            <ListPreference
                 android:key="filterGlow"
                 android:title="@string/settings_filter_glow"
                 android:entries="@array/percent_names"
@@ -61,13 +61,13 @@
                 android:entries="@array/video_names"
                 android:entryValues="@array/video_values"
                 android:defaultValue="0" />
-            <dev.ldlab.zedex.FadingListPreference
+            <ListPreference
                 android:key="filterBleed"
                 android:title="@string/settings_filter_bleed"
                 android:entries="@array/percent_names"
                 android:entryValues="@array/percent_values"
                 android:defaultValue="50" />
-            <dev.ldlab.zedex.FadingListPreference
+            <ListPreference
                 android:key="filterNoise"
                 android:title="@string/settings_filter_noise"
                 android:entries="@array/percent_names"

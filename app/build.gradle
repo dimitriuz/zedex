@@ -170,7 +170,20 @@ android {
 }
 
 dependencies {
-    // Instrumentation tests only - the app itself has no dependencies.
+    /*
+     * The app's one runtime dependency, and it buys one screen.
+     *
+     * android.preference has been deprecated since API 29 and its disabled rows
+     * are not dimmed at all - which took a FadingListPreference of our own to
+     * work around, and made every android:dependency in the app decorative.
+     * androidx.preference does that correctly and is still maintained.
+     *
+     * It brings appcompat with it, which is why SettingsActivity is an
+     * AppCompatActivity: PreferenceFragmentCompat will not attach to anything
+     * else. Nothing else in the app uses either.
+     */
+    implementation 'androidx.preference:preference:1.2.1'
+
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test:runner:1.5.2'
     androidTestImplementation 'androidx.test.uiautomator:uiautomator:2.3.0'
