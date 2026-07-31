@@ -129,13 +129,6 @@ writes. The AY is three bars, one per channel. A lit joystick lamp with a dead
 stick means the game wants a different interface.
 
 
-## Not yet
-
-- A file browser of our own, filtered by type and reading zip archives.
-  Android's picker cannot filter by extension
-- A debugger, which the core supports and nothing yet exposes
-
-
 ## Using it
 
 **First start** asks for two folders. Both can be changed later in
@@ -271,6 +264,13 @@ keyboard* skin usually opens over the machine. It still types into the Spectrum.
 
 The setting cannot be switched on with no panel to move to. Unplugging one
 brings everything back.
+
+
+## Not yet
+
+- A file browser of our own, filtered by type and reading zip archives.
+  Android's picker cannot filter by extension
+- A debugger, which the core supports and nothing yet exposes
 
 
 ## Licence
