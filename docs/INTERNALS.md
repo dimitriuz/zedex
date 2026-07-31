@@ -709,9 +709,14 @@ bar is told the panel's width, because a bar sized for a phone loses its last
 icon off a narrow one, and the keys get the width edge to edge.
 
 The joystick gets a band of its own: pad at one end, fire at the other, the
-three key buttons stacked inside fire's end. The arc they make on the machine's
-screen is a way of fitting them into black that happens to be there; a band is a
-row, and a row has somewhere to put them.
+three key buttons in an arc round the inboard side of fire — the same arc the
+machine's screen puts them in, because it is the shape a thumb makes reaching
+off fire rather than a way of fitting them into whatever black there happened to
+be. It is placed by arithmetic, since an arc is not something a FrameLayout can
+be asked for, and the cluster is a fixed size centred in the band: the panel's
+spare height goes above and below the joystick, not inside it. Everything in it
+is bigger than beside the picture — there the joystick is a guest in the black
+at the edge of a 4:3 window, and a panel is a control surface.
 
 The app's own screens — settings, about, the hotkeys — open on the panel, since
 a screen asked for by a thumb on one display should not appear on the other.

@@ -55,7 +55,7 @@ final class SecondScreen extends Presentation {
      * The joystick, in the same proportions the machine's screen gives it: the
      * pad's diameter, fire's share of that, and a key button's share of fire.
      */
-    private static final int PAD_SIZE = 132;
+    private static final int PAD_SIZE = 168;
     private static final float FIRE_OF_PAD = 0.72f;
     private static final float KEY_OF_FIRE = 0.46f;
     private static final int KEY_GAP = 5;
@@ -118,7 +118,7 @@ final class SecondScreen extends Presentation {
         column.addView(strip, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0));
 
-        View joystick = joystick(stick, margin);
+        View joystick = joystick(stick, margin, room);
         if (joystick != null) {
             // The whole width, because the pad goes at one end and fire at the
             // other; and all the height left over, because its contents centre
@@ -226,14 +226,22 @@ final class SecondScreen extends Presentation {
     }
 
     /**
-     * The joystick, laid out across a band of its own.
+     * The joystick, in a cluster of its own: the pad at one end, fire at the
+     * other, and the three key buttons in an arc round the inboard side of
+     * fire - the same arc the machine's screen puts them in, because it is the
+     * shape a thumb makes reaching off fire and not a way of fitting them into
+     * whatever black there happened to be.
      *
-     * The pad at one end and fire at the other, which is how two thumbs hold a
-     * machine, with the three key buttons stacked inside fire's end - the arc
-     * they make on the machine's screen is a way of fitting them into black
-     * that happens to be there, and here there is a row to put them in.
+     * Bigger here than beside the picture. There the joystick is a guest in the
+     * black at the edge of a 4:3 window; a panel is a control surface, and the
+     * controls can have the room.
+     *
+     * The cluster is placed by arithmetic rather than by gravity, since an arc
+     * is not something a FrameLayout can be asked for, and it is a fixed size
+     * inside a band that centres it: the panel's spare height is above and
+     * below the joystick, not inside it.
      */
-    private View joystick(List<JoystickView> parts, int margin) {
+    private View joystick(List<JoystickView> parts, int margin, int room) {
         if (parts.isEmpty()) return null;
 
         float density = getContext().getResources().getDisplayMetrics().density;
@@ -242,40 +250,65 @@ final class SecondScreen extends Presentation {
         int key = Math.round(fire * KEY_OF_FIRE);
         int gap = Math.round(KEY_GAP * density);
 
-        FrameLayout band = new FrameLayout(getContext());
+        // Centre to centre: out of fire, across the gap, to the middle of a key.
+        int reach = fire / 2 + gap + key / 2;
+
+        // Tall enough for the arc's own quarter turn, and never less than the
+        // pad, which is the other thing in here.
+        int tall = Math.max(pad, 2 * (Math.round(reach * 0.7071f) + key / 2));
+
+        int fireX = room - margin - fire / 2;
+        int middle = tall / 2;
+
+        FrameLayout cluster = new FrameLayout(getContext());
         int slot = 0;
 
         for (JoystickView part : parts) {
-            FrameLayout.LayoutParams params;
+            int size;
+            int centreX;
+            int centreY;
 
             switch (part.part()) {
                 case PAD:
-                    params = new FrameLayout.LayoutParams(pad, pad);
-                    params.gravity = Gravity.LEFT | Gravity.CENTER_VERTICAL;
-                    params.leftMargin = margin;
+                    size = pad;
+                    centreX = margin + pad / 2;
+                    centreY = middle;
                     break;
 
                 case FIRE:
-                    params = new FrameLayout.LayoutParams(fire, fire);
-                    params.gravity = Gravity.RIGHT | Gravity.CENTER_VERTICAL;
-                    params.rightMargin = margin;
+                    size = fire;
+                    centreX = fireX;
+                    centreY = middle;
                     break;
 
                 default:
-                    // Beside fire, top to bottom in profile order: one above
-                    // the middle, one on it, one below.
-                    params = new FrameLayout.LayoutParams(key, key);
-                    params.gravity = Gravity.RIGHT | Gravity.CENTER_VERTICAL;
-                    params.rightMargin = margin + fire + gap;
-                    params.topMargin = (slot - 1) * (key + gap);
+                    // In profile order from the top of the arc round, an eighth
+                    // of a turn apart, measured from the inboard horizontal and
+                    // positive upwards.
+                    double angle = (1 - slot) * Math.PI / 4;
+
+                    size = key;
+                    centreX = fireX - (int) Math.round(Math.cos(angle) * reach);
+                    centreY = middle - (int) Math.round(Math.sin(angle) * reach);
                     slot++;
                     break;
             }
 
-            band.addView(part, params);
+            FrameLayout.LayoutParams params =
+                    new FrameLayout.LayoutParams(size, size);
+            params.gravity = Gravity.TOP | Gravity.LEFT;
+            params.leftMargin = centreX - size / 2;
+            params.topMargin = centreY - size / 2;
+
+            cluster.addView(part, params);
         }
 
-        band.setMinimumHeight(pad);
+        FrameLayout band = new FrameLayout(getContext());
+        FrameLayout.LayoutParams held = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, tall);
+        held.gravity = Gravity.CENTER_VERTICAL;
+        band.addView(cluster, held);
+
         return band;
     }
 
