@@ -106,6 +106,23 @@ handed a null `SharedPreferences`.
 own copy of one regular expression, which is three chances to disagree about
 what is safe in a filename.
 
+### The cheats
+
+`PokesUi` is the two collections, which look the same on the page and are
+nothing alike behind it. `PokeDatabase` is three and a half thousand games
+shipped as a file and found by the fingerprint of what is loaded — the app knows
+what game this is, so the cheats for it are simply there, at the top of the page,
+before anything has been asked. `Pokes` is a handful of addresses somebody typed,
+kept in the preferences.
+
+Everything here is a sheet page and none of it is on the quick bar, which is the
+line the two menus are drawn along: the bar is what is reached for, and a cheat
+is read, chosen, sometimes typed and often searched for.
+
+Its `Host` is three methods — a message, the sheet, and the md5 of what is
+loaded. That last one is the only thread back to `Media`, and it is a byte array
+rather than a reference, so neither class knows the other exists.
+
 ### The menu
 
 ☰ is one icon in a **quick bar**, and the bar has a place of its own rather than

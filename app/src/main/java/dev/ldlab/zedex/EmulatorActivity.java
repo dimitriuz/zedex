@@ -163,6 +163,12 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      */
     private Media media;
 
+    /**
+     * The cheats, shipped and typed; see {@link PokesUi}. Built in onCreate
+     * beside Media and for the same reason.
+     */
+    private PokesUi pokes;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -183,6 +189,23 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             @Override
             public void opened(String name) {
                 rememberMediaName(name);
+            }
+        });
+
+        pokes = new PokesUi(this, preferences, new PokesUi.Host() {
+            @Override
+            public void note(int message, Object... arguments) {
+                EmulatorActivity.this.note(message, arguments);
+            }
+
+            @Override
+            public MenuDrawer sheet() {
+                return menu;
+            }
+
+            @Override
+            public byte[] fingerprint() {
+                return media.hash();
             }
         });
 
@@ -1228,7 +1251,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             sheet.addSubmenu(getString(R.string.menu_states), R.drawable.ic_bookmark,
                              this::fillStates);
             sheet.addSubmenu(getString(R.string.menu_pokes), R.drawable.ic_poke,
-                             this::fillPokes);
+                             pokes::fill);
             // The page's own heading, which sits over the tape rows: the
             // drives that follow have DRIVES of their own.
             sheet.addSubmenu(getString(R.string.menu_media),
@@ -1419,343 +1442,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         note(shown ? R.string.keyboard_shown : R.string.keyboard_hidden);
     }
-
-    /**
-     * Pokes: one to try now, and the ones worth keeping.
-     *
-     * A stored poke is a thing to press - nothing is applied by being on the
-     * list - so loading a game and pressing it is the whole flow, and the same
-     * poke survives a reset without being typed again. Long press removes one,
-     * because a row whose tap means "use this" cannot also mean "throw this
-     * away".
-     */
-    private void fillPokes(MenuDrawer sheet) {
-        // What came with the app, for whatever is loaded. First, because it is
-        // the answer to the question anyone opening this page is asking.
-        PokeDatabase.Game found = foundGame();
-
-        if (found != null) {
-            sheet.addSection(getString(R.string.poke_for_game, found.name));
-            fillTrainers(sheet, found);
-            sheet.addRule();
-        }
-
-        sheet.addSubmenu(getString(R.string.poke_search), R.drawable.ic_poke,
-                         pokeSearch());
-        sheet.addItem(getString(R.string.poke_tipshop), R.drawable.ic_info,
-                      this::openTipshop);
-
-        sheet.addRule();
-        sheet.addSubmenu(getString(R.string.poke_quick), R.drawable.ic_poke,
-                         quickPoke());
-        sheet.addSubmenu(getString(R.string.poke_add), R.drawable.ic_plus,
-                         addPoke());
-
-        List<Pokes.Poke> pokes = Pokes.all(preferences);
-
-        sheet.addRule();
-        sheet.addSection(getString(R.string.poke_stored));
-
-        if (pokes.isEmpty()) {
-            sheet.addNote(getString(R.string.poke_none));
-            return;
-        }
-
-        for (int i = 0; i < pokes.size(); i++) {
-            Pokes.Poke poke = pokes.get(i);
-            int index = i;
-
-            sheet.addItem(poke.name + "\n" + poke.numbers(), R.drawable.ic_poke,
-                          () -> applyPoke(poke), R.drawable.ic_trash,
-                          getString(R.string.poke_forget_action, poke.name),
-                          () -> menu.go(getString(R.string.poke_forget_ask, poke.name),
-                                        forgetPoke(index, poke)));
-        }
-
-        sheet.addNote(getString(R.string.poke_hint));
-    }
-
-    /** The cheat database, opened once and kept; null if it will not open. */
-    private PokeDatabase pokeDatabase;
-
-    private PokeDatabase pokes() {
-        if (pokeDatabase == null) pokeDatabase = PokeDatabase.open(this);
-        return pokeDatabase;
-    }
-
-    /** The game whose file is loaded, if the database knows its hash. */
-    private PokeDatabase.Game foundGame() {
-        PokeDatabase database = pokes();
-
-        byte[] fingerprint = media.hash();
-
-        return database == null || fingerprint == null
-                ? null : database.forHash(fingerprint);
-    }
-
-    /**
-     * One row per cheat. Tapping it pokes every byte the cheat is made of - most
-     * are one, some are dozens - and a cheat that wants a number asks for it
-     * first, which is what a value of 256 means in the format.
-     */
-    private void fillTrainers(MenuDrawer sheet, PokeDatabase.Game game) {
-        List<PokeDatabase.Trainer> trainers = game.trainers();
-
-        if (trainers.isEmpty()) {
-            sheet.addNote(getString(R.string.poke_none_for_game));
-            return;
-        }
-
-        for (PokeDatabase.Trainer trainer : trainers) {
-            String label = trainer.name.isEmpty()
-                    ? getString(R.string.poke_unnamed) : trainer.name;
-
-            sheet.addItem(trainer.asks() ? label + "…" : label,
-                          R.drawable.ic_poke,
-                          () -> applyTrainer(game, trainer));
-        }
-    }
-
-    private void applyTrainer(PokeDatabase.Game game,
-                              PokeDatabase.Trainer trainer) {
-        if (trainer.asks()) {
-            askTrainerValue(game, trainer);
-            return;
-        }
-
-        pokeTrainer(game, trainer, -1);
-    }
-
-    /**
-     * The value a cheat left to the player: how many lives, usually.
-     *
-     * The format writes 256 where the number goes, and every poke of the cheat
-     * marked that way gets the same answer - which is what the tools that came
-     * before do, and what a cheat like "lives (0-255)" means.
-     */
-    private void askTrainerValue(PokeDatabase.Game game,
-                                 PokeDatabase.Trainer trainer) {
-        menu.go(trainer.name, page -> {
-            page.addNote(getString(R.string.poke_asks));
-
-            EditText input = page.addField(getString(R.string.poke_value), "", 0);
-
-            page.addItem(getString(R.string.poke_apply), R.drawable.ic_poke, () -> {
-                int value = Pokes.number(input.getText().toString(), 0xff);
-
-                if (value < 0) {
-                    note(R.string.poke_bad);
-                    return;
-                }
-
-                pokeTrainer(game, trainer, value);
-            });
-        });
-    }
-
-    private void pokeTrainer(PokeDatabase.Game game,
-                             PokeDatabase.Trainer trainer, int answer) {
-        int done = 0;
-        int skipped = 0;
-
-        for (PokeDatabase.Poke poke : trainer.pokes) {
-            // A poke into a numbered RAM bank needs paging this app cannot do.
-            // Twenty two of them in the whole collection; saying so is better
-            // than writing the byte into whatever happens to be paged in.
-            if (!poke.plain()) {
-                skipped++;
-                continue;
-            }
-
-            FuseNative.poke(poke.address, poke.asks() ? answer : poke.value);
-            done++;
-        }
-
-        if (skipped > 0) {
-            note(R.string.poke_partly, trainer.name, done, skipped);
-        } else {
-            note(R.string.poke_trainer_done, trainer.name, done);
-        }
-    }
-
-    /** The database by name, for a state, a new release, or an odd dump. */
-    private MenuDrawer.Page pokeSearch() {
-        return page -> {
-            EditText input = page.addField(
-                    getString(R.string.poke_search_hint),
-                    searchableName(preferences.getString(States.KEY_MEDIA_NAME, "")), 0);
-
-            input.selectAll();
-
-            page.addItem(getString(R.string.poke_search_go), R.drawable.ic_poke,
-                         () -> showPokeResults(input.getText().toString()));
-        };
-    }
-
-    /**
-     * A file's name reduced to something worth searching for.
-     *
-     * Files are named the way TOSEC names them - "Sim City 48K (1990)(Infogrames)"
-     * - and none of that trailing apparatus is in a game's title, so a search for
-     * the lot finds nothing. The bracket is where the title stops, and the machine
-     * size before it goes too. Selected rather than merely filled in, so a name
-     * that is still wrong is one keystroke from gone.
-     */
-    private static String searchableName(String file) {
-        if (file == null) return "";
-
-        String name = file.split("[(\\[]")[0];
-        name = name.replaceAll("(?i)\\s+(16|48|128)K([-/](16|48|128)K)?\\s*$", "");
-
-        return name.trim();
-    }
-
-    /** How many names a dialog can offer before it is a list to scroll. */
-    private static final int POKE_RESULTS = 30;
-
-    private void showPokeResults(String text) {
-        PokeDatabase database = pokes();
-        List<PokeDatabase.Game> games = database == null
-                ? new ArrayList<>() : database.search(text, POKE_RESULTS);
-
-        if (games.isEmpty()) {
-            note(R.string.poke_search_none, text.trim());
-            return;
-        }
-
-        String[] names = new String[games.size()];
-        for (int i = 0; i < games.size(); i++) names[i] = games.get(i).name;
-
-        menu.go(getString(R.string.poke_search_found, games.size()), page -> {
-            for (int i = 0; i < names.length; i++) {
-                int which = i;
-                page.addItem(names[which], R.drawable.ic_poke,
-                             () -> showGamePokes(games.get(which)));
-            }
-        });
-    }
-
-    /** A page of one game's cheats, reached from a search. */
-    private void showGamePokes(PokeDatabase.Game game) {
-        menu.go(game.name, sheet -> {
-            fillTrainers(sheet, game);
-            sheet.addNote(getString(R.string.poke_from_search, game.name));
-        });
-    }
-
-    /**
-     * The Tipshop, which is where these cheats come from and where the ones
-     * this database has not got will be. It invites linking to its pages, so a
-     * search for whatever is loaded is the neighbourly way to use it.
-     */
-    private void openTipshop() {
-        // The database's own title where the file was recognised, and the file's
-        // name reduced to something searchable where it was not: the site turns
-        // what it is given into wildcards, so "Sim City 48K (1990)(Infogrames)"
-        // goes looking for %sim%city%48k%1990infogrames% and finds nothing.
-        PokeDatabase.Game found = foundGame();
-        String name = found != null ? found.name
-                : searchableName(preferences.getString(States.KEY_MEDIA_NAME, ""));
-
-        String url = "https://www.the-tipshop.co.uk/";
-        if (name != null && !name.isEmpty()) {
-            url += "cgi-bin/search.pl?name=" + Uri.encode(name)
-                 + "&searchtype=poke&checkalias=y";
-        }
-
-        try {
-            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
-        } catch (android.content.ActivityNotFoundException e) {
-            note(R.string.poke_no_browser);
-        }
-    }
-
-    private void applyPoke(Pokes.Poke poke) {
-        FuseNative.poke(poke.address, poke.value);
-        note(R.string.poke_done, poke.numbers());
-    }
-
-    /** Two numbers, applied and forgotten: for a poke being tried out. */
-    private MenuDrawer.Page quickPoke() {
-        return page -> {
-            page.addNote(getString(R.string.poke_explain));
-
-            EditText address = page.addField(getString(R.string.poke_address), "", 0);
-            EditText value = page.addField(getString(R.string.poke_value), "", 0);
-
-            page.addItem(getString(R.string.poke_apply), R.drawable.ic_poke, () -> {
-                int where = Pokes.number(address.getText().toString(), 0xffff);
-                int what = Pokes.number(value.getText().toString(), 0xff);
-
-                if (where < 0 || what < 0) {
-                    note(R.string.poke_bad);
-                    return;
-                }
-
-                applyPoke(new Pokes.Poke("", where, what));
-            });
-        };
-    }
-
-    /** The same two numbers and a name, kept for next time. */
-    private MenuDrawer.Page addPoke() {
-        return page -> {
-            EditText name = page.addField(getString(R.string.poke_name),
-                    preferences.getString(States.KEY_MEDIA_NAME, ""), 0);
-            EditText address = page.addField(getString(R.string.poke_address), "", 0);
-            EditText value = page.addField(getString(R.string.poke_value), "", 0);
-
-            page.addItem(getString(R.string.poke_add), R.drawable.ic_plus, () -> {
-                int where = Pokes.number(address.getText().toString(), 0xffff);
-                int what = Pokes.number(value.getText().toString(), 0xff);
-
-                if (where < 0 || what < 0) {
-                    note(R.string.poke_bad);
-                    return;
-                }
-
-                String called = Storage.sanitise(name.getText().toString());
-                if (called.isEmpty()) called = getString(R.string.poke_unnamed);
-
-                Pokes.add(preferences, called, where, what);
-                note(R.string.poke_stored_one, called);
-            });
-        };
-    }
-
-    /**
-     * Asking before something cannot be undone, as a page rather than a dialog.
-     *
-     * A dialog is the activity's window and opens on the machine's screen; the
-     * question was asked on the panel and the answer would have been over
-     * there. A page is part of the sheet, so it appears where the sheet is -
-     * and Back is the way out of it, which is what Cancel was.
-     */
-    private MenuDrawer.Page forgetPoke(int index, Pokes.Poke poke) {
-        return page -> {
-            page.addNote(poke.numbers());
-            page.addItem(getString(R.string.poke_forget), R.drawable.ic_trash, () -> {
-                Pokes.remove(preferences, index);
-                note(R.string.poke_forgotten, poke.name);
-            });
-        };
-    }
-
-    /** Decimal by habit, hex if it is written as hex; see Pokes.number(). */
-    private EditText numberField(int hint) {
-        EditText field = new EditText(this);
-
-        field.setSingleLine(true);
-        field.setHint(hint);
-        field.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
-
-        return field;
-    }
-
-    private int pokePadding() {
-        return Math.round(12 * getResources().getDisplayMetrics().density);
-    }
-
 
     // --- pause ---------------------------------------------------------------
 
