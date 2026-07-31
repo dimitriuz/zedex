@@ -289,12 +289,18 @@ final class SecondScreen extends Presentation {
         return params;
     }
 
-    /** Undoes everything this window did to the views it borrowed. */
+    /**
+     * Undoes everything this window did to the views it borrowed, and hands
+     * every one of them back parentless.
+     *
+     * Each is asked for its own parent rather than the containers being emptied,
+     * because they are not all in the same one: the joystick's five parts are in
+     * a band of this window's making, and clearing the column took the band away
+     * with them still inside it - so the layout they went home to found them
+     * already spoken for, and threw.
+     */
     void release() {
         if (column == null) return;
-
-        ViewGroup root = (ViewGroup) column.getParent();
-        if (root != null) root.removeAllViews();
 
         for (View view : borrowed) {
             if (view instanceof ActivityLights) {
@@ -303,9 +309,12 @@ final class SecondScreen extends Presentation {
             if (view instanceof SpectrumKeyboardView) {
                 ((SpectrumKeyboardView) view).setBottomAligned(false);
             }
+
+            if (view != null && view.getParent() instanceof ViewGroup) {
+                ((ViewGroup) view.getParent()).removeView(view);
+            }
         }
 
-        column.removeAllViews();
         column = null;
     }
 }

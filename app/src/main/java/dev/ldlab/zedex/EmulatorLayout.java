@@ -383,6 +383,12 @@ final class EmulatorLayout extends ViewGroup {
     private void attach(View child) {
         if (child == null || child.getParent() == this) return;
 
+        // Whoever had it should have let go of it; taking it back anyway costs
+        // nothing and is better than the crash that not doing so is.
+        if (child.getParent() instanceof ViewGroup) {
+            ((ViewGroup) child.getParent()).removeView(child);
+        }
+
         int index = 0;
         for (View other : order) {
             if (other == child) break;

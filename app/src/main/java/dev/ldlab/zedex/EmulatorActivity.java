@@ -808,19 +808,29 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      * only two states and the cost is a comparison.
      */
     private void applySecondScreen() {
-        Display display = preferences.getBoolean(
-                SettingsActivity.KEY_SECOND_SCREEN, false) ? secondDisplay() : null;
+        boolean wanted = preferences.getBoolean(
+                SettingsActivity.KEY_SECOND_SCREEN, false);
 
+        // A panel that is up stays up unless it is not wanted any more or the
+        // display it is on has really gone. Nothing else is a reason: this runs
+        // on every display event, and Android reports odd things in passing -
+        // the activity briefly claiming to be on the panel itself while an
+        // input method is being sorted out, which once took the panel down and
+        // left nothing to put it back.
         if (secondScreen != null) {
             Display showing = secondScreen.getDisplay();
+            DisplayManager displays = getSystemService(DisplayManager.class);
 
-            if (display != null && showing != null
-                    && showing.getDisplayId() == display.getDisplayId()) {
-                return;
-            }
+            boolean gone = showing == null || displays == null
+                    || displays.getDisplay(showing.getDisplayId()) == null;
+
+            if (wanted && !gone) return;
             closeSecondScreen();
         }
 
+        if (!wanted) return;
+
+        Display display = secondDisplay();
         if (display == null) return;
 
         // Lending first: the views have to be parentless before another window
