@@ -257,6 +257,9 @@ brings everything back.
 
 - A file browser of our own, filtered by type and reading zip archives.
   Android's picker cannot filter by extension
+- A library rather than a list of filenames: cover art, loading screens, maps,
+  manuals, the publisher and the year, looked up in ZXDB and the archives behind
+  it and kept on the device for offline use
 - A debugger, which the core supports and nothing yet exposes
 
 
