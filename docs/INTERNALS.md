@@ -98,9 +98,10 @@ against the current one; every confirmation is a page with the question as a
 note and one row that does the thing, Back being what Cancel was; and the pages
 that need a name or a number carry `addField` lines of their own. The rows that
 lead to them are submenus, so the sheet slides rather than closing and opening
-again a frame later. Twenty-three of the twenty-nine dialogs went this way; the
-save-state list is the one that has not, since its rows are a thumbnail and two
-buttons rather than a line of text.
+again a frame later. All twenty-nine dialogs went this way, the save-state list
+last: its rows are a picture of the machine, a name and two buttons rather than
+a line of text, so the sheet grew `addPicture` to hold them. The app opens no
+dialogs at all now.
 
 Two things make it fit that black. **Six icons, not nine**: everything that is a
 file went into one group behind a folder, and pause went into *Machine* with the
@@ -508,6 +509,9 @@ Each slot also gets a `.thumb`: the last frame at half size, written by the
 display backend as a width, a height and RGBA rows, which Android decodes
 straight into a `Bitmap`. It costs 76kB a slot and saves guessing which save
 is which.
+
+The list is a page of the sheet like everything else, each row a `addPicture`:
+the thumbnail, the name and the date, and the pencil and bin at the end.
 
 Renaming moves both files, since the name is the base name of both and a
 thumbnail left behind is a row with no picture. It keeps the snapshot's

@@ -3,7 +3,6 @@ package dev.ldlab.zedex;
 import android.app.Activity;
 import android.app.ActivityOptions;
 import android.app.Application;
-import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
@@ -28,12 +27,9 @@ import android.view.WindowInsetsController;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
-import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
-import android.widget.ImageView;
-import android.widget.ListView;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -590,9 +586,9 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         bar.addToRow(R.drawable.ic_folder, getString(R.string.menu_open),
                      this::pickFile);
         bar.addToRow(R.drawable.ic_save, getString(R.string.menu_save_state),
-                     () -> showStateDialog(true));
+                     () -> showStates(true));
         bar.addToRow(R.drawable.ic_load, getString(R.string.menu_load_state),
-                     () -> showStateDialog(false));
+                     () -> showStates(false));
     }
 
     private void fillMachineBar(QuickBar bar) {
@@ -1122,10 +1118,12 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      * recording, which joystick is plugged in. They are called each time the
      * page is shown.
      *
-     * Choosing one of a set stays an {@link AlertDialog} — a machine, a
-     * joystick type, a layout — because a checked radio in a list is what says
-     * "one of these, and this is the one", and a sheet of plain rows cannot.
-     * So does anything that needs confirming.
+     * Choosing one of a set is a page of ticked rows, anything that needs
+     * confirming is a page with the question on it, and anything that needs a
+     * name or a number is a page with a line to type into. None of it is a
+     * dialog any more: a dialog belongs to the activity's window and so always
+     * appears on the machine's screen, which on a handheld is the screen the
+     * question was not asked on.
      */
     private MenuDrawer buildMenu() {
         MenuDrawer menu = new MenuDrawer(this);
@@ -1668,9 +1666,9 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
     private void fillStates(MenuDrawer sheet) {
         sheet.addItem(getString(R.string.menu_save_state), R.drawable.ic_save,
-                      () -> showStateDialog(true));
+                      () -> showStates(true));
         sheet.addItem(getString(R.string.menu_load_state), R.drawable.ic_load,
-                      () -> showStateDialog(false));
+                      () -> showStates(false));
     }
 
     private void fillMachine(MenuDrawer sheet) {
@@ -1846,8 +1844,8 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
             case QUICK_SAVE: save(QUICK_STATE); break;
             case QUICK_LOAD: quickLoad(); break;
-            case SAVE_STATE: showStateDialog(true); break;
-            case LOAD_STATE: showStateDialog(false); break;
+            case SAVE_STATE: showStates(true); break;
+            case LOAD_STATE: showStates(false); break;
 
             case SPEED_UP: stepSpeed(1); break;
             case SPEED_DOWN: stepSpeed(-1); break;
@@ -2805,14 +2803,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         }
     }
 
-    /** The open state list, so a row's own buttons can close it before acting. */
-    private AlertDialog stateList;
-
-    private void dismissStateList() {
-        if (stateList != null) stateList.dismiss();
-        stateList = null;
-    }
-
     private File stateDirectory() {
         return Storage.statesDirectory(this);
     }
@@ -2843,7 +2833,16 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         return states;
     }
 
-    private void showStateDialog(boolean saving) {
+    /**
+     * Every saved state, as a page of the sheet.
+     *
+     * The last of the dialogs, and the one that held out longest: its rows are
+     * a picture of the machine, a name, when it was written and the two things
+     * that can be done to it, which took a row of the sheet's own - see
+     * {@link MenuDrawer#addPicture}. A page appears wherever the sheet is, so
+     * on a handheld the list is under the thumb that asked for it.
+     */
+    private void showStates(boolean saving) {
         List<SavedState> states = savedStates();
 
         if (!saving && states.isEmpty()) {
@@ -2851,138 +2850,54 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             return;
         }
 
-        ListView list = new ListView(this);
-        list.setAdapter(new StateAdapter(states, saving));
-
-        AlertDialog dialog = new AlertDialog.Builder(
-                this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(saving ? R.string.menu_save_state : R.string.menu_load_state)
-                .setView(list)
-                .setNegativeButton(android.R.string.cancel, null)
-                .create();
-
-        list.setOnItemClickListener((parent, view, position, id) -> {
-            dialog.dismiss();
-
-            if (saving && position == 0) {
-                askNameAndSave();
-            } else {
-                SavedState state = states.get(saving ? position - 1 : position);
-                if (saving) confirmOverwrite(state); else load(state);
-            }
-        });
-
-        // Still there beside the buttons, for a finger that already knows: it is
-        // the same two actions.
-        list.setOnItemLongClickListener((parent, view, position, id) -> {
-            if (saving && position == 0) return false;
-
-            SavedState state = states.get(saving ? position - 1 : position);
-            dialog.dismiss();
-            showStateActions(state, saving);
-            return true;
-        });
-
-        stateList = dialog;
-        dialog.show();
-    }
-
-    /** Rows of saved states, with "add new" first when saving. */
-    private final class StateAdapter extends BaseAdapter {
-
-        private final List<SavedState> states;
-        private final boolean saving;
-
-        StateAdapter(List<SavedState> states, boolean saving) {
-            this.states = states;
-            this.saving = saving;
-        }
-
-        @Override
-        public int getCount() {
-            return states.size() + (saving ? 1 : 0);
-        }
-
-        @Override
-        public Object getItem(int position) {
-            return position;
-        }
-
-        @Override
-        public long getItemId(int position) {
-            return position;
-        }
-
-        @Override
-        public View getView(int position, View reuse, ViewGroup parent) {
-            View row = reuse != null ? reuse
-                    : getLayoutInflater().inflate(R.layout.state_row, parent, false);
-
-            TextView title = row.findViewById(R.id.title);
-            TextView subtitle = row.findViewById(R.id.subtitle);
-            ImageView thumbnail = row.findViewById(R.id.thumbnail);
-            ImageButton rename = row.findViewById(R.id.rename);
-            ImageButton delete = row.findViewById(R.id.delete);
-
-            if (saving && position == 0) {
-                title.setText(R.string.state_add);
-                subtitle.setText(R.string.state_add_summary);
-                thumbnail.setImageDrawable(null);
-
-                // Gone rather than invisible: there is nothing yet to rename.
-                rename.setVisibility(View.GONE);
-                delete.setVisibility(View.GONE);
-                return row;
+        menu.go(getString(saving ? R.string.menu_save_state
+                                 : R.string.menu_load_state), page -> {
+            if (saving) {
+                page.addSubmenu(getString(R.string.state_add), R.drawable.ic_plus,
+                                nameNewState());
+                page.addRule();
             }
 
-            SavedState state = states.get(saving ? position - 1 : position);
             DateFormat when = DateFormat.getDateTimeInstance(
                     DateFormat.SHORT, DateFormat.SHORT);
 
-            title.setText(state.name);
-            subtitle.setText(getString(R.string.state_details,
-                    when.format(new Date(state.snapshot.lastModified())),
-                    state.format()));
-            thumbnail.setImageBitmap(readThumbnail(thumbnailFor(state.name)));
+            for (SavedState state : states) {
+                String label = state.name + "\n" + getString(R.string.state_details,
+                        when.format(new Date(state.snapshot.lastModified())),
+                        state.format());
 
-            // Named after the state they belong to, so a screen reader - and a
-            // test - can tell one row's buttons from another's.
-            rename.setVisibility(View.VISIBLE);
-            rename.setContentDescription(
-                    getString(R.string.state_rename_action, state.name));
-            rename.setOnClickListener(v -> {
-                dismissStateList();
-                askNewName(state, saving);
-            });
-
-            delete.setVisibility(View.VISIBLE);
-            delete.setContentDescription(
-                    getString(R.string.state_delete_action, state.name));
-            delete.setOnClickListener(v -> {
-                dismissStateList();
-                confirmDelete(state, saving);
-            });
-
-            return row;
-        }
+                page.addPicture(readThumbnail(thumbnailFor(state.name)), label,
+                        () -> {
+                            if (saving) {
+                                menu.go(state.name, overwriteState(state, saving));
+                            } else {
+                                load(state);
+                            }
+                        },
+                        new MenuDrawer.Extra(R.drawable.ic_edit,
+                                getString(R.string.state_rename_action, state.name),
+                                () -> menu.enter(getString(R.string.state_rename),
+                                                     renameState(state, saving))),
+                        new MenuDrawer.Extra(R.drawable.ic_trash,
+                                getString(R.string.state_delete_action, state.name),
+                                () -> menu.enter(getString(R.string.state_delete_confirm),
+                                                     deleteState(state, saving))));
+            }
+        });
     }
 
-    private void askNameAndSave() {
-        EditText input = new EditText(this);
-        input.setSingleLine();
-        input.setText(suggestedName());
-        input.setSelection(input.getText().length());
+    private MenuDrawer.Page nameNewState() {
+        return page -> {
+            EditText input = page.addField(getString(R.string.state_name),
+                                           suggestedName(), 0);
 
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(R.string.state_name)
-                .setView(input)
-                .setPositiveButton(android.R.string.ok, (dialog, which) -> {
-                    String name = sanitise(input.getText().toString());
-                    if (name.isEmpty()) name = "Snapshot";
-                    save(name);
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+            page.addItem(getString(R.string.menu_save_state), R.drawable.ic_save,
+                         () -> {
+                String name = sanitise(input.getText().toString());
+                if (name.isEmpty()) name = "Snapshot";
+                save(name);
+            });
+        };
     }
 
     /**
@@ -3024,52 +2939,23 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         return name.replaceAll("[/\\\\:*?\"<>|]", "_").trim();
     }
 
-    private void confirmOverwrite(SavedState state) {
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setMessage(getString(R.string.state_overwrite, state.name))
-                .setPositiveButton(R.string.state_overwrite_confirm,
-                        (dialog, which) -> save(state.name))
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
-    }
-
-    /**
-     * What can be done to a state other than the thing the list is for.
-     *
-     * Behind a long press because a tap already means something — load it, or
-     * save over it — and rows of their own would double the length of a list
-     * meant to be read at a glance. The list comes back afterwards, so several
-     * states can be tidied up without reopening it each time.
-     */
-    private void showStateActions(SavedState state, boolean saving) {
-        String[] actions = {
-            getString(R.string.state_rename),
-            getString(R.string.state_delete_confirm),
+    private MenuDrawer.Page overwriteState(SavedState state, boolean saving) {
+        return page -> {
+            page.addNote(getString(R.string.state_overwrite, state.name));
+            page.addItem(getString(R.string.state_overwrite_confirm),
+                         R.drawable.ic_save, () -> save(state.name));
         };
-
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(state.name)
-                .setItems(actions, (dialog, which) -> {
-                    if (which == 0) askNewName(state, saving);
-                    else confirmDelete(state, saving);
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
     }
 
-    private void askNewName(SavedState state, boolean saving) {
-        EditText input = new EditText(this);
-        input.setSingleLine();
-        input.setText(state.name);
-        input.setSelection(input.getText().length());
+    private MenuDrawer.Page renameState(SavedState state, boolean saving) {
+        return page -> {
+            EditText input = page.addField(getString(R.string.state_name),
+                                           state.name, 0);
 
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(R.string.state_rename)
-                .setView(input)
-                .setPositiveButton(android.R.string.ok, (dialog, which) ->
-                        rename(state, sanitise(input.getText().toString()), saving))
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+            page.addItem(getString(R.string.state_rename), R.drawable.ic_edit,
+                         () -> rename(state, sanitise(input.getText().toString()),
+                                      saving));
+        };
     }
 
     /**
@@ -3101,19 +2987,22 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         File thumbnail = thumbnailFor(state.name);
         if (thumbnail.exists()) thumbnail.renameTo(thumbnailFor(name));
 
-        showStateDialog(saving);
+        showStates(saving);
     }
 
-    private void confirmDelete(SavedState state, boolean saving) {
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setMessage(getString(R.string.state_delete, state.name))
-                .setPositiveButton(R.string.state_delete_confirm, (dialog, which) -> {
-                    state.snapshot.delete();
-                    thumbnailFor(state.name).delete();
-                    showStateDialog(saving);
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+    private MenuDrawer.Page deleteState(SavedState state, boolean saving) {
+        return page -> {
+            page.addNote(getString(R.string.state_delete, state.name));
+            page.addItem(getString(R.string.state_delete_confirm),
+                         R.drawable.ic_trash, () -> {
+                state.snapshot.delete();
+                thumbnailFor(state.name).delete();
+
+                // Straight back to the list, so several can be tidied up in one
+                // visit rather than one trip through the menu each.
+                showStates(saving);
+            });
+        };
     }
 
     private void save(String name) {

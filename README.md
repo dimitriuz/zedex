@@ -269,7 +269,7 @@ In full:
   the machine.
 - **States…** — *Save state…* and *Load state…*: as many saves as you like,
   each named and showing the screen as it was when it was written. The pencil on a
-  row renames it, the bin deletes it — a long press does either.
+  row renames it and the bin deletes it.
 - **Pokes…** — cheats. When a file is opened it is fingerprinted, and if it is
   one of the 3,682 games the built-in database knows, its cheats are listed at the
   top: tap one and it is poked. *Search the cheat database…* finds a game by name,
