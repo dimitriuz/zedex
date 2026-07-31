@@ -1,5 +1,7 @@
 package dev.ldlab.zedex;
 
+import dev.ldlab.zedex.input.Gamepad;
+import dev.ldlab.zedex.input.Hotkeys;
 import static org.junit.Assert.assertEquals;
 
 import android.view.InputDevice;

@@ -1,5 +1,9 @@
 package dev.ldlab.zedex;
 
+import dev.ldlab.zedex.machine.Machine;
+import dev.ldlab.zedex.media.Recorder;
+import dev.ldlab.zedex.storage.CardImage;
+import dev.ldlab.zedex.view.Rows;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
@@ -13,7 +17,7 @@ import android.widget.Toast;
  * and is queued for the emulation thread, because Fuse's core is single
  * threaded and must only be entered from the thread running its main loop.
  */
-final class FuseNative {
+public final class FuseNative {
 
     static {
         System.loadLibrary("fuse");
@@ -50,19 +54,19 @@ final class FuseNative {
      * Points the process at the folder Fuse should look in for ROMs, which it
      * searches before anywhere else. Call before {@link #start}.
      */
-    static native boolean setWorkingDirectory(String path);
+    public static native boolean setWorkingDirectory(String path);
 
     /** Starts Fuse's main loop on its own thread. Returns immediately. */
-    static native void start(String[] args);
+    public static native void start(String[] args);
 
     /** Hands the emulator a drawing surface, replacing any previous one. */
-    static native void surfaceChanged(Surface surface);
+    public static native void surfaceChanged(Surface surface);
 
     /** Blocks until the emulation thread has stopped using the surface. */
-    static native void surfaceDestroyed();
+    public static native void surfaceDestroyed();
 
     /** Queues a key event; {@code keycode} is an Android {@code KEYCODE_*}. */
-    static native void key(int keycode, boolean pressed);
+    public static native void key(int keycode, boolean pressed);
 
     /**
      * Queues a typed character rather than a key.
@@ -73,7 +77,7 @@ final class FuseNative {
      * takes, so a colon arrives as SYMBOL SHIFT and Z without anything here
      * knowing that.
      */
-    static native void character(int character, boolean pressed);
+    public static native void character(int character, boolean pressed);
 
     /**
      * Whether the Spectrum has any use for this key at all.
@@ -83,7 +87,7 @@ final class FuseNative {
      * volume buttons stopped working. Safe to call at any time, machine or no
      * machine — it reads Fuse's static keysym table and nothing else.
      */
-    static native boolean mapsKey(int keycode);
+    public static native boolean mapsKey(int keycode);
 
     // --- joystick ----------------------------------------------------------
 
@@ -94,24 +98,24 @@ final class FuseNative {
      */
 
     /** Fuse's {@code joystick_button}, and the order the pad reports them in. */
-    static final int JOYSTICK_LEFT = 0;
-    static final int JOYSTICK_RIGHT = 1;
-    static final int JOYSTICK_UP = 2;
-    static final int JOYSTICK_DOWN = 3;
-    static final int JOYSTICK_FIRE = 4;
+    public static final int JOYSTICK_LEFT = 0;
+    public static final int JOYSTICK_RIGHT = 1;
+    public static final int JOYSTICK_UP = 2;
+    public static final int JOYSTICK_DOWN = 3;
+    public static final int JOYSTICK_FIRE = 4;
 
     /** Queues a joystick direction or fire; {@code button} is one of the above. */
-    static native void joystick(int button, boolean pressed);
+    public static native void joystick(int button, boolean pressed);
 
     /**
      * The interfaces Fuse can pretend to be, in its own words and its own
      * order — "None", "Cursor", "Kempston", … The index is the value
      * {@link #setJoystickType} takes. Available before Fuse has started.
      */
-    static native String[] joystickTypeNames();
+    public static native String[] joystickTypeNames();
 
     /** Which interface the joystick appears as; an index into the above. */
-    static native void setJoystickType(int type);
+    public static native void setJoystickType(int type);
 
     // --- what the machine is busy with -------------------------------------
 
@@ -121,20 +125,20 @@ final class FuseNative {
      * reports through its own status bar; the AY is read off its registers; the
      * last two are ports the machine has read since the previous frame.
      */
-    static final int ACTIVITY_TAPE = 1;
-    static final int ACTIVITY_DISK = 1 << 1;
-    static final int ACTIVITY_AY = 1 << 2;
-    static final int ACTIVITY_KEYBOARD = 1 << 3;
-    static final int ACTIVITY_JOYSTICK = 1 << 4;
-    static final int ACTIVITY_MOUSE = 1 << 5;
-    static final int ACTIVITY_CARD = 1 << 6;
+    public static final int ACTIVITY_TAPE = 1;
+    public static final int ACTIVITY_DISK = 1 << 1;
+    public static final int ACTIVITY_AY = 1 << 2;
+    public static final int ACTIVITY_KEYBOARD = 1 << 3;
+    public static final int ACTIVITY_JOYSTICK = 1 << 4;
+    public static final int ACTIVITY_MOUSE = 1 << 5;
+    public static final int ACTIVITY_CARD = 1 << 6;
 
     /**
      * The same five bits again, this far up, mean "and it is writing rather
      * than reading". Only some of them can say: a keyboard is only ever read,
      * and what the AY does is sound on its way out.
      */
-    static final int ACTIVITY_WRITING = 8;
+    public static final int ACTIVITY_WRITING = 8;
 
     /**
      * What the machine is doing right now, as ACTIVITY_* bits.
@@ -143,7 +147,7 @@ final class FuseNative {
      * this neither queues nor blocks and is safe to poll while a frame is
      * being drawn. Zero before Fuse has started.
      */
-    static native int activity();
+    public static native int activity();
 
     /**
      * How loud the AY's three channels are, 0 to 15 each, as three bytes: A in
@@ -155,55 +159,55 @@ final class FuseNative {
      * generator reads as full: where the envelope has got to is not something
      * the registers say.
      */
-    static native int ayLevels();
+    public static native int ayLevels();
 
     /** Machine names for display, in Fuse's own order. Empty until Fuse has started. */
-    static native String[] machineNames();
+    public static native String[] machineNames();
 
     /** Fuse's short machine ids ({@code "48"}, {@code "128"}, ...), parallel to
      *  {@link #machineNames}. These are what {@code --machine} accepts. */
-    static native String[] machineIds();
+    public static native String[] machineIds();
 
     /** Whether there is anything on the tape - loaded, or SAVEd by the machine. */
-    static native boolean hasTape();
+    public static native boolean hasTape();
 
     /** Writes the tape; the extension picks the format, .tap or .tzx. */
-    static native void writeTape(String path);
+    public static native void writeTape(String path);
 
     /** Throws the current tape away and starts an empty one. */
-    static native void newTape();
+    public static native void newTape();
 
     /**
      * The tape deck's transport. Stop keeps the position, so it is also the
      * pause Fuse does not have separately, and rewind goes back to block zero
      * rather than winding.
      */
-    static native void tapePlay(boolean playing);
+    public static native void tapePlay(boolean playing);
 
-    static native void tapeRewind();
+    public static native void tapeRewind();
 
     /** Whether the deck is running, from the once-a-frame snapshot. */
-    static native boolean tapePlaying();
+    public static native boolean tapePlaying();
 
     /**
      * The tape's blocks as the browser lists them, already numbered and
      * described by libspectrum - "3. Program: Tujad" - and capped at a hundred
      * and twenty-eight, since a TZX can carry thousands of pulse blocks.
      */
-    static native String[] tapeBlocks();
+    public static native String[] tapeBlocks();
 
     /** Which of them the deck is at, or -1 with no tape. */
-    static native int tapeBlock();
+    public static native int tapeBlock();
 
     /** Winds to one of them. */
-    static native void tapeBlockSelect(int block);
+    public static native void tapeBlockSelect(int block);
 
     /**
      * Writes one byte into the sixteen bit address space as it is paged now,
      * which is what POKE means. Queued like every other input, so it lands
      * between frames rather than under the Z80's feet.
      */
-    static native void poke(int address, int value);
+    public static native void poke(int address, int value);
 
     /**
      * The Kempston mouse.
@@ -217,32 +221,32 @@ final class FuseNative {
      * pair of counters the program does its own arithmetic on, with no notion of
      * where any pointer is.
      */
-    static native void setKempstonMouse(boolean on);
+    public static native void setKempstonMouse(boolean on);
 
-    static native void mouseMove(int dx, int dy);
+    public static native void mouseMove(int dx, int dy);
 
     /** 0 is the left button, 1 the right. */
-    static native void mouseButton(int which, boolean down);
+    public static native void mouseButton(int which, boolean down);
 
     /** Names of the drives that currently have a disk in them. */
-    static native String[] driveNames();
+    public static native String[] driveNames();
 
     /** Ids for {@link #driveNames}: controller in the high byte, drive in the low. */
-    static native int[] driveIds();
+    public static native int[] driveIds();
 
     /** Writes a drive's disk; the extension picks the format. */
-    static native void writeDisk(int controller, int drive, String path);
+    public static native void writeDisk(int controller, int drive, String path);
 
     /** Three strings per drive: its name, the disk in it, and "1" if modified. */
-    static native String[] driveDetails();
+    public static native String[] driveDetails();
 
     /** Puts a disk image into a particular drive. */
-    static native void insertDisk(int controller, int drive, String path);
+    public static native void insertDisk(int controller, int drive, String path);
 
     /** Puts a blank formatted disk into a drive. */
-    static native void newDisk(int controller, int drive);
+    public static native void newDisk(int controller, int drive);
 
-    static native void ejectDisk(int controller, int drive);
+    public static native void ejectDisk(int controller, int drive);
 
     // --- the DivMMC --------------------------------------------------------
 
@@ -259,13 +263,13 @@ final class FuseNative {
      */
 
     /** Plugs the interface in or takes it out. Hard resets the machine. */
-    static native void setDivmmc(boolean on);
+    public static native void setDivmmc(boolean on);
 
     /** Whether Fuse has the interface right now, from the frame's snapshot. */
-    static native boolean hasDivmmc();
+    public static native boolean hasDivmmc();
 
     /** Reads an 8K firmware image and writes it into the EPROM. */
-    static native void loadDivmmcFirmware(String path);
+    public static native void loadDivmmcFirmware(String path);
 
     /**
      * Puts a card in. The image has to be an HDF - that is the only format
@@ -273,25 +277,25 @@ final class FuseNative {
      * belongs somewhere permanent rather than in the cache. See
      * {@link CardImage}.
      */
-    static native void insertCard(String path);
+    public static native void insertCard(String path);
 
     /** Writes the machine's changes back into the image. */
-    static native void commitCard();
+    public static native void commitCard();
 
     /** Commits, then takes the card out. */
-    static native void ejectCard();
+    public static native void ejectCard();
 
     /** The card in the slot, or "" when there is none. */
-    static native String cardName();
+    public static native String cardName();
 
     /** Index of the running machine, or -1 if Fuse has not started yet. */
-    static native int currentMachine();
+    public static native int currentMachine();
 
     /** Queues a machine change; {@code index} indexes {@link #machineNames}. */
-    static native void selectMachine(int index);
+    public static native void selectMachine(int index);
 
     /** Queues a machine reset. */
-    static native void reset();
+    public static native void reset();
 
     /**
      * Stops the machine, or lets it go again.
@@ -300,29 +304,29 @@ final class FuseNative {
      * it while it is sitting in the paused loop, and a queued command is only
      * read between frames.
      */
-    static native void setPaused(boolean paused);
+    public static native void setPaused(boolean paused);
 
     /** Queues a non-maskable interrupt - the "magic button" on real hardware. */
-    static native void nmi();
+    public static native void nmi();
 
     /**
      * How hard to push a tape: 0 real time, 1 the ROM's loaders, 2 custom
      * loaders too. Three of Fuse's settings in the three combinations that are
      * worth having — see OPTION_LOADER_ACCELERATION in android_bridge.c.
      */
-    static native void setLoaderAcceleration(int level);
+    public static native void setLoaderAcceleration(int level);
 
     /** Whether Fuse starts and stops the tape when it spots a loader. */
-    static native void setDetectLoader(boolean on);
+    public static native void setDetectLoader(boolean on);
 
     /** Turns the tape loading noise on or off; only audible without fast loading. */
-    static native void setTapeSound(boolean on);
+    public static native void setTapeSound(boolean on);
 
     /** Whether inserting a tape types LOAD for you. */
-    static native void setAutoLoad(boolean on);
+    public static native void setAutoLoad(boolean on);
 
     /** Issue 2 keyboard behaviour, which a few early 48K games depend on. */
-    static native void setIssue2(boolean on);
+    public static native void setIssue2(boolean on);
 
     // --- the picture filter ------------------------------------------------
 
@@ -336,28 +340,28 @@ final class FuseNative {
      * because a tube has both and either can be had without the other. A dot
      * matrix is a third: it is a different panel, not a different tube.
      */
-    static final int FILTER_SCANLINES = 0;
-    static final int FILTER_CRT = 1;
-    static final int FILTER_VIDEO = 2;
-    static final int FILTER_SHARPNESS = 3;
-    static final int FILTER_SCANLINE = 4;
-    static final int FILTER_CURVE = 5;
-    static final int FILTER_MASK = 6;
-    static final int FILTER_GLOW = 7;
-    static final int FILTER_BLEED = 8;
-    static final int FILTER_NOISE = 9;
+    public static final int FILTER_SCANLINES = 0;
+    public static final int FILTER_CRT = 1;
+    public static final int FILTER_VIDEO = 2;
+    public static final int FILTER_SHARPNESS = 3;
+    public static final int FILTER_SCANLINE = 4;
+    public static final int FILTER_CURVE = 5;
+    public static final int FILTER_MASK = 6;
+    public static final int FILTER_GLOW = 7;
+    public static final int FILTER_BLEED = 8;
+    public static final int FILTER_NOISE = 9;
 
     /** Values of FILTER_VIDEO: how the picture left the machine. */
-    static final int VIDEO_RGB = 0;
+    public static final int VIDEO_RGB = 0;
     static final int VIDEO_COMPOSITE = 1;
-    static final int VIDEO_RF = 2;
+    public static final int VIDEO_RF = 2;
 
     /**
      * Sets one of the filters' numbers: {@code which} is a FILTER_* index.
      * The two switches take 0 or 1, FILTER_VIDEO a VIDEO_* value, and the
      * strengths 0 to 100.
      */
-    static native void setFilter(int which, int value);
+    public static native void setFilter(int which, int value);
 
     /**
      * How big the picture is drawn: {@code pixels} device pixels for every
@@ -372,7 +376,7 @@ final class FuseNative {
      * set from a list built for the whole display and still be right in a
      * layout that only gives the screen half of it.
      */
-    static native void setScale(int pixels);
+    public static native void setScale(int pixels);
 
     /**
      * How much of the Spectrum's border to show: 0 all of it, 1 a quarter,
@@ -380,22 +384,22 @@ final class FuseNative {
      * three are exactly 4:3, so nothing about fitting it changes - only how
      * many emulated pixels there are to scale.
      */
-    static native void setBorder(int border);
+    public static native void setBorder(int border);
 
     /** The scale that fits the picture to the space, whatever size that is. */
-    static final int SCALE_FIT = 0;
+    public static final int SCALE_FIT = 0;
 
     /** Renders with Fuse's monochrome palette. */
-    static native void setBlackAndWhite(boolean on);
+    public static native void setBlackAndWhite(boolean on);
 
     /** Sound on or off; restarts Fuse's sound subsystem. */
-    static native void setSound(boolean on);
+    public static native void setSound(boolean on);
 
     /** Emulation speed as a percentage; 100 is a real Spectrum. */
-    static native void setSpeed(int percent);
+    public static native void setSpeed(int percent);
 
     /** AY volume, 0 to 100; restarts Fuse's sound subsystem. */
-    static native void setAyVolume(int volume);
+    public static native void setAyVolume(int volume);
 
     /**
      * AY stereo separation: 0 mono, 1 ACB, 2 ABC.
@@ -404,22 +408,22 @@ final class FuseNative {
      * in the middle and C right. Either makes Fuse's output two channels
      * instead of one. Restarts the sound subsystem, which is what reads it.
      */
-    static native void setAyStereo(int separation);
+    public static native void setAyStereo(int separation);
 
     /** Beeper volume, 0 to 100; restarts Fuse's sound subsystem. */
-    static native void setBeeperVolume(int volume);
+    public static native void setBeeperVolume(int volume);
 
     /** Writes the machine's state; libspectrum picks the format by extension. */
-    static native void saveSnapshot(String path);
+    public static native void saveSnapshot(String path);
 
     /** Restores a state written by {@link #saveSnapshot}. */
-    static native void loadSnapshot(String path);
+    public static native void loadSnapshot(String path);
 
     /**
      * Writes the last frame at half size: two little endian 32-bit integers
      * of width and height, then RGBA rows.
      */
-    static native void saveThumbnail(String path);
+    public static native void saveThumbnail(String path);
 
     // --- screenshots and recording ---------------------------------------
 
@@ -431,18 +435,18 @@ final class FuseNative {
      * through drawing the next one. Rows are {@link #frameStride()} apart,
      * which is wider than the frame on machines that do not use it all.
      */
-    static native java.nio.ByteBuffer frameBuffer();
+    public static native java.nio.ByteBuffer frameBuffer();
 
-    static native int frameStride();
+    public static native int frameStride();
 
     /** The sixteen colours the indices mean, 0xAABBGGRR. */
-    static native int[] palette();
+    public static native int[] palette();
 
     /** Whether {@link #onFrame} is called for every frame drawn. */
-    static native void setRecording(boolean on);
+    public static native void setRecording(boolean on);
 
     /** Asks for {@link #onScreenshot} on the next frame. */
-    static native void captureScreenshot();
+    public static native void captureScreenshot();
 
     /** One frame, on the emulation thread. Must return promptly. */
     static void onFrame(int width, int height) {
@@ -459,5 +463,5 @@ final class FuseNative {
      * snapshots, tapes, disks, cartridges, microdrive images and RZX
      * recordings alike. Must be a real filesystem path, not a content URI.
      */
-    static native void openFile(String path);
+    public static native void openFile(String path);
 }

@@ -147,6 +147,22 @@ only name is their content description (`ui-tap.py` matches that too). ☰ has
 "Scorpion"`. The quick bar fades after three seconds, so tap the picture first
 to bring it back.
 
+## Where things live
+
+`FuseNative` and `EmulatorActivity` stay in `dev.ldlab.zedex` and cannot move:
+`android_bridge.c` exports 55 `Java_dev_ldlab_zedex_FuseNative_*` symbols and
+does a `FindClass` on that path, and the activity is addressed as
+`dev.ldlab.zedex/.EmulatorActivity` by `am start` in the scripts and docs.
+Everything else is in a layer — `machine`, `input`, `storage`, `cheats`, `media`,
+`view`, `menu`, `screen`; see *How the code is laid out* in
+`docs/INTERNALS.md`. Adding an activity means the manifest gets `.screen.Name`.
+
+**Sub-packages mean package-private is gone across a boundary.** A new member
+another layer needs has to be `public`. Do not script that widening by
+indentation: eight spaces is a method body at a top-level class and a nested
+member inside a nested type, and a rule that confuses them writes `public` in
+front of local variables. Let the compiler say what is invisible.
+
 ## Conventions
 
 - Commit subjects take a conventional prefix: `feat:`, `fix:`, `docs:`,

@@ -797,6 +797,43 @@ if it cannot have it. `settings_set_string()` does the assignment, because the
 setting owns its copy and handing it a literal would leave Fuse freeing static
 storage later.
 
+### How the code is laid out
+
+Two classes stay at the root and both are pinned there.
+
+`FuseNative` is the JNI facade: `android_bridge.c` exports fifty-five
+`Java_dev_ldlab_zedex_FuseNative_*` symbols and calls `FindClass` on
+`dev/ldlab/zedex/FuseNative` for the three callbacks the other way, so moving it
+means renaming C. `EmulatorActivity` is addressed as
+`dev.ldlab.zedex/.EmulatorActivity` by `am start` in the scripts and the docs.
+
+Everything else is in a layer:
+
+| | |
+| --- | --- |
+| `machine` | `Machine`, `Border`, `Filter` — what is pushed into Fuse and its renderer |
+| `input` | `Gamepad`, `Hotkeys`, `ControlProfiles`, `Controls`, `Mouse` — what turns a touch, a stick or a key into something the machine sees |
+| `storage` | `Storage`, `States`, `Recents`, `CardImage` — files and folders |
+| `cheats` | `Pokes`, `PokeDatabase` |
+| `media` | `Media`, `Recorder`, `Recording`, `GifRecording`, `Mp4Recording` |
+| `view` | the custom views: `EmulatorLayout`, `MenuDrawer`, `QuickBar`, `Rows`, `JoystickView`, `ActivityLights` and the two keyboards |
+| `menu` | `ControlsUi`, `PokesUi`, `StatesUi`, `Capture` — what fills a page or a bar group |
+| `screen` | the other activities, plus `StartPanel`, `SecondScreen` and `Panels` |
+
+**Sub-packages cost package-private.** The codebase used it everywhere — `final
+class Media`, bare `static final String KEY_…` — and a member reached across a
+package boundary has to be `public`. Around three hundred declarations widened,
+which is the price of the layout and was paid deliberately. Nothing that is only
+used inside its own package was touched, so the promotion followed the compiler
+rather than a rule: build, read what it says is invisible, widen exactly that,
+build again.
+
+A word of warning from doing it. Scripting the widening by indentation is a trap:
+at a top-level class, eight spaces is a *method body*, not a nested member, and a
+rule that misses the difference will put `public` on local variables and in front
+of calls. It compiles as far as the parser and then falls over in a heap. The
+compiler-driven pass is slower and it cannot be wrong.
+
 ### Sharing the window
 
 `EmulatorLayout` is a `ViewGroup` of its own rather than nested

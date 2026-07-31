@@ -1,5 +1,8 @@
 package dev.ldlab.zedex;
 
+import dev.ldlab.zedex.FuseNative;
+import dev.ldlab.zedex.screen.SettingsActivity;
+import dev.ldlab.zedex.storage.Storage;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 

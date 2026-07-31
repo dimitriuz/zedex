@@ -63,31 +63,31 @@
         <!-- Dark like the emulator, since it is mostly a picture of a black
              Spectrum keyboard, and with an action bar for Delete. -->
         <activity
-            android:name=".ProfileActivity"
+            android:name=".screen.ProfileActivity"
             android:label="@string/profile_activity"
             android:theme="@android:style/Theme.DeviceDefault"
             android:exported="false" />
 
         <activity
-            android:name=".GamepadActivity"
+            android:name=".screen.GamepadActivity"
             android:label="@string/gamepad_activity"
             android:theme="@android:style/Theme.DeviceDefault"
             android:exported="false" />
 
         <activity
-            android:name=".AboutActivity"
+            android:name=".screen.AboutActivity"
             android:label="@string/about_title"
             android:theme="@android:style/Theme.DeviceDefault"
             android:exported="false" />
 
         <activity
-            android:name=".SettingsActivity"
+            android:name=".screen.SettingsActivity"
             android:label="@string/settings_title"
             android:theme="@android:style/Theme.DeviceDefault.Settings"
             android:exported="false" />
 
         <activity
-            android:name=".StatesActivity"
+            android:name=".screen.StatesActivity"
             android:label="@string/menu_states"
             android:theme="@android:style/Theme.DeviceDefault"
             android:exported="false" />
