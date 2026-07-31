@@ -112,7 +112,14 @@ Pass a path to use the real one.
 
 Nothing in the demo is timed against the raster, which is why it behaves the
 same on a 48K, a 128 and a +3, and why four things can move at once. Caps Shift
-and Space together stops it and hands the machine back to BASIC.
+and Space together stops it and hands the machine back to BASIC, AY included.
+
+The music is three channels of AY stepped from the same HALT, and it is written
+unconditionally: a machine without an AY decodes neither of its ports and hears
+nothing, so the demo stays one file and a 48K is simply quiet. Recording the
+emulator's audio off the host is not worth the fight — the **AY lamp** in the
+activity column lights while registers are being written, which is the check
+that the player is running.
 
 Loading it: put it in the content folder and open it like any other tape, or
 hand it straight over —
