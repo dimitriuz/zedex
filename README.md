@@ -1,414 +1,275 @@
 # Zedex
 
-**Zedex** — a modern ZX Spectrum emulator for Android 11+, with a native front
-end.
+A ZX Spectrum emulator for Android 11 and later, with a native front end. The
+emulation is [Fuse](http://fuse-emulator.sourceforge.net/), unmodified.
 
-> Zedex uses [Fuse](http://fuse-emulator.sourceforge.net/) as its emulation
-> backend, unmodified and unpatched.
+ROMs are included, so every machine runs out of the box. See
+[Licence](#licence).
 
-> **The ROMs are included**, so every machine here starts out of the box. They
-> are not ours and not under the GPL — the terms they travel under are in
-> [README.copyright.md](README.copyright.md), copied from Fuse.
+Building, testing and releases: [docs/DEVELOPING.md](docs/DEVELOPING.md).
+How Fuse is wired in: [docs/INTERNALS.md](docs/INTERNALS.md).
 
-> **Developed with AI assistance.** Most of the code, the tests and this
-> document were written by Claude, directed and reviewed by a human.
+Most of the code was written by Claude, directed and reviewed by a human.
 
-> This page is about using the app. Building it, testing it and cutting a
-> release are in [docs/DEVELOPING.md](docs/DEVELOPING.md); how the core is
-> wired in, and how it could be replaced, in
-> [docs/INTERNALS.md](docs/INTERNALS.md).
 
-## Features
-
-**The machine**
+## Machines
 
 | Family | Machines |
 | --- | --- |
-| Sinclair | Spectrum 16K · 48K · 48K (NTSC) · 128K · +2 · +2A · +3 · +3e |
+| Sinclair | 16K · 48K · 48K NTSC · 128K · +2 · +2A · +3 · +3e |
 | Timex | TC2048 · TC2068 · TS2068 |
 | Clones | Pentagon 128K · 512K · 1024K · Scorpion ZS 256 |
-| Enhanced | Spectrum SE |
+| Other | Spectrum SE |
 
-- **Speed control** from 25% to 500%
-- **Reset** and **NMI**
+Speed 25%–500%. Reset and NMI. Issue 2 keyboard.
 
-**Loading and saving**
-
-- **Every format worth reading** — snapshots, tapes, disks, cartridges,
-  microdrive images, RZX recordings. The file identifies itself, and the
-  machine switches when the media needs one: a `.dsk` brings up a +3, a
-  `.trd` a Beta-equipped machine
-- **Opens files from other apps**
-- **Fast tape loading**
-- **Save states**, named, renamed and deleted from the list itself
-- **Writes tapes and disks back** — a disk over the file it came from, or as a
-  copy
-- **A DivMMC memory card**, for **esxDOS** and a card full of games — bring the
-  8K firmware and the card image, and a raw image gets its HDF header written
-  for it
-
-**Capture**
-
-- **Screenshots** as PNG
-- **Recording** to **GIF** or **MP4**
-
-**Comfort**
-
-- **GPU-scaled display**, fitted or at a **whole-pixel scale**, with
-  **scanline, CRT and composite/RF filters**, and the **border**
-  shown in full, slimmed to a quarter, or cropped away
-- **On-screen Spectrum keyboard**, as the rubber **48K** or the **128K** plate —
-  or **your phone's own keyboard** instead
-- **On-screen joystick**, and **physical controllers**, which just work — with
-  RetroArch-style **hotkeys** for two dozen of the app's own actions
-- **Kempston mouse**, driven by a drag on the picture or by the joystick
-- **Cheats for 3,682 games** built in — found by the file's fingerprint, or by
-  name — and pokes of your own
-- **A quick actions bar**, always on screen, with a **fullscreen** button that
-  leaves the picture and the joystick and clears everything else away
-- **Pause** — automatic when the app is not in front, and nothing is drawn
-  at all while the device sleeps
-- **Activity lamps** for the tape, disks, AY, keyboard and joystick — the quick
-  bar's *Display…* puts them away, the keyboard and the joystick are in *On
-  screen…*, and
-  fullscreen gives the picture their strip back
-- **Two screens**, on a handheld built with them: the controls move to the
-  other panel and the machine gets a whole screen to itself
-- **Hardware keyboards**
 
 ## Hardware
 
-What the app reaches today:
-
 | | |
 | --- | --- |
-| **Beta 128 / TR-DOS**, drives A: to D: | on Pentagon and Scorpion |
-| **+3 floppy**, drives A: and B: | on a +3 or +3e |
-| **AY-3-8912** | on the 128K-family machines |
-| **Timex SCLD** video, including hi-res modes | on the Timex machines |
-| **DivMMC** and its memory card | any machine, with the esxDOS firmware |
-| **Tape deck** | loading and saving |
-| **Keyboard** | on screen or physical |
-| **Joystick** | Kempston · Cursor · Sinclair 1/2 · Timex 1/2 · Fuller · keyboard |
-| **Kempston mouse** | a drag on the picture, or the pad and a controller's stick |
+| Beta 128 / TR-DOS, drives A:–D: | Pentagon, Scorpion |
+| +3 floppy, drives A: and B: | +3, +3e |
+| AY-3-8912, ACB or ABC stereo | 128K family |
+| Timex SCLD video, hi-res modes | Timex machines |
+| DivMMC + memory card | any machine, with esxDOS firmware |
+| Tape deck | read and write |
+| Kempston mouse | drag on the picture, or the pad and a controller's stick |
+| Joystick | Kempston · Cursor · Sinclair 1/2 · Timex 1/2 · Fuller · keyboard |
+| Keyboard | on screen or physical |
+
+
+## Files
+
+Snapshots, tapes, disks, cartridges, microdrive images, RZX recordings. The file
+identifies itself; the machine switches when the media needs one — a `.dsk`
+brings up a +3, a `.trd` a Beta-equipped machine.
+
+- Opens files from other apps
+- Fast tape loading: off, safe (ROM loaders), turbo (custom loaders too)
+- Save states, named, renamed and deleted from the list
+- Writes tapes and disks out, or back over the file they came from
+- Recent files: the last ten
+- Screenshots as PNG, recording to GIF or MP4
+
+
+## Display
+
+- GPU-scaled, fitted or at a whole-pixel scale
+- Filters: scanlines, CRT (curve, shadow mask, glow), or both
+- Video output: RGB, composite or RF, with colour bleed and noise
+- Border in full, slimmed to a quarter, or cropped
+- Black and white palette
+- Fullscreen: picture and joystick only
+- Second screen on dual-screen handhelds
+
+
+## Controls
+
+**On-screen keyboard** — the rubber 48K, the 128K plate, or your own input
+method. Every key carries its BASIC keyword, symbol-shift character, colour and
+extended-mode token. Two fingers give a shifted key; holding a shift for 400ms
+latches it until tapped again.
+
+**On-screen joystick** — thumb pad, fire, and three key buttons in an arc.
+Appears as any of the Spectrum's seven interfaces, or as keys. Eight-key
+profiles: QAOPM, QAOP + Space, cursor keys, both Sinclair sets, WASD, and your
+own.
+
+**Physical controllers** — no setup. Stick, hat and D-pad steer; A is fire; B, X
+and Y are the key buttons; Start is Enter. The on-screen pad steps aside.
+
+**Hotkeys** — RetroArch style: one modifier button plus another, so nothing is
+taken from the game. Two dozen actions. Defaults, with Select as the modifier:
+
+| | | | |
+| --- | --- | --- | --- |
+| Start | quit | R1 | quick save |
+| L1 | quick load | B | pause |
+| X | fullscreen | Y | hide the keyboard |
+| R2 held | fast forward | L3 / R3 | next joystick type / key profile |
+
+**Kempston mouse** — a mode. While on, a drag moves the pointer, and fire and
+the first key button are its buttons. Sensitivity is a setting.
+
+
+## Cheats
+
+3,682 games' cheats are built in, found by the file's fingerprint or by name.
+Cheats that take a number ask for one. Pokes of your own can be applied once or
+kept on a list; decimal, or hex after `0x`, `$` or `#`.
+
+
+## Activity lamps
+
+Tape, disk, memory card, AY, keyboard, joystick, mouse. Blue reads, amber
+writes. The AY is three bars, one per channel. A lit joystick lamp with a dead
+stick means the game wants a different interface.
 
 
 ## Not yet
 
-- A file browser of our own — filtered by type, and reading straight out of zip
-  archives. Android's picker cannot filter by extension
+- A file browser of our own, filtered by type and reading zip archives.
+  Android's picker cannot filter by extension
 - A debugger, which the core supports and nothing yet exposes
 
 
 ## Using it
 
-**The first start asks two questions**, and both can be answered later in
-*Settings › Files* instead:
-
-- *Data folder* — where the ROMs, save states, tapes, disks, screenshots and
-  recordings go. Its own storage is the default, and somewhere shared —
-  Documents, an SD card — keeps them if the app is ever uninstalled
-- *Content folder* — where **Open file…** starts looking; point it at your games
-  and every load is two taps shorter
-
-Then *Start the machine*, and that is the last you see of it.
-
-**The ROMs are there already.** The app puts them into the `roms` folder the
-first time it runs — every machine it offers, the Pentagons and the Scorpion
-included — and never over a file you put there yourself.
-[README.copyright.md](README.copyright.md) has the terms they come under.
-
-If any go missing the screen carries a panel saying so, with three ways to fix
-it:
-
-- *Get ROMs* fetches a set from archive.org and unpacks it
-- *Choose folder…* takes every `.rom` out of a folder on the device and out of the folders inside it
-- *Choose files…* takes the files, or a zip, you pick
-
-The machine starts as soon as the ROMs are in. If some are missing the panel
-says which, and *Run anyway* starts on the ones that are there.
-
-
-**Sideways the keyboard goes where it goes in portrait** — across the foot of
-the window, capped at two fifths of the height so the picture keeps its full
-width. *Show on screen* is how to have the window without it.
-
-
-**The keyboard** is drawn from the real one, so every key carries its
-BASIC keyword, symbol-shift character, colour and extended-mode token. Two
-fingers give a real shifted key; alternatively **hold either shift for 400ms
-to latch it** (it turns amber) until you tap it again. That is how you get
-BREAK — Caps Shift and Space.
-
-**The lamps** beside the picture — tape, disk, memory card, AY, keyboard,
-joystick, mouse — show
-what the machine is busy with. Blue reads, amber writes, and the disk lamp only
-says it is being used, since the emulator does not report which way. The AY is
-three bars, one per channel, as tall as it is loud. A lit joystick lamp and a
-dead stick means the game wants a different interface. Off in settings.
-
-**The joystick** is a thumb pad, a fire button and three key buttons in an arc
-above and beside it — Enter, Space and CAPS SHIFT unless you change them — and it
-goes wherever the picture is not.
-
-☰ *Controls… › Joystick…* turns it off and on, chooses which interface it comes
-out as — including **Keyboard**, for the games that want QAOP rather than a
-joystick — and picks the **key profile**: eight keys, five for the pad and three
-for the buttons, named and switchable, with QAOPM, QAOP + Space, cursor keys,
-both Sinclair sets and WASD built in. *Edit keys…* binds one by tapping the
-control and then the key.
-
-**The Kempston mouse** is a mode, from ☰ *Controls… › Mouse…*. While it is on, a
-drag across the picture moves the pointer, the pad and a controller's stick move
-it too, and fire and the first button beside it are the mouse's two buttons —
-there is a *Sensitivity* setting for how far a drag goes. It is only plugged in
-while the mode is on, since it answers three ports a game might read for
-something else, and the **mouse lamp** lights whenever a game reads them, which
-is how you find out a game supports it — blue while a mouse is plugged in, amber
-while the game is asking for one you have not turned on.
-
-**A physical controller** needs no setting up: plug one in and it drives the same
-five controls, through the same profile. The stick, the hat and the D-pad steer,
-**A** is fire, **B**, **X** and **Y** are the three key buttons, and **Start** is
-Enter. The on-screen pad steps aside while a controller is connected, which
-*Hide for a controller* turns off.
-
-**Hotkeys** work like RetroArch's: one button is the hotkey — **Select** unless
-you change it — and everything else is that button *and* another, so nothing is
-taken away from the game. Out of the box **Select+Start** quits, **+R1** quick-saves,
-**+L1** quick-loads — one save per game, named after it, so *Tujad Quick* is
-Tujad's and nothing else overwrites it — **+B** pauses, **+X** is fullscreen, **+Y** hides the
-keyboard, **+R2** held runs fast, and the stick clicks walk round the joystick
-types (**+L3**) and the key profiles (**+R3**).
-Two dozen actions to choose from in ☰ *Controls… › Controller hotkeys…*: tap a
-row, press the button. The hotkey can be set to *None*, and then bindings fire on
-their own.
-
-
-**The memory card** — a **DivMMC** with **esxDOS** on it, which is a card full of
-games and a filesystem the Spectrum can browse. Two things are yours to bring,
-because neither is ours to ship:
-
-1. **The firmware.** Get esxDOS from [esxdos.org](http://www.esxdos.org/) and
-   take `ESXMMC.BIN` out of it — the 8K DivMMC build. In *Settings › Machine*,
-   tap **DivMMC firmware** and pick it. The row then says *Loaded*.
-2. **Switch on** *DivMMC interface*, in the same place. The machine resets: it
-   is a card interface being plugged in, and esxDOS takes over the reset.
-3. **The card.** ☰ *Media… › Insert card…*. Any card image will do — a `.hdf`,
-   or a raw image such as a MiSTer `.vhd` or something `dd` wrote, which gets
-   its HDF header written for it on the way in. It is copied into `cards/` in
-   the data folder, because the machine writes to it, and the machine is reset
-   so esxDOS reads the new card.
-   The card needs esxDOS's own `BIN` and `SYS` folders on it — the same download
-   — or nothing will run.
-
-Then `.ls` at the BASIC prompt lists the card, `.` commands are esxDOS's, and ☰
-*Machine… › NMI* opens its file browser: pick a game and it loads. **Changes are
-written back for you**, once a second and whenever the app is paused, so a save
-survives the phone being put away; *Write changes now* is there for when you
-want to be certain.
-
-**Two screens.** On a dual-screen handheld — an AYN Thor and its like —
-*Settings › Picture › Second screen* moves the **keyboard, the lamps and the
-quick bar** to the other panel: the bar across the top, the keys below it and
-against the foot of the panel, the lamps in a row underneath. The first screen
-is then nothing at all but the machine — not even the joystick, which goes to
-the panel too and sits in a band of its own between the bar and the keys, pad at
-one end and fire at the other.
-
-☰ opens on the panel, over the keys, and so do **settings**, **about** and the
-**controller hotkeys**: a screen asked for by a thumb on one display should not
-appear on the other. What cannot follow is the **phone's own keyboard**, if that
-is the skin you chose — Android decides which screen an input method appears on
-and a panel has to be allowed to host one, so it typically opens over the
-machine. It still types into the Spectrum; the 48K and 128K skins are the ones
-drawn on the panel.
-
-The row says *No second screen on this device* and cannot be switched on when
-there is no panel to move to; unplugging one brings everything back to the first
-screen, and so does putting the app away.
-
-**Folders** are yours to choose, in settings:
-
-- *Data folder* holds `roms`,
-`states`, `tapes`, `disks`, `screenshots` and `recordings`: pick one of the
-roots the device offers — internal storage, shared storage, an SD card — or
-*Choose folder…* for anywhere at all, which needs Android's **All files
-access**. Whatever is already saved moves with it.
-
-- *Content folder* is where **Open file…** starts, granted through the document
-picker.
-
----
-
-**The bar** is always there, in a strip across the top of the window whichever
-way up the device is. Nine icons:
+**First start** asks for two folders. Both can be changed later in
+*Settings › Files*.
 
 | | |
 | --- | --- |
-| **Files** | open one, and the last ten you opened |
-| **States** | save one, load one, and the quick pair named after what is running |
-| **Machine** | pause, change machine, reset, NMI |
-| **Capture** | a screenshot, a GIF, an MP4, and the folder they go to |
-| **On screen** | the keyboard and the joystick, away or back |
-| **Display** | scanlines, CRT, video output, border and the lamps |
-| **Fast forward** | hold it: 500% while held, silent, back to your speed on release |
-| **Fullscreen** | |
-| **☰** | |
+| Data folder | `roms`, `states`, `tapes`, `disks`, `screenshots`, `recordings`. Its own storage by default; somewhere shared keeps them if the app is uninstalled |
+| Content folder | where *Open file…* starts |
 
-Fullscreen leaves the picture and the joystick and takes everything else away —
-the bar, the keyboard and the lamps, whichever way up the device is. Tap the
-picture to bring the bar back for a moment, or press **Back** to leave
-fullscreen altogether.
+**ROMs** are installed on first run, never over a file you put there yourself.
+If any are missing a panel says which, and offers to fetch a set from
+archive.org, take them from a folder, or take files you pick. *Run anyway*
+starts on what is there.
 
-With the controls on a second screen there is no fullscreen button: that screen
-is the picture and nothing else already.
+### The quick bar
 
-**Back** never puts the app away: in fullscreen it leaves fullscreen, in the ☰
-sheet it goes up a page and then closes it, and otherwise it opens ☰. Leaving is
-*Quit*, which asks about unsaved disks first — a Spectrum put away by accident
-is a Spectrum whose RAM has gone.
-
-**Main menu**
+A strip across the top of the window, either way up.
 
 | | |
 | --- | --- |
-| **Open file…** | straight to the picker |
-| **Open recent…** | the last ten, newest first |
-| **Machine…** | which machine, pause, reset, NMI — with the running one named under it |
-| **States…** | save and load |
-| **Pokes…** | one byte into memory: try one, or keep the ones that work |
-| **Media…** | the tape deck, and every drive the machine has |
-| **Capture…** | screenshots and recording |
-| **Controls…** | the joystick and the keyboard |
-| **Settings…** | the settings screen |
-| **Quit** | closes the app, rather than leaving it paused in the background |
+| Files | open one, and the last ten |
+| States | save, load, and the quick pair named after what is running |
+| Machine | pause, change machine, reset, NMI |
+| Capture | screenshot, GIF, MP4, and the folder they go to |
+| On screen | the keyboard and the joystick |
+| Display | scanlines, CRT, video output, border, lamps |
+| Fast forward | hold for 500%, silent |
+| Fullscreen | |
+| ☰ | |
 
-In full:
+Fullscreen hides everything but the picture and the joystick. Tap the picture to
+bring the bar back; Back leaves fullscreen. There is no fullscreen button when
+the controls are on a second screen.
 
-- **Open file…** — anything the emulator can read: snapshots (`.z80`, `.sna`,
-  `.szx`, …), tapes (`.tap`, `.tzx`, `.pzx`, `.csw`, …), disks (`.dsk`,
-  `.trd`, `.scl`, `.mgt`, `.udi`, …).
-- **Open recent…** — the last ten files, newest first, in ☰ and behind the
-  bar's folder icon. Yesterday's game is one tap rather than three and a good
-  memory for filenames; the list survives a restart, and an entry that will no
-  longer open drops itself.
-- **Machine…**
-  - *Change machine…* lists all sixteen with the running one
-  checked, and the choice is remembered for the next launch.
-  - *Reset* asks
-  first, since it discards machine state.
-  - *Pause* stops the machine; a big play button over the picture starts it
-  again. It pauses itself whenever the app is not in front.
-  - *NMI* is the magic button of the real hardware; what it does depends on
-  the machine.
-- **States…** — *Save state…* and *Load state…* open a screen of their own: a
-  grid of cards, each the screen as it was when it was written, with as many
-  saves as you like. The pencil on a card renames it and the bin deletes it.
-  With a second screen it opens on the panel, where it was asked for.
-- **Pokes…** — cheats. When a file is opened it is fingerprinted, and if it is
-  one of the 3,682 games the built-in database knows, its cheats are listed at the
-  top: tap one and it is poked. *Search the cheat database…* finds a game by name,
-  for a save state or an odd dump; *Look it up at The Tipshop…* opens the site
-  these cheats come from, which has the ones the database has not.
-  A cheat that asks for a number — how many lives — asks before poking.
-  *Poke once…* takes an address and a value, writes the byte and keeps nothing;
-  *Add a poke…* takes a name as well and puts it on the list. Tapping a stored
-  poke pokes it, the bin beside it forgets it. Decimal, or hex after `0x`, `$` or `#`.
-- **Media…**
-  - *Load a tape…* opens one, and *Play*, *Stop* and *Rewind to the start* work
-  the deck. Stop keeps the position, so playing again carries on from there — and
-  with *Detect loaders* on, Fuse stops the tape itself whenever nothing is loading;
-  - *Blocks…* lists what is on the tape, marks the one the deck is at and winds to
-  whichever you pick — for a multi-load game, or to skip past a side;
-  - *Save tape…*
-  writes what the machine has put on its tape to a `.tap` in the data folder, which is how a BASIC `SAVE "name"` reaches a
-  file, and appears once there is something to write;
-  - *New tape* throws the current one away so a save does not append to a game you loaded earlier.
-  - *Load disk…*, *New disk*, *Save as…* and *Eject*. The
-  drives follow the machine, so a +3 shows its two and a Pentagon its four
-  Beta ones, and a machine with none says so;
-  - *Save over “name”* is there as well for a disk that came from a file, and
-  writes it back over that file — it asks first, since what is in the file now
-  is replaced. Only what the machine changed changes; the format is the file's
-  own, so a `.trd` goes back as a `.trd`.
-  - *Insert card…* puts a card in the DivMMC — see **The memory card** above —
-  with *Write changes now* and *Eject card* once there is one in. The page says
-  so if the interface is off or has no firmware.
-- **Capture…**
-  - *Save screenshot* writes the emulated screen as a PNG at
-  its own size.
-  - *Record a GIF* or *Record an
-  MP4* starts filming it;
-  - *Stop recording*
-  - *Open recordings folder* hands that folder to the file
-  manager.
-- **Controls…** — the two things you play with, each of which can be put away
-  and neither of which the other replaces.
-  - *Joystick…* has *Show on screen*, which of the Spectrum's seven interfaces
-  the pad appears as or *Keyboard* for keys instead, *Keys…* for the profile the
-  keys come from, and whether to *Hide for a controller*. A control shows the key
-  it sends on its face.
-  - *Keyboard…* has the same *Show on screen* — a game that only wants a
-  joystick has no use for forty keys — a *Skin*: the rubber 48K, the 128K plate
-  with its own DELETE, EDIT, GRAPH, arrows and punctuation, or **Android
-  keyboard**, which puts your own input method up instead and types through it.
-- **Settings…** — see below.
-- **Quit** — ends the app rather than putting it away, which is all Back and
-  Home do. A disk with changes nothing has written back gets a warning first.
-- **About Zedex** — which version this is, which commit it was built from and
-  when, and where the source is.
+**Back** never exits: it leaves fullscreen, or goes up a menu page, or opens ☰.
+*Quit* exits, and warns about unsaved disks first.
 
-**Settings** is six tabs — Machine, Tape, Display, Controls, Sound, Files — and
-it is the complete list: everything that persists is there, exactly once. ☰ and
-the quick bar are shortcuts to the things wanted mid-game, writing the same
-setting.
+### ☰
 
 | | |
 | --- | --- |
-| **Machine at startup** | which machine to boot |
-| **Issue 2 keyboard** | early 48K keyboard behaviour a few games depend on |
-| **DivMMC interface** | a memory card and esxDOS, on any machine; resets it |
-| **DivMMC firmware** | the 8K esxDOS ROM the interface needs, which is yours to bring |
-| **Fast loading** | off, safe (ROM loaders) or turbo (custom loaders too) |
-| **Detect loaders** | start and stop the tape when a loader asks for it |
-| **Loading sound** | the loading sound, which only exists when a tape runs in real time |
-| **Autoload media** | whether inserting a tape types `LOAD` for you |
-| **Save tape format** | TAP or TZX, when you do not type an extension yourself |
-| **Sound**, **AY volume**, **Beeper volume** | restart the sound subsystem when changed |
-| **AY stereo separation** | off, ACB or ABC — the 128's three channels spread across two |
-| **Black and white TV** | the monochrome palette |
-| **Filter** | off, scanlines, CRT, or both — the beam and the glass in front of it |
-| **Advanced…** | each effect's strength, the **video output** (RGB, composite or RF, with colour bleed and noise) and **sharpness**, where 100% is pixel for pixel |
-| **Border** | full, slim (a quarter of it) or none — less border is more picture |
-| **Portrait scale**, **Landscape scale** | fit to the screen, or a whole number of device pixels per emulated one |
-| **Activity indicators** | the lamps beside the picture |
-| **Joystick interface**, **Key profile**, **Keyboard type**, **Mouse sensitivity** | the same choices the ☰ *Controls…* pages make |
-| **Second screen** | the keyboard, the lamps and the bar on a handheld's other panel |
-| **Keep the screen on** | Android's, not the emulator's |
-| **Speed** | 25% to 500% |
+| Open file… | the picker |
+| Open recent… | the last ten, newest first |
+| Machine… | pause, change machine, reset, NMI |
+| States… | a grid of cards, each showing the screen it holds; rename and delete on the card |
+| Pokes… | the database for what is loaded, a search, and pokes of your own |
+| Media… | the tape deck, every drive the machine has, and the card slot |
+| Capture… | screenshots and recording |
+| Controls… | joystick, keyboard, mouse, controller hotkeys |
+| Settings… | |
+| Quit | |
+
+### Settings
+
+Six tabs. Everything that persists is there, exactly once; ☰ and the bar are
+shortcuts to the same settings.
+
+| Machine | |
+| --- | --- |
+| Machine at startup | which machine to boot |
+| Issue 2 keyboard | early 48K keyboard behaviour a few games need |
+| DivMMC interface | resets the machine |
+| DivMMC firmware | the 8K esxDOS ROM, which is yours to bring |
+| Speed | 25% to 500% |
+
+| Tape | |
+| --- | --- |
+| Fast loading | off, safe, turbo |
+| Detect loaders | start and stop the tape when a loader asks |
+| Loading sound | only exists when a tape runs in real time |
+| Autoload media | type `LOAD` on inserting a tape |
+
+| Display | |
+| --- | --- |
+| Filter | off, scanlines, CRT, or both |
+| Advanced… | each effect's strength, video output, sharpness |
+| Black and white TV | |
+| Border | full, slim, none |
+| Portrait / Landscape scale | fit, or whole device pixels per emulated pixel |
+| Activity indicators | |
+| Second screen | |
+| Keep the screen on | |
+
+| Controls | |
+| --- | --- |
+| Interface | which joystick the pad comes out as, or Keyboard |
+| Key profile | and an editor for it |
+| Hide the joystick for a controller | |
+| Keyboard type | 48K, 128K, or Android's |
+| Mouse sensitivity | |
+| Controller hotkeys… | |
+
+| Sound | |
+| --- | --- |
+| Sound, AY volume, Beeper volume | restart the sound subsystem |
+| AY stereo separation | off, ACB or ABC |
+
+| Files | |
+| --- | --- |
+| Data folder | |
+| Content folder | |
+| Save state format | SZX, Z80 or SNA |
+| Save tape format | TAP or TZX |
+
+
+## The memory card
+
+A DivMMC with esxDOS on it. Two things are yours to bring:
+
+1. **Firmware.** `ESXMMC.BIN`, the 8K DivMMC build, from
+   [esxdos.org](http://www.esxdos.org/). *Settings › Machine › DivMMC firmware*.
+2. **A card image.** ☰ *Media… › Insert card…*. An `.hdf`, or a raw image such
+   as a MiSTer `.vhd`, which gets an HDF header written for it. It needs
+   esxDOS's own `BIN` and `SYS` folders on it.
+
+Switch on *DivMMC interface* in the same place; the machine resets.
+
+Then `.ls` lists the card, `.` commands are esxDOS's, and ☰ *Machine… › NMI*
+opens its file browser. Changes are written back once a second and whenever the
+app is paused.
+
+
+## Two screens
+
+On a dual-screen handheld — an AYN Thor and its like — *Settings › Display ›
+Second screen* moves the keyboard, the joystick, the lamps and the quick bar to
+the other panel, leaving the first screen showing nothing but the machine. ☰,
+settings, about and the hotkeys open on the panel too.
+
+Android decides which display an input method appears on, so the *Android
+keyboard* skin usually opens over the machine. It still types into the Spectrum.
+
+The setting cannot be switched on with no panel to move to. Unplugging one
+brings everything back.
 
 
 ## Licence
 
-Zedex is free software under the **GNU General Public License, version 2 or
-(at your option) any later version**. The full text is in [LICENSE](LICENSE).
+Zedex is free software under the **GNU General Public License, version 2 or (at
+your option) any later version**. The full text is in [LICENSE](LICENSE).
 
-`vendor/` stays under its own upstream copyright — see
-`vendor/fuse-1.9.0/AUTHORS` and `vendor/libspectrum-1.6.2/AUTHORS`. Everything
-outside it is © 2026 Dmitrii Leshchenko.
+`vendor/` keeps its own upstream copyright — see `vendor/fuse-1.9.0/AUTHORS` and
+`vendor/libspectrum-1.6.2/AUTHORS`. Everything outside it is © 2026 Dmitrii
+Leshchenko.
 
-The name **Zedex** and the app icon are not covered by the GPL, which grants
-no trademark rights. Fork the code freely; ship it under your own name.
+The name **Zedex** and the app icon are not covered by the GPL, which grants no
+trademark rights. Fork the code freely; ship it under your own name.
 
 **The ROMs are not under the GPL and are not ours.** Most are Fuse's set,
-redistributed by the permission of the people who hold their copyright — Amstrad
-for the Sinclair machines, and others for the rest;
-[README.copyright.md](roms/README.copyright.md) is that permission, copied from Fuse
-whole.
+redistributed by permission of the copyright holders — Amstrad for the Sinclair
+machines, others for the rest. [README.copyright.md](roms/README.copyright.md)
+is that permission, copied from Fuse whole.
 
 **The cheats are not ours.** They come from
-[The Tipshop](https://www.the-tipshop.co.uk/), run by Gerard Sweeney, which is
-where three decades of Spectrum pokes have been collected; the machine-readable
-form is *AllTipshopPokes*, gathered by Lady Eklipse and distributed with
+[The Tipshop](https://www.the-tipshop.co.uk/), run by Gerard Sweeney. The
+machine-readable form is *AllTipshopPokes*, gathered by Lady Eklipse and
+distributed with
 [ZX Pokemaster](https://github.com/eklipse2009/all-tipshop-pokes).
