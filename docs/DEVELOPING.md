@@ -16,6 +16,8 @@ scripts/
   build-native.sh      cross-compiles everything per ABI
   ui-tap.py            taps the app by text, for driving it from a terminal
   ui-type.py           types on the machine's keyboard the same way
+  build-demo.py        assembles demo/, Z80 assembler and all
+demo/            the tape the store screenshots are taken of
 build-native/    out-of-tree build trees + per-ABI install prefixes
 app/
   src/main/            the app; jniLibs/ and assets/ are build outputs
@@ -81,6 +83,50 @@ should not need a copy of somebody else's database; the script is committed
 because an asset nobody can rebuild is an asset nobody can check. Bump
 `PokeDatabase.VERSION` when the asset changes, or the copy already unpacked on a
 device will be kept.
+
+### The demo tape
+
+`demo/zedex.tap` is what the store screenshots and the animated ones are taken
+of: the app's icon, running on the machine the app emulates. The wordmark, the
+four coloured pills under it, `48K` and `Z80` in the corners, a starfield, and
+the store's own line scrolling past.
+
+```sh
+scripts/build-demo.py                        # demo/zedex.asm -> demo/zedex.tap
+scripts/build-demo.py --list                 # and what every line assembled to
+scripts/build-demo.py --logo [font.ttf]      # redraw demo/logo.inc
+```
+
+The Z80 assembler is *in the script*, because the alternative is every machine
+that builds this tree installing one for a single file. It covers what the demo
+uses and refuses everything else rather than guessing, and `--list` prints the
+bytes beside the source, which is how it was checked. The tape is committed, so
+taking a screenshot needs neither Python nor a font.
+
+The wordmark is a picture and `--logo` is what draws it, thresholding `zedex` to
+one bit; its output, `demo/logo.inc`, is committed as well, so an ordinary build
+renders nothing and cannot drift with the machine's fonts. The icon's face is
+Onest ExtraBold, which a Linux box does not have — the default is Noto Sans
+ExtraBold, and at 48 pixels tall, in one bit, the two are the same lettering.
+Pass a path to use the real one.
+
+Nothing in the demo is timed against the raster, which is why it behaves the
+same on a 48K, a 128 and a +3, and why four things can move at once. Caps Shift
+and Space together stops it and hands the machine back to BASIC.
+
+Loading it: put it in the content folder and open it like any other tape, or
+hand it straight over —
+
+```sh
+adb push demo/zedex.tap /storage/emulated/0/Download/Spectrum/tapes/
+adb shell am start -a android.intent.action.VIEW -t application/octet-stream \
+    -d file:///storage/emulated/0/Download/Spectrum/tapes/zedex.tap \
+    -n dev.ldlab.zedex.debug/dev.ldlab.zedex.EmulatorActivity
+```
+
+A `file://` URI is not something one app may hand another, but `am` is not an
+app and the activity takes it — which is the shortest way to a running demo
+without driving the picker. On a 128 or a +3, press Enter on *Loader* first.
 
 The app is a handful of classes: `EmulatorActivity` holds the menus,
 `SpectrumKeyboardView` the keyboard, `Storage` decides where things live,
