@@ -55,9 +55,9 @@
     <string name="quit_unsaved">%1$s has changes that have not been written back, and quitting loses them.\n\nWrite the disk from Media… first, or quit anyway.</string>
     <string name="menu_disks_section">Drives</string>
     <string name="menu_tape_section">Tape</string>
-    <string name="keyboard_skin">Skin: %1$s</string>
+    <string name="keyboard_skin">Keyboard type: %1$s</string>
     <string name="keyboard_skin_title">Keyboard</string>
-    <string name="keyboard_system_elsewhere">The phone\'s own keyboard opens on whichever screen Android gives it — usually the machine\'s, since a second screen has to be allowed to host one. What it types still reaches the machine. The 48K and 128K skins are drawn on the panel itself.</string>
+    <string name="keyboard_system_elsewhere">The phone\'s own keyboard opens on whichever screen Android gives it — usually the machine\'s, since a second screen has to be allowed to host one. What it types still reaches the machine. The 48K and 128K keyboards are drawn on the panel itself.</string>
     <string name="keyboard_skin_set">Keyboard: %1$s</string>
 
     <string name="menu_layout">Landscape layout\u2026</string>
