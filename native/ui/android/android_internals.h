@@ -63,7 +63,6 @@ void androidgl_set_border( int border );
 typedef struct android_filter {
   int scanlines;			/* on or off */
   int crt;
-  int dots;				/* a dot matrix panel */
   int video;				/* 0 RGB, 1 composite, 2 RF */
 
   int sharpness;			/* the rest are 0 - 100 */
@@ -73,8 +72,6 @@ typedef struct android_filter {
   int glow;
   int bleed;
   int noise;
-  int gap;				/* between one dot and the next */
-  int backlight;			/* how grey a dot matrix black is */
 } android_filter;
 
 void androidgl_set_filter( const android_filter *filter );

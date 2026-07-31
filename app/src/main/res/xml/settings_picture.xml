@@ -47,26 +47,6 @@
             android:defaultValue="30"
             android:dependency="crt" />
 
-        <SwitchPreference
-            android:key="dots"
-            android:title="@string/settings_dots"
-            android:summary="@string/settings_dots_summary"
-            android:defaultValue="false" />
-        <dev.ldlab.zedex.FadingListPreference
-            android:key="filterGap"
-            android:title="@string/settings_filter_gap"
-            android:entries="@array/percent_names"
-            android:entryValues="@array/percent_values"
-            android:defaultValue="60"
-            android:dependency="dots" />
-        <dev.ldlab.zedex.FadingListPreference
-            android:key="filterBacklight"
-            android:title="@string/settings_filter_backlight"
-            android:entries="@array/percent_names"
-            android:entryValues="@array/percent_values"
-            android:defaultValue="20"
-            android:dependency="dots" />
-
         <ListPreference
             android:key="video"
             android:title="@string/settings_video"

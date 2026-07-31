@@ -44,8 +44,8 @@ static int texture_width, texture_height;
 
 static struct {
   GLint scale, offset, source, output, frame, crop, crop_at;
-  GLint scanlines, crt, dots, video;
-  GLint sharpness, scanline, curve, mask, glow, bleed, noise, gap, backlight;
+  GLint scanlines, crt, video;
+  GLint sharpness, scanline, curve, mask, glow, bleed, noise;
 } uniform;
 
 /* What the app has asked for. Set from the emulation thread, read by it.
@@ -54,7 +54,7 @@ static struct {
    and a tube has both: scanlines are the beam, and the curve, the mask and the
    glow are the glass in front of it. Either can be had without the other. */
 static struct {
-  int scanlines, crt, dots, video;
+  int scanlines, crt, video;
   /* 0 fits the picture to the window; anything else is that many device
      pixels per emulated pixel, kept exact. Which one applies is a question
      about the device's orientation, not about the shape of the box the screen
@@ -67,9 +67,9 @@ static struct {
      is, which is what keeps this right for the Timex modes, where the frame is
      drawn at twice the size. All three are exactly 4:3. */
   int border;
-  float sharpness, scanline, curve, mask, glow, bleed, noise, gap, backlight;
-} settings = { 0, 0, 0, 0, 0, 0, 1.0f, 0.5f, 0.4f, 0.4f, 0.3f, 0.5f, 0.2f,
-               0.6f, 0.2f };
+  float sharpness, scanline, curve, mask, glow, bleed, noise;
+} settings = { 0, 0, 0, 0, 0,
+               1.0f, 0.5f, 0.4f, 0.4f, 0.3f, 0.5f, 0.2f };
 
 /* Counts frames, for the parts of a signal that move: snow is different every
    frame or it is not snow. */
@@ -112,7 +112,6 @@ static const char fragment_shader_src[] =
   "uniform vec2 u_crop_at;\n"
   "uniform int u_scanlines;\n"
   "uniform int u_crt;\n"
-  "uniform int u_dots;\n"
   "uniform int u_video;\n"
   "uniform int u_frame;\n"
   "uniform float u_sharpness;\n"
@@ -122,8 +121,6 @@ static const char fragment_shader_src[] =
   "uniform float u_glow;\n"
   "uniform float u_bleed;\n"
   "uniform float u_noise;\n"
-  "uniform float u_gap;\n"
-  "uniform float u_backlight;\n"
   "out vec4 colour;\n"
   "\n"
   "const float PI = 3.14159265;\n"
@@ -165,23 +162,6 @@ static const char fragment_shader_src[] =
   "  vec2 centred = uv * 2.0 - 1.0;\n"
   "  centred *= 1.0 + u_curve * 0.12 * dot( centred, centred );\n"
   "  return centred * 0.5 + 0.5;\n"
-  "}\n"
-  "\n"
-  /* A dot matrix panel: one square cell per *emulated* pixel, with a gap around
-     it. In emulated pixels and not output ones, which is the whole difference
-     between this and the shadow mask below - a grille is a property of the glass
-     in front of any picture, while a dot is the picture element itself. So the
-     dots stay one emulated pixel however far it is scaled, and an integer scale
-     is what makes them square.
-
-     Returned as how much light the gap takes, 0 in the middle of a dot and 1 in
-     the corner between four. */
-  "float lattice( vec2 uv ) {\n"
-  "  vec2 cell = fract( uv * u_source );\n"
-  "  vec2 from = abs( cell - 0.5 ) * 2.0;\n"
-  /* max() and not length(): the cells of an LCD are square, not round, and
-     rounding them looks like a printed halftone instead. */
-  "  return smoothstep( 0.5, 1.0, max( from.x, from.y ) );\n"
   "}\n"
   "\n"
   /* An aperture grille in threes, in output pixels. */
@@ -272,7 +252,7 @@ static const char fragment_shader_src[] =
   "    rgb += u_noise * 0.18 * ( snow( gl_FragCoord.xy ) - 0.5 );\n"
   "  }\n"
   "\n"
-  "  if( u_scanlines == 0 && u_crt == 0 && u_dots == 0 ) {\n"
+  "  if( u_scanlines == 0 && u_crt == 0 ) {\n"
   "    colour = vec4( clamp( rgb, 0.0, 1.0 ), 1.0 );\n"
   "    return;\n"
   "  }\n"
@@ -287,24 +267,6 @@ static const char fragment_shader_src[] =
   "    scanned = u_scanline;\n"
   "  }\n"
   "\n"
-  "  float dotted = 0.0;\n"
-  "  if( u_dots == 1 ) {\n"
-  /* Stronger where the picture is dark, and nearly gone on white. That is what
-     a Game Boy Color looks like and it is why this stays readable: on a Spectrum
-     screen most of the paper is bright, and a grid drawn over all of it would be
-     a grid with a program somewhere behind it. */
-  "    float shape = lattice( uv );\n"
-  "    float lit = max( rgb.r, max( rgb.g, rgb.b ) );\n"
-  "    float shows = mix( 1.0, 0.2, lit * lit );\n"
-  "    rgb *= 1.0 - u_gap * shows * shape;\n"
-  /* A panel is lit from behind, and the light comes through the dots rather
-     than through the gaps between them - which is the only way a black area
-     shows any dots at all. Taking light away cannot do it: black times anything
-     is still black. */
-  "    rgb = max( rgb, vec3( u_backlight * 0.2 * ( 1.0 - shape ) ) );\n"
-  "    dotted = u_gap;\n"
-  "  }\n"
-  "\n"
   "  float masked = 0.0;\n"
   "  if( u_crt == 1 ) {\n"
   "    if( u_mask > 0.0 ) { rgb *= grille( gl_FragCoord.x ); masked = u_mask; }\n"
@@ -314,7 +276,7 @@ static const char fragment_shader_src[] =
   /* Scanlines and a mask both take light away, and a filter that only made
      the picture dimmer would be a poor trade. Give back roughly what they
      cost, so switching one on changes the texture and not the exposure. */
-  "  rgb *= 1.0 + 0.45 * scanned + 0.25 * masked + 0.3 * dotted;\n"
+  "  rgb *= 1.0 + 0.45 * scanned + 0.25 * masked;\n"
   "\n"
   "  colour = vec4( clamp( rgb, 0.0, 1.0 ), 1.0 );\n"
   "}\n";
@@ -383,9 +345,6 @@ create_program( void )
   uniform.crop_at   = glGetUniformLocation( program, "u_crop_at" );
   uniform.output    = glGetUniformLocation( program, "u_output" );
   uniform.scanlines = glGetUniformLocation( program, "u_scanlines" );
-  uniform.dots      = glGetUniformLocation( program, "u_dots" );
-  uniform.gap       = glGetUniformLocation( program, "u_gap" );
-  uniform.backlight = glGetUniformLocation( program, "u_backlight" );
   uniform.crt       = glGetUniformLocation( program, "u_crt" );
   uniform.video     = glGetUniformLocation( program, "u_video" );
   uniform.frame     = glGetUniformLocation( program, "u_frame" );
@@ -551,7 +510,6 @@ androidgl_set_filter( const android_filter *filter )
 {
   settings.scanlines = filter->scanlines;
   settings.crt = filter->crt;
-  settings.dots = filter->dots;
   settings.video = filter->video;
 
   settings.sharpness = filter->sharpness / 100.0f;
@@ -561,8 +519,6 @@ androidgl_set_filter( const android_filter *filter )
   settings.glow = filter->glow / 100.0f;
   settings.bleed = filter->bleed / 100.0f;
   settings.noise = filter->noise / 100.0f;
-  settings.gap = filter->gap / 100.0f;
-  settings.backlight = filter->backlight / 100.0f;
 }
 
 /* Where the picture goes in the window, as a scale and an offset in clip
@@ -687,7 +643,6 @@ androidgl_frame( ANativeWindow *window, unsigned generation,
   glUniform2f( uniform.output, (float) view_width, (float) view_height );
   glUniform1i( uniform.scanlines, settings.scanlines );
   glUniform1i( uniform.crt, settings.crt );
-  glUniform1i( uniform.dots, settings.dots );
   glUniform1i( uniform.video, settings.video );
   glUniform1i( uniform.frame, (GLint) ( frame_counter++ & 0xffff ) );
   glUniform1f( uniform.bleed, settings.bleed );
@@ -697,8 +652,6 @@ androidgl_frame( ANativeWindow *window, unsigned generation,
   glUniform1f( uniform.curve, settings.curve );
   glUniform1f( uniform.mask, settings.mask );
   glUniform1f( uniform.glow, settings.glow );
-  glUniform1f( uniform.gap, settings.gap );
-  glUniform1f( uniform.backlight, settings.backlight );
 
   glBindBuffer( GL_ARRAY_BUFFER, vbo );
   glEnableVertexAttribArray( 0 );

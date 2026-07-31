@@ -324,10 +324,6 @@
     <string name="settings_scanlines_summary">A dark line between each of the machine\u2019s own 240</string>
     <string name="settings_crt">CRT effect</string>
     <string name="settings_crt_summary">The glass in front of the beam: curve, shadow mask, glow</string>
-    <string name="settings_dots">Dot matrix</string>
-    <string name="settings_dots_summary">A handheld LCD: one square dot per emulated pixel, with a gap around it</string>
-    <string name="settings_filter_gap">Dot gap</string>
-    <string name="settings_filter_backlight">Backlight</string>
 
     <string name="settings_video">Video output</string>
     <string name="settings_video_summary">How the picture left the machine, and what that cost it</string>
@@ -347,10 +343,10 @@
     <string name="border_none">None</string>
     <!-- Quick bar rows: the two switches say what they would do, the two
          choosers say what is chosen, as everywhere else in the app. -->
-    <string name="quick_scanlines_on">Scanlines on</string>
-    <string name="quick_scanlines_off">Scanlines off</string>
-    <string name="quick_crt_on">CRT on</string>
-    <string name="quick_crt_off">CRT off</string>
+    <string name="quick_scanlines_on">Enable scanlines</string>
+    <string name="quick_scanlines_off">Disable scanlines</string>
+    <string name="quick_crt_on">Enable CRT</string>
+    <string name="quick_crt_off">Disable CRT</string>
     <string name="quick_video">Video: %1$s</string>
     <string name="quick_border">Border: %1$s</string>
     <string name="settings_scale_portrait">Portrait scale</string>

@@ -139,9 +139,6 @@ enum {
   OPTION_FILTER_GLOW,
   OPTION_FILTER_BLEED,
   OPTION_FILTER_NOISE,
-  OPTION_FILTER_DOTS,			/* on or off */
-  OPTION_FILTER_GAP,
-  OPTION_FILTER_BACKLIGHT,
   OPTION_SCALE,				/* 0 fits, else pixels per pixel */
   OPTION_BORDER,			/* 0 all of it, 1 a quarter, 2 none */
   OPTION_KEMPSTON_MOUSE,
@@ -151,8 +148,8 @@ enum {
 /* The filters' shape, kept here because the settings arrive one at a time and
    the renderer wants them together. Defaults match android_gl.c's. */
 static android_filter filter = {
-  0, 0, 0, 0,				/* scanlines, crt, dots, video */
-  100, 50, 40, 40, 30, 50, 20, 60, 20,
+  0, 0, 0,				/* scanlines, crt, video */
+  100, 50, 40, 40, 30, 50, 20,
 };
 
 typedef struct queued_command {
@@ -332,9 +329,6 @@ run_set_option( int option, int value )
   case OPTION_FILTER_GLOW:
   case OPTION_FILTER_BLEED:
   case OPTION_FILTER_NOISE:
-  case OPTION_FILTER_DOTS:
-  case OPTION_FILTER_GAP:
-  case OPTION_FILTER_BACKLIGHT:
     switch( option ) {
     case OPTION_FILTER_SCANLINES: filter.scanlines = value; break;
     case OPTION_FILTER_CRT:       filter.crt = value; break;
@@ -346,9 +340,6 @@ run_set_option( int option, int value )
     case OPTION_FILTER_GLOW:      filter.glow = value; break;
     case OPTION_FILTER_BLEED:     filter.bleed = value; break;
     case OPTION_FILTER_NOISE:     filter.noise = value; break;
-    case OPTION_FILTER_DOTS:      filter.dots = value; break;
-    case OPTION_FILTER_GAP:       filter.gap = value; break;
-    case OPTION_FILTER_BACKLIGHT: filter.backlight = value; break;
     }
 
     /* Safe from here: this runs on the emulation thread, which is the one that

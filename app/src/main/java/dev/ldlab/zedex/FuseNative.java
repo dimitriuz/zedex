@@ -346,9 +346,6 @@ final class FuseNative {
     static final int FILTER_GLOW = 7;
     static final int FILTER_BLEED = 8;
     static final int FILTER_NOISE = 9;
-    static final int FILTER_DOTS = 10;
-    static final int FILTER_GAP = 11;
-    static final int FILTER_BACKLIGHT = 12;
 
     /** Values of FILTER_VIDEO: how the picture left the machine. */
     static final int VIDEO_RGB = 0;
