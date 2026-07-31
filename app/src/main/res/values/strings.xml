@@ -131,6 +131,7 @@
     <string name="joystick_type">Type: %1$s</string>
     <string name="joystick_keyboard">Keyboard — the profile\'s keys</string>
     <string name="joystick_type_title">Joystick type</string>
+    <string name="joystick_profile_buttons_only">With a real interface chosen the pad sends the joystick, not these keys \u2014 but the three buttons beside fire still send them.</string>
     <string name="joystick_type_set">Joystick: %1$s</string>
     <string name="joystick_shown">Joystick shown</string>
 

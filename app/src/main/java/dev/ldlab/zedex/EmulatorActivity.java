@@ -1801,6 +1801,13 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         sheet.addItem(getString(R.string.joystick_profile,
                                 ControlProfiles.current(preferences).name),
                       R.drawable.ic_bookmark, this::showProfileDialog);
+
+        // With a real interface chosen the pad sends joystick directions and
+        // not these keys - but the three buttons beside fire always send them,
+        // so the row stays live and says what it is still doing.
+        if (joystickType() != Controls.JOYSTICK_KEYBOARD) {
+            sheet.addNote(getString(R.string.joystick_profile_buttons_only));
+        }
         sheet.addItem(getString(R.string.joystick_auto_hide,
                                 getString(autoHide() ? R.string.on : R.string.off)),
                       R.drawable.ic_hide, () -> setAutoHide(!autoHide()));
