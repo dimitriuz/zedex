@@ -55,6 +55,9 @@ final class QuickBar extends LinearLayout {
     /** The dropdown's own metrics: a smaller icon, and room for words. */
     private static final int LIST_ICON_DP = 20;
     private static final int LIST_PAD_DP = 14;
+
+    /** How wide a row may get before its words are cut, in dp. */
+    private static final int LIST_MAX_DP = 240;
     private static final float LIST_TEXT_SP = 15;
 
     /** Dark enough to read a white icon against any Spectrum screen. */
@@ -249,6 +252,12 @@ final class QuickBar extends LinearLayout {
 
             openGroup = group;
             group.setColorFilter(ICON_OPEN);
+
+            // Under the icon that opened it. The list is as wide as its widest
+            // row, and a row can be a filename, so left to itself it reaches
+            // away across the window from a bar hanging in the right-hand
+            // corner - which reads as a menu belonging to nothing.
+            hangUnder(group);
         });
 
         primary.addView(group);
@@ -278,6 +287,13 @@ final class QuickBar extends LinearLayout {
         row.setText(name);
         row.setTextColor(ICON);
         row.setTextSize(LIST_TEXT_SP);
+        // A filename can be half a sentence - "Sherlock 48K (1984)(Melbourne
+        // House).z80" - and a list as wide as its longest row is a list that
+        // covers the machine. One line, cut in the middle, where a name and an
+        // extension both survive.
+        row.setMaxWidth(Math.round(LIST_MAX_DP * density));
+        row.setSingleLine(true);
+        row.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(pad, pad, pad + pad / 2, pad);
         row.setCompoundDrawablePadding(pad);
@@ -292,6 +308,54 @@ final class QuickBar extends LinearLayout {
 
         secondary.addView(row, new LayoutParams(LayoutParams.MATCH_PARENT,
                                                 LayoutParams.WRAP_CONTENT));
+    }
+
+    /**
+     * Puts the dropdown under one of the icons: its right edge under the
+     * icon's, so it opens downwards from what was pressed and grows leftwards
+     * into the window rather than off it.
+     *
+     * Waited for rather than measured now, because the row that decides the
+     * width has only just been added and nothing has been laid out yet.
+     */
+    private void hangUnder(View group) {
+        // A width of its own first. The rows are MATCH_PARENT so that they are
+        // all the same width and all a full-width target, which leaves the list
+        // itself with nothing to size to: it took the whole window, and a menu
+        // that starts at the far edge of the screen belongs to nothing.
+        int widest = 0;
+        int unbounded = MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED);
+
+        for (int i = 0; i < secondary.getChildCount(); i++) {
+            View row = secondary.getChildAt(i);
+
+            row.measure(unbounded, unbounded);
+            widest = Math.max(widest, row.getMeasuredWidth());
+        }
+
+        LayoutParams params = (LayoutParams) secondary.getLayoutParams();
+
+        params.width = widest;
+        params.gravity = Gravity.END;
+        params.rightMargin = 0;
+        secondary.setLayoutParams(params);
+
+        // Then under the icon: its right edge under the icon's, which needs the
+        // bar laid out at its new size, so it waits a pass.
+        secondary.post(() -> {
+            if (openGroup != group) return;
+
+            LayoutParams now = (LayoutParams) secondary.getLayoutParams();
+            int under = getWidth() - group.getRight();
+
+            // Never so far that the list runs off the other edge: on a narrow
+            // window the first icon's list is wider than what is left of the
+            // row beside it.
+            int most = Math.max(0, getWidth() - secondary.getWidth());
+
+            now.rightMargin = Math.min(under, most);
+            secondary.setLayoutParams(now);
+        });
     }
 
     /**
