@@ -299,9 +299,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         Machine.prepare(this);
 
-        // The emulated screen takes whatever the keyboard leaves. In portrait
-        // that is the classic 4:3-above-keys layout; in landscape the keyboard
-        // caps itself at half the window.
         SurfaceView view = new SurfaceView(this);
         view.getHolder().addCallback(this);
 
@@ -439,11 +436,10 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         /*
          * The system keyboard's own comings and goings.
          *
-         * Two things depend on them. The picture moves out of its way - see
-         * EmulatorLayout's NONE branch - and the menu has to agree with it: the
-         * keyboard can be dismissed from the keyboard, with its own key or a
-         * back gesture, and until this listener existed the app went on offering
-         * to hide something that had already gone.
+         * Two things depend on them. The picture moves out of its way, and the
+         * menu has to agree with it: the keyboard can be dismissed from the
+         * keyboard, with its own key or a back gesture, and until this listener
+         * existed the app went on offering to hide something already gone.
          *
          * One way only. Asking the keyboard to appear is done elsewhere; this
          * merely records what happened, so that noticing it cannot turn into
@@ -781,24 +777,15 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     }
 
     /**
-     * What the picture itself looks like.
+     * What the picture looks like: the two switches named for what they would do,
+     * the two choosers for what is chosen.
      *
-     * It shared a group with the three toggles above, under the display icon,
-     * which made that icon mean "the screen furniture and also the screen" -
-     * seven rows to read for one of them. Two switches, named for what they
-     * would do, and two choosers, named for what is chosen: an icon cannot say
-     * which way it is going, but a chooser can say where it is.
+     * Scanlines and CRT are two rows here and one choice of four in the settings,
+     * because turning scanlines off to read something is a decision of the moment.
+     * {@link Filter} is what stops them treading on each other.
      *
-     * Scanlines and CRT are two rows here and one choice of four in the
-     * settings, because turning scanlines off to read something is a decision
-     * of the moment and should not cost a trip through a list. {@link Filter}
-     * is what keeps them from treading on each other: each row changes its own
-     * half and leaves the other alone.
-     *
-     * The lamps are here rather than with the joystick and the keyboard. They
-     * are not something you play with - they are drawn beside the picture and
-     * they are read - so they belong with what the picture looks like. Under a
-     * line, since the four above are the picture itself.
+     * The lamps are under a line at the foot: they are read rather than played
+     * with, so they belong with the picture and not with the joystick.
      */
     private void fillDisplay(Rows rows) {
         Filter filter = Filter.of(preferences);
@@ -1042,24 +1029,17 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     }
 
     /**
-     * The ☰ sheet.
+     * The ☰ sheet: opening something at the top, then the doors, then the way out.
      *
-     * Six rows, not a dozen: everything at one level came to more than a
-     * landscape window is tall, and a menu you have to scroll to read is a
-     * menu that has stopped helping. What is left at the top is the one thing
-     * done constantly — opening something — and five doors.
+     * The pages are functions and not lists, because most depend on what is
+     * happening — which drives this machine has, whether something is recording —
+     * so each is called when its page is shown.
      *
-     * The pages are functions rather than lists because most of them depend on
-     * what is happening: which drives this machine has, whether something is
-     * recording, which joystick is plugged in. They are called each time the
-     * page is shown.
-     *
-     * Choosing one of a set is a page of ticked rows, anything that needs
-     * confirming is a page with the question on it, and anything that needs a
-     * name or a number is a page with a line to type into. None of it is a
-     * dialog any more: a dialog belongs to the activity's window and so always
-     * appears on the machine's screen, which on a handheld is the screen the
-     * question was not asked on.
+     * Choosing one of a set is a page of ticked rows; a question is a page with
+     * the question on it; a name or a number is a page with a line to type into.
+     * None of it is a dialog, because a dialog belongs to the activity's window
+     * and so always appears on the machine's screen — which on a handheld is the
+     * screen the question was not asked on.
      */
     private MenuDrawer buildMenu() {
         MenuDrawer menu = new MenuDrawer(this);

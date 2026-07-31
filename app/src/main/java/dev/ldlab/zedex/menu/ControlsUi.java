@@ -20,26 +20,15 @@ import android.widget.EditText;
 import java.util.List;
 
 /**
- * The things you play with: the joystick, the keyboard and the mouse.
+ * The joystick, the keyboard and the mouse.
  *
- * One class because they are one question asked three ways — <em>what does a
- * finger on this glass do to the machine</em> — and because they overlap. The
- * pad sends joystick directions or keys depending on its type; the mouse takes
- * the pad over while it is on; the keyboard has a skin that is sometimes
- * Android's own and then is not drawn here at all. Keeping them apart meant
- * three classes each having to know the other two.
+ * One class because they overlap: the pad sends joystick directions or keys
+ * depending on its type, the mouse takes the pad over while it is on, and the
+ * keyboard's skin is sometimes Android's own and then is not drawn here at all.
  *
- * It is given {@link EmulatorLayout} rather than asking the activity for it:
- * whether a control is on screen is the layout's own state, and going through
- * a host method for each of the six would have been an interface as long as the
- * class. What is genuinely the activity's — where a message goes, which sheet
- * to open a page on, whether the picture has the window to itself — is the
- * three methods of {@link Host}.
- *
- * Note that nothing here is on the quick bar except through the activity's own
- * <i>On screen</i> group, which calls {@link #showJoystick} and
- * {@link #showKeyboard}. The bar is what is reached for; choosing an interface
- * or editing a key profile is read and considered.
+ * It holds {@link EmulatorLayout} directly rather than asking through
+ * {@link Host}. Whether a control is on screen is the layout's own state, and
+ * six host methods for it would make the interface as long as the class.
  */
 public final class ControlsUi {
 

@@ -200,12 +200,11 @@ public class SettingsActivity extends Activity {
      * The largest whole-pixel scale this display has room for, one orientation
      * at a time.
      *
-     * From the display rather than from the box the picture will actually get,
-     * which is smaller and depends on the landscape template and on whether the
-     * keyboard is up. Offering a scale that a particular arrangement cannot fit
-     * is harmless - both the renderer and the layout reduce it until it does -
-     * whereas working out every arrangement's box here would mean a second copy
-     * of EmulatorLayout's sums that could only ever drift.
+     * From the display and not from the box the picture will actually get, which
+     * is smaller and depends on whether the keyboard is up. Offering a scale that
+     * will not fit is harmless - the renderer and the layout both reduce it until
+     * it does - and working the box out here would be a second copy of
+     * EmulatorLayout's sums, which could only drift.
      */
     public static int maximumScale(Context context, boolean landscape) {
         Rect bounds = context.getSystemService(WindowManager.class)

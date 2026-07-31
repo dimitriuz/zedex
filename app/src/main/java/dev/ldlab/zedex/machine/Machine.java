@@ -25,19 +25,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The emulated Spectrum: starting it, changing it, stopping it, ending it.
+ * The emulated Spectrum: starting it, changing it, its speed, ending it.
  *
- * Everything here goes one way — into Fuse — and nothing here draws. What comes
- * back out is read from {@link FuseNative}'s snapshots, which the emulation
- * thread publishes; there is no reply to a command, because the queue in
- * {@code android_bridge.c} has nowhere to put one.
+ * Everything here goes one way, into Fuse. What comes back is read from
+ * {@link FuseNative}'s snapshots, because the command queue has nowhere to put a
+ * reply.
  *
- * The two rules the rest of the app has to know about are both about time.
- * Options are passed on Fuse's <b>command line</b> rather than queued, so they
- * are in force before it finishes starting — a file handed to us by an intent
- * can be loading before the queue is first drained. Everything after that is
- * <b>queued</b>, which is safe to do before Fuse has started, since the commands
- * simply wait.
+ * Two rules, both about time. Options go on Fuse's <b>command line</b> so they
+ * are in force before it finishes starting — a file from an intent can be loading
+ * before the queue is first drained. Everything after that is <b>queued</b>, which
+ * is safe before Fuse exists because the commands wait.
  */
 public final class Machine {
 

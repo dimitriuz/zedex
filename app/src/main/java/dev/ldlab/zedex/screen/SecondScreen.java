@@ -26,29 +26,29 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The controls, on a handheld's second screen.
+ * What the panel of a two-screen handheld looks like; {@link Panels} owns the
+ * window it lives in.
  *
- * Dual-screen Android handhelds - the AYN Thor and its like - are a game
- * machine on top and a second panel below, with a real gamepad between them.
- * That is exactly the shape of this app: the picture wants a whole screen and
- * the keyboard, the lamps and the quick bar want to be under a thumb, and on
- * one screen they have been taking the picture's space to get there.
+ * A dual-screen handheld — the AYN Thor and its like — is a game machine on top
+ * and a panel below. That is the shape of this app: the picture wants a whole
+ * screen, and the keyboard, the joystick, the lamps and the bar want to be under
+ * a thumb rather than taking the picture's space to get there.
  *
- * A {@link Presentation} is Android's own answer for this - a window on
- * another display, owned by the activity and following its lifetime - so the
- * app stays one activity with one emulation thread and one surface.
+ * A {@link Presentation} is Android's own answer — a window on another display,
+ * owned by the activity and following its lifetime — so the app stays one
+ * activity with one emulation thread and one surface.
  *
  * The views are <b>borrowed, not copied</b>. {@link EmulatorLayout#setLentAway}
- * detaches the same three views this window then adopts, so a latched shift or
- * an open group of the bar survives the move, and everything that already holds
- * a reference to them - the activity's fades, the menu's toggles - goes on
- * working. They are handed back the moment this window closes: nothing may be
- * left parented to a window that has gone.
+ * detaches them and this window adopts them, so a latched shift or an open bar
+ * group survives the move and every reference to them still works. They are
+ * handed back the moment this window closes: nothing may be left parented to a
+ * window that has gone.
  *
- * The stack is the bar at the top, the lamps under it and the keyboard filling
- * what is left, which is the same order they have down the side of a phone.
- * The keyboard scales itself into whatever box it gets, so a tall panel simply
- * gives it a wide one and letterboxes the rest.
+ * Top to bottom: the bar, the joystick in the space below it, the keyboard, and
+ * the lamps at the foot — a hand's things near the hand, and the thing that is
+ * only read out of the way. The bar is <em>over</em> the column rather than in
+ * it, with a spacer holding its height, so a group opening does not push the
+ * whole panel down.
  */
 public final class SecondScreen extends Presentation {
 

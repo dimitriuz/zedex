@@ -24,10 +24,10 @@ public interface Recording {
             throws IOException;
 
     /** Frames closer together than this are dropped, or 0 to take them all. */
-    public long minimumIntervalNanos();
+    long minimumIntervalNanos();
 
     /** Finishes the file. Throws if there is nothing worth keeping. */
-    public void close() throws IOException;
+    void close() throws IOException;
 
-    public File file();
+    File file();
 }

@@ -8,22 +8,14 @@ import android.content.SharedPreferences;
 /**
  * What the picture is put through on its way to the glass.
  *
- * Two effects, and the shader keeps them apart for a reason it states itself:
- * scanlines are the beam and the curve, the shadow mask and the glow are the
- * glass in front of it. A real tube has both, and either can be had without
- * the other — so the honest list is four entries and not three.
+ * Four values and not three: the shader keeps the beam and the glass apart —
+ * scanlines are one, the curve, mask and glow the other — and a real tube has
+ * both, so dropping the combination would lose the best-looking one.
  *
- * <b>One setting, not two switches.</b> They were {@code scanlines} and
- * {@code crt}, two booleans that happened to be next to each other, and the
- * settings screen showed them with their strengths interleaved: ten rows to say
- * what the picture looks like. One row of four choices says the same thing, and
- * the strengths go behind <i>Advanced</i> where nobody has to read them to find
- * the border. {@link #migrate} carries the old pair over the first time.
- *
- * The quick bar still offers the two separately, because turning scanlines off
- * to read something is a decision of the moment and it should not cost a trip
- * through a list — {@link #withScanlines} and {@link #withCrt} are how it asks
- * for one without disturbing the other.
+ * One setting where there were two booleans, because the settings screen showed
+ * them with their strengths interleaved: ten rows to say what the picture looks
+ * like. The quick bar still offers the two separately, which is what
+ * {@link #withScanlines} and {@link #withCrt} are for.
  */
 public enum Filter {
 

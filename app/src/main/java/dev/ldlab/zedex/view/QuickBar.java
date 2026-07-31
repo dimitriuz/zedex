@@ -12,32 +12,24 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 /**
- * The strip of icons in the corner of the picture.
+ * The strip of icons across the top of the window.
  *
- * ☰ opens a sheet, and a sheet is the right shape for reading a list of
- * choices — but the things done most often are not read, they are reached for:
- * a save state, a screenshot, the keyboard out of the way. Those become one
- * tap here rather than three through the sheet, and they are icons because a
- * word in the corner of the picture is a word over the picture.
+ * ☰ opens a sheet, which is the right shape for reading a list of choices — but
+ * the things done most often are not read, they are reached for. Those are one
+ * tap here, and they are icons because a word over the picture is a word over the
+ * picture.
  *
- * A <em>group</em> is an icon that opens a short list underneath rather than
- * doing something, so *Capture* offers a screenshot, a GIF and an MP4 without
- * leaving the bar. Only one group is open at a time and acting on anything
- * shuts it, so the bar is one strip again by the time you look back at it.
+ * A <em>group</em> is an icon that opens a short list under itself instead of
+ * doing something. Only one is open at a time, acting on anything shuts it, and
+ * so does a touch anywhere off the bar — see {@link #collapseIfOutside}.
  *
- * The bar itself is icons alone and the list under it is not. An icon in the
- * bar is a place you have learned, and five of them are learnable; a list is
- * read once and its choices are not guessable from a picture — a dot and a
- * strip of film do not say *GIF* and *MP4*, and nothing drawn says whether
- * tapping the joystick will show it or hide it. So the list carries words, and
- * being a list rather than a row it has the width for them.
+ * The bar is icons and the list is words, deliberately: an icon is a place you
+ * learn, but a dot and a reel of film do not say <i>GIF</i> and <i>MP4</i>, and
+ * nothing drawn says whether tapping the joystick will show it or hide it.
  *
- * Both rows hang off the same corner — the top right of the picture, where ☰
- * has always been — so the bar grows leftwards and downwards into the frame
- * instead of pushing anything about. Everything in it is named to
- * accessibility, since an icon has no text to read: that is what a screen
- * reader announces and what the tests and {@code scripts/ui-tap.py} address it
- * by.
+ * Everything is named to accessibility, since an icon has no text to read. That
+ * is what a screen reader announces and what the tests and
+ * {@code scripts/ui-tap.py} address it by.
  */
 public final class QuickBar extends LinearLayout implements Rows {
 
@@ -434,23 +426,13 @@ public final class QuickBar extends LinearLayout implements Rows {
     /**
      * Shuts an open group when the touch that started was not on the bar.
      *
-     * A group used to stay open until it was acted on, another was opened, or
-     * its own icon was pressed again — so going back to the game left a menu
-     * hanging in the corner over it, and the way to be rid of it was to press
-     * the icon you had just come from. Anywhere else is the answer people
-     * already have from every other menu.
+     * Called from whichever container holds the bar, out of
+     * {@code onInterceptTouchEvent} and in that container's coordinates: it looks
+     * and never takes, so the tap still reaches the picture, a key or the
+     * joystick underneath.
      *
-     * Called from whatever contains the bar, out of {@code
-     * onInterceptTouchEvent} and with the event in that container's
-     * coordinates: it looks at the touch and never takes it, so the tap still
-     * reaches the picture, a key or the joystick underneath.
-     *
-     * Only the initial press. A drag that starts on the picture — the Kempston
-     * mouse — would otherwise close the group again on every move it reported.
-     *
-     * Closing costs no layout the eye can see: the strip kept for the bar is
-     * its icons and never what a group has opened, in this window and on a
-     * panel both, so the machine's picture does not move.
+     * ACTION_DOWN only — a Kempston mouse drag across the picture would otherwise
+     * close the group again on every move it reported.
      */
     public void collapseIfOutside(android.view.MotionEvent event) {
         if (openGroup == null

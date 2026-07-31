@@ -36,11 +36,10 @@ import java.util.List;
  * from another - the screen it was taken of - was too small to read. A screen
  * of its own gives them a grid.
  *
- * It is an activity rather than a page for the same reason the settings screen
- * is one, and it is opened the same way: {@link EmulatorActivity#openOwnScreen}
- * puts it on whichever display the controls are on, so on a handheld it lands
- * on the panel the request came from - and its own dialogs, being its own
- * windows, land there with it.
+ * An activity rather than a page for the same reason the settings screen is one,
+ * and opened the same way: {@link Panels#openOwnScreen} puts it on whichever
+ * display the controls are on, so on a handheld it lands on the panel the request
+ * came from, and its own dialogs land there with it.
  *
  * It talks to the machine directly. Saving and loading are queued to the
  * emulation thread through {@link FuseNative} like every other command, so

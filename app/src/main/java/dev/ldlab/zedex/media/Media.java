@@ -32,27 +32,19 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Everything the machine can have something put into it: the tape deck, the
- * floppy drives and the DivMMC's card slot.
+ * Everything that can be put into the machine: the tape deck, the floppy drives
+ * and the DivMMC's card slot.
  *
- * They are one class because they are one job with three shapes. Each is picked
- * through Android's document picker, each has to be copied somewhere Fuse can
- * open it by path, each can be written back out, and each is named the same way
- * — so the awkward parts are shared and the differences are small: a tape can be
- * played, a drive can be blanked, a card is a filesystem and lives outside the
- * cache because the machine writes to it.
+ * One class because it is one job three times over — pick a document, copy it
+ * somewhere Fuse can open by path, write it back, name it. The differences are
+ * small: a tape plays, a drive can be blanked, and a card lives outside the cache
+ * because the machine writes to it and the cache is Android's to empty.
  *
- * <b>Fuse opens files by path and Android hands out documents.</b> That is the
- * whole reason {@link #stage} exists: a picked {@code content://} URI is copied
- * into the cache under its own name — the name matters, since libspectrum uses
- * the extension as a hint when identifying the file — and Fuse is given the
- * copy. The md5 is taken on the way past, because the bytes are going by
- * anyway and it is what finds a game's cheats.
- *
- * It was part of {@link EmulatorActivity}, which was three and a half thousand
- * lines and this was six hundred of them. What it still needs from the activity
- * is small enough to be an interface: somewhere to put a message, the sheet to
- * open a page on, and the fact that something was loaded.
+ * {@link #stage} is the awkward part. Fuse opens files by path and Android hands
+ * out {@code content://} URIs, so a picked document is copied into the cache under
+ * its own name — libspectrum uses the extension as a hint — and its md5 taken on
+ * the way past, since the bytes are going by anyway and that is what finds the
+ * game's cheats.
  */
 public final class Media {
 

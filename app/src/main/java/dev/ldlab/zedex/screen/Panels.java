@@ -13,38 +13,24 @@ import android.view.Display;
 import android.view.WindowManager;
 
 /**
- * The other screen, on a handheld built with two.
+ * The other screen of a two-screen handheld: finding a display, putting a
+ * {@link SecondScreen} on it, taking it down, and the rule about which display
+ * the app's own screens open on. SecondScreen is what the panel looks like.
  *
- * A device like the AYN Thor has a second landscape panel under the first, and
- * the arrangement that suits it is the machine alone on top and everything you
- * touch below: the keyboard, the joystick, the lamps and the quick bar. The
- * views themselves move rather than a second set being built — see
- * {@link EmulatorLayout#setLentAway} — so a latched shift and an open bar group
- * survive the trip, and every caller that already talks to them goes on working.
- *
- * This class is the <em>window</em> half of that, which is the part that is
- * about Android rather than about the Spectrum: finding a display worth using,
- * putting a {@link SecondScreen} on it, taking it down again, noticing panels
- * being plugged in, and the rule about which display the app's own screens open
- * on. {@link SecondScreen} is what the panel looks like.
- *
- * Three of Android's awkward corners live here, and each cost an afternoon:
+ * Three of Android's corners live here, each of which cost an afternoon.
  *
  * <ul>
- * <li><b>A task lives on one display.</b> Launching the settings screen normally
- *     took the machine to the panel with it and left the first screen empty, so
- *     {@link #openOwnScreen} starts a task of its own.</li>
- * <li><b>A presentation is drawn above the activity windows on its display.</b>
- *     A screen opened on the panel would be behind the keyboard, so the panel
- *     steps aside while any other screen of ours is up. There is no result to
- *     wait for — a new task cannot return one — so it is counted through the
- *     application's lifecycle callbacks, which also covers a screen dismissed
- *     some way of Android's own.</li>
- * <li><b>Android reports odd things in passing.</b> The activity briefly claims
- *     to be on the panel itself while an input method is being sorted out. Taking
- *     the panel down on that reading once left nothing to put it back, so
- *     {@link #apply} only closes a panel that is genuinely unwanted or whose
- *     display has really gone.</li>
+ * <li>A task lives on one display, so launching the settings normally took the
+ *     machine to the panel and left the first screen empty. {@link #openOwnScreen}
+ *     starts a task of its own.</li>
+ * <li>A presentation draws above the activity windows on its display, so a screen
+ *     opened on the panel would sit behind the keyboard. The panel steps aside
+ *     while any other screen of ours is up, counted through the application's
+ *     lifecycle callbacks because a new task cannot return a result.</li>
+ * <li>Android reports the activity as being on the panel in passing, while an
+ *     input method is sorted out. Acting on that reading once took the panel down
+ *     with nothing to put it back, so {@link #apply} closes only a panel that is
+ *     unwanted or whose display has really gone.</li>
  * </ul>
  */
 public final class Panels {

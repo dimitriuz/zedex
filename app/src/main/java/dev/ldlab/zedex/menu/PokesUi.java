@@ -17,22 +17,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The cheats: the ones that came with the app, and the ones you keep.
+ * The cheats: the ones that shipped with the app, and the ones you keep.
  *
- * Two collections that look the same on the page and are nothing alike behind
- * it. {@link PokeDatabase} is three and a half thousand games shipped as a file
- * and found by the fingerprint of what is loaded — the app knows what game this
- * is, so the cheats for it are simply there. {@link Pokes} is a handful of
- * addresses somebody typed, kept in the preferences, and belonging to whoever
- * typed them.
+ * Two collections that read alike and are nothing alike behind the page.
+ * {@link PokeDatabase} is three and a half thousand games in a file, found by the
+ * fingerprint of what is loaded — so the cheats for this game are simply there.
+ * {@link Pokes} is a few addresses somebody typed, in the preferences.
  *
- * A stored poke is a thing to press: nothing is applied by being on the list, so
- * loading a game and pressing it is the whole flow, and the same poke survives a
- * reset without being typed again.
- *
- * Every page here belongs to the ☰ sheet rather than the quick bar. That is the
- * line the two menus are drawn along: the bar is for what is reached for, and a
- * cheat is read, chosen, sometimes typed and often searched for.
+ * A stored poke is a thing to press: nothing is applied by being on the list.
  */
 public final class PokesUi {
 

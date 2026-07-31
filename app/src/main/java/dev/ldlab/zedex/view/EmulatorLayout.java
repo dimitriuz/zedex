@@ -14,33 +14,24 @@ import java.util.List;
 /**
  * Arranges the emulated screen and the keyboard.
  *
- * A layout of its own rather than nested LinearLayouts, because the screen and
- * the keyboard are not simply stacked: the picture is a 4:3 quad centred in
- * whatever box it gets, and nearly everything else is placed against the black
- * that leaves. Measuring the children here covers all of it without ever
- * re-parenting them —
- * which matters, since detaching the {@link android.view.SurfaceView} would
- * destroy the surface Fuse is drawing into and cost a handover on every
- * change.
+ * A ViewGroup of its own rather than nested LinearLayouts: the picture is a 4:3
+ * quad centred in whatever box it gets, and nearly everything else is placed
+ * against the black that leaves. Measuring the children here does all of it
+ * without ever re-parenting them, which matters — detaching the
+ * {@link android.view.SurfaceView} would destroy the surface Fuse draws into.
  *
- * The keyboard is one bitmap with a fixed 541x201 aspect. Given any box it
- * scales to fit, centres itself and hit-tests through the same transform, so a
- * box shorter or narrower than its natural shape simply letterboxes and still
- * works. That is what lets the cap work: without one, full width in
- * landscape makes the keyboard 2.7 times as wide as it is tall and it takes
- * four fifths of the height, leaving the machine a letterbox slot.
+ * One arrangement, the same either way up: the keyboard across the foot of the
+ * window and the picture above it. There were four more sideways and they are
+ * gone; see {@link #arrange}.
  *
- * There is one arrangement and it is the same either way up — the keyboard
- * across the foot of the window, the picture above it — because there is only
- * one that is any good. Sideways there were four more to choose from, and they
- * are gone; see {@link #arrange}.
+ * The keyboard is one bitmap at a fixed 541x201. Given any box it scales to fit,
+ * centres itself and hit-tests through the same transform, so a short box simply
+ * letterboxes and every key still lands. That is what lets the cap work: at full
+ * width in landscape it is 2.7 times wider than tall and takes four fifths of the
+ * height, leaving the machine a slot.
  *
- * The on-screen joystick goes in the black rather than on the picture. The
- * renderer centres a 4:3 quad in whatever box it is given, so there is nearly
- * always spare black somewhere — at the sides of a wide box, below the picture
- * in a tall one — and that is a thumb's width of room the picture was never
- * using. Only when there is none of it does the joystick float over the
- * picture's bottom corners, and then it is translucent. See
+ * The joystick goes in the black, never on the picture, except when there is no
+ * black left — then it floats over the bottom corners, translucent. See
  * {@link #placeJoystick}.
  */
 public final class EmulatorLayout extends ViewGroup {
@@ -598,25 +589,14 @@ public final class EmulatorLayout extends ViewGroup {
     }
 
     /**
-     * The whole width of the window, which is nearly always full size.
+     * The bar gets the whole width of the window, which is nearly always full
+     * size. The width is passed rather than zero — nine icons at 44dp is 396dp
+     * and a small phone in portrait is 360dp across, so they shrink a little
+     * there rather than running off the end.
      *
-     * It used to shrink to the size of the activity lamps in landscape, where it
-     * hung in the black beside a 4:3 picture: the icons came to nearly a
-     * thousand pixels of a four hundred and eighty pixel gap, so they had to be
-     * the size of the lamps or they lay across the game. Icons that small are
-     * hard to hit and hard to tell apart, and the choice was only ever forced
-     * because the bar was squeezing into space left over. It has a strip of its
-     * own across the top now, sideways as well as upright — see the room
-     * {@link #arrange} keeps for it.
-     *
-     * The width is passed rather than zero, which would mean "full size, and
-     * never mind the room". Nine icons at 44dp is 396dp and a small phone in
-     * portrait is 360dp across, so the one case where the strip is not enough is
-     * a real one; there they shrink a little rather than running off the end.
-     *
-     * From the display and not from a measured width, because this is called
-     * before the first layout and because changing a child's size during a
-     * measure pass is how layout loops start.
+     * From the display and not from a measured width: this runs before the first
+     * layout, and changing a child's size during a measure pass is how layout
+     * loops start.
      */
     private void applyBarMetrics() {
         // Not while it is over there: the panel sized it to itself, and this
@@ -824,31 +804,19 @@ public final class EmulatorLayout extends ViewGroup {
     }
 
     /**
-     * Finds the joystick somewhere that is not the picture.
+     * Finds the joystick somewhere that is not the picture: the black bars beside
+     * it, the band below it, or — with neither — floating over the bottom corners.
      *
-     * Three answers, tried in order, and which one applies falls out of the
-     * arrangement rather than being written down per arrangement:
+     * Which applies falls out of the arrangement rather than being written down
+     * per arrangement. Two things are worth knowing:
      *
-     * <ol>
-     * <li><b>Beside the picture.</b> A 4:3 quad in a wide box leaves a black
-     *     bar down each side — 480px of a 2400px landscape window with no
-     *     keyboard, and more with one below, because the shorter box makes the
-     *     picture narrower. The pad goes low in the left bar and fire low in
-     *     the right, where the thumbs already are, and the picture loses
-     *     nothing. The lamps hang down the inside of the left bar, so the pad
-     *     takes the width outside them rather than the height below them: they
-     *     are a narrow strip and treating them as blocking the whole bar cost
-     *     the largest space on offer.</li>
-     * <li><b>Below it.</b> Portrait gives the picture only the height it uses
-     *     and puts the keyboard at the foot of the window, so what is left is
-     *     one wide band between them — the largest space of the three.</li>
-     * <li><b>Over it.</b> Nothing left: the controls float in the picture's
-     *     bottom corners, translucent.</li>
-     * </ol>
+     * The pad takes the width <em>outside</em> the lamps, not the height below
+     * them. Ducking under them cost the largest space on offer, because they are a
+     * narrow column reaching most of the way down the picture.
      *
-     * There was a fourth, between the second and the last: the band above a
-     * keyboard set down one side of the window. It went with the two landscape
-     * arrangements that put it there.
+     * The controls go against the keyboard rather than centred in the band —
+     * that is where a thumb rests, and centring left them in the middle of nowhere
+     * when the band was tall.
      */
     private void placeJoystick(int width, int height) {
         padBox.setEmpty();
@@ -1086,27 +1054,15 @@ public final class EmulatorLayout extends ViewGroup {
     }
 
     /**
-     * The quick bar is the one child that decides its own size: how many icons it
-     * has, and whether a group has opened a second row underneath, are its
-     * business and change as it is used. It is asked how big it would like to be
-     * and then hung off the <b>window's</b> top right corner.
+     * The bar is the one child that decides its own size — how many icons it has,
+     * and whether a group is open, change as it is used — so it is asked, then
+     * hung off the window's top right corner.
      *
-     * The window's corner and not the picture's, which is where it used to go. It
-     * is on screen the whole time now rather than fading after three seconds, and
-     * a bar that is always there must not be always over the game: the screen
-     * starts underneath it, whichever way up the device is - see the strip
-     * {@link #arrange} reserves.
-     *
-     * Sideways it used to go in the black beside a 4:3 picture instead, which is
-     * nobody's picture and costs nothing - but the black is only as wide as the
-     * window is wider than 4:3, and the bar had to shrink to the size of the
-     * activity lamps to fit in it. A strip costs the picture a little height and
-     * gives the icons back a thumb's worth of size, which is the trade portrait
-     * has always made.
-     *
-     * In fullscreen it goes back to overlapping, because there it is not there at
-     * all until the picture is tapped and a layout that shifted for a control
-     * about to fade would be worse than the overlap.
+     * The window's corner and not the picture's: the bar is on screen the whole
+     * time, so the screen starts below it instead. See the strip {@link #arrange}
+     * reserves. In fullscreen it overlaps again, because there it is gone until
+     * the picture is tapped and a layout that shifted for a control about to fade
+     * would be worse.
      */
     private void measureBar(int width, int height) {
         menuBox.setEmpty();

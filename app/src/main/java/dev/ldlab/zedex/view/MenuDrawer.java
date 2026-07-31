@@ -19,28 +19,21 @@ import java.util.List;
 /**
  * The ☰ menu, as a sheet that slides in from the edge.
  *
- * A dialog was in the way of the thing it acted on — it took the middle of the
- * screen, which is where the machine is — and it could only ever be a flat list
- * of equal-looking items. A sheet down one side leaves the picture visible,
- * gives the items room to be grouped, and closes by tapping the screen you can
- * still see.
+ * A dialog took the middle of the screen, which is where the machine is, and
+ * could only be a flat list of equal-looking rows. A sheet down one side leaves
+ * the picture visible and closes by tapping what you can still see.
  *
- * Written out rather than taken from a library: androidx's DrawerLayout would
- * be the app's first dependency, and this is a translation, a fade and a list.
+ * Written out rather than taken from a library: androidx's DrawerLayout would be
+ * the app's first dependency, and this is a translation, a fade and a list.
  *
- * The sheet has <em>pages</em>. A flat list of everything came to a dozen rows,
- * which is taller than a landscape window and so had to be scrolled to reach
- * the last of it — and scrolling to find a menu item is the thing a menu is
- * for avoiding. A page holds a handful of rows, and a row can lead to another
- * page instead of doing something.
+ * It has <em>pages</em>, because a flat list of everything was taller than a
+ * landscape window — and scrolling to find a menu item is what a menu is for
+ * avoiding. Pages are built when shown, not once at startup, which is what lets
+ * one list the drives this machine has or offer <i>Stop recording</i> only while
+ * something is recording.
  *
- * Pages are built when they are shown rather than once at startup, which is
- * what lets a page list the drives the machine has today, or say <em>Stop
- * recording</em> only while something is recording. The activity supplies each
- * one as a {@link Page}.
- *
- * The rows are ordinary text views with the words in them, which is what lets
- * the tests and {@code scripts/ui-tap.py} keep addressing the menu by name.
+ * The rows are ordinary text views with the words in them, which is what lets the
+ * tests and {@code scripts/ui-tap.py} address the menu by name.
  */
 public final class MenuDrawer extends FrameLayout implements Rows {
 
