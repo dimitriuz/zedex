@@ -1046,6 +1046,21 @@ final class EmulatorLayout extends ViewGroup {
                 centreX - size / 2 + size, centreY - size / 2 + size);
     }
 
+    /**
+     * A touch anywhere but the bar shuts whatever group it has open.
+     *
+     * Intercepting rather than listening, because everything in here that could
+     * be pressed - the picture, the keys, the joystick - consumes its own
+     * touches and a listener on the parent would never hear them. It looks and
+     * returns false, so the press goes on to whichever child it landed on.
+     */
+    @Override
+    public boolean onInterceptTouchEvent(android.view.MotionEvent event) {
+        if (here(menu)) menu.collapseIfOutside(event);
+
+        return false;
+    }
+
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         int width = MeasureSpec.getSize(widthMeasureSpec);

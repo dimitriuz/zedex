@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.view.Display;
 import android.view.Gravity;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowInsets;
@@ -159,7 +160,21 @@ final class SecondScreen extends Presentation {
         // Two things are not part of the stack. The sheet slides in over the
         // whole panel, scrim and all, which is what it does over the machine's
         // window; and the pixel the device's own keyboard types into is a pixel.
-        FrameLayout root = new FrameLayout(getContext());
+        //
+        // A subclass for one method: a touch anywhere but the bar shuts the
+        // group it has open, the same as in the machine's window, and the keys
+        // and the joystick below consume their own touches so a listener here
+        // would never hear them.
+        final QuickBar watching = bar;
+
+        FrameLayout root = new FrameLayout(getContext()) {
+            @Override
+            public boolean onInterceptTouchEvent(MotionEvent event) {
+                if (watching != null) watching.collapseIfOutside(event);
+
+                return false;
+            }
+        };
         root.addView(column, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT));

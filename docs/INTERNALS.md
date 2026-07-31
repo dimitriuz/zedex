@@ -130,6 +130,19 @@ could not reach them at all. `setCompact` is now given the window's width rather
 than zero, because nine icons at 44dp is 396dp and a small phone in portrait is
 360dp across.
 
+**A touch anywhere but the bar shuts the open group.** It used to stay open
+until it was acted on, until another group was opened, or until its own icon was
+pressed again — so going back to the game left a menu hanging in the corner over
+it, and the way to be rid of it was to press the icon you had just come from.
+`collapseIfOutside` is called from whichever container holds the bar, out of
+`onInterceptTouchEvent`: intercepting rather than listening, because the
+picture, the keys and the joystick all consume their own touches and a listener
+on the parent would never hear them, and returning false so the press still
+reaches whichever of them it landed on. Only `ACTION_DOWN`, or a Kempston mouse
+drag across the picture would close the group again on every move it reported.
+It costs no visible layout, because the strip kept for the bar is its icons and
+never what a group has opened — in the machine's window and on a panel both.
+
 A row in a group's list is one of two kinds of thing and they want opposite
 treatment. A label with a line already in it is a title over a value — *Change
 machine…* over *Scorpion ZS 256* — and must keep the line; made single-line it

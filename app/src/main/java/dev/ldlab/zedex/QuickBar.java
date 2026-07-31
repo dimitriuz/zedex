@@ -429,6 +429,42 @@ final class QuickBar extends LinearLayout implements Rows {
         return cellSize;
     }
 
+    /**
+     * Shuts an open group when the touch that started was not on the bar.
+     *
+     * A group used to stay open until it was acted on, another was opened, or
+     * its own icon was pressed again — so going back to the game left a menu
+     * hanging in the corner over it, and the way to be rid of it was to press
+     * the icon you had just come from. Anywhere else is the answer people
+     * already have from every other menu.
+     *
+     * Called from whatever contains the bar, out of {@code
+     * onInterceptTouchEvent} and with the event in that container's
+     * coordinates: it looks at the touch and never takes it, so the tap still
+     * reaches the picture, a key or the joystick underneath.
+     *
+     * Only the initial press. A drag that starts on the picture — the Kempston
+     * mouse — would otherwise close the group again on every move it reported.
+     *
+     * Closing costs no layout the eye can see: the strip kept for the bar is
+     * its icons and never what a group has opened, in this window and on a
+     * panel both, so the machine's picture does not move.
+     */
+    void collapseIfOutside(android.view.MotionEvent event) {
+        if (openGroup == null
+                || event.getActionMasked() != android.view.MotionEvent.ACTION_DOWN) {
+            return;
+        }
+
+        float x = event.getX();
+        float y = event.getY();
+
+        boolean onTheBar = x >= getLeft() && x < getRight()
+                        && y >= getTop() && y < getBottom();
+
+        if (!onTheBar) collapse();
+    }
+
     void collapse() {
         if (openGroup == null) return;
 
