@@ -341,8 +341,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         applyFullscreen();
 
         revealQuickBar();
-        layout.setTemplate(EmulatorLayout.Template.of(
-                preferences.getString(SettingsActivity.KEY_LANDSCAPE_LAYOUT, null)));
 
         setContentView(layout);
 
@@ -479,8 +477,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         }
 
         // The settings screen can have changed these while we were away.
-        layout.setTemplate(EmulatorLayout.Template.of(
-                preferences.getString(SettingsActivity.KEY_LANDSCAPE_LAYOUT, null)));
         layout.setLightsVisible(
                 preferences.getBoolean(SettingsActivity.KEY_INDICATORS, true));
         applyScale();
@@ -1340,8 +1336,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                       () -> showKeyboard(!shown));
         sheet.addItem(getString(R.string.keyboard_skin, keyboardSkin().title),
                       R.drawable.ic_picture, this::showSkinDialog);
-        sheet.addItem(getString(R.string.menu_layout), R.drawable.ic_layout,
-                      this::showLayoutDialog);
 
         // Said here because here is where the skin is chosen. What it types
         // still reaches the machine - the panel's window is what the input
@@ -3107,43 +3101,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         };
     }
 
-    /**
-     * Picks how the screen and the keyboard share a landscape window. Offered
-     * in portrait too — it takes effect on the next rotation, and hiding it
-     * would be a menu item that comes and goes.
-     */
-    private void showLayoutDialog() {
-        EmulatorLayout.Template[] templates = EmulatorLayout.Template.values();
-        String[] names = getResources().getStringArray(R.array.layout_names);
-
-        int current = 0;
-        for (int i = 0; i < templates.length; i++) {
-            if (templates[i] == layout.template()) current = i;
-        }
-
-        int ticked = current;
-
-        menu.go(getString(R.string.layout_title), page -> {
-            for (int i = 0; i < templates.length; i++) {
-                int which = i;
-
-                page.addChoice(names[which], which == ticked, () -> {
-                    EmulatorLayout.Template chosen = templates[which];
-
-                    preferences.edit()
-                            .putString(SettingsActivity.KEY_LANDSCAPE_LAYOUT,
-                                       chosen.value)
-                            .apply();
-                    layout.setTemplate(chosen);
-
-                    if (getResources().getConfiguration().orientation
-                            != android.content.res.Configuration.ORIENTATION_LANDSCAPE) {
-                        note(R.string.layout_portrait_note);
-                    }
-                });
-            }
-        });
-    }
 
     private void showMachineDialog() {
         String[] names = FuseNative.machineNames();

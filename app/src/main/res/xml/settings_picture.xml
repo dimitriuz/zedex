@@ -93,13 +93,6 @@
             android:title="@string/settings_scale_landscape"
             android:summary="@string/settings_scale_summary"
             android:defaultValue="0" />
-        <ListPreference
-            android:key="landscapeLayout"
-            android:title="@string/settings_landscape_layout"
-            android:summary="@string/settings_landscape_layout_summary"
-            android:entries="@array/layout_names"
-            android:entryValues="@array/layout_values"
-            android:defaultValue="below" />
         <SwitchPreference
             android:key="secondScreen"
             android:title="@string/settings_second_screen"

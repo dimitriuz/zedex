@@ -62,9 +62,6 @@
     <string name="keyboard_system_elsewhere">The phone\'s own keyboard opens on whichever screen Android gives it — usually the machine\'s, since a second screen has to be allowed to host one. What it types still reaches the machine. The 48K and 128K keyboards are drawn on the panel itself.</string>
     <string name="keyboard_skin_set">Keyboard: %1$s</string>
 
-    <string name="menu_layout">Landscape layout\u2026</string>
-    <string name="layout_title">Landscape layout</string>
-    <string name="layout_portrait_note">Saved \u2014 it applies when you turn the device sideways</string>
     <!-- The chooser, on the Machine page; the page itself is menu_machine_group. -->
     <string name="menu_machine">Change machine\u2026</string>
     <string name="menu_controls">Controls…</string>
@@ -370,8 +367,6 @@
     <string name="settings_scale_fit">Fit to the screen</string>
     <string name="settings_scale_summary">Whole-pixel scales keep every emulated pixel the same size; fitting fills the space instead.</string>
 
-    <string name="settings_landscape_layout">Landscape layout</string>
-    <string name="settings_landscape_layout_summary">How the screen and the keyboard share a sideways window</string>
     <string name="settings_bw_tv">Black and white TV</string>
     <string name="settings_bw_tv_summary">Render as a monochrome set would</string>
     <string name="settings_second_screen">Second screen</string>

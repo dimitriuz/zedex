@@ -30,21 +30,6 @@
         <item>100</item>
     </string-array>
 
-    <!-- Order matches EmulatorLayout.Template.values(). -->
-    <!-- Kept in step with EmulatorLayout.Template, which showLayoutDialog walks
-         alongside these. "left" and "right" were here too, and anything stored
-         that is no longer offered reads back as "below". -->
-    <string-array name="layout_names">
-        <item>Keyboard below the screen</item>
-        <item>Keyboard over the screen</item>
-        <item>No keyboard</item>
-    </string-array>
-    <string-array name="layout_values">
-        <item>below</item>
-        <item>overlay</item>
-        <item>none</item>
-    </string-array>
-
     <!-- Three of Fuse's tape settings in the combinations worth having; see
          OPTION_LOADER_ACCELERATION in android_bridge.c. -->
     <string-array name="loader_names">

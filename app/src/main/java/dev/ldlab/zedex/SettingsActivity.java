@@ -75,8 +75,6 @@ public class SettingsActivity extends Activity {
      * built with one. Read by EmulatorActivity, which owns that window.
      */
     static final String KEY_SECOND_SCREEN = "secondScreen";
-    /** Read by EmulatorLayout; the ☰ layout switcher writes here too. */
-    static final String KEY_LANDSCAPE_LAYOUT = "landscapeLayout";
     static final String KEY_SNAPSHOT_FORMAT = "snapshotFormat";
     /** "tap" or "tzx": what a tape is written as without an explicit extension. */
     static final String KEY_TAPE_FORMAT = "tapeFormat";

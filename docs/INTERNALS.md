@@ -154,7 +154,7 @@ it actually is. The side-bar branch used to give the whole height of the right
 black to the bar, from when the bar *was* a column down it; a short row in the
 corner needs none of that, and reserving it left fire a bar barely wider than
 itself, so the three key buttons beside it shrank past thirty dp and vanished in
-every landscape layout. The cap now applies only when the bar's box reaches down
+landscape. The cap now applies only when the bar's box reaches down
 as far as the controls' row, which the compact one never does. Fire moved
 outboard to the window's edge as a result, which is where a thumb was reaching for
 it anyway.
@@ -237,7 +237,7 @@ once at startup could do. It also replaced three `AlertDialog`s that existed
 only because the flat sheet had nowhere to put them.
 
 What stayed a dialog is **choosing one of a set** — a machine, a joystick type,
-a landscape layout — because a checked radio in a list is what says *one of
+a keyboard skin — because a checked radio in a list is what says *one of
 these, and this is the one*, and a sheet of plain rows cannot; and anything
 that needs confirming. The line is: sheet pages navigate and act, dialogs
 choose and confirm.
@@ -632,13 +632,36 @@ storage later.
 ### Sharing the window
 
 `EmulatorLayout` is a `ViewGroup` of its own rather than nested
-`LinearLayout`s, because the landscape arrangements are not all the same
-kind of container: two stack and one puts the keyboard
-over the screen. Measuring both children in one place covers all of it without
-ever re-parenting them — which matters, since detaching the `SurfaceView` would
-destroy the surface Fuse draws into and cost a handover on every change. It
-computes the two boxes in `arrange()`, called from `onMeasure` and read back in
-`onLayout`, so the two cannot disagree.
+`LinearLayout`s, because the screen and the keyboard are not simply stacked: the
+picture is a 4:3 quad centred in whatever box it is given, and nearly everything
+else — the joystick, the lamps, the quick bar — is placed against the black that
+leaves. Measuring the children in one place covers all of it without ever
+re-parenting them, which matters since detaching the `SurfaceView` would destroy
+the surface Fuse draws into and cost a handover on every change. It computes the
+boxes in `arrange()`, called from `onMeasure` and read back in `onLayout`, so
+the two cannot disagree.
+
+**There is one arrangement, and it is the same either way up.** There were five
+sideways, chosen from a list: the keyboard below the screen, over it
+translucently, down the left, down the right, or absent. They are gone, and what
+they cost is worth writing down, because a picker with five entries looks free.
+
+The two side-by-side ones were the same arrangement mirrored, and the keyboard is
+a single bitmap at 541x201 — half a landscape window is two and a half times
+wider than that is tall, so it sat at the foot of its half and left six hundred
+pixels of nothing above. `placeJoystick` carried a fourth branch to fill that
+band, complete with a test for the lamps hanging into its far end. *No keyboard*
+was never an arrangement at all: *Show on screen* in ☰ Controls already says the
+same thing, from a place where it reads as a decision about the keyboard rather
+than about the window, and it works in portrait too. *Overlay* was the only one
+with an idea of its own, and it traded a translucent keyboard over the game for
+some picture height — a trade the cap already makes, better, and without
+anything sitting on top of the machine.
+
+So the question `arrange()` asks is no longer *which of five* but *is there a
+keyboard in this window at all* — a boolean with four ways of being false: the
+user put it away, fullscreen, it is lent to a second screen, or the skin is
+Android's own, which comes up over the window whenever it likes.
 
 The keyboard cooperates by treating an exact height as a decision already made.
 Left to choose it takes its natural 541x201 aspect, which is what portrait
@@ -647,9 +670,8 @@ same transform, so a capped box simply letterboxes and every key still lands.
 That is the whole fix for landscape: full width at that aspect made the
 keyboard four fifths of the height and left the machine a slot 188 pixels tall.
 
-Portrait is always the stacked arrangement — there is only one sensible answer
-when the window is taller than it is wide — and the natural height at full
-width is around a third, so the cap never bites. It is also where the screen's
+In portrait the natural height at full width is around a third, so the cap never
+bites. Portrait is also where the screen's
 box is trimmed to the height a 4:3 picture actually uses, 810 px of 1080 wide:
 the renderer centres inside whatever it is given, so a full-height box put the
 picture in the middle with a band of black above it as well as below. One band,
@@ -881,14 +903,11 @@ It goes in the black, not on the picture. The renderer centres a 4:3 quad in
 whatever box it is given, so there is nearly always spare black somewhere, and
 that is a thumb's width of room the picture was never using. `placeJoystick()`
 tries three things in order and which one applies falls out of the template
-rather than being written down per template:
+rather than being written down anywhere:
 
 - **Beside the picture.** A 4:3 quad in a wide box leaves a bar down each
   side — 480px of a 2400px landscape window with no keyboard, and more with
-  one below, since the shorter box makes the picture narrower still. This is
-  what *no keyboard*, *keyboard below* and *keyboard over the screen* all get;
-  in the last of those the bar is cut short at the top of the translucent
-  keyboard.
+  one below, since the shorter box makes the picture narrower still.
 
   The lamps are in the left bar too, and what the pad takes is the width
   *outside* them rather than the height *below* them. Ducking under them was

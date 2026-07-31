@@ -12,10 +12,11 @@ import java.util.List;
 /**
  * Arranges the emulated screen and the keyboard.
  *
- * A layout of its own rather than nested LinearLayouts, because the useful
- * arrangements are not all the same kind of container: two of them stack and
- * one puts the keyboard on top of the screen. Measuring
- * the two children here covers all of it without ever re-parenting them —
+ * A layout of its own rather than nested LinearLayouts, because the screen and
+ * the keyboard are not simply stacked: the picture is a 4:3 quad centred in
+ * whatever box it gets, and nearly everything else is placed against the black
+ * that leaves. Measuring the children here covers all of it without ever
+ * re-parenting them —
  * which matters, since detaching the {@link android.view.SurfaceView} would
  * destroy the surface Fuse is drawing into and cost a handover on every
  * change.
@@ -23,63 +24,24 @@ import java.util.List;
  * The keyboard is one bitmap with a fixed 541x201 aspect. Given any box it
  * scales to fit, centres itself and hit-tests through the same transform, so a
  * box shorter or narrower than its natural shape simply letterboxes and still
- * works. That is what lets a template cap it: without a cap, full width in
+ * works. That is what lets the cap work: without one, full width in
  * landscape makes the keyboard 2.7 times as wide as it is tall and it takes
  * four fifths of the height, leaving the machine a letterbox slot.
  *
- * Portrait is always {@link Template#BELOW}: there is only one sensible
- * arrangement when the window is taller than it is wide.
+ * There is one arrangement and it is the same either way up — the keyboard
+ * across the foot of the window, the picture above it — because there is only
+ * one that is any good. Sideways there were four more to choose from, and they
+ * are gone; see {@link #arrange}.
  *
  * The on-screen joystick goes in the black rather than on the picture. The
  * renderer centres a 4:3 quad in whatever box it is given, so there is nearly
  * always spare black somewhere — at the sides of a wide box, below the picture
- * in a tall one, above the keyboard when it is beside the screen —
- * and that is a thumb's width of room the picture was never using. Only when a
- * template leaves none does the joystick float over the picture's bottom
- * corners, and then it is translucent. See {@link #placeJoystick}.
+ * in a tall one — and that is a thumb's width of room the picture was never
+ * using. Only when there is none of it does the joystick float over the
+ * picture's bottom corners, and then it is translucent. See
+ * {@link #placeJoystick}.
  */
 final class EmulatorLayout extends ViewGroup {
-
-    /**
-     * How the screen and the keyboard share a landscape window.
-     *
-     * There were two more, {@code left} and {@code right}, which put the
-     * keyboard down one side and the screen down the other. They were the same
-     * arrangement mirrored, and neither was a good one: the keyboard is a single
-     * bitmap at 2.7:1, so half a landscape window is far wider than it is tall
-     * and it sat at the foot of its half leaving six hundred pixels of nothing
-     * above. {@link #placeJoystick} carried a whole branch to fill that band. A
-     * stored {@code left} or {@code right} now reads back as {@link #BELOW},
-     * which {@link #of} does for anything it does not recognise.
-     */
-    enum Template {
-        /** Keyboard across the bottom, capped so the screen keeps most of it. */
-        BELOW("below"),
-        /** Keyboard over the screen, translucent, so the screen keeps all of it. */
-        OVERLAY("overlay"),
-        /**
-         * No keyboard at all: the whole window is the machine. For a physical
-         * keyboard, or a game that only wants a joystick. The ☰ button stays
-         * over the screen, so this is not a way of getting stuck.
-         */
-        NONE("none");
-
-        final String value;
-
-        Template(String value) {
-            this.value = value;
-        }
-
-        /** The stored preference, or {@link #BELOW} for anything unrecognised. */
-        static Template of(String stored) {
-            if (stored != null) {
-                for (Template template : values()) {
-                    if (template.value.equals(stored)) return template;
-                }
-            }
-            return BELOW;
-        }
-    }
 
     /**
      * Height the keyboard may take in landscape, as a fraction of the window.
@@ -87,17 +49,11 @@ final class EmulatorLayout extends ViewGroup {
      */
     private static final float LANDSCAPE_BELOW = 0.42f;
 
-    /** Overlaying costs the screen nothing, so the keyboard can be bigger. */
-    private static final float LANDSCAPE_OVERLAY = 0.5f;
-
     /**
      * Portrait cap. The natural height at full width is around a third, so
      * this only ever bites on a very short window.
      */
     private static final float PORTRAIT_BELOW = 0.5f;
-
-    /** Enough to read the screen through, still solid enough to aim at. */
-    private static final float OVERLAY_ALPHA = 0.8f;
 
     /** Rather less, because this one is over the middle of a game. */
     private static final float FLOATING_ALPHA = 0.55f;
@@ -192,7 +148,6 @@ final class EmulatorLayout extends ViewGroup {
     private JoystickView[] keys = new JoystickView[0];
     private ActivityLights lights;
     private View play;
-    private Template template = Template.BELOW;
 
     /** Whether each is wanted at all; the ☰ menu decides. */
     private boolean joystick = true;
@@ -336,7 +291,7 @@ final class EmulatorLayout extends ViewGroup {
      *
      * What is left behind is a window with nothing in it but the picture, which
      * is what fullscreen makes of it anyway - {@link #arrange} treats a lent
-     * layout as {@link Template#NONE}.
+     * layout as one with no keyboard in it.
      */
     void setLentAway(boolean away) {
         if (lent == away) return;
@@ -418,18 +373,6 @@ final class EmulatorLayout extends ViewGroup {
     private boolean here(View child) {
         return child != null && child.getParent() == this
                 && child.getVisibility() != GONE;
-    }
-
-    Template template() {
-        return template;
-    }
-
-    void setTemplate(Template template) {
-        if (this.template == template) return;
-
-        this.template = template;
-        applyKeyboardVisibility();
-        requestLayout();
     }
 
     /**
@@ -611,9 +554,9 @@ final class EmulatorLayout extends ViewGroup {
 
     /**
      * Puts the keyboard away, or brings it back, whichever way up the device
-     * is. Separate from the landscape template that also hides it: that one is
-     * an arrangement of the window, this one is a decision about the keyboard,
-     * and rotating should not undo it.
+     * is. A decision about the keyboard, kept apart from fullscreen and from
+     * the second screen, which also take it away: those are about the window,
+     * and leaving either should bring back whatever was chosen here.
      */
     void setKeyboardVisible(boolean visible) {
         if (keyboardWanted == visible) return;
@@ -644,20 +587,12 @@ final class EmulatorLayout extends ViewGroup {
             return;
         }
 
-        boolean landscape = getResources().getConfiguration().orientation
-                == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
-        boolean hiddenByTemplate = landscape && template == Template.NONE;
-
-        // Whichever way up: fullscreen is the picture and nothing else, and a
-        // keyboard across the bottom of a portrait window is as much "else" as
-        // one beside it. It used to stay because in portrait a 4:3 picture is
-        // limited by the width and the keys cost it nothing - but what they
-        // cost is not the point of the button.
-        boolean hiddenByFullscreen = fullscreen;
-
-        keyboard.setVisibility(!keyboardWanted || hiddenByTemplate
-                               || hiddenByFullscreen || !keyboard.skin().drawn()
-                               ? GONE : VISIBLE);
+        // Fullscreen is the picture and nothing else, whichever way up. The keys
+        // used to stay in portrait, where a 4:3 picture is limited by the width
+        // and they cost it nothing - but what they cost is not the point of the
+        // button.
+        keyboard.setVisibility(!keyboardWanted || fullscreen
+                               || !keyboard.skin().drawn() ? GONE : VISIBLE);
     }
 
     /**
@@ -686,7 +621,6 @@ final class EmulatorLayout extends ViewGroup {
     @Override
     protected void onConfigurationChanged(android.content.res.Configuration config) {
         super.onConfigurationChanged(config);
-        // Hiding is a landscape template, so rotating changes whether it applies.
         applyKeyboardVisibility();
         applyBarMetrics();
     }
@@ -700,21 +634,15 @@ final class EmulatorLayout extends ViewGroup {
         float aspect = keyboard != null ? keyboard.aspect()
                                         : SpectrumKeyboardView.NATURAL_ASPECT;
 
-        // Portrait has one arrangement; the templates are a landscape question.
-        // A keyboard the user has put away leaves the same window as the
-        // template that has none, whichever way up the device is - and so does
-        // fullscreen, which is the point of it: hiding the keyboard while still
-        // reserving its share of the height would leave the picture the size it
-        // was with a band of black where the keys had been.
-        Template current = landscape ? template : Template.BELOW;
-        if (!keyboardWanted || fullscreen) current = Template.NONE;
-
-        // Lent away, there is no keyboard in this window to leave room for.
-        if (lent) current = Template.NONE;
-
-        // The system keyboard is Android's own and comes up over the window
-        // whenever it is asked to, so there is nothing here to leave room for.
-        if (keyboard != null && !keyboard.skin().drawn()) current = Template.NONE;
+        // Whether there is a keyboard in this window to leave room for. Four
+        // ways there is not, and they are the same question whichever way up
+        // the device is: the user has put it away; fullscreen, which is the
+        // point of it - reserving its share of the height while hiding it would
+        // leave the picture the size it was with a band of black where the keys
+        // had been; it is lent to a second screen; or the skin is Android's own
+        // keyboard, which comes up over the window whenever it is asked to.
+        boolean keys = keyboardWanted && !fullscreen && !lent
+                && (keyboard == null || keyboard.skin().drawn());
 
         panelBox.set(0, 0, width, height);
 
@@ -732,67 +660,46 @@ final class EmulatorLayout extends ViewGroup {
 
         int top = barStrip;
 
-        switch (current) {
-            case NONE: {
-                screenBox.set(0, top, width, height);
-                keyboardBox.setEmpty();
+        if (!keys) {
+            screenBox.set(0, top, width, height);
+            keyboardBox.setEmpty();
 
-                // Except while the system keyboard is up, which covers the
-                // bottom of the window: then the picture takes the space above
-                // it and sits at the top of that, rather than staying centred in
-                // a window whose lower half it can no longer be seen in.
-                if (imeInset > 0) {
-                    int room = height - imeInset - top;
-                    int tall = Math.min(room, Math.round(width / SCREEN_ASPECT));
+            // Except while the system keyboard is up, which covers the bottom
+            // of the window: then the picture takes the space above it and sits
+            // at the top of that, rather than staying centred in a window whose
+            // lower half it can no longer be seen in.
+            if (imeInset > 0) {
+                int room = height - imeInset - top;
+                int tall = Math.min(room, Math.round(width / SCREEN_ASPECT));
 
-                    if (tall > 0) screenBox.set(0, top, width, top + tall);
-                }
-                break;
+                if (tall > 0) screenBox.set(0, top, width, top + tall);
             }
+        } else {
+            int natural = Math.round(width / aspect);
+            float cap = landscape ? LANDSCAPE_BELOW : PORTRAIT_BELOW;
+            int keyboardHeight = Math.min(natural, Math.round(height * cap));
+            int room = height - keyboardHeight - top;
 
-            case OVERLAY: {
-                int natural = Math.round(width / aspect);
-                int keyboardHeight = Math.min(natural,
-                        Math.round(height * LANDSCAPE_OVERLAY));
+            // Portrait leaves far more height than a 4:3 picture wants, and
+            // the renderer centres inside whatever it is given - which put
+            // the screen in the middle with a band of black above it as well
+            // as below. Giving the box only the height the picture uses puts
+            // it under the bar and leaves the spare space in one place.
+            int screenHeight = landscape
+                    ? room
+                    : Math.min(room, Math.round(width / SCREEN_ASPECT));
 
-                screenBox.set(0, top, width, height);
-                keyboardBox.set(0, height - keyboardHeight, width, height);
-                break;
+            screenBox.set(0, top, width, top + screenHeight);
+            keyboardBox.set(0, height - keyboardHeight, width, height);
+
+            // Room to miss into around the keys that are hardest to hit.
+            if (!landscape) {
+                int pad = Math.round(KEYBOARD_PAD
+                        * getResources().getDisplayMetrics().density);
+
+                keyboardBox.set(pad, keyboardBox.top - pad,
+                                width - pad, height - pad);
             }
-
-            case BELOW:
-            default: {
-                int natural = Math.round(width / aspect);
-                float cap = landscape ? LANDSCAPE_BELOW : PORTRAIT_BELOW;
-                int keyboardHeight = Math.min(natural, Math.round(height * cap));
-                int room = height - keyboardHeight - top;
-
-                // Portrait leaves far more height than a 4:3 picture wants, and
-                // the renderer centres inside whatever it is given - which put
-                // the screen in the middle with a band of black above it as well
-                // as below. Giving the box only the height the picture uses puts
-                // it under the bar and leaves the spare space in one place.
-                int screenHeight = landscape
-                        ? room
-                        : Math.min(room, Math.round(width / SCREEN_ASPECT));
-
-                screenBox.set(0, top, width, top + screenHeight);
-                keyboardBox.set(0, height - keyboardHeight, width, height);
-
-                // Room to miss into around the keys that are hardest to hit.
-                if (!landscape) {
-                    int pad = Math.round(KEYBOARD_PAD
-                            * getResources().getDisplayMetrics().density);
-
-                    keyboardBox.set(pad, keyboardBox.top - pad,
-                                    width - pad, height - pad);
-                }
-                break;
-            }
-        }
-
-        if (keyboard != null) {
-            keyboard.setAlpha(current == Template.OVERLAY ? OVERLAY_ALPHA : 1f);
         }
 
         measurePicture(landscape);
@@ -909,7 +816,7 @@ final class EmulatorLayout extends ViewGroup {
      * Finds the joystick somewhere that is not the picture.
      *
      * Three answers, tried in order, and which one applies falls out of the
-     * template rather than being written down per template:
+     * arrangement rather than being written down per arrangement:
      *
      * <ol>
      * <li><b>Beside the picture.</b> A 4:3 quad in a wide box leaves a black
@@ -929,8 +836,8 @@ final class EmulatorLayout extends ViewGroup {
      * </ol>
      *
      * There was a fourth, between the second and the last: the band above a
-     * keyboard set down one side of the window. It went with the two templates
-     * that put it there.
+     * keyboard set down one side of the window. It went with the two landscape
+     * arrangements that put it there.
      */
     private void placeJoystick(int width, int height) {
         padBox.setEmpty();
@@ -945,10 +852,9 @@ final class EmulatorLayout extends ViewGroup {
         int minimum = Math.round(PAD_MINIMUM * density);
         int wanted = Math.round(PAD_SIZE * density);
 
-        // The keyboard is a floor. Every template that has one lays it across
-        // the foot of the window - below the picture or over it - and a thumb
-        // cannot reach through it. So is the system keyboard: not a child of
-        // this layout, but it covers the bottom of the window just the same.
+        // The keyboard is a floor: it lies across the foot of the window and a
+        // thumb cannot reach through it. So is the system keyboard - not a
+        // child of this layout, but it covers the bottom just the same.
         int floor = keyboardBox.isEmpty()
                 ? height - Math.max(imeInset, gestureInset)
                 : keyboardBox.top;
