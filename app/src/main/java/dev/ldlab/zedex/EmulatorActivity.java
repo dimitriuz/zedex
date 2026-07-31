@@ -8,7 +8,6 @@ import android.graphics.Color;
 import android.hardware.input.InputManager;
 import android.net.Uri;
 import android.os.Bundle;
-import android.provider.DocumentsContract;
 import android.provider.OpenableColumns;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -101,6 +100,12 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      */
     private Machine machine;
 
+    /** Screenshots and recording; see {@link Capture}. */
+    private Capture capture;
+
+    /** Save states, and the quick pair; see {@link StatesUi}. */
+    private StatesUi states;
+
     /** The big play button over the picture, shown only while paused. */
     private ImageButton playButton;
 
@@ -187,6 +192,21 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // Before anything reads the filter, which is now one setting where it
         // used to be two booleans.
         Filter.migrate(preferences);
+
+        capture = new Capture(this, preferences);
+
+        states = new StatesUi(this, preferences, new StatesUi.Host() {
+            @Override
+            public void note(int message, Object... arguments) {
+                EmulatorActivity.this.note(message, arguments);
+            }
+
+            @Override
+            public void openList(boolean saving) {
+                panels.openOwnScreen(StatesActivity.intent(EmulatorActivity.this,
+                                                           saving));
+            }
+        });
 
         machine = new Machine(this, preferences, new Machine.Host() {
             @Override
@@ -586,13 +606,13 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         bar.addGroup(R.drawable.ic_folder, getString(R.string.menu_files),
                      this::fillFiles);
         bar.addGroup(R.drawable.ic_bookmark, getString(R.string.menu_states),
-                     this::fillStates);
+                     states::fill);
         // The machine here as in the sheet, since it holds pause and the two
         // menus reading the same way is worth more than either order is.
         bar.addGroup(R.drawable.ic_chip, getString(R.string.menu_machine_group),
                      this::fillMachine);
         bar.addGroup(R.drawable.ic_camera, getString(R.string.menu_capture),
-                     this::fillCapture);
+                     capture::fill);
         bar.addGroup(R.drawable.ic_controls, getString(R.string.menu_on_screen),
                      this::fillOnScreen);
         bar.addGroup(R.drawable.ic_display, getString(R.string.menu_display),
@@ -1030,7 +1050,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             sheet.addSubmenu(machine.withName(R.string.menu_machine_group),
                              R.drawable.ic_chip, this::fillMachine);
             sheet.addSubmenu(getString(R.string.menu_states), R.drawable.ic_bookmark,
-                             this::fillStates);
+                             states::fill);
             sheet.addSubmenu(getString(R.string.menu_pokes), R.drawable.ic_poke,
                              pokes::fill);
             // The page's own heading, which sits over the tape rows: the
@@ -1039,7 +1059,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                              getString(R.string.menu_tape_section),
                              R.drawable.ic_tape, media::fill);
             sheet.addSubmenu(getString(R.string.menu_capture), R.drawable.ic_camera,
-                             this::fillCapture);
+                             capture::fill);
 
             sheet.addRule();
             sheet.addSubmenu(getString(R.string.menu_controls),
@@ -1159,20 +1179,17 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             case NMI: machine.nmi(); break;
             case QUIT: machine.quit(); break;
 
-            case QUICK_SAVE: quickSave(); break;
-            case QUICK_LOAD: quickLoad(); break;
-            case SAVE_STATE: showStates(true); break;
-            case LOAD_STATE: showStates(false); break;
+            case QUICK_SAVE: states.quickSave(); break;
+            case QUICK_LOAD: states.quickLoad(); break;
+            case SAVE_STATE: states.openList(true); break;
+            case LOAD_STATE: states.openList(false); break;
 
             case SPEED_UP: machine.stepSpeed(1); break;
             case SPEED_DOWN: machine.stepSpeed(-1); break;
 
             case FULLSCREEN: showFullscreen(!fullscreen()); break;
-            case SCREENSHOT: takeScreenshot(); break;
-            case RECORD:
-                if (Recorder.isRecording()) Recorder.stop();
-                else startRecording(Recorder.Format.GIF);
-                break;
+            case SCREENSHOT: capture.screenshot(); break;
+            case RECORD: capture.toggleRecording(); break;
 
             case KEYBOARD: controls.showKeyboard(!layout.keyboardVisible()); break;
             case JOYSTICK: controls.showJoystick(!layout.joystickVisible()); break;
@@ -1197,262 +1214,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
 
     /** What a hotkey's state is called, after whatever it is a state of. */
-    private static final String QUICK_STATE = "Quick";
-
-    /**
-     * One quick save per game, named after it: <i>Tujad Quick</i>.
-     *
-     * A single slot was one game's save until the next game overwrote it, which
-     * is the wrong way round for the thing meant to be pressed without
-     * thinking. Named after the media that is loaded, every game keeps its own
-     * and a hotkey means "mine".
-     *
-     * With nothing loaded - a machine sitting at BASIC, a reset - there is no
-     * name to borrow and it is plain <i>Quick</i>, which is what it always was.
-     */
-    private String quickStateName() {
-        String media = preferences.getString(States.KEY_MEDIA_NAME, null);
-
-        if (media == null || media.isEmpty()) return QUICK_STATE;
-
-        // Loading a state makes it the media name, so a quick load followed by
-        // a quick save must not end up at "Tujad Quick Quick".
-        if (media.equals(QUICK_STATE) || media.endsWith(" " + QUICK_STATE)) {
-            return media;
-        }
-
-        return media + " " + QUICK_STATE;
-    }
-
-    /**
-     * What the quick pair are named after - the file that is open - or null
-     * when nothing is, where they are just "Quick save" and "Quick load".
-     *
-     * The stored name may already carry the suffix, since loading a state sets
-     * it; {@link #quickStateName} tolerates that and so does this, from the
-     * other end.
-     */
-    private String quickSubject() {
-        String media = preferences.getString(States.KEY_MEDIA_NAME, null);
-
-        if (media == null || media.isEmpty() || media.equals(QUICK_STATE)) {
-            return null;
-        }
-
-        return media.endsWith(" " + QUICK_STATE)
-                ? media.substring(0, media.length() - QUICK_STATE.length() - 1)
-                : media;
-    }
-
-    private void quickSave() {
-        String name = quickStateName();
-
-        if (!States.save(this, preferences, name)) {
-            note(R.string.state_failed);
-            return;
-        }
-
-        note(R.string.state_saved, name);
-    }
-
-    private void quickLoad() {
-        String name = quickStateName();
-
-        for (States.Saved state : States.all(this)) {
-            if (state.name.equals(name)) {
-                // The media name is left as it is: what is loaded is still the
-                // game, and calling it "Tujad Quick" from here would name the
-                // next save after the save rather than after the game.
-                States.load(state);
-                note(R.string.state_loaded, state.name);
-                return;
-            }
-        }
-
-        note(R.string.hotkey_no_quick_save);
-    }
-
-    // --- screenshots and recording -----------------------------------------
-
-    /**
-     * A picture of the emulated screen, or a film of it.
-     *
-     * The two formats are offered rather than settled in settings because
-     * they are for different things: a GIF drops straight into a forum post
-     * and keeps the palette exactly, an MP4 is smaller and takes sound
-     * eventually.
-     */
-    /**
-     * A picture of the machine, or a film of it.
-     *
-     * Built when the page is opened, so it offers the one thing that makes
-     * sense: there is nothing to stop until something is running.
-     */
-    private void fillCapture(Rows rows) {
-        rows.item(R.drawable.ic_camera, getString(R.string.capture_screenshot),
-                  this::takeScreenshot);
-
-        if (Recorder.isRecording()) {
-            rows.item(R.drawable.ic_stop, getString(R.string.capture_stop),
-                      Recorder::stop);
-        } else {
-            rows.item(R.drawable.ic_record, getString(R.string.capture_gif),
-                      () -> startRecording(Recorder.Format.GIF));
-            rows.item(R.drawable.ic_film, getString(R.string.capture_mp4),
-                      () -> startRecording(Recorder.Format.MP4));
-        }
-
-        rows.rule();
-        rows.item(R.drawable.ic_folder, getString(R.string.capture_open_folder),
-                  this::openRecordingsFolder);
-    }
-
-    /**
-     * Hands the folder to whatever browses files on this device.
-     *
-     * There are two ways to ask and neither is guaranteed: viewing the
-     * folder as a document is what the Files app understands, and the
-     * document picker opened at that folder is the fallback. If the data
-     * folder is the app's own, no intent can reach it and the path is all
-     * there is to offer.
-     */
-    private void openRecordingsFolder() {
-        File folder = Storage.recordingsDirectory(this);
-        folder.mkdirs();
-
-        Uri uri = Storage.documentUriFor(folder);
-
-        if (uri != null) {
-            Intent view = new Intent(Intent.ACTION_VIEW);
-            view.setDataAndType(uri, DocumentsContract.Document.MIME_TYPE_DIR);
-            view.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-
-            // This activity is singleInstance, so without a task of its own
-            // the file manager is handed the intent in the background and
-            // never comes forward.
-            view.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                        | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-
-            if (start(view)) return;
-
-            Intent browse = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
-            browse.putExtra(DocumentsContract.EXTRA_INITIAL_URI, uri);
-            browse.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-
-            if (start(browse)) return;
-        }
-
-        Toast.makeText(this, getString(R.string.capture_no_browser,
-                                       folder.getAbsolutePath()),
-                       Toast.LENGTH_LONG).show();
-    }
-
-    private boolean start(Intent intent) {
-        try {
-            startActivity(intent);
-            return true;
-        } catch (android.content.ActivityNotFoundException e) {
-            return false;
-        }
-    }
-
-    private void takeScreenshot() {
-        File target = captureFile(Storage.screenshotsDirectory(this), "png");
-        if (target == null) return;
-
-        Recorder.screenshotTo(target, this::reportCapture);
-    }
-
-    private void startRecording(Recorder.Format format) {
-        File target = captureFile(Storage.recordingsDirectory(this),
-                                  format.extension);
-        if (target == null) return;
-
-        if (!Recorder.start(target, format, this::reportCapture)) {
-            Toast.makeText(this, R.string.capture_busy, Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        note(R.string.capture_recording, target.getName());
-    }
-
-    /** Reported when the file is really written, not when it was asked for. */
-    private void reportCapture(File file, String error) {
-        if (error == null) {
-            Toast.makeText(this, getString(R.string.capture_saved, file.getName()),
-                           Toast.LENGTH_LONG).show();
-        } else {
-            Toast.makeText(this, getString(R.string.capture_failed,
-                                           file.getName(), error),
-                           Toast.LENGTH_LONG).show();
-        }
-    }
-
-    /** Named after whatever is loaded, numbered so nothing is overwritten. */
-    private File captureFile(File directory, String extension) {
-        if (!directory.isDirectory() && !directory.mkdirs()) {
-            Toast.makeText(this, R.string.state_failed, Toast.LENGTH_LONG).show();
-            return null;
-        }
-
-        String base = preferences.getString(States.KEY_MEDIA_NAME, null);
-        if (base == null || base.isEmpty()) base = "Spectrum";
-
-        File target = new File(directory, base + "." + extension);
-        for (int n = 2; target.exists() && n < 10000; n++) {
-            target = new File(directory, base + " " + n + "." + extension);
-        }
-
-        return target;
-    }
-
     // --- save states ----------------------------------------------------
-
-    /**
-     * The list of saved states is a screen of its own - see
-     * {@link StatesActivity}. A state is a picture, and a picture wants more
-     * room than a three-hundred-dp sheet can give it; the screen also opens on
-     * whichever display the controls are on, which is the whole point of
-     * {@link #openOwnScreen}.
-     *
-     * What is left here is what the machine's own side needs: the two hotkeys,
-     * which write and read one state without asking anything.
-     */
-    private void showStates(boolean saving) {
-        panels.openOwnScreen(StatesActivity.intent(this, saving));
-    }
-
-    /**
-     * Saving and loading, both ways round: the list, which asks for a name and
-     * shows the pictures, and the one state a hotkey writes without asking.
-     *
-     * A group of its own on the bar. It used to be three rows under the folder
-     * icon along with the picker and the recent files, which meant a folder
-     * standing for "files and states" - and the quick pair, which are the two
-     * most reached-for things in the app, were on a hotkey and nowhere else.
-     * Anyone without a controller could not reach them at all.
-     */
-    private void fillStates(Rows rows) {
-        rows.item(R.drawable.ic_save, getString(R.string.menu_save_state),
-                  () -> showStates(true));
-        rows.item(R.drawable.ic_load, getString(R.string.menu_load_state),
-                  () -> showStates(false));
-
-        // Named after what is running rather than after the state: the state is
-        // called "Tujad Quick", and a row reading "Quick save - Tujad Quick"
-        // says quick twice and tells you nothing the first one did not.
-        String subject = quickSubject();
-
-        rows.rule();
-        rows.item(R.drawable.ic_save,
-                  subject == null ? getString(R.string.hotkey_quick_save)
-                                  : getString(R.string.quick_save, subject),
-                  this::quickSave);
-        rows.item(R.drawable.ic_load,
-                  subject == null ? getString(R.string.hotkey_quick_load)
-                                  : getString(R.string.quick_load, subject),
-                  this::quickLoad);
-    }
 
     /** What a new state will be called: the media that is loaded. */
     private void rememberMediaName(String name) {
