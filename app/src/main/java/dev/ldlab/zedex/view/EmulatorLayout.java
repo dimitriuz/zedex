@@ -954,7 +954,14 @@ public final class EmulatorLayout extends ViewGroup {
         int slack = fireArea.right - margin - fireBox.right;
 
         if (centreX - reach < inboard && slack > 0) {
-            centreX += Math.min(slack, inboard - (centreX - reach));
+            // Fire moves, not the arc around it. Sliding the arc alone leaves
+            // it off centre from the button it belongs to, and that is visible
+            // at both ends: the level button closes onto fire's rim - ten pixels
+            // *over* it on a phone in fullscreen, where the strip is barely
+            // wider than fire - while the top one drifts a gap away. Whatever
+            // slack fire's centring left is room for fire.
+            fireBox.offset(Math.min(slack, inboard - (centreX - reach)), 0);
+            centreX = fireBox.centerX();
         }
 
         if (centreX - reach < inboard) {
