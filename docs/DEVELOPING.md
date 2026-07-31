@@ -114,12 +114,45 @@ Nothing in the demo is timed against the raster, which is why it behaves the
 same on a 48K, a 128 and a +3, and why four things can move at once. Caps Shift
 and Space together stops it and hands the machine back to BASIC, AY included.
 
-The music is three channels of AY stepped from the same HALT, and it is written
-unconditionally: a machine without an AY decodes neither of its ports and hears
-nothing, so the demo stays one file and a 48K is simply quiet. Recording the
-emulator's audio off the host is not worth the fight — the **AY lamp** in the
-activity column lights while registers are being written, which is the check
-that the player is running.
+### The demo's music
+
+`demo/pt3.asm` is a **ProTracker 3 player**, and `demo/timeup.pt3` the module it
+plays. Written to the AY unconditionally: a machine without one decodes neither
+of its ports and hears nothing, so the demo stays one file and a 48K is quiet.
+
+A player rather than a recording, because the sizes are not close — this module
+is 6 KB and plays for a minute and a half, where the same music as a stream of
+AY registers is 27 KB packed and 72 KB raw. The player is about 1.5 KB.
+
+Two tables the module does not carry are generated into `demo/pt3tables.inc` by
+the build: which AY period a note means, and how a sample's amplitude and a
+line's volume combine. Both belong to the tracker rather than to the music, both
+are pure arithmetic, and the file is therefore *not* committed. The frequency
+table is grown from twelve base periods by halving, with the tracker's own two
+corrections; the volume table is Ivan Roshin's VolTableCreator, which is what
+the tracker's player runs at startup. The values matter: table 1 puts A-4 at
+390 Hz, not 440, so computing equal temperament instead sounds two semitones
+sharp.
+
+**How it was checked, and how to check it again.** The player was ported from
+Vince Weaver's [pt3_lib](http://www.deater.net/weave/vmwprod/pt3_lib/), which is
+itself verified against Bulba's ay_emul, and then *diffed against it frame by
+frame*: compile `pt3_to_ym5` from that library, convert the module to a YM5
+register dump, and run the player under a small Z80 interpreter, comparing all
+fourteen registers each frame. All 4,608 frames of this module match. That is
+the only way to tell a subtly wrong player from a right one — the first attempt
+sounded like noise because `loadsample` clobbered the HL the decoder was walking
+the pattern with, which no amount of listening would have located.
+
+The **AY lamp** in the activity column is the quick check that the player is
+running at all; recording the emulator's audio off the host was not worth the
+fight.
+
+**The music is not ours.** *Time Up* by
+[shiru8bit](https://opengameart.org/users/shiru8bit), from OpenGameArt under
+**CC-BY 3.0**. Attribution is required, so it is in three places: the demo's own
+scroller, the README's licence section, and here. If the tune is ever swapped,
+all three move together.
 
 Loading it: put it in the content folder and open it like any other tape, or
 hand it straight over —

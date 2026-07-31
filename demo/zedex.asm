@@ -17,15 +17,20 @@
 ; the same on a 48K, a 128 and a +3.  The border stays black, because that is
 ; what the app puts around the picture anyway.
 ;
-; There is music, on the AY: three channels stepped once a frame from the same
-; HALT.  It is written unconditionally, since a machine with no AY decodes
-; neither of its ports and hears nothing — so the demo stays one file, and on a
-; 48K it is simply quiet.  A beeper tune would have to be played by the CPU
-; between the effects, and there is no frame left for that.
+; There is music, on the AY: a ProTracker 3 module, played by pt3.asm and
+; stepped once a frame from the same HALT.  The chip is written to
+; unconditionally, since a machine without an AY decodes neither of its ports
+; and hears nothing — so the demo stays one file, and on a 48K it is simply
+; quiet.  A beeper tune would have to be played by the CPU between the effects,
+; and there is no frame left for that.
 ;
-; Assembler notes: `equ` names are folded to lower case, `$` is hex, and the
-; assembler knows no index registers, so IX and IY are untouched — the second
-; of those matters, since the ROM's interrupt needs IY where it left it.
+; The tune is "Time Up" by shiru8bit, CC-BY 3.0, from
+; https://opengameart.org/users/shiru8bit — the credit is in the scroller
+; because that is the licence's price and the tape is what travels.
+;
+; Assembler notes: `equ` names are folded to lower case, `$` is hex, and IY is
+; untouched throughout, since the ROM's interrupt needs it where it left it.
+; IX belongs to the player, which uses it for whichever channel it is on.
 ; ---------------------------------------------------------------------------
 
         org  $8000
@@ -69,10 +74,7 @@ start:
         xor  a
         call fill
 
-        ld   a,rows - 1         ; so that the first frame starts row zero
-        ld   (row),a
-        ld   a,1
-        ld   (rowtick),a
+        call pt3init
 
         ld   hl,lab48           ; the icon's two corner labels
         ld   b,0
@@ -88,7 +90,7 @@ start:
         call paint
 
 loop:   halt                    ; the frame, and the only clock here
-        call music
+        call pt3frame
         call stars
         call scroll
         call wash
@@ -484,149 +486,18 @@ cy2:    ld   hl,wavewait
 cy3:    ld   (hl),a
         ret
 
-; --- the music -------------------------------------------------------------
-
-; A byte per channel per row: a note, a hold, or the end of one.  All three
-; patterns are the same length and the row is counted once for all of them, so
-; there is no pointer per channel to keep and nothing that can drift out of
-; time with the others.
-;
-; An instrument is one number — how many frames a step of volume takes — which
-; is enough for the three sounds here: a plucked lead, a bass that barely
-; fades, and an arpeggio that dies inside its own row.  The AY's own envelope
-; generator is left alone, because there is one of it and three channels.
-
-rowlen  equ  5                  ; frames a row lasts: 100ms, so 150 beats
-rows    equ  64                 ; four bars of sixteen
-
-music:  ld   hl,rowtick
-        dec  (hl)
-        jr   nz,mu1
-        ld   (hl),rowlen
-        call newrow
-mu1:    call decay
-        jp   ayout
-
-newrow: ld   a,(row)
-        inc  a
-        cp   rows
-        jr   c,nr1
-        xor  a                  ; round again, all three at once
-nr1:    ld   (row),a
-        ld   e,a
-        ld   d,0
-
-        ld   hl,leadpat
-        add  hl,de
-        ld   a,(hl)
-        ld   hl,chan_a
-        call setnote
-        ld   hl,basspat
-        add  hl,de
-        ld   a,(hl)
-        ld   hl,chan_b
-        call setnote
-        ld   hl,arppat
-        add  hl,de
-        ld   a,(hl)
-        ld   hl,chan_c          ; and falls through, for the last of the three
-
-; a = what the pattern said, hl = the channel it said it to.
-setnote:
-        or   a
-        ret  z                  ; a hold: whatever is playing carries on
-        dec  a
-        jr   nz,sn1
-        ld   (hl),0             ; a rest
-        ret
-sn1:    dec  a                  ; and the rest are notes, from the table
-        ld   c,a
-        ld   (hl),15            ; full volume, and the decay takes it down
-        inc  hl
-        ld   a,(hl)
-        inc  hl
-        ld   (hl),a             ; the countdown starts at the instrument's rate
-        inc  hl
-        ld   b,(hl)             ; which pair of AY registers this channel is
-        ld   l,c
-        ld   h,0
-        add  hl,hl
-        ld   de,periods
-        add  hl,de
-        ld   e,(hl)
-        inc  hl
-        ld   d,(hl)
-        ld   hl,ayregs
-        ld   c,b
-        ld   b,0
-        add  hl,bc
-        ld   (hl),e
-        inc  hl
-        ld   (hl),d
-        ret
-
-; One step quieter every so many frames, and the volume registers follow.
-decay:  ld   hl,chan_a
-        ld   de,ayregs + 8
-        ld   b,3
-de1:    push bc
-        ld   a,(hl)
-        ld   c,a                ; the volume as it stands
-        inc  hl
-        ld   b,(hl)             ; frames per step
-        inc  hl
-        dec  (hl)               ; the countdown
-        jr   nz,de2
-        ld   (hl),b
-        ld   a,c
-        or   a
-        jr   z,de2
-        dec  c
-de2:    dec  hl
-        dec  hl
-        ld   (hl),c
-        ld   a,c
-        ld   (de),a
-        inc  de
-        ld   bc,chansz
-        add  hl,bc
-        pop  bc
-        djnz de1
-        ret
-
-; The shadow registers, out to the chip: the select port is $fffd and the data
-; port $bffd, and neither is decoded by a machine without an AY.  Register 13
-; is not written, since writing it would restart the envelope generator; these
-; volumes are plain levels and want nothing to do with it.
-ayout:  ld   hl,ayregs
-        ld   e,0
-ay1:    ld   bc,$fffd
-        ld   a,e
-        out  (c),a
-        ld   b,$bf
-        ld   a,(hl)
-        out  (c),a
-        inc  hl
-        inc  e
-        ld   a,e
-        cp   13
-        jr   nz,ay1
-        ret
-
-hush:   ld   hl,ayregs + 8      ; all three channels to nothing
-        ld   bc,3
-        xor  a
-        call fill
-        jp   ayout
-
 ; --- what it says ----------------------------------------------------------
 
 lab48:  db   "48K",0
 labz80: db   "Z80",0
 
+; The credit is not decoration: the music is CC-BY, and this is where the
+; attribution travels — the tape carries it wherever the tape goes.
 msg:    db   "   zedex  *  Modern ZX Spectrum emulator for Android"
         db   "  *  48K to +3, tapes, disks, snapshots, cheats"
-        db   "  *  the Fuse core, unmodified  ",0
+        db   "  *  the Fuse core, unmodified"
+        db   "  *  music: Time Up by shiru8bit, CC-BY"
+        db   "  *  opengameart.org/users/shiru8bit  ",0
 
 ; --- tables ----------------------------------------------------------------
 
@@ -668,115 +539,6 @@ pilldata:
         db   $3f,$ff,$fc
         db   $00,$00,$00
 
-; --- the tune --------------------------------------------------------------
-
-; The AY divides its clock by sixteen and then by this, so a period is
-; 1773400 / (16 * the frequency), rounded — five octaves of it, C1 at the
-; bottom, and A4 where it should be.
-periods:
-        dw   3389,3199,3019,2850
-        dw   2690,2539,2397,2262
-        dw   2135,2015,1902,1795
-        dw   1695,1599,1510,1425
-        dw   1345,1270,1198,1131
-        dw   1068,1008, 951, 898
-        dw    847, 800, 755, 712
-        dw    673, 635, 599, 566
-        dw    534, 504, 476, 449
-        dw    424, 400, 377, 356
-        dw    336, 317, 300, 283
-        dw    267, 252, 238, 224
-        dw    212, 200, 189, 178
-        dw    168, 159, 150, 141
-        dw    133, 126, 119, 112
-
-; What a pattern byte means: nothing at all, a rest, or an octave and a note.
-hold    equ  0
-rest    equ  1
-oct1    equ  2                  ; the first entry of the table above
-oct2    equ  oct1 + 12
-oct3    equ  oct2 + 12
-oct4    equ  oct3 + 12
-oct5    equ  oct4 + 12
-
-n_c     equ  0
-n_cs    equ  1
-n_d     equ  2
-n_ds    equ  3
-n_e     equ  4
-n_f     equ  5
-n_fs    equ  6
-n_g     equ  7
-n_gs    equ  8
-n_a     equ  9
-n_as    equ  10
-n_b     equ  11
-
-; A channel: its volume now, how many frames a step of the decay takes, the
-; countdown to the next one, and which of the AY's register pairs its period
-; goes in.
-chansz  equ  4
-chan_a: db   0, 5,1,0           ; the lead, plucked
-chan_b: db   0,10,1,2           ; the bass, all but sustained
-chan_c: db   0, 1,1,4           ; the arpeggio, gone by the end of its row
-
-; Four bars of A minor — Am, F, C, G — a beat to a line.
-leadpat:
-        db   oct4+n_a,hold,hold,hold
-        db   oct5+n_c,hold,hold,hold
-        db   oct4+n_b,hold,hold,hold
-        db   oct4+n_a,hold,hold,hold
-        db   oct4+n_g,hold,hold,hold
-        db   oct4+n_a,hold,hold,hold
-        db   oct4+n_f,hold,hold,hold
-        db   oct4+n_e,hold,hold,hold
-        db   oct4+n_e,hold,hold,hold
-        db   oct4+n_g,hold,hold,hold
-        db   oct5+n_c,hold,hold,hold
-        db   oct4+n_b,hold,hold,hold
-        db   oct5+n_d,hold,hold,hold
-        db   oct4+n_b,hold,hold,hold
-        db   oct4+n_a,hold,hold,hold
-        db   oct4+n_g,hold,hold,hold
-
-basspat:
-        db   oct2+n_a,hold,hold,hold
-        db   hold,hold,hold,hold
-        db   oct2+n_a,hold,hold,hold
-        db   hold,hold,hold,hold
-        db   oct2+n_f,hold,hold,hold
-        db   hold,hold,hold,hold
-        db   oct2+n_f,hold,hold,hold
-        db   hold,hold,hold,hold
-        db   oct3+n_c,hold,hold,hold
-        db   hold,hold,hold,hold
-        db   oct3+n_c,hold,hold,hold
-        db   hold,hold,hold,hold
-        db   oct2+n_g,hold,hold,hold
-        db   hold,hold,hold,hold
-        db   oct2+n_g,hold,hold,hold
-        db   hold,hold,hold,hold
-
-arppat:
-        db   oct3+n_a,oct4+n_c,oct4+n_e,oct4+n_a
-        db   oct3+n_a,oct4+n_c,oct4+n_e,oct4+n_a
-        db   oct3+n_a,oct4+n_c,oct4+n_e,oct4+n_a
-        db   oct3+n_a,oct4+n_c,oct4+n_e,oct4+n_a
-        db   oct3+n_f,oct3+n_a,oct4+n_c,oct4+n_f
-        db   oct3+n_f,oct3+n_a,oct4+n_c,oct4+n_f
-        db   oct3+n_f,oct3+n_a,oct4+n_c,oct4+n_f
-        db   oct3+n_f,oct3+n_a,oct4+n_c,oct4+n_f
-        db   oct3+n_g,oct4+n_c,oct4+n_e,oct4+n_g
-        db   oct3+n_g,oct4+n_c,oct4+n_e,oct4+n_g
-        db   oct3+n_g,oct4+n_c,oct4+n_e,oct4+n_g
-        db   oct3+n_g,oct4+n_c,oct4+n_e,oct4+n_g
-        db   oct3+n_g,oct3+n_b,oct4+n_d,oct4+n_g
-        db   oct3+n_g,oct3+n_b,oct4+n_d,oct4+n_g
-        db   oct3+n_g,oct3+n_b,oct4+n_d,oct4+n_g
-        db   oct3+n_g,oct3+n_b,oct4+n_d,oct4+n_g
-
-; A star is the row it sits on, where along it it has got to, and how many
-; pixels a frame it moves.
 nstars  equ  32
 startab:
         ; the band above the wordmark
@@ -825,15 +587,12 @@ phase:    db   0
 phase2:   db   0
 wave:     db   1
 wavewait: db   12
-row:      db   0
-rowtick:  db   1
-
-; The AY as it is about to be, registers 0 to 13: three tone periods, the
-; noise period, the mixer — tones on, noise off — then the three volumes and
-; the envelope, which is unused.
-ayregs:   db   0,0,0,0,0,0,0,$38,0,0,0,0,0,0
 
 ; --- the wordmark ----------------------------------------------------------
 
 logodata:
         include "logo.inc"
+
+; --- the music -------------------------------------------------------------
+
+        include "pt3.asm"

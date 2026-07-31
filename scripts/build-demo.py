@@ -67,6 +67,7 @@ class Assembler:
         self.listing = []
         self.pc = 0
         self.pass_two = False
+        self.source_dir = "."
 
     # --- source ---
 
@@ -85,6 +86,7 @@ class Assembler:
         return lines
 
     def assemble(self, path):
+        self.source_dir = os.path.dirname(os.path.abspath(path))
         lines = self.load(path)
         for self.pass_two in (False, True):
             self.pc = 0
@@ -179,6 +181,11 @@ class Assembler:
             fill = byte(self.value(items[1])) if len(items) > 1 else 0
             return [fill] * count
 
+        if mnemonic == "incbin":
+            name = operands.strip().strip('"')
+            with open(os.path.join(self.source_dir, name), "rb") as blob:
+                return list(blob.read())
+
         return None
 
     # --- expressions ---
@@ -213,6 +220,24 @@ class Assembler:
     # --- instructions ---
 
     def instruction(self, op, args):
+        # IX and IY are HL with a prefix in front, so they are assembled as HL
+        # and the prefix — and the displacement — put back afterwards.
+        prefix, args, displacement = index_registers(args)
+        code = self.plain(op, args)
+        if prefix is None:
+            return code
+        if displacement is None:
+            return [prefix] + code
+        step = self.value(displacement)
+        if not -128 <= step <= 127:
+            raise Error("a displacement is one signed byte, not %d" % step)
+        step &= 0xff
+        if code[0] == 0xcb:
+            # DD CB d op: the displacement comes before the operation, not after
+            return [prefix, 0xcb, step] + code[1:]
+        return [prefix, code[0], step] + code[1:]
+
+    def plain(self, op, args):
         if op == "ex" and len(args) == 2:
             pair = (args[0], args[1].rstrip("'"))
             if pair == ("de", "hl"):
@@ -429,6 +454,41 @@ _group("rotate", ROT)
 _group("bitwise", BIT_OPS)
 
 
+INDEX = {"ix": 0xdd, "iy": 0xfd}
+
+
+def index_registers(args):
+    """Turns IX and IY operands into the HL ones they are encoded as.
+
+    Returns the prefix byte, the rewritten operands, and the displacement
+    expression if there was one — `(ix)` counts as `(ix+0)`, which is what
+    every assembler means by it.
+    """
+    prefix = None
+    displacement = None
+    out = []
+
+    for operand in args:
+        found = re.match(r"^\((ix|iy)([+-][^)]+)?\)$", operand) \
+            or re.match(r"^(ix|iy)$", operand)
+        if not found:
+            out.append(operand)
+            continue
+
+        register = found.group(1)
+        if prefix is not None and prefix != INDEX[register]:
+            raise Error("one instruction cannot reach both ix and iy")
+        prefix = INDEX[register]
+
+        if operand.startswith("("):
+            displacement = (found.group(2) or "0").lstrip("+")
+            out.append("(hl)")
+        else:
+            out.append("hl")
+
+    return prefix, out, displacement
+
+
 def expect(args, count):
     if len(args) != count:
         raise Error("expected %d operands, got %d" % (count, len(args)))
@@ -567,6 +627,81 @@ def tap(name, program, autostart, code, origin):
             + block(0xff, program)
             + block(0x00, header(3, name, len(code), origin, 32768))
             + block(0xff, code))
+
+
+# --- the tune's lookup tables ----------------------------------------------
+
+# A PT3 player needs two tables that are not in the module: which AY period a
+# note means, and how a sample's amplitude and a line's volume combine.  Both
+# are properties of the tracker rather than of the music, both are worked out
+# here rather than carried, and neither is guesswork — the frequency tables are
+# grown from twelve base periods by halving an octave at a time, and the volume
+# table comes from Ivan Roshin's VolTableCreator, which is the routine the
+# tracker's own player runs at startup.
+#
+# The arithmetic follows Vince Weaver's pt3_lib, which is in turn checked
+# against Bulba's ay_emul: http://www.deater.net/weave/vmwprod/pt3_lib/
+
+# Table 1, "ST", one octave of periods; the rest is this halved, twice adjusted.
+ST_BASE = [0xef8, 0xe10, 0xd60, 0xc80, 0xbd8, 0xb28,
+           0xa88, 0x9f0, 0x960, 0x8e0, 0x858, 0x7e0]
+
+
+def note_table(which, version):
+    if which != 1:
+        raise Error("only frequency table 1 is built here, and this module "
+                    "asks for %d" % which)
+    periods = list(ST_BASE)
+    for note in range(84):
+        periods.append(periods[note] >> 1)
+    periods[23] += 13                    # the tracker's own two corrections
+    periods[46] -= 1
+    return periods
+
+
+def volume_table(version):
+    """The sixteen volume curves, one per line volume."""
+    which = 1 if version <= 4 else 0
+    table = [[0] * 16 for _ in range(16)]
+    de = which << 4
+
+    for level in range(1, 16):
+        hl = (0x11 - which) + de
+        carry = hl >> 16
+        de, hl = hl & 0xffff, de         # the routine swaps them here
+        hl = (-carry) & 0xffff
+        for amplitude in range(16):
+            if not which:
+                carry = 1 if hl & 0x80 else 0
+            table[level][amplitude] = ((hl >> 8) & 0xff) + carry
+            hl = (hl + de) & 0xffff
+        if (de & 0xff) == 0x77:
+            de += 1
+
+    return table
+
+
+def write_tables(path, module):
+    version = module[13] - ord("0")
+    if not 0 <= version <= 9:
+        version = 6
+    which = module[0x63]
+
+    with open(path, "w") as out:
+        out.write("; Written by scripts/build-demo.py; do not hand edit.\n")
+        out.write("; ProTracker 3.%d, frequency table %d.\n" % (version, which))
+
+        out.write("\nperiods:\n")
+        periods = note_table(which, version)
+        for at in range(0, 96, 8):
+            out.write("        dw   " + ",".join("%4d" % p
+                                                 for p in periods[at:at + 8]) + "\n")
+
+        out.write("\nvolumes:\n")
+        for row in volume_table(version):
+            out.write("        db   " + ",".join("%2d" % v for v in row) + "\n")
+
+    return version, which
 
 
 # --- the wordmark ----------------------------------------------------------

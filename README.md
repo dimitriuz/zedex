@@ -286,6 +286,10 @@ redistributed by permission of the copyright holders — Amstrad for the Sinclai
 machines, others for the rest. [README.copyright.md](roms/README.copyright.md)
 is that permission, copied from Fuse whole.
 
+**The demo's music is not ours.** The tune the shipped demo tape plays is *Time
+Up* by [shiru8bit](https://opengameart.org/users/shiru8bit), from OpenGameArt
+under **CC-BY 3.0**, used with attribution and otherwise unchanged.
+
 **The cheats are not ours.** They come from
 [The Tipshop](https://www.the-tipshop.co.uk/), run by Gerard Sweeney. The
 machine-readable form is *AllTipshopPokes*, gathered by Lady Eklipse and
