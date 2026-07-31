@@ -80,6 +80,32 @@ ROM scans the keyboard once per frame, so a press and release arriving
 together — a synthesised tap, or a very fast finger — would otherwise be
 invisible to the emulated machine.
 
+### Media
+
+The tape deck, the floppy drives and the DivMMC's card slot are one class,
+`Media`, because they are one job with three shapes: each is picked through
+Android's document picker, each has to be copied somewhere Fuse can open it by
+path, each can be written back out, and each is named the same way. The
+differences are small — a tape plays, a drive can be blanked, a card is a
+filesystem rather than an image.
+
+**Fuse opens files by path and Android hands out documents**, which is the whole
+reason `stage()` exists: a picked `content://` URI is copied into the cache under
+its own name, because libspectrum uses the extension as a hint when identifying
+the file, and Fuse is given the copy. The md5 is taken on the way past — the
+bytes are going by anyway, and it is what finds the game's cheats.
+
+It was six hundred lines of `EmulatorActivity`, which was three and a half
+thousand. What it still needs from the activity turned out to be three things,
+so `Media.Host` is three methods: somewhere to put a message, the sheet to open
+a page on, and the fact that something was loaded. Note that it is built in
+`onCreate` and not as a field initialiser — those run first, and it would be
+handed a null `SharedPreferences`.
+
+`Storage.sanitise` came out of the same move. Three classes had written their
+own copy of one regular expression, which is three chances to disagree about
+what is safe in a filename.
+
 ### The menu
 
 ☰ is one icon in a **quick bar**, and the bar has a place of its own rather than

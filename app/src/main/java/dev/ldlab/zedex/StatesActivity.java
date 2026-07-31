@@ -218,7 +218,7 @@ public final class StatesActivity extends Activity {
                 .setTitle(R.string.state_name)
                 .setView(input)
                 .setPositiveButton(android.R.string.ok, (dialog, which) -> {
-                    String name = sanitise(input.getText().toString());
+                    String name = Storage.sanitise(input.getText().toString());
                     if (name.isEmpty()) name = "Snapshot";
                     save(name);
                 })
@@ -242,7 +242,7 @@ public final class StatesActivity extends Activity {
                 .setTitle(R.string.state_rename)
                 .setView(input)
                 .setPositiveButton(android.R.string.ok, (dialog, which) ->
-                        rename(state, sanitise(input.getText().toString())))
+                        rename(state, Storage.sanitise(input.getText().toString())))
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
     }
@@ -321,11 +321,6 @@ public final class StatesActivity extends Activity {
         input.setSelection(input.getText().length());
 
         return input;
-    }
-
-    /** Keeps names to something that is safe as a filename. */
-    private static String sanitise(String name) {
-        return name.replaceAll("[/\\\\:*?\"<>|]", "_").trim();
     }
 
     private void toast(String text) {

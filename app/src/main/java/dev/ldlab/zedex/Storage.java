@@ -452,4 +452,27 @@ final class Storage {
         name = name.replace('/', '_').replace('\\', '_');
         return name.isEmpty() ? "spectrum.tap" : name;
     }
+
+    /**
+     * Keeps a name to something that is safe as a filename.
+     *
+     * Here because three places want it and each had written its own: the
+     * emulator names a state after what is loaded, the states screen takes a
+     * name that was typed, and {@link Media} names a tape or a disk. Three
+     * copies of one regular expression is three chances for them to disagree
+     * about what is safe.
+     */
+    static String sanitise(String name) {
+        return name.replaceAll("[/\\\\:*?\"<>|]", "_").trim();
+    }
+
+    /**
+     * A filename with its extension taken off, which is what media is named
+     * after: "Tujad.z80" is a game called Tujad.
+     */
+    static String withoutExtension(String name) {
+        int dot = name.lastIndexOf('.');
+
+        return sanitise(dot > 0 ? name.substring(0, dot) : name);
+    }
 }
