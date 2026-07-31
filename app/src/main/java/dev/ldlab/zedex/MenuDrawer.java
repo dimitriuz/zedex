@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.drawable.Drawable;
 import android.view.Gravity;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
@@ -67,6 +68,9 @@ final class MenuDrawer extends FrameLayout {
     private static final int LABEL = 0xffededf2;
     private static final int SECTION = 0xff8b8b99;
     private static final int RULE = 0x1affffff;
+
+    /** A line to type into: dark enough to read on, light enough to find. */
+    private static final int FIELD = 0x14ffffff;
 
     private final View scrim;
     private final ScrollView sheet;
@@ -177,6 +181,29 @@ final class MenuDrawer extends FrameLayout {
         });
     }
 
+    /**
+     * One of a set, with a tick against whichever is current.
+     *
+     * A page of these is what a single-choice dialog used to be. The dialog was
+     * the activity's window and so always opened on the machine's screen, which
+     * with a second screen meant reaching across to answer a question asked on
+     * the panel; a page is part of the sheet and appears wherever the sheet is.
+     *
+     * The tick is the same drawable on every row, drawn in nothing where the row
+     * is not the chosen one, so all the labels start at the same place.
+     */
+    void addChoice(String text, boolean chosen, Runnable action) {
+        TextView row = addRow(text, R.drawable.ic_tick, false, () -> {
+            close();
+            action.run();
+        });
+
+        if (!chosen) {
+            row.setCompoundDrawablesRelativeWithIntrinsicBounds(
+                    tinted(R.drawable.ic_tick, 0x00000000), null, null, null);
+        }
+    }
+
     /** A row that leads to another page. The sheet stays where it is. */
     void addSubmenu(String text, int icon, Page page) {
         addRow(text, icon, true, () -> enter(text, page));
@@ -192,6 +219,40 @@ final class MenuDrawer extends FrameLayout {
      */
     void addSubmenu(String text, String heading, int icon, Page page) {
         addRow(text, icon, true, () -> enter(heading, page));
+    }
+
+    /**
+     * A line to type into, for a page that asks for a name or a number.
+     *
+     * Returned rather than reported through a callback, so a page that wants
+     * three of them - a poke is a name, an address and a value - reads as three
+     * lines and one row that takes what they say.
+     */
+    EditText addField(String hint, String initial, int inputType) {
+        EditText field = new EditText(getContext());
+
+        field.setHint(hint);
+        field.setText(initial);
+        field.setSingleLine(true);
+        field.setTextColor(LABEL);
+        field.setHintTextColor(SECTION);
+        field.setTextSize(16);
+        field.setPadding(unit * 2, unit * 3 / 2, unit * 2, unit * 3 / 2);
+        if (inputType != 0) field.setInputType(inputType);
+
+        // The sheet's own colours: the platform's field is a white box, which
+        // in here means light text on a light background and a rectangle that
+        // belongs to another app.
+        field.setBackgroundColor(FIELD);
+
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        params.setMargins(unit * 3, unit / 2, unit * 3, unit / 2);
+
+        items.addView(field, params);
+
+        return field;
     }
 
     /** Something to read rather than to press: an empty list saying so. */
@@ -228,8 +289,8 @@ final class MenuDrawer extends FrameLayout {
      * baseline box at the start, the chevron hard against the end — which a
      * glyph pasted into the string could not do.
      */
-    private void addRow(String label, int icon, boolean leadsOn, Runnable action) {
-        addRow(label, icon, leadsOn, action, null, 0, null, null);
+    private TextView addRow(String label, int icon, boolean leadsOn, Runnable action) {
+        return addRow(label, icon, leadsOn, action, null, 0, null, null);
     }
 
     /**
@@ -239,9 +300,9 @@ final class MenuDrawer extends FrameLayout {
      * text and its click stay on the same node; the container itself is not
      * clickable, and takes no touches of its own.
      */
-    private void addRow(String label, int icon, boolean leadsOn, Runnable action,
-                        Runnable longPress, int trailingIcon, String trailingLabel,
-                        Runnable trailing) {
+    private TextView addRow(String label, int icon, boolean leadsOn, Runnable action,
+                            Runnable longPress, int trailingIcon, String trailingLabel,
+                            Runnable trailing) {
         TextView row = new TextView(getContext());
 
         row.setText(label);
@@ -268,7 +329,7 @@ final class MenuDrawer extends FrameLayout {
 
         if (trailing == null) {
             items.addView(row);
-            return;
+            return row;
         }
 
         LinearLayout line = new LinearLayout(getContext());
@@ -291,6 +352,7 @@ final class MenuDrawer extends FrameLayout {
         line.addView(button, new LinearLayout.LayoutParams(unit * 6, unit * 6));
 
         items.addView(line);
+        return row;
     }
 
     /**

@@ -90,6 +90,18 @@ It used to fade after three seconds because it *was* over the picture, and now i
 only fades in fullscreen — a control that is always there needs no discovering,
 and one that has its own strip is in nobody's way.
 
+**Choices, questions and fields are pages, not dialogs.** A dialog is the
+activity's window, so it always opens on the machine's screen — which with a
+second screen means a question asked by a thumb on the panel gets answered over
+there. Every single-choice list is now a page of `addChoice` rows with a tick
+against the current one; every confirmation is a page with the question as a
+note and one row that does the thing, Back being what Cancel was; and the pages
+that need a name or a number carry `addField` lines of their own. The rows that
+lead to them are submenus, so the sheet slides rather than closing and opening
+again a frame later. Twenty-three of the twenty-nine dialogs went this way; the
+save-state list is the one that has not, since its rows are a thumbnail and two
+buttons rather than a line of text.
+
 Two things make it fit that black. **Six icons, not nine**: everything that is a
 file went into one group behind a folder, and pause went into *Machine* with the
 reset. The group behind the picture icon is *Display* rather than *Controls*,

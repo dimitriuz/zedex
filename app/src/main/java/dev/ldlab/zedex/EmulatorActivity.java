@@ -607,7 +607,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         bar.addToRow(R.drawable.ic_swap, withMachine(R.string.menu_machine),
                      this::showMachineDialog);
         bar.addToRow(R.drawable.ic_reset, getString(R.string.menu_reset),
-                     this::confirmReset);
+                     () -> menu.go(getString(R.string.menu_reset), resetMachine()));
         // No confirming, unlike reset: the magic button interrupts the machine
         // rather than throwing its state away, and half of what it is for is
         // pressing it at a particular moment.
@@ -1223,20 +1223,22 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             if (Integer.parseInt(values[i]) == now) checked = i;
         }
 
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(R.string.mouse_sensitivity_title)
-                .setSingleChoiceItems(names, checked, (dialog, which) -> {
+        int chosen = checked;
+
+        menu.go(getString(R.string.mouse_sensitivity_title), page -> {
+            for (int i = 0; i < names.length; i++) {
+                int which = i;
+
+                page.addChoice(names[i], which == chosen, () -> {
                     preferences.edit()
                             .putString(SettingsActivity.KEY_MOUSE_SENSITIVITY,
                                        values[which])
                             .apply();
                     Mouse.apply(preferences);
-
-                    dialog.dismiss();
                     note(R.string.mouse_sensitivity, Integer.parseInt(values[which]));
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+                });
+            }
+        });
     }
 
     private void fillKeyboard(MenuDrawer sheet) {
@@ -1299,24 +1301,27 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             if (skins[i] == keyboardSkin()) checked = i;
         }
 
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(R.string.keyboard_skin_title)
-                .setSingleChoiceItems(names, checked, (dialog, which) -> {
+        int chosen = checked;
+
+        menu.go(getString(R.string.keyboard_skin_title), page -> {
+            for (int i = 0; i < skins.length; i++) {
+                int which = i;
+
+                page.addChoice(names[which], which == chosen, () -> {
                     preferences.edit()
                             .putString(SettingsActivity.KEY_KEYBOARD_SKIN,
                                        skins[which].value)
                             .apply();
                     layout.setKeyboardSkin(skins[which]);
-                    dialog.dismiss();
 
-                    // After the dialog has gone, and posted: an input method is
+                    // Posted, and after the sheet has gone: an input method is
                     // only shown for the window that has the focus, and while
-                    // this dialog still had it the request was quietly dropped.
+                    // the sheet still had it the request was quietly dropped.
                     layout.post(this::applySystemKeyboard);
                     note(R.string.keyboard_skin_set, skins[which].title);
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+                });
+            }
+        });
     }
 
     private void showKeyboard(boolean shown) {
@@ -1347,16 +1352,16 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             sheet.addRule();
         }
 
-        sheet.addItem(getString(R.string.poke_search), R.drawable.ic_poke,
-                      this::showPokeSearchDialog);
+        sheet.addSubmenu(getString(R.string.poke_search), R.drawable.ic_poke,
+                         pokeSearch());
         sheet.addItem(getString(R.string.poke_tipshop), R.drawable.ic_info,
                       this::openTipshop);
 
         sheet.addRule();
-        sheet.addItem(getString(R.string.poke_quick), R.drawable.ic_poke,
-                      this::showQuickPokeDialog);
-        sheet.addItem(getString(R.string.poke_add), R.drawable.ic_plus,
-                      this::showAddPokeDialog);
+        sheet.addSubmenu(getString(R.string.poke_quick), R.drawable.ic_poke,
+                         quickPoke());
+        sheet.addSubmenu(getString(R.string.poke_add), R.drawable.ic_plus,
+                         addPoke());
 
         List<Pokes.Poke> pokes = Pokes.all(preferences);
 
@@ -1375,7 +1380,8 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             sheet.addItem(poke.name + "\n" + poke.numbers(), R.drawable.ic_poke,
                           () -> applyPoke(poke), R.drawable.ic_trash,
                           getString(R.string.poke_forget_action, poke.name),
-                          () -> confirmForgetPoke(index, poke));
+                          () -> menu.go(getString(R.string.poke_forget_ask, poke.name),
+                                        forgetPoke(index, poke)));
         }
 
         sheet.addNote(getString(R.string.poke_hint));
@@ -1439,29 +1445,22 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      */
     private void askTrainerValue(PokeDatabase.Game game,
                                  PokeDatabase.Trainer trainer) {
-        EditText input = numberField(R.string.poke_value);
+        menu.go(trainer.name, page -> {
+            page.addNote(getString(R.string.poke_asks));
 
-        LinearLayout fields = new LinearLayout(this);
-        fields.setOrientation(LinearLayout.VERTICAL);
-        fields.setPadding(pokePadding(), 0, pokePadding(), 0);
-        fields.addView(input);
+            EditText input = page.addField(getString(R.string.poke_value), "", 0);
 
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(trainer.name)
-                .setMessage(R.string.poke_asks)
-                .setView(fields)
-                .setPositiveButton(R.string.poke_apply, (dialog, which) -> {
-                    int value = Pokes.number(input.getText().toString(), 0xff);
+            page.addItem(getString(R.string.poke_apply), R.drawable.ic_poke, () -> {
+                int value = Pokes.number(input.getText().toString(), 0xff);
 
-                    if (value < 0) {
-                        note(R.string.poke_bad);
-                        return;
-                    }
+                if (value < 0) {
+                    note(R.string.poke_bad);
+                    return;
+                }
 
-                    pokeTrainer(game, trainer, value);
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+                pokeTrainer(game, trainer, value);
+            });
+        });
     }
 
     private void pokeTrainer(PokeDatabase.Game game,
@@ -1490,25 +1489,17 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     }
 
     /** The database by name, for a state, a new release, or an odd dump. */
-    private void showPokeSearchDialog() {
-        EditText input = new EditText(this);
-        input.setSingleLine(true);
-        input.setHint(R.string.poke_search_hint);
-        input.setText(searchableName(preferences.getString(PREF_MEDIA_NAME, "")));
-        input.selectAll();
+    private MenuDrawer.Page pokeSearch() {
+        return page -> {
+            EditText input = page.addField(
+                    getString(R.string.poke_search_hint),
+                    searchableName(preferences.getString(PREF_MEDIA_NAME, "")), 0);
 
-        LinearLayout fields = new LinearLayout(this);
-        fields.setOrientation(LinearLayout.VERTICAL);
-        fields.setPadding(pokePadding(), 0, pokePadding(), 0);
-        fields.addView(input);
+            input.selectAll();
 
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(R.string.poke_search)
-                .setView(fields)
-                .setPositiveButton(R.string.poke_search_go, (dialog, which) ->
-                        showPokeResults(input.getText().toString()))
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+            page.addItem(getString(R.string.poke_search_go), R.drawable.ic_poke,
+                         () -> showPokeResults(input.getText().toString()));
+        };
     }
 
     /**
@@ -1545,11 +1536,13 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         String[] names = new String[games.size()];
         for (int i = 0; i < games.size(); i++) names[i] = games.get(i).name;
 
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(getString(R.string.poke_search_found, games.size()))
-                .setItems(names, (dialog, which) -> showGamePokes(games.get(which)))
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+        menu.go(getString(R.string.poke_search_found, games.size()), page -> {
+            for (int i = 0; i < names.length; i++) {
+                int which = i;
+                page.addItem(names[which], R.drawable.ic_poke,
+                             () -> showGamePokes(games.get(which)));
+            }
+        });
     }
 
     /** A page of one game's cheats, reached from a search. */
@@ -1593,85 +1586,69 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     }
 
     /** Two numbers, applied and forgotten: for a poke being tried out. */
-    private void showQuickPokeDialog() {
-        EditText address = numberField(R.string.poke_address);
-        EditText value = numberField(R.string.poke_value);
+    private MenuDrawer.Page quickPoke() {
+        return page -> {
+            page.addNote(getString(R.string.poke_explain));
 
-        LinearLayout fields = new LinearLayout(this);
-        fields.setOrientation(LinearLayout.VERTICAL);
-        fields.setPadding(pokePadding(), 0, pokePadding(), 0);
-        fields.addView(address);
-        fields.addView(value);
+            EditText address = page.addField(getString(R.string.poke_address), "", 0);
+            EditText value = page.addField(getString(R.string.poke_value), "", 0);
 
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(R.string.poke_quick)
-                .setMessage(R.string.poke_explain)
-                .setView(fields)
-                .setPositiveButton(R.string.poke_apply, (dialog, which) -> {
-                    int where = Pokes.number(address.getText().toString(), 0xffff);
-                    int what = Pokes.number(value.getText().toString(), 0xff);
+            page.addItem(getString(R.string.poke_apply), R.drawable.ic_poke, () -> {
+                int where = Pokes.number(address.getText().toString(), 0xffff);
+                int what = Pokes.number(value.getText().toString(), 0xff);
 
-                    if (where < 0 || what < 0) {
-                        note(R.string.poke_bad);
-                        return;
-                    }
+                if (where < 0 || what < 0) {
+                    note(R.string.poke_bad);
+                    return;
+                }
 
-                    applyPoke(new Pokes.Poke("", where, what));
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+                applyPoke(new Pokes.Poke("", where, what));
+            });
+        };
     }
 
     /** The same two numbers and a name, kept for next time. */
-    private void showAddPokeDialog() {
-        EditText name = new EditText(this);
-        name.setSingleLine(true);
-        name.setHint(R.string.poke_name);
-        name.setText(preferences.getString(PREF_MEDIA_NAME, ""));
-        name.setSelection(name.getText().length());
+    private MenuDrawer.Page addPoke() {
+        return page -> {
+            EditText name = page.addField(getString(R.string.poke_name),
+                    preferences.getString(PREF_MEDIA_NAME, ""), 0);
+            EditText address = page.addField(getString(R.string.poke_address), "", 0);
+            EditText value = page.addField(getString(R.string.poke_value), "", 0);
 
-        EditText address = numberField(R.string.poke_address);
-        EditText value = numberField(R.string.poke_value);
+            page.addItem(getString(R.string.poke_add), R.drawable.ic_plus, () -> {
+                int where = Pokes.number(address.getText().toString(), 0xffff);
+                int what = Pokes.number(value.getText().toString(), 0xff);
 
-        LinearLayout fields = new LinearLayout(this);
-        fields.setOrientation(LinearLayout.VERTICAL);
-        fields.setPadding(pokePadding(), 0, pokePadding(), 0);
-        fields.addView(name);
-        fields.addView(address);
-        fields.addView(value);
+                if (where < 0 || what < 0) {
+                    note(R.string.poke_bad);
+                    return;
+                }
 
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(R.string.poke_add)
-                .setView(fields)
-                .setPositiveButton(android.R.string.ok, (dialog, which) -> {
-                    int where = Pokes.number(address.getText().toString(), 0xffff);
-                    int what = Pokes.number(value.getText().toString(), 0xff);
+                String called = sanitise(name.getText().toString());
+                if (called.isEmpty()) called = getString(R.string.poke_unnamed);
 
-                    if (where < 0 || what < 0) {
-                        note(R.string.poke_bad);
-                        return;
-                    }
-
-                    String called = sanitise(name.getText().toString());
-                    if (called.isEmpty()) called = getString(R.string.poke_unnamed);
-
-                    Pokes.add(preferences, called, where, what);
-                    note(R.string.poke_stored_one, called);
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+                Pokes.add(preferences, called, where, what);
+                note(R.string.poke_stored_one, called);
+            });
+        };
     }
 
-    private void confirmForgetPoke(int index, Pokes.Poke poke) {
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(getString(R.string.poke_forget_ask, poke.name))
-                .setMessage(poke.numbers())
-                .setPositiveButton(R.string.poke_forget, (dialog, which) -> {
-                    Pokes.remove(preferences, index);
-                    note(R.string.poke_forgotten, poke.name);
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+    /**
+     * Asking before something cannot be undone, as a page rather than a dialog.
+     *
+     * A dialog is the activity's window and opens on the machine's screen; the
+     * question was asked on the panel and the answer would have been over
+     * there. A page is part of the sheet, so it appears where the sheet is -
+     * and Back is the way out of it, which is what Cancel was.
+     */
+    private MenuDrawer.Page forgetPoke(int index, Pokes.Poke poke) {
+        return page -> {
+            page.addNote(poke.numbers());
+            page.addItem(getString(R.string.poke_forget), R.drawable.ic_trash, () -> {
+                Pokes.remove(preferences, index);
+                note(R.string.poke_forgotten, poke.name);
+            });
+        };
     }
 
     /** Decimal by habit, hex if it is written as hex; see Pokes.number(). */
@@ -1705,8 +1682,8 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                                              : R.string.pause_pause),
                       pausedByUser ? R.drawable.ic_play : R.drawable.ic_pause,
                       () -> pause(!pausedByUser));
-        sheet.addItem(getString(R.string.menu_reset), R.drawable.ic_reset,
-                      this::confirmReset);
+        sheet.addSubmenu(getString(R.string.menu_reset), R.drawable.ic_reset,
+                         resetMachine());
         sheet.addItem(getString(R.string.menu_nmi), R.drawable.ic_bolt, this::nmi);
     }
 
@@ -1991,35 +1968,38 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         for (int i = 0; i < names.length; i++) names[i] = profiles.get(i).name;
 
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(R.string.profile_title)
-                .setSingleChoiceItems(names, ControlProfiles.currentIndex(preferences),
-                        (dialog, which) -> {
-                            ControlProfiles.store(preferences, profiles, which);
-                            applyControls();
+        int chosen = ControlProfiles.currentIndex(preferences);
 
-                            dialog.dismiss();
-                            note(R.string.profile_set, names[which]);
-                        })
-                .setPositiveButton(R.string.profile_edit,
-                        (dialog, which) -> ProfileActivity.open(this))
-                .setNeutralButton(R.string.profile_new,
-                        (dialog, which) -> showNewProfileDialog())
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+        menu.go(getString(R.string.profile_title), page -> {
+            for (int i = 0; i < names.length; i++) {
+                int which = i;
+
+                page.addChoice(names[which], which == chosen, () -> {
+                    ControlProfiles.store(preferences, profiles, which);
+                    applyControls();
+                    note(R.string.profile_set, names[which]);
+                });
+            }
+
+            // Under a rule rather than among the profiles: choosing one and
+            // changing one are different kinds of thing, and a row that opens a
+            // screen reads as another profile at a glance.
+            page.addRule();
+            page.addItem(getString(R.string.profile_edit), R.drawable.ic_edit,
+                         () -> ProfileActivity.open(this));
+            page.addSubmenu(getString(R.string.profile_new), R.drawable.ic_plus,
+                            newProfile());
+        });
     }
 
     /** A new profile starts as a copy of the one in use, and becomes the one in
      *  use: it is being made because the current keys are nearly right. */
-    private void showNewProfileDialog() {
-        EditText field = new EditText(this);
-        field.setHint(R.string.profile_new_name);
-        field.setSingleLine(true);
+    private MenuDrawer.Page newProfile() {
+        return page -> {
+            EditText field = page.addField(getString(R.string.profile_new_name),
+                                           "", 0);
 
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(R.string.profile_new_title)
-                .setView(field)
-                .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+            page.addItem(getString(R.string.profile_new), R.drawable.ic_plus, () -> {
                     String name = field.getText().toString().trim();
                     if (name.isEmpty()) return;
 
@@ -2032,9 +2012,8 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
                     applyControls();
                     ProfileActivity.open(this);
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+            });
+        };
     }
 
     private void showJoystick(boolean shown) {
@@ -2063,9 +2042,13 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         int type = joystickType();
         int checked = type == Controls.JOYSTICK_KEYBOARD ? fuseTypes.length : type;
 
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(R.string.joystick_type_title)
-                .setSingleChoiceItems(names, checked, (dialog, which) -> {
+        int ticked = checked;
+
+        menu.go(getString(R.string.joystick_type_title), page -> {
+            for (int i = 0; i < names.length; i++) {
+                int which = i;
+
+                page.addChoice(names[which], which == ticked, () -> {
                     int chosen = which == fuseTypes.length
                             ? Controls.JOYSTICK_KEYBOARD : which;
 
@@ -2073,12 +2056,10 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                             .putInt(SettingsActivity.KEY_JOYSTICK_TYPE, chosen)
                             .apply();
                     setJoystickType(chosen);
-
-                    dialog.dismiss();
                     note(R.string.joystick_type_set, names[which]);
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+                });
+            }
+        });
     }
 
     /** Nothing plugged in for Keyboard, since the pad sends keys instead. */
@@ -2148,15 +2129,16 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         int current = Math.max(0, Math.min(blocks.length - 1, FuseNative.tapeBlock()));
 
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(R.string.tape_browser_title)
-                .setSingleChoiceItems(blocks, current, (dialog, which) -> {
+        menu.go(getString(R.string.tape_browser_title), page -> {
+            for (int i = 0; i < blocks.length; i++) {
+                int which = i;
+
+                page.addChoice(blocks[which], which == current, () -> {
                     FuseNative.tapeBlockSelect(which);
-                    dialog.dismiss();
                     note(R.string.tape_wound, which + 1);
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+                });
+            }
+        });
     }
 
     private void rewindTape() {
@@ -2191,12 +2173,12 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             // Only with something on the tape: it used to be here always and
             // answered a tap with a toast saying there was nothing to write,
             // which is a row that exists to say it does not work.
-            sheet.addItem(getString(R.string.tape_save), R.drawable.ic_save,
-                          this::saveTape);
+            sheet.addSubmenu(getString(R.string.tape_save), R.drawable.ic_save,
+                             saveTape());
         }
 
-        sheet.addItem(getString(R.string.tape_new), R.drawable.ic_plus,
-                      this::confirmNewTape);
+        sheet.addSubmenu(getString(R.string.tape_new), R.drawable.ic_plus,
+                         newTape());
 
         sheet.addRule();
         sheet.addSection(getString(R.string.menu_disks_section));
@@ -2259,8 +2241,8 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         if (loaded) {
             sheet.addItem(getString(R.string.card_save), R.drawable.ic_save,
                           this::writeCard);
-            sheet.addItem(getString(R.string.card_eject), R.drawable.ic_eject,
-                          this::confirmEjectCard);
+            sheet.addSubmenu(getString(R.string.card_eject), R.drawable.ic_eject,
+                             ejectCard());
         }
     }
 
@@ -2277,22 +2259,29 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         sheet.addItem(getString(R.string.disk_load), R.drawable.ic_folder,
                       () -> loadDiskInto(id));
-        sheet.addItem(getString(R.string.disk_new), R.drawable.ic_plus,
-                      () -> confirmNewDisk(name, id, loaded));
+        // A blank disk over a loaded one is worth asking about; over an empty
+        // drive there is nothing to lose and nothing to ask.
+        if (loaded) {
+            sheet.addSubmenu(getString(R.string.disk_new), R.drawable.ic_plus,
+                             replaceDisk(name, id));
+        } else {
+            sheet.addItem(getString(R.string.disk_new), R.drawable.ic_plus,
+                          () -> newDisk(name, id));
+        }
 
         if (loaded) {
             Uri origin = originOf(disk);
 
             if (origin != null) {
-                sheet.addItem(getString(R.string.disk_save_over, disk),
-                              R.drawable.ic_save,
-                              () -> confirmWriteBack(id, disk, origin));
+                sheet.addSubmenu(getString(R.string.disk_save_over, disk),
+                                 R.drawable.ic_save,
+                                 writeBackDisk(id, disk, origin));
             }
 
-            sheet.addItem(getString(R.string.disk_save_short), R.drawable.ic_save,
-                          () -> saveDisk(name, id));
-            sheet.addItem(getString(R.string.disk_eject), R.drawable.ic_eject,
-                          () -> confirmEject(name, id));
+            sheet.addSubmenu(getString(R.string.disk_save_short), R.drawable.ic_save,
+                             saveDisk(name, id));
+            sheet.addSubmenu(getString(R.string.disk_eject), R.drawable.ic_eject,
+                             ejectDisk(name, id));
         }
     }
 
@@ -2473,18 +2462,12 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         }
     }
 
-    private void confirmNewDisk(String name, int id, boolean loaded) {
-        if (!loaded) {
-            newDisk(name, id);
-            return;
-        }
-
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setMessage(getString(R.string.disk_replace, name))
-                .setPositiveButton(R.string.disk_new, (dialog, which) ->
-                        newDisk(name, id))
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+    private MenuDrawer.Page replaceDisk(String name, int id) {
+        return page -> {
+            page.addNote(getString(R.string.disk_replace, name));
+            page.addItem(getString(R.string.disk_new), R.drawable.ic_plus,
+                         () -> newDisk(name, id));
+        };
     }
 
     private void newDisk(String name, int id) {
@@ -2492,15 +2475,14 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         note(R.string.disk_new_done, name);
     }
 
-    private void confirmEject(String name, int id) {
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setMessage(getString(R.string.disk_eject_confirm, name))
-                .setPositiveButton(R.string.disk_eject, (dialog, which) -> {
-                    FuseNative.ejectDisk(id >> 8, id & 0xff);
-                    note(R.string.disk_ejected, name);
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+    private MenuDrawer.Page ejectDisk(String name, int id) {
+        return page -> {
+            page.addNote(getString(R.string.disk_eject_confirm, name));
+            page.addItem(getString(R.string.disk_eject), R.drawable.ic_eject, () -> {
+                FuseNative.ejectDisk(id >> 8, id & 0xff);
+                note(R.string.disk_ejected, name);
+            });
+        };
     }
 
     /**
@@ -2509,19 +2491,14 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      * particular has to come back as a .trd - so the interface decides the
      * default.
      */
-    private void saveDisk(String drive, int id) {
-        EditText input = new EditText(this);
-        input.setSingleLine();
-        input.setText(suggestedDiskName(drive, id));
-        input.setSelection(input.getText().length());
+    private MenuDrawer.Page saveDisk(String drive, int id) {
+        return page -> {
+            EditText input = page.addField(getString(R.string.state_name),
+                                           suggestedDiskName(drive, id), 0);
 
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(getString(R.string.disk_save, drive))
-                .setView(input)
-                .setPositiveButton(android.R.string.ok, (dialog, which) ->
-                        writeDisk(id, sanitise(input.getText().toString())))
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+            page.addItem(getString(R.string.disk_save_short), R.drawable.ic_save,
+                         () -> writeDisk(id, sanitise(input.getText().toString())));
+        };
     }
 
     /** What each disk interface writes by default. */
@@ -2575,13 +2552,12 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                 Toast.LENGTH_LONG).show();
     }
 
-    private void confirmWriteBack(int id, String disk, Uri origin) {
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setMessage(getString(R.string.disk_save_over_confirm, disk))
-                .setPositiveButton(R.string.disk_save_over_ok, (dialog, which) ->
-                        writeBack(id, disk, origin))
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+    private MenuDrawer.Page writeBackDisk(int id, String disk, Uri origin) {
+        return page -> {
+            page.addNote(getString(R.string.disk_save_over_confirm, disk));
+            page.addItem(getString(R.string.disk_save_over_ok), R.drawable.ic_save,
+                         () -> writeBack(id, disk, origin));
+        };
     }
 
     /**
@@ -2732,36 +2708,25 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         note(R.string.card_written);
     }
 
-    private void confirmEjectCard() {
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setMessage(R.string.card_eject_confirm)
-                .setPositiveButton(R.string.card_eject, (dialog, which) -> {
-                    FuseNative.ejectCard();
-                    preferences.edit().remove(PREF_CARD).apply();
-                    note(R.string.card_ejected);
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+    private MenuDrawer.Page ejectCard() {
+        return page -> {
+            page.addNote(getString(R.string.card_eject_confirm));
+            page.addItem(getString(R.string.card_eject), R.drawable.ic_eject, () -> {
+                FuseNative.ejectCard();
+                preferences.edit().remove(PREF_CARD).apply();
+                note(R.string.card_ejected);
+            });
+        };
     }
 
-    private void saveTape() {
-        if (!FuseNative.hasTape()) {
-            Toast.makeText(this, R.string.tape_empty, Toast.LENGTH_LONG).show();
-            return;
-        }
+    private MenuDrawer.Page saveTape() {
+        return page -> {
+            EditText input = page.addField(getString(R.string.state_name),
+                                           suggestedTapeName(), 0);
 
-        EditText input = new EditText(this);
-        input.setSingleLine();
-        input.setText(suggestedTapeName());
-        input.setSelection(input.getText().length());
-
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(R.string.tape_save)
-                .setView(input)
-                .setPositiveButton(android.R.string.ok, (dialog, which) ->
-                        writeTape(sanitise(input.getText().toString())))
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+            page.addItem(getString(R.string.tape_save), R.drawable.ic_save,
+                         () -> writeTape(sanitise(input.getText().toString())));
+        };
     }
 
     private String suggestedTapeName() {
@@ -2804,15 +2769,14 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                 Toast.LENGTH_LONG).show();
     }
 
-    private void confirmNewTape() {
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setMessage(R.string.tape_new_confirm)
-                .setPositiveButton(R.string.tape_new, (dialog, which) -> {
-                    FuseNative.newTape();
-                    note(R.string.tape_new_done);
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+    private MenuDrawer.Page newTape() {
+        return page -> {
+            page.addNote(getString(R.string.tape_new_confirm));
+            page.addItem(getString(R.string.tape_new), R.drawable.ic_plus, () -> {
+                FuseNative.newTape();
+                note(R.string.tape_new_done);
+            });
+        };
     }
 
     // --- save states ----------------------------------------------------
@@ -3358,16 +3322,15 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
     /** The document's own name, reduced to something safe to write. */
 
-    private void confirmReset() {
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setMessage(R.string.reset_confirm)
-                .setPositiveButton(R.string.menu_reset, (dialog, which) -> {
-                    FuseNative.reset();
-                    forgetMediaName();
-                    note(R.string.reset_done);
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+    private MenuDrawer.Page resetMachine() {
+        return page -> {
+            page.addNote(getString(R.string.reset_confirm));
+            page.addItem(getString(R.string.menu_reset), R.drawable.ic_reset, () -> {
+                FuseNative.reset();
+                forgetMediaName();
+                note(R.string.reset_done);
+            });
+        };
     }
 
     /**
@@ -3384,39 +3347,43 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             if (templates[i] == layout.template()) current = i;
         }
 
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(R.string.layout_title)
-                .setSingleChoiceItems(names, current, (dialog, which) -> {
+        int ticked = current;
+
+        menu.go(getString(R.string.layout_title), page -> {
+            for (int i = 0; i < templates.length; i++) {
+                int which = i;
+
+                page.addChoice(names[which], which == ticked, () -> {
                     EmulatorLayout.Template chosen = templates[which];
 
                     preferences.edit()
-                            .putString(SettingsActivity.KEY_LANDSCAPE_LAYOUT, chosen.value)
+                            .putString(SettingsActivity.KEY_LANDSCAPE_LAYOUT,
+                                       chosen.value)
                             .apply();
                     layout.setTemplate(chosen);
 
-                    dialog.dismiss();
                     if (getResources().getConfiguration().orientation
                             != android.content.res.Configuration.ORIENTATION_LANDSCAPE) {
                         note(R.string.layout_portrait_note);
                     }
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+                });
+            }
+        });
     }
 
     private void showMachineDialog() {
         String[] names = FuseNative.machineNames();
         if (names.length == 0) return;   // Fuse has not finished starting
 
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(R.string.machine_title)
-                .setSingleChoiceItems(names, FuseNative.currentMachine(),
-                        (dialog, which) -> {
-                            selectMachine(which);
-                            dialog.dismiss();
-                        })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+        int current = FuseNative.currentMachine();
+
+        menu.go(getString(R.string.machine_title), page -> {
+            for (int i = 0; i < names.length; i++) {
+                int which = i;
+                page.addChoice(names[which], which == current,
+                               () -> selectMachine(which));
+            }
+        });
     }
 
     private void selectMachine(int index) {
@@ -3473,12 +3440,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             return;
         }
 
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(R.string.quit_unsaved_title)
-                .setMessage(getString(R.string.quit_unsaved, unsaved))
-                .setPositiveButton(R.string.menu_quit, (dialog, which) -> quitNow())
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+        menu.go(getString(R.string.quit_unsaved_title), page -> {
+            page.addNote(getString(R.string.quit_unsaved, unsaved));
+            page.addItem(getString(R.string.menu_quit), R.drawable.ic_quit,
+                         this::quitNow);
+        });
     }
 
     private void quitNow() {
