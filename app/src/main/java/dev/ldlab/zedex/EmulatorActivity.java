@@ -528,6 +528,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         layout.setLightsVisible(
                 preferences.getBoolean(SettingsActivity.KEY_INDICATORS, true));
         applyScale();
+        controls.applyKeyboard();
         controls.applyControls();
         controls.applyMouse();
 

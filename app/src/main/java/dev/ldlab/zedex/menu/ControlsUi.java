@@ -114,11 +114,23 @@ public final class ControlsUi {
     }
 
     /**
+     * The keyboard the settings screen chose while it had the window.
+     *
+     * ☰ pushes its own choice as it is made and the settings screen only writes
+     * the preference, so without this the keyboard stayed as it was until the
+     * app was next launched. Cheap to call on every resume: the layout ignores
+     * the skin it is already showing.
+     */
+    public void applyKeyboard() {
+        layout.setKeyboardSkin(keyboardSkin());
+    }
+
+    /**
      * Brings the device's own keyboard up, or puts it away, to match the skin
      * and whether the keyboard is meant to be showing at all.
      *
-     * The other two skins are drawn by the app and need none of this; this one is
-     * Android's, so showing it is asking for it and hiding it is asking it to go.
+     * The drawn skins need none of this; this one is Android's, so showing it is
+     * asking for it and hiding it is asking it to go.
      */
     public void applySystemKeyboard() {
         boolean wanted = keyboardSkin() == SpectrumKeyboardView.Skin.SYSTEM
