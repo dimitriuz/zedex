@@ -65,8 +65,26 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
     private static final String TAG = "Zedex";
 
-    /** Assets subdirectory unpacked into {@code getFilesDir()/fuse}. */
+    /**
+     * Where Fuse's own data files go, and how it is told to find them.
+     *
+     * {@code getFilesDir()/fuse/ui/widget}, because that is the second place
+     * Fuse looks for them: {@code compat_get_next_path()} tries the working
+     * directory, then a directory beside the program named in argv[0] - lib,
+     * roms or ui/widget, by what kind of file is wanted - and only then the
+     * FUSEDATADIR baked in at compile time. Everything the app ships is read as
+     * a widget file, fuse.font included, so ui/widget is where they go.
+     *
+     * Naming argv[0] as a path inside our own files is what makes the second
+     * one land here, and that is what frees the app from the third: FUSEDATADIR
+     * is an absolute path with the package name in it, and could only ever be
+     * right for one build of the app.
+     */
     private static final String DATA_DIR = "fuse";
+    private static final String LIB_DIR = DATA_DIR + "/ui/widget";
+
+    /** argv[0]: never run, only read for the directory it names. */
+    private static final String PROGRAM = DATA_DIR + "/fuse";
 
     private static final String PREFS = SettingsActivity.PREFS;
 
@@ -198,7 +216,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         File files = getFilesDir();
         try {
-            installAssets(DATA_DIR, new File(files, DATA_DIR));
+            installAssets(DATA_DIR, new File(files, LIB_DIR));
         } catch (IOException e) {
             Log.e(TAG, "failed to unpack Fuse data files", e);
         }
@@ -3317,7 +3335,9 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     private String[] startArguments() {
         List<String> arguments = new ArrayList<>();
 
-        arguments.add("fuse");
+        // Not the word "fuse": Fuse looks for its font in lib beside whatever
+        // argv[0] names, and this is how it is pointed at ours.
+        arguments.add(new File(getFilesDir(), PROGRAM).getAbsolutePath());
         arguments.add("--machine");
         arguments.add(preferences.getString(PREF_MACHINE, DEFAULT_MACHINE));
 

@@ -32,8 +32,10 @@ API="${API:-30}"                       # Android 11
 ABIS="${ABIS:-arm64-v8a x86_64}"
 JOBS="${JOBS:-$(nproc)}"
 
-# Must match applicationId in app/build.gradle: Fuse hardcodes FUSEDATADIR at
-# compile time and looks for its ROMs / font there at runtime.
+# The last place Fuse looks for its data files, and the only one baked in. It
+# no longer has to match applicationId - the app names argv[0] as a path inside
+# its own files and Fuse finds them beside that first - which is what lets the
+# debug build have a package of its own.
 PKG="dev.ldlab.zedex"
 DATA_ROOT="/data/data/$PKG/files"      # -> FUSEDATADIR = $DATA_ROOT/fuse
 

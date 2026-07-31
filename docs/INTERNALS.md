@@ -1837,15 +1837,19 @@ by drive is guidance, not validation.
 
 ### Data files and environment
 
-Fuse resolves ROMs and its widget font against the compile-time `FUSEDATADIR`,
-so the build passes `--datadir=/data/data/dev.ldlab.zedex/files` and a staged
-`make install` provides the assets that `EmulatorActivity` unpacks there on
-first run. **`applicationId` in `app/build.gradle` and `PKG` in
-`scripts/build-native.sh` must stay in sync**, and the build tree records
-which package it was configured for: one that does not match is thrown away
-and reconfigured, because a stale one compiles, links and installs happily
-and only fails at runtime, looking for a font in the old package's
-directory. The activity also points
+Fuse looks for its data files in three places, in order:
+`compat_get_next_path()` tries the working directory, then a directory beside
+the program argv[0] names — `lib`, `roms` or `ui/widget`, by what kind of file
+is wanted — and only then the `FUSEDATADIR` baked in at configure time.
+
+The app uses the middle one. `argv[0]` is a path inside its own files that
+nothing ever runs, `files/fuse/fuse`, and the assets are unpacked to
+`files/fuse/ui/widget` beside it — widget files, which is what `fuse.font` and
+the rest of them are read as. That is what makes the package name irrelevant:
+`FUSEDATADIR` is an absolute path with the package in it, right for exactly one
+build, and it is why `applicationId` and the native build's `PKG` had to match
+until now. They no longer do, which is what lets the debug build have a package
+of its own and sit beside the release one. The activity also points
 `$HOME`, `$XDG_CONFIG_HOME` and `$TMPDIR` at app-private storage before the
 emulation thread starts.
 

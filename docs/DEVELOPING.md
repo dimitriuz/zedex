@@ -105,6 +105,15 @@ ABIS=x86_64 ./scripts/build-native.sh  # single ABI
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
+**The debug build is a package of its own**, `dev.ldlab.zedex.debug`, called
+*Zedex debug* on the launcher. It installs beside the release build rather than
+replacing it — which it could not do anyway, the two being signed with
+different keys — so both can be on a device at once and neither needs an
+uninstall. It has its own settings, its own storage permission and its own data
+folder, so anything addressed to the app by name needs the right one of the
+two. Fuse finding its data files relative to `argv[0]` is what makes this free;
+see *Data files and environment* in [INTERNALS.md](INTERNALS.md).
+
 **Debug builds are signed with `app/debug.keystore`, which is in the
 repository.** That is what lets one debug APK replace another: left to itself
 Gradle invents a debug key per machine and keeps it in

@@ -14,11 +14,15 @@ expensive to rediscover.
   `--with-fb`, then never compile `ui/fb` and link `native/ui/android` in its
   place. One symbol is overridden with `llvm-objcopy --weaken-symbol`. If
   something seems to need a patch, it almost certainly does not.
-- **`applicationId` in `app/build.gradle` and `PKG` in
-  `scripts/build-native.sh` must match.** Fuse bakes `FUSEDATADIR` in at
-  configure time; a mismatch compiles, links and installs happily, then
-  fails at runtime looking for `fuse.font` in the wrong directory. The build
-  tree stamps `.package` and reconfigures itself when it changes.
+- **The debug build is a package of its own**, `dev.ldlab.zedex.debug`, so it
+  installs beside the release one instead of fighting it over a certificate.
+  Anything addressed to the app by name — `appops`, `run-as`, `am start` —
+  needs the right one of the two.
+  Fuse finds its data files *relative to argv[0]*, which the activity sets to
+  a path inside its own files, so the package name no longer has to match the
+  `PKG` baked into `FUSEDATADIR` at configure time. That used to be a hard
+  rule and cost a debugging afternoon; it is now only a fallback nothing
+  reaches.
 - **Only swallow a key Fuse can use.** `onKeyDown` returning true consumes the
   event, and consuming the volume keys so that Fuse can ignore them is how the
   phone's volume buttons stopped working. `FuseNative.mapsKey()` asks Fuse's
@@ -103,6 +107,7 @@ Things learned the hard way, all of them recorded in the tests' own comments:
 ## Device setup, after a test run
 
 ```sh
+# ...and dev.ldlab.zedex.debug for a build straight off the bench.
 adb shell appops set dev.ldlab.zedex MANAGE_EXTERNAL_STORAGE allow
 adb shell "run-as dev.ldlab.zedex mkdir -p shared_prefs"
 # shared_prefs/fuse.xml:

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The debug build installs beside the release one rather than replacing it,
+    so it has to say which it is: two icons called Zedex would be a coin toss.
+-->
+<resources>
+    <string name="app_name">Zedex debug</string>
+</resources>

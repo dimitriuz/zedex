@@ -113,6 +113,17 @@ android {
     }
 
     buildTypes {
+        debug {
+            // A package of its own, so the debug build and the release one live
+            // on a device at once instead of one having to replace the other -
+            // which they cannot do anyway, being signed with different keys.
+            //
+            // This costs nothing now that Fuse finds its data files relative to
+            // argv[0]; while it found them through the FUSEDATADIR baked in at
+            // configure time, a second package meant a second native build.
+            applicationIdSuffix '.debug'
+        }
+
         release {
             minifyEnabled false
 
