@@ -160,6 +160,17 @@
     <string name="menu_nmi">NMI</string>
     <string name="reset_confirm">Reset the machine? Anything not saved will be lost.</string>
     <string name="machine_unavailable">%1$s needs ROM files that are not bundled</string>
+    <string name="setup_title">Where should Zedex keep things?</string>
+    <string name="setup_message">Both of these can be changed later, in Settings › Files. Leaving them as they are is fine too — the app will keep everything in its own storage.</string>
+    <!-- %1$s is the folder's path. -->
+    <string name="setup_data">Data folder: %1$s</string>
+    <string name="setup_data_hint">Where the ROMs, save states, tapes, disks, screenshots and recordings go. Somewhere shared \u2014 Documents, an SD card \u2014 keeps them when the app is uninstalled.</string>
+    <!-- %1$s is the folder's name, or "not chosen". -->
+    <string name="setup_content">Content folder: %1$s</string>
+    <string name="setup_content_none">not chosen</string>
+    <string name="setup_content_hint">Where Open file\u2026 starts looking. Point it at your games and every load is two taps shorter.</string>
+    <string name="setup_start">Start the machine</string>
+    <string name="setup_start_hint">Done \u2014 boot the Spectrum.</string>
     <string name="roms_needed">ROMs needed</string>
     <string name="roms_needed_message">No Spectrum ROMs are bundled with this app, and a Spectrum cannot run without one. Whichever way you choose below, they end up in\n\n%1$s</string>
     <string name="roms_folder">Choose folder\u2026</string>

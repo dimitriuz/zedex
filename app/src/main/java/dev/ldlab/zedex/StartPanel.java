@@ -7,6 +7,7 @@ import android.graphics.Color;
 import android.database.Cursor;
 import android.net.Uri;
 import android.provider.DocumentsContract;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -32,12 +33,20 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 /**
- * Getting ROMs onto the device, and the panel that asks for them.
+ * The screen the app shows when there is no machine yet: the two folders on the
+ * first run, and ROMs when there are none.
  *
- * No ROMs ship with the app, and without one Fuse cannot even reach the 48K
- * machine it falls back to — it gives up hard, drawing nothing, so the screen
- * would simply stay black with no way out of it. This is the way out: a
- * takeover panel saying what is missing, and three routes to fixing it.
+ * <b>First run.</b> Everything the app writes goes in the data folder, and
+ * everything it opens tends to live in one place too, and both are better asked
+ * about once than discovered later — a hundred saved states in app-private
+ * storage are a hundred states that go when the app is uninstalled. So the very
+ * first start is this panel, with the two folders and a way on.
+ *
+ * <b>ROMs.</b> The app ships them, but a data folder can be pointed somewhere
+ * they are not, and a folder full of the wrong ones is a machine that will not
+ * start: without a ROM Fuse gives up hard, drawing nothing, so the screen would
+ * simply stay black with no way out of it. This is the way out — what is
+ * missing, and three routes to fixing it.
  *
  * Its own class because it is a feature and not a part of hosting an emulator.
  * It arrived inside {@link EmulatorActivity}'s surface lifecycle, where nearly
@@ -49,7 +58,7 @@ import java.util.zip.ZipInputStream;
  * refuses to grant a document tree on {@code Download}, where a downloaded set
  * usually lands, while the file picker opens it without complaint.
  */
-final class RomsPanel {
+final class StartPanel {
 
     /** What this needs of the activity, and nothing more. */
     interface Host {
@@ -85,6 +94,8 @@ final class RomsPanel {
     /** Ours to answer; the activity forwards anything with these codes. */
     static final int REQUEST_IMPORT_ROMS = 3;
     static final int REQUEST_IMPORT_ROMS_TREE = 5;
+    static final int REQUEST_DATA_TREE = 8;
+    static final int REQUEST_CONTENT_TREE = 9;
 
     private final Activity activity;
     private final Host host;
@@ -102,7 +113,13 @@ final class RomsPanel {
      */
     private View run;
 
-    RomsPanel(Activity activity, Host host) {
+    /** The two folder rows of the first run, and the way on from it. */
+    private final List<View> folders = new ArrayList<>();
+    private Button dataFolder;
+    private Button contentFolder;
+    private View start;
+
+    StartPanel(Activity activity, Host host) {
         this.activity = activity;
         this.host = host;
         this.panel = buildPanel();
@@ -124,6 +141,30 @@ final class RomsPanel {
      * activity can go on to its own.
      */
     boolean onActivityResult(int request, int result, Intent data) {
+        if (request == REQUEST_DATA_TREE || request == REQUEST_CONTENT_TREE) {
+            Uri tree = result == Activity.RESULT_OK && data != null
+                    ? data.getData() : null;
+
+            if (tree != null && request == REQUEST_DATA_TREE) {
+                File folder = Storage.pathFor(tree);
+
+                if (folder == null) toast(R.string.settings_folder_unusable);
+                else useDataFolder(folder);
+            }
+
+            if (tree != null && request == REQUEST_CONTENT_TREE) {
+                activity.getContentResolver().takePersistableUriPermission(
+                        tree, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                activity.getSharedPreferences(SettingsActivity.PREFS,
+                                              Activity.MODE_PRIVATE)
+                        .edit().putString(Storage.KEY_CONTENT_TREE, tree.toString())
+                        .apply();
+                describeFolders();
+            }
+
+            return true;
+        }
+
         if (request != REQUEST_IMPORT_ROMS && request != REQUEST_IMPORT_ROMS_TREE) {
             return false;
         }
@@ -192,6 +233,26 @@ final class RomsPanel {
         run.setVisibility(View.GONE);
         content.addView(run);
 
+        // And the first run's two folders, which are the same kind of row with
+        // the answer written on the button: what a folder is called matters
+        // more here than what the row would do to it.
+        dataFolder = new Button(activity);
+        dataFolder.setOnClickListener(v -> chooseDataFolder());
+        folders.add(withCaption(dataFolder, R.string.setup_data_hint));
+
+        contentFolder = new Button(activity);
+        contentFolder.setOnClickListener(v -> chooseContentFolder());
+        folders.add(withCaption(contentFolder, R.string.setup_content_hint));
+
+        start = panelChoice(R.string.setup_start, R.string.setup_start_hint,
+                            v -> finishSetup());
+        folders.add(start);
+
+        for (View row : folders) {
+            row.setVisibility(View.GONE);
+            content.addView(row);
+        }
+
         // Landscape leaves little height, and the message is not short.
         ScrollView scroll = new ScrollView(activity);
         scroll.setBackgroundColor(0xff000000);
@@ -211,14 +272,20 @@ final class RomsPanel {
      * folder" and "Choose files" are not self-explaining on their own.
      */
     private View panelChoice(int label, int description, View.OnClickListener action) {
+        Button button = new Button(activity);
+
+        button.setText(label);
+        button.setOnClickListener(action);
+
+        return withCaption(button, description);
+    }
+
+    /** A button with a line under it saying what it does. */
+    private View withCaption(Button button, int description) {
         int unit = Math.round(4 * activity.getResources().getDisplayMetrics().density);
 
         LinearLayout group = new LinearLayout(activity);
         group.setOrientation(LinearLayout.VERTICAL);
-
-        Button button = new Button(activity);
-        button.setText(label);
-        button.setOnClickListener(action);
         group.addView(button);
 
         TextView caption = new TextView(activity);
@@ -244,9 +311,146 @@ final class RomsPanel {
                 ? activity.getString(R.string.roms_start_failed_message, path)
                 : activity.getString(R.string.roms_needed_message, path));
         for (View choice : choices) choice.setVisibility(View.VISIBLE);
+        for (View row : folders) row.setVisibility(View.GONE);
         run.setVisibility(startFailed ? View.VISIBLE : View.GONE);
         panel.setVisibility(View.VISIBLE);
         host.setTakeover(true);
+    }
+
+    // --- the first run -------------------------------------------------------
+
+    /**
+     * Whether this is the first start, and so whether the folders have been
+     * asked about. Recorded rather than guessed from whether they have been
+     * chosen: keeping everything where it is is an answer too, and one nobody
+     * should be asked for twice.
+     */
+    static boolean setupNeeded(Activity activity) {
+        return !activity.getSharedPreferences(SettingsActivity.PREFS,
+                                              Activity.MODE_PRIVATE)
+                        .getBoolean(Storage.KEY_SETUP_DONE, false);
+    }
+
+    /** The first run: where things are kept, and where they are opened from. */
+    void showSetup() {
+        title.setText(R.string.setup_title);
+        message.setText(R.string.setup_message);
+
+        for (View choice : choices) choice.setVisibility(View.GONE);
+        run.setVisibility(View.GONE);
+        for (View row : folders) row.setVisibility(View.VISIBLE);
+
+        describeFolders();
+
+        panel.setVisibility(View.VISIBLE);
+        host.setTakeover(true);
+    }
+
+    /** Both buttons say where they point, which is the answer they hold. */
+    private void describeFolders() {
+        dataFolder.setText(activity.getString(R.string.setup_data,
+                Storage.root(activity).getAbsolutePath()));
+
+        String content = Storage.describe(
+                activity.getSharedPreferences(SettingsActivity.PREFS,
+                                              Activity.MODE_PRIVATE)
+                        .getString(Storage.KEY_CONTENT_TREE, null));
+
+        contentFolder.setText(activity.getString(R.string.setup_content,
+                content != null ? content
+                        : activity.getString(R.string.setup_content_none)));
+    }
+
+    /**
+     * The data folder, as the settings screen offers it: the roots the device
+     * has, and anywhere at all for whoever has granted All files access.
+     *
+     * By path and not as a document tree, because Fuse opens its files with
+     * stdio and a {@code content://} URI is not something it can pass to
+     * {@code fopen}.
+     */
+    private void chooseDataFolder() {
+        List<File> roots = Storage.roots(activity);
+        String[] items = new String[roots.size() + 1];
+
+        for (int i = 0; i < roots.size(); i++) {
+            items[i] = Storage.label(activity, roots.get(i))
+                    + "\n" + roots.get(i).getAbsolutePath();
+        }
+        items[roots.size()] = activity.getString(R.string.settings_choose_folder);
+
+        new AlertDialog.Builder(activity,
+                android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(R.string.settings_data_folder)
+                .setItems(items, (dialog, which) -> {
+                    if (which < roots.size()) {
+                        useDataFolder(roots.get(which));
+                    } else if (!Storage.canUseAnyFolder()) {
+                        askForAllFiles();
+                    } else {
+                        activity.startActivityForResult(
+                                new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE),
+                                REQUEST_DATA_TREE);
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void askForAllFiles() {
+        new AlertDialog.Builder(activity,
+                android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setMessage(R.string.settings_all_files)
+                .setPositiveButton(R.string.settings_grant, (dialog, which) ->
+                        activity.startActivity(new Intent(
+                                Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                                Uri.parse("package:" + activity.getPackageName()))))
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void useDataFolder(File folder) {
+        if (!Storage.isWritable(folder)) {
+            toast(R.string.settings_folder_unusable);
+            return;
+        }
+
+        activity.getSharedPreferences(SettingsActivity.PREFS, Activity.MODE_PRIVATE)
+                .edit()
+                .putString(Storage.KEY_STATES_ROOT, folder.getAbsolutePath())
+                .apply();
+
+        // Nothing to move: on the first run there is nothing there yet, and the
+        // ROMs are unpacked into whatever this ends up being when the machine
+        // is asked for.
+        Storage.createFolders(activity);
+        describeFolders();
+    }
+
+    private void chooseContentFolder() {
+        try {
+            activity.startActivityForResult(
+                    new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE),
+                    REQUEST_CONTENT_TREE);
+        } catch (android.content.ActivityNotFoundException e) {
+            toast(R.string.open_failed);
+        }
+    }
+
+    /**
+     * Done asking. The ROMs go into whatever folder was settled on - which is
+     * why this is the moment for it and not the activity's onCreate - and the
+     * machine is asked for.
+     */
+    private void finishSetup() {
+        activity.getSharedPreferences(SettingsActivity.PREFS, Activity.MODE_PRIVATE)
+                .edit().putBoolean(Storage.KEY_SETUP_DONE, true).apply();
+
+        Storage.createFolders(activity);
+        Storage.installRoms(activity);
+
+        hide();
+        host.onRomsChanged();
     }
 
     void hide() {

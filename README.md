@@ -102,6 +102,17 @@ What the app reaches today:
 
 ## Using it
 
+**The first start asks two questions**, and both can be answered later in
+*Settings › Files* instead:
+
+- *Data folder* — where the ROMs, save states, tapes, disks, screenshots and
+  recordings go. Its own storage is the default, and somewhere shared —
+  Documents, an SD card — keeps them if the app is ever uninstalled
+- *Content folder* — where **Open file…** starts looking; point it at your games
+  and every load is two taps shorter
+
+Then *Start the machine*, and that is the last you see of it.
+
 **The ROMs are there already.** The app puts them into the `roms` folder the
 first time it runs — every machine it offers, the Pentagons and the Scorpion
 included — and never over a file you put there yourself.

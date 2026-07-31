@@ -40,6 +40,12 @@ final class Storage {
 
     static final String KEY_STATES_ROOT = "statesRoot";
     static final String KEY_CONTENT_TREE = "contentTree";
+    /**
+     * Whether the first run has been through. Not "have the folders been
+     * chosen": leaving both where they are is an answer, and one nobody should
+     * be asked for twice. See {@link StartPanel#showSetup}.
+     */
+    static final String KEY_SETUP_DONE = "setupDone";
 
     private static final String STATES = "states";
     private static final String ROMS = "roms";

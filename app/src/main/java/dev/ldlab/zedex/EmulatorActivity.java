@@ -188,7 +188,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     private boolean pausedByAndroid;
 
     /** Asks for ROMs, and fetches them; shown when there is no machine. */
-    private RomsPanel roms;
+    private StartPanel roms;
 
     /**
      * Where each staged file came from, by the name Fuse knows it under.
@@ -214,10 +214,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         FuseNative.attach(this);
         Storage.createFolders(this);
 
-        // The ROMs the app ships, before anything asks whether there are any.
-        // Only the ones that are not there already: the folder is the user's
-        // to fill as well as ours - see Storage.installRoms().
-        Storage.installRoms(this);
+        // The ROMs the app ships, before anything asks whether there are any -
+        // except on the very first run, where the folder to put them in is the
+        // question the panel is about to ask. Only ever the ones that are not
+        // there already: the folder is the user's to fill as well as ours.
+        if (!StartPanel.setupNeeded(this)) Storage.installRoms(this);
 
         File files = getFilesDir();
         try {
@@ -249,7 +250,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                 FrameLayout.LayoutParams.MATCH_PARENT));
         // Both are siblings of the screen rather than children of it: the panel
         // takes the whole window, and the ☰ button has to stay on top of it.
-        roms = new RomsPanel(this, romsHost);
+        roms = new StartPanel(this, romsHost);
         menu = buildMenu();
         quickBar = buildQuickBar();
         playButton = buildPlayButton();
@@ -523,10 +524,10 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     }
 
     /**
-     * The whole of what {@link RomsPanel} needs from here: try again once ROMs
+     * The whole of what {@link StartPanel} needs from here: try again once ROMs
      * have arrived, and keep the quick bar up while the panel covers the screen.
      */
-    private final RomsPanel.Host romsHost = new RomsPanel.Host() {
+    private final StartPanel.Host romsHost = new StartPanel.Host() {
         @Override
         public void onRomsChanged() {
             startEmulator();
@@ -3279,6 +3280,14 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      * fallback 48K machine and gives up hard, so it is not started at all.
      */
     private void startEmulator() {
+        // The first run asks where things are kept before anything is kept
+        // anywhere: the ROMs are unpacked into the answer, so the question
+        // comes before the machine.
+        if (StartPanel.setupNeeded(this)) {
+            roms.showSetup();
+            return;
+        }
+
         if (!Storage.haveRoms(this)) {
             roms.show(false);
             return;

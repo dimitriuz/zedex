@@ -1631,6 +1631,22 @@ was missing at first and every long press on a shift killed the app. The
 instrumentation suite ran clean throughout, because UI Automator switches
 accessibility *on*.
 
+### The first run
+
+`StartPanel` is the screen the app shows when there is no machine yet, and it
+has two jobs. On the very first start it asks where things are kept — the data
+folder and the content folder — because both are cheaper to answer once than to
+discover later, and because a hundred save states in app-private storage are a
+hundred that go with an uninstall. Afterwards it is the ROMs panel it always
+was, for a data folder that has been pointed somewhere they are not.
+
+The order matters and is the reason the panel does this rather than the settings
+screen: the ROMs are unpacked into whatever the data folder turns out to be, so
+the question comes before the machine, and `Storage.installRoms()` is called
+when the answer is settled rather than in `onCreate`. `Storage.KEY_SETUP_DONE`
+records that it was asked, since leaving both folders alone is an answer too and
+nobody should be asked for it twice.
+
 ### ROMs, and where things live
 
 **The ROMs are in the repository**, in `roms/` at its root: Fuse's
