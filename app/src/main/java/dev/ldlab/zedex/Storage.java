@@ -8,6 +8,10 @@ import android.provider.DocumentsContract;
 import android.util.Log;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Set;
 import java.util.Locale;
 import java.util.HashSet;
@@ -188,6 +192,63 @@ final class Storage {
             if (!present.contains(rom)) missing.add(rom);
         }
         return missing;
+    }
+
+    /**
+     * Where the ROMs the app ships live inside the APK: the root of the
+     * assets, because the folder at the root of the repository is merged in
+     * there. {@code ""} is that root, and only what ends in .rom is a ROM.
+     */
+    private static final String ROM_ASSETS = "";
+
+    /**
+     * Puts the ROMs the app ships into the ROM folder, and leaves alone
+     * anything already there.
+     *
+     * Fuse's own set, which Amstrad and the other holders allow to be
+     * redistributed - see docs/ROMS.md. They are copied out rather than read
+     * from the APK because Fuse opens ROMs by path, and into the ROM folder
+     * rather than somewhere private because that folder is the one thing the
+     * user is invited to fill themselves: a ROM of theirs with the same name
+     * is theirs, and stays.
+     *
+     * Which is also why this only ever adds. The machines nobody may
+     * redistribute a ROM for - Pentagon, Scorpion, the Spanish 128 - are still
+     * missing afterwards, and the panel that says so is still how they arrive.
+     */
+    static void installRoms(Context context) {
+        File directory = romsDirectory(context);
+        if (!directory.isDirectory() && !directory.mkdirs()) return;
+
+        String[] shipped;
+        try {
+            shipped = context.getAssets().list(ROM_ASSETS);
+        } catch (IOException e) {
+            Log.e(TAG, "cannot list the ROMs in the app", e);
+            return;
+        }
+
+        if (shipped == null) return;
+
+        for (String name : shipped) {
+            // ROMs only: anything else that ends up in there is ours to keep
+            // in the app, not to leave in a folder the user browses.
+            if (!name.toLowerCase(Locale.ROOT).endsWith(".rom")) continue;
+
+            File target = new File(directory, name);
+            if (target.exists()) continue;
+
+            try (InputStream in = context.getAssets().open(name);
+                 OutputStream out = new FileOutputStream(target)) {
+
+                byte[] buffer = new byte[16 * 1024];
+                int read;
+                while ((read = in.read(buffer)) != -1) out.write(buffer, 0, read);
+            } catch (IOException e) {
+                Log.e(TAG, "cannot unpack " + name, e);
+                target.delete();
+            }
+        }
     }
 
     static boolean haveRoms(Context context) {

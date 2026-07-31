@@ -229,10 +229,10 @@ EOF
   # Fuse's data files (ROMs, widget font, UI bitmaps) are ABI independent;
   # take them from the first ABI we build via a staged `make install`.
   ############################################################################
-  # No ROMs are shipped, with the app or in this repository: the emulator
-  # reads them from the roms folder in its data directory, which the user
-  # fills. Fuse's own UI data - the widget font, the status bitmaps - is not
-  # a ROM and does travel with the app.
+  # Fuse's own UI data: the widget font and the status bitmaps, which travel
+  # with the app. The ROMs the same install stages are dropped again - they
+  # live in roms/ at the root of the repository, where the eight the clones
+  # need are beside them, with the licence they travel under.
   if [ ! -d "$APP/assets/fuse" ]; then
     STAGE="$BUILD/stage"
     rm -rf "$STAGE"

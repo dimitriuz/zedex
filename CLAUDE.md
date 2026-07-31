@@ -86,8 +86,9 @@ Things learned the hard way, all of them recorded in the tests' own comments:
 - Instrumentation runs **inside the app's process**, so `am force-stop` on the
   app kills the test with it.
 - **A run uninstalls the app afterwards**, wiping its preferences and storage
-  permission. The next launch then finds no ROMs and shows a black screen —
-  which looks exactly like a broken feature. See *Device setup* below.
+  permission — so the next launch unpacks the shipped ROMs into its own private
+  folder and forgets the data folder the device was set up with. See *Device
+  setup* below.
 - `UiObject2.longClick()` holds for the platform long-press timeout, which is
   the same 400ms the keyboard latches at. Hold with a zero-length swipe.
 - **☰ fades out after three seconds**, so it is usually gone by the time a

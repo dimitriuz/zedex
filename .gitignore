@@ -9,8 +9,6 @@
 /app/src/main/jniLibs/
 /app/src/main/assets/fuse/
 
-# ROMs are never kept here
-/roms/
 
 # local toolchain config
 /local.properties

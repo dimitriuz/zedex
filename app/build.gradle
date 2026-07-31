@@ -64,6 +64,17 @@ android {
     namespace 'dev.ldlab.zedex'
     compileSdk 34
 
+    // The ROMs live at the root of the repository, beside the licence they
+    // travel under, rather than buried three directories inside the app: they
+    // are not the app's own material and it reads them as plain files. Their
+    // contents land at the root of the assets, which is why Storage.installRoms
+    // looks there and takes only what ends in .rom.
+    sourceSets {
+        main {
+            assets.srcDirs += ['../roms']
+        }
+    }
+
     defaultConfig {
         applicationId 'dev.ldlab.zedex'   // must match DATA_ROOT in scripts/build-native.sh
         minSdk 30                        // Android 11

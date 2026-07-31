@@ -214,6 +214,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         FuseNative.attach(this);
         Storage.createFolders(this);
 
+        // The ROMs the app ships, before anything asks whether there are any.
+        // Only the ones that are not there already: the folder is the user's
+        // to fill as well as ours - see Storage.installRoms().
+        Storage.installRoms(this);
+
         File files = getFilesDir();
         try {
             installAssets(DATA_DIR, new File(files, LIB_DIR));

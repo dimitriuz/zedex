@@ -1633,10 +1633,17 @@ accessibility *on*.
 
 ### ROMs, and where things live
 
-No ROMs are shipped. Fuse's tarball carries the Sinclair and Timex ones and
-the staged `make install` would happily bundle them, so the build deletes
-them from the assets again; what does travel with the app is Fuse's own UI
-data, the widget font and the status bitmaps, which are not ROMs.
+**The ROMs are in the repository**, in `roms/` at its root: Fuse's
+twenty-one and eight more for the Pentagons and the Scorpion, which Fuse does
+not ship. `Storage.installRoms()` copies them into the user's `roms` folder on
+the first run and never over a file already there. The native build stages the
+same twenty-one out of the tarball and throws them away again — the repository
+is where they live now, and one owner is enough.
+
+Where each came from and on what terms is [README.copyright.md](../README.copyright.md); the difference
+between the two sets is real and recorded there. What travels beside them is
+Fuse's own UI data, the widget font and the status bitmaps, which are not
+ROMs.
 
 A complete set under the names Fuse looks for — `48.rom`, `128-0.rom`,
 `plus3-0.rom` and the rest, including the Pentagon and Scorpion ones Fuse

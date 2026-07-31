@@ -6,8 +6,9 @@ end.
 > Zedex uses [Fuse](http://fuse-emulator.sourceforge.net/) as its emulation
 > backend, unmodified and unpatched.
 
-> **No ROMs ship with the app or live in this repository.**
-> But you can get them automatically on the first run, or provide your own.
+> **The ROMs are included**, so every machine here starts out of the box. They
+> are not ours and not under the GPL — the terms they travel under are in
+> [README.copyright.md](README.copyright.md), copied from Fuse.
 
 > **Developed with AI assistance.** Most of the code, the tests and this
 > document were written by Claude, directed and reviewed by a human.
@@ -101,8 +102,13 @@ What the app reaches today:
 
 ## Using it
 
-**ROMs first.** A Spectrum cannot run without one, so until there are ROMs the
-screen carries a panel saying what is missing and three ways to fix it:
+**The ROMs are there already.** The app puts them into the `roms` folder the
+first time it runs — every machine it offers, the Pentagons and the Scorpion
+included — and never over a file you put there yourself.
+[README.copyright.md](README.copyright.md) has the terms they come under.
+
+If any go missing the screen carries a panel saying so, with three ways to fix
+it:
 
 - *Get ROMs* fetches a set from archive.org and unpacks it
 - *Choose folder…* takes every `.rom` out of a folder on the device and out of the folders inside it
@@ -374,9 +380,11 @@ outside it is © 2026 Dmitrii Leshchenko.
 The name **Zedex** and the app icon are not covered by the GPL, which grants
 no trademark rights. Fork the code freely; ship it under your own name.
 
-The Spectrum ROMs are neither included nor licensed here; **ROMs first** above
-says where the app can fetch a set from, and whether you may use them is the
-law where you are.
+**The ROMs are not under the GPL and are not ours.** Most are Fuse's set,
+redistributed by the permission of the people who hold their copyright — Amstrad
+for the Sinclair machines, and others for the rest;
+[README.copyright.md](roms/README.copyright.md) is that permission, copied from Fuse
+whole.
 
 **The cheats are not ours.** They come from
 [The Tipshop](https://www.the-tipshop.co.uk/), run by Gerard Sweeney, which is
