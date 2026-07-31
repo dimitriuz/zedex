@@ -302,13 +302,32 @@ final class QuickBar extends LinearLayout implements Rows {
         row.setText(name);
         row.setTextColor(ICON);
         row.setTextSize(LIST_TEXT_SP);
-        // A filename can be half a sentence - "Sherlock 48K (1984)(Melbourne
-        // House).z80" - and a list as wide as its longest row is a list that
-        // covers the machine. One line, cut in the middle, where a name and an
-        // extension both survive.
+
+        // A row is one of two kinds of thing, and they want opposite treatment.
+        //
+        // A label with a line already in it is a title over a value - "Change
+        // machine…" over "Scorpion ZS 256" - and it must keep the line. Made
+        // single line it is flattened into one long one, which then overruns
+        // the cap and has its middle taken out of both halves at once: "Change
+        // ma…pion ZS 256", which says neither thing.
+        //
+        // Everything else is one line, and often a filename - "Sherlock 48K
+        // (1984)(Melbourne House).z80" - where a list as wide as its longest
+        // row is a list that covers the machine. Cut in the middle, so a name
+        // and an extension both survive. That cut needs setSingleLine and not
+        // merely one line: MIDDLE is only honoured on a single-line view.
+        boolean titled = name.indexOf('\n') >= 0;
+
         row.setMaxWidth(Math.round(LIST_MAX_DP * density));
-        row.setSingleLine(true);
-        row.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
+
+        if (titled) {
+            row.setMaxLines(2);
+            row.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        } else {
+            row.setSingleLine(true);
+            row.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
+        }
+
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(pad, pad, pad + pad / 2, pad);
         row.setCompoundDrawablePadding(pad);

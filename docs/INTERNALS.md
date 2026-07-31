@@ -130,6 +130,17 @@ could not reach them at all. `setCompact` is now given the window's width rather
 than zero, because nine icons at 44dp is 396dp and a small phone in portrait is
 360dp across.
 
+A row in a group's list is one of two kinds of thing and they want opposite
+treatment. A label with a line already in it is a title over a value — *Change
+machine…* over *Scorpion ZS 256* — and must keep the line; made single-line it
+is flattened into one long one, overruns the 240dp cap, and has its middle taken
+out of both halves at once, which reads *Change ma…pion ZS 256* and says
+neither. Everything else is one line and often a filename, where the middle is
+exactly the right place to cut because a name and an extension both survive —
+and that cut needs `setSingleLine`, not merely one line, since `MIDDLE` is only
+honoured on a single-line view. The sheet never had the problem: its rows have
+no line limit at all and a newline simply wraps.
+
 **Choices, questions and fields are pages, not dialogs.** A dialog is the
 activity's window, so it always opens on the machine's screen — which with a
 second screen means a question asked by a thumb on the panel gets answered over
