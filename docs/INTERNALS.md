@@ -84,7 +84,10 @@ invisible to the emulated machine.
 
 ☰ is one icon in a **quick bar**, and the bar has a place of its own rather than
 sitting over the picture: in portrait it is a strip across the top and the screen
-starts underneath it, and in landscape it hangs off the window's top right
+starts underneath it — the strip being the icons alone, since a group's list is
+over the picture rather than under it, and moving the machine down and up again
+every time a menu is looked at is a picture that will not sit still — and in
+landscape it hangs off the window's top right
 corner, which is the black beside a 4:3 picture in a wide window. So it stays up.
 It used to fade after three seconds because it *was* over the picture, and now it
 only fades in fullscreen — a control that is always there needs no discovering,

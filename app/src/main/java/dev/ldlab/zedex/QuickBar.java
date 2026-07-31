@@ -285,6 +285,20 @@ final class QuickBar extends LinearLayout {
     }
 
     /** Puts the dropdown away, wherever the tap came from. */
+    /**
+     * How tall the bar is with nothing opened - the icons alone.
+     *
+     * The strip the picture is moved down by in portrait, and only that: a group
+     * opening adds a list underneath, and moving the machine's screen down every
+     * time somebody looks at a menu is worse than the list covering a band of
+     * black at the top of it. Measured height, so it is whatever the icons came
+     * out as at this size.
+     */
+    int rowHeight() {
+        return primary.getMeasuredHeight() > 0 ? primary.getMeasuredHeight()
+                                               : primary.getHeight();
+    }
+
     void collapse() {
         if (openGroup == null) return;
 

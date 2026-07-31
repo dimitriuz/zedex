@@ -712,9 +712,15 @@ final class EmulatorLayout extends ViewGroup {
         // The bar first, because in portrait the screen starts underneath it.
         measureBar(width, height);
 
+        // The strip the bar keeps for itself in portrait is its icons, not
+        // whatever it has opened underneath them: a group's list is over the
+        // picture for as long as it is open, where moving the machine down and
+        // up again every time one is looked at is a picture that will not sit
+        // still.
         int top = landscape || fullscreen || menuBox.isEmpty()
-                ? 0 : menuBox.bottom + Math.round(BAR_GAP * getResources()
-                        .getDisplayMetrics().density);
+                ? 0 : menuBox.top + menu.rowHeight()
+                      + Math.round(BAR_GAP * getResources()
+                            .getDisplayMetrics().density);
 
         switch (current) {
             case NONE: {
