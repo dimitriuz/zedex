@@ -63,7 +63,7 @@
     <string name="keyboard_skin_set">Keyboard: %1$s</string>
 
     <!-- The chooser, on the Machine page; the page itself is menu_machine_group. -->
-    <string name="menu_machine">Change machine\u2026</string>
+    <string name="menu_machine">Change machine now\u2026</string>
     <string name="menu_controls">Controls…</string>
     <string name="menu_display">Display…</string>
     <string name="menu_joystick">Joystick…</string>
@@ -283,7 +283,8 @@
     <!-- The tabs. One word each, because a tab is only as wide as a fifth. -->
     <string name="settings_tab_machine">Machine</string>
     <string name="settings_tab_tape">Tape</string>
-    <string name="settings_tab_picture">Picture</string>
+    <string name="settings_tab_display">Display</string>
+    <string name="settings_tab_controls">Controls</string>
     <string name="settings_tab_sound">Sound</string>
     <string name="settings_tab_files">Files</string>
     <string name="settings_machine">Machine</string>
@@ -315,6 +316,23 @@
     <string name="settings_snapshot_format">Save state format</string>
     <string name="settings_tape">Tape</string>
     <string name="settings_tape_format">Save tape format</string>
+
+    <!-- The Controls tab: the choices that persist and are rarely changed. What
+         is toggled while playing - showing the joystick or the keyboard, the
+         mouse on and off - stays in the ☰ menu and the quick bar. -->
+    <string name="settings_cat_joystick">Joystick</string>
+    <string name="settings_cat_keyboard">Keyboard</string>
+    <string name="settings_cat_mouse">Mouse</string>
+    <string name="settings_joystick_interface">Interface</string>
+    <string name="settings_joystick_interface_summary">Which of the Spectrum\u2019s joystick interfaces the pad comes out as, or Keyboard for keys instead</string>
+    <string name="settings_key_profile">Key profile</string>
+    <string name="settings_edit_profiles">Edit key profiles\u2026</string>
+    <string name="settings_auto_hide">Hide the joystick for a controller</string>
+    <string name="settings_auto_hide_summary">Take the on-screen pad away while a real one is plugged in</string>
+    <string name="settings_keyboard_type">Keyboard type</string>
+    <string name="settings_sensitivity">Mouse sensitivity</string>
+    <string name="settings_hotkeys">Controller hotkeys\u2026</string>
+    <string name="settings_hotkeys_summary">What a controller\u2019s buttons do to the app rather than to the machine</string>
     <string name="settings_tape_format_summary">What a tape is written as when you do not type an extension</string>
     <string name="settings_loader">Fast loading</string>
     <string name="settings_detect_loader">Detect loaders</string>
@@ -330,7 +348,7 @@
     <string name="settings_ay_stereo">AY stereo separation</string>
     <string name="settings_volume_beeper">Beeper volume</string>
 
-    <string name="settings_filter">Picture filter</string>
+    <string name="settings_filter">Picture</string>
     <string name="settings_filter_choice">Filter</string>
     <string name="settings_filter_advanced">Advanced\u2026</string>
     <!-- Headings in the Advanced page, so a knob says which filter it serves.
@@ -358,7 +376,7 @@
     <string name="settings_filter_mask">Shadow mask</string>
     <string name="settings_filter_glow">Glow</string>
 
-    <string name="settings_display">Display</string>
+    <string name="settings_display">Window</string>
     <string name="settings_border">Border</string>
     <string name="border_full">Full</string>
     <string name="border_slim">Slim</string>
@@ -426,7 +444,7 @@
     <string name="lamp_card">card</string>
     <string name="lights_name">Machine activity indicators</string>
     <string name="settings_indicators">Activity indicators</string>
-    <string name="settings_indicators_summary">Lamps beside the picture for the tape, disks, sound, keyboard and joystick</string>
+    <string name="settings_indicators_summary">Lamps beside the picture for the tape, disks, the card, sound, the keyboard, the joystick and the mouse</string>
     <string name="quick_joystick_show">Show joystick</string>
     <string name="quick_joystick_hide">Hide joystick</string>
     <string name="quick_keyboard_show">Show keyboard</string>

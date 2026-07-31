@@ -16,4 +16,10 @@
             android:entries="@array/format_names"
             android:entryValues="@array/format_values"
             android:defaultValue="szx" />
+        <ListPreference
+            android:key="tapeFormat"
+            android:title="@string/settings_tape_format"
+            android:entries="@array/tape_format_names"
+            android:entryValues="@array/tape_format_values"
+            android:defaultValue="tap" />
 </PreferenceScreen>

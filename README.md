@@ -359,7 +359,10 @@ In full:
 - **About Zedex** — which version this is, which commit it was built from and
   when, and where the source is.
 
-**Settings** is five tabs — Machine, Tape, Picture, Sound, Files — covering:
+**Settings** is six tabs — Machine, Tape, Display, Controls, Sound, Files — and
+it is the complete list: everything that persists is there, exactly once. ☰ and
+the quick bar are shortcuts to the things wanted mid-game, writing the same
+setting.
 
 | | |
 | --- | --- |
@@ -380,6 +383,7 @@ In full:
 | **Border** | full, slim (a quarter of it) or none — less border is more picture |
 | **Portrait scale**, **Landscape scale** | fit to the screen, or a whole number of device pixels per emulated one |
 | **Activity indicators** | the lamps beside the picture |
+| **Joystick interface**, **Key profile**, **Keyboard type**, **Mouse sensitivity** | the same choices the ☰ *Controls…* pages make |
 | **Second screen** | the keyboard, the lamps and the bar on a handheld's other panel |
 | **Keep the screen on** | Android's, not the emulator's |
 | **Speed** | 25% to 500% |

@@ -1,5 +1,8 @@
 package dev.ldlab.zedex.screen;
 
+import dev.ldlab.zedex.input.ControlProfiles;
+import dev.ldlab.zedex.input.Controls;
+import dev.ldlab.zedex.view.SpectrumKeyboardView;
 import dev.ldlab.zedex.EmulatorActivity;
 import dev.ldlab.zedex.FuseNative;
 import dev.ldlab.zedex.R;
@@ -310,8 +313,10 @@ public class SettingsActivity extends AppCompatActivity
                 R.xml.settings_machine),
         new Tab(R.string.settings_tab_tape, R.drawable.ic_tape,
                 R.xml.settings_tape),
-        new Tab(R.string.settings_tab_picture, R.drawable.ic_picture,
-                R.xml.settings_picture),
+        new Tab(R.string.settings_tab_display, R.drawable.ic_picture,
+                R.xml.settings_display),
+        new Tab(R.string.settings_tab_controls, R.drawable.ic_controls,
+                R.xml.settings_controls),
         new Tab(R.string.settings_tab_sound, R.drawable.ic_sound,
                 R.xml.settings_sound),
         new Tab(R.string.settings_tab_files, R.drawable.ic_folder,
@@ -526,6 +531,7 @@ public class SettingsActivity extends AppCompatActivity
 
             populateMachines();
             populateScales();
+            populateControls();
             snapToEntries();
             updateSummaries();
 
@@ -753,6 +759,124 @@ public class SettingsActivity extends AppCompatActivity
         }
 
         /** The machine list comes from Fuse itself rather than a fixed array. */
+        /**
+         * The Controls tab.
+         *
+         * The joystick interface and the key profile are stored as ints, which a
+         * ListPreference cannot hold - it stores strings - so both are plain rows
+         * that open a list of their own and write the int themselves. Changing
+         * the stored type instead would mean a migration for a screen that did
+         * not exist yesterday.
+         *
+         * Everything here writes the same key the ☰ menu writes, and the menu
+         * reads it back, so the two cannot disagree.
+         */
+        private void populateControls() {
+            android.content.SharedPreferences preferences =
+                    getPreferenceManager().getSharedPreferences();
+
+            Preference interfaces = findPreference(KEY_JOYSTICK_TYPE);
+            if (interfaces != null) {
+                interfaces.setOnPreferenceClickListener(row -> {
+                    chooseJoystickType();
+                    return true;
+                });
+            }
+
+            Preference profile = findPreference(ControlProfiles.KEY_CURRENT);
+            if (profile != null) {
+                profile.setOnPreferenceClickListener(row -> {
+                    chooseProfile();
+                    return true;
+                });
+            }
+
+            Preference edit = findPreference("editProfiles");
+            if (edit != null) {
+                edit.setOnPreferenceClickListener(row -> {
+                    ProfileActivity.open(getActivity());
+                    return true;
+                });
+            }
+
+            Preference hotkeys = findPreference("controllerHotkeys");
+            if (hotkeys != null) {
+                hotkeys.setOnPreferenceClickListener(row -> {
+                    GamepadActivity.open(getActivity());
+                    return true;
+                });
+            }
+
+            ListPreference skins = (ListPreference) findPreference(KEY_KEYBOARD_SKIN);
+            if (skins != null) {
+                SpectrumKeyboardView.Skin[] all = SpectrumKeyboardView.Skin.values();
+                String[] names = new String[all.length];
+                String[] values = new String[all.length];
+
+                for (int i = 0; i < all.length; i++) {
+                    names[i] = all[i].title;
+                    values[i] = all[i].value;
+                }
+
+                skins.setEntries(names);
+                skins.setEntryValues(values);
+                if (skins.getValue() == null) skins.setValue(all[0].value);
+            }
+        }
+
+        /** Fuse's own interfaces, and Keyboard after them; see ControlsUi. */
+        private void chooseJoystickType() {
+            android.content.SharedPreferences preferences =
+                    getPreferenceManager().getSharedPreferences();
+
+            String[] fuseTypes = FuseNative.joystickTypeNames();
+            if (fuseTypes.length == 0) return;
+
+            String[] names = new String[fuseTypes.length + 1];
+            System.arraycopy(fuseTypes, 0, names, 0, fuseTypes.length);
+            names[fuseTypes.length] = getString(R.string.joystick_keyboard);
+
+            new AlertDialog.Builder(getActivity())
+                    .setTitle(R.string.joystick_type_title)
+                    .setItems(names, (dialog, which) -> {
+                        int chosen = which == fuseTypes.length
+                                ? Controls.JOYSTICK_KEYBOARD : which;
+
+                        preferences.edit()
+                                .putInt(KEY_JOYSTICK_TYPE, chosen).apply();
+                        FuseNative.setJoystickType(
+                                chosen == Controls.JOYSTICK_KEYBOARD
+                                        ? Controls.JOYSTICK_NONE : chosen);
+                        Controls.setPadSendsKeys(
+                                chosen == Controls.JOYSTICK_KEYBOARD);
+                        updateSummaries();
+                    })
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show();
+        }
+
+        private void chooseProfile() {
+            android.content.SharedPreferences preferences =
+                    getPreferenceManager().getSharedPreferences();
+
+            List<ControlProfiles.Profile> profiles =
+                    ControlProfiles.all(preferences);
+            String[] names = new String[profiles.size()];
+
+            for (int i = 0; i < names.length; i++) names[i] = profiles.get(i).name;
+
+            new AlertDialog.Builder(getActivity())
+                    .setTitle(R.string.profile_title)
+                    .setItems(names, (dialog, which) -> {
+                        ControlProfiles.store(preferences, profiles, which);
+                        Controls.setProfile(
+                                ControlProfiles.current(preferences).keys);
+                        updateSummaries();
+                    })
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show();
+        }
+
         private void populateMachines() {
             ListPreference machines = (ListPreference) findPreference(KEY_MACHINE);
             if (machines == null) return;
@@ -1029,6 +1153,29 @@ public class SettingsActivity extends AppCompatActivity
         private void updateSummaries() {
             updateFilterEnabled();
 
+            // The two int-backed rows: their summary is their value, which is
+            // what a ListPreference would have done for them.
+            android.content.SharedPreferences settings =
+                    getPreferenceManager().getSharedPreferences();
+
+            Preference interfaces = findPreference(KEY_JOYSTICK_TYPE);
+            if (interfaces != null) {
+                int type = settings.getInt(KEY_JOYSTICK_TYPE,
+                                           Controls.JOYSTICK_KEMPSTON);
+                String[] names = FuseNative.joystickTypeNames();
+
+                interfaces.setSummary(
+                        type == Controls.JOYSTICK_KEYBOARD
+                                ? getString(R.string.joystick_keyboard)
+                                : type < names.length ? names[type] : "");
+                interfaces.setEnabled(names.length > 0);
+            }
+
+            Preference profile = findPreference(ControlProfiles.KEY_CURRENT);
+            if (profile != null) {
+                profile.setSummary(ControlProfiles.current(settings).name);
+            }
+
             Preference folder = findPreference(Storage.KEY_STATES_ROOT);
             if (folder != null) {
                 folder.setSummary(Storage.root(getActivity()).getAbsolutePath());
@@ -1076,7 +1223,9 @@ public class SettingsActivity extends AppCompatActivity
                                              KEY_FILTER_MASK, KEY_FILTER_GLOW,
                                              KEY_VIDEO, KEY_FILTER_BLEED,
                                              KEY_FILTER_NOISE,
-                                             KEY_AY_VOLUME, KEY_BEEPER_VOLUME }) {
+                                             KEY_AY_VOLUME, KEY_BEEPER_VOLUME,
+                                             KEY_KEYBOARD_SKIN,
+                                             KEY_MOUSE_SENSITIVITY }) {
                 Preference preference = findPreference(key);
                 if (preference instanceof ListPreference) {
                     CharSequence entry = ((ListPreference) preference).getEntry();

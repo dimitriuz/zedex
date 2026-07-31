@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The choices that persist and are rarely changed. What is toggled while playing
+  - showing the joystick or the keyboard, the mouse on and off - stays in the ☰
+  menu and the quick bar, which is where you are when you notice.
+
+  Three of these are stored as ints, which a ListPreference cannot hold, so they
+  are plain rows that open a list of their own; see populateControls().
+-->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory android:title="@string/settings_cat_joystick">
+        <Preference
+            android:key="joystickType"
+            android:title="@string/settings_joystick_interface"
+            android:summary="@string/settings_joystick_interface_summary" />
+        <Preference
+            android:key="controlProfile"
+            android:title="@string/settings_key_profile" />
+        <Preference
+            android:key="editProfiles"
+            android:title="@string/settings_edit_profiles" />
+        <SwitchPreference
+            android:key="joystickAutoHide"
+            android:title="@string/settings_auto_hide"
+            android:summary="@string/settings_auto_hide_summary"
+            android:defaultValue="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/settings_cat_keyboard">
+        <ListPreference
+            android:key="keyboardSkin"
+            android:title="@string/settings_keyboard_type" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/settings_cat_mouse">
+        <ListPreference
+            android:key="mouseSensitivity"
+            android:title="@string/settings_sensitivity"
+            android:entries="@array/percent_names"
+            android:entryValues="@array/percent_values"
+            android:defaultValue="100" />
+    </PreferenceCategory>
+
+    <Preference
+        android:key="controllerHotkeys"
+        android:title="@string/settings_hotkeys"
+        android:summary="@string/settings_hotkeys_summary" />
+</PreferenceScreen>

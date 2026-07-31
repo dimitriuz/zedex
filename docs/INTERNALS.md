@@ -797,6 +797,29 @@ if it cannot have it. `settings_set_string()` does the assignment, because the
 setting owns its copy and handing it a literal would leave Fuse freeing static
 storage later.
 
+### Where a setting lives
+
+**Settings is the complete list.** Everything that persists is there exactly
+once. ☰ and the quick bar are shortcuts to the subset wanted mid-game, writing
+the same preference key — so the two can differ in what they offer but never in
+what they mean.
+
+That rule was written after noticing the asymmetry it fixes: the joystick
+interface, the key profile, the keyboard type and the mouse sensitivity used to
+exist *only* in ☰, so anyone opening Settings and looking for "joystick" found
+nothing at all. They have a Controls tab now.
+
+What is *not* in Settings is the momentary half — showing the joystick or the
+keyboard, the mouse on and off, the lamps, fullscreen. Those are toggled while
+playing, and the bar is where you are when you notice. Settings is what you set;
+the bar is what you toggle.
+
+Three of the Controls rows are stored as ints — `joystickType` and
+`controlProfile` — which a `ListPreference` cannot hold, since it stores strings.
+They are plain rows that open a list of their own and write the int themselves.
+Migrating the keys instead would mean a migration for a screen that did not exist
+yesterday.
+
 ### The one dependency
 
 `androidx.preference`, and it buys one screen. `android.preference` has been

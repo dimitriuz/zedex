@@ -18,6 +18,13 @@
             android:summary="@string/settings_bw_tv_summary"
             android:defaultValue="false" />
 
+        <ListPreference
+            android:key="border"
+            android:title="@string/settings_border"
+            android:entries="@array/border_names"
+            android:entryValues="@array/border_values"
+            android:defaultValue="full" />
+
         <PreferenceScreen
             android:key="filterAdvanced"
             android:title="@string/settings_filter_advanced"
@@ -30,7 +37,7 @@
                 android:entries="@array/percent_names"
                 android:entryValues="@array/percent_values"
                 android:defaultValue="50" />
-            </PreferenceCategory>
+    </PreferenceCategory>
 
             <PreferenceCategory android:title="@string/settings_filter_glass">
             <ListPreference
@@ -89,12 +96,6 @@
 
     <PreferenceCategory android:title="@string/settings_display">
         <ListPreference
-            android:key="border"
-            android:title="@string/settings_border"
-            android:entries="@array/border_names"
-            android:entryValues="@array/border_values"
-            android:defaultValue="full" />
-        <ListPreference
             android:key="scalePortrait"
             android:title="@string/settings_scale_portrait"
             android:summary="@string/settings_scale_summary"
@@ -104,6 +105,11 @@
             android:title="@string/settings_scale_landscape"
             android:summary="@string/settings_scale_summary"
             android:defaultValue="0" />
+        <SwitchPreference
+            android:key="indicators"
+            android:title="@string/settings_indicators"
+            android:summary="@string/settings_indicators_summary"
+            android:defaultValue="true" />
         <SwitchPreference
             android:key="secondScreen"
             android:title="@string/settings_second_screen"

@@ -28,9 +28,4 @@
             android:entries="@array/speed_names"
             android:entryValues="@array/speed_values"
             android:defaultValue="100" />
-        <SwitchPreference
-            android:key="indicators"
-            android:title="@string/settings_indicators"
-            android:summary="@string/settings_indicators_summary"
-            android:defaultValue="true" />
 </PreferenceScreen>
