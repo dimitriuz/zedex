@@ -1466,9 +1466,11 @@ what it needs.
 They were two switches, and each carried its strengths behind
 `android:dependency`, which put ten rows on the picture screen with the border
 below all of them. One row of four says the same thing; `Advanced…` holds the
-eight numbers, and which of them are live is worked out in code, since a
-dependency can only follow a boolean and this follows a list having a
-particular value. `Filter.migrate` carries the old pair over once — and writes
+eight numbers under headings that name the filter each one serves —
+*Scanlines*, *CRT*, *Signal*, *Scaling* — so a greyed row reads as "that
+filter is off" rather than as an arbitrary dim line. Which of them are live is
+worked out in code, since a dependency can only follow a boolean and this
+follows a list having a particular value. `Filter.migrate` carries the old pair over once — and writes
 nothing when there is nothing to carry, because an empty preferences file is
 exactly how `StartPanel.setupNeeded` knows the app has never run.
 

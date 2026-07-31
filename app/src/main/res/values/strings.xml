@@ -333,6 +333,12 @@
     <string name="settings_filter">Picture filter</string>
     <string name="settings_filter_choice">Filter</string>
     <string name="settings_filter_advanced">Advanced\u2026</string>
+    <!-- Headings in the Advanced page, so a knob says which filter it serves.
+         The first two are the words the Filter list uses. -->
+    <string name="settings_filter_beam">Scanlines</string>
+    <string name="settings_filter_glass">CRT</string>
+    <string name="settings_filter_signal">Signal</string>
+    <string name="settings_filter_scaling">Scaling</string>
     <string name="settings_filter_advanced_summary">Strengths, video output and sharpness</string>
 
     <!-- Filter.java's four, in its own order. -->

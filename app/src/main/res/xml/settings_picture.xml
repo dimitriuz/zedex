@@ -23,12 +23,16 @@
             android:title="@string/settings_filter_advanced"
             android:summary="@string/settings_filter_advanced_summary">
 
+            <PreferenceCategory android:title="@string/settings_filter_beam">
             <dev.ldlab.zedex.FadingListPreference
                 android:key="filterScanline"
                 android:title="@string/settings_filter_scanline"
                 android:entries="@array/percent_names"
                 android:entryValues="@array/percent_values"
                 android:defaultValue="50" />
+            </PreferenceCategory>
+
+            <PreferenceCategory android:title="@string/settings_filter_glass">
             <dev.ldlab.zedex.FadingListPreference
                 android:key="filterCurve"
                 android:title="@string/settings_filter_curve"
@@ -47,7 +51,9 @@
                 android:entries="@array/percent_names"
                 android:entryValues="@array/percent_values"
                 android:defaultValue="30" />
+            </PreferenceCategory>
 
+            <PreferenceCategory android:title="@string/settings_filter_signal">
             <ListPreference
                 android:key="video"
                 android:title="@string/settings_video"
@@ -67,7 +73,9 @@
                 android:entries="@array/percent_names"
                 android:entryValues="@array/percent_values"
                 android:defaultValue="20" />
+            </PreferenceCategory>
 
+            <PreferenceCategory android:title="@string/settings_filter_scaling">
             <ListPreference
                 android:key="filterSharpness"
                 android:title="@string/settings_filter_sharpness"
@@ -75,6 +83,7 @@
                 android:entries="@array/percent_names"
                 android:entryValues="@array/percent_values"
                 android:defaultValue="100" />
+            </PreferenceCategory>
         </PreferenceScreen>
     </PreferenceCategory>
 
