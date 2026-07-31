@@ -4,7 +4,6 @@ import dev.ldlab.zedex.FuseNative;
 import dev.ldlab.zedex.screen.SettingsActivity;
 import android.content.Context;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Rect;
@@ -13,7 +12,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.util.SparseArray;
 import android.view.HapticFeedbackConstants;
 import android.view.KeyEvent;
@@ -26,8 +24,6 @@ import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityNodeProvider;
 import android.widget.Button;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,11 +32,10 @@ import java.util.List;
  *
  * Every legend a Spectrum key has — the BASIC keyword, the symbol-shift
  * character, the colour, the extended-mode token — is on it, which is what
- * makes typing Spectrum BASIC possible at all. The 48K's is Fuse's own
- * keyboard.png with the key rectangles below measured off it, in its 541x201
- * coordinate space; the 128K's is drawn by {@link PlusPlate}, which supplies
- * its own table in the space it draws in. Either way the rectangles are scaled
- * to wherever the picture lands.
+ * makes typing Spectrum BASIC possible at all. A {@link Plate} draws one and
+ * supplies the table of key rectangles in the space it drew them in, which this
+ * scales to wherever the picture lands. Nothing here knows which machine's
+ * keyboard it is showing.
  *
  * Keys are reported as Android keycodes and travel the same path as a physical
  * keyboard: {@link FuseNative#key} queues them and Fuse's keysym table turns
@@ -53,46 +48,53 @@ import java.util.List;
  */
 public class SpectrumKeyboardView extends View {
 
-    private static final String TAG = "Zedex";
-
     /**
-     * Which machine's keyboard is shown.
+     * Which machine's keyboard is shown, and how much of it.
      *
-     * A picture and a table of key rectangles in that picture's own
-     * coordinates: everything else - the presses, the latching, the
-     * accessibility nodes, the scaling - is the same for all of them, because a
-     * skin is only a picture and where its keys are.
+     * A plate and the table of key rectangles it draws them at: everything else
+     * - the presses, the latching, the accessibility nodes, the scaling - is the
+     * same code for all of them, which is what makes another one cheap.
      *
-     * The rubber one is Fuse's own artwork, which the app already installs; the
-     * 128K plate has no artwork because {@link PlusPlate} draws it.
+     * A slim one is the same keys without the BASIC printed on them, in rows
+     * short enough to leave the picture some room.
      */
     public enum Skin {
-        RUBBER("rubber", "ZX Spectrum 48K", "fuse/keyboard.png", 541f / 201f),
-        PLUS("plus", "ZX Spectrum 128K", null, PlusPlate.ASPECT),
+        RUBBER("rubber", "ZX Spectrum 48K", RubberPlate.ASPECT),
+        RUBBER_SLIM("rubber-slim", "ZX Spectrum 48K — slim", RubberPlate.SLIM_ASPECT),
+        PLUS("plus", "ZX Spectrum 128K", PlusPlate.ASPECT),
+        PLUS_SLIM("plus-slim", "ZX Spectrum 128K — slim", PlusPlate.SLIM_ASPECT),
 
         /**
-         * Not a picture at all: the device's own input method types instead, and
-         * this keyboard is not drawn. It is in the same list because it is the
-         * same choice - which keyboard you use - and it has no key table
+         * Not a keyboard of ours at all: the device's own input method types
+         * instead, and nothing is drawn here. It is in the same list because it
+         * is the same choice - which keyboard you use - and it has no key table
          * because it has no keys of its own.
          */
-        SYSTEM("system", "Android keyboard", null, 541f / 201f);
+        SYSTEM("system", "Android keyboard", RubberPlate.ASPECT);
 
         public final String value;             /* as stored in the preferences */
         public final String title;
-        final String asset;
-        final float aspect;             /* before the image has loaded */
+        final float aspect;             /* before a plate has been built */
 
-        Skin(String value, String title, String asset, float aspect) {
+        Skin(String value, String title, float aspect) {
             this.value = value;
             this.title = title;
-            this.asset = asset;
             this.aspect = aspect;
         }
 
         /** Whether this one appears here rather than being Android's own. */
         boolean drawn() {
             return this != SYSTEM;
+        }
+
+        Plate plate() {
+            switch (this) {
+                case RUBBER:      return new RubberPlate(false);
+                case RUBBER_SLIM: return new RubberPlate(true);
+                case PLUS:        return new PlusPlate(false);
+                case PLUS_SLIM:   return new PlusPlate(true);
+                default:          return null;
+            }
         }
 
         public static Skin of(String stored) {
@@ -104,13 +106,13 @@ public class SpectrumKeyboardView extends View {
     }
 
     private Skin skin = Skin.RUBBER;
-    private Row[] rows = RUBBER_ROWS;
+    private Row[] rows = NO_KEYS;
 
     /** The space the current table's rectangles are measured in. */
-    private int sourceWidth = 541, sourceHeight = 201;
+    private int sourceWidth = 1040, sourceHeight = 386;
 
-    /** Fuse's own artwork, for before anything has been loaded. */
-    public static final float NATURAL_ASPECT = 541f / 201f;
+    /** The 48K's shape, for before a keyboard has been built. */
+    public static final float NATURAL_ASPECT = RubberPlate.ASPECT;
 
     /** How long a shift must be held before it latches. */
     private static final long LATCH_MS = 400;
@@ -135,17 +137,9 @@ public class SpectrumKeyboardView extends View {
         boolean pressed;
         boolean latched;
 
-        /** A key that knows its whole rectangle, which a drawn plate's do. */
         Key(RectF box, int keycode, int modifier, String name) {
-            this(Math.round(box.left), Math.round(box.right),
-                 keycode, modifier, name);
-            image.top = Math.round(box.top);
-            image.bottom = Math.round(box.bottom);
-        }
-
-        Key(int left, int right, int keycode, int modifier, String name) {
-            this.image.left = left;
-            this.image.right = right;
+            this.image.set(Math.round(box.left), Math.round(box.top),
+                           Math.round(box.right), Math.round(box.bottom));
             this.keycode = keycode;
             this.modifier = modifier;
             this.name = name != null ? name : nameOf( keycode );
@@ -183,71 +177,17 @@ public class SpectrumKeyboardView extends View {
         }
     }
 
-    private static final Row[] RUBBER_ROWS = {
-        row(20, 43,
-            key(10, 43, KeyEvent.KEYCODE_1),
-            key(60, 93, KeyEvent.KEYCODE_2),
-            key(110, 143, KeyEvent.KEYCODE_3),
-            key(160, 193, KeyEvent.KEYCODE_4),
-            key(210, 243, KeyEvent.KEYCODE_5),
-            key(260, 293, KeyEvent.KEYCODE_6),
-            key(310, 343, KeyEvent.KEYCODE_7),
-            key(360, 393, KeyEvent.KEYCODE_8),
-            key(410, 443, KeyEvent.KEYCODE_9),
-            key(460, 493, KeyEvent.KEYCODE_0)),
-        row(69, 92,
-            key(35, 68, KeyEvent.KEYCODE_Q),
-            key(85, 118, KeyEvent.KEYCODE_W),
-            key(135, 168, KeyEvent.KEYCODE_E),
-            key(185, 218, KeyEvent.KEYCODE_R),
-            key(235, 268, KeyEvent.KEYCODE_T),
-            key(285, 318, KeyEvent.KEYCODE_Y),
-            key(335, 368, KeyEvent.KEYCODE_U),
-            key(385, 418, KeyEvent.KEYCODE_I),
-            key(435, 468, KeyEvent.KEYCODE_O),
-            key(485, 518, KeyEvent.KEYCODE_P)),
-        row(118, 141,
-            key(47, 80, KeyEvent.KEYCODE_A),
-            key(97, 130, KeyEvent.KEYCODE_S),
-            key(147, 180, KeyEvent.KEYCODE_D),
-            key(197, 230, KeyEvent.KEYCODE_F),
-            key(247, 280, KeyEvent.KEYCODE_G),
-            key(297, 330, KeyEvent.KEYCODE_H),
-            key(347, 380, KeyEvent.KEYCODE_J),
-            key(397, 430, KeyEvent.KEYCODE_K),
-            key(447, 480, KeyEvent.KEYCODE_L),
-            key(497, 530, KeyEvent.KEYCODE_ENTER)),
-        row(167, 190,
-            key(10, 55, KeyEvent.KEYCODE_SHIFT_LEFT),
-            key(72, 105, KeyEvent.KEYCODE_Z),
-            key(122, 155, KeyEvent.KEYCODE_X),
-            key(172, 205, KeyEvent.KEYCODE_C),
-            key(222, 255, KeyEvent.KEYCODE_V),
-            key(272, 305, KeyEvent.KEYCODE_B),
-            key(322, 355, KeyEvent.KEYCODE_N),
-            key(372, 405, KeyEvent.KEYCODE_M),
-            key(422, 455, KeyEvent.KEYCODE_CTRL_LEFT),
-            key(472, 530, KeyEvent.KEYCODE_SPACE)),
-    };
-
-    private static Key key(int left, int right, int keycode) {
-        return new Key(left, right, keycode, 0, null);
-    }
-
-    private static Row row(int top, int bottom, Key... keys) {
-        return new Row(top, bottom, keys);
-    }
+    /** Android's own keyboard has no keys of ours. */
+    private static final Row[] NO_KEYS = new Row[0];
 
     private final SparseArray<Key> pointers = new SparseArray<>();
     private final Handler handler = new Handler(Looper.getMainLooper());
 
-    private final Paint bitmapPaint = new Paint();
     private final Paint pressedPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint latchedPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
-    private Bitmap keyboard;                 // artwork, when a skin has any
-    private PlusPlate plate;                 // or the plate drawn here
-    private Bitmap drawn;                    // it, at the size it is shown
+    private Plate plate;
+    private Bitmap picture;                  // it, at the size it is shown
 
     private final Rect destination = new Rect();
     private final RectF highlight = new RectF();
@@ -260,9 +200,6 @@ public class SpectrumKeyboardView extends View {
     public SpectrumKeyboardView(Context context, AttributeSet attrs) {
         super(context, attrs);
 
-        // The image is 541px wide and will be drawn several times that, so
-        // keep it sharp rather than smearing its one-pixel legends.
-        bitmapPaint.setFilterBitmap(false);
         pressedPaint.setColor(0x9900b0c8);
         latchedPaint.setColor(0x99ffb000);
 
@@ -286,33 +223,18 @@ public class SpectrumKeyboardView extends View {
         releaseEverything();
 
         skin = wanted;
-        keyboard = null;
-        plate = null;
-        drawn = null;
+        plate = wanted.plate();
+        picture = null;
 
         // The flattened list is what the accessibility nodes are numbered by,
         // and it belongs to the table that has just been replaced.
         flat.clear();
 
-        if (wanted == Skin.PLUS) {
-            plate = new PlusPlate();
-            rows = plate.rows();
-            sourceWidth = PlusPlate.WIDTH;
-            sourceHeight = PlusPlate.HEIGHT;
-        } else {
-            rows = RUBBER_ROWS;
-            sourceWidth = 541;
-            sourceHeight = 201;
+        rows = plate != null ? plate.rows() : NO_KEYS;
 
-            if (wanted.asset != null) {
-                try (InputStream in = getContext().getAssets().open(wanted.asset)) {
-                    keyboard = BitmapFactory.decodeStream(in);
-                    sourceWidth = keyboard.getWidth();
-                    sourceHeight = keyboard.getHeight();
-                } catch (IOException e) {
-                    Log.e(TAG, "cannot load " + wanted.asset, e);
-                }
-            }
+        if (plate != null) {
+            sourceWidth = plate.width();
+            sourceHeight = plate.height();
         }
 
         computeTouchAreas();
@@ -368,13 +290,6 @@ public class SpectrumKeyboardView extends View {
 
             for (int k = 0; k < row.keys.length; k++) {
                 Key key = row.keys[k];
-
-                // A key may have brought its own rectangle: the 128K's ENTER
-                // spans two rows, and one of them is not the row it is in.
-                if (key.image.bottom == 0) {
-                    key.image.top = row.top;
-                    key.image.bottom = row.bottom;
-                }
                 key.touch.top = top;
                 key.touch.bottom = bottom;
                 key.touch.left = k == 0 ? 0
@@ -463,18 +378,13 @@ public class SpectrumKeyboardView extends View {
 
     @Override
     protected void onDraw(Canvas canvas) {
-        if (keyboard != null) {
-            canvas.drawBitmap(keyboard, null, destination, bitmapPaint);
-        } else if (plate != null) {
-            canvas.drawBitmap(rendered(), destination.left, destination.top, null);
-        } else {
-            return;
-        }
+        if (plate == null) return;
 
-        // The plate's keys are rounded off at the foot, so square corners on
-        // the highlight hang over the edge of one. The rubber keyboard's keys
-        // are rectangles and take a radius of nothing.
-        float corner = plate != null ? 10f * scale : 0f;
+        canvas.drawBitmap(rendered(), destination.left, destination.top, null);
+
+        // The keys are rounded, so square corners on the highlight hang over
+        // the edge of one.
+        float corner = 10f * scale;
 
         for (Row row : rows) {
             for (Key key : row.keys) {
@@ -491,25 +401,25 @@ public class SpectrumKeyboardView extends View {
     }
 
     /**
-     * The drawn plate, kept at the size it is shown at.
+     * The keyboard, drawn once and kept at the size it is shown at.
      *
      * Drawing it again on every invalidate would be forty keys and a hundred
      * and fifty legends for each key press, and a press only puts a highlight
      * over a picture that has not changed.
      */
     private Bitmap rendered() {
-        if (drawn != null && drawn.getWidth() == destination.width()
-                          && drawn.getHeight() == destination.height()) {
-            return drawn;
+        if (picture != null && picture.getWidth() == destination.width()
+                            && picture.getHeight() == destination.height()) {
+            return picture;
         }
 
-        drawn = Bitmap.createBitmap(destination.width(), destination.height(),
-                                    Bitmap.Config.ARGB_8888);
-        Canvas into = new Canvas(drawn);
+        picture = Bitmap.createBitmap(destination.width(), destination.height(),
+                                      Bitmap.Config.ARGB_8888);
+        Canvas into = new Canvas(picture);
         into.scale(destination.width() / (float) sourceWidth,
                    destination.height() / (float) sourceHeight);
         plate.draw(into);
-        return drawn;
+        return picture;
     }
 
     private Key keyAt(float x, float y) {

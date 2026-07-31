@@ -65,10 +65,9 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 `JAVA_HOME` is needed whenever the default JDK is newer than 21.
 
-`app/src/main/assets/fuse/` is staged by the same script and is not in git. A
-tree without it builds and installs happily and the **48K keyboard is then
-blank** — its picture is Fuse's `keyboard.png` from that folder. Restore it with
-`./scripts/build-native.sh`.
+`app/src/main/assets/fuse/` is staged by the same script and is not in git.
+Nothing in the app reads it any more — the keyboards are drawn — so a tree
+without it builds and runs; `./scripts/build-native.sh` puts it back.
 
 ## Tests
 
@@ -151,20 +150,18 @@ scripts/ui-type.py 'randomize usr 15616' ENTER
 scripts/ui-type.py CS+SS SS+0 ' ' '"test"' ENTER   # extended mode: FORMAT
 ```
 
-`ui-type.py` taps by coordinate and so carries a copy of each skin's key
-positions; it reads the stored skin to pick between them. **Move a key and that
-table moves with it** — the 128K's geometry lives in `PlusPlate`. Getting the
-skin wrong is silent and types nonsense, which is why it asks both packages for
-the preference. Neither script can type
-on the **Android keyboard** skin - that is the phone's own input method, and on an
-AVD Gboard hides its keys because the emulator reports a hardware keyboard.
+`ui-type.py` asks the view hierarchy where each key is, by the name the Spectrum
+gives it, so it types on any of the four keyboards and nothing has to be kept in
+step when one is redrawn. Neither script can type on the **Android keyboard**
+skin - that is the phone's own input method, and on an AVD Gboard hides its keys
+because the emulator reports a hardware keyboard.
 `adb shell settings put secure show_ime_with_hard_keyboard 1` brings them back. **After switching skins
 in a running app, `ui-tap.py` still reports the old skin's key names** — UI
 Automator caches the window's tree and nothing the app sends clears it. Relaunch
 before driving the keyboard.
 
 Both address things by name, never by coordinate — menus grow, the keyboard is
-one bitmap whose keys are accessibility nodes, and the quick bar is icons whose
+one picture whose keys are accessibility nodes, and the quick bar is icons whose
 only name is their content description (`ui-tap.py` matches that too). ☰ has
 **pages**, so a path is several names deep: `"Machine" "Change machine"
 "Scorpion"`. The quick bar fades after three seconds, so tap the picture first

@@ -67,9 +67,15 @@ brings up a +3, a `.trd` a Beta-equipped machine.
 ## Controls
 
 **On-screen keyboard** — the rubber 48K, the 128K plate, or your own input
-method. Every key carries its BASIC keyword, symbol-shift character, colour and
-extended-mode token. Two fingers give a shifted key; holding a shift for 400ms
-latches it until tapped again.
+method. Both are drawn rather than photographed, so they stay sharp at any size:
+every key carries its BASIC keyword, symbol-shift character, colour and
+extended-mode token, in the colours the machine prints them in. Two fingers give
+a shifted key; holding a shift for 400ms latches it until tapped again.
+
+Each also comes **slim** — every key, none of the BASIC. A key shows its own
+legend and the character symbol shift gives it, the 48K keeps the cursor arrows
+and DELETE, and the rows are barely more than half as tall, which sideways is
+that much more picture.
 
 **On-screen joystick** — thumb pad, fire, and three key buttons in an arc.
 Appears as any of the Spectrum's seven interfaces, or as keys. Eight-key
@@ -205,7 +211,7 @@ shortcuts to the same settings.
 | Interface | which joystick the pad comes out as, or Keyboard |
 | Key profile | and an editor for it |
 | Hide the joystick for a controller | |
-| Keyboard type | 48K, 128K, or Android's |
+| Keyboard type | 48K or 128K, either of them slim, or Android's |
 | Mouse sensitivity | |
 | Controller hotkeys… | |
 
