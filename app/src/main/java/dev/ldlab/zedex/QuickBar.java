@@ -119,7 +119,14 @@ final class QuickBar extends LinearLayout {
      * strip of its own across the top and the whole width to use.
      */
     void setCompact(int room) {
-        int count = primary.getChildCount();
+        int count = 0;
+
+        // What it is showing, not what it holds: a hidden icon that still took
+        // its share of the width would make all the others smaller for nothing.
+        for (int i = 0; i < primary.getChildCount(); i++) {
+            if (primary.getChildAt(i).getVisibility() != GONE) count++;
+        }
+
         int cell = room <= 0 || count == 0
                 ? button
                 : Math.max(least, Math.min(button, room / count));

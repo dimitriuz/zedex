@@ -1077,6 +1077,12 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         layout.setFullscreen(on);
 
         if (fullscreenAction != null) {
+            // Not offered while the controls are on a panel: this screen is
+            // already the picture and nothing else, so there is nothing for
+            // the button to clear away and nothing for it to give back.
+            fullscreenAction.setVisibility(secondScreen == null ? View.VISIBLE
+                                                                : View.GONE);
+
             quickBar.setAction(fullscreenAction,
                                on ? R.drawable.ic_fullscreen_exit
                                   : R.drawable.ic_fullscreen,

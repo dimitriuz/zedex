@@ -241,6 +241,9 @@ the bar, the keyboard and the lamps, whichever way up the device is. Tap the
 picture to bring the bar back for a moment, or press **Back** to leave
 fullscreen altogether.
 
+With the controls on a second screen there is no fullscreen button: that screen
+is the picture and nothing else already.
+
 **Back** never puts the app away: in fullscreen it leaves fullscreen, in the ☰
 sheet it goes up a page and then closes it, and otherwise it opens ☰. Leaving is
 *Quit*, which asks about unsaved disks first — a Spectrum put away by accident
