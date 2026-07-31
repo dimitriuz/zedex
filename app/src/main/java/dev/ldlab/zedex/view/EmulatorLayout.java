@@ -43,6 +43,15 @@ public final class EmulatorLayout extends ViewGroup {
     private static final float LANDSCAPE_BELOW = 0.42f;
 
     /**
+     * And the width it may take there, which is what decides the height of a
+     * keyboard flat enough to fit under that cap. A slim one is flat enough:
+     * given the whole width it comes out with keys half again the size of a full
+     * keyboard's and a picture no larger for it, which is not what it is for.
+     * Both of them are inset by this and centred in the strip.
+     */
+    private static final float LANDSCAPE_WIDE = 0.62f;
+
+    /**
      * Portrait cap. The natural height at full width is around a third, so
      * this only ever bites on a very short window.
      */
@@ -661,7 +670,13 @@ public final class EmulatorLayout extends ViewGroup {
                 if (tall > 0) screenBox.set(0, top, width, top + tall);
             }
         } else {
-            int natural = Math.round(width / aspect);
+            // The box stays the width of the window - the keyboard's own
+            // background is the strip across the foot - but the keyboard inside
+            // it is only as wide as it is allowed, and the height it asks for
+            // follows from that: a box of exactly that height leaves the view's
+            // own fitting to centre the picture in it.
+            int across = landscape ? Math.round(width * LANDSCAPE_WIDE) : width;
+            int natural = Math.round(across / aspect);
             float cap = landscape ? LANDSCAPE_BELOW : PORTRAIT_BELOW;
             int keyboardHeight = Math.min(natural, Math.round(height * cap));
             int room = height - keyboardHeight - top;
