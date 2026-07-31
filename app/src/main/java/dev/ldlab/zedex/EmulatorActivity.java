@@ -851,12 +851,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     /**
      * Shows the bar, and starts it fading only if it is meant to fade.
      *
-     * It fades in fullscreen and nowhere else. Everywhere else it has a place of
-     * its own that is not over the picture - a strip at the top in portrait, the
-     * black corner in landscape - so there is nothing to be gained by taking it
-     * away and something to be lost: a control that is always there needs no
-     * discovering. Any tap on the picture still calls this, which in fullscreen
-     * is how the bar is got back.
+     * It fades in fullscreen and nowhere else. Everywhere else it has a strip of
+     * its own across the top of the window, whichever way up the device is, so
+     * there is nothing to be gained by taking it away and something to be lost:
+     * a control that is always there needs no discovering. Any tap on the
+     * picture still calls this, which in fullscreen is how the bar is got back.
      */
     private void revealQuickBar() {
         if (panelUp) return;
@@ -1109,11 +1108,10 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     /**
      * Gives the picture the whole window, or gives the furniture back.
      *
-     * The bar loses its strip and the keyboard goes away in landscape, where it
-     * is worth nearly half the window; in portrait a 4:3 picture is limited by the
-     * width, so the keyboard costs it nothing and stays. Getting out is the same
-     * icon: a tap on the picture brings the bar back for three seconds, which is
-     * long enough to press it.
+     * The bar loses its strip and the keyboard and the lamps go away, whichever
+     * way up the device is. Getting out is the same icon: a tap on the picture
+     * brings the bar back for three seconds, which is long enough to press it -
+     * and so does Back, for anyone who does not know that.
      */
     private void showFullscreen(boolean on) {
         preferences.edit()

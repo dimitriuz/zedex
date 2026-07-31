@@ -112,17 +112,17 @@ final class QuickBar extends LinearLayout {
     }
 
     /**
-     * How big the icons are, given the room the bar has beside the picture.
+     * How big the icons are, given the room the bar has been left.
      *
-     * Sideways the bar sits in the black down the side of a 4:3 picture in a wide
-     * window, and that is all the room there is: nine full sized icons came to
-     * nearly a thousand pixels of a four hundred and eighty pixel gap, so the bar
-     * lay across the picture. The answer is not a column - a column of six is
-     * taller than the black above a keyboard - but smaller icons, the size of the
-     * activity lamps, which sit in the same black and have always been compact.
+     * {@code room} of zero means full size, which is the emulator's own window:
+     * there the bar has a strip of its own across the top, whichever way up the
+     * device is, and the whole width to use.
      *
-     * {@code room} of zero means full size, which is portrait: there the bar has a
-     * strip of its own across the top and the whole width to use.
+     * A number is a handheld's second screen, where the bar shares a short panel
+     * with a keyboard and a joystick and gets whatever band is left over. Nine
+     * full sized icons is around a thousand pixels, so on a narrow panel they
+     * shrink towards the size of the activity lamps rather than running off the
+     * end of it.
      */
     void setCompact(int room) {
         int count = 0;

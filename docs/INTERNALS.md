@@ -83,15 +83,24 @@ invisible to the emulated machine.
 ### The menu
 
 ☰ is one icon in a **quick bar**, and the bar has a place of its own rather than
-sitting over the picture: in portrait it is a strip across the top and the screen
-starts underneath it — the strip being the icons alone, since a group's list is
-over the picture rather than under it, and moving the machine down and up again
-every time a menu is looked at is a picture that will not sit still — and in
-landscape it hangs off the window's top right
-corner, which is the black beside a 4:3 picture in a wide window. So it stays up.
-It used to fade after three seconds because it *was* over the picture, and now it
-only fades in fullscreen — a control that is always there needs no discovering,
-and one that has its own strip is in nobody's way.
+sitting over the picture: a strip across the top of the window with the screen
+starting underneath it, whichever way up the device is. The strip is the icons
+alone, since a group's list is over the picture rather than under it — moving the
+machine down and up again every time a menu is looked at is a picture that will
+not sit still. So it stays up. It used to fade after three seconds because it
+*was* over the picture, and now it only fades in fullscreen — a control that is
+always there needs no discovering, and one that has its own strip is in nobody's
+way.
+
+Sideways it used to go in the black beside a 4:3 picture instead, which costs the
+picture nothing — but that black is only as wide as the window is wider than 4:3,
+and nine full sized icons came to nearly a thousand pixels of a four hundred and
+eighty pixel gap, so they had to shrink to the size of the activity lamps. Icons
+that small are hard to hit and hard to tell apart. A strip costs some picture
+height and gives them a thumb's worth of size back, which is the trade portrait
+had always made. `setCompact` is still there for the one place the bar really is
+a guest: a handheld's second screen, where it shares a short panel with the
+keyboard and the joystick.
 
 **Choices, questions and fields are pages, not dialogs.** A dialog is the
 activity's window, so it always opens on the machine's screen — which with a

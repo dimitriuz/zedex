@@ -254,6 +254,14 @@ final class EmulatorLayout extends ViewGroup {
     /** Set by {@link #placeJoystick}: it found no black and used the picture. */
     private boolean joystickFloating;
 
+    /**
+     * How much of the top of the window {@link #arrange} has kept for the quick
+     * bar, or zero in fullscreen where the bar overlaps instead. Everything else
+     * starts below it, which includes the joystick's band above a keyboard set
+     * beside the screen.
+     */
+    private int barStrip;
+
     EmulatorLayout(Context context) {
         super(context);
         setBackgroundColor(0xff000000);
@@ -452,11 +460,11 @@ final class EmulatorLayout extends ViewGroup {
     /**
      * Whether the picture has the window to itself.
      *
-     * The bar stops reserving its strip and starts overlapping the corner as it
-     * used to, and the keyboard goes away in landscape - where it costs the
-     * picture nearly half the window. In portrait it costs the picture nothing,
-     * since a 4:3 image in a tall window is limited by the width and not by the
-     * height, so it stays.
+     * The bar stops reserving its strip and hangs over the corner instead, where
+     * the activity fades it out after three seconds and a tap on the picture
+     * brings it back; the keyboard and the lamps go away. Whichever way up: the
+     * button means the picture and nothing else, and what the furniture happens
+     * to cost in a given orientation is not the point of it.
      */
     void setFullscreen(boolean on) {
         // No early return on an unchanged value: whether fullscreen hides the
@@ -649,35 +657,26 @@ final class EmulatorLayout extends ViewGroup {
     }
 
     /**
-     * Full sized across the top in portrait, compact in the corner sideways.
+     * Full sized, whichever way up the device is.
      *
-     * The room it is given is the black down the side of a 4:3 picture as wide as
-     * the window can make it - the narrowest that black ever gets, since a
-     * template that gives the screen less makes the picture smaller and the black
-     * wider. Worked out from the display rather than from the boxes, because the
-     * bar is measured before the boxes are: in portrait the screen starts
-     * underneath it.
+     * It used to shrink to the size of the activity lamps in landscape, where it
+     * hung in the black beside a 4:3 picture: nine full sized icons came to
+     * nearly a thousand pixels of a four hundred and eighty pixel gap, so they
+     * had to be the size of the lamps or they lay across the game. Icons that
+     * small are hard to hit and hard to tell apart, and the choice was only ever
+     * forced because the bar was squeezing into space left over. It has a strip
+     * of its own across the top now, sideways as well as upright — see the room
+     * {@link #arrange} keeps for it — and a strip has the whole width to spend.
      *
-     * Set from here rather than during a measure, since changing a child's size
-     * asks for another layout.
+     * Still a method rather than a constant: the second screen sizes the bar to
+     * its own panel, and this is how it is put back.
      */
     private void applyBarMetrics() {
-        if (menu == null) return;
+        // Not while it is over there: the panel sized it to itself, and this
+        // window rotating is none of its business.
+        if (menu == null || lent) return;
 
-        android.util.DisplayMetrics metrics = getResources().getDisplayMetrics();
-        boolean landscape = getResources().getConfiguration().orientation
-                == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
-
-        if (!landscape) {
-            menu.setCompact(0);
-            return;
-        }
-
-        int across = Math.max(metrics.widthPixels, metrics.heightPixels);
-        int down = Math.min(metrics.widthPixels, metrics.heightPixels);
-        int beside = ( across - Math.round( down * SCREEN_ASPECT ) ) / 2;
-
-        menu.setCompact(beside - 2 * Math.round(BAR_GAP * metrics.density));
+        menu.setCompact(0);
     }
 
     @Override
@@ -715,22 +714,23 @@ final class EmulatorLayout extends ViewGroup {
 
         panelBox.set(0, 0, width, height);
 
-        // The bar first, because in portrait the screen starts underneath it.
+        // The bar first, because the screen starts underneath it.
         measureBar(width, height);
 
-        // The strip the bar keeps for itself in portrait is its icons, not
-        // whatever it has opened underneath them: a group's list is over the
-        // picture for as long as it is open, where moving the machine down and
-        // up again every time one is looked at is a picture that will not sit
-        // still.
-        int top = landscape || fullscreen || menuBox.isEmpty()
+        // The strip the bar keeps for itself is its icons, not whatever it has
+        // opened underneath them: a group's list is over the picture for as
+        // long as it is open, where moving the machine down and up again every
+        // time one is looked at is a picture that will not sit still.
+        barStrip = fullscreen || menuBox.isEmpty()
                 ? 0 : menuBox.top + menu.rowHeight()
                       + Math.round(BAR_GAP * getResources()
                             .getDisplayMetrics().density);
 
+        int top = barStrip;
+
         switch (current) {
             case NONE: {
-                screenBox.set(0, 0, width, height);
+                screenBox.set(0, top, width, height);
                 keyboardBox.setEmpty();
 
                 // Except while the system keyboard is up, which covers the
@@ -761,9 +761,9 @@ final class EmulatorLayout extends ViewGroup {
                 if (current == Template.LEFT) {
                     keyboardBox.set(0, height - keyboardHeight,
                                     keyboardWidth, height);
-                    screenBox.set(keyboardWidth, 0, width, height);
+                    screenBox.set(keyboardWidth, top, width, height);
                 } else {
-                    screenBox.set(0, 0, width - keyboardWidth, height);
+                    screenBox.set(0, top, width - keyboardWidth, height);
                     keyboardBox.set(width - keyboardWidth, height - keyboardHeight,
                                     width, height);
                 }
@@ -775,7 +775,7 @@ final class EmulatorLayout extends ViewGroup {
                 int keyboardHeight = Math.min(natural,
                         Math.round(height * LANDSCAPE_OVERLAY));
 
-                screenBox.set(0, 0, width, height);
+                screenBox.set(0, top, width, height);
                 keyboardBox.set(0, height - keyboardHeight, width, height);
                 break;
             }
@@ -1052,7 +1052,9 @@ final class EmulatorLayout extends ViewGroup {
         // the same size and either is a whole thumb's width away from the
         // picture.
         if (!keyboardBox.isEmpty() && !keyboardBelow) {
-            int bandTop = 0;
+            // Below the bar's strip, not the top of the window: with the
+            // keyboard on the right, this band is the corner the bar is in.
+            int bandTop = barStrip;
             int bandBottom = keyboardBox.top;
 
             // The lamps are the one thing that can already be in here. They
@@ -1225,13 +1227,16 @@ final class EmulatorLayout extends ViewGroup {
      *
      * The window's corner and not the picture's, which is where it used to go. It
      * is on screen the whole time now rather than fading after three seconds, and
-     * a bar that is always there must not be always over the game: in portrait
-     * the screen starts underneath it - see the strip {@link #arrange} reserves -
-     * and in landscape the corner is the black beside a 4:3 picture in a wide
-     * window, which is nobody's picture. The one arrangement where it still
-     * overlaps is a keyboard on the left, where the screen's half reaches the
-     * window's right edge and only a thin band is left above it; the corner of
-     * the border is what it costs.
+     * a bar that is always there must not be always over the game: the screen
+     * starts underneath it, whichever way up the device is - see the strip
+     * {@link #arrange} reserves.
+     *
+     * Sideways it used to go in the black beside a 4:3 picture instead, which is
+     * nobody's picture and costs nothing - but the black is only as wide as the
+     * window is wider than 4:3, and the bar had to shrink to the size of the
+     * activity lamps to fit in it. A strip costs the picture a little height and
+     * gives the icons back a thumb's worth of size, which is the trade portrait
+     * has always made.
      *
      * In fullscreen it goes back to overlapping, because there it is not there at
      * all until the picture is tapped and a layout that shifted for a control
