@@ -85,6 +85,12 @@
             android:label="@string/settings_title"
             android:theme="@android:style/Theme.DeviceDefault.Settings"
             android:exported="false" />
+
+        <activity
+            android:name=".StatesActivity"
+            android:label="@string/menu_states"
+            android:theme="@android:style/Theme.DeviceDefault"
+            android:exported="false" />
     </application>
 
 </manifest>

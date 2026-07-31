@@ -267,9 +267,10 @@ In full:
   again. It pauses itself whenever the app is not in front.
   - *NMI* is the magic button of the real hardware; what it does depends on
   the machine.
-- **States…** — *Save state…* and *Load state…*: as many saves as you like,
-  each named and showing the screen as it was when it was written. The pencil on a
-  row renames it and the bin deletes it.
+- **States…** — *Save state…* and *Load state…* open a screen of their own: a
+  grid of cards, each the screen as it was when it was written, with as many
+  saves as you like. The pencil on a card renames it and the bin deletes it.
+  With a second screen it opens on the panel, where it was asked for.
 - **Pokes…** — cheats. When a file is opened it is fingerprinted, and if it is
   one of the 3,682 games the built-in database knows, its cheats are listed at the
   top: tap one and it is poked. *Search the cheat database…* finds a game by name,

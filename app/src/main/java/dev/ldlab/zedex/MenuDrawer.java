@@ -1,14 +1,12 @@
 package dev.ldlab.zedex;
 
 import android.content.Context;
-import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -181,76 +179,6 @@ final class MenuDrawer extends FrameLayout {
             close();
             trailing.run();
         });
-    }
-
-    /** A button at the end of a row: an icon, what it is called, what it does. */
-    static final class Extra {
-        final int icon;
-        final String label;
-        final Runnable action;
-
-        Extra(int icon, String label, Runnable action) {
-            this.icon = icon;
-            this.label = label;
-            this.action = action;
-        }
-    }
-
-    /**
-     * A row with a picture at the front and buttons at the end: a save state,
-     * which is a name, when it was written, the screen as it was, and the two
-     * things that can be done to it.
-     *
-     * The one row in the sheet that is not a line of text, and the reason the
-     * save-state list could stay a dialog long after everything else had become
-     * a page. The words are still one text view carrying the click, so the tests
-     * and {@code ui-tap.py} find it the way they find any other row.
-     */
-    void addPicture(Bitmap picture, String text, Runnable action, Extra... extras) {
-        LinearLayout line = new LinearLayout(getContext());
-        line.setOrientation(LinearLayout.HORIZONTAL);
-        line.setGravity(Gravity.CENTER_VERTICAL);
-
-        ImageView shot = new ImageView(getContext());
-        shot.setImageBitmap(picture);
-        shot.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        shot.setBackgroundColor(0xff000000);
-
-        LinearLayout.LayoutParams frame =
-                new LinearLayout.LayoutParams(unit * 9, unit * 7);
-        frame.setMargins(unit * 2, unit / 2, 0, unit / 2);
-        line.addView(shot, frame);
-
-        TextView row = new TextView(getContext());
-        row.setText(text);
-        row.setTextColor(LABEL);
-        row.setTextSize(15);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(unit * 2, unit, unit, unit);
-        row.setBackgroundResource(android.R.drawable.list_selector_background);
-        row.setClickable(true);
-        row.setFocusable(true);
-        row.setOnClickListener(v -> {
-            close();
-            action.run();
-        });
-
-        line.addView(row, new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
-
-        for (Extra extra : extras) {
-            ImageButton button = new ImageButton(getContext());
-
-            button.setImageDrawable(tinted(extra.icon, SECTION));
-            button.setContentDescription(extra.label);
-            button.setBackgroundResource(android.R.drawable.list_selector_background);
-            button.setPadding(unit, unit, unit, unit);
-            button.setOnClickListener(v -> extra.action.run());
-
-            line.addView(button, new LinearLayout.LayoutParams(unit * 5, unit * 5));
-        }
-
-        items.addView(line);
     }
 
     /**

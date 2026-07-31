@@ -98,10 +98,12 @@ against the current one; every confirmation is a page with the question as a
 note and one row that does the thing, Back being what Cancel was; and the pages
 that need a name or a number carry `addField` lines of their own. The rows that
 lead to them are submenus, so the sheet slides rather than closing and opening
-again a frame later. All twenty-nine dialogs went this way, the save-state list
-last: its rows are a picture of the machine, a name and two buttons rather than
-a line of text, so the sheet grew `addPicture` to hold them. The app opens no
-dialogs at all now.
+again a frame later. Twenty-three of the twenty-nine dialogs went this
+way. The save-state list went the other way and became a screen of its own —
+`StatesActivity` — because a state is a picture and a picture wants more room
+than a three-hundred-dp sheet has; it is opened through `openOwnScreen` like
+settings, so it lands on the display the request came from, and the dialogs it
+does use are its own windows and land there with it.
 
 Two things make it fit that black. **Six icons, not nine**: everything that is a
 file went into one group behind a folder, and pause went into *Machine* with the
@@ -510,8 +512,11 @@ display backend as a width, a height and RGBA rows, which Android decodes
 straight into a `Bitmap`. It costs 76kB a slot and saves guessing which save
 is which.
 
-The list is a page of the sheet like everything else, each row a `addPicture`:
-the thumbnail, the name and the date, and the pencil and bin at the end.
+The list is `StatesActivity`: a grid of cards, each the screen as it was, the
+name, the date and the two buttons. The file arithmetic — what a state is, what
+it is called, saving, loading, renaming, deleting, and decoding a thumbnail —
+lives in `States`, because two screens need it: the list, and the emulator for
+the controller's quick save and quick load.
 
 Renaming moves both files, since the name is the base name of both and a
 thumbnail left behind is a row with no picture. It keeps the snapshot's

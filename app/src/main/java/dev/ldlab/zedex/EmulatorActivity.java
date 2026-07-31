@@ -6,7 +6,6 @@ import android.app.Application;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
-import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.hardware.display.DisplayManager;
 import android.hardware.input.InputManager;
@@ -36,8 +35,6 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.io.BufferedInputStream;
-import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -48,12 +45,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.text.DateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -1842,7 +1834,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             case NMI: FuseNative.nmi(); break;
             case QUIT: quit(); break;
 
-            case QUICK_SAVE: save(QUICK_STATE); break;
+            case QUICK_SAVE: quickSave(); break;
             case QUICK_LOAD: quickLoad(); break;
             case SAVE_STATE: showStates(true); break;
             case LOAD_STATE: showStates(false); break;
@@ -1889,10 +1881,21 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     /** The one state a hotkey writes, and writes over. */
     private static final String QUICK_STATE = "Quick";
 
+    private void quickSave() {
+        if (!States.save(this, preferences, QUICK_STATE)) {
+            note(R.string.state_failed);
+            return;
+        }
+
+        note(R.string.state_saved, QUICK_STATE);
+    }
+
     private void quickLoad() {
-        for (SavedState state : savedStates()) {
+        for (States.Saved state : States.all(this)) {
             if (state.name.equals(QUICK_STATE)) {
-                load(state);
+                States.load(state);
+                rememberMediaName(state.name);
+                note(R.string.state_loaded, state.name);
                 return;
             }
         }
@@ -2780,158 +2783,17 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     // --- save states ----------------------------------------------------
 
     /**
-     * Saved states are named files rather than numbered slots, so there can
-     * be as many as wanted and each says what it is. A state is a snapshot
-     * plus a thumbnail sharing its base name; the snapshot's extension
-     * decides its format, so a state written before the format setting
-     * changed still loads.
-     */
-    private static final String[] FORMATS = { "szx", "z80", "sna" };
-
-    private static final class SavedState {
-        final File snapshot;
-        final String name;
-
-        SavedState(File snapshot, String name) {
-            this.snapshot = snapshot;
-            this.name = name;
-        }
-
-        String format() {
-            String file = snapshot.getName();
-            return file.substring(file.lastIndexOf('.') + 1).toUpperCase(Locale.ROOT);
-        }
-    }
-
-    private File stateDirectory() {
-        return Storage.statesDirectory(this);
-    }
-
-    private File thumbnailFor(String name) {
-        return new File(stateDirectory(), name + ".thumb");
-    }
-
-    /** Newest first, which is nearly always the one wanted. */
-    private List<SavedState> savedStates() {
-        List<SavedState> states = new ArrayList<>();
-        File[] files = stateDirectory().listFiles();
-        if (files == null) return states;
-
-        for (File file : files) {
-            String name = file.getName();
-            int dot = name.lastIndexOf('.');
-            if (dot <= 0) continue;
-
-            String extension = name.substring(dot + 1).toLowerCase(Locale.ROOT);
-            if (Arrays.asList(FORMATS).contains(extension)) {
-                states.add(new SavedState(file, name.substring(0, dot)));
-            }
-        }
-
-        states.sort((a, b) -> Long.compare(b.snapshot.lastModified(),
-                                           a.snapshot.lastModified()));
-        return states;
-    }
-
-    /**
-     * Every saved state, as a page of the sheet.
+     * The list of saved states is a screen of its own - see
+     * {@link StatesActivity}. A state is a picture, and a picture wants more
+     * room than a three-hundred-dp sheet can give it; the screen also opens on
+     * whichever display the controls are on, which is the whole point of
+     * {@link #openOwnScreen}.
      *
-     * The last of the dialogs, and the one that held out longest: its rows are
-     * a picture of the machine, a name, when it was written and the two things
-     * that can be done to it, which took a row of the sheet's own - see
-     * {@link MenuDrawer#addPicture}. A page appears wherever the sheet is, so
-     * on a handheld the list is under the thumb that asked for it.
+     * What is left here is what the machine's own side needs: the two hotkeys,
+     * which write and read one state without asking anything.
      */
     private void showStates(boolean saving) {
-        List<SavedState> states = savedStates();
-
-        if (!saving && states.isEmpty()) {
-            Toast.makeText(this, R.string.state_none, Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        menu.go(getString(saving ? R.string.menu_save_state
-                                 : R.string.menu_load_state), page -> {
-            if (saving) {
-                page.addSubmenu(getString(R.string.state_add), R.drawable.ic_plus,
-                                nameNewState());
-                page.addRule();
-            }
-
-            DateFormat when = DateFormat.getDateTimeInstance(
-                    DateFormat.SHORT, DateFormat.SHORT);
-
-            for (SavedState state : states) {
-                String label = state.name + "\n" + getString(R.string.state_details,
-                        when.format(new Date(state.snapshot.lastModified())),
-                        state.format());
-
-                page.addPicture(readThumbnail(thumbnailFor(state.name)), label,
-                        () -> {
-                            if (saving) {
-                                menu.go(state.name, overwriteState(state, saving));
-                            } else {
-                                load(state);
-                            }
-                        },
-                        new MenuDrawer.Extra(R.drawable.ic_edit,
-                                getString(R.string.state_rename_action, state.name),
-                                () -> menu.enter(getString(R.string.state_rename),
-                                                     renameState(state, saving))),
-                        new MenuDrawer.Extra(R.drawable.ic_trash,
-                                getString(R.string.state_delete_action, state.name),
-                                () -> menu.enter(getString(R.string.state_delete_confirm),
-                                                     deleteState(state, saving))));
-            }
-        });
-    }
-
-    private MenuDrawer.Page nameNewState() {
-        return page -> {
-            EditText input = page.addField(getString(R.string.state_name),
-                                           suggestedName(), 0);
-
-            page.addItem(getString(R.string.menu_save_state), R.drawable.ic_save,
-                         () -> {
-                String name = sanitise(input.getText().toString());
-                if (name.isEmpty()) name = "Snapshot";
-                save(name);
-            });
-        };
-    }
-
-    /**
-     * Names a new state after whatever is loaded, which is nearly always what
-     * it is a state of, adding a number if that name is taken.
-     *
-     * A reset or a machine change empties the machine, so there is nothing to
-     * name a state after and they are simply numbered instead.
-     */
-    private String suggestedName() {
-        String media = preferences.getString(PREF_MEDIA_NAME, null);
-
-        if (media == null || media.isEmpty()) {
-            for (int n = 1; n < 1000; n++) {
-                String numbered = getString(R.string.state_default_name, n);
-                if (findState(numbered) == null) return numbered;
-            }
-            return getString(R.string.state_default_name, 1);
-        }
-
-        if (findState(media) == null) return media;
-
-        for (int n = 2; n < 1000; n++) {
-            if (findState(media + " " + n) == null) return media + " " + n;
-        }
-        return media;
-    }
-
-    private File findState(String name) {
-        for (String format : FORMATS) {
-            File file = new File(stateDirectory(), name + "." + format);
-            if (file.exists()) return file;
-        }
-        return null;
+        openOwnScreen(StatesActivity.intent(this, saving));
     }
 
     /** Keeps names to something that is safe as a filename. */
@@ -2939,130 +2801,9 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         return name.replaceAll("[/\\\\:*?\"<>|]", "_").trim();
     }
 
-    private MenuDrawer.Page overwriteState(SavedState state, boolean saving) {
-        return page -> {
-            page.addNote(getString(R.string.state_overwrite, state.name));
-            page.addItem(getString(R.string.state_overwrite_confirm),
-                         R.drawable.ic_save, () -> save(state.name));
-        };
-    }
-
-    private MenuDrawer.Page renameState(SavedState state, boolean saving) {
-        return page -> {
-            EditText input = page.addField(getString(R.string.state_name),
-                                           state.name, 0);
-
-            page.addItem(getString(R.string.state_rename), R.drawable.ic_edit,
-                         () -> rename(state, sanitise(input.getText().toString()),
-                                      saving));
-        };
-    }
-
-    /**
-     * A state is two files sharing a base name, so both move or the row loses
-     * its picture.
-     *
-     * A name that is already taken is refused rather than written over: the
-     * list's own tap is how a state is overwritten, and that asks first. The
-     * snapshot keeps its extension — the format it was saved in is the format
-     * that will load it, whatever the setting says now.
-     */
-    private void rename(SavedState state, String name, boolean saving) {
-        if (name.isEmpty() || name.equals(state.name)) return;
-
-        if (findState(name) != null) {
-            Toast.makeText(this, getString(R.string.state_name_taken, name),
-                           Toast.LENGTH_LONG).show();
-            return;
-        }
-
-        String file = state.snapshot.getName();
-        String extension = file.substring(file.lastIndexOf('.'));
-
-        if (!state.snapshot.renameTo(new File(stateDirectory(), name + extension))) {
-            Toast.makeText(this, R.string.state_rename_failed, Toast.LENGTH_LONG).show();
-            return;
-        }
-
-        File thumbnail = thumbnailFor(state.name);
-        if (thumbnail.exists()) thumbnail.renameTo(thumbnailFor(name));
-
-        showStates(saving);
-    }
-
-    private MenuDrawer.Page deleteState(SavedState state, boolean saving) {
-        return page -> {
-            page.addNote(getString(R.string.state_delete, state.name));
-            page.addItem(getString(R.string.state_delete_confirm),
-                         R.drawable.ic_trash, () -> {
-                state.snapshot.delete();
-                thumbnailFor(state.name).delete();
-
-                // Straight back to the list, so several can be tidied up in one
-                // visit rather than one trip through the menu each.
-                showStates(saving);
-            });
-        };
-    }
-
-    private void save(String name) {
-        File directory = stateDirectory();
-        if (!directory.isDirectory() && !directory.mkdirs()) {
-            Toast.makeText(this, R.string.state_failed, Toast.LENGTH_LONG).show();
-            return;
-        }
-
-        String format = preferences.getString(
-                SettingsActivity.KEY_SNAPSHOT_FORMAT, FORMATS[0]);
-
-        // One snapshot per name, whatever it was saved as before.
-        for (String other : FORMATS) {
-            if (!other.equals(format)) new File(directory, name + "." + other).delete();
-        }
-
-        FuseNative.saveSnapshot(new File(directory, name + "." + format).getAbsolutePath());
-        FuseNative.saveThumbnail(thumbnailFor(name).getAbsolutePath());
-        Toast.makeText(this, getString(R.string.state_saved, name),
-                Toast.LENGTH_SHORT).show();
-    }
-
-    private void load(SavedState state) {
-        FuseNative.loadSnapshot(state.snapshot.getAbsolutePath());
-        rememberMediaName(state.name);
-        Toast.makeText(this, getString(R.string.state_loaded, state.name),
-                Toast.LENGTH_SHORT).show();
-    }
-
-    /** Decodes what {@link FuseNative#saveThumbnail} wrote. */
-    private static Bitmap readThumbnail(File file) {
-        if (!file.exists()) return null;
-
-        try (DataInputStream in = new DataInputStream(
-                new BufferedInputStream(new FileInputStream(file)))) {
-
-            byte[] header = new byte[8];
-            in.readFully(header);
-            ByteBuffer numbers = ByteBuffer.wrap(header).order(ByteOrder.LITTLE_ENDIAN);
-            int width = numbers.getInt();
-            int height = numbers.getInt();
-
-            if (width <= 0 || height <= 0 || width > 2048 || height > 2048) return null;
-
-            byte[] pixels = new byte[width * height * 4];
-            in.readFully(pixels);
-
-            Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-            bitmap.copyPixelsFromBuffer(ByteBuffer.wrap(pixels));
-            return bitmap;
-        } catch (IOException | IllegalArgumentException e) {
-            Log.w(TAG, "cannot read thumbnail " + file, e);
-            return null;
-        }
-    }
-
     /** What a new state will be called: the media that is loaded. */
     private void rememberMediaName(String name) {
-        preferences.edit().putString(PREF_MEDIA_NAME, name).apply();
+        preferences.edit().putString(States.KEY_MEDIA_NAME, name).apply();
     }
 
     /** Nothing is loaded any more, so new states go back to being numbered. */
