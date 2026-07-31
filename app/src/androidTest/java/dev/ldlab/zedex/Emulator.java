@@ -213,8 +213,10 @@ final class Emulator {
         target = device.wait(Until.findObject(By.textContains(text)), GLANCE);
         if (target != null) return target;
 
-        // The ☰ button has no text worth matching, only a description.
-        target = device.wait(Until.findObject(By.desc(text)), GLANCE);
+        // The ☰ button and the cards' own buttons have no text worth matching,
+        // only a description - and those are quoted, "Rename “Tujad”", so the
+        // match has to be a contains and not an equals.
+        target = device.wait(Until.findObject(By.descContains(text)), GLANCE);
         if (target != null) return target;
 
         scrollTo(text);
@@ -341,9 +343,14 @@ final class Emulator {
     }
 
     /** Pins the window the way up a test expects to find things. */
+    /**
+     * Really portrait, not merely natural: on a tablet the natural orientation
+     * <em>is</em> landscape, so setOrientationNatural() left every test that
+     * wanted a tall window running in a wide one.
+     */
     void portrait() {
         try {
-            device.setOrientationNatural();
+            device.setOrientationPortrait();
         } catch (android.os.RemoteException e) {
             throw new AssertionError("cannot rotate the device", e);
         }
@@ -400,12 +407,19 @@ final class Emulator {
     /**
      * The Spectrum colour number the border is showing, 0 (black) to 7.
      *
-     * Sampled inside the emulated screen wherever that is, which is not where it
-     * used to be: the quick bar took a strip across the top of the window in
-     * portrait and the picture starts below it, so a fixed corner of the *window*
-     * read black and three tests failed with the machine working perfectly. The
-     * SurfaceView's own bounds are the picture in portrait - the box it gets is
-     * exactly the height a 4:3 image uses - so they are what to ask.
+     * Sampled inside the <b>picture</b>, which is not the same thing as the
+     * SurfaceView's bounds and was the second version of this bug. A fixed
+     * corner of the window was the first: the quick bar took a strip across the
+     * top and the picture starts below it, so the corner read black and three
+     * tests failed with the machine working perfectly. Asking the SurfaceView
+     * fixed that in portrait, where the box it gets is exactly the height a 4:3
+     * image uses - and left it broken sideways, where the box is the whole width
+     * and the 4:3 picture is centred in it with black bars either side, so the
+     * box's own left edge is window and not border. Same symptom, same "expected
+     * 4 but was 0".
+     *
+     * So the quad is worked out here: the renderer centres 4:3 in whatever box
+     * it is given, and this does the same sum. Any arrangement, either way up.
      */
     int borderColour() {
         java.io.File shot = new java.io.File(context().getCacheDir(), "border.png");
@@ -424,13 +438,30 @@ final class Emulator {
         return nearestColour(pixel);
     }
 
-    /** Where the emulated screen is, or the window's corner if it cannot be found. */
+    /**
+     * Where the 4:3 picture actually is, which is a sum and not a view's bounds.
+     *
+     * The SurfaceView gets a box; the renderer centres the largest 4:3 quad that
+     * fits inside it. Sideways the box is wider than 4:3 and the difference is
+     * black window either side, so the box's corner is not the picture's.
+     */
     private Rect pictureBounds() {
         UiObject2 screen = device.wait(
                 Until.findObject(By.clazz("android.view.SurfaceView")), GLANCE);
+        if (screen == null) return new Rect(0, 0, 1, 1);
 
-        return screen != null ? screen.getVisibleBounds() : new Rect(0, 0, 1, 1);
+        Rect box = screen.getVisibleBounds();
+
+        int wide = Math.min(box.width(), Math.round(box.height() * ASPECT));
+        int tall = Math.round(wide / ASPECT);
+        int left = box.left + (box.width() - wide) / 2;
+        int top = box.top + (box.height() - tall) / 2;
+
+        return new Rect(left, top, left + wide, top + tall);
     }
+
+    /** The emulated screen, whichever border is shown and whatever the machine. */
+    private static final float ASPECT = 4.0f / 3.0f;
 
     /** Whichever of the eight the pixel is closest to; the shader is exact,
      *  but a nearest match survives a device that dithers or colour-manages. */

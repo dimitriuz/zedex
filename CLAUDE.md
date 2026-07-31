@@ -77,12 +77,12 @@ env JAVA_HOME=/opt/android-studio/jbr ./gradlew connectedDebugAndroidTest \
 
 Things learned the hard way, all of them recorded in the tests' own comments:
 
-- **`Emulator.borderColour()` finds the picture; it does not assume where it is.**
-  It used to sample the window's top left corner, which stopped being inside the
-  emulated screen the moment the quick bar took a strip across the top - three
-  tests then failed with "expected 4 but was 0" while the machine was working
-  perfectly. It reads the SurfaceView's bounds now. Any test that samples the
-  screen has to do the same.
+- **Sample the picture, not a view's bounds.** `borderColour()` computes the 4:3
+  quad the way the renderer does. The window's corner was wrong once the bar took
+  a strip; the SurfaceView's bounds are wrong sideways, where the picture is
+  centred in a wider box. Both failed as "expected 4 but was 0".
+- **Ask for portrait, not for natural.** On a tablet natural *is* landscape, so
+  `setOrientationNatural()` runs a test that wants a tall window in a wide one.
 - Instrumentation runs **inside the app's process**, so `am force-stop` on the
   app kills the test with it.
 - **A run uninstalls the app afterwards**, wiping its preferences and storage
@@ -101,9 +101,24 @@ Things learned the hard way, all of them recorded in the tests' own comments:
 - The emulated screen cannot be read, but a **screenshot of the device** can:
   have the program under test say what it saw in the border colour, and
   `Emulator.borderColour()` will read it back.
+- **Do not drive the picker; make a document instead.** `MediaStore` gives a
+  real `content://` URI, and an `ACTION_VIEW` intent carrying it takes the same
+  path a file manager's hand-over does. That is the only way to reach
+  `Media.stage()` — the md5, the recent list, the grant and the write-back origin
+  are all there. `Emulator.open()` calls Fuse directly and misses them.
 - **UI Automator switches accessibility on**, so anything guarded by
   `AccessibilityManager.isEnabled()` behaves differently under test than in
   real use. A crash on latching a shift once shipped for exactly this reason.
+- **At a BASIC prompt the first key of a line is a keyword.** `B` gives `BORDER`;
+  typing the six letters gives `BORDER ORDER` and a syntax error.
+- **Poke above RAMTOP.** The printer buffer at 23296 is only free on a 48K; on a
+  128 the byte is gone before the next `PEEK` sees it. Have the program `CLEAR`
+  down to 32767 and use 32768.
+- **`By.desc` is an exact match.** Card buttons are described `Rename “Tujad”`,
+  quotes and all, so `find()` uses `descContains`.
+- **A row that was a dialog is a page now.** The button commits by its own name —
+  *Save as…*, *Delete* — and there is no OK. `NewDiskTest` tapped OK for months
+  after the change and nobody ran it.
 
 ## Device setup, after a test run
 
@@ -162,6 +177,23 @@ another layer needs has to be `public`. Do not script that widening by
 indentation: eight spaces is a method body at a top-level class and a nested
 member inside a nested type, and a rule that confuses them writes `public` in
 front of local variables. Let the compiler say what is invisible.
+
+## Refactoring this codebase
+
+- **Build collaborators in `onCreate`, never as field initialisers.** Those run
+  first and are handed a null `preferences`. It compiles.
+- **A `Host` interface wider than about four methods means the seam is wrong.**
+  "Move the menus out" needed fifteen, so the menus stayed. Pass a real
+  collaborator instead: `ControlsUi` holds `EmulatorLayout`.
+- **Extract first, move into packages after.** Every cross-package reference has
+  to become `public`; pay for it once.
+- **Never script the `public` widening by indentation.** Eight spaces is a method
+  body at a top-level class and a member inside a nested type. Let the compiler
+  name what is invisible and promote exactly that. Guessing cost an hour and a
+  `git reset --hard`.
+- **When a class leaves, read what it left behind.** Comments do not move with
+  the code. Eleven were lying after this refactor; the worst was a fifteen-line
+  explanation stranded above an unrelated constant.
 
 ## Conventions
 

@@ -207,6 +207,23 @@ to query, so there is nothing to assert against and nothing to wait on;
 the files the machine produces. That is the honest boundary of this
 approach, and why the interesting assertion is on bytes rather than pixels.
 
+`StatesTest` proves a snapshot is a snapshot rather than a file of the right
+size: the border is set to a colour, the state saved, the border changed, the
+state loaded, and the border read back off a screenshot. Rename and delete are
+checked against the files, thumbnail included.
+
+`PokesTest` searches the shipped database by name — the same index a fingerprint
+reaches — and takes a typed poke all the way into memory, with a BASIC reporter
+PEEKing the address and saying so in the border. It pokes above RAMTOP, which the
+reporter lowers itself: the printer buffer at 23296 is only free on a 48K, and on
+a 128 the byte was gone before the next PEEK saw it.
+
+`RecentsTest` is the only test that reaches `Media.stage()`, because that only
+happens for a real document. `MediaStore` provides one and an `ACTION_VIEW`
+intent carries it in, which is the path a file manager's hand-over takes: the
+md5, the persistable grant, the write-back origin and the recent list are all
+there, and `Emulator.open()` — which calls Fuse directly — misses every one.
+
 `CaptureTest` is the counterpart for screenshots and recording: a PNG the
 size the machine is drawing, a GIF whose blocks parse and hold more than one
 frame, an MP4 the device's own metadata reader agrees is video. Counting
@@ -223,8 +240,8 @@ that has ROMs in it, `/sdcard/Download/Spectrum` unless told otherwise.
     -Pandroid.testInstrumentationRunnerArguments.dataFolder=/sdcard/Spectrum
 ```
 
-The ROMs decide what can run. `NewDiskTest` needs a Scorpion, whose ROMs are
-not redistributable, so it skips rather than fails when they are absent.
+The ROMs decide what can run, and every test skips rather than fails when the
+folder it was pointed at has none.
 
 ## Releases
 
@@ -339,5 +356,9 @@ Where some of those land:
   `app/build.gradle`; nothing should stop it
 - A debugger front end would sit on the core's own debugging API
 
-The suite in `app/src/androidTest` covers two paths so far. More there is
-worth more than any one feature above.
+The suite covers the disk story, capture, the joystick and the hotkeys, save
+states, the cheats and the recent files. Writing a disk **back over the document
+it came from** is the one dangerous path with no test: `disk_write` truncates
+before it knows it has anything to write, so a failure destroys the original. It
+needs a formatted disk opened from a document, which is two minutes of TR-DOS
+formatting plus a made-up MediaStore URI. Worth doing.

@@ -169,10 +169,15 @@ public class NewDiskTest {
         emulator.idle(5 * Emulator.SECOND);
     }
 
+    /**
+     * Saving is a sheet page and not a dialog, so the button that commits it is
+     * the page's own "Save as…" and not an OK. This tapped OK for a while after
+     * the dialogs became pages, and said "nothing on screen says OK".
+     */
     private void saveTheDiskAs(String name) {
-        emulator.menu("Media", "Beta Disk A:", "Save");
+        emulator.menu("Media", "Beta Disk A:", "Save as");
         emulator.enterText(name);
-        emulator.tap("OK");
+        emulator.tap("Save as");
         emulator.idle(3 * Emulator.SECOND);
     }
 
