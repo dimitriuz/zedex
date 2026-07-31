@@ -113,9 +113,11 @@ exist and is created fresh for the run — carries a key nothing else has, and
 `adb install -r` answers `INSTALL_FAILED_UPDATE_INCOMPATIBLE`. Three builds
 meant three certificates and three uninstalls, CI against CI included.
 
-Nothing is given away by committing it. It signs debug builds and only debug
-builds, it is not the release key, it cannot update anything installed from a
-store, and its password is the published Android default. Anything installed
+Nothing is given away by committing it. It is the stock Android debug
+certificate — `CN=Android Debug`, alias `androiddebugkey`, the published
+default password — it is not the release key, and it cannot update anything
+installed from a store. It signs debug builds, and release builds made without
+a real key, which are the two things that never leave the bench. Anything installed
 before this key existed has to be uninstalled once to cross over.
 
 If your default JDK is newer than 21, point Gradle at Android Studio's JBR:
@@ -303,8 +305,16 @@ the cross-compile.
 
 Locally the same variables — `ZEDEX_KEYSTORE` pointing at the file, plus
 `ZEDEX_KEYSTORE_PASSWORD`, `ZEDEX_KEY_ALIAS`, `ZEDEX_KEY_PASSWORD` — make
-`assembleRelease` produce a signed `app-release.apk`. With none of them set it
-produces `app-release-unsigned.apk`, which is the normal case.
+`assembleRelease` produce an `app-release.apk` signed with the real key.
+
+**With none of them set it is signed with the debug key instead**, and that is
+deliberate. Unsigned is an APK nothing can install, and a local key of its own
+would be a third certificate: Android will not let one certificate update
+another, so a release built on the bench could not replace the debug build on
+the device, or be replaced by it. Sharing the debug key makes the two
+interchangeable — `adb install -r` either way round, no uninstall. The release
+workflow always sets the variables, so nothing anyone else installs is signed
+this way.
 
 ## Next steps
 

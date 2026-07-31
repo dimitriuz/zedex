@@ -115,7 +115,16 @@ android {
     buildTypes {
         release {
             minifyEnabled false
-            if (keystorePath) signingConfig signingConfigs.release
+
+            // With a key, the real one; without, the debug key. A release built
+            // with no key at all is an APK nothing can install - Gradle writes
+            // app-release-unsigned.apk and stops - and one given a key of its
+            // own could not replace the debug build on a device, since Android
+            // will not let one certificate update another. The debug key makes
+            // the two interchangeable on the bench, and CI sets ZEDEX_KEYSTORE,
+            // so every build anyone else ever sees is signed with the real one.
+            signingConfig keystorePath ? signingConfigs.release
+                                       : signingConfigs.debug
         }
     }
 
