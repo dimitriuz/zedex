@@ -83,19 +83,21 @@ public final class ProfileActivity extends Activity
 
         page.addView(grid());
 
-        // The keyboard keeps its own 541x201 aspect whatever box it is given,
-        // so a box with the spare height in it would only centre the picture in
-        // the middle of nowhere. The spare height goes above instead, which puts
-        // the keyboard at the foot of the screen where one belongs.
-        page.addView(new View(this), new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
-
         SpectrumKeyboardView keyboard = new SpectrumKeyboardView(this);
         keyboard.setPicker(this);
 
+        // The keyboard takes whatever height is left and puts its picture at the
+        // foot of it, rather than asking for the height its own aspect wants:
+        // sideways that is more than the controls leave, and the bottom two rows
+        // of keys - SPACE and both shifts among them - fell off the screen with
+        // nothing to scroll.
+        keyboard.setBottomAligned(true);
+
+        // And its box is the page, since most of it is room above the keys.
+        keyboard.setBackgroundColor(0xff14151a);
+
         LinearLayout.LayoutParams keys = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT);
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
         keys.topMargin = pixels(8);
         page.addView(keyboard, keys);
 
