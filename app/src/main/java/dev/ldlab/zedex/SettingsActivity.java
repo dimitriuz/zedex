@@ -101,8 +101,8 @@ public class SettingsActivity extends Activity {
      * The picture filter. One key per number the shader takes, because that is
      * what a settings screen can show and what the renderer wants anyway.
      */
-    static final String KEY_SCANLINES = "scanlines";
-    static final String KEY_CRT = "crt";
+    /** One of {@link Filter}'s four words; it was two booleans. */
+    static final String KEY_FILTER = "filter";
     static final String KEY_FILTER_SHARPNESS = "filterSharpness";
     static final String KEY_FILTER_SCANLINE = "filterScanline";
     static final String KEY_FILTER_CURVE = "filterCurve";
@@ -113,8 +113,8 @@ public class SettingsActivity extends Activity {
     static final String KEY_FILTER_NOISE = "filterNoise";
 
     /**
-     * Each strength, the index it sets and what it is worth by default. The two
-     * switches are booleans and so are handled apart from these.
+     * Each strength, the index it sets and what it is worth by default. Which
+     * effects are on at all is one setting and is handled apart from these.
      */
     private static final Object[][] FILTER_KEYS = {
         { KEY_FILTER_SHARPNESS, FuseNative.FILTER_SHARPNESS, "100" },
@@ -136,10 +136,10 @@ public class SettingsActivity extends Activity {
      * is safe - the commands wait.
      */
     static void applyFilter(android.content.SharedPreferences preferences) {
-        FuseNative.setFilter(FuseNative.FILTER_SCANLINES,
-                preferences.getBoolean(KEY_SCANLINES, false) ? 1 : 0);
-        FuseNative.setFilter(FuseNative.FILTER_CRT,
-                preferences.getBoolean(KEY_CRT, false) ? 1 : 0);
+        Filter filter = Filter.of(preferences);
+
+        FuseNative.setFilter(FuseNative.FILTER_SCANLINES, filter.scanlines ? 1 : 0);
+        FuseNative.setFilter(FuseNative.FILTER_CRT, filter.crt ? 1 : 0);
 
         for (Object[] entry : FILTER_KEYS) {
             FuseNative.setFilter((Integer) entry[1],
@@ -213,9 +213,7 @@ public class SettingsActivity extends Activity {
 
     /** Whether a key is one of the filters'. */
     private static boolean isFilterKey(String key) {
-        if (KEY_SCANLINES.equals(key) || KEY_CRT.equals(key)) {
-            return true;
-        }
+        if (KEY_FILTER.equals(key)) return true;
 
         for (Object[] entry : FILTER_KEYS) {
             if (entry[0].equals(key)) return true;
@@ -319,6 +317,11 @@ public class SettingsActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // The emulator does this too and it is idempotent; here because the
+        // list about to be inflated reads the value, and this screen is not
+        // reached only through that one.
+        Filter.migrate(getSharedPreferences(PREFS, MODE_PRIVATE));
 
         if (savedInstanceState != null) {
             selected = savedInstanceState.getInt(STATE_TAB, 0);
@@ -946,22 +949,36 @@ public class SettingsActivity extends Activity {
          * gates them on the video output and the screen has to say so, or it
          * offers a number that changes nothing. Greying out rather than a word
          * in the summary, because the summary of a list is its value here and
-         * anything else put there is overwritten. The scanline and CRT
-         * parameters manage this with android:dependency, but that only works
-         * off a switch, and this depends on a list having a particular value.
+         * anything else put there is overwritten.
+         *
+         * The four strengths go the same way. They were android:dependency on
+         * the two switches, which is all dependency can express - a boolean
+         * that is on; now which effects are running is one word in a list, and
+         * whether the beam or the glass is part of it is Filter's answer.
          *
          * Sharpness is not in here on purpose. It is the sampling, and it
          * applies whatever the output is.
          */
         private void updateFilterEnabled() {
-            int video = number(getPreferenceManager().getSharedPreferences(),
-                               KEY_VIDEO, 0);
+            android.content.SharedPreferences preferences =
+                    getPreferenceManager().getSharedPreferences();
 
-            Preference bleed = findPreference(KEY_FILTER_BLEED);
-            if (bleed != null) bleed.setEnabled(video != FuseNative.VIDEO_RGB);
+            int video = number(preferences, KEY_VIDEO, 0);
+            Filter filter = Filter.of(preferences);
 
-            Preference noise = findPreference(KEY_FILTER_NOISE);
-            if (noise != null) noise.setEnabled(video == FuseNative.VIDEO_RF);
+            enable(KEY_FILTER_BLEED, video != FuseNative.VIDEO_RGB);
+            enable(KEY_FILTER_NOISE, video == FuseNative.VIDEO_RF);
+
+            enable(KEY_FILTER_SCANLINE, filter.scanlines);
+            enable(KEY_FILTER_CURVE, filter.crt);
+            enable(KEY_FILTER_MASK, filter.crt);
+            enable(KEY_FILTER_GLOW, filter.crt);
+        }
+
+        /** Only where the setting is on this screen; four of the five are not. */
+        private void enable(String key, boolean on) {
+            Preference preference = findPreference(key);
+            if (preference != null) preference.setEnabled(on);
         }
 
         private void updateSummaries() {
@@ -1004,6 +1021,7 @@ public class SettingsActivity extends Activity {
             }
 
             for (String key : new String[] { KEY_MACHINE, KEY_SPEED, KEY_SNAPSHOT_FORMAT,
+                                             KEY_FILTER,
                                              KEY_LOADER, KEY_AY_STEREO,
                                              KEY_TAPE_FORMAT,
                                              KEY_BORDER,

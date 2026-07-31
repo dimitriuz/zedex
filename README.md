@@ -366,9 +366,8 @@ In full:
 | **Sound**, **AY volume**, **Beeper volume** | restart the sound subsystem when changed |
 | **AY stereo separation** | off, ACB or ABC — the 128's three channels spread across two |
 | **Black and white TV** | the monochrome palette |
-| **Scanlines**, **CRT effect** | a dark line per emulated row; curve, shadow mask and glow, each with its own strength |
-| **Video output** | RGB, composite or RF — what the picture cost on the way to the telly, with colour bleed and noise |
-| **Sharpness** | 100% is pixel for pixel; less softens the edges |
+| **Filter** | off, scanlines, CRT, or both — the beam and the glass in front of it |
+| **Advanced…** | each effect's strength, the **video output** (RGB, composite or RF, with colour bleed and noise) and **sharpness**, where 100% is pixel for pixel |
 | **Border** | full, slim (a quarter of it) or none — less border is more picture |
 | **Portrait scale**, **Landscape scale** | fit to the screen, or a whole number of device pixels per emulated one |
 | **Activity indicators** | the lamps beside the picture |

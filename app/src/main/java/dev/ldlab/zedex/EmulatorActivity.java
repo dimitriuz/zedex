@@ -210,6 +210,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         super.onCreate(savedInstanceState);
 
         preferences = getSharedPreferences(PREFS, MODE_PRIVATE);
+
+        // Before anything reads the filter, which is now one setting where it
+        // used to be two booleans.
+        Filter.migrate(preferences);
+
         getApplication().registerActivityLifecycleCallbacks(screensOfOurs);
         FuseNative.attach(this);
         Storage.createFolders(this);
@@ -727,21 +732,27 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // And what the picture itself looks like. The two switches are named for
         // what they would do and the two choosers for what is chosen, which is
         // the rule everywhere else: an icon cannot say which way it is going.
-        boolean scanlines = preferences.getBoolean(SettingsActivity.KEY_SCANLINES,
-                                                   false);
-        boolean crt = preferences.getBoolean(SettingsActivity.KEY_CRT, false);
+        //
+        // Two rows for what the settings screen keeps as one choice of four,
+        // because turning scanlines off to read something is a decision of the
+        // moment and should not cost a trip through a list. Filter is what
+        // keeps them from treading on each other: each row changes its own half
+        // and leaves the other alone.
+        Filter filter = Filter.of(preferences);
 
         bar.addToRow(R.drawable.ic_scanlines,
-                     getString(scanlines ? R.string.quick_scanlines_off
-                                         : R.string.quick_scanlines_on),
-                     () -> switchFilter(SettingsActivity.KEY_SCANLINES, !scanlines,
-                                        !scanlines ? R.string.quick_scanlines_on
-                                                   : R.string.quick_scanlines_off));
+                     getString(filter.scanlines ? R.string.quick_scanlines_off
+                                                : R.string.quick_scanlines_on),
+                     () -> switchFilter(filter.withScanlines(!filter.scanlines),
+                                        filter.scanlines
+                                                ? R.string.quick_scanlines_off
+                                                : R.string.quick_scanlines_on));
         bar.addToRow(R.drawable.ic_crt,
-                     getString(crt ? R.string.quick_crt_off : R.string.quick_crt_on),
-                     () -> switchFilter(SettingsActivity.KEY_CRT, !crt,
-                                        !crt ? R.string.quick_crt_on
-                                             : R.string.quick_crt_off));
+                     getString(filter.crt ? R.string.quick_crt_off
+                                          : R.string.quick_crt_on),
+                     () -> switchFilter(filter.withCrt(!filter.crt),
+                                        filter.crt ? R.string.quick_crt_off
+                                                   : R.string.quick_crt_on));
         bar.addToRow(R.drawable.ic_signal,
                      getString(R.string.quick_video, videoName()),
                      this::nextVideo);
@@ -751,9 +762,9 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                      this::nextBorder);
     }
 
-    /** One of the two picture switches, written and pushed like the settings do. */
-    private void switchFilter(String key, boolean on, int said) {
-        preferences.edit().putBoolean(key, on).apply();
+    /** Either of the picture switches, written and pushed like the settings do. */
+    private void switchFilter(Filter filter, int said) {
+        filter.store(preferences);
         SettingsActivity.applyFilter(preferences);
 
         note(said);

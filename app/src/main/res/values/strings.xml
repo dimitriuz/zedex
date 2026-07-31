@@ -331,10 +331,15 @@
     <string name="settings_volume_beeper">Beeper volume</string>
 
     <string name="settings_filter">Picture filter</string>
-    <string name="settings_scanlines">Scanlines</string>
-    <string name="settings_scanlines_summary">A dark line between each of the machine\u2019s own 240</string>
-    <string name="settings_crt">CRT effect</string>
-    <string name="settings_crt_summary">The glass in front of the beam: curve, shadow mask, glow</string>
+    <string name="settings_filter_choice">Filter</string>
+    <string name="settings_filter_advanced">Advanced\u2026</string>
+    <string name="settings_filter_advanced_summary">Strengths, video output and sharpness</string>
+
+    <!-- Filter.java's four, in its own order. -->
+    <string name="filter_off">Off \u2014 what the machine drew</string>
+    <string name="filter_scanlines">Scanlines \u2014 a dark line per emulated row</string>
+    <string name="filter_crt">CRT \u2014 curve, shadow mask, glow</string>
+    <string name="filter_both">CRT with scanlines \u2014 what a tube does</string>
 
     <string name="settings_video">Video output</string>
     <string name="settings_video_summary">How the picture left the machine, and what that cost it</string>

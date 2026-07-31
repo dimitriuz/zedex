@@ -1,79 +1,81 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- One row says what the picture looks like; the eight numbers behind it
+         are for the one person in a hundred who wants to tune a shadow mask.
+         It was ten rows here, interleaved, and the border was below all of
+         them. See Filter.java. -->
     <PreferenceCategory android:title="@string/settings_filter">
+        <ListPreference
+            android:key="filter"
+            android:title="@string/settings_filter_choice"
+            android:entries="@array/filter_names"
+            android:entryValues="@array/filter_values"
+            android:defaultValue="off" />
         <SwitchPreference
             android:key="bwTv"
             android:title="@string/settings_bw_tv"
             android:summary="@string/settings_bw_tv_summary"
             android:defaultValue="false" />
-        <SwitchPreference
-            android:key="scanlines"
-            android:title="@string/settings_scanlines"
-            android:summary="@string/settings_scanlines_summary"
-            android:defaultValue="false" />
-        <dev.ldlab.zedex.FadingListPreference
-            android:key="filterScanline"
-            android:title="@string/settings_filter_scanline"
-            android:entries="@array/percent_names"
-            android:entryValues="@array/percent_values"
-            android:defaultValue="50"
-            android:dependency="scanlines" />
 
-        <SwitchPreference
-            android:key="crt"
-            android:title="@string/settings_crt"
-            android:summary="@string/settings_crt_summary"
-            android:defaultValue="false" />
-        <dev.ldlab.zedex.FadingListPreference
-            android:key="filterCurve"
-            android:title="@string/settings_filter_curve"
-            android:entries="@array/percent_names"
-            android:entryValues="@array/percent_values"
-            android:defaultValue="40"
-            android:dependency="crt" />
-        <dev.ldlab.zedex.FadingListPreference
-            android:key="filterMask"
-            android:title="@string/settings_filter_mask"
-            android:entries="@array/percent_names"
-            android:entryValues="@array/percent_values"
-            android:defaultValue="40"
-            android:dependency="crt" />
-        <dev.ldlab.zedex.FadingListPreference
-            android:key="filterGlow"
-            android:title="@string/settings_filter_glow"
-            android:entries="@array/percent_names"
-            android:entryValues="@array/percent_values"
-            android:defaultValue="30"
-            android:dependency="crt" />
+        <PreferenceScreen
+            android:key="filterAdvanced"
+            android:title="@string/settings_filter_advanced"
+            android:summary="@string/settings_filter_advanced_summary">
 
-        <ListPreference
-            android:key="video"
-            android:title="@string/settings_video"
-            android:summary="@string/settings_video_summary"
-            android:entries="@array/video_names"
-            android:entryValues="@array/video_values"
-            android:defaultValue="0" />
-        <dev.ldlab.zedex.FadingListPreference
-            android:key="filterBleed"
-            android:title="@string/settings_filter_bleed"
-            android:entries="@array/percent_names"
-            android:entryValues="@array/percent_values"
-            android:defaultValue="50" />
-        <dev.ldlab.zedex.FadingListPreference
-            android:key="filterNoise"
-            android:title="@string/settings_filter_noise"
-            android:entries="@array/percent_names"
-            android:entryValues="@array/percent_values"
-            android:defaultValue="20" />
+            <dev.ldlab.zedex.FadingListPreference
+                android:key="filterScanline"
+                android:title="@string/settings_filter_scanline"
+                android:entries="@array/percent_names"
+                android:entryValues="@array/percent_values"
+                android:defaultValue="50" />
+            <dev.ldlab.zedex.FadingListPreference
+                android:key="filterCurve"
+                android:title="@string/settings_filter_curve"
+                android:entries="@array/percent_names"
+                android:entryValues="@array/percent_values"
+                android:defaultValue="40" />
+            <dev.ldlab.zedex.FadingListPreference
+                android:key="filterMask"
+                android:title="@string/settings_filter_mask"
+                android:entries="@array/percent_names"
+                android:entryValues="@array/percent_values"
+                android:defaultValue="40" />
+            <dev.ldlab.zedex.FadingListPreference
+                android:key="filterGlow"
+                android:title="@string/settings_filter_glow"
+                android:entries="@array/percent_names"
+                android:entryValues="@array/percent_values"
+                android:defaultValue="30" />
 
-        <ListPreference
-            android:key="filterSharpness"
-            android:title="@string/settings_filter_sharpness"
-            android:summary="@string/settings_filter_sharpness_summary"
-            android:entries="@array/percent_names"
-            android:entryValues="@array/percent_values"
-            android:defaultValue="100" />
+            <ListPreference
+                android:key="video"
+                android:title="@string/settings_video"
+                android:summary="@string/settings_video_summary"
+                android:entries="@array/video_names"
+                android:entryValues="@array/video_values"
+                android:defaultValue="0" />
+            <dev.ldlab.zedex.FadingListPreference
+                android:key="filterBleed"
+                android:title="@string/settings_filter_bleed"
+                android:entries="@array/percent_names"
+                android:entryValues="@array/percent_values"
+                android:defaultValue="50" />
+            <dev.ldlab.zedex.FadingListPreference
+                android:key="filterNoise"
+                android:title="@string/settings_filter_noise"
+                android:entries="@array/percent_names"
+                android:entryValues="@array/percent_values"
+                android:defaultValue="20" />
+
+            <ListPreference
+                android:key="filterSharpness"
+                android:title="@string/settings_filter_sharpness"
+                android:summary="@string/settings_filter_sharpness_summary"
+                android:entries="@array/percent_names"
+                android:entryValues="@array/percent_values"
+                android:defaultValue="100" />
+        </PreferenceScreen>
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/settings_display">

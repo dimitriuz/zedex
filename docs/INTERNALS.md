@@ -1456,10 +1456,26 @@ the controls sit a little further out than they need to.
 
 ### Filters
 
-Scanlines and a CRT, as **two switches rather than one choice**, because they
-are two different things and a tube has both: scanlines are the beam, and the
-curve, the shadow mask and the glow are the glass in front of it. Either can be
-had without the other, and both together is what a television looked like.
+Scanlines and a CRT are **two things, not two settings**. Scanlines are the
+beam; the curve, the shadow mask and the glow are the glass in front of it.
+Either can be had without the other, and both together is what a television
+looked like — so `Filter` is one word with four values rather than the two
+booleans it started as, and the shader still gets two uniforms because that is
+what it needs.
+
+They were two switches, and each carried its strengths behind
+`android:dependency`, which put ten rows on the picture screen with the border
+below all of them. One row of four says the same thing; `Advanced…` holds the
+eight numbers, and which of them are live is worked out in code, since a
+dependency can only follow a boolean and this follows a list having a
+particular value. `Filter.migrate` carries the old pair over once — and writes
+nothing when there is nothing to carry, because an empty preferences file is
+exactly how `StartPanel.setupNeeded` knows the app has never run.
+
+The quick bar still offers the two separately: turning scanlines off to read
+something is a decision of the moment and should not cost a trip through a
+list. `withScanlines` and `withCrt` are how it changes one half without
+disturbing the other.
 
 One fragment shader, not one per filter. The effects branch on uniforms, which
 are constant across a draw and so cost a predictable nothing, and a program each

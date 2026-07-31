@@ -56,6 +56,20 @@
         <item>ABC</item>
     </string-array>
 
+    <!-- Order matches Filter.values(); the values are its own. -->
+    <string-array name="filter_names">
+        <item>@string/filter_off</item>
+        <item>@string/filter_scanlines</item>
+        <item>@string/filter_crt</item>
+        <item>@string/filter_both</item>
+    </string-array>
+    <string-array name="filter_values">
+        <item>off</item>
+        <item>scanlines</item>
+        <item>crt</item>
+        <item>both</item>
+    </string-array>
+
     <string-array name="video_names">
         <item>RGB — straight from the machine</item>
         <item>Composite — colour bleeds sideways</item>
