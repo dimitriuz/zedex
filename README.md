@@ -9,7 +9,7 @@ ROMs are included, so every machine runs out of the box. See
 Building, testing and releases: [docs/DEVELOPING.md](docs/DEVELOPING.md).
 How Fuse is wired in: [docs/INTERNALS.md](docs/INTERNALS.md).
 
-Most of the code was written by Claude, directed and reviewed by a human.
+Most of the code was written by Claude, directed and reviewed by a professional software developer.
 
 
 ## Machines
@@ -79,15 +79,37 @@ own.
 **Physical controllers** — no setup. Stick, hat and D-pad steer; A is fire; B, X
 and Y are the key buttons; Start is Enter. The on-screen pad steps aside.
 
-**Hotkeys** — RetroArch style: one modifier button plus another, so nothing is
-taken from the game. Two dozen actions. Defaults, with Select as the modifier:
+**Hotkeys** — RetroArch style: the modifier button plus another, so nothing is
+taken from the game. The modifier is Select by default and can be any button, or
+None, in which case bindings fire on their own. Twenty-two actions, nine bound
+out of the box:
 
-| | | | |
-| --- | --- | --- | --- |
-| Start | quit | R1 | quick save |
-| L1 | quick load | B | pause |
-| X | fullscreen | Y | hide the keyboard |
-| R2 held | fast forward | L3 / R3 | next joystick type / key profile |
+| Action | Default |
+| --- | --- |
+| Pause or resume | B |
+| Reset the machine | |
+| NMI | |
+| Quit the app | Start |
+| Quick save | R1 |
+| Quick load | L1 |
+| Save state… | |
+| Load state… | |
+| Fast forward | R2, while held |
+| Speed up | |
+| Slow down | |
+| Fullscreen | X |
+| Screenshot | |
+| Start or stop recording | |
+| Show or hide the keyboard | Y |
+| Show or hide the joystick | |
+| Show or hide the indicators | |
+| Next key profile | R3 |
+| Next joystick type | L3 |
+| Open the menu | |
+| Show the quick bar | |
+| Open settings | |
+
+Rebind in ☰ *Controls… › Controller hotkeys…*: tap a row, press the button.
 
 **Kempston mouse** — a mode. While on, a drag moves the pointer, and fire and
 the first key button are its buttons. Sensitivity is a setting.
@@ -143,7 +165,7 @@ A strip across the top of the window, either way up.
 | Display | scanlines, CRT, video output, border, lamps |
 | Fast forward | hold for 500%, silent |
 | Fullscreen | |
-| ☰ | |
+
 
 Fullscreen hides everything but the picture and the joystick. Tap the picture to
 bring the bar back; Back leaves fullscreen. There is no fullscreen button when
