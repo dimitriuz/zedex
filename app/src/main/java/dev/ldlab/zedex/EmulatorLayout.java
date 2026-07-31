@@ -635,7 +635,13 @@ final class EmulatorLayout extends ViewGroup {
         boolean landscape = getResources().getConfiguration().orientation
                 == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
         boolean hiddenByTemplate = landscape && template == Template.NONE;
-        boolean hiddenByFullscreen = landscape && fullscreen;
+
+        // Whichever way up: fullscreen is the picture and nothing else, and a
+        // keyboard across the bottom of a portrait window is as much "else" as
+        // one beside it. It used to stay because in portrait a 4:3 picture is
+        // limited by the width and the keys cost it nothing - but what they
+        // cost is not the point of the button.
+        boolean hiddenByFullscreen = fullscreen;
 
         keyboard.setVisibility(!keyboardWanted || hiddenByTemplate
                                || hiddenByFullscreen || !keyboard.skin().drawn()
@@ -698,7 +704,7 @@ final class EmulatorLayout extends ViewGroup {
         // reserving its share of the height would leave the picture the size it
         // was with a band of black where the keys had been.
         Template current = landscape ? template : Template.BELOW;
-        if (!keyboardWanted || (landscape && fullscreen)) current = Template.NONE;
+        if (!keyboardWanted || fullscreen) current = Template.NONE;
 
         // Lent away, there is no keyboard in this window to leave room for.
         if (lent) current = Template.NONE;

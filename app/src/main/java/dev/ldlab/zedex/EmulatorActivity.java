@@ -660,14 +660,20 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                      getString(pad ? R.string.quick_joystick_hide
                                    : R.string.quick_joystick_show),
                      () -> showJoystick(!pad));
-        bar.addToRow(R.drawable.ic_keyboard,
-                     getString(keys ? R.string.quick_keyboard_hide
-                                    : R.string.quick_keyboard_show),
-                     () -> showKeyboard(!keys));
-        bar.addToRow(R.drawable.ic_indicators,
-                     getString(lamps ? R.string.quick_lights_hide
-                                     : R.string.quick_lights_show),
-                     () -> showLights(!lamps));
+        // Neither while fullscreen: it has both of them away whatever these say,
+        // so a row offering to hide one does nothing and a row offering to show
+        // one is a promise the layout will not keep. The joystick stays,
+        // because fullscreen leaves that where it is.
+        if (!fullscreen()) {
+            bar.addToRow(R.drawable.ic_keyboard,
+                         getString(keys ? R.string.quick_keyboard_hide
+                                        : R.string.quick_keyboard_show),
+                         () -> showKeyboard(!keys));
+            bar.addToRow(R.drawable.ic_indicators,
+                         getString(lamps ? R.string.quick_lights_hide
+                                         : R.string.quick_lights_show),
+                         () -> showLights(!lamps));
+        }
 
         // And what the picture itself looks like. The two switches are named for
         // what they would do and the two choosers for what is chosen, which is
@@ -1261,6 +1267,8 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
     private void fillKeyboard(MenuDrawer sheet) {
         boolean shown = layout.keyboardVisible();
+
+        if (fullscreen()) sheet.addNote(getString(R.string.keyboard_fullscreen));
 
         sheet.addItem(getString(shown ? R.string.control_hide
                                       : R.string.control_show),
@@ -3430,7 +3438,21 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             // and out of the sheet altogether from the top of it.
             if (menu.back()) return true;
 
-            return super.onKeyDown(keyCode, event);
+            // Then fullscreen, which is the other thing back means "out of" -
+            // and the one that has taken the way out off the screen, since the
+            // bar it lives on has faded.
+            if (fullscreen()) {
+                showFullscreen(false);
+                return true;
+            }
+
+            // And otherwise the menu, rather than the desktop. A tap outside
+            // it or back again is the way out, so nothing is trapped; leaving
+            // is Quit, which asks about unsaved disks first. A machine is not
+            // a page to be backed out of - and a Spectrum put away by accident
+            // is a Spectrum whose RAM has gone.
+            menu.open();
+            return true;
         }
 
         return forwardKey(keyCode, true) || super.onKeyDown(keyCode, event);

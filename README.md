@@ -65,7 +65,7 @@ end.
 - **Cheats for 3,682 games** built in — found by the file's fingerprint, or by
   name — and pokes of your own
 - **A quick actions bar**, always on screen, with a **fullscreen** button that
-  clears it and the keyboard away
+  leaves the picture and the joystick and clears everything else away
 - **Pause** — automatic when the app is not in front, and nothing is drawn
   at all while the device sleeps
 - **Activity lamps** for the tape, disks, AY, keyboard and joystick — the quick
@@ -236,8 +236,15 @@ the keyboard, the joystick or the lamps; scanlines, CRT, video output and
 border), **Fast
 forward** (hold it: 500% while held, silent, and back to your speed on release),
 **Fullscreen**, and ☰.
-Fullscreen clears the bar away and, sideways, the keyboard with it; tap the picture
-to bring the bar back for a moment.
+Fullscreen leaves the picture and the joystick and takes everything else away —
+the bar, the keyboard and the lamps, whichever way up the device is. Tap the
+picture to bring the bar back for a moment, or press **Back** to leave
+fullscreen altogether.
+
+**Back** never puts the app away: in fullscreen it leaves fullscreen, in the ☰
+sheet it goes up a page and then closes it, and otherwise it opens ☰. Leaving is
+*Quit*, which asks about unsaved disks first — a Spectrum put away by accident
+is a Spectrum whose RAM has gone.
 
 **Main menu**
 
