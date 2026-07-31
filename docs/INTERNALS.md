@@ -106,6 +106,36 @@ handed a null `SharedPreferences`.
 own copy of one regular expression, which is three chances to disagree about
 what is safe in a filename.
 
+### The other screen
+
+`SecondScreen` is what the panel looks like; `Panels` is the window half, which
+is the part that is about Android rather than about the Spectrum — finding a
+display worth using, putting a presentation on it, noticing panels arriving, and
+the rule about which display the app's own screens open on.
+
+Three of Android's awkward corners live in it, and each cost an afternoon.
+
+**A task lives on one display.** Launching the settings screen normally took the
+machine to the panel with it and left the first screen empty, so `openOwnScreen`
+starts a task of its own.
+
+**A presentation is drawn above the activity windows on its display.** A screen
+opened on the panel would be behind the keyboard, so the panel steps aside while
+any other screen of ours is up. There is no result to wait for — a new task
+cannot return one — so it is counted through the application's lifecycle
+callbacks, which also covers a screen dismissed some way of Android's own.
+
+**Android reports odd things in passing.** The activity briefly claims to be on
+the panel itself while an input method is being sorted out. Taking the panel down
+on that reading once left nothing to put it back, so `apply()` only closes a
+panel that is genuinely unwanted or whose display has really gone.
+
+Its `Host` is two methods: the layout whose views the panel borrows, and one
+callback for the panel coming or going — three things follow from that and all
+three are the activity's, since the bar stops fading, the fullscreen button has
+nothing to clear away, and the on-screen pad steps aside for the handheld's real
+one.
+
 ### The controls
 
 `ControlsUi` is the joystick, the keyboard and the mouse: one question asked
