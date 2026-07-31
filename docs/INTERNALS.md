@@ -1045,21 +1045,37 @@ where they are put.
 
 ### Three keyboards
 
-A skin is a picture and a table of key rectangles in that picture's own pixels.
-Nothing else differs: the presses, the latching, the accessibility nodes and the
-scaling are the same code for both, which is what makes a second one cheap. The
-rubber 48K is Fuse's own artwork, which the app already installs; the 128K is a
-photograph of a real plate, cropped to the keys - the badge and the heatsink
-beside them are inches of nothing to press.
+A skin is a picture and a table of key rectangles in that picture's own
+coordinates. Nothing else differs: the presses, the latching, the accessibility
+nodes and the scaling are the same code for all of them, which is what makes a
+second one cheap. The rubber 48K is Fuse's own artwork, which the app already
+installs; the 128K plate is `PlusPlate`, which draws it.
 
-**The grid was a calculation, not fifty-nine measurements.** The plate turns out
-to have a uniform pitch of 111.8 pixels of the photograph across every row, so
-each row is a first centre and a count; only the wide keys and the L of ENTER are
-spelled out. The rectangles were then drawn back over the photograph and looked
-at, which is the only way to know they are on the keys.
+**The 128K was a photograph and is now drawn.** A photograph of a real plate,
+cropped to the keys, was the skin to begin with, and its small print was never
+readable however large it was scaled - two lines of extended-mode legend above
+each key are three units tall in the artwork's own space. `PlusPlate` draws the
+same layout as vectors in the same 1040x413 space, so it is as sharp as the
+screen allows and costs no asset. Its geometry is an exact grid rather than
+sixty measurements: recesses every 78 units, a 74.5 pitch across every row, each
+row staggered by the width of the function keys at the left of it, and the last
+key in a row run out to the margin so every row ends flush the way the plate
+does. It supplies the key table for what it draws, so nothing can drift out of
+step with the picture.
 
-ENTER appears twice, because it is one key in two places: without a rectangle for
-its upper arm, the touch expansion would give that arm to P.
+Every legend on it was read off a photograph and RetroTechLab's layout drawing
+side by side. Two are worth writing down: a symbol-shift token that is a *word* -
+STOP, NOT, THEN - takes a line of its own under the keyword, while a symbol -
+`<=`, `£`, `+` - rides at the lower right of it, which is the rule the plate
+follows and the code decides by asking whether the token starts with a letter.
+And the block graphics on 1-8 are the plate's own set, CHR$ 129 to 135 and then
+128, held as quadrant masks; Fuse's 48K artwork prints the complements of those,
+so the two keyboards do not agree and both are right.
+
+ENTER is one Γ-shaped key listed in two rows: the halves are joined so the union
+of them is drawn as one key, and the corners along that seam are squared off
+because the union of two round-bottomed shapes comes out notched. Without a
+rectangle for its upper arm, the touch expansion would give that arm to P.
 
 **Most of the extra keys are not extra at all.** The 128K plate has keys the
 machine does not - TRUE VIDEO, GRAPH, EXTEND MODE - but Fuse already maps a PC
@@ -1896,14 +1912,27 @@ now what the strip is, set once.
 
 ### The on-screen keyboard
 
-`SpectrumKeyboardView` draws Fuse's own `keyboard.png`. The key rectangles were
-measured off the image and are held in its 541x201 coordinate space, expanded
-to meet their neighbours so the gutters in the artwork are not dead to a
-fingertip. Presses are tracked per pointer, which is what makes both two-finger
-chords and the shift latch work.
+`SpectrumKeyboardView` shows a picture and a table of key rectangles in that
+picture's own coordinates, expanded to meet their neighbours so the gutters are
+not dead to a fingertip. Presses are tracked per pointer, which is what makes
+both two-finger chords and the shift latch work. Only the picture and the table
+differ between skins; everything else — the presses, the latch, the
+accessibility nodes, the scaling — is shared.
 
-The picture is one bitmap, so the view would otherwise be a single unnamed
-`View` with nothing inside it to address. Each key is published as a virtual
+The 48K's picture is Fuse's own `keyboard.png`, with the rectangles measured off
+it in its 541x201 space. The 128K's is `PlusPlate`, which draws the Spectrum+
+plate rather than showing a photograph of one: recesses on an exact grid, a 74.5
+pitch across every row, and every legend the plate carries — the keyword and
+symbol-shift token on the key, the two extended-mode legends on the plate above
+it, the block graphics on 1–8 as quadrant masks. It supplies the key table for
+what it draws, so the geometry has one source, and ENTER is one Γ-shaped key
+listed in two rows. Being vector work it is as sharp as the screen allows, which
+the photograph it replaced never was; it is drawn once at the size it is shown
+and kept, because a key press only puts a highlight over a picture that has not
+changed.
+
+A picture is one bitmap, so the view would otherwise be a single unnamed `View`
+with nothing inside it to address. Each key is published as a virtual
 accessibility node instead, named the way the Spectrum names it — `ENTER`,
 `CAPS SHIFT`, `7` — which is both what makes a screen reader usable and what
 lets the tests press keys without knowing a coordinate.

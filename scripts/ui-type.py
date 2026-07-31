@@ -43,16 +43,16 @@ ROWS_48 = [
 ]
 
 ROWS_128 = [
-    (45, 98, "1234567890",
-     [(172, 239), (247, 313), (321, 388), (395, 462), (470, 537), (545, 611), (619, 686), (694, 761), (768, 835), (843, 909)]),
-    (127, 171, "qwertyuiop\n",
-     [(210, 277), (285, 351), (359, 426), (433, 500), (508, 575), (583, 649), (657, 724), (732, 799), (806, 873), (881, 947), (953, 1021)]),
-    (200, 245, "asdfghjkl\n",
-     [(228, 295), (303, 369), (377, 444), (451, 518), (526, 593), (601, 667), (675, 742), (750, 817), (824, 891), (900, 1021)]),
-    (275, 321, "\x01zxcvbnm.",
-     [(23, 181), (267, 333), (341, 408), (416, 483), (490, 557), (565, 631), (639, 706), (714, 781), (789, 855)]),
-    (340, 397, "\x02; ,",
-     [(23, 95), (97, 163), (395, 727), (879, 946)]),
+    (40, 84, "1234567890",
+     [(170, 236), (244, 311), (319, 385), (393, 460), (468, 534), (542, 609), (617, 683), (691, 758), (766, 832), (840, 907)]),
+    (118, 162, "qwertyuiop\n",
+     [(207, 273), (281, 348), (356, 422), (430, 497), (505, 571), (579, 646), (654, 720), (728, 795), (803, 869), (877, 944), (952, 1018)]),
+    (196, 240, "asdfghjkl\n",
+     [(225, 291), (299, 366), (374, 440), (448, 515), (523, 589), (597, 664), (672, 738), (746, 813), (821, 887), (895, 1018)]),
+    (274, 318, "\x01zxcvbnm.",
+     [(22, 181), (267, 333), (341, 408), (416, 482), (490, 557), (565, 631), (639, 706), (714, 780), (788, 855)]),
+    (339, 396, "\x02; ,",
+     [(22, 94), (102, 168), (400, 724), (881, 947)]),
 ]
 
 # 541x201 for the rubber keyboard, 1040x413 for the 128K's plate.
@@ -60,12 +60,20 @@ ARTWORK = {"rubber": (541.0, 201.0), "plus": (1040.0, 413.0)}
 
 
 def skin():
-    """Which keyboard the app is drawing, from its own preferences."""
-    stored = subprocess.run(
-        [ADB, "shell", "run-as", "dev.ldlab.zedex", "cat",
-         "shared_prefs/fuse.xml"], capture_output=True, text=True).stdout
-    found = re.search(r'name="keyboardSkin">([a-z]+)<', stored)
-    return found.group(1) if found and found.group(1) in ARTWORK else "rubber"
+    """Which keyboard the app is drawing, from its own preferences.
+
+    Both packages are asked, because run-as only works on the debuggable one
+    and a build off the bench is dev.ldlab.zedex.debug. Getting this wrong is
+    silent: the rubber layout tapped on the 128K's plate types nonsense.
+    """
+    for package in ("dev.ldlab.zedex", "dev.ldlab.zedex.debug"):
+        stored = subprocess.run(
+            [ADB, "shell", "run-as", package, "cat", "shared_prefs/fuse.xml"],
+            capture_output=True, text=True).stdout
+        found = re.search(r'name="keyboardSkin">([a-z]+)<', stored)
+        if found and found.group(1) in ARTWORK:
+            return found.group(1)
+    return "rubber"
 
 
 SKIN = skin()

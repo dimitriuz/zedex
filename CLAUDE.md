@@ -65,6 +65,11 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 `JAVA_HOME` is needed whenever the default JDK is newer than 21.
 
+`app/src/main/assets/fuse/` is staged by the same script and is not in git. A
+tree without it builds and installs happily and the **48K keyboard is then
+blank** — its picture is Fuse's `keyboard.png` from that folder. Restore it with
+`./scripts/build-native.sh`.
+
 ## Tests
 
 `app/src/androidTest` — UI Automator. Run one class while iterating; the
@@ -147,7 +152,10 @@ scripts/ui-type.py CS+SS SS+0 ' ' '"test"' ENTER   # extended mode: FORMAT
 ```
 
 `ui-type.py` taps by coordinate and so carries a copy of each skin's key
-positions; it reads the stored skin to pick between them. Neither script can type
+positions; it reads the stored skin to pick between them. **Move a key and that
+table moves with it** — the 128K's geometry lives in `PlusPlate`. Getting the
+skin wrong is silent and types nonsense, which is why it asks both packages for
+the preference. Neither script can type
 on the **Android keyboard** skin - that is the phone's own input method, and on an
 AVD Gboard hides its keys because the emulator reports a hardware keyboard.
 `adb shell settings put secure show_ime_with_hard_keyboard 1` brings them back. **After switching skins
