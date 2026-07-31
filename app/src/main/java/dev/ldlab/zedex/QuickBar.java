@@ -288,15 +288,18 @@ final class QuickBar extends LinearLayout {
     /**
      * How tall the bar is with nothing opened - the icons alone.
      *
-     * The strip the picture is moved down by in portrait, and only that: a group
-     * opening adds a list underneath, and moving the machine's screen down every
-     * time somebody looks at a menu is worse than the list covering a band of
-     * black at the top of it. Measured height, so it is whatever the icons came
-     * out as at this size.
+     * The strip the picture is moved down by in portrait, and the space the
+     * second screen keeps for it, and only that: a group opening adds a list
+     * underneath, and moving the machine's screen down every time somebody
+     * looks at a menu is worse than the list covering a band of black.
+     *
+     * The cell size rather than anything measured. A button is its icon with
+     * room around it and the row is one button tall, so this is the answer
+     * before a layout as well as after one - which matters, since whoever keeps
+     * room for the bar has to know how much before the bar has been drawn.
      */
     int rowHeight() {
-        return primary.getMeasuredHeight() > 0 ? primary.getMeasuredHeight()
-                                               : primary.getHeight();
+        return cellSize;
     }
 
     void collapse() {

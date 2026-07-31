@@ -108,13 +108,15 @@ final class SecondScreen extends Presentation {
         // The bar at the top, the keys under it and against them, the lamps at
         // the foot: the things a hand does are near the hand, and the thing it
         // only reads is out of the way at the bottom.
-        if (bar != null) {
-            // Sized to this panel rather than left at its full size: the bar is
-            // as wide as its icons, and a panel narrower than they are would
-            // simply lose the last of them off the edge.
-            bar.setCompact(room - margin * 2);
-            column.addView(bar, stacked(false, margin));
-        }
+        //
+        // The bar itself is not in the column but over it - see below - so what
+        // goes here is a space the height of its icons. A group opening adds a
+        // list under them, and a list that pushed would take its room from the
+        // joystick and then from the keys, which is the whole panel moving
+        // because somebody looked at a menu.
+        View strip = new View(getContext());
+        column.addView(strip, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0));
 
         View joystick = joystick(stick, margin);
         if (joystick != null) {
@@ -161,6 +163,32 @@ final class SecondScreen extends Presentation {
         root.addView(column, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT));
+
+        if (bar != null) {
+            // Sized to this panel rather than left at its full size: the bar is
+            // as wide as its icons, and a panel narrower than they are would
+            // simply lose the last of them off the edge.
+            bar.setCompact(room - margin * 2);
+
+            FrameLayout.LayoutParams across = new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT);
+            across.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+            across.topMargin = margin;
+            root.addView(bar, across);
+
+            // The space kept for it below follows its icons, whatever they came
+            // out as at this size, and ignores anything it opens.
+            QuickBar sized = bar;
+            bar.addOnLayoutChangeListener((view, l, t2, r2, b2, ol, ot, or2, ob) -> {
+                int wanted = sized.rowHeight() + margin * 2;
+
+                if (strip.getLayoutParams().height != wanted) {
+                    strip.getLayoutParams().height = wanted;
+                    strip.requestLayout();
+                }
+            });
+        }
 
         if (typist != null) {
             root.addView(typist, new FrameLayout.LayoutParams(1, 1));
