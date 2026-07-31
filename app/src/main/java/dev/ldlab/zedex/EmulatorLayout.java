@@ -13,8 +13,8 @@ import java.util.List;
  * Arranges the emulated screen and the keyboard.
  *
  * A layout of its own rather than nested LinearLayouts, because the useful
- * arrangements are not all the same kind of container: two of them stack, two
- * sit side by side, and one puts the keyboard on top of the screen. Measuring
+ * arrangements are not all the same kind of container: two of them stack and
+ * one puts the keyboard on top of the screen. Measuring
  * the two children here covers all of it without ever re-parenting them —
  * which matters, since detaching the {@link android.view.SurfaceView} would
  * destroy the surface Fuse is drawing into and cost a handover on every
@@ -40,16 +40,23 @@ import java.util.List;
  */
 final class EmulatorLayout extends ViewGroup {
 
-    /** How the screen and the keyboard share a landscape window. */
+    /**
+     * How the screen and the keyboard share a landscape window.
+     *
+     * There were two more, {@code left} and {@code right}, which put the
+     * keyboard down one side and the screen down the other. They were the same
+     * arrangement mirrored, and neither was a good one: the keyboard is a single
+     * bitmap at 2.7:1, so half a landscape window is far wider than it is tall
+     * and it sat at the foot of its half leaving six hundred pixels of nothing
+     * above. {@link #placeJoystick} carried a whole branch to fill that band. A
+     * stored {@code left} or {@code right} now reads back as {@link #BELOW},
+     * which {@link #of} does for anything it does not recognise.
+     */
     enum Template {
         /** Keyboard across the bottom, capped so the screen keeps most of it. */
         BELOW("below"),
         /** Keyboard over the screen, translucent, so the screen keeps all of it. */
         OVERLAY("overlay"),
-        /** Keyboard down the left, screen to its right. */
-        LEFT("left"),
-        /** Screen on the left, keyboard down the right. */
-        RIGHT("right"),
         /**
          * No keyboard at all: the whole window is the machine. For a physical
          * keyboard, or a game that only wants a joystick. The ☰ button stays
@@ -82,9 +89,6 @@ final class EmulatorLayout extends ViewGroup {
 
     /** Overlaying costs the screen nothing, so the keyboard can be bigger. */
     private static final float LANDSCAPE_OVERLAY = 0.5f;
-
-    /** Side by side: an even split leaves the screen more than it needs. */
-    private static final float LANDSCAPE_SIDE = 0.5f;
 
     /**
      * Portrait cap. The natural height at full width is around a third, so
@@ -163,7 +167,7 @@ final class EmulatorLayout extends ViewGroup {
 
     /**
      * The black that fire went in, so the arc beside it can be fitted to the
-     * same space. Set by {@link #placeJoystick} in each of its four branches -
+     * same space. Set by {@link #placeJoystick} in each of its three branches -
      * the space is a different shape in each, and the arc has no other way to
      * know how much of it there is.
      */
@@ -746,30 +750,6 @@ final class EmulatorLayout extends ViewGroup {
                 break;
             }
 
-            case LEFT:
-            case RIGHT: {
-                int keyboardWidth = Math.round(width * LANDSCAPE_SIDE);
-
-                // The foot of its half, not the middle of it. Half a landscape
-                // window is far wider than the keyboard is tall, so centring it
-                // left a band of nothing above and another below; putting it at
-                // the bottom makes that one band, in one place, and the
-                // joystick goes in it. It is also where a thumb already is.
-                int keyboardHeight = Math.min(height,
-                        Math.round(keyboardWidth / aspect));
-
-                if (current == Template.LEFT) {
-                    keyboardBox.set(0, height - keyboardHeight,
-                                    keyboardWidth, height);
-                    screenBox.set(keyboardWidth, top, width, height);
-                } else {
-                    screenBox.set(0, top, width - keyboardWidth, height);
-                    keyboardBox.set(width - keyboardWidth, height - keyboardHeight,
-                                    width, height);
-                }
-                break;
-            }
-
             case OVERLAY: {
                 int natural = Math.round(width / aspect);
                 int keyboardHeight = Math.min(natural,
@@ -944,17 +924,13 @@ final class EmulatorLayout extends ViewGroup {
      * <li><b>Below it.</b> Portrait gives the picture only the height it uses
      *     and puts the keyboard at the foot of the window, so what is left is
      *     one wide band between them — the largest space of the three.</li>
-     * <li><b>Above the keyboard.</b> The two side-by-side templates give the
-     *     screen a box taller than 4:3 wants, so there are no side bars, and
-     *     the band under the picture is thin. But the keyboard is one bitmap
-     *     with a fixed aspect and half a landscape window is far wider than it
-     *     is tall, so it sits at the foot of its half and leaves 634px of a
-     *     1080px window empty above it. Both controls go there, centred in the
-     *     band, since only one half of the window is ours — the pad at one end
-     *     and fire at the other.</li>
      * <li><b>Over it.</b> Nothing left: the controls float in the picture's
      *     bottom corners, translucent.</li>
      * </ol>
+     *
+     * There was a fourth, between the second and the last: the band above a
+     * keyboard set down one side of the window. It went with the two templates
+     * that put it there.
      */
     private void placeJoystick(int width, int height) {
         padBox.setEmpty();
@@ -969,19 +945,13 @@ final class EmulatorLayout extends ViewGroup {
         int minimum = Math.round(PAD_MINIMUM * density);
         int wanted = Math.round(PAD_SIZE * density);
 
-        // A keyboard across the whole width is a floor; one beside the screen
-        // takes nothing away from the height. The system keyboard is a floor too
-        // - it is not a child of this layout, but it covers the bottom of the
-        // window just the same, and a thumb cannot reach through it.
-        // Wider than half the window, rather than exactly the whole of it: the
-        // portrait keyboard is inset from the edges so that its corner keys can
-        // be hit, and testing for 0 to width made that inset read as "no
-        // keyboard below" - which put the joystick at the foot of the window,
-        // on top of the keys.
-        boolean keyboardBelow = !keyboardBox.isEmpty()
-                && keyboardBox.width() > width / 2;
-        int floor = keyboardBelow ? keyboardBox.top
-                                  : height - Math.max(imeInset, gestureInset);
+        // The keyboard is a floor. Every template that has one lays it across
+        // the foot of the window - below the picture or over it - and a thumb
+        // cannot reach through it. So is the system keyboard: not a child of
+        // this layout, but it covers the bottom of the window just the same.
+        int floor = keyboardBox.isEmpty()
+                ? height - Math.max(imeInset, gestureInset)
+                : keyboardBox.top;
 
         // 1. The black bars beside the picture, outside the lamps.
         //
@@ -1046,43 +1016,7 @@ final class EmulatorLayout extends ViewGroup {
             return;
         }
 
-        // 3. The band above the keyboard, when it is beside the screen rather
-        // than below it. Above by preference and below if that will not have
-        // it: the keyboard is centred in its half, so on a phone the two are
-        // the same size and either is a whole thumb's width away from the
-        // picture.
-        if (!keyboardBox.isEmpty() && !keyboardBelow) {
-            // Below the bar's strip, not the top of the window: with the
-            // keyboard on the right, this band is the corner the bar is in.
-            int bandTop = barStrip;
-            int bandBottom = keyboardBox.top;
-
-            // The lamps are the one thing that can already be in here. They
-            // hang down the inside edge of the screen's half, which with the
-            // keyboard on the left is this band's far end - fire lands on them
-            // otherwise - and with it on the right is nowhere near.
-            int left = keyboardBox.left;
-            int right = keyboardBox.right;
-
-            if (!lightsBox.isEmpty() && lightsBox.top < bandBottom
-                                     && lightsBox.bottom > bandTop) {
-                if (lightsBox.centerX() > (left + right) / 2) {
-                    right = Math.min(right, lightsBox.left - margin);
-                } else {
-                    left = Math.max(left, lightsBox.right + margin);
-                }
-            }
-
-            size = Math.min(wanted, bandBottom - bandTop - 2 * margin);
-
-            if (size >= minimum && size <= (right - left - 2 * margin) / 2) {
-                strip(left, right, (bandTop + bandBottom) / 2, size, margin);
-                fireArea.set(left, bandTop, right, bandBottom);
-                return;
-            }
-        }
-
-        // 4. Nowhere left: over the picture's bottom corners.
+        // 3. Nowhere left: over the picture's bottom corners.
         joystickFloating = true;
         size = Math.max(minimum, Math.min(wanted, picture.width() / 4));
         strip(picture.left, picture.right,

@@ -632,8 +632,8 @@ storage later.
 ### Sharing the window
 
 `EmulatorLayout` is a `ViewGroup` of its own rather than nested
-`LinearLayout`s, because the four landscape arrangements are not all the same
-kind of container: two stack, two sit side by side, and one puts the keyboard
+`LinearLayout`s, because the landscape arrangements are not all the same
+kind of container: two stack and one puts the keyboard
 over the screen. Measuring both children in one place covers all of it without
 ever re-parenting them — which matters, since detaching the `SurfaceView` would
 destroy the surface Fuse draws into and cost a handover on every change. It
@@ -880,7 +880,7 @@ and it leaves the space in one place for the joystick to use.
 It goes in the black, not on the picture. The renderer centres a 4:3 quad in
 whatever box it is given, so there is nearly always spare black somewhere, and
 that is a thumb's width of room the picture was never using. `placeJoystick()`
-tries four things in order and which one applies falls out of the template
+tries three things in order and which one applies falls out of the template
 rather than being written down per template:
 
 - **Beside the picture.** A 4:3 quad in a wide box leaves a bar down each
@@ -906,29 +906,10 @@ rather than being written down per template:
   where a thumb rests, it is what the side bars already do, and centring them left
   them floating in the middle of nowhere when the band was tall.
 
-  What counts as a keyboard below is "wider than half the window", not "exactly
-  the whole of it". The portrait keyboard is inset from the edges so its corner
-  keys can be hit, and the exact test read that inset as *no keyboard below* - so
-  the joystick was placed against the bottom of the window, on top of the keys.
-  That was the one visible symptom of a padding change three commits earlier.
-
   The floor is also whichever is lower of the keyboard, the system keyboard's
   inset and the strip the system keeps for its own gestures. Nothing of ours goes
   in that strip: a thumb that means *fire* and lands there sends the app to the
   background instead.
-- **Above the keyboard.** The two side-by-side templates give the screen a box
-  taller than 4:3 wants, so there are no side bars, and the band under the
-  picture is thin. The keyboard is where the room is: it is one bitmap with a
-  fixed 541x201 aspect, and half a landscape window is far wider than that is
-  tall, so it is given the foot of its half rather than the middle of it and
-  634px of a 1080px window is left empty above it. Both controls go there,
-  centred in the band, since only one half of the window is ours — the pad at
-  one end and fire at the other, and the far end cut back to the lamps when
-  they hang into it, which with the keyboard on the left they do.
-
-  Centring the keyboard in its half was the older arrangement and it split that
-  634px into two bands of 317, one above and one below, neither of them where a
-  thumb naturally is.
 - **Over it.** Nothing left. The controls float in the picture's bottom corners
   at 55% alpha. Reachable only with a whole-pixel scale small enough to leave a
   short band and a narrow bar at once.

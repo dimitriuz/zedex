@@ -57,7 +57,7 @@ end.
 - **GPU-scaled display**, fitted or at a **whole-pixel scale**, with
   **scanline, CRT and composite/RF filters**, and the **border**
   shown in full, slimmed to a quarter, or cropped away
-- **Five landscape layouts**
+- **Three landscape layouts**
 - **On-screen Spectrum keyboard**, as the rubber **48K** or the **128K** plate —
   or **your phone's own keyboard** instead
 - **On-screen joystick**, and **physical controllers**, which just work — with
@@ -129,14 +129,12 @@ The machine starts as soon as the ROMs are in. If some are missing the panel
 says which, and *Run anyway* starts on the ones that are there.
 
 
-**Sideways, five landscape layouts**, from ☰ *Controls… › Keyboard… › Landscape layout…*:
+**Sideways, three landscape layouts**, from ☰ *Controls… › Keyboard… › Landscape layout…*:
 
 | | |
 | --- | --- |
 | **Keyboard below the screen** | capped at two fifths of the height, so the picture keeps its full width |
 | **Keyboard over the screen** | translucent across the bottom; the screen keeps the whole window |
-| **Keyboard left, screen right** | an even split; the keyboard at the foot of its half, the joystick above it |
-| **Screen left, keyboard right** | the same, mirrored |
 | **No keyboard** | the whole window is the machine, for a physical keyboard |
 
 
