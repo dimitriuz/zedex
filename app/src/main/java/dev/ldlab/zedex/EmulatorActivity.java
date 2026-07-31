@@ -10,8 +10,6 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.provider.DocumentsContract;
 import android.provider.OpenableColumns;
-import android.system.ErrnoException;
-import android.system.Os;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
@@ -32,13 +30,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -70,27 +63,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      * is an absolute path with the package name in it, and could only ever be
      * right for one build of the app.
      */
-    private static final String DATA_DIR = "fuse";
-    private static final String LIB_DIR = DATA_DIR + "/ui/widget";
-
-    /** argv[0]: never run, only read for the directory it names. */
-    private static final String PROGRAM = DATA_DIR + "/fuse";
-
     private static final String PREFS = SettingsActivity.PREFS;
-
-    /** Fuse's short id for the machine to boot, e.g. "48" or "128". */
-    private static final String PREF_MACHINE = SettingsActivity.KEY_MACHINE;
-    private static final String DEFAULT_MACHINE = "128";
-
-    /** How long to give the emulation thread to act on a machine change. */
-    private static final long MACHINE_SETTLE_MS = 500;
-
-    /**
-     * How long Fuse gets to publish a machine before its start is called
-     * failed. Generous: this only runs while the screen is black anyway.
-     */
-    private static final long START_TIMEOUT_MS = 6000;
-    private static final long START_POLL_MS = 500;
 
 
     private SharedPreferences preferences;
@@ -121,6 +94,12 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      * ask at any time - it simply reports that there is no panel.
      */
     private Panels panels;
+
+    /**
+     * The emulated Spectrum: starting it, changing it, its speed, and ending
+     * the process; see {@link Machine}. Built in onCreate.
+     */
+    private Machine machine;
 
     /** The big play button over the picture, shown only while paused. */
     private ImageButton playButton;
@@ -209,6 +188,38 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // used to be two booleans.
         Filter.migrate(preferences);
 
+        machine = new Machine(this, preferences, new Machine.Host() {
+            @Override
+            public void note(int message, Object... arguments) {
+                EmulatorActivity.this.note(message, arguments);
+            }
+
+            @Override
+            public MenuDrawer sheet() {
+                return menu;
+            }
+
+            @Override
+            public void forgetMedia() {
+                forgetMediaName();
+            }
+
+            @Override
+            public String modifiedDisks() {
+                return media.modifiedDisks();
+            }
+
+            @Override
+            public int joystickType() {
+                return controls.joystickType();
+            }
+
+            @Override
+            public void startFailed() {
+                roms.show(true);
+            }
+        });
+
         panels = new Panels(this, preferences, new Panels.Host() {
             @Override
             public EmulatorLayout layout() {
@@ -237,23 +248,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // there already: the folder is the user's to fill as well as ours.
         if (!StartPanel.setupNeeded(this)) Storage.installRoms(this);
 
-        File files = getFilesDir();
-        try {
-            installAssets(DATA_DIR, new File(files, LIB_DIR));
-        } catch (IOException e) {
-            Log.e(TAG, "failed to unpack Fuse data files", e);
-        }
-
-        try {
-            // Fuse resolves its config through $XDG_CONFIG_HOME / $HOME and
-            // writes temporary files to $TMPDIR; none of the Unix defaults
-            // (/tmp, an unset HOME) are writable on Android.
-            Os.setenv("HOME", files.getAbsolutePath(), true);
-            Os.setenv("XDG_CONFIG_HOME", files.getAbsolutePath(), true);
-            Os.setenv("TMPDIR", getCacheDir().getAbsolutePath(), true);
-        } catch (ErrnoException e) {
-            Log.e(TAG, "failed to set up environment", e);
-        }
+        Machine.prepare(this);
 
         // The emulated screen takes whatever the keyboard leaves. In portrait
         // that is the classic 4:3-above-keys layout; in landscape the keyboard
@@ -604,7 +599,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                      this::fillDisplay);
 
         bar.addHold(R.drawable.ic_fast_forward, getString(R.string.fast_forward),
-                    () -> fastForward(true), () -> fastForward(false));
+                    () -> machine.fastForward(true), () -> machine.fastForward(false));
 
         fullscreenAction = bar.addAction(R.drawable.ic_fullscreen,
                                          getString(R.string.fullscreen_enter),
@@ -692,24 +687,17 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                   () -> pause(!pausedByUser));
 
         rows.rule();
-        rows.item(R.drawable.ic_swap, withMachine(R.string.menu_machine),
-                  this::showMachineDialog);
+        rows.item(R.drawable.ic_swap, machine.withName(R.string.menu_machine),
+                  machine::showChooser);
         // Reset asks first, and asking is a sheet page - so the bar's row opens
         // the sheet on it rather than the two surfaces doing it differently.
         rows.item(R.drawable.ic_reset, getString(R.string.menu_reset),
-                  () -> menu.go(getString(R.string.menu_reset), resetMachine()));
+                  () -> menu.go(getString(R.string.menu_reset), machine.resetPage()));
         // No confirming, unlike reset: the magic button interrupts the machine
         // rather than throwing its state away, and half of what it is for is
         // pressing it at a particular moment.
-        rows.item(R.drawable.ic_bolt, getString(R.string.menu_nmi), this::nmi);
+        rows.item(R.drawable.ic_bolt, getString(R.string.menu_nmi), machine::nmi);
     }
-
-    /** The magic button of the real hardware; what it does is the machine's. */
-    private void nmi() {
-        FuseNative.nmi();
-        note(R.string.nmi_done);
-    }
-
 
     /**
      * What is on the glass beside the picture, and whether it is there.
@@ -917,33 +905,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         }
     }
 
-    /** What holding fast forward runs at, in per cent of a real Spectrum. */
-    private static final int FAST_FORWARD = 500;
-
-    private boolean fastForwarding;
-
-    /**
-     * Five hundred per cent while it is held, and back to the setting when it is
-     * let go.
-     *
-     * The setting is not written to: this is a thing being done, not a preference
-     * being changed, and a loading screen skipped at speed should not leave the
-     * machine fast for the game afterwards. Reading the stored value back is what
-     * restores it, so whatever the user chose is what returns - 25% included.
-     *
-     * Guarded against being told the same thing twice, because it arrives from a
-     * finger, a controller's trigger and that trigger's axis, and on some pads
-     * two of those at once.
-     */
-    private void fastForward(boolean on) {
-        if (fastForwarding == on) return;
-
-        fastForwarding = on;
-        FuseNative.setSpeed(on ? FAST_FORWARD
-                               : SettingsActivity.SettingsFragment.number(
-                                       preferences, SettingsActivity.KEY_SPEED, 100));
-    }
-
     private boolean fullscreen() {
         return preferences.getBoolean(SettingsActivity.KEY_FULLSCREEN, false);
     }
@@ -1066,7 +1027,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             }
             // The machine second: what is running is asked about more often than
             // anything filed away, and it holds pause.
-            sheet.addSubmenu(withMachine(R.string.menu_machine_group),
+            sheet.addSubmenu(machine.withName(R.string.menu_machine_group),
                              R.drawable.ic_chip, this::fillMachine);
             sheet.addSubmenu(getString(R.string.menu_states), R.drawable.ic_bookmark,
                              this::fillStates);
@@ -1091,7 +1052,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
             sheet.addRule();
             sheet.addItem(getString(R.string.menu_quit), R.drawable.ic_quit,
-                          this::quit);
+                          machine::quit);
         });
 
         return menu;
@@ -1184,7 +1145,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      */
     private void runHotkey(Hotkeys.Action action, boolean pressed) {
         switch (action) {
-            case FAST_FORWARD: fastForward(pressed); return;
+            case FAST_FORWARD: machine.fastForward(pressed); return;
             default: break;
         }
 
@@ -1195,16 +1156,16 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             // No confirming: a hotkey behind a modifier is deliberate enough,
             // and a dialog is the one thing a pad in a stand cannot dismiss.
             case RESET: FuseNative.reset(); note(R.string.hotkey_reset_done); break;
-            case NMI: FuseNative.nmi(); break;
-            case QUIT: quit(); break;
+            case NMI: machine.nmi(); break;
+            case QUIT: machine.quit(); break;
 
             case QUICK_SAVE: quickSave(); break;
             case QUICK_LOAD: quickLoad(); break;
             case SAVE_STATE: showStates(true); break;
             case LOAD_STATE: showStates(false); break;
 
-            case SPEED_UP: stepSpeed(1); break;
-            case SPEED_DOWN: stepSpeed(-1); break;
+            case SPEED_UP: machine.stepSpeed(1); break;
+            case SPEED_DOWN: machine.stepSpeed(-1); break;
 
             case FULLSCREEN: showFullscreen(!fullscreen()); break;
             case SCREENSHOT: takeScreenshot(); break;
@@ -1309,27 +1270,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         }
 
         note(R.string.hotkey_no_quick_save);
-    }
-
-    /**
-     * The next speed up or down the settings' own list, so a hotkey and the
-     * setting cannot disagree about what the speeds are.
-     */
-    private void stepSpeed(int direction) {
-        String[] values = getResources().getStringArray(R.array.speed_values);
-        String current = preferences.getString(SettingsActivity.KEY_SPEED, "100");
-
-        int at = 0;
-        for (int i = 0; i < values.length; i++) {
-            if (values[i].equals(current)) at = i;
-        }
-
-        int next = Math.max(0, Math.min(values.length - 1, at + direction));
-        if (next == at) return;
-
-        preferences.edit().putString(SettingsActivity.KEY_SPEED, values[next]).apply();
-        FuseNative.setSpeed(Integer.parseInt(values[next]));
-        note(R.string.hotkey_speed, values[next]);
     }
 
     // --- screenshots and recording -----------------------------------------
@@ -1542,140 +1482,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                                            Toast.LENGTH_SHORT).show());
     }
 
-    private MenuDrawer.Page resetMachine() {
-        return page -> {
-            page.addNote(getString(R.string.reset_confirm));
-            page.addItem(getString(R.string.menu_reset), R.drawable.ic_reset, () -> {
-                FuseNative.reset();
-                forgetMediaName();
-                note(R.string.reset_done);
-            });
-        };
-    }
-
-
-    private void showMachineDialog() {
-        String[] names = FuseNative.machineNames();
-        if (names.length == 0) return;   // Fuse has not finished starting
-
-        int current = FuseNative.currentMachine();
-
-        menu.go(getString(R.string.machine_title), page -> {
-            for (int i = 0; i < names.length; i++) {
-                int which = i;
-                page.addChoice(names[which], which == current,
-                               () -> selectMachine(which));
-            }
-        });
-    }
-
-    private void selectMachine(int index) {
-        String[] names = FuseNative.machineNames();
-
-        FuseNative.selectMachine(index);
-        forgetMediaName();
-
-        // The change happens on the emulation thread, and it can fail: Fuse
-        // falls back to 48K when a machine's ROMs are missing (Pentagon and
-        // Scorpion need ROMs that are not redistributable). Check what
-        // actually ended up running rather than assuming we got it.
-        getWindow().getDecorView().postDelayed(() -> {
-            if (FuseNative.currentMachine() != index && index < names.length) {
-                Toast.makeText(this, getString(R.string.machine_unavailable,
-                        names[index]), Toast.LENGTH_LONG).show();
-            } else if (index < names.length) {
-                note(R.string.machine_selected, names[index]);
-            }
-            rememberMachine();
-        }, MACHINE_SETTLE_MS);
-    }
-
-    /** Persists whichever machine is really running, for the next launch. */
-    /**
-     * How long to let the recorder finish its file before going anyway.
-     *
-     * {@link Recorder#stop} does not block - it cannot, being called from the UI
-     * thread - so the encoder is still writing when it returns, and a process
-     * that exits underneath it leaves a truncated film. A second is far more
-     * than the queue takes to drain, and quitting is not the moment to be exact.
-     */
-    private static final long RECORDER_GRACE_MS = 1000;
-
-    /**
-     * Closes the app rather than leaving it in the background.
-     *
-     * Back and Home only put a Spectrum away - the emulator pauses itself and
-     * waits, which is what an emulator should do. This is for meaning it, and it
-     * ends the *process*, not just the activity: the emulation thread is a plain
-     * pthread inside Fuse's main loop, Fuse's globals cannot be initialised
-     * twice, and the next launch has to be able to start it again. See
-     * {@code Java_dev_ldlab_zedex_FuseNative_start}.
-     *
-     * Two things are worth a moment on the way out - a recording being written,
-     * and a disk with changes nothing has written back - because both are work
-     * the machine cannot get back for you.
-     */
-    private void quit() {
-        String unsaved = media.modifiedDisks();
-
-        if (unsaved == null) {
-            quitNow();
-            return;
-        }
-
-        menu.go(getString(R.string.quit_unsaved_title), page -> {
-            page.addNote(getString(R.string.quit_unsaved, unsaved));
-            page.addItem(getString(R.string.menu_quit), R.drawable.ic_quit,
-                         this::quitNow);
-        });
-    }
-
-    private void quitNow() {
-        rememberMachine();
-
-        if (Recorder.isRecording()) {
-            Recorder.stop();
-            Recorder.waitForFile(RECORDER_GRACE_MS);
-        }
-
-        // Off the recents list too: a task left there offers to resume a machine
-        // whose process has gone, and Android would answer that by starting a
-        // fresh one - which is what happens anyway, only having looked like the
-        // old one was still there.
-        finishAndRemoveTask();
-        Runtime.getRuntime().exit(0);
-    }
-
-    /**
-     * What the machine calls itself, or nothing at all before there is one.
-     *
-     * Asked of Fuse rather than read from the setting, because the two can
-     * disagree: media brings its own machine with it - a .dsk switches to a +3 -
-     * and Fuse falls back to 48K when the ROMs for the one that was asked for are
-     * not there. What is running is the only answer worth showing.
-     */
-    private String machineName() {
-        int current = FuseNative.currentMachine();
-        String[] names = FuseNative.machineNames();
-
-        return current >= 0 && current < names.length ? names[current] : null;
-    }
-
-    /** A menu label with the machine under it, where there is one. */
-    private String withMachine(int label) {
-        String name = machineName();
-        return name == null ? getString(label) : getString(label) + "\n" + name;
-    }
-
-    private void rememberMachine() {
-        int current = FuseNative.currentMachine();
-        String[] ids = FuseNative.machineIds();
-
-        if (current >= 0 && current < ids.length) {
-            preferences.edit().putString(PREF_MACHINE, ids[current]).apply();
-        }
-    }
-
     /**
      * Nothing to look at, nothing to run: a Spectrum in the background is a
      * Spectrum burning the battery. The automatic pause is kept apart from the
@@ -1684,7 +1490,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     @Override
     protected void onPause() {
         super.onPause();
-        rememberMachine();
+        machine.remember();
 
         InputManager input = getSystemService(InputManager.class);
         if (input != null) input.unregisterInputDeviceListener(devices);
@@ -1781,129 +1587,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         roms.hide();
         started = true;
 
-        // Fuse searches the working directory for a ROM before anywhere
-        // else, which is how it finds the user's.
-        FuseNative.setWorkingDirectory(Storage.romsDirectory(this).getAbsolutePath());
-        FuseNative.start(startArguments());
-        watchForStartFailure(0);
-
-        // Not Fuse's settings, so they cannot ride in on its command line: the
-        // renderer has to be told. Queued, so arriving before Fuse has finished
-        // starting is safe.
-        SettingsActivity.applyFilter(preferences);
-        SettingsActivity.applyScale(this, preferences);
-        startDivmmc();
-    }
-
-    /**
-     * The DivMMC, in the order it has to happen: the firmware, then the
-     * interface, then whatever card was in it.
-     *
-     * Queued rather than passed on the command line, and deliberately so.
-     * {@code --divmmc} would have Fuse plug the interface in during its own
-     * startup, before anything here could put firmware in the EPROM, and a
-     * DivMMC with a blank EPROM pages itself into the machine's reset and hangs
-     * it - a black screen before the first frame. The queue keeps these three in
-     * order, so the firmware is always in place first.
-     */
-    private void startDivmmc() {
-        File firmware = Storage.divmmcFirmware(this);
-
-        if (!firmware.isFile()) return;
-
-        FuseNative.loadDivmmcFirmware(firmware.getAbsolutePath());
-
-        if (!preferences.getBoolean(SettingsActivity.KEY_DIVMMC, false)) return;
-
-        FuseNative.setDivmmc(true);
-
-        String card = preferences.getString(Media.PREF_CARD, null);
-        if (card != null && new File(card).isFile()) FuseNative.insertCard(card);
-    }
-
-    /**
-     * Fuse publishes a machine as soon as one is running, so no machine long
-     * after the emulation thread should have got there means {@code main()}
-     * returned instead - which is what an unusable ROM does. Nothing is drawn
-     * in that case, so without this the screen simply stays black.
-     */
-    private void watchForStartFailure(long waited) {
-        if (FuseNative.currentMachine() >= 0) return;
-
-        if (waited >= START_TIMEOUT_MS) {
-            Log.w(TAG, "no machine after " + waited + "ms; ROMs are unusable");
-            roms.show(true);
-            return;
-        }
-
-        getWindow().getDecorView().postDelayed(
-                () -> watchForStartFailure(waited + START_POLL_MS), START_POLL_MS);
-    }
-
-    /**
-     * Options are passed on the command line rather than queued, so they are
-     * in force before Fuse finishes starting - a file handed to us by an
-     * intent can be loading before the queue is first drained.
-     */
-    private String[] startArguments() {
-        List<String> arguments = new ArrayList<>();
-
-        // Not the word "fuse": Fuse looks for its font in lib beside whatever
-        // argv[0] names, and this is how it is pointed at ours.
-        arguments.add(new File(getFilesDir(), PROGRAM).getAbsolutePath());
-        arguments.add("--machine");
-        arguments.add(preferences.getString(PREF_MACHINE, DEFAULT_MACHINE));
-
-        // Three of Fuse's settings in three combinations; see
-        // OPTION_LOADER_ACCELERATION in android_bridge.c for why these three.
-        int loader = SettingsActivity.loaderLevel(preferences);
-
-        arguments.add(loader > 0 ? "--traps" : "--no-traps");
-        arguments.add(loader > 0 ? "--fastload" : "--no-fastload");
-        arguments.add(loader > 1 ? "--accelerate-loader"
-                                 : "--no-accelerate-loader");
-
-        flag(arguments, SettingsActivity.KEY_DETECT_LOADER, true, "detect-loader");
-
-        flag(arguments, SettingsActivity.KEY_TAPE_SOUND, true, "loading-sound");
-        flag(arguments, SettingsActivity.KEY_AUTOLOAD, true, "auto-load");
-        flag(arguments, SettingsActivity.KEY_ISSUE2, false, "issue2");
-        flag(arguments, SettingsActivity.KEY_BW_TV, false, "bw-tv");
-        flag(arguments, SettingsActivity.KEY_SOUND, true, "sound");
-
-        value(arguments, SettingsActivity.KEY_SPEED, 100, "speed");
-        value(arguments, SettingsActivity.KEY_AY_VOLUME, 100, "volume-ay");
-
-        // Fuse's own word for it, passed straight through; see AY_STEREO.
-        arguments.add("--separation");
-        arguments.add(SettingsActivity.ayStereoName(preferences));
-        value(arguments, SettingsActivity.KEY_BEEPER_VOLUME, 100, "volume-beeper");
-
-        // The on-screen joystick is Fuse's joystick 1. Kempston is a type and
-        // also a piece of hardware, and the port is only decoded when the
-        // interface is there, so the two go together - see OPTION_JOYSTICK_TYPE
-        // in android_bridge.c, which does the same when it is changed later.
-        int joystick = controls.joystickType();
-        if (joystick == Controls.JOYSTICK_KEYBOARD) joystick = Controls.JOYSTICK_NONE;
-
-        arguments.add("--joystick-1-output");
-        arguments.add(String.valueOf(joystick));
-        arguments.add(joystick == Controls.JOYSTICK_KEMPSTON ? "--kempston"
-                                                    : "--no-kempston");
-
-        return arguments.toArray(new String[0]);
-    }
-
-    /** Fuse generates --x / --no-x for every boolean setting. */
-    private void flag(List<String> arguments, String key, boolean fallback, String option) {
-        boolean on = preferences.getBoolean(key, fallback);
-        arguments.add(on ? "--" + option : "--no-" + option);
-    }
-
-    private void value(List<String> arguments, String key, int fallback, String option) {
-        String stored = preferences.getString(key, String.valueOf(fallback));
-        arguments.add("--" + option);
-        arguments.add(stored);
+        machine.start();
     }
 
     @Override
@@ -1977,44 +1661,4 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         return gamepad.motion(event) || super.onGenericMotionEvent(event);
     }
 
-    // --- assets -----------------------------------------------------------
-
-    /**
-     * Copies an assets directory into internal storage. Fuse opens these with
-     * plain stdio, so they cannot stay inside the APK.
-     */
-    private void installAssets(String assetDir, File target) throws IOException {
-        String[] entries = getAssets().list(assetDir);
-        if (entries == null || entries.length == 0) return;
-
-        if (!target.isDirectory() && !target.mkdirs()) {
-            throw new IOException("cannot create " + target);
-        }
-
-        for (String entry : entries) {
-            String assetPath = assetDir + "/" + entry;
-            File out = new File(target, entry);
-
-            String[] children = getAssets().list(assetPath);
-            if (children != null && children.length > 0) {
-                installAssets(assetPath, out);
-                continue;
-            }
-
-            // Data files are read-only and versioned with the APK, so an
-            // existing copy of the right size is always up to date.
-            try (InputStream in = getAssets().open(assetPath)) {
-                if (out.exists() && out.length() == in.available()) continue;
-            }
-
-            try (InputStream in = getAssets().open(assetPath);
-                 OutputStream os = new FileOutputStream(out)) {
-                byte[] buffer = new byte[16 * 1024];
-                int read;
-                while ((read = in.read(buffer)) != -1) {
-                    os.write(buffer, 0, read);
-                }
-            }
-        }
-    }
 }

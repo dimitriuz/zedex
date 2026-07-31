@@ -106,6 +106,26 @@ handed a null `SharedPreferences`.
 own copy of one regular expression, which is three chances to disagree about
 what is safe in a filename.
 
+### The machine
+
+`Machine` is the emulated Spectrum: starting it, changing it, its speed, and
+ending the process. Everything in it goes one way, into Fuse, and nothing in it
+draws — what comes back out is read from the snapshots the emulation thread
+publishes, because the command queue has nowhere to put a reply.
+
+Two rules, both about time. Options are passed on Fuse's **command line** rather
+than queued, so they are in force before it finishes starting: a file handed to
+us by an intent can be loading before the queue is first drained. Everything
+after that is **queued**, which is safe before Fuse has started because the
+commands simply wait — which is why `Machine.prepare` (unpacking Fuse's data
+files, pointing `$HOME`, `$XDG_CONFIG_HOME` and `$TMPDIR` at writable places) is
+static and runs before there is a machine at all.
+
+`argv[0]` lives here too, since it is never run and only read for the directory
+it names: `compat_get_next_path` looks in `lib` beside the program before it
+falls back to the compile-time `FUSEDATADIR`, which is an absolute path with a
+package name in it.
+
 ### The other screen
 
 `SecondScreen` is what the panel looks like; `Panels` is the window half, which
