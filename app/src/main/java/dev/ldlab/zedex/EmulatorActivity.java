@@ -705,27 +705,22 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     private void fillOnScreen(Rows rows) {
         boolean pad = layout.joystickVisible();
         boolean keys = layout.keyboardVisible();
-        boolean lamps = layout.lightsVisible();
 
         rows.item(R.drawable.ic_joystick,
                   getString(pad ? R.string.quick_joystick_hide
                                 : R.string.quick_joystick_show),
                   () -> showJoystick(!pad));
 
-        // Neither while fullscreen: it has both of them away whatever these say,
-        // so a row offering to hide one does nothing and a row offering to show
-        // one is a promise the layout will not keep. The joystick stays,
-        // because fullscreen leaves that where it is.
+        // Not the keyboard while fullscreen: it is away whatever this says, so
+        // a row offering to hide it does nothing and a row offering to show it
+        // is a promise the layout will not keep. The joystick stays, because
+        // fullscreen leaves that where it is.
         if (fullscreen()) return;
 
         rows.item(R.drawable.ic_keyboard,
                   getString(keys ? R.string.quick_keyboard_hide
                                  : R.string.quick_keyboard_show),
                   () -> showKeyboard(!keys));
-        rows.item(R.drawable.ic_indicators,
-                  getString(lamps ? R.string.quick_lights_hide
-                                  : R.string.quick_lights_show),
-                  () -> showLights(!lamps));
     }
 
     /**
@@ -742,6 +737,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      * of the moment and should not cost a trip through a list. {@link Filter}
      * is what keeps them from treading on each other: each row changes its own
      * half and leaves the other alone.
+     *
+     * The lamps are here rather than with the joystick and the keyboard. They
+     * are not something you play with - they are drawn beside the picture and
+     * they are read - so they belong with what the picture looks like. Under a
+     * line, since the four above are the picture itself.
      */
     private void fillDisplay(Rows rows) {
         Filter filter = Filter.of(preferences);
@@ -766,6 +766,18 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                   getString(R.string.quick_border,
                             getString(Border.of(preferences).title)),
                   this::nextBorder);
+
+        // Away in fullscreen whatever this says, like the keyboard, so it is
+        // not offered there.
+        if (fullscreen()) return;
+
+        boolean lamps = layout.lightsVisible();
+
+        rows.rule();
+        rows.item(R.drawable.ic_indicators,
+                  getString(lamps ? R.string.quick_lights_hide
+                                  : R.string.quick_lights_show),
+                  () -> showLights(!lamps));
     }
 
     /** Either of the picture switches, written and pushed like the settings do. */

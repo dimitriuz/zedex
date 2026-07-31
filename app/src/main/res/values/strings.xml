@@ -442,10 +442,11 @@
     <string name="menu_on_screen">On screen…</string>
     <!-- The quick states, named after the file that is open, not after the
          state: the state is "Tujad Quick" and saying quick twice reads badly.
-         With nothing open they fall back to hotkey_quick_save/_load, which are
-         the same two words without a name. -->
-    <string name="quick_save">Quick save — %1$s</string>
-    <string name="quick_load">Quick load — %1$s</string>
+         A title over a value, like the machine row, rather than the two joined
+         by a dash - see QuickBar.addToRow. With nothing open they fall back to
+         hotkey_quick_save/_load, which are the same two words without a name. -->
+    <string name="quick_save">Quick save\n%1$s</string>
+    <string name="quick_load">Quick load\n%1$s</string>
     <string name="menu_capture">Capture…</string>
     <string name="capture_screenshot">Save screenshot</string>
     <string name="capture_gif">Record a GIF</string>

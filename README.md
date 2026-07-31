@@ -69,7 +69,8 @@ end.
 - **Pause** — automatic when the app is not in front, and nothing is drawn
   at all while the device sleeps
 - **Activity lamps** for the tape, disks, AY, keyboard and joystick — the quick
-  bar's *On screen…* puts them away, along with the keyboard and the joystick, and
+  bar's *Display…* puts them away, the keyboard and the joystick are in *On
+  screen…*, and
   fullscreen gives the picture their strip back
 - **Two screens**, on a handheld built with them: the controls move to the
   other panel and the machine gets a whole screen to itself
@@ -249,8 +250,8 @@ way up the device is. Nine icons:
 | **States** | save one, load one, and the quick pair named after what is running |
 | **Machine** | pause, change machine, reset, NMI |
 | **Capture** | a screenshot, a GIF, an MP4, and the folder they go to |
-| **On screen** | the keyboard, the joystick and the lamps, away or back |
-| **Display** | scanlines, CRT, video output and border |
+| **On screen** | the keyboard and the joystick, away or back |
+| **Display** | scanlines, CRT, video output, border and the lamps |
 | **Fast forward** | hold it: 500% while held, silent, back to your speed on release |
 | **Fullscreen** | |
 | **☰** | |
