@@ -272,6 +272,7 @@ is a Spectrum whose RAM has gone.
 | | |
 | --- | --- |
 | **Open file…** | straight to the picker |
+| **Open recent…** | the last ten, newest first |
 | **Machine…** | which machine, pause, reset, NMI — with the running one named under it |
 | **States…** | save and load |
 | **Pokes…** | one byte into memory: try one, or keep the ones that work |
@@ -286,6 +287,10 @@ In full:
 - **Open file…** — anything the emulator can read: snapshots (`.z80`, `.sna`,
   `.szx`, …), tapes (`.tap`, `.tzx`, `.pzx`, `.csw`, …), disks (`.dsk`,
   `.trd`, `.scl`, `.mgt`, `.udi`, …).
+- **Open recent…** — the last ten files, newest first, in ☰ and behind the
+  bar's folder icon. Yesterday's game is one tap rather than three and a good
+  memory for filenames; the list survives a restart, and an entry that will no
+  longer open drops itself.
 - **Machine…**
   - *Change machine…* lists all sixteen with the running one
   checked, and the choice is remembered for the next launch.

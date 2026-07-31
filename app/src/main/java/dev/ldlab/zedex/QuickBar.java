@@ -64,6 +64,9 @@ final class QuickBar extends LinearLayout {
     /** The open group's own icon, so it is clear which row belongs to what. */
     private static final int ICON_OPEN = 0xff00b0c8;
 
+    /** The line between what a group does and what it opens. */
+    private static final int RULE = 0x1affffff;
+
     private final LinearLayout primary;
     private final LinearLayout secondary;
     private final int button;
@@ -289,6 +292,25 @@ final class QuickBar extends LinearLayout {
 
         secondary.addView(row, new LayoutParams(LayoutParams.MATCH_PARENT,
                                                 LayoutParams.WRAP_CONTENT));
+    }
+
+    /**
+     * A line across the list, for the group that holds two kinds of thing:
+     * what can be done, and then what can be opened.
+     */
+    void addToRowRule() {
+        View rule = new View(getContext());
+        float density = getResources().getDisplayMetrics().density;
+
+        rule.setBackgroundColor(RULE);
+
+        LayoutParams params = new LayoutParams(LayoutParams.MATCH_PARENT, 1);
+        params.setMargins(Math.round(LIST_PAD_DP * density),
+                          Math.round(4 * density),
+                          Math.round(LIST_PAD_DP * density),
+                          Math.round(4 * density));
+
+        secondary.addView(rule, params);
     }
 
     /** Puts the dropdown away, wherever the tap came from. */

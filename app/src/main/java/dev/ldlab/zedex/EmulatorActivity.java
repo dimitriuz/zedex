@@ -605,6 +605,53 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                      () -> showStates(true));
         bar.addToRow(R.drawable.ic_load, getString(R.string.menu_load_state),
                      () -> showStates(false));
+
+        // The files themselves last and under a line: the three above are what
+        // the group is for, and a list of names among them would be three
+        // things to read past every time.
+        List<Recents.Item> recent = Recents.all(preferences);
+        if (recent.isEmpty()) return;
+
+        bar.addToRowRule();
+        for (Recents.Item item : recent) {
+            bar.addToRow(R.drawable.ic_file, item.name, () -> openRecent(item));
+        }
+    }
+
+    /**
+     * The last ten files, newest first.
+     *
+     * Coming back to yesterday's game is the commonest thing anyone does with
+     * an emulator, and through the picker it costs three taps and remembering
+     * what the file was called.
+     */
+    private void fillRecent(MenuDrawer sheet) {
+        for (Recents.Item item : Recents.all(preferences)) {
+            sheet.addItem(item.name, R.drawable.ic_file, () -> openRecent(item));
+        }
+    }
+
+    /**
+     * Opens one again. The grant may have gone - a document can be moved,
+     * deleted or handed over for one launch only - and then it is dropped from
+     * the list rather than sitting there failing.
+     */
+    private void openRecent(Recents.Item item) {
+        new Thread(() -> {
+            File staged = stage(item.uri);
+
+            if (staged == null) {
+                Recents.forget(getContentResolver(), preferences, item.uri);
+                return;
+            }
+
+            FuseNative.openFile(staged.getAbsolutePath());
+            note(R.string.file_opened, staged.getName());
+
+            String name = staged.getName();
+            int dot = name.lastIndexOf('.');
+            rememberMediaName(sanitise(dot > 0 ? name.substring(0, dot) : name));
+        }).start();
     }
 
     private void fillMachineBar(QuickBar bar) {
@@ -1169,6 +1216,13 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         menu.setRoot(sheet -> {
             sheet.addItem(getString(R.string.menu_open), R.drawable.ic_folder,
                           this::pickFile);
+
+            // Only with something on it: a list of nothing is a row that
+            // teaches you not to press it.
+            if (!Recents.all(preferences).isEmpty()) {
+                sheet.addSubmenu(getString(R.string.menu_recent),
+                                 R.drawable.ic_file, this::fillRecent);
+            }
             // The machine second: what is running is asked about more often than
             // anything filed away, and it holds pause.
             sheet.addSubmenu(withMachine(R.string.menu_machine_group),
@@ -2537,7 +2591,9 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // Asked for so that a disk can be written back over the file it came
         // from; the picker grants it for documents that can take it, and
         // <em>Save over</em> is only offered once a write has somewhere to go.
-        intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        // Persistable so the file can be opened again from the recent list.
+        intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                      | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
 
         Uri start = Storage.contentFolder(this);
         if (start != null) intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, start);
@@ -2907,8 +2963,10 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         intent.setType("*/*");
 
         // As for a disk picked into a drive: a .trd opened here goes into one
-        // too, and is worth being able to write back.
-        intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        // too, and is worth being able to write back. Persistable because the
+        // recent list outlives this launch and a plain grant does not.
+        intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                      | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
 
         Uri start = Storage.contentFolder(this);
         if (start != null) intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, start);
@@ -3022,6 +3080,8 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         }
 
         mediaOrigins.put(staged.getName(), uri);
+        Recents.remember(getContentResolver(), preferences, uri, staged.getName());
+
         return staged;
     }
 

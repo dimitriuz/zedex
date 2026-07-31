@@ -3,6 +3,7 @@ package dev.ldlab.zedex;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.database.Cursor;
 import android.net.Uri;
@@ -326,9 +327,17 @@ final class StartPanel {
      * should be asked for twice.
      */
     static boolean setupNeeded(Activity activity) {
-        return !activity.getSharedPreferences(SettingsActivity.PREFS,
-                                              Activity.MODE_PRIVATE)
-                        .getBoolean(Storage.KEY_SETUP_DONE, false);
+        SharedPreferences preferences = activity.getSharedPreferences(
+                SettingsActivity.PREFS, Activity.MODE_PRIVATE);
+
+        if (preferences.getBoolean(Storage.KEY_SETUP_DONE, false)) return false;
+
+        // An install that predates this screen has answered by never being
+        // asked: it has a machine, a folder, a keyboard skin, something. An
+        // upgrade is no moment to interrogate somebody who has been playing
+        // for a month, so only a preferences file with nothing at all in it
+        // counts as a first run.
+        return preferences.getAll().isEmpty();
     }
 
     /** The first run: where things are kept, and where they are opened from. */

@@ -3,6 +3,7 @@
     <string name="app_name">Zedex</string>
     <string name="machine_title">Machine</string>
     <string name="menu_open">Open file\u2026</string>
+    <string name="menu_recent">Open recent\u2026</string>
     <string name="menu_media">Media\u2026</string>
     <string name="menu_states">States\u2026</string>
     <string name="menu_pokes">Pokes\u2026</string>
