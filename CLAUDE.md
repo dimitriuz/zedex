@@ -48,6 +48,13 @@ expensive to rediscover.
   is a window-content-changed event each time, the accessibility tree never
   settles, and every UI Automator test fails with *the ☰ button never
   appeared*. The activity lamps did this and took the whole suite down.
+- **A setting has to be applied as well as stored.** Two places do that and a
+  new setting belongs in one of them: `SettingsActivity`'s
+  `onSharedPreferenceChanged`, which pushes into Fuse as the value changes, or
+  `EmulatorActivity.onResume`, which re-reads what that screen may have changed
+  while it had the window. A preference nothing reads again is a setting that
+  does nothing until the app is next launched — the keyboard type was exactly
+  that, and it looked broken rather than late.
 
 ## Building
 
