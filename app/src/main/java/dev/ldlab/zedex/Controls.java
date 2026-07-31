@@ -34,6 +34,16 @@ final class Controls {
     /** Fuse's own None, which is what it is told to use for ours. */
     static final int JOYSTICK_NONE = 0;
 
+    /**
+     * Kempston's place in Fuse's {@code joystick_type_t}, and the default:
+     * Fuse's own is None, which would leave the on-screen pad with nothing to
+     * do, and Kempston is what most Spectrum games that take a joystick expect.
+     *
+     * Here beside the other two because two places want it - the chooser, and
+     * the command line, which has to pass --kempston to decode the port at all.
+     */
+    static final int JOYSTICK_KEMPSTON = 2;
+
     private static int[] keys = ControlProfiles.QAOPM.clone();
 
     /** Whether the pad sends keys rather than joystick buttons. */

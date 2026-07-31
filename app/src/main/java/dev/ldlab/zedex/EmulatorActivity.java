@@ -97,16 +97,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     private static final long START_POLL_MS = 500;
 
 
-    /** Kempston's place in Fuse's {@code joystick_type_t}. */
-    private static final int JOYSTICK_KEMPSTON = 2;
-
-    /**
-     * Fuse's own default is None, which would leave the on-screen pad with
-     * nothing to do; Kempston is what most Spectrum games that take a joystick
-     * at all expect.
-     */
-    private static final int DEFAULT_JOYSTICK_TYPE = JOYSTICK_KEMPSTON;
-
     private SharedPreferences preferences;
     private JoystickView[] keyButtons = new JoystickView[0];
 
@@ -168,6 +158,16 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      * beside Media and for the same reason.
      */
     private PokesUi pokes;
+
+    /**
+     * The joystick, the keyboard and the mouse; see {@link ControlsUi}. It is
+     * handed the layout, because whether a control is on screen is the layout's
+     * own state and going through a host method for each would be an interface
+     * as long as the class.
+     *
+     * Built once the layout exists, which is later than Media and the cheats.
+     */
+    private ControlsUi controls;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -339,8 +339,34 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                 preferences.getBoolean(SettingsActivity.KEY_KEYBOARD, true));
         layout.setLightsVisible(
                 preferences.getBoolean(SettingsActivity.KEY_INDICATORS, true));
+
+        // Here rather than beside Media and the cheats: it is handed the layout,
+        // so it cannot exist until there is one.
+        controls = new ControlsUi(this, preferences, layout, gamepad,
+                                  new ControlsUi.Host() {
+            @Override
+            public void note(int message, Object... arguments) {
+                EmulatorActivity.this.note(message, arguments);
+            }
+
+            @Override
+            public MenuDrawer sheet() {
+                return menu;
+            }
+
+            @Override
+            public boolean fullscreen() {
+                return EmulatorActivity.this.fullscreen();
+            }
+
+            @Override
+            public boolean onSecondScreen() {
+                return secondScreen != null;
+            }
+        });
+
         applyScale();
-        applyControls();
+        controls.applyControls();
         applyFullscreen();
 
         revealQuickBar();
@@ -381,7 +407,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
             if (visible) imeSeen = true;
 
-            if (imeSeen && keyboardSkin() == SpectrumKeyboardView.Skin.SYSTEM
+            if (imeSeen && controls.keyboardSkin() == SpectrumKeyboardView.Skin.SYSTEM
                     && layout.keyboardVisible() != visible) {
                 preferences.edit()
                         .putBoolean(SettingsActivity.KEY_KEYBOARD, visible).apply();
@@ -393,7 +419,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         // Posted: there is no window to show an input method for until the
         // activity has one.
-        layout.post(this::applySystemKeyboard);
+        layout.post(controls::applySystemKeyboard);
 
         handleViewIntent(getIntent());
     }
@@ -441,22 +467,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         applyFullscreen();
     }
 
-    /**
-     * Tells {@link Controls} which keys the profile holds and whether the pad is
-     * one of Fuse's interfaces or a set of keys, then redraws the three buttons,
-     * which are labelled with whatever they now send.
-     *
-     * Everything a control does goes through that one class, so this is the whole
-     * of applying a profile - and the same call is what a physical gamepad will
-     * need when there is one.
-     */
-    private void applyControls() {
-        Controls.setProfile(ControlProfiles.current(preferences).keys);
-        Controls.setPadSendsKeys(joystickType() == Controls.JOYSTICK_KEYBOARD);
-
-        layout.refreshControls();
-    }
-
     /** Opens media handed to us by a file manager, or by `am start -a VIEW`. */
     private void handleViewIntent(Intent intent) {
         if (intent == null || !Intent.ACTION_VIEW.equals(intent.getAction())) return;
@@ -483,13 +493,13 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         layout.setLightsVisible(
                 preferences.getBoolean(SettingsActivity.KEY_INDICATORS, true));
         applyScale();
-        applyControls();
-        applyMouse();
+        controls.applyControls();
+        controls.applyMouse();
 
         // Connecting or disconnecting one while the app was away.
         InputManager input = getSystemService(InputManager.class);
         if (input != null) input.registerInputDeviceListener(devices, null);
-        applyGamepad();
+        controls.applyGamepad();
 
         // The same for a second panel, and for the setting that wants one.
         DisplayManager displays = getSystemService(DisplayManager.class);
@@ -501,7 +511,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         // Coming back from somewhere else: if the device's keyboard is the one
         // chosen, it went away with the app and should come back with it.
-        applySystemKeyboard();
+        controls.applySystemKeyboard();
     }
 
     @Override
@@ -518,7 +528,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             // An input method is only shown for a window that has the focus, so
             // this is where asking for one belongs: at startup the request beat
             // the window to it and was quietly dropped.
-            applySystemKeyboard();
+            controls.applySystemKeyboard();
         }
     }
 
@@ -707,7 +717,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         rows.item(R.drawable.ic_joystick,
                   getString(pad ? R.string.quick_joystick_hide
                                 : R.string.quick_joystick_show),
-                  () -> showJoystick(!pad));
+                  () -> controls.showJoystick(!pad));
 
         // Not the keyboard while fullscreen: it is away whatever this says, so
         // a row offering to hide it does nothing and a row offering to show it
@@ -718,7 +728,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         rows.item(R.drawable.ic_keyboard,
                   getString(keys ? R.string.quick_keyboard_hide
                                  : R.string.quick_keyboard_show),
-                  () -> showKeyboard(!keys));
+                  () -> controls.showKeyboard(!keys));
     }
 
     /**
@@ -948,7 +958,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         revealQuickBar();
         applyFullscreen();
-        applyGamepad();
+        controls.applyGamepad();
     }
 
     /**
@@ -1043,7 +1053,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         layout.setLentAway(false);
 
         applyFullscreen();
-        applyGamepad();
+        controls.applyGamepad();
         revealQuickBar();
     }
 
@@ -1262,7 +1272,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
             sheet.addRule();
             sheet.addSubmenu(getString(R.string.menu_controls),
-                             R.drawable.ic_controls, this::fillControls);
+                             R.drawable.ic_controls, controls::fill);
             sheet.addItem(getString(R.string.menu_settings), R.drawable.ic_settings,
                     () -> openOwnScreen(new Intent(this, SettingsActivity.class)));
             sheet.addItem(getString(R.string.menu_about, version()),
@@ -1275,172 +1285,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         });
 
         return menu;
-    }
-
-    /**
-     * The two things you play with. They are the same kind of thing — a set of
-     * keys drawn on the glass — and each is a page because each can be put
-     * away, and the keyboard also decides how the window is divided.
-     */
-    private void fillControls(MenuDrawer sheet) {
-        sheet.addSubmenu(getString(R.string.menu_joystick), R.drawable.ic_joystick,
-                         this::fillJoystick);
-        sheet.addSubmenu(getString(R.string.menu_keyboard), R.drawable.ic_keyboard,
-                         this::fillKeyboard);
-        sheet.addSubmenu(getString(R.string.menu_mouse), R.drawable.ic_mouse,
-                         this::fillMouse);
-        // Not under Joystick…, which is about what the pad sends the *machine*.
-        // These are what a controller asks of the app, and they work whether the
-        // pad is a joystick or a set of keys.
-        sheet.addItem(getString(R.string.menu_gamepad), R.drawable.ic_controls,
-                      () -> GamepadActivity.open(this));
-    }
-
-    /**
-     * The Kempston mouse, which is a mode rather than a peripheral you forget
-     * about: while it is on the pad and the stick move the pointer instead of
-     * the joystick, so the page says so rather than leaving it to be discovered.
-     */
-    private void fillMouse(MenuDrawer sheet) {
-        boolean on = Mouse.enabled();
-
-        sheet.addItem(getString(on ? R.string.mouse_off : R.string.mouse_on),
-                      on ? R.drawable.ic_hide : R.drawable.ic_mouse,
-                      () -> showMouse(!on));
-        sheet.addItem(getString(R.string.mouse_sensitivity,
-                                SettingsActivity.SettingsFragment.number(
-                                        preferences,
-                                        SettingsActivity.KEY_MOUSE_SENSITIVITY,
-                                        100)),
-                      R.drawable.ic_swap, this::showMouseSensitivityDialog);
-        sheet.addNote(getString(R.string.mouse_explain));
-    }
-
-    private void showMouse(boolean on) {
-        preferences.edit().putBoolean(SettingsActivity.KEY_MOUSE, on).apply();
-        Mouse.setEnabled(on);
-
-        note(on ? R.string.mouse_on_done : R.string.mouse_off_done);
-    }
-
-    private void showMouseSensitivityDialog() {
-        String[] names = getResources().getStringArray(R.array.percent_names);
-        String[] values = getResources().getStringArray(R.array.percent_values);
-
-        int now = SettingsActivity.SettingsFragment.number(
-                preferences, SettingsActivity.KEY_MOUSE_SENSITIVITY, 100);
-        int checked = 0;
-        for (int i = 0; i < values.length; i++) {
-            if (Integer.parseInt(values[i]) == now) checked = i;
-        }
-
-        int chosen = checked;
-
-        menu.go(getString(R.string.mouse_sensitivity_title), page -> {
-            for (int i = 0; i < names.length; i++) {
-                int which = i;
-
-                page.addChoice(names[i], which == chosen, () -> {
-                    preferences.edit()
-                            .putString(SettingsActivity.KEY_MOUSE_SENSITIVITY,
-                                       values[which])
-                            .apply();
-                    Mouse.apply(preferences);
-                    note(R.string.mouse_sensitivity, Integer.parseInt(values[which]));
-                });
-            }
-        });
-    }
-
-    private void fillKeyboard(MenuDrawer sheet) {
-        boolean shown = layout.keyboardVisible();
-
-        if (fullscreen()) sheet.addNote(getString(R.string.keyboard_fullscreen));
-
-        sheet.addItem(getString(shown ? R.string.control_hide
-                                      : R.string.control_show),
-                      shown ? R.drawable.ic_hide : R.drawable.ic_show,
-                      () -> showKeyboard(!shown));
-        sheet.addItem(getString(R.string.keyboard_skin, keyboardSkin().title),
-                      R.drawable.ic_picture, this::showSkinDialog);
-
-        // Said here because here is where the skin is chosen. What it types
-        // still reaches the machine - the panel's window is what the input
-        // method is talking to - but which screen it is drawn on is Android's
-        // to decide, and a second screen has to be allowed to host one.
-        if (secondScreen != null
-                && keyboardSkin() == SpectrumKeyboardView.Skin.SYSTEM) {
-            sheet.addNote(getString(R.string.keyboard_system_elsewhere));
-        }
-    }
-
-    /**
-     * Brings the device's own keyboard up, or puts it away, to match the skin
-     * and whether the keyboard is meant to be showing at all.
-     *
-     * The other two skins are drawn by the app and need none of this; this one is
-     * Android's, so showing it is asking for it and hiding it is asking it to go.
-     */
-    private void applySystemKeyboard() {
-        boolean wanted = keyboardSkin() == SpectrumKeyboardView.Skin.SYSTEM
-                      && layout.keyboardVisible();
-
-        if (wanted) layout.systemKeyboard().open();
-        else layout.systemKeyboard().close();
-    }
-
-    private SpectrumKeyboardView.Skin keyboardSkin() {
-        return SpectrumKeyboardView.Skin.of(
-                preferences.getString(SettingsActivity.KEY_KEYBOARD_SKIN, null));
-    }
-
-    /**
-     * Which machine's keyboard is drawn.
-     *
-     * A picture and where its keys are, nothing more: the 128K's plate has keys
-     * the 48K's rubber one does not, and they reach the machine the way the real
-     * ones did - TRUE VIDEO is CAPS SHIFT and 3, and most of the others turn out
-     * to be single keys Fuse already knows.
-     */
-    private void showSkinDialog() {
-        SpectrumKeyboardView.Skin[] skins = SpectrumKeyboardView.Skin.values();
-        String[] names = new String[skins.length];
-        int checked = 0;
-
-        for (int i = 0; i < skins.length; i++) {
-            names[i] = skins[i].title;
-            if (skins[i] == keyboardSkin()) checked = i;
-        }
-
-        int chosen = checked;
-
-        menu.go(getString(R.string.keyboard_skin_title), page -> {
-            for (int i = 0; i < skins.length; i++) {
-                int which = i;
-
-                page.addChoice(names[which], which == chosen, () -> {
-                    preferences.edit()
-                            .putString(SettingsActivity.KEY_KEYBOARD_SKIN,
-                                       skins[which].value)
-                            .apply();
-                    layout.setKeyboardSkin(skins[which]);
-
-                    // Posted, and after the sheet has gone: an input method is
-                    // only shown for the window that has the focus, and while
-                    // the sheet still had it the request was quietly dropped.
-                    layout.post(this::applySystemKeyboard);
-                    note(R.string.keyboard_skin_set, skins[which].title);
-                });
-            }
-        });
-    }
-
-    private void showKeyboard(boolean shown) {
-        layout.setKeyboardVisible(shown);
-        applySystemKeyboard();
-        preferences.edit().putBoolean(SettingsActivity.KEY_KEYBOARD, shown).apply();
-
-        note(shown ? R.string.keyboard_shown : R.string.keyboard_hidden);
     }
 
     // --- pause ---------------------------------------------------------------
@@ -1500,59 +1344,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     // --- joystick -----------------------------------------------------------
 
     /**
-     * Whether the pad is on screen, and which interface it comes out as.
-     *
-     * The two are kept apart on purpose: hiding the pad does not unplug the
-     * joystick, since the interface is what a game reads and a physical
-     * gamepad may want it later. The types are Fuse's own list, in Fuse's own
-     * order, so the index is the value it takes.
-     */
-    private void fillJoystick(MenuDrawer sheet) {
-        boolean shown = layout.joystickVisible();
-
-        sheet.addItem(getString(shown ? R.string.control_hide
-                                      : R.string.control_show),
-                      shown ? R.drawable.ic_hide : R.drawable.ic_show,
-                      () -> showJoystick(!shown));
-        sheet.addItem(getString(R.string.joystick_type, joystickTypeName()),
-                      R.drawable.ic_swap, this::showJoystickTypeDialog);
-        sheet.addItem(getString(R.string.joystick_profile,
-                                ControlProfiles.current(preferences).name),
-                      R.drawable.ic_bookmark, this::showProfileDialog);
-
-        // With a real interface chosen the pad sends joystick directions and
-        // not these keys - but the three buttons beside fire always send them,
-        // so the row stays live and says what it is still doing.
-        if (joystickType() != Controls.JOYSTICK_KEYBOARD) {
-            sheet.addNote(getString(R.string.joystick_profile_buttons_only));
-        }
-        sheet.addItem(getString(R.string.joystick_auto_hide,
-                                getString(autoHide() ? R.string.on : R.string.off)),
-                      R.drawable.ic_hide, () -> setAutoHide(!autoHide()));
-    }
-
-    /** Whether the on-screen pad steps aside for a real controller. */
-    private boolean autoHide() {
-        return preferences.getBoolean(SettingsActivity.KEY_JOYSTICK_AUTO_HIDE, true);
-    }
-
-    private void setAutoHide(boolean on) {
-        preferences.edit()
-                .putBoolean(SettingsActivity.KEY_JOYSTICK_AUTO_HIDE, on).apply();
-
-        applyGamepad();
-        note(on ? R.string.joystick_auto_hide_on : R.string.joystick_auto_hide_off);
-    }
-
-    /**
-     * Takes the on-screen pad away while a controller is plugged in, if that is
-     * wanted.
-     *
-     * Separate from the user's own Show on screen rather than writing to it: a
-     * pad unplugged should bring the controls back, and it cannot if plugging one
-     * in threw the setting away.
-     */
-    /**
      * Said once, the first time a game reaches for a mouse that is not there.
      *
      * The lamp lights whether or not the mouse is plugged in, because reading
@@ -1567,16 +1358,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         saidAboutMouse = true;
         Toast.makeText(this, R.string.mouse_wanted, Toast.LENGTH_LONG).show();
-    }
-
-    private void applyMouse() {
-        Mouse.apply(preferences);
-        Mouse.setEnabled(preferences.getBoolean(SettingsActivity.KEY_MOUSE, false));
-    }
-
-    private void applyGamepad() {
-        layout.setJoystickSuppressed(autoHide() && Gamepad.connected());
-        gamepad.setHotkeys(Hotkeys.load(preferences));
     }
 
     /**
@@ -1622,11 +1403,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                 else startRecording(Recorder.Format.GIF);
                 break;
 
-            case KEYBOARD: showKeyboard(!layout.keyboardVisible()); break;
-            case JOYSTICK: showJoystick(!layout.joystickVisible()); break;
+            case KEYBOARD: controls.showKeyboard(!layout.keyboardVisible()); break;
+            case JOYSTICK: controls.showJoystick(!layout.joystickVisible()); break;
             case INDICATORS: showLights(!layout.lightsVisible()); break;
-            case NEXT_PROFILE: nextKeyProfile(); break;
-            case NEXT_JOYSTICK: nextJoystickType(); break;
+            case NEXT_PROFILE: controls.nextKeyProfile(); break;
+            case NEXT_JOYSTICK: controls.nextJoystickType(); break;
 
             case MENU: menu.open(); break;
             case QUICK_BAR: revealQuickBar(); break;
@@ -1739,174 +1520,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         preferences.edit().putString(SettingsActivity.KEY_SPEED, values[next]).apply();
         FuseNative.setSpeed(Integer.parseInt(values[next]));
         note(R.string.hotkey_speed, values[next]);
-    }
-
-    private void nextKeyProfile() {
-        List<ControlProfiles.Profile> all = ControlProfiles.all(preferences);
-        int next = (ControlProfiles.currentIndex(preferences) + 1) % all.size();
-
-        ControlProfiles.store(preferences, all, next);
-        applyControls();
-        note(R.string.profile_set, all.get(next).name);
-    }
-
-    /**
-     * Round Fuse's list of interfaces and then Keyboard, in the order the
-     * chooser offers them - so the stored value has to be turned into that
-     * position and back, since Keyboard is a number of our own rather than the
-     * one after Fuse's last.
-     */
-    private void nextJoystickType() {
-        String[] fuseTypes = FuseNative.joystickTypeNames();
-        if (fuseTypes.length == 0) return;
-
-        int type = joystickType();
-        int at = type == Controls.JOYSTICK_KEYBOARD ? fuseTypes.length : type;
-        int next = (at + 1) % (fuseTypes.length + 1);
-        int chosen = next == fuseTypes.length ? Controls.JOYSTICK_KEYBOARD : next;
-
-        preferences.edit().putInt(SettingsActivity.KEY_JOYSTICK_TYPE, chosen).apply();
-        setJoystickType(chosen);
-
-        note(R.string.joystick_type_set, next == fuseTypes.length
-                ? getString(R.string.joystick_keyboard) : fuseTypes[next]);
-    }
-
-    /**
-     * Which set of keys the controls send, and the way in to editing them.
-     *
-     * A list of profiles with the editor and New on the dialog's own buttons,
-     * rather than as more rows: choosing a profile and changing one are
-     * different kinds of thing, and a row that opens a screen sitting among rows
-     * that switch a setting reads as another profile at a glance.
-     */
-    private void showProfileDialog() {
-        List<ControlProfiles.Profile> profiles = ControlProfiles.all(preferences);
-        String[] names = new String[profiles.size()];
-
-        for (int i = 0; i < names.length; i++) names[i] = profiles.get(i).name;
-
-        int chosen = ControlProfiles.currentIndex(preferences);
-
-        menu.go(getString(R.string.profile_title), page -> {
-            for (int i = 0; i < names.length; i++) {
-                int which = i;
-
-                page.addChoice(names[which], which == chosen, () -> {
-                    ControlProfiles.store(preferences, profiles, which);
-                    applyControls();
-                    note(R.string.profile_set, names[which]);
-                });
-            }
-
-            // Under a rule rather than among the profiles: choosing one and
-            // changing one are different kinds of thing, and a row that opens a
-            // screen reads as another profile at a glance.
-            page.addRule();
-            page.addItem(getString(R.string.profile_edit), R.drawable.ic_edit,
-                         () -> ProfileActivity.open(this));
-            page.addSubmenu(getString(R.string.profile_new), R.drawable.ic_plus,
-                            newProfile());
-        });
-    }
-
-    /** A new profile starts as a copy of the one in use, and becomes the one in
-     *  use: it is being made because the current keys are nearly right. */
-    private MenuDrawer.Page newProfile() {
-        return page -> {
-            EditText field = page.addField(getString(R.string.profile_new_name),
-                                           "", 0);
-
-            page.addItem(getString(R.string.profile_new), R.drawable.ic_plus, () -> {
-                    String name = field.getText().toString().trim();
-                    if (name.isEmpty()) return;
-
-                    List<ControlProfiles.Profile> profiles =
-                            ControlProfiles.all(preferences);
-
-                    profiles.add(new ControlProfiles.Profile(
-                            name, ControlProfiles.current(preferences).keys));
-                    ControlProfiles.store(preferences, profiles, profiles.size() - 1);
-
-                    applyControls();
-                    ProfileActivity.open(this);
-            });
-        };
-    }
-
-    private void showJoystick(boolean shown) {
-        layout.setJoystickVisible(shown);
-        preferences.edit().putBoolean(SettingsActivity.KEY_JOYSTICK, shown).apply();
-
-        note(shown ? R.string.joystick_shown : R.string.joystick_hidden);
-    }
-
-    /**
-     * Fuse's own interfaces, and Keyboard after them.
-     *
-     * Keyboard is not an interface at all: the machine has nothing plugged in
-     * and the pad presses keys, which is how a great many games that predate
-     * the joystick interfaces are played. It is offered in the same list because
-     * from the pad's side it is the same choice.
-     */
-    private void showJoystickTypeDialog() {
-        String[] fuseTypes = FuseNative.joystickTypeNames();
-        if (fuseTypes.length == 0) return;
-
-        String[] names = new String[fuseTypes.length + 1];
-        System.arraycopy(fuseTypes, 0, names, 0, fuseTypes.length);
-        names[fuseTypes.length] = getString(R.string.joystick_keyboard);
-
-        int type = joystickType();
-        int checked = type == Controls.JOYSTICK_KEYBOARD ? fuseTypes.length : type;
-
-        int ticked = checked;
-
-        menu.go(getString(R.string.joystick_type_title), page -> {
-            for (int i = 0; i < names.length; i++) {
-                int which = i;
-
-                page.addChoice(names[which], which == ticked, () -> {
-                    int chosen = which == fuseTypes.length
-                            ? Controls.JOYSTICK_KEYBOARD : which;
-
-                    preferences.edit()
-                            .putInt(SettingsActivity.KEY_JOYSTICK_TYPE, chosen)
-                            .apply();
-                    setJoystickType(chosen);
-                    note(R.string.joystick_type_set, names[which]);
-                });
-            }
-        });
-    }
-
-    /** Nothing plugged in for Keyboard, since the pad sends keys instead. */
-    private void setJoystickType(int type) {
-        FuseNative.setJoystickType(type == Controls.JOYSTICK_KEYBOARD
-                ? Controls.JOYSTICK_NONE : type);
-        applyControls();
-    }
-
-    /** The stored type, or Kempston; never an index Fuse would not recognise. */
-    private int joystickType() {
-        int stored = preferences.getInt(SettingsActivity.KEY_JOYSTICK_TYPE,
-                                        DEFAULT_JOYSTICK_TYPE);
-        int count = FuseNative.joystickTypeNames().length;
-
-        if (stored == Controls.JOYSTICK_KEYBOARD) return stored;
-
-        return stored >= 0 && (count == 0 || stored < count)
-                ? stored : DEFAULT_JOYSTICK_TYPE;
-    }
-
-    private String joystickTypeName() {
-        int type = joystickType();
-        if (type == Controls.JOYSTICK_KEYBOARD) {
-            return getString(R.string.joystick_keyboard);
-        }
-
-        String[] names = FuseNative.joystickTypeNames();
-        return type < names.length ? names[type] : "";
     }
 
     // --- screenshots and recording -----------------------------------------
@@ -2307,18 +1920,18 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         @Override
         public void onInputDeviceAdded(int deviceId) {
-            applyGamepad();
+            controls.applyGamepad();
         }
 
         @Override
         public void onInputDeviceRemoved(int deviceId) {
             gamepad.releaseAll();
-            applyGamepad();
+            controls.applyGamepad();
         }
 
         @Override
         public void onInputDeviceChanged(int deviceId) {
-            applyGamepad();
+            controls.applyGamepad();
         }
     };
 
@@ -2461,12 +2074,12 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // also a piece of hardware, and the port is only decoded when the
         // interface is there, so the two go together - see OPTION_JOYSTICK_TYPE
         // in android_bridge.c, which does the same when it is changed later.
-        int joystick = joystickType();
+        int joystick = controls.joystickType();
         if (joystick == Controls.JOYSTICK_KEYBOARD) joystick = Controls.JOYSTICK_NONE;
 
         arguments.add("--joystick-1-output");
         arguments.add(String.valueOf(joystick));
-        arguments.add(joystick == JOYSTICK_KEMPSTON ? "--kempston"
+        arguments.add(joystick == Controls.JOYSTICK_KEMPSTON ? "--kempston"
                                                     : "--no-kempston");
 
         return arguments.toArray(new String[0]);

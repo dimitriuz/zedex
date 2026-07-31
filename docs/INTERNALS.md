@@ -106,6 +106,29 @@ handed a null `SharedPreferences`.
 own copy of one regular expression, which is three chances to disagree about
 what is safe in a filename.
 
+### The controls
+
+`ControlsUi` is the joystick, the keyboard and the mouse: one question asked
+three ways — *what does a finger on this glass do to the machine* — and they
+overlap enough that separating them would mean three classes each knowing the
+other two. The pad sends joystick directions or keys depending on its type; the
+mouse takes the pad over while it is on; the keyboard's skin is sometimes
+Android's own, and then it is not drawn here at all.
+
+It is handed `EmulatorLayout` directly rather than asking the activity for it.
+Whether a control is on screen is the layout's own state, and routing each of the
+six through a host method would have made the interface as long as the class —
+the test for a real extraction is that the interface is *shorter* than what it
+replaces. `Host` is four methods: a message, the sheet, whether the picture has
+the window to itself, and whether the controls are on a panel.
+
+The extraction that was planned here was "the menus", and it was the wrong cut.
+Read closely, `buildMenu` and `buildQuickBar` are the activity's index of
+everything it can do — they touch pause, fullscreen, the layout, the second
+screen, media, the cheats and the states — so a `Menus` class would have needed a
+host of fifteen methods, which is a rename with extra indirection rather than a
+seam. They stay.
+
 ### The cheats
 
 `PokesUi` is the two collections, which look the same on the page and are
