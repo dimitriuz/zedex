@@ -182,7 +182,8 @@ Enter. The on-screen pad steps aside while a controller is connected, which
 **Hotkeys** work like RetroArch's: one button is the hotkey — **Select** unless
 you change it — and everything else is that button *and* another, so nothing is
 taken away from the game. Out of the box **Select+Start** quits, **+R1** quick-saves,
-**+L1** quick-loads, **+B** pauses, **+X** is fullscreen, **+Y** hides the
+**+L1** quick-loads — one save per game, named after it, so *Tujad Quick* is
+Tujad's and nothing else overwrites it — **+B** pauses, **+X** is fullscreen, **+Y** hides the
 keyboard, **+R2** held runs fast, and the stick clicks walk round the joystick
 types (**+L3**) and the key profiles (**+R3**).
 Two dozen actions to choose from in ☰ *Controls… › Controller hotkeys…*: tap a

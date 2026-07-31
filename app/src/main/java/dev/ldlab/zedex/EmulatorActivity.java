@@ -1933,23 +1933,54 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      */
     private byte[] mediaHash;
 
-    /** The one state a hotkey writes, and writes over. */
+    /** What a hotkey's state is called, after whatever it is a state of. */
     private static final String QUICK_STATE = "Quick";
 
+    /**
+     * One quick save per game, named after it: <i>Tujad Quick</i>.
+     *
+     * A single slot was one game's save until the next game overwrote it, which
+     * is the wrong way round for the thing meant to be pressed without
+     * thinking. Named after the media that is loaded, every game keeps its own
+     * and a hotkey means "mine".
+     *
+     * With nothing loaded - a machine sitting at BASIC, a reset - there is no
+     * name to borrow and it is plain <i>Quick</i>, which is what it always was.
+     */
+    private String quickStateName() {
+        String media = preferences.getString(States.KEY_MEDIA_NAME, null);
+
+        if (media == null || media.isEmpty()) return QUICK_STATE;
+
+        // Loading a state makes it the media name, so a quick load followed by
+        // a quick save must not end up at "Tujad Quick Quick".
+        if (media.equals(QUICK_STATE) || media.endsWith(" " + QUICK_STATE)) {
+            return media;
+        }
+
+        return media + " " + QUICK_STATE;
+    }
+
     private void quickSave() {
-        if (!States.save(this, preferences, QUICK_STATE)) {
+        String name = quickStateName();
+
+        if (!States.save(this, preferences, name)) {
             note(R.string.state_failed);
             return;
         }
 
-        note(R.string.state_saved, QUICK_STATE);
+        note(R.string.state_saved, name);
     }
 
     private void quickLoad() {
+        String name = quickStateName();
+
         for (States.Saved state : States.all(this)) {
-            if (state.name.equals(QUICK_STATE)) {
+            if (state.name.equals(name)) {
+                // The media name is left as it is: what is loaded is still the
+                // game, and calling it "Tujad Quick" from here would name the
+                // next save after the save rather than after the game.
                 States.load(state);
-                rememberMediaName(state.name);
                 note(R.string.state_loaded, state.name);
                 return;
             }

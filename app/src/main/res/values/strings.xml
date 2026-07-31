@@ -103,7 +103,7 @@
     <string name="hotkey_quit">Quit the app</string>
     <string name="hotkey_quick_save">Quick save</string>
     <string name="hotkey_quick_load">Quick load</string>
-    <string name="hotkey_no_quick_save">Nothing quick-saved yet</string>
+    <string name="hotkey_no_quick_save">Nothing quick-saved for this one yet</string>
     <string name="hotkey_save_state">Save state…</string>
     <string name="hotkey_load_state">Load state…</string>
     <string name="hotkey_fast_forward">Fast forward</string>
