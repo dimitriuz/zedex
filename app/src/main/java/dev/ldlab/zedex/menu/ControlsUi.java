@@ -155,8 +155,9 @@ public final class ControlsUi {
         return preferences.getBoolean(SettingsActivity.KEY_MOUSE, false);
     }
 
-    public void toggleMouse() {
-        showMouse(!mouseOn());
+    /** The mouse page, so the bar's row opens the same one the sheet does. */
+    public MenuDrawer.Page mousePage() {
+        return this::fillMouse;
     }
 
     // --- the joystick --------------------------------------------------------

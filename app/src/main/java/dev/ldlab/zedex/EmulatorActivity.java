@@ -843,12 +843,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                             controls.keyboardSkinName()),
                   () -> controls.showSkinDialog());
 
-        // The mouse alone stays a switch: it is on or off, and a list of two
-        // where a tap would do is a list for its own sake.
         rows.item(R.drawable.ic_mouse,
                   getString(controls.mouseOn() ? R.string.quick_mouse_on
                                                : R.string.quick_mouse_off),
-                  () -> controls.toggleMouse());
+                  () -> menu.go(getString(R.string.menu_mouse),
+                                controls.mousePage()));
     }
 
     /**
