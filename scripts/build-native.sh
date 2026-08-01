@@ -29,7 +29,7 @@ SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-$HOME/Android/Sdk}}"
 NDK="${ANDROID_NDK_HOME:-$(ls -d "$SDK"/ndk/* 2>/dev/null | sort -V | tail -1)}"
 TOOLCHAIN="$NDK/toolchains/llvm/prebuilt/linux-x86_64"
 API="${API:-30}"                       # Android 11
-ABIS="${ABIS:-arm64-v8a x86_64}"
+ABIS="${ABIS:-arm64-v8a armeabi-v7a x86_64}"
 JOBS="${JOBS:-$(nproc)}"
 
 # The last place Fuse looks for its data files, and the only one baked in. It

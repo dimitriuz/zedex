@@ -200,9 +200,12 @@ build-time codegen).
 The two upstream tarballs are not in git. The build script downloads them into
 `vendor/` on first run, verifies their SHA-256, and never writes to them again.
 
+Three ABIs: `arm64-v8a`, `armeabi-v7a` and `x86_64` — every phone in use, and
+the emulator. There is no 32-bit x86, which no device has needed for years.
+
 ```sh
-./scripts/build-native.sh              # all ABIs; ~90 s cold
-ABIS=x86_64 ./scripts/build-native.sh  # single ABI
+./scripts/build-native.sh              # all three; a couple of minutes cold
+ABIS=x86_64 ./scripts/build-native.sh  # single ABI, while iterating
 ./scripts/build-native.sh clean
 
 ./gradlew assembleDebug
@@ -359,7 +362,7 @@ The cache is keyed on `build-native.sh`; restoring it is safe because the
 script recompiles `native/` and relinks every time, so a change there always
 lands.
 
-Both workflows then check the APK really contains both ABIs and `fuse.font`,
+Both workflows then check the APK really contains all three ABIs and `fuse.font`,
 because packaging a stale or missing library is this project's recurring
 failure and it stays silent until runtime.
 
@@ -456,8 +459,6 @@ Where some of those land:
 
 - Shaders — CRT, scanline, sharp-bilinear — go in the fragment shader in
   `native/ui/android/android_gl.c`, the only code that touches a pixel
-- `armeabi-v7a` is a matter of adding it to `ABIS` and to `abiFilters` in
-  `app/build.gradle`; nothing should stop it
 - A debugger front end would sit on the core's own debugging API
 
 The suite covers the disk story, capture, the joystick and the hotkeys, save

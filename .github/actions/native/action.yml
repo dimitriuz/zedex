@@ -7,7 +7,7 @@ inputs:
   abis:
     description: Space-separated ABI list, as the script's ABIS variable
     required: false
-    default: arm64-v8a x86_64
+    default: arm64-v8a armeabi-v7a x86_64
 
 runs:
   using: composite

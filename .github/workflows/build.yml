@@ -34,7 +34,7 @@ jobs:
       - name: Check both ABIs are packaged
         run: |
           apk=app/build/outputs/apk/debug/app-debug.apk
-          for abi in arm64-v8a x86_64; do
+          for abi in arm64-v8a armeabi-v7a x86_64; do
             unzip -l "$apk" | grep -q "lib/$abi/libfuse.so" \
               || { echo "::error::$abi/libfuse.so missing from the APK"; exit 1; }
           done
