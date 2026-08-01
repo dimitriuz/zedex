@@ -70,6 +70,26 @@ restore_mouse( void )
   periph_update();
 }
 
+/* And the Kempston joystick interface, which goes the same way and is worse
+   when it does: the pad stops working *and* the game starts playing itself.
+   Nothing answers port 31 with the interface gone, so the read comes back off
+   the floating bus - mostly ones, and a one is a direction held down. Every
+   direction at once and fire with it, which looks like the machine flying up
+   and to the left on its own.
+   The setting the snapshot cannot take away is joystick_1_output, so that is
+   what is asked: if the pad is meant to come out as Kempston then the
+   interface belongs plugged in, which is the same rule OPTION_JOYSTICK_TYPE
+   applies when the choice is made. */
+static void
+restore_joystick( void )
+{
+  if( settings_current.joystick_1_output != JOYSTICK_TYPE_KEMPSTON ) return;
+  if( settings_current.joy_kempston ) return;
+
+  settings_current.joy_kempston = 1;
+  periph_update();
+}
+
 /* The DivMMC is unplugged by the same thing for the same reason, and putting
    it back means the firmware as well as the setting - so that lives with the
    rest of the interface, in android_card.c. */
@@ -77,6 +97,7 @@ static void
 restore_peripherals( void )
 {
   restore_mouse();
+  restore_joystick();
   androidcard_restore();
 }
 
