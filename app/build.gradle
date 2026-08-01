@@ -2,6 +2,52 @@ plugins {
     id 'com.android.application'
 }
 
+/**
+ * Puts the demo tape where the APK's assets are gathered from.
+ *
+ * The tape is built material, not source: scripts/build-demo.py makes it, and
+ * staging it from demo/ is what stops the APK shipping a copy older than the
+ * tree's. Only the tape - the assembly, the module and the tables beside it are
+ * sources and have no business in an APK.
+ *
+ * A task of its own rather than a Copy, because what it produces has to be an
+ * output Gradle can see: a plain directory added to assets.srcDirs is written
+ * by one task and read by several, and every reader that is not told so fails
+ * the build. Wiring the ones known about got as far as the merge tasks and no
+ * further - the release build then stopped on lint, which reads the same
+ * directory. addGeneratedSourceDirectory below tells all of them at once.
+ */
+abstract class StageDemoTape extends DefaultTask {
+
+    @InputFile
+    abstract RegularFileProperty getTape()
+
+    @OutputDirectory
+    abstract DirectoryProperty getStaged()
+
+    @TaskAction
+    void stage() {
+        File into = staged.get().asFile
+        into.mkdirs()
+
+        java.nio.file.Files.copy(
+                tape.get().asFile.toPath(),
+                new File(into, tape.get().asFile.name).toPath(),
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+    }
+}
+
+def stageDemoTape = tasks.register('stageDemoTape', StageDemoTape) {
+    tape.set(rootProject.file('demo/zedex.tap'))
+}
+
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        variant.sources.assets.addGeneratedSourceDirectory(
+                stageDemoTape, StageDemoTape::getStaged)
+    }
+}
+
 // Release signing comes from the environment, never from a file in the repo.
 // Unset - the normal case locally - leaves the release build unsigned and the
 // debug build signed with your own debug key, exactly as before. CI sets these
@@ -69,22 +115,9 @@ android {
     // are not the app's own material and it reads them as plain files. Their
     // contents land at the root of the assets, which is why Storage.installRoms
     // looks there and takes only what ends in .rom.
-    // The demo tape is built material, not source: scripts/build-demo.py makes
-    // it and it is staged from demo/ here, so the APK cannot ship a copy older
-    // than the tree's. Only the tape - the assembly, the module and the tables
-    // beside it are sources and have no business in an APK.
-    def demoStage = layout.buildDirectory.dir('generated/assets/demo').get().asFile
-    def stageDemoTape = tasks.register('stageDemoTape', Copy) {
-        from "$rootDir/demo/zedex.tap"
-        into demoStage
-    }
-
-    tasks.matching { it.name.startsWith('merge') && it.name.endsWith('Assets') }
-         .configureEach { dependsOn stageDemoTape }
-
     sourceSets {
         main {
-            assets.srcDirs += ['../roms', demoStage]
+            assets.srcDirs += ['../roms']
         }
     }
 

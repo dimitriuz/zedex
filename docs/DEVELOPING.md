@@ -157,13 +157,24 @@ licence section and not on a Spectrum screen, where nobody can follow it. If the
 tune is ever swapped, the corner line, the README and this paragraph move
 together.
 
-**It ships in the app.** `app/build.gradle` stages `demo/zedex.tap` into the
-assets — from `demo/`, so the APK cannot carry a copy older than the tree's —
-and `Storage.installDemo` copies it into the tapes folder beside the ROMs, on
+**It ships in the app.** A `stageDemoTape` task in `app/build.gradle` puts
+`demo/zedex.tap` where the assets are gathered from, so the APK cannot carry a
+copy older than the tree's, and `Storage.installDemo` copies it into the tapes
+folder beside the ROMs, on
 the same first-run path and for the same reason: that is the moment the folders
 are settled. Once and never again, recorded in the `demoInstalled` preference
 rather than by whether the file is there, so a tape somebody deletes stays
 deleted. An install that predates the demo gets it on its next launch, quietly.
+
+That task is not a `Copy`, and the difference is the whole of a release build
+that failed. A plain directory added to `assets.srcDirs` is written by one task
+and read by several, and Gradle stops any reader that has not been told which
+task writes it. Telling the ones you know about is whack-a-mole: the merge tasks
+were wired, the release build then stopped on **lint**, which reads the same
+directory. So it is a typed task with a `DirectoryProperty` output, handed to
+AGP's `addGeneratedSourceDirectory`, which wires every consumer there is and any
+added later. `assembleDebug` will not catch a regression here — `lintVital` only
+runs for release, so check with `./gradlew assembleRelease`.
 
 The first run — and only the first run — then offers to load it. Later launches
 never ask, and an upgrade never asks: interrupting somebody who has been playing
