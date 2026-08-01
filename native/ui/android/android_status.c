@@ -189,9 +189,22 @@ watch_joystick( libspectrum_word port, libspectrum_byte *attached )
   return 0xff;
 }
 
+/* The buttons port's decode reaches down and takes in the Kempston joystick's
+   port 31 as well: 0x001f & 0x0121 is 0x0001, which is the value the mouse
+   asks for. So a game doing nothing but polling the joystick lit the mouse
+   lamp - and that lamp's whole job is to answer "does this game use the
+   mouse?", which it was answering yes to for games that have never heard of
+   one.
+
+   A read the Kempston joystick would have answered itself is not evidence of a
+   mouse. That is its strict decode, the one Fuse plugs in; the mouse's own
+   three ports are all far enough up to keep those bits set, so a real mouse
+   read still counts - buttons and all. */
 static libspectrum_byte
 watch_mouse( libspectrum_word port, libspectrum_byte *attached )
 {
+  if( ( port & 0x00e0 ) == 0x0000 ) return 0xff;
+
   mouse_seen = 1;
   return 0xff;
 }
@@ -256,7 +269,11 @@ static const periph_port_t monitor_ports[] = {
      what the joystick watcher above catches, so reading the mouse lights the
      joystick lamp as well. Both are true - the game is reaching for a Kempston
      something - and separating them would mean giving up the loose decode that
-     makes the joystick lamp useful. */
+     makes the joystick lamp useful.
+
+     The other way round is not true and is sorted out in watch_mouse: the
+     buttons port's decode also catches the joystick's own port 31, and a game
+     polling a joystick is not using a mouse. */
   { 0x0121, 0x0001, watch_mouse, NULL },
   { 0x0521, 0x0101, watch_mouse, NULL },
   { 0x0521, 0x0501, watch_mouse, NULL },
