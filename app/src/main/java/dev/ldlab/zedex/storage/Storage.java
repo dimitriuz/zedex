@@ -87,6 +87,34 @@ public final class Storage {
     }
 
     /**
+     * Whether the data folder is one Android will not let the app at.
+     *
+     * Anywhere outside the app's own storage needs All files access, and
+     * without it the folder does not fail cleanly: it can be stated, it can
+     * often be written to, and listing it comes back empty rather than
+     * refused. So a folder full of ROMs reads as a folder with none, and every
+     * answer the app can offer - download a set, import a set - puts more
+     * files somewhere it still cannot read.
+     *
+     * Asked of the roots rather than of the filesystem, because those are
+     * exactly the places the app can use with no permission at all.
+     */
+    public static boolean needsAllFiles(Context context) {
+        if (canUseAnyFolder()) return false;
+
+        String chosen = root(context).getAbsolutePath();
+
+        for (File usable : roots(context)) {
+            if (chosen.equals(usable.getAbsolutePath())
+                    || chosen.startsWith(usable.getAbsolutePath() + "/")) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * The real path behind a document tree, or null if there is not one.
      *
      * Tree ids look like {@code primary:Games/Spectrum} or

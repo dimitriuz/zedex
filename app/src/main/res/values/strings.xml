@@ -194,6 +194,11 @@
     <string name="demo_skip_hint">Straight to the machine. The tape stays in the folder.</string>
     <string name="roms_needed">ROMs needed</string>
     <string name="roms_needed_message">The app ships the ROMs it is allowed to, but none of them could be put in\n\n%1$s\n\nThat folder may not be writable — Settings › Files can point somewhere else. Or bring your own, whichever way below.</string>
+    <string name="roms_blocked">No access to that folder</string>
+    <string name="roms_blocked_message">The ROMs go in\n\n%1$s\n\nwhich is outside the app\'s own storage, and Android has not given Zedex permission to read it. Nothing is missing — the permission is.</string>
+    <string name="roms_grant">Allow access to files</string>
+    <string name="roms_grant_ask">The folder is already chosen and the ROMs are already in it. Android just has to let Zedex read it.</string>
+    <string name="roms_grant_hint">Opens Android\'s All files access setting. Come back afterwards and the machine starts.</string>
     <string name="roms_folder">Choose folder\u2026</string>
     <string name="roms_folder_hint">Take every ROM out of a folder already on this device, and out of the folders inside it</string>
     <string name="roms_files">Choose files\u2026</string>

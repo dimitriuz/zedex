@@ -114,6 +114,16 @@ public final class StartPanel {
      */
     private View run;
 
+    /**
+     * The one that asks Android rather than the user for something.
+     *
+     * Shown only where it is the answer: a data folder outside the app's own
+     * storage, and no All files access to read it with. That case used to show
+     * the same three rows as an empty folder, all of them offering to find ROMs
+     * that were already sitting in the folder unread.
+     */
+    private View grant;
+
     /** The two folder rows of the first run, and the way on from it. */
     private final List<View> folders = new ArrayList<>();
     private Button dataFolder;
@@ -236,6 +246,15 @@ public final class StartPanel {
         message.setPadding(0, pad / 2, 0, pad / 2);
         content.addView(message);
 
+        // Above the three ways of finding ROMs, because where this one applies
+        // the ROMs have already been found: they are in the folder, and Android
+        // is not letting the app look. Downloading a second set into a folder
+        // it still cannot read would not help.
+        grant = panelChoice(R.string.roms_grant, R.string.roms_grant_hint,
+                            v -> askForAllFiles(R.string.roms_grant_ask));
+        grant.setVisibility(View.GONE);
+        content.addView(grant);
+
         // Downloading first: it is the one that needs nothing of the user.
         choices.add(panelChoice(R.string.roms_where,
                 R.string.roms_where_hint, v -> offerRomsDownload()));
@@ -343,11 +362,26 @@ public final class StartPanel {
     public void show(boolean startFailed) {
         String path = Storage.romsDirectory(activity).getAbsolutePath();
 
-        title.setText(startFailed ? R.string.roms_start_failed
-                                      : R.string.roms_needed);
-        message.setText(startFailed
-                ? activity.getString(R.string.roms_start_failed_message, path)
-                : activity.getString(R.string.roms_needed_message, path));
+        // Whether the folder is empty or merely out of reach. They look the
+        // same from here - no ROMs either way - and the answers are opposite:
+        // one is "find some ROMs", the other "the ROMs are there, let the app
+        // see them".
+        //
+        // Asked of the folder's whereabouts rather than of the filesystem: with
+        // the permission missing, the folder can be stated and written to and
+        // still lists as empty, so every test that touches it says the ROMs are
+        // not there rather than that they cannot be seen.
+        boolean blocked = !startFailed && Storage.needsAllFiles(activity);
+
+        title.setText(blocked ? R.string.roms_blocked
+                    : startFailed ? R.string.roms_start_failed
+                                  : R.string.roms_needed);
+        message.setText(activity.getString(
+                blocked ? R.string.roms_blocked_message
+                        : startFailed ? R.string.roms_start_failed_message
+                                      : R.string.roms_needed_message, path));
+
+        grant.setVisibility(blocked ? View.VISIBLE : View.GONE);
         for (View choice : choices) choice.setVisibility(View.VISIBLE);
         for (View row : folders) row.setVisibility(View.GONE);
         for (View row : demo) row.setVisibility(View.GONE);
@@ -392,6 +426,7 @@ public final class StartPanel {
         for (View choice : choices) choice.setVisibility(View.GONE);
         run.setVisibility(View.GONE);
         for (View row : demo) row.setVisibility(View.GONE);
+        grant.setVisibility(View.GONE);
         for (View row : folders) row.setVisibility(View.VISIBLE);
 
         describeFolders();
@@ -440,7 +475,7 @@ public final class StartPanel {
                     if (which < roots.size()) {
                         useDataFolder(roots.get(which));
                     } else if (!Storage.canUseAnyFolder()) {
-                        askForAllFiles();
+                        askForAllFiles(R.string.settings_all_files);
                     } else {
                         activity.startActivityForResult(
                                 new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE),
@@ -451,10 +486,15 @@ public final class StartPanel {
                 .show();
     }
 
-    private void askForAllFiles() {
+    /**
+     * @param why what the permission is for, which is not the same each time:
+     *            one caller is about to choose a folder, the other has one
+     *            already and cannot read it.
+     */
+    private void askForAllFiles(int why) {
         new AlertDialog.Builder(activity,
                 android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setMessage(R.string.settings_all_files)
+                .setMessage(why)
                 .setPositiveButton(R.string.settings_grant, (dialog, which) ->
                         activity.startActivity(new Intent(
                                 Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
@@ -566,6 +606,7 @@ public final class StartPanel {
 
             for (View choice : choices) choice.setVisibility(View.GONE);
             for (View row : demo) row.setVisibility(View.GONE);
+            grant.setVisibility(View.GONE);
             run.setVisibility(View.GONE);
 
             panel.setVisibility(View.VISIBLE);
@@ -597,6 +638,7 @@ public final class StartPanel {
 
         for (View choice : choices) choice.setVisibility(View.VISIBLE);
         for (View row : demo) row.setVisibility(View.GONE);
+        grant.setVisibility(View.GONE);
         run.setVisibility(View.VISIBLE);
 
         panel.setVisibility(View.VISIBLE);
@@ -724,6 +766,7 @@ public final class StartPanel {
 
             for (View choice : choices) choice.setVisibility(View.VISIBLE);
             for (View row : demo) row.setVisibility(View.GONE);
+            grant.setVisibility(View.GONE);
             run.setVisibility(Storage.haveRoms(activity) ? View.VISIBLE : View.GONE);
 
             panel.setVisibility(View.VISIBLE);
