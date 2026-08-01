@@ -94,6 +94,13 @@ public final class MenuDrawer extends FrameLayout implements Rows {
 
     private Page root;
     private boolean open;
+
+    /**
+     * How deep this visit started. Back at this depth leaves the sheet instead
+     * of climbing further, which is only ever above zero when the sheet was
+     * opened straight onto a page - see {@link #go}.
+     */
+    private int floor;
     private Runnable onClosed;
 
     public MenuDrawer(Context context) {
@@ -386,12 +393,24 @@ public final class MenuDrawer extends FrameLayout implements Rows {
 
     /**
      * Opens the sheet straight onto a page, for one that was chosen somewhere
-     * else - a game picked out of a search, say. Back still leads out of it,
-     * since it is entered the same way a row would enter it.
+     * else - a row on the quick bar, a game picked out of a search.
+     *
+     * Back leaves the sheet from there rather than climbing to the root of it.
+     * Coming in this way there is no root to climb to: the page was not reached
+     * through the menu, so the menu behind it is not where the user was and not
+     * anywhere they asked to be. Going deeper still works normally - a page
+     * opened from this one is one back from it, and one more back is out.
+     *
+     * Unless the sheet was already open, in which case this is an ordinary step
+     * deeper and the trail below it is real.
      */
     public void go(String heading, Page page) {
+        boolean wasOpen = open;
+
         open();
         enter(heading, page);
+
+        if (!wasOpen) floor = trail.size();
     }
 
     /**
@@ -412,7 +431,7 @@ public final class MenuDrawer extends FrameLayout implements Rows {
     public boolean back() {
         if (!open) return false;
 
-        if (trail.isEmpty()) {
+        if (trail.size() <= floor) {
             close();
             return true;
         }
@@ -483,6 +502,7 @@ public final class MenuDrawer extends FrameLayout implements Rows {
         // one extra tap.
         trail.clear();
         names.clear();
+        floor = 0;
         show(0);
 
         scrim.setAlpha(0f);

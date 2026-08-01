@@ -836,16 +836,19 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         rows.item(R.drawable.ic_joystick,
                   getString(R.string.quick_joystick_type,
                             controls.joystickTypeName()),
-                  () -> controls.showJoystickTypeDialog());
+                  () -> menu.go(getString(R.string.joystick_type_title),
+                                controls.joystickTypePage()));
 
         rows.item(R.drawable.ic_bookmark,
                   getString(R.string.quick_key_profile, controls.keyProfileName()),
-                  () -> controls.showProfileDialog());
+                  () -> menu.go(getString(R.string.profile_title),
+                                controls.keyProfilePage()));
 
         rows.item(R.drawable.ic_keyboard,
                   getString(R.string.quick_keyboard_skin,
                             controls.keyboardSkinName()),
-                  () -> controls.showSkinDialog());
+                  () -> menu.go(getString(R.string.keyboard_skin_title),
+                                controls.keyboardSkinPage()));
 
         rows.item(R.drawable.ic_mouse,
                   getString(controls.mouseOn() ? R.string.quick_mouse_on

@@ -176,11 +176,13 @@ public final class ControlsUi {
         sheet.addItem(text(shown ? R.string.control_hide : R.string.control_show),
                       shown ? R.drawable.ic_hide : R.drawable.ic_show,
                       () -> showJoystick(!shown));
-        sheet.addItem(text(R.string.joystick_type, joystickTypeName()),
-                      R.drawable.ic_swap, this::showJoystickTypeDialog);
-        sheet.addItem(text(R.string.joystick_profile,
-                           ControlProfiles.current(preferences).name),
-                      R.drawable.ic_bookmark, this::showProfileDialog);
+        sheet.addSubmenu(text(R.string.joystick_type, joystickTypeName()),
+                         text(R.string.joystick_type_title),
+                         R.drawable.ic_swap, joystickTypePage());
+        sheet.addSubmenu(text(R.string.joystick_profile,
+                              ControlProfiles.current(preferences).name),
+                         text(R.string.profile_title),
+                         R.drawable.ic_bookmark, keyProfilePage());
 
         // With a real interface chosen the pad sends joystick directions and
         // not these keys - but the three buttons beside fire always send them,
@@ -223,18 +225,31 @@ public final class ControlsUi {
      * the joystick interfaces are played. It is offered in the same list because
      * from the pad's side it is the same choice.
      */
-    public void showJoystickTypeDialog() {
-        String[] fuseTypes = FuseNative.joystickTypeNames();
-        if (fuseTypes.length == 0) return;
+    /**
+     * The interfaces to choose from.
+     *
+     * A page rather than a method that shows one, so the two ways in can differ
+     * where they should. From the sheet it is a submenu and back is the page
+     * above it; from the quick bar it is opened straight onto and back is out.
+     * A row that showed it would have to close the sheet first, which threw the
+     * trail away and left back climbing to a root nobody had been to.
+     *
+     * Built when it is shown, not when the row is made: what is ticked is
+     * whatever is current at that moment.
+     */
+    public MenuDrawer.Page joystickTypePage() {
+        return page -> {
+            String[] fuseTypes = FuseNative.joystickTypeNames();
+            if (fuseTypes.length == 0) return;
 
-        String[] names = new String[fuseTypes.length + 1];
-        System.arraycopy(fuseTypes, 0, names, 0, fuseTypes.length);
-        names[fuseTypes.length] = text(R.string.joystick_keyboard);
+            String[] names = new String[fuseTypes.length + 1];
+            System.arraycopy(fuseTypes, 0, names, 0, fuseTypes.length);
+            names[fuseTypes.length] = text(R.string.joystick_keyboard);
 
-        int type = joystickType();
-        int ticked = type == Controls.JOYSTICK_KEYBOARD ? fuseTypes.length : type;
+            int type = joystickType();
+            int ticked = type == Controls.JOYSTICK_KEYBOARD
+                    ? fuseTypes.length : type;
 
-        host.sheet().go(text(R.string.joystick_type_title), page -> {
             for (int i = 0; i < names.length; i++) {
                 int which = i;
 
@@ -249,7 +264,7 @@ public final class ControlsUi {
                     host.note(R.string.joystick_type_set, names[which]);
                 });
             }
-        });
+        };
     }
 
     /** Nothing plugged in for Keyboard, since the pad sends keys instead. */
@@ -300,15 +315,17 @@ public final class ControlsUi {
 
     // --- the key profile -----------------------------------------------------
 
-    public void showProfileDialog() {
-        List<ControlProfiles.Profile> profiles = ControlProfiles.all(preferences);
-        String[] names = new String[profiles.size()];
+    /** The profiles to choose from, and the two things done to them. */
+    public MenuDrawer.Page keyProfilePage() {
+        return page -> {
+            List<ControlProfiles.Profile> profiles =
+                    ControlProfiles.all(preferences);
+            String[] names = new String[profiles.size()];
 
-        for (int i = 0; i < names.length; i++) names[i] = profiles.get(i).name;
+            for (int i = 0; i < names.length; i++) names[i] = profiles.get(i).name;
 
-        int chosen = ControlProfiles.currentIndex(preferences);
+            int chosen = ControlProfiles.currentIndex(preferences);
 
-        host.sheet().go(text(R.string.profile_title), page -> {
             for (int i = 0; i < names.length; i++) {
                 int which = i;
 
@@ -319,9 +336,6 @@ public final class ControlsUi {
                 });
             }
 
-            // Under a rule rather than among the profiles: choosing one and
-            // changing one are different kinds of thing, and a row that opens a
-            // screen reads as another profile at a glance.
             // Under a rule rather than among the profiles: choosing one and
             // changing one are different kinds of thing, and a row that opens a
             // screen reads as another profile at a glance.
@@ -343,7 +357,7 @@ public final class ControlsUi {
                 page.addSubmenu(activity.getString(R.string.profile_remove, current),
                                 R.drawable.ic_quit, deleteProfile());
             }
-        });
+        };
     }
 
     /**
@@ -459,8 +473,9 @@ public final class ControlsUi {
         sheet.addItem(text(shown ? R.string.control_hide : R.string.control_show),
                       shown ? R.drawable.ic_hide : R.drawable.ic_show,
                       () -> showKeyboard(!shown));
-        sheet.addItem(text(R.string.keyboard_skin, keyboardSkin().title),
-                      R.drawable.ic_picture, this::showSkinDialog);
+        sheet.addSubmenu(text(R.string.keyboard_skin, keyboardSkin().title),
+                         text(R.string.keyboard_skin_title),
+                         R.drawable.ic_picture, keyboardSkinPage());
 
         // Said here because here is where the skin is chosen. What it types
         // still reaches the machine - the panel's window is what the input
@@ -480,19 +495,20 @@ public final class ControlsUi {
      * ones did - TRUE VIDEO is CAPS SHIFT and 3, and most of the others turn out
      * to be single keys Fuse already knows.
      */
-    public void showSkinDialog() {
-        SpectrumKeyboardView.Skin[] skins = SpectrumKeyboardView.Skin.values();
-        String[] names = new String[skins.length];
-        int checked = 0;
+    /** The keyboards to choose from, Android's own among them. */
+    public MenuDrawer.Page keyboardSkinPage() {
+        return page -> {
+            SpectrumKeyboardView.Skin[] skins = SpectrumKeyboardView.Skin.values();
+            String[] names = new String[skins.length];
+            int checked = 0;
 
-        for (int i = 0; i < skins.length; i++) {
-            names[i] = skins[i].title;
-            if (skins[i] == keyboardSkin()) checked = i;
-        }
+            for (int i = 0; i < skins.length; i++) {
+                names[i] = skins[i].title;
+                if (skins[i] == keyboardSkin()) checked = i;
+            }
 
-        int chosen = checked;
+            int chosen = checked;
 
-        host.sheet().go(text(R.string.keyboard_skin_title), page -> {
             for (int i = 0; i < skins.length; i++) {
                 int which = i;
 
@@ -510,7 +526,7 @@ public final class ControlsUi {
                     host.note(R.string.keyboard_skin_set, skins[which].title);
                 });
             }
-        });
+        };
     }
 
     public void showKeyboard(boolean shown) {
