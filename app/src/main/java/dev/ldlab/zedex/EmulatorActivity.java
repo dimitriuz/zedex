@@ -679,14 +679,10 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         keys.setSkin(SpectrumKeyboardView.Skin.RUBBER_SLIM);
         keys.setBottomAligned(true);
-        keys.setAlpha(OVERLAY_ALPHA);
         keys.setVisibility(View.GONE);
 
         return keys;
     }
-
-    /** See-through enough to play through, solid enough to aim at. */
-    private static final float OVERLAY_ALPHA = 0.82f;
 
     private View overlayButton(int icon, int name, Runnable action) {
         ImageButton button = new ImageButton(this);
@@ -696,7 +692,15 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         button.setColorFilter(0xffdedee6);
         button.setScaleType(ImageButton.ScaleType.FIT_CENTER);
         button.setBackgroundResource(R.drawable.overlay_button);
-        button.setAlpha(OVERLAY_ALPHA);
+
+        // Its own padding, equal on all four sides. An ImageButton takes its
+        // from the style otherwise, and that one is not symmetrical: the glyph
+        // came out low and to the left of a circle it was meant to be in the
+        // middle of.
+        int inset = Math.round(11 * getResources().getDisplayMetrics().density);
+        button.setPadding(inset, inset, inset, inset);
+
+        button.setAlpha(0.82f);
         button.setVisibility(View.GONE);
         button.setOnClickListener(v -> action.run());
 
