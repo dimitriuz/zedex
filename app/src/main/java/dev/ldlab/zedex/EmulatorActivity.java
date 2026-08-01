@@ -280,15 +280,15 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // except on the very first run, where the folder to put them in is the
         // question the panel is about to ask. Only ever the ones that are not
         // there already: the folder is the user's to fill as well as ours.
-        if (!StartPanel.setupNeeded(this)) {
-            Storage.installRoms(this);
-
-            // And the demo, for an install that predates it. Once ever, so a
-            // tape somebody has deleted stays deleted; no offer here, because
-            // interrupting somebody who has been playing for a month to show
-            // them a demo is not a welcome.
-            Storage.installDemo(this);
-        }
+        // The demo, for an install that predates it. Once ever, so a tape
+        // somebody has deleted stays deleted; and no offer, because
+        // interrupting somebody who has been playing for a month to show them a
+        // demo is not a welcome. Not on the very first run, where the folder to
+        // put it in is the question the panel is about to ask.
+        //
+        // The ROMs are not unpacked here any more: startEmulator does it, on
+        // every start, so that a data folder chosen at any point gets them.
+        if (!StartPanel.setupNeeded(this)) Storage.installDemo(this);
 
         Machine.prepare(this);
 
@@ -1341,10 +1341,17 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // The first run asks where things are kept before anything is kept
         // anywhere: the ROMs are unpacked into the answer, so the question
         // comes before the machine.
-        if (StartPanel.setupNeeded(this)) {
+        if (StartPanel.setupNeeded(this) || roms.asking()) {
             roms.showSetup();
             return;
         }
+
+        // The ROMs the app ships, into whatever folder is current. Not only on
+        // the first run: the folder can be chosen after the last unpack, and a
+        // folder with no ROMs in it is no reason to go asking for ROMs that are
+        // already in the APK. Adds only what is missing, so a set of the user's
+        // own is left alone.
+        Storage.installRoms(this);
 
         if (!Storage.haveRoms(this)) {
             roms.show(false);

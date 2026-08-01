@@ -123,6 +123,19 @@ public final class StartPanel {
     /** The offer of the demo, which is the last thing the first run says. */
     private final List<View> demo = new ArrayList<>();
 
+    /**
+     * Whether the first run is on screen and unanswered.
+     *
+     * Needed because {@link #setupNeeded} stops being true the moment setup
+     * writes anything, and choosing the data folder writes something. Picking
+     * one of the offered roots is a dialog and never leaves the activity, but
+     * choosing any other folder is Android's own picker: coming back from it
+     * resumes the activity, which asks whether to start the machine, which
+     * asked the static question and got "setup is done" - so the panel went
+     * away with the ROMs still in the APK and nothing in the folder.
+     */
+    private boolean asking;
+
     public StartPanel(Activity activity, Host host) {
         this.activity = activity;
         this.host = host;
@@ -298,6 +311,17 @@ public final class StartPanel {
     private View withCaption(Button button, int description) {
         int unit = Math.round(4 * activity.getResources().getDisplayMetrics().density);
 
+        // A button as wide as the window is a button that reads as a banner,
+        // and on a tablet in landscape "Not now" would be two feet of it. Wide
+        // enough for a short label to still look pressable, no wider than a
+        // line of text wants to be, and a long folder path wraps inside it
+        // rather than stretching the row.
+        button.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+        button.setMinWidth(unit * 44);
+        button.setMaxWidth(unit * 96);
+
         LinearLayout group = new LinearLayout(activity);
         group.setOrientation(LinearLayout.VERTICAL);
         group.addView(button);
@@ -354,8 +378,14 @@ public final class StartPanel {
         return preferences.getAll().isEmpty();
     }
 
+    /** Whether the first run is still waiting to be answered. */
+    public boolean asking() {
+        return asking;
+    }
+
     /** The first run: where things are kept, and where they are opened from. */
     public void showSetup() {
+        asking = true;
         title.setText(R.string.setup_title);
         message.setText(R.string.setup_message);
 
@@ -467,6 +497,7 @@ public final class StartPanel {
      * machine is asked for.
      */
     private void finishSetup() {
+        asking = false;
         activity.getSharedPreferences(SettingsActivity.PREFS, Activity.MODE_PRIVATE)
                 .edit().putBoolean(Storage.KEY_SETUP_DONE, true).apply();
 

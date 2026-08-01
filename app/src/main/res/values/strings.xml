@@ -178,7 +178,7 @@
     <string name="demo_skip">Not now</string>
     <string name="demo_skip_hint">Straight to the machine. The tape stays in the folder.</string>
     <string name="roms_needed">ROMs needed</string>
-    <string name="roms_needed_message">No Spectrum ROMs are bundled with this app, and a Spectrum cannot run without one. Whichever way you choose below, they end up in\n\n%1$s</string>
+    <string name="roms_needed_message">The app ships the ROMs it is allowed to, but none of them could be put in\n\n%1$s\n\nThat folder may not be writable — Settings › Files can point somewhere else. Or bring your own, whichever way below.</string>
     <string name="roms_folder">Choose folder\u2026</string>
     <string name="roms_folder_hint">Take every ROM out of a folder already on this device, and out of the folders inside it</string>
     <string name="roms_files">Choose files\u2026</string>
