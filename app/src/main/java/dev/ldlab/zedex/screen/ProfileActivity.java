@@ -9,6 +9,7 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.text.Editable;
@@ -18,6 +19,7 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 import java.util.List;
@@ -61,7 +63,7 @@ public final class ProfileActivity extends Activity
     }
 
     /**
-     * Name, then the eight controls in two columns, then the keyboard.
+     * Name, then the eight controls, then the keyboard under them.
      *
      * Built in code rather than from a layout file, as everything else in this
      * app is: there are no dependencies to inflate with and the shape is simple
@@ -81,23 +83,39 @@ public final class ProfileActivity extends Activity
         hint.setPadding(pixels(4), pixels(8), pixels(4), pixels(4));
         page.addView(hint);
 
-        page.addView(grid());
-
         SpectrumKeyboardView keyboard = new SpectrumKeyboardView(this);
         keyboard.setPicker(this);
-
-        // The keyboard takes whatever height is left and puts its picture at the
-        // foot of it, rather than asking for the height its own aspect wants:
-        // sideways that is more than the controls leave, and the bottom two rows
-        // of keys - SPACE and both shifts among them - fell off the screen with
-        // nothing to scroll.
         keyboard.setBottomAligned(true);
-
-        // And its box is the page, since most of it is room above the keys.
         keyboard.setBackgroundColor(0xff14151a);
 
+        // Whichever of the two has room to spare takes up the slack, and it is
+        // a different one each way round.
+        //
+        // Sideways the keyboard's own shape wants three quarters of a phone,
+        // which is more than there is: the controls ask for their two rows, the
+        // keyboard has what is left and scales into it. That way round used to
+        // starve the keyboard entirely - eight two-line rows in two columns are
+        // taller than the window - and drawing a keyboard of no size at all
+        // stopped the app.
+        //
+        // Upright there is more height than either wants. The keyboard takes
+        // only what its shape asks for and sits at the foot of the page, and
+        // the controls hold the slack above it - the other way round left a
+        // thousand pixels of nothing between the two.
+        boolean wide = getResources().getConfiguration().orientation
+                               == Configuration.ORIENTATION_LANDSCAPE;
+
+        ScrollView controls = new ScrollView(this);
+        controls.addView(grid());
+        page.addView(controls, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                wide ? ViewGroup.LayoutParams.WRAP_CONTENT : 0,
+                wide ? 0f : 1f));
+
         LinearLayout.LayoutParams keys = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                wide ? 0 : ViewGroup.LayoutParams.WRAP_CONTENT,
+                wide ? 1f : 0f);
         keys.topMargin = pixels(8);
         page.addView(keyboard, keys);
 
@@ -141,47 +159,59 @@ public final class ProfileActivity extends Activity
     }
 
     /**
-     * Two columns of four: the pad's five and fire down the left, the three
-     * buttons down the right, so the shape on screen matches the shape in the
-     * hand.
+     * The eight controls, in the order a hand meets them: the pad's four ways,
+     * fire, then the three buttons.
+     *
+     * Two abreast held upright and four sideways, each control one line rather
+     * than two. The old shape was two columns of four two-line rows whatever
+     * the window, which upright is fine and sideways is taller than a phone -
+     * so the keyboard, which is the other half of this screen, was left with
+     * nothing at all.
      */
     private View grid() {
-        LinearLayout columns = new LinearLayout(this);
-        columns.setOrientation(LinearLayout.HORIZONTAL);
+        int across = getResources().getConfiguration().orientation
+                             == Configuration.ORIENTATION_LANDSCAPE ? 4 : 2;
 
-        int[][] order = {
-            { FuseNative.JOYSTICK_UP, FuseNative.JOYSTICK_DOWN,
-              FuseNative.JOYSTICK_LEFT, FuseNative.JOYSTICK_RIGHT },
-            { FuseNative.JOYSTICK_FIRE, ControlProfiles.BUTTON_1,
-              ControlProfiles.BUTTON_2, ControlProfiles.BUTTON_3 },
+        int[] order = {
+            FuseNative.JOYSTICK_UP, FuseNative.JOYSTICK_DOWN,
+            FuseNative.JOYSTICK_LEFT, FuseNative.JOYSTICK_RIGHT,
+            FuseNative.JOYSTICK_FIRE, ControlProfiles.BUTTON_1,
+            ControlProfiles.BUTTON_2, ControlProfiles.BUTTON_3,
         };
 
-        for (int[] column : order) {
-            LinearLayout box = new LinearLayout(this);
-            box.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout rows = new LinearLayout(this);
+        rows.setOrientation(LinearLayout.VERTICAL);
 
-            for (int slot : column) {
-                Button row = new Button(this);
-
-                row.setAllCaps(false);
-                row.setTextColor(TEXT);
-                row.setBackgroundColor(ROW);
-                row.setOnClickListener(view -> select(slot));
-
-                LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+        LinearLayout row = null;
+        for (int i = 0; i < order.length; i++) {
+            if (i % across == 0) {
+                row = new LinearLayout(this);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                rows.addView(row, new LinearLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT);
-                params.setMargins(pixels(3), pixels(3), pixels(3), pixels(3));
-
-                box.addView(row, params);
-                slots[slot] = row;
+                        ViewGroup.LayoutParams.WRAP_CONTENT));
             }
 
-            columns.addView(box, new LinearLayout.LayoutParams(
-                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            int slot = order[i];
+            Button cell = new Button(this);
+
+            cell.setAllCaps(false);
+            cell.setTextColor(TEXT);
+            cell.setTextSize(14);
+            cell.setSingleLine(true);
+            cell.setBackgroundColor(ROW);
+            cell.setPadding(pixels(8), 0, pixels(8), 0);
+            cell.setOnClickListener(view -> select(slot));
+
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            params.setMargins(pixels(3), pixels(3), pixels(3), pixels(3));
+
+            row.addView(cell, params);
+            slots[slot] = cell;
         }
 
-        return columns;
+        return rows;
     }
 
     private void select(int slot) {
@@ -197,7 +227,7 @@ public final class ProfileActivity extends Activity
             Button row = slots[slot];
             if (row == null) continue;
 
-            row.setText(ControlProfiles.slotName(slot) + "\n"
+            row.setText(ControlProfiles.slotName(slot) + "   "
                         + ControlProfiles.name(profile.keys[slot]));
             row.setTextColor(slot == selected ? SELECTED : TEXT);
         }

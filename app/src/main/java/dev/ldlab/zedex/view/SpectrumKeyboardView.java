@@ -380,6 +380,13 @@ public class SpectrumKeyboardView extends View {
     protected void onDraw(Canvas canvas) {
         if (plate == null) return;
 
+        // A box with no room in it draws nothing. fit() leaves the destination
+        // empty rather than dividing by a zero size, and a bitmap of that size
+        // is not an empty picture but an IllegalArgumentException - which is
+        // how a layout that squeezed the keyboard out took the whole app down
+        // on the next invalidate.
+        if (destination.isEmpty()) return;
+
         canvas.drawBitmap(rendered(), destination.left, destination.top, null);
 
         // The keys are rounded, so square corners on the highlight hang over
