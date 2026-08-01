@@ -148,6 +148,29 @@ public final class EmulatorLayout extends ViewGroup {
     private JoystickView pad;
     private JoystickView fire;
     private JoystickView[] keys = new JoystickView[0];
+
+    /**
+     * The keyboard that lies over the picture instead of taking room from it.
+     *
+     * Only where there is no room to take: fullscreen sideways, which is the
+     * one layout with no keyboard at all - the point of fullscreen is the
+     * picture, and a keyboard reserving a third of a landscape window is
+     * exactly what the button was pressed to be rid of. So this one is not in
+     * the layout at all: it is drawn over the foot of the picture, see-through,
+     * for the handful of moments a game wants a key rather than a stick.
+     */
+    private SpectrumKeyboardView overlay;
+    private View overlayOpen;
+    private View overlayClose;
+
+    private final Rect overlayBox = new Rect();
+    private final Rect overlayOpenBox = new Rect();
+    private final Rect overlayCloseBox = new Rect();
+
+    private boolean overlayShown;
+
+    /** Whether the last measure was of a landscape window; see the buttons. */
+    private boolean landscapeNow;
     private ActivityLights lights;
     private View play;
 
@@ -241,6 +264,8 @@ public final class EmulatorLayout extends ViewGroup {
     public void setChildren(View screen, SpectrumKeyboardView keyboard,
                      SystemKeyboardView system,
                      JoystickView pad, JoystickView fire, JoystickView[] keys,
+                     SpectrumKeyboardView overlay, View overlayOpen,
+                     View overlayClose,
                      ActivityLights lights,
                      View play, View panel, QuickBar bar, View drawer) {
         this.screen = screen;
@@ -249,6 +274,9 @@ public final class EmulatorLayout extends ViewGroup {
         this.pad = pad;
         this.fire = fire;
         this.keys = keys;
+        this.overlay = overlay;
+        this.overlayOpen = overlayOpen;
+        this.overlayClose = overlayClose;
         this.lights = lights;
         this.play = play;
         this.panel = panel;
@@ -265,6 +293,9 @@ public final class EmulatorLayout extends ViewGroup {
         all.add(pad);
         all.add(fire);
         all.addAll(Arrays.asList(keys));
+        all.add(overlay);
+        all.add(overlayOpen);
+        all.add(overlayClose);
         all.add(lights);
         all.add(play);
         all.add(panel);
@@ -418,7 +449,103 @@ public final class EmulatorLayout extends ViewGroup {
         fullscreen = on;
         applyKeyboardVisibility();
         applyLightsVisibility();
+        applyOverlayVisibility();
         requestLayout();
+    }
+
+    // --- the keyboard that lies over the picture ----------------------------
+
+    /** Of the window's height, the most the overlay may cover. */
+    private static final float OVERLAY_TALL = 0.42f;
+
+    /** How big the two buttons are, and how far off the things they sit by. */
+    private static final int OVERLAY_BUTTON = 44;
+    private static final int OVERLAY_GAP = 8;
+
+    /**
+     * Whether this window is one the overlay is for.
+     *
+     * Fullscreen sideways and nowhere else. Everywhere else there is a real
+     * keyboard a tap away, and offering a second one over the picture would be
+     * two answers to the same question.
+     */
+    public boolean overlayAvailable() {
+        return fullscreen && landscapeNow;
+    }
+
+    public boolean overlayShown() {
+        return overlayShown && overlayAvailable();
+    }
+
+    public void setOverlayShown(boolean on) {
+        if (overlayShown == on) return;
+
+        overlayShown = on;
+        applyOverlayVisibility();
+        requestLayout();
+    }
+
+    /**
+     * Which of the three is on screen, worked out from one rule rather than at
+     * each of the places that can change it: leaving fullscreen, turning the
+     * device, opening it and closing it all end up here.
+     */
+    private void applyOverlayVisibility() {
+        boolean available = overlayAvailable();
+        if (!available) overlayShown = false;
+
+        if (overlay != null) {
+            overlay.setVisibility(available && overlayShown ? VISIBLE : GONE);
+        }
+        if (overlayOpen != null) {
+            overlayOpen.setVisibility(available && !overlayShown ? VISIBLE : GONE);
+        }
+        if (overlayClose != null) {
+            overlayClose.setVisibility(available && overlayShown ? VISIBLE : GONE);
+        }
+    }
+
+    /**
+     * The overlay across the foot of the picture, and its two buttons.
+     *
+     * The keyboard takes the width and as much height as its shape asks for,
+     * capped: a slim skin is flat enough that the cap rarely bites, and a cap
+     * is what stops a tall one covering the game. The button that opens it sits
+     * over the pad, which is where the hand already is; the one that closes it
+     * sits at the far end of the keys, out of the way of them.
+     */
+    private void placeOverlay(int width, int height) {
+        overlayBox.setEmpty();
+        overlayOpenBox.setEmpty();
+        overlayCloseBox.setEmpty();
+
+        if (overlay == null || !overlayAvailable()) return;
+
+        float density = getResources().getDisplayMetrics().density;
+        int size = Math.round(OVERLAY_BUTTON * density);
+        int gap = Math.round(OVERLAY_GAP * density);
+
+        if (!overlayShown) {
+            // Above the pad, or in the corner the pad would have been in.
+            int centreX = padBox.isEmpty() ? gap + size / 2 : padBox.centerX();
+            int bottom = padBox.isEmpty() ? height - gap : padBox.top - gap;
+
+            square(overlayOpenBox, centreX, bottom - size / 2, size);
+            return;
+        }
+
+        // The same share of the width the keyboard below the picture takes, and
+        // centred like it: across the whole window the keys come out half again
+        // the size of the real keyboard's, which is neither what a keyboard
+        // looks like nor what this is for. Its height follows from that width.
+        int across = Math.round(width * LANDSCAPE_WIDE);
+        int tall = Math.min(Math.round(across / overlay.aspect()),
+                            Math.round(height * OVERLAY_TALL));
+
+        overlayBox.set((width - across) / 2, height - tall,
+                       (width + across) / 2, height);
+        square(overlayCloseBox, overlayBox.right + gap + size / 2,
+               overlayBox.top + size / 2, size);
     }
 
     public boolean fullscreen() {
@@ -703,11 +830,22 @@ public final class EmulatorLayout extends ViewGroup {
             }
         }
 
+        // The overlay's rule is fullscreen sideways, and sideways is only known
+        // here. A turn that takes the window out of the rule has to put the
+        // overlay away, and doing that from inside a measure would ask for
+        // another one - so it is posted, and this pass simply leaves the boxes
+        // empty.
+        if (landscapeNow != landscape) {
+            landscapeNow = landscape;
+            post(this::applyOverlayVisibility);
+        }
+
         measurePicture(landscape);
         placePlay();
         placeLights();
         placeJoystick(width, height);
         placeKeyButtons();
+        placeOverlay(width, height);
 
         // Set here rather than in placeJoystick, which returns from three
         // places; alpha is a draw property, so this is safe during a measure.
@@ -832,7 +970,14 @@ public final class EmulatorLayout extends ViewGroup {
         fireArea.setEmpty();
         joystickFloating = false;
 
-        if (pad == null || fire == null || !joystick || suppressed) return;
+        // The overlay lies across the foot of the window, which is where the pad
+        // and fire are: they would be behind it, unreachable, and showing
+        // through the keys as a ring and a disc that do nothing. A hand typing
+        // is not a hand on the stick, so they stand down until it is put away.
+        if (pad == null || fire == null || !joystick || suppressed
+                || overlayShown()) {
+            return;
+        }
 
         float density = getResources().getDisplayMetrics().density;
         int margin = Math.round(PAD_MARGIN * density);
@@ -1044,6 +1189,9 @@ public final class EmulatorLayout extends ViewGroup {
         measureChild(pad, padBox);
         measureChild(fire, fireBox);
         for (int i = 0; i < keys.length; i++) measureChild(keys[i], keyBoxes[i]);
+        measureChild(overlay, overlayBox);
+        measureChild(overlayOpen, overlayOpenBox);
+        measureChild(overlayClose, overlayCloseBox);
         measureChild(panel, panelBox);
         measureChild(drawer, panelBox);
         measureChild(lights, lightsBox);
@@ -1098,6 +1246,9 @@ public final class EmulatorLayout extends ViewGroup {
         placeChild(pad, padBox);
         placeChild(fire, fireBox);
         for (int i = 0; i < keys.length; i++) placeChild(keys[i], keyBoxes[i]);
+        placeChild(overlay, overlayBox);
+        placeChild(overlayOpen, overlayOpenBox);
+        placeChild(overlayClose, overlayCloseBox);
         placeChild(lights, lightsBox);
         placeChild(play, playBox);
         placeChild(panel, panelBox);

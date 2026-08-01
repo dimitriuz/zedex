@@ -449,6 +449,11 @@ public final class QuickBar extends LinearLayout implements Rows {
         if (!onTheBar) collapse();
     }
 
+    /** Whether one of the groups is showing its row. */
+    public boolean isOpen() {
+        return openGroup != null;
+    }
+
     public void collapse() {
         if (openGroup == null) return;
 

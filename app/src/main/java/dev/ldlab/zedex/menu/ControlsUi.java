@@ -145,6 +145,44 @@ public final class ControlsUi {
                 preferences.getString(SettingsActivity.KEY_KEYBOARD_SKIN, null));
     }
 
+    public String keyboardSkinName() {
+        return keyboardSkin().title;
+    }
+
+    /**
+     * The next keyboard round, for a row on the bar rather than a list.
+     *
+     * A tap at a time because the bar has no room for a list and because the
+     * five are worth trying against a game rather than choosing from their
+     * names: which one suits is a question of how much of the picture is left.
+     */
+    public void nextKeyboardSkin() {
+        SpectrumKeyboardView.Skin[] all = SpectrumKeyboardView.Skin.values();
+        SpectrumKeyboardView.Skin now = keyboardSkin();
+
+        int at = 0;
+        for (int i = 0; i < all.length; i++) if (all[i] == now) at = i;
+
+        SpectrumKeyboardView.Skin next = all[ ( at + 1 ) % all.length ];
+
+        preferences.edit()
+                .putString(SettingsActivity.KEY_KEYBOARD_SKIN, next.value).apply();
+        layout.setKeyboardSkin(next);
+        layout.post(this::applySystemKeyboard);
+
+        host.note(R.string.keyboard_skin_set, next.title);
+    }
+
+    // --- the mouse -----------------------------------------------------------
+
+    public boolean mouseOn() {
+        return preferences.getBoolean(SettingsActivity.KEY_MOUSE, false);
+    }
+
+    public void toggleMouse() {
+        showMouse(!mouseOn());
+    }
+
     // --- the joystick --------------------------------------------------------
 
     /**
@@ -307,12 +345,89 @@ public final class ControlsUi {
             // Under a rule rather than among the profiles: choosing one and
             // changing one are different kinds of thing, and a row that opens a
             // screen reads as another profile at a glance.
+            // Under a rule rather than among the profiles: choosing one and
+            // changing one are different kinds of thing, and a row that opens a
+            // screen reads as another profile at a glance.
             page.addRule();
             page.addItem(text(R.string.profile_edit), R.drawable.ic_edit,
                          () -> ProfileActivity.open(activity));
             page.addSubmenu(text(R.string.profile_new), R.drawable.ic_plus,
                             newProfile());
+
+            String current = profiles.get(chosen).name;
+
+            page.addItem(activity.getString(R.string.profile_copy, current),
+                         R.drawable.ic_card, () -> copyProfile());
+
+            // Deleting is the one thing here that doing again does not undo, so
+            // it is a page that commits by its own name rather than a row that
+            // acts as it is touched.
+            if (profiles.size() > 1) {
+                page.addSubmenu(activity.getString(R.string.profile_remove, current),
+                                R.drawable.ic_quit, deleteProfile());
+            }
         });
+    }
+
+    /**
+     * The one in use, again, under a name of its own.
+     *
+     * No name to type: this exists to be the starting point for a change, and
+     * asking what to call something before there is anything to call it is a
+     * question with no answer yet. It can be renamed in the editor, where the
+     * name sits at the top of the screen with the keys it belongs to.
+     */
+    private void copyProfile() {
+        List<ControlProfiles.Profile> profiles = ControlProfiles.all(preferences);
+        ControlProfiles.Profile source = ControlProfiles.current(preferences);
+        String name = copyName(profiles, source.name);
+
+        profiles.add(new ControlProfiles.Profile(name, source.keys));
+        ControlProfiles.store(preferences, profiles, profiles.size() - 1);
+
+        applyControls();
+        host.note(R.string.profile_copied, name);
+    }
+
+    /** "QAOPM copy", then "QAOPM copy 2": a copy of a copy still has a name. */
+    private String copyName(List<ControlProfiles.Profile> profiles, String of) {
+        String name = activity.getString(R.string.profile_copy_suffix, of);
+
+        for (int n = 2; taken(profiles, name); n++) {
+            name = activity.getString(R.string.profile_copy_numbered, of, n);
+        }
+
+        return name;
+    }
+
+    private static boolean taken(List<ControlProfiles.Profile> profiles, String name) {
+        for (ControlProfiles.Profile profile : profiles) {
+            if (profile.name.equals(name)) return true;
+        }
+        return false;
+    }
+
+    private MenuDrawer.Page deleteProfile() {
+        return page -> {
+            List<ControlProfiles.Profile> profiles = ControlProfiles.all(preferences);
+            int index = ControlProfiles.currentIndex(preferences);
+
+            if (profiles.size() < 2) {
+                page.addNote(text(R.string.profile_last));
+                return;
+            }
+
+            String name = profiles.get(index).name;
+            page.addNote(activity.getString(R.string.profile_delete_ask, name));
+            page.addItem(text(R.string.profile_delete), R.drawable.ic_quit, () -> {
+                profiles.remove(index);
+                ControlProfiles.store(preferences, profiles, Math.max(0, index - 1));
+
+                applyControls();
+                host.note(R.string.profile_removed, name);
+                host.sheet().close();
+            });
+        };
     }
 
     /** A new profile starts as a copy of the one in use, and becomes the one in
@@ -336,6 +451,11 @@ public final class ControlsUi {
                 ProfileActivity.open(activity);
             });
         };
+    }
+
+    /** The one in use, for a row that says what a tap would change. */
+    public String keyProfileName() {
+        return ControlProfiles.current(preferences).name;
     }
 
     /** The next profile round, for a controller hotkey. */

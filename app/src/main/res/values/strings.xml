@@ -152,6 +152,21 @@
     <string name="profile_delete">Delete profile</string>
     <string name="profile_delete_ask">Delete “%1$s”?</string>
     <string name="profile_last">The controls need one profile, so the last one cannot be deleted.</string>
+    <string name="overlay_open">Keyboard over the picture</string>
+    <string name="overlay_close">Put the keyboard away</string>
+
+    <string name="quick_joystick_type">Joystick: %1$s</string>
+    <string name="quick_key_profile">Keys: %1$s</string>
+    <string name="quick_keyboard_skin">Keyboard: %1$s</string>
+    <string name="quick_mouse_on">Mouse: on</string>
+    <string name="quick_mouse_off">Mouse: off</string>
+
+    <string name="profile_copy">Copy “%1$s”</string>
+    <string name="profile_copied">Copied to %1$s</string>
+    <string name="profile_copy_suffix">%1$s copy</string>
+    <string name="profile_copy_numbered">%1$s copy %2$d</string>
+    <string name="profile_remove">Delete “%1$s”…</string>
+    <string name="profile_removed">Deleted %1$s</string>
     <string name="joystick_hidden">Joystick hidden</string>
     <string name="pause_pause">Pause</string>
     <string name="pause_resume">Resume</string>

@@ -78,10 +78,14 @@ legend and the character symbol shift gives it, the 48K keeps the cursor arrows
 and DELETE, and the rows are barely more than half as tall, which sideways is
 that much more picture.
 
+In **fullscreen landscape**, where there is no keyboard at all, a button by the
+pad brings a slim 48K one up *over* the picture, see-through, with a button of
+its own to put it away again.
+
 **On-screen joystick** — thumb pad, fire, and three key buttons in an arc.
 Appears as any of the Spectrum's seven interfaces, or as keys. Eight-key
 profiles: QAOPM, QAOP + Space, cursor keys, both Sinclair sets, WASD, and your
-own.
+own — copied and deleted from the same list they are chosen in.
 
 **Physical controllers** — no setup. Stick, hat and D-pad steer; A is fire; B, X
 and Y are the key buttons; Start is Enter. The on-screen pad steps aside.
@@ -148,7 +152,7 @@ A strip across the top of the window, either way up.
 | States | save, load, and the quick pair named after what is running |
 | Machine | pause, change machine, reset, NMI |
 | Capture | screenshot, GIF, MP4, and the folder they go to |
-| On screen | the keyboard and the joystick |
+| On screen | the keyboard and the joystick, and the four settings worth changing mid-game: joystick interface, key profile, keyboard, mouse |
 | Display | scanlines, CRT, video output, border, lamps |
 | Fast forward | hold for 500%, silent |
 | Fullscreen | |

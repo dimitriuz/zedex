@@ -379,6 +379,13 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                            new JoystickView(this, JoystickView.Part.PAD),
                            new JoystickView(this, JoystickView.Part.FIRE),
                            keyButtons,
+                           overlayKeyboard(), overlayButton(
+                                   R.drawable.ic_keyboard,
+                                   R.string.overlay_open,
+                                   () -> layout.setOverlayShown(true)),
+                           overlayButton(R.drawable.ic_hide,
+                                         R.string.overlay_close,
+                                         () -> layout.setOverlayShown(false)),
                            lights, playButton,
                            roms.view(), quickBar, menu);
         layout.setJoystickVisible(
@@ -658,6 +665,45 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     }
 
     /**
+     * The keyboard that lies over the picture: slim, and the 48K whatever skin
+     * the real one is wearing.
+     *
+     * Slim because it is over a game and the height it takes is height the game
+     * loses, and the 48K because that is the layout with the fewest keys to aim
+     * at. Not the chosen skin: this is not the keyboard, it is a way of reaching
+     * a key without giving the picture up, and the choice belongs to the one
+     * that is the keyboard.
+     */
+    private SpectrumKeyboardView overlayKeyboard() {
+        SpectrumKeyboardView keys = new SpectrumKeyboardView(this);
+
+        keys.setSkin(SpectrumKeyboardView.Skin.RUBBER_SLIM);
+        keys.setBottomAligned(true);
+        keys.setAlpha(OVERLAY_ALPHA);
+        keys.setVisibility(View.GONE);
+
+        return keys;
+    }
+
+    /** See-through enough to play through, solid enough to aim at. */
+    private static final float OVERLAY_ALPHA = 0.82f;
+
+    private View overlayButton(int icon, int name, Runnable action) {
+        ImageButton button = new ImageButton(this);
+
+        button.setImageResource(icon);
+        button.setContentDescription(getString(name));
+        button.setColorFilter(0xffdedee6);
+        button.setScaleType(ImageButton.ScaleType.FIT_CENTER);
+        button.setBackgroundResource(R.drawable.overlay_button);
+        button.setAlpha(OVERLAY_ALPHA);
+        button.setVisibility(View.GONE);
+        button.setOnClickListener(v -> action.run());
+
+        return button;
+    }
+
+    /**
      * Opening something: the picker, and then what was opened before.
      *
      * The save states used to be in here as well, which made the folder icon
@@ -769,12 +815,39 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // a row offering to hide it does nothing and a row offering to show it
         // is a promise the layout will not keep. The joystick stays, because
         // fullscreen leaves that where it is.
-        if (fullscreen()) return;
+        if (!fullscreen()) {
+            rows.item(R.drawable.ic_keyboard,
+                      getString(keys ? R.string.quick_keyboard_hide
+                                     : R.string.quick_keyboard_show),
+                      () -> controls.showKeyboard(!keys));
+        }
+
+        // And the four settings worth changing without leaving the game, each a
+        // row that says what it is now and moves on a tap. A list would be
+        // better for choosing from names, and there is one in the sheet; what
+        // this is for is trying the next one against the game in front of you,
+        // which is how the right joystick and the right keyboard are actually
+        // found.
+        rows.rule();
+
+        rows.item(R.drawable.ic_joystick,
+                  getString(R.string.quick_joystick_type,
+                            controls.joystickTypeName()),
+                  () -> controls.nextJoystickType());
+
+        rows.item(R.drawable.ic_bookmark,
+                  getString(R.string.quick_key_profile, controls.keyProfileName()),
+                  () -> controls.nextKeyProfile());
 
         rows.item(R.drawable.ic_keyboard,
-                  getString(keys ? R.string.quick_keyboard_hide
-                                 : R.string.quick_keyboard_show),
-                  () -> controls.showKeyboard(!keys));
+                  getString(R.string.quick_keyboard_skin,
+                            controls.keyboardSkinName()),
+                  () -> controls.nextKeyboardSkin());
+
+        rows.item(R.drawable.ic_mouse,
+                  getString(controls.mouseOn() ? R.string.quick_mouse_on
+                                               : R.string.quick_mouse_off),
+                  () -> controls.toggleMouse());
     }
 
     /**
@@ -904,19 +977,31 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      */
     private boolean barWanted;
 
-    private final Runnable fadeQuickBar = () -> {
+    /* A method rather than a lambda, because it puts itself back on the queue
+       and a field cannot refer to itself while it is being made. */
+    private final Runnable fadeQuickBar = this::fadeQuickBarNow;
+
+    private void fadeQuickBarNow() {
         // On a second screen the bar has a panel of its own and is never over
         // the picture, so there is nothing to fade out of the way of.
         if (panels.inUse()) return;
 
+        // An open group is somebody reading it. Three seconds is long enough to
+        // notice the bar and nothing like long enough to decide which of eight
+        // machines to switch to, and taking the list away while a finger is on
+        // its way to it is the fade doing the opposite of its job. So the clock
+        // starts again, and only a bar with nothing open fades.
+        if (quickBar.isOpen()) {
+            quickBar.postDelayed(fadeQuickBar, BAR_LINGER_MS);
+            return;
+        }
+
         barWanted = false;
-        // A group left open would be waiting there on the way back, which is
-        // not where the bar was left off.
         quickBar.collapse();
         quickBar.animate().alpha(0f).setDuration(200).withEndAction(() -> {
             if (!barWanted) quickBar.setVisibility(View.GONE);
         });
-    };
+    }
 
     /**
      * Shows the bar, and starts it fading only if it is meant to fade.
