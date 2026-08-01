@@ -49,6 +49,15 @@ public final class Storage {
      * be asked for twice. See {@link StartPanel#showSetup}.
      */
     public static final String KEY_SETUP_DONE = "setupDone";
+    /**
+     * Whether the demo tape has been put in the tapes folder. Recorded so that
+     * it is put there exactly once, ever: a tape that came back every launch
+     * would be a file the user cannot delete, and it is theirs to delete.
+     */
+    public static final String KEY_DEMO_INSTALLED = "demoInstalled";
+
+    /** The demo, staged into the assets from {@code demo/} by the build. */
+    private static final String DEMO = "zedex.tap";
 
     private static final String STATES = "states";
     private static final String ROMS = "roms";
@@ -258,6 +267,57 @@ public final class Storage {
                 target.delete();
             }
         }
+    }
+
+    /** The demo tape, wherever the tapes folder is, whether or not it is there. */
+    public static File demoTape(Context context) {
+        return new File(tapesDirectory(context), DEMO);
+    }
+
+    /**
+     * Puts the demo in the tapes folder, once.
+     *
+     * Copied out of the APK for the same reason the ROMs are - Fuse opens files
+     * by path - and into the tapes folder rather than somewhere private, so that
+     * it is a tape like any other: openable from the recents list, deletable,
+     * and there when somebody goes looking for something to load.
+     *
+     * Once and never again, recorded in a preference rather than by whether the
+     * file is there. Restoring it on every launch would make it undeletable, and
+     * a demo that will not go away is worse than no demo.
+     *
+     * @return the tape, or null if it is not there and could not be put there.
+     */
+    public static File installDemo(Context context) {
+        SharedPreferences preferences =
+                context.getSharedPreferences(SettingsActivity.PREFS, Context.MODE_PRIVATE);
+
+        File target = demoTape(context);
+        if (preferences.getBoolean(KEY_DEMO_INSTALLED, false)) {
+            return target.isFile() ? target : null;
+        }
+
+        File directory = target.getParentFile();
+        if (directory != null && !directory.isDirectory() && !directory.mkdirs()) {
+            return null;
+        }
+
+        if (!target.exists()) {
+            try (InputStream in = context.getAssets().open(DEMO);
+                 OutputStream out = new FileOutputStream(target)) {
+
+                byte[] buffer = new byte[16 * 1024];
+                int read;
+                while ((read = in.read(buffer)) != -1) out.write(buffer, 0, read);
+            } catch (IOException e) {
+                Log.e(TAG, "cannot unpack the demo", e);
+                target.delete();
+                return null;
+            }
+        }
+
+        preferences.edit().putBoolean(KEY_DEMO_INSTALLED, true).apply();
+        return target;
     }
 
     public static boolean haveRoms(Context context) {

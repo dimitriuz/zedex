@@ -280,7 +280,15 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // except on the very first run, where the folder to put them in is the
         // question the panel is about to ask. Only ever the ones that are not
         // there already: the folder is the user's to fill as well as ours.
-        if (!StartPanel.setupNeeded(this)) Storage.installRoms(this);
+        if (!StartPanel.setupNeeded(this)) {
+            Storage.installRoms(this);
+
+            // And the demo, for an install that predates it. Once ever, so a
+            // tape somebody has deleted stays deleted; no offer here, because
+            // interrupting somebody who has been playing for a month to show
+            // them a demo is not a welcome.
+            Storage.installDemo(this);
+        }
 
         Machine.prepare(this);
 
@@ -579,6 +587,17 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         @Override
         public boolean hasStarted() {
             return started;
+        }
+
+        @Override
+        public void onOpenDemo(java.io.File tape) {
+            // Off the UI thread, like every other open: the file is already a
+            // path in our own folder, so there is nothing to stage - but the
+            // call goes to Fuse and Fuse is not this thread's to call.
+            new Thread(() -> {
+                FuseNative.openFile(tape.getAbsolutePath());
+                note(R.string.file_opened, tape.getName());
+            }).start();
         }
 
         @Override

@@ -157,8 +157,23 @@ licence section and not on a Spectrum screen, where nobody can follow it. If the
 tune is ever swapped, the corner line, the README and this paragraph move
 together.
 
-Loading it: put it in the content folder and open it like any other tape, or
-hand it straight over —
+**It ships in the app.** `app/build.gradle` stages `demo/zedex.tap` into the
+assets — from `demo/`, so the APK cannot carry a copy older than the tree's —
+and `Storage.installDemo` copies it into the tapes folder beside the ROMs, on
+the same first-run path and for the same reason: that is the moment the folders
+are settled. Once and never again, recorded in the `demoInstalled` preference
+rather than by whether the file is there, so a tape somebody deletes stays
+deleted. An install that predates the demo gets it on its next launch, quietly.
+
+The first run — and only the first run — then offers to load it. Later launches
+never ask, and an upgrade never asks: interrupting somebody who has been playing
+for a month to show them a demo is not a welcome. The instrumentation suite is
+unaffected, because `Emulator.setUp` writes a preference before launching and
+`setupNeeded` therefore already returns false for it — the tests have never seen
+the setup panel and do not see this either.
+
+Loading it by hand: put it in the content folder and open it like any other
+tape, or hand it straight over —
 
 ```sh
 adb push demo/zedex.tap /storage/emulated/0/Download/Spectrum/tapes/

@@ -69,9 +69,22 @@ android {
     // are not the app's own material and it reads them as plain files. Their
     // contents land at the root of the assets, which is why Storage.installRoms
     // looks there and takes only what ends in .rom.
+    // The demo tape is built material, not source: scripts/build-demo.py makes
+    // it and it is staged from demo/ here, so the APK cannot ship a copy older
+    // than the tree's. Only the tape - the assembly, the module and the tables
+    // beside it are sources and have no business in an APK.
+    def demoStage = layout.buildDirectory.dir('generated/assets/demo').get().asFile
+    def stageDemoTape = tasks.register('stageDemoTape', Copy) {
+        from "$rootDir/demo/zedex.tap"
+        into demoStage
+    }
+
+    tasks.matching { it.name.startsWith('merge') && it.name.endsWith('Assets') }
+         .configureEach { dependsOn stageDemoTape }
+
     sourceSets {
         main {
-            assets.srcDirs += ['../roms']
+            assets.srcDirs += ['../roms', demoStage]
         }
     }
 
