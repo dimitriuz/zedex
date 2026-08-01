@@ -822,28 +822,29 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                       () -> controls.showKeyboard(!keys));
         }
 
-        // And the four settings worth changing without leaving the game, each a
-        // row that says what it is now and moves on a tap. A list would be
-        // better for choosing from names, and there is one in the sheet; what
-        // this is for is trying the next one against the game in front of you,
-        // which is how the right joystick and the right keyboard are actually
-        // found.
+        // And the four settings worth changing without leaving the game. Each
+        // says what it is now and opens the sheet's own list of the rest, the
+        // way the machine row does: the bar has no room for eight joystick
+        // interfaces or five keyboards, and one list per thing beats two places
+        // that both know how to choose one and can disagree about it.
         rows.rule();
 
         rows.item(R.drawable.ic_joystick,
                   getString(R.string.quick_joystick_type,
                             controls.joystickTypeName()),
-                  () -> controls.nextJoystickType());
+                  () -> controls.showJoystickTypeDialog());
 
         rows.item(R.drawable.ic_bookmark,
                   getString(R.string.quick_key_profile, controls.keyProfileName()),
-                  () -> controls.nextKeyProfile());
+                  () -> controls.showProfileDialog());
 
         rows.item(R.drawable.ic_keyboard,
                   getString(R.string.quick_keyboard_skin,
                             controls.keyboardSkinName()),
-                  () -> controls.nextKeyboardSkin());
+                  () -> controls.showSkinDialog());
 
+        // The mouse alone stays a switch: it is on or off, and a list of two
+        // where a tap would do is a list for its own sake.
         rows.item(R.drawable.ic_mouse,
                   getString(controls.mouseOn() ? R.string.quick_mouse_on
                                                : R.string.quick_mouse_off),

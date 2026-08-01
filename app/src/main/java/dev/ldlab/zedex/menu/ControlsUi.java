@@ -149,30 +149,6 @@ public final class ControlsUi {
         return keyboardSkin().title;
     }
 
-    /**
-     * The next keyboard round, for a row on the bar rather than a list.
-     *
-     * A tap at a time because the bar has no room for a list and because the
-     * five are worth trying against a game rather than choosing from their
-     * names: which one suits is a question of how much of the picture is left.
-     */
-    public void nextKeyboardSkin() {
-        SpectrumKeyboardView.Skin[] all = SpectrumKeyboardView.Skin.values();
-        SpectrumKeyboardView.Skin now = keyboardSkin();
-
-        int at = 0;
-        for (int i = 0; i < all.length; i++) if (all[i] == now) at = i;
-
-        SpectrumKeyboardView.Skin next = all[ ( at + 1 ) % all.length ];
-
-        preferences.edit()
-                .putString(SettingsActivity.KEY_KEYBOARD_SKIN, next.value).apply();
-        layout.setKeyboardSkin(next);
-        layout.post(this::applySystemKeyboard);
-
-        host.note(R.string.keyboard_skin_set, next.title);
-    }
-
     // --- the mouse -----------------------------------------------------------
 
     public boolean mouseOn() {
@@ -246,7 +222,7 @@ public final class ControlsUi {
      * the joystick interfaces are played. It is offered in the same list because
      * from the pad's side it is the same choice.
      */
-    private void showJoystickTypeDialog() {
+    public void showJoystickTypeDialog() {
         String[] fuseTypes = FuseNative.joystickTypeNames();
         if (fuseTypes.length == 0) return;
 
@@ -323,7 +299,7 @@ public final class ControlsUi {
 
     // --- the key profile -----------------------------------------------------
 
-    private void showProfileDialog() {
+    public void showProfileDialog() {
         List<ControlProfiles.Profile> profiles = ControlProfiles.all(preferences);
         String[] names = new String[profiles.size()];
 
@@ -503,7 +479,7 @@ public final class ControlsUi {
      * ones did - TRUE VIDEO is CAPS SHIFT and 3, and most of the others turn out
      * to be single keys Fuse already knows.
      */
-    private void showSkinDialog() {
+    public void showSkinDialog() {
         SpectrumKeyboardView.Skin[] skins = SpectrumKeyboardView.Skin.values();
         String[] names = new String[skins.length];
         int checked = 0;
