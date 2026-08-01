@@ -150,9 +150,12 @@ fight.
 
 **The music is not ours.** *Time Up* by
 [shiru8bit](https://opengameart.org/users/shiru8bit), from OpenGameArt under
-**CC-BY 3.0**. Attribution is required, so it is in three places: the demo's own
-scroller, the README's licence section, and here. If the tune is ever swapped,
-all three move together.
+**CC-BY 3.0**. Attribution is required, so the tape says *Music by shiru8bit* in
+its bottom corner — standing still, where a screenshot catches it, rather than
+going past once a minute in the scroller. The link belongs in the README's
+licence section and not on a Spectrum screen, where nobody can follow it. If the
+tune is ever swapped, the corner line, the README and this paragraph move
+together.
 
 Loading it: put it in the content folder and open it like any other tape, or
 hand it straight over —

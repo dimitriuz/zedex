@@ -24,9 +24,9 @@
 ; quiet.  A beeper tune would have to be played by the CPU between the effects,
 ; and there is no frame left for that.
 ;
-; The tune is "Time Up" by shiru8bit, CC-BY 3.0, from
-; https://opengameart.org/users/shiru8bit — the credit is in the scroller
-; because that is the licence's price and the tape is what travels.
+; The tune is "Time Up" by shiru8bit, CC-BY 3.0, from OpenGameArt.  The credit
+; the licence asks for stands in the bottom corner; the link to it is in the
+; README, where it can be followed.
 ;
 ; Assembler notes: `equ` names are folded to lower case, `$` is hex, and IY is
 ; untouched throughout, since the ROM's interrupt needs it where it left it.
@@ -45,6 +45,7 @@ r_logo  equ  5                  ; six rows of wordmark, y 40..87
 r_pills equ  12                 ; one row of pills, y 96..103
 r_text  equ  15                 ; the scroller, y 120..127
 r_sky   equ  17                 ; six more rows of sky, y 136..183
+r_credit equ 23                 ; the music's credit, on the last row
 
 logo_col equ 5                  ; 176 pixels of wordmark, centred
 logo_w  equ  22
@@ -83,6 +84,10 @@ start:
         ld   hl,labz80
         ld   b,0
         ld   c,28
+        call print
+        ld   hl,credit          ; and the music's, in the corner below
+        ld   b,r_credit
+        ld   c,1
         call print
 
         call drawlogo
@@ -213,6 +218,10 @@ paint:  ld   hl,attrs + r_stars * 32
         ld   hl,attrs
         ld   bc,32
         ld   a,$42              ; bright red
+        call fill
+        ld   hl,attrs + r_credit * 32
+        ld   bc,32
+        ld   a,$07              ; and the credit in plain white, quietly
         call fill
         ret
 
@@ -491,13 +500,15 @@ cy3:    ld   (hl),a
 lab48:  db   "48K",0
 labz80: db   "Z80",0
 
-; The credit is not decoration: the music is CC-BY, and this is where the
-; attribution travels — the tape carries it wherever the tape goes.
 msg:    db   "   zedex  *  Modern ZX Spectrum emulator for Android"
         db   "  *  48K to +3, tapes, disks, snapshots, cheats"
-        db   "  *  the Fuse core, unmodified"
-        db   "  *  music: Time Up by shiru8bit, CC-BY"
-        db   "  *  opengameart.org/users/shiru8bit  ",0
+        db   "  *  the Fuse core, unmodified  ",0
+
+; The music is CC-BY and this is the attribution it asks for, standing still
+; in the corner rather than going past once a minute in the scroller. The
+; licence and where the tune came from are in the README; a URL read off a
+; Spectrum screen is no use to anyone.
+credit: db   "Music by shiru8bit",0
 
 ; --- tables ----------------------------------------------------------------
 
