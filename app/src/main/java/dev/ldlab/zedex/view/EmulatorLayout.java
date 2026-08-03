@@ -315,6 +315,10 @@ public final class EmulatorLayout extends ViewGroup {
 
         applyBarMetrics();
         applyJoystickVisibility();
+
+        // Both keyboards read the chosen skin for themselves, so they already
+        // agree; this is only here for the one that cannot be drawn.
+        dressOverlay();
     }
 
     /**
@@ -572,6 +576,14 @@ public final class EmulatorLayout extends ViewGroup {
             int tall = Math.min(Math.round(across / overlay.aspect()),
                                 Math.round(height * OVERLAY_TALL));
 
+            // And no further up than the joystick, which stays on screen now.
+            // A full plate is twice the height of a slim one and would reach it
+            // sideways, putting the pad behind the keys; the keyboard takes the
+            // room under the controls instead and scales into it, which is what
+            // it does with any box it is given.
+            int floor = Math.max(padBox.bottom, fireBox.bottom);
+            if (floor > 0) tall = Math.min(tall, height - floor - gap);
+
             overlayBox.set((width - across) / 2, height - tall,
                            (width + across) / 2, height);
 
@@ -634,8 +646,26 @@ public final class EmulatorLayout extends ViewGroup {
         if (keyboard == null || keyboard.skin() == skin) return;
 
         keyboard.setSkin(skin);
+        dressOverlay();
         applyKeyboardVisibility();
         requestLayout();
+    }
+
+    /**
+     * The overlay wears the same skin as the keyboard proper.
+     *
+     * Except Android's own, which is not a picture this app owns and cannot be
+     * painted over a game: there the 48K slim stands in, being the drawn skin
+     * that costs the picture least. Any other choice comes through as it is -
+     * a full plate simply asks for more height, and gets what there is.
+     */
+    private void dressOverlay() {
+        if (overlay == null || keyboard == null) return;
+
+        SpectrumKeyboardView.Skin chosen = keyboard.skin();
+
+        overlay.setSkin(chosen.drawn() ? chosen
+                                       : SpectrumKeyboardView.Skin.RUBBER_SLIM);
     }
 
     /** The device's own keyboard, for the skin that is not drawn here. */

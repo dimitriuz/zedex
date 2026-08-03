@@ -1050,7 +1050,18 @@ coordinates. Nothing else differs: the presses, the latching, the accessibility
 nodes and the scaling are the same code for all of them, which is what makes
 another one cheap. Four are drawn here — the 48K and the 128K's plate, each also
 in a slim version — and the fifth is Android's own keyboard, which is not drawn at
-all.
+all. The 128K slim is the default: the keyboard most of the machines in the list
+actually had, in the flattest drawing of it, so a first run costs the picture a
+fifth of a landscape window rather than a third.
+
+The overlay keyboard is a second instance of the same view, wearing the same
+skin, drawn over the foot of the picture instead of taking room from it — offered
+whenever no keyboard is on screen, which is one question asked in one place so
+that the two cannot disagree and leave the window with two keyboards or none.
+Android's own cannot be painted over a game, so the 48K slim stands in for it
+there. Its box is capped by the room under the joystick, which no longer steps
+aside for it: a full plate would otherwise reach the pad sideways, and a keyboard
+scaled into a shorter box beats a control hidden behind one.
 
 **Both were pictures and both are drawn now.** A photograph of a real 128K plate
 and Fuse's `keyboard.png` were the two skins to begin with, and the small print on

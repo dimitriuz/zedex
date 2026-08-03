@@ -61,26 +61,29 @@ brings up a +3, a `.trd` a Beta-equipped machine.
 - Video output: RGB, composite or RF, with colour bleed and noise
 - Border in full, slimmed to a quarter, or cropped
 - Black and white palette
-- Fullscreen: picture and joystick only
+- Fullscreen: picture and joystick, with the keyboard a button away
 - Second screen on dual-screen handhelds
 
 
 ## Controls
 
 **On-screen keyboard** — the rubber 48K, the 128K plate, or your own input
-method. Both are drawn rather than photographed, so they stay sharp at any size:
-every key carries its BASIC keyword, symbol-shift character, colour and
-extended-mode token, in the colours the machine prints them in. Two fingers give
-a shifted key; holding a shift for 400ms latches it until tapped again.
+method; the 128K slim to begin with. Ours are drawn rather than photographed, so
+they stay sharp at any size: every key carries its BASIC keyword, symbol-shift
+character, colour and extended-mode token, in the colours the machine prints
+them in. Two fingers give a shifted key; holding a shift for 400ms latches it
+until tapped again.
 
 Each also comes **slim** — every key, none of the BASIC. A key shows its own
 legend and the character symbol shift gives it, the 48K keeps the cursor arrows
 and DELETE, and the rows are barely more than half as tall, which sideways is
 that much more picture.
 
-In **fullscreen landscape**, where there is no keyboard at all, a button by the
-pad brings a slim 48K one up *over* the picture, see-through, with a button of
-its own to put it away again.
+Whenever no keyboard is on screen — you put it away, or you are in fullscreen —
+a button by the pad brings one up **over the picture** instead, see-through, in
+whichever skin you chose, with a button in the same place to put it away. The
+joystick stays where it is, so a game wanting a key and a stick at once can have
+both.
 
 **On-screen joystick** — thumb pad, fire, and three key buttons in an arc.
 Appears as any of the Spectrum's seven interfaces, or as keys. Eight-key
@@ -158,8 +161,9 @@ A strip across the top of the window, either way up.
 | Fullscreen | |
 
 
-Fullscreen hides everything but the picture and the joystick. Tap the picture to
-bring the bar back; Back leaves fullscreen. There is no fullscreen button when
+Fullscreen hides everything but the picture and the joystick — the keyboard is
+still a button away, over the picture. Tap the picture to bring the bar back;
+Back leaves fullscreen. There is no fullscreen button when
 the controls are on a second screen.
 
 **Back** never exits: it leaves fullscreen, or goes up a menu page, or opens ☰.
@@ -216,7 +220,7 @@ shortcuts to the same settings.
 | Interface | which joystick the pad comes out as, or Keyboard |
 | Key profile | and an editor for it |
 | Hide the joystick for a controller | |
-| Keyboard type | 48K or 128K, either of them slim, or Android's |
+| Keyboard type | 48K or 128K, either of them slim, or Android's. The 128K slim to begin with — the flattest of them, so it costs the picture least |
 | Mouse sensitivity | |
 | Controller hotkeys… | |
 

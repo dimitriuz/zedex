@@ -664,19 +664,16 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     }
 
     /**
-     * The keyboard that lies over the picture: slim, and the 48K whatever skin
-     * the real one is wearing.
+     * The keyboard that lies over the picture.
      *
-     * Slim because it is over a game and the height it takes is height the game
-     * loses, and the 48K because that is the layout with the fewest keys to aim
-     * at. Not the chosen skin: this is not the keyboard, it is a way of reaching
-     * a key without giving the picture up, and the choice belongs to the one
-     * that is the keyboard.
+     * It wears whichever skin is chosen, like every other keyboard in the app -
+     * the view reads that for itself, so there is nothing to pass in. The
+     * layout keeps it in step, and substitutes a drawn one where the choice is
+     * Android's own keyboard, which is not ours to paint over a game.
      */
     private SpectrumKeyboardView overlayKeyboard() {
         SpectrumKeyboardView keys = new SpectrumKeyboardView(this);
 
-        keys.setSkin(SpectrumKeyboardView.Skin.RUBBER_SLIM);
         keys.setBottomAligned(true);
         keys.setVisibility(View.GONE);
 

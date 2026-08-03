@@ -101,11 +101,15 @@ public class SpectrumKeyboardView extends View {
             for (Skin skin : values()) {
                 if (skin.value.equals(stored)) return skin;
             }
-            return RUBBER;
+            // The 128K slim: the keyboard most machines in the list actually
+            // had, and the flattest drawing of it - so the first thing anybody
+            // sees costs the picture a fifth of a landscape window rather than
+            // a third. Anything else is one tap away.
+            return PLUS_SLIM;
         }
     }
 
-    private Skin skin = Skin.RUBBER;
+    private Skin skin = Skin.PLUS_SLIM;
     private Row[] rows = NO_KEYS;
 
     /** The space the current table's rectangles are measured in. */
