@@ -77,6 +77,14 @@ public final class EmulatorLayout extends ViewGroup {
     /** Keeps the controls clear of the picture and of the window's edge, dp. */
     private static final int PAD_MARGIN = 12;
 
+    /**
+     * How far down the window the controls sit when they are in the side bars,
+     * as a share of its height. A little below the middle: that is where a hand
+     * holding a tablet is, and the foot of a bar most of a screen tall is well
+     * below it.
+     */
+    private static final float PAD_HEIGHT = 0.58f;
+
     /** The play button, as a share of the picture's shorter side. */
     private static final float PLAY_OF_PICTURE = 0.28f;
 
@@ -1039,7 +1047,15 @@ public final class EmulatorLayout extends ViewGroup {
         int size = Math.min(wanted, leftBar - 2 * margin);
 
         if (size >= minimum && barBottom - barTop >= size + 2 * margin) {
-            int centreY = barBottom - margin - size / 2;
+            // A little below the middle of the window, not against the foot of
+            // the strip. Sideways that strip is nearly the whole height, and
+            // the bottom of it is below where a hand holding a tablet actually
+            // is - the thumb ends up reaching down and under rather than
+            // resting. Clamped to the strip either way, so a short one still
+            // puts the controls inside it.
+            int centreY = Math.round(height * PAD_HEIGHT);
+            centreY = Math.max(barTop + margin + size / 2,
+                               Math.min(centreY, barBottom - margin - size / 2));
             int fireSize = Math.round(size * FIRE_OF_PAD);
 
             // The right bar reaches the window's edge unless the quick bar is
@@ -1116,29 +1132,50 @@ public final class EmulatorLayout extends ViewGroup {
         int centreX = fireBox.centerX();
         int centreY = fireBox.centerY();
 
-        // What the arc must not cross on the inboard side: the pad, and the
-        // edge of the space fire is in - which is black by construction, so
-        // the picture and the keyboard are covered by the same test.
-        int inboard = Math.max(fireArea.left, padBox.isEmpty() ? fireArea.left
-                                                              : padBox.right);
-        if (!joystickFloating) inboard += margin;
+        // Two limits inboard, and only one of them is hard.
+        //
+        // The pad is another control, and an arc reaching it would put two
+        // things under the same thumb - so that one is never crossed. The edge
+        // of the black is the other, and it is a preference: what lies beyond
+        // it is the picture, and a button over the corner of a picture is what
+        // the floating joystick already does where there is no black at all.
+        int wanted = fireArea.left + (joystickFloating ? 0 : margin);
+        int inboard = padBox.isEmpty() ? 0 : padBox.right + margin;
 
         // The middle button of the three reaches furthest: fire's radius, the
         // gap, then the whole button.
         int reach = fireRadius + gap + size;
         int slack = fireArea.right - margin - fireBox.right;
 
-        if (centreX - reach < inboard && slack > 0) {
+        if (centreX - reach < wanted && slack > 0) {
             // Fire moves, not the arc around it. Sliding the arc alone leaves
             // it off centre from the button it belongs to, and that is visible
             // at both ends: the level button closes onto fire's rim - ten pixels
             // *over* it on a phone in fullscreen, where the strip is barely
             // wider than fire - while the top one drifts a gap away. Whatever
             // slack fire's centring left is room for fire.
-            fireBox.offset(Math.min(slack, inboard - (centreX - reach)), 0);
+            //
+            // Against the edge of the black rather than the pad: this is what
+            // keeps the arc off the picture where the black can hold it, and
+            // going further would only push fire out of its own strip.
+            fireBox.offset(Math.min(slack, wanted - (centreX - reach)), 0);
             centreX = fireBox.centerX();
         }
 
+        // Still short, so the arc lies over the edge of the picture rather than
+        // shrinking out of existence. That is not a new liberty: where there is
+        // no black at all the whole joystick already floats over the corners,
+        // and this is the same trade for a few pixels of it.
+        //
+        // It is worth taking because the alternative was losing all three. Fire
+        // is sized from the pad, which is sized from the bar on the *other*
+        // side of the picture, and nothing in that sum knows an arc has to fit
+        // beside it here - so a 4:3 picture at a whole multiple on a 16:10
+        // tablet left the arc a few pixels short of being worth tapping.
+        //
+        // What it may not reach is the pad, which is another control: two
+        // things wanting the same thumb is worse than one lying over a corner
+        // of the picture. So that limit stays hard, and only the picture gives.
         if (centreX - reach < inboard) {
             size -= inboard - (centreX - reach);
             if (size < least) return;
