@@ -51,7 +51,7 @@ brings up a +3, a `.trd` a Beta-equipped machine.
 - Writes tapes and disks out, or back over the file they came from
 - Recent files: the last ten
 - Screenshots as PNG, recording to GIF or MP4
-- A demo tape in your tapes folder, offered on the first run
+- A demo tape in your tapes folder — the first run says where
 
 
 ## Display

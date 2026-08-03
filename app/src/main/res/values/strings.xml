@@ -152,6 +152,8 @@
     <string name="profile_delete">Delete profile</string>
     <string name="profile_delete_ask">Delete “%1$s”?</string>
     <string name="profile_last">The controls need one profile, so the last one cannot be deleted.</string>
+    <string name="setup_demo">There is an intro tape in the box too — a wordmark, a starfield and some music on the AY. Open it whenever you like, from Files… or from\n\n%1$s</string>
+
     <string name="overlay_open">Keyboard over the picture</string>
     <string name="overlay_close">Put the keyboard away</string>
 
@@ -186,12 +188,6 @@
     <string name="setup_start">Start the machine</string>
     <string name="setup_start_hint">Done \u2014 boot the Spectrum.</string>
 
-    <string name="demo_title">There is a demo in your tapes folder</string>
-    <string name="demo_message">A short one, written for this app: a wordmark, a starfield and some music on the AY. It is a tape like any other \u2014 load it now, or later from Files.</string>
-    <string name="demo_open">Load the demo</string>
-    <string name="demo_open_hint">Takes a few seconds, the way tapes do.</string>
-    <string name="demo_skip">Not now</string>
-    <string name="demo_skip_hint">Straight to the machine. The tape stays in the folder.</string>
     <string name="roms_needed">ROMs needed</string>
     <string name="roms_needed_message">The app ships the ROMs it is allowed to, but none of them could be put in\n\n%1$s\n\nThat folder may not be writable — Settings › Files can point somewhere else. Or bring your own, whichever way below.</string>
     <string name="roms_blocked">No access to that folder</string>

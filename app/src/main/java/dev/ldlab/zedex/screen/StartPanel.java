@@ -66,9 +66,6 @@ public final class StartPanel {
         /** Whether the emulation thread has been started already. */
         boolean hasStarted();
 
-        /** The first run's offer was taken: load this tape into the machine. */
-        void onOpenDemo(java.io.File tape);
-
         /**
          * Whether the panel is covering the screen. The quick bar has to stay
          * up while it is: the panel swallows the tap that would reveal it,
@@ -130,8 +127,8 @@ public final class StartPanel {
     private Button contentFolder;
     private View start;
 
-    /** The offer of the demo, which is the last thing the first run says. */
-    private final List<View> demo = new ArrayList<>();
+    /** Where the demo tape will be, said on the first run and not asked about. */
+    private TextView demoNote;
 
     /**
      * Whether the first run is on screen and unanswered.
@@ -280,6 +277,17 @@ public final class StartPanel {
         contentFolder.setOnClickListener(v -> chooseContentFolder());
         folders.add(withCaption(contentFolder, R.string.setup_content_hint));
 
+        // Said on the way past rather than asked about. The demo is a tape like
+        // any other once the folders are settled, and a screen of its own
+        // between somebody and the machine they came for is a toll booth: they
+        // have to answer it before the Spectrum appears, and the answer is
+        // nearly always no. This tells them it is there and gets out of the way.
+        demoNote = new TextView(activity);
+        demoNote.setTextAppearance(android.R.style.TextAppearance_DeviceDefault_Small);
+        demoNote.setTextColor(0xff999999);
+        demoNote.setPadding(unit(2), unit(1), unit(2), unit(4));
+        folders.add(demoNote);
+
         start = panelChoice(R.string.setup_start, R.string.setup_start_hint,
                             v -> finishSetup());
         folders.add(start);
@@ -289,15 +297,6 @@ public final class StartPanel {
             content.addView(row);
         }
 
-        demo.add(panelChoice(R.string.demo_open, R.string.demo_open_hint,
-                             v -> loadDemo()));
-        demo.add(panelChoice(R.string.demo_skip, R.string.demo_skip_hint,
-                             v -> hide()));
-
-        for (View row : demo) {
-            row.setVisibility(View.GONE);
-            content.addView(row);
-        }
 
         // Landscape leaves little height, and the message is not short.
         ScrollView scroll = new ScrollView(activity);
@@ -327,8 +326,14 @@ public final class StartPanel {
     }
 
     /** A button with a line under it saying what it does. */
+    /** Four dp, the step everything on this panel is spaced by. */
+    private int unit(int steps) {
+        return Math.round(4 * steps * activity.getResources()
+                .getDisplayMetrics().density);
+    }
+
     private View withCaption(Button button, int description) {
-        int unit = Math.round(4 * activity.getResources().getDisplayMetrics().density);
+        int unit = unit(1);
 
         // A button as wide as the window is a button that reads as a banner,
         // and on a tablet in landscape "Not now" would be two feet of it. Wide
@@ -384,7 +389,6 @@ public final class StartPanel {
         grant.setVisibility(blocked ? View.VISIBLE : View.GONE);
         for (View choice : choices) choice.setVisibility(View.VISIBLE);
         for (View row : folders) row.setVisibility(View.GONE);
-        for (View row : demo) row.setVisibility(View.GONE);
         run.setVisibility(startFailed ? View.VISIBLE : View.GONE);
         panel.setVisibility(View.VISIBLE);
         host.setTakeover(true);
@@ -425,7 +429,6 @@ public final class StartPanel {
 
         for (View choice : choices) choice.setVisibility(View.GONE);
         run.setVisibility(View.GONE);
-        for (View row : demo) row.setVisibility(View.GONE);
         grant.setVisibility(View.GONE);
         for (View row : folders) row.setVisibility(View.VISIBLE);
 
@@ -448,6 +451,12 @@ public final class StartPanel {
         contentFolder.setText(activity.getString(R.string.setup_content,
                 content != null ? content
                         : activity.getString(R.string.setup_content_none)));
+
+        // Named from the folder as it stands, and said again whenever that
+        // changes: the tape follows the data folder, and this row is above the
+        // button that settles it.
+        demoNote.setText(activity.getString(R.string.setup_demo,
+                Storage.demoTape(activity).getAbsolutePath()));
     }
 
     /**
@@ -545,44 +554,14 @@ public final class StartPanel {
         Storage.installRoms(activity);
 
         // The demo goes in the same folder the ROMs did and for the same
-        // reason: this is the moment the folders are settled.
-        File tape = Storage.installDemo(activity);
+        // reason: this is the moment the folders are settled. Nothing is asked
+        // about it - the panel said where it would be, and it is a tape like
+        // any other from here on.
+        Storage.installDemo(activity);
 
         hide();
         host.onRomsChanged();
 
-        // Offered after the machine has been asked for, not instead of it: the
-        // Spectrum boots behind the panel either way, so "not now" is already
-        // where it needs to be and the offer costs nothing to decline.
-        if (tape != null) showDemoOffer();
-    }
-
-    /**
-     * The one thing the first run says after the folders: there is a demo, and
-     * it can be loaded now.
-     *
-     * Only ever here. A prompt on every launch would be a nag, and a prompt on
-     * an upgrade would interrupt somebody who has been playing for a month -
-     * which is the same reasoning {@link #setupNeeded} already applies to the
-     * folders. The tape is in the folder regardless; this is a shortcut, not
-     * the only way to it.
-     */
-    private void showDemoOffer() {
-        title.setText(R.string.demo_title);
-        message.setText(R.string.demo_message);
-
-        for (View choice : choices) choice.setVisibility(View.GONE);
-        for (View row : folders) row.setVisibility(View.GONE);
-        run.setVisibility(View.GONE);
-        for (View row : demo) row.setVisibility(View.VISIBLE);
-
-        panel.setVisibility(View.VISIBLE);
-        host.setTakeover(true);
-    }
-
-    private void loadDemo() {
-        hide();
-        host.onOpenDemo(Storage.demoTape(activity));
     }
 
     public void hide() {
@@ -605,8 +584,7 @@ public final class StartPanel {
             message.setText(detail);
 
             for (View choice : choices) choice.setVisibility(View.GONE);
-            for (View row : demo) row.setVisibility(View.GONE);
-            grant.setVisibility(View.GONE);
+                grant.setVisibility(View.GONE);
             run.setVisibility(View.GONE);
 
             panel.setVisibility(View.VISIBLE);
@@ -637,7 +615,6 @@ public final class StartPanel {
                                            missing.size(), names.toString()));
 
         for (View choice : choices) choice.setVisibility(View.VISIBLE);
-        for (View row : demo) row.setVisibility(View.GONE);
         grant.setVisibility(View.GONE);
         run.setVisibility(View.VISIBLE);
 
@@ -765,8 +742,7 @@ public final class StartPanel {
                                                reason == null ? "" : reason));
 
             for (View choice : choices) choice.setVisibility(View.VISIBLE);
-            for (View row : demo) row.setVisibility(View.GONE);
-            grant.setVisibility(View.GONE);
+                grant.setVisibility(View.GONE);
             run.setVisibility(Storage.haveRoms(activity) ? View.VISIBLE : View.GONE);
 
             panel.setVisibility(View.VISIBLE);

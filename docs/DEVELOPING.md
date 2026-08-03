@@ -176,12 +176,12 @@ AGP's `addGeneratedSourceDirectory`, which wires every consumer there is and any
 added later. `assembleDebug` will not catch a regression here — `lintVital` only
 runs for release, so check with `./gradlew assembleRelease`.
 
-The first run — and only the first run — then offers to load it. Later launches
-never ask, and an upgrade never asks: interrupting somebody who has been playing
-for a month to show them a demo is not a welcome. The instrumentation suite is
-unaffected, because `Emulator.setUp` writes a preference before launching and
-`setupNeeded` therefore already returns false for it — the tests have never seen
-the setup panel and do not see this either.
+The first run says where it is and nothing more — a line under the two folder
+buttons, naming the path, kept in step as the data folder is chosen. It used to
+be a screen of its own with *Load the demo* and *Not now* on it, and that is a
+toll booth: an answer demanded before the Spectrum appears, when the answer is
+nearly always no and the tape is a tape either way. Nothing asks on any later
+launch, and nothing asks on an upgrade.
 
 Loading it by hand: put it in the content folder and open it like any other
 tape, or hand it straight over —

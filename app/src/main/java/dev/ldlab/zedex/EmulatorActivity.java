@@ -597,17 +597,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         }
 
         @Override
-        public void onOpenDemo(java.io.File tape) {
-            // Off the UI thread, like every other open: the file is already a
-            // path in our own folder, so there is nothing to stage - but the
-            // call goes to Fuse and Fuse is not this thread's to call.
-            new Thread(() -> {
-                FuseNative.openFile(tape.getAbsolutePath());
-                note(R.string.file_opened, tape.getName());
-            }).start();
-        }
-
-        @Override
         public void setTakeover(boolean covering) {
             hideBarForPanel(covering);
         }
