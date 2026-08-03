@@ -67,6 +67,9 @@ public final class Storage {
     private static final String SHOTS = "screenshots";
     private static final String FILMS = "recordings";
 
+    /** What a folder is called when it tells the media scanner to walk past. */
+    private static final String NOMEDIA = ".nomedia";
+
     /**
      * The DivMMC's firmware, which is not a machine ROM and not ours to ship.
      *
@@ -419,6 +422,44 @@ public final class Storage {
         cardsDirectory(context).mkdirs();
         screenshotsDirectory(context).mkdirs();
         recordingsDirectory(context).mkdirs();
+
+        hideFromGallery(context);
+    }
+
+    /**
+     * Keeps what is ours out of the phone's photos.
+     *
+     * A save state carries a thumbnail of the screen it was taken from, and the
+     * data folder is somewhere shared if it is worth anything - so a hundred
+     * saves are a hundred pictures of a Spectrum in among the family
+     * photographs. The machine's own files are no better as gallery entries.
+     *
+     * {@code .nomedia} is how a folder says so: the media scanner skips it and
+     * everything inside it. Written on every start rather than only when the
+     * folders are made, so a folder that predates this, or one the user has
+     * just pointed the app at, is covered too.
+     *
+     * Not the screenshots, and not the recordings. Those are made deliberately
+     * and made to be shared, and a screenshot that cannot be found in the
+     * gallery afterwards is a screenshot taken for nothing.
+     */
+    private static void hideFromGallery(Context context) {
+        File[] ours = {
+            statesDirectory(context), romsDirectory(context),
+            tapesDirectory(context), disksDirectory(context),
+            cardsDirectory(context),
+        };
+
+        for (File folder : ours) {
+            File marker = new File(folder, NOMEDIA);
+            if (!folder.isDirectory() || marker.exists()) continue;
+
+            try {
+                marker.createNewFile();
+            } catch (IOException | SecurityException e) {
+                Log.w(TAG, "cannot hide " + folder + " from the gallery", e);
+            }
+        }
     }
 
     /**

@@ -134,7 +134,7 @@ stick means the game wants a different interface.
 
 | | |
 | --- | --- |
-| Data folder | `roms`, `states`, `tapes`, `disks`, `screenshots`, `recordings`. Its own storage by default; somewhere shared keeps them if the app is uninstalled |
+| Data folder | `roms`, `states`, `tapes`, `disks`, `screenshots`, `recordings`. Its own storage by default; somewhere shared keeps them if the app is uninstalled. Only the last two reach your gallery — a save state's thumbnail is not a photograph |
 | Content folder | where *Open file…* starts |
 
 **ROMs** are installed on first run, never over a file you put there yourself.
