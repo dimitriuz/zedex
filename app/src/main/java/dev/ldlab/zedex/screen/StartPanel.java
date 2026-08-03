@@ -14,6 +14,7 @@ import android.provider.DocumentsContract;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
@@ -123,8 +124,8 @@ public final class StartPanel {
 
     /** The two folder rows of the first run, and the way on from it. */
     private final List<View> folders = new ArrayList<>();
-    private Button dataFolder;
-    private Button contentFolder;
+    private TextView dataFolder;
+    private TextView contentFolder;
     private View start;
 
     /** Where the demo tape will be, said on the first run and not asked about. */
@@ -227,20 +228,22 @@ public final class StartPanel {
      * that a missing ROM used to leave behind with no way out of it.
      */
     private View buildPanel() {
-        int pad = Math.round(24 * activity.getResources().getDisplayMetrics().density);
+        int pad = unit(6);
 
-        LinearLayout content = new LinearLayout(activity);
-        content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(pad, pad, pad, pad);
+        Column content = new Column(activity, unit(150));
+        content.setPadding(pad, unit(10), pad, pad);
 
         title = new TextView(activity);
-        title.setTextAppearance(android.R.style.TextAppearance_DeviceDefault_Large);
-        title.setTextColor(Color.WHITE);
+        title.setTextSize(26);
+        title.setTextColor(TEXT);
+        title.setLetterSpacing(-0.01f);
         content.addView(title);
 
         message = new TextView(activity);
-        message.setTextColor(0xffbbbbbb);
-        message.setPadding(0, pad / 2, 0, pad / 2);
+        message.setTextSize(15);
+        message.setTextColor(DIM);
+        message.setLineSpacing(unit(1), 1f);
+        message.setPadding(0, unit(2), 0, unit(5));
         content.addView(message);
 
         // Above the three ways of finding ROMs, because where this one applies
@@ -269,27 +272,35 @@ public final class StartPanel {
         // And the first run's two folders, which are the same kind of row with
         // the answer written on the button: what a folder is called matters
         // more here than what the row would do to it.
-        dataFolder = new Button(activity);
-        dataFolder.setOnClickListener(v -> chooseDataFolder());
-        folders.add(withCaption(dataFolder, R.string.setup_data_hint));
+        dataFolder = new TextView(activity);
+        folders.add(folderCard(dataFolder, R.string.setup_data_hint,
+                               v -> chooseDataFolder()));
 
-        contentFolder = new Button(activity);
-        contentFolder.setOnClickListener(v -> chooseContentFolder());
-        folders.add(withCaption(contentFolder, R.string.setup_content_hint));
+        contentFolder = new TextView(activity);
+        folders.add(folderCard(contentFolder, R.string.setup_content_hint,
+                               v -> chooseContentFolder()));
 
         // Said on the way past rather than asked about. The demo is a tape like
         // any other once the folders are settled, and a screen of its own
         // between somebody and the machine they came for is a toll booth: they
         // have to answer it before the Spectrum appears, and the answer is
         // nearly always no. This tells them it is there and gets out of the way.
+        //
+        // Its own quiet card, with the icon's cyan down the near edge: it is
+        // the one row here that asks for nothing, so it should not look like
+        // the ones that do.
         demoNote = new TextView(activity);
-        demoNote.setTextAppearance(android.R.style.TextAppearance_DeviceDefault_Small);
-        demoNote.setTextColor(0xff999999);
-        demoNote.setPadding(unit(2), unit(1), unit(2), unit(4));
-        folders.add(demoNote);
+        demoNote.setTextSize(14);
+        demoNote.setTextColor(DIM);
+        demoNote.setLineSpacing(unit(1), 1f);
+        demoNote.setPadding(unit(4), unit(3), unit(4), unit(3));
+        demoNote.setBackground(stripe(CARD, CYAN));
+        folders.add(spaced(demoNote));
 
+        // The one that gets on with it, in the icon's cyan: every other row
+        // here is a detour, and this is the way out.
         start = panelChoice(R.string.setup_start, R.string.setup_start_hint,
-                            v -> finishSetup());
+                            v -> finishSetup(), true);
         folders.add(start);
 
         for (View row : folders) {
@@ -299,11 +310,19 @@ public final class StartPanel {
 
 
         // Landscape leaves little height, and the message is not short.
+        //
+        // Centred, because the column stops at a readable width and the rest of
+        // a tablet is margin: left where it fell, the whole screen read as one
+        // corner of a page with nothing on the other two thirds of it.
         ScrollView scroll = new ScrollView(activity);
-        scroll.setBackgroundColor(0xff000000);
-        scroll.addView(content, new FrameLayout.LayoutParams(
+        scroll.setBackgroundColor(BACK);
+
+        FrameLayout.LayoutParams middle = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT));
+                FrameLayout.LayoutParams.WRAP_CONTENT);
+        middle.gravity = android.view.Gravity.CENTER_HORIZONTAL;
+
+        scroll.addView(content, middle);
         scroll.setLayoutParams(new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT));
@@ -317,12 +336,79 @@ public final class StartPanel {
      * folder" and "Choose files" are not self-explaining on their own.
      */
     private View panelChoice(int label, int description, View.OnClickListener action) {
-        Button button = new Button(activity);
+        return panelChoice(label, description, action, false);
+    }
 
-        button.setText(label);
-        button.setOnClickListener(action);
+    /**
+     * One thing that can be done: what it is, and a line saying what it does.
+     *
+     * A card rather than a button with a caption under it. A stock button on
+     * black is a grey lozenge with no relation to anything else on the screen,
+     * and the caption belonging to it was only implied by being nearby - so a
+     * column of them read as a list of loose parts. Here the two lines are
+     * inside the thing you tap, which is what makes it one row.
+     */
+    private View panelChoice(int label, int description,
+                             View.OnClickListener action, boolean primary) {
+        LinearLayout row = new LinearLayout(activity);
 
-        return withCaption(button, description);
+        row.setOrientation(LinearLayout.VERTICAL);
+        row.setBackground(card(primary ? CYAN : CARD));
+        row.setPadding(unit(4), unit(3), unit(4), unit(3));
+        row.setOnClickListener(action);
+        touchable(row);
+
+        TextView name = new TextView(activity);
+        name.setText(label);
+        name.setTextSize(17);
+        name.setTextColor(primary ? ON_CYAN : TEXT);
+        row.addView(name);
+
+        TextView caption = new TextView(activity);
+        caption.setText(description);
+        caption.setTextSize(13);
+        caption.setTextColor(primary ? 0xcc05222a : DIM);
+        caption.setLineSpacing(unit(1) / 2f, 1f);
+        caption.setPadding(0, unit(1), 0, 0);
+        row.addView(caption);
+
+        return spaced(row);
+    }
+
+    /** The same shape, holding a value this class keeps up to date. */
+    private View folderCard(TextView value, int description,
+                            View.OnClickListener action) {
+        LinearLayout row = new LinearLayout(activity);
+
+        row.setOrientation(LinearLayout.VERTICAL);
+        row.setBackground(card(CARD));
+        row.setPadding(unit(4), unit(3), unit(4), unit(3));
+        row.setOnClickListener(action);
+        touchable(row);
+
+        value.setTextSize(17);
+        value.setTextColor(TEXT);
+        row.addView(value);
+
+        TextView caption = new TextView(activity);
+        caption.setText(description);
+        caption.setTextSize(13);
+        caption.setTextColor(DIM);
+        caption.setLineSpacing(unit(1) / 2f, 1f);
+        caption.setPadding(0, unit(1), 0, 0);
+        row.addView(caption);
+
+        return spaced(row);
+    }
+
+    /** The platform's own press feedback, over whatever the row is painted. */
+    private void touchable(View row) {
+        android.util.TypedValue found = new android.util.TypedValue();
+
+        if (activity.getTheme().resolveAttribute(
+                android.R.attr.selectableItemBackground, found, true)) {
+            row.setForeground(activity.getDrawable(found.resourceId));
+        }
     }
 
     /** A button with a line under it saying what it does. */
@@ -332,33 +418,90 @@ public final class StartPanel {
                 .getDisplayMetrics().density);
     }
 
-    private View withCaption(Button button, int description) {
-        int unit = unit(1);
+    // --- the look of it ------------------------------------------------------
+    //
+    // Built here rather than in a theme or a drawable folder for the reason
+    // everything else in this app is built in code: there are no dependencies
+    // to inflate with, and one file that says how the screen looks beats a
+    // colour in one place and a shape in another.
+    //
+    // The palette is the app's own - the dark plate of the icon, and the cyan
+    // that marks a chosen thing in the key editor.
 
-        // A button as wide as the window is a button that reads as a banner,
-        // and on a tablet in landscape "Not now" would be two feet of it. Wide
-        // enough for a short label to still look pressable, no wider than a
-        // line of text wants to be, and a long folder path wraps inside it
-        // rather than stretching the row.
-        button.setLayoutParams(new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
-        button.setMinWidth(unit * 44);
-        button.setMaxWidth(unit * 96);
+    private static final int BACK = 0xff0e0f13;
+    private static final int CARD = 0xff1b1d24;
+    private static final int EDGE = 0x14ffffff;
+    private static final int TEXT = 0xfff1f1f6;
+    private static final int DIM = 0xff989aa6;
+    private static final int CYAN = 0xff00b0c8;
+    private static final int ON_CYAN = 0xff05222a;
 
-        LinearLayout group = new LinearLayout(activity);
-        group.setOrientation(LinearLayout.VERTICAL);
-        group.addView(button);
+    /** A card: the shape every row on this panel is. */
+    private android.graphics.drawable.Drawable card(int fill) {
+        android.graphics.drawable.GradientDrawable shape =
+                new android.graphics.drawable.GradientDrawable();
 
-        TextView caption = new TextView(activity);
-        caption.setText(description);
-        caption.setTextAppearance(android.R.style.TextAppearance_DeviceDefault_Small);
-        caption.setTextColor(0xff999999);
-        caption.setPadding(unit * 2, unit, unit * 2, unit * 4);
-        group.addView(caption);
+        shape.setColor(fill);
+        shape.setCornerRadius(unit(3));
+        shape.setStroke(Math.max(1, unit(1) / 4), EDGE);
 
-        return group;
+        return shape;
     }
+
+    /** The same, with a band of colour down the leading edge. */
+    private android.graphics.drawable.Drawable stripe(int fill, int accent) {
+        android.graphics.drawable.GradientDrawable band =
+                new android.graphics.drawable.GradientDrawable();
+        band.setColor(accent);
+        band.setCornerRadius(unit(3));
+
+        android.graphics.drawable.LayerDrawable both =
+                new android.graphics.drawable.LayerDrawable(
+                        new android.graphics.drawable.Drawable[] { band, card(fill) });
+
+        both.setLayerInset(1, unit(1), 0, 0, 0);
+        return both;
+    }
+
+    /** A row, with air under it. */
+    private View spaced(View row) {
+        LinearLayout holder = new LinearLayout(activity);
+        holder.setOrientation(LinearLayout.VERTICAL);
+        holder.addView(row, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        holder.setPadding(0, 0, 0, unit(3));
+
+        return holder;
+    }
+
+    /**
+     * A column that stops growing.
+     *
+     * A line of text the whole width of a tablet is a line nobody can follow
+     * back to its start, and the panel is mostly prose. Sixty characters or so
+     * is the width this settles at; the rest of the window is margin, and the
+     * column sits in the middle of it.
+     */
+    private static final class Column extends LinearLayout {
+
+        private final int most;
+
+        Column(android.content.Context context, int most) {
+            super(context);
+            this.most = most;
+            setOrientation(VERTICAL);
+        }
+
+        @Override
+        protected void onMeasure(int widthSpec, int heightSpec) {
+            if (MeasureSpec.getSize(widthSpec) > most) {
+                widthSpec = MeasureSpec.makeMeasureSpec(most, MeasureSpec.EXACTLY);
+            }
+            super.onMeasure(widthSpec, heightSpec);
+        }
+    }
+
 
     /**
      * @param startFailed whether Fuse tried and gave up, which needs a new
