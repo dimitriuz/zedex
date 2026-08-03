@@ -111,6 +111,13 @@ public final class Media {
     /** Which drive a pending "load disk" belongs to. */
     private int pendingDrive = -1;
 
+    /**
+     * The last file opened through the picker, and so the folder the next one
+     * starts in. Deliberately not stored anywhere: a fresh start goes back to
+     * the content folder. See {@link #start}.
+     */
+    private Uri lastPicked;
+
     public Media(Activity activity, SharedPreferences preferences, Host host) {
         this.activity = activity;
         this.preferences = preferences;
@@ -155,7 +162,21 @@ public final class Media {
                           | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
         }
 
-        Uri from = Storage.contentFolder(activity);
+        // Where the browsing starts: the content folder the first time, and
+        // after that wherever the last file came from.
+        //
+        // A field and not a preference, so it lasts exactly as long as the
+        // process. Somebody working through one folder of games should not be
+        // put back at the top for each of them; somebody coming back tomorrow
+        // is starting again, and the folder they chose once is the better guess
+        // than whatever they happened to open last.
+        //
+        // The picked document rather than its parent: the picker opens the
+        // folder that holds it, which is what "where the last file came from"
+        // means, and works it out per provider - which string surgery on a
+        // document id would not.
+        Uri from = lastPicked != null ? lastPicked
+                                      : Storage.contentFolder(activity);
         if (from != null) {
             intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, from);
         }
@@ -178,6 +199,8 @@ public final class Media {
 
         Uri uri = data.getData();
         if (uri == null) return true;
+
+        lastPicked = uri;
 
         if (request == REQUEST_LOAD_DISK) {
             int drive = pendingDrive;
