@@ -108,7 +108,7 @@ def zedexDate = gitStamp('log', '-1', '--date=format:%Y-%m-%d', '--format=%cd')
 
 android {
     namespace 'dev.ldlab.zedex'
-    compileSdk 34
+    compileSdk 35
 
     // The ROMs live at the root of the repository, beside the licence they
     // travel under, rather than buried three directories inside the app: they
@@ -124,7 +124,11 @@ android {
     defaultConfig {
         applicationId 'dev.ldlab.zedex'   // must match DATA_ROOT in scripts/build-native.sh
         minSdk 30                        // Android 11
-        targetSdk 34
+        // Play's floor, and it moves: 35 since August 2026. Bumping it is not
+        // only a number - an app targeting 35 is edge to edge whether it asks
+        // or not, and its native libraries have to be built for 16 KB pages.
+        // Both are already true here; see docs/DEVELOPING.md.
+        targetSdk 35
         versionCode zedexVersionCode
         versionName zedexVersionName
 

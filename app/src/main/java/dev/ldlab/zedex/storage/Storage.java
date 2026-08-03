@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.storage;
 
+import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.media.Media;
 import dev.ldlab.zedex.screen.SettingsActivity;
 import dev.ldlab.zedex.screen.StartPanel;
@@ -72,8 +73,18 @@ public final class Storage {
     /** What a folder is called when it tells the media scanner to walk past. */
     private static final String NOMEDIA = ".nomedia";
 
-    /** What the app calls its own folder, wherever that folder is. */
-    private static final String SHARED_ROOT = "Zedex";
+    /**
+     * What the app calls its own folder, wherever that folder is.
+     *
+     * A resource rather than a constant, because the debug build must not share
+     * one with the release build: different packages are different uids, and
+     * scoped storage hands an app only what it wrote itself, so the second one
+     * installed would find an empty folder whose filenames were all taken by
+     * files it cannot see. See {@code src/debug/res/values/strings.xml}.
+     */
+    private static String folderName(Context context) {
+        return context.getString(R.string.data_folder);
+    }
 
     /**
      * Whether this build declares All files access, cached because the answer
@@ -217,7 +228,7 @@ public final class Storage {
      */
     public static List<File> roots(Context context) {
         List<File> roots = new ArrayList<>();
-        roots.add(documentsRoot());
+        roots.add(documentsRoot(context));
         roots.add(context.getFilesDir());
 
         for (File external : context.getExternalFilesDirs(null)) {
@@ -229,7 +240,7 @@ public final class Storage {
 
     public static String label(Context context, File root) {
         if (root.equals(context.getFilesDir())) return "Internal storage";
-        if (root.equals(documentsRoot())) return "Documents";
+        if (root.equals(documentsRoot(context))) return "Documents";
 
         try {
             if (Environment.isExternalStorageRemovable(root)) return "SD card";
@@ -441,8 +452,9 @@ public final class Storage {
      * All files access to make, so only the builds that declare it can offer
      * this. See {@link #canAskForAnyFolder}.
      */
-    public static File sharedRoot() {
-        return new File(Environment.getExternalStorageDirectory(), SHARED_ROOT);
+    public static File sharedRoot(Context context) {
+        return new File(Environment.getExternalStorageDirectory(),
+                        folderName(context));
     }
 
     /**
@@ -469,10 +481,10 @@ public final class Storage {
      * and every screenshot end up where the person who made them cannot open
      * them.
      */
-    public static File documentsRoot() {
+    public static File documentsRoot(Context context) {
         File documents = new File(Environment.getExternalStorageDirectory(),
                                   Environment.DIRECTORY_DOCUMENTS);
-        return new File(documents, SHARED_ROOT);
+        return new File(documents, folderName(context));
     }
 
     /**
@@ -484,7 +496,7 @@ public final class Storage {
      * {@link #roots} will accept; it does not change where things start.
      */
     public static File defaultRoot(Context context) {
-        if (isWritable(documentsRoot())) return documentsRoot();
+        if (isWritable(documentsRoot(context))) return documentsRoot(context);
 
         for (File external : context.getExternalFilesDirs(null)) {
             if (external != null && isWritable(external)) return external;
@@ -580,7 +592,7 @@ public final class Storage {
         File ours = new File(
                 new File(Environment.getExternalStorageDirectory(),
                          Environment.DIRECTORY_PICTURES),
-                SHARED_ROOT);
+                folderName(context));
 
         // The cheap test first: this is asked for on every screenshot, and once
         // the folder is there it is only a stat.

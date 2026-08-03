@@ -312,6 +312,53 @@ on its own prints no certificate at all, so a grep for the debug key finds
 nothing and passes whatever it was handed - a check that always succeeds. The
 workflow makes the same two checks, and the ABIs, on every tag.
 
+### 16 KB pages, and why a bump is not just a number
+
+Play's target-API floor moves; it is 35 as of August 2026, and `targetSdk` in
+`app/build.gradle` follows it. Two things come with targeting 35 or later.
+
+**Native libraries must be 16 KB page aligned.** Android 15 can run with 16 KB
+pages, and a library whose `LOAD` segments are 4 KB aligned cannot be mapped on
+such a device at all — it is not a warning to be lived with. The NDK's own CMake
+and ndk-build toolchains pass the flag; `scripts/build-native.sh` drives the
+target clang by hand and so has to say it itself, `-Wl,-z,max-page-size=16384`,
+on both `LDFLAGS` and the explicit `libfuse.so` link line. The script checks the
+result and stops if it is wrong:
+
+```sh
+readelf -lW app/src/main/jniLibs/arm64-v8a/libfuse.so | grep LOAD
+# the alignment column must be 0x4000, not 0x1000
+```
+
+So **raising `targetSdk` means re-running the native build**, not only Gradle. A
+4 KB library is invisible on every device anyone is likely to test on.
+
+**Edge-to-edge is enforced.** This costs nothing here: `EmulatorActivity`
+already calls `setDecorFitsSystemWindows(false)` and hides the system bars, so
+there is nothing for the bars to overlap. Verified on an API 36 emulator, both
+ways up, after the bump.
+
+### Native debug symbols
+
+`build-native.sh` keeps the unstripped library beside the stripped one:
+`app/src/main/jniLibs/` gets the stripped 1.8 MB that ships, and
+`build-native/symbols/<abi>/libfuse.so` the 2.1 MB with the symbol table. The
+release workflow zips the second into `Zedex-<version>-symbols.zip` and puts it
+in the same run artifact as the bundle; upload it in the Console under *App
+bundle explorer › Downloads › upload native debug symbols*. Without it a native
+crash report is a list of addresses.
+
+Neither `build-native/` nor `jniLibs/` is in git, so both are rebuilt by any
+build and there is nothing to keep in step.
+
+**The debug build's data folder is its own**, `Documents/Zedex-debug`, set by
+`R.string.data_folder` in `app/src/debug/res/values/strings.xml`. It has to be:
+the two builds are different packages and so different uids, and scoped storage
+gives an app only the files it wrote, so sharing a folder means whichever
+installed second finds it empty and cannot write into it either — the filenames
+it wants belong to files it is not allowed to see. That shows up as *ROMs
+needed* with nothing in the log to explain it.
+
 **The debug build is a package of its own**, `dev.ldlab.zedex.debug`, called
 *Zedex debug* on the launcher. It installs beside the release build rather than
 replacing it — which it could not do anyway, the two being signed with

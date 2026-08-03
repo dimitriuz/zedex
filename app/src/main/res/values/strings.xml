@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Zedex</string>
+
+    <!--
+        The folder the app makes for itself, in Documents and in Pictures. A
+        string so that the debug build can have one of its own - see
+        src/debug/res/values/strings.xml for why it must.
+    -->
+    <string name="data_folder" translatable="false">Zedex</string>
     <string name="machine_title">Machine</string>
     <string name="menu_open">Open file\u2026</string>
     <string name="menu_recent">Open recent\u2026</string>

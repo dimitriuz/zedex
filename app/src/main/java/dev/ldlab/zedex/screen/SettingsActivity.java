@@ -645,7 +645,7 @@ public class SettingsActivity extends AppCompatActivity
             // Only a build that declares All files access can go looking
             // outside them; see Storage.canAskForAnyFolder.
             boolean anywhere = Storage.canAskForAnyFolder(getActivity());
-            if (anywhere) roots.add(Storage.sharedRoot());
+            if (anywhere) roots.add(Storage.sharedRoot(getActivity()));
 
             String[] items = new String[roots.size() + (anywhere ? 1 : 0)];
 

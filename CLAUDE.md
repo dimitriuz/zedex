@@ -42,6 +42,28 @@ expensive to rediscover.
 - **`app/debug.keystore` is committed on purpose.** Gradle's own debug key is
   per machine, so a CI build could not update a local one — or another CI
   build. See *Building* in `docs/DEVELOPING.md`.
+- **`targetSdk` is Play's floor, and it moves.** 35 since August 2026. Raising
+  it is not only a number: an app targeting 35 or later must have **16 KB page
+  aligned** native libraries, which is `-Wl,-z,max-page-size=16384` on the link
+  line in `scripts/build-native.sh`. The NDK's own CMake toolchain passes it; a
+  hand-driven cross-compile like ours gets the 4 KB default, and a 4 KB library
+  builds, installs and runs on every current device while being unmappable on a
+  16 KB one. The script asserts `0x4000` at the end for exactly that reason.
+  **Bumping `targetSdk` therefore means re-running the native build**, not just
+  Gradle. Edge-to-edge enforcement, the other API 35 change, costs nothing here:
+  the app already calls `setDecorFitsSystemWindows(false)` and hides the system
+  bars.
+- **The debug build's data folder must not be the release build's.**
+  `R.string.data_folder` is `Zedex` in `src/main` and `Zedex-debug` in
+  `src/debug`, and that difference is load bearing. The two are separate
+  packages and so separate uids; scoped storage hands an app only the files it
+  wrote itself, so pointed at one folder the second one installed finds it empty
+  *and* cannot write into it, the names it wants being taken by files it is not
+  allowed to see. The symptom is *ROMs needed* on a machine where the other
+  build ran first, with nothing in the log to say why. No space in the name
+  either: every `adb shell ls` and script that names the folder would need
+  quoting, and one that forgot silently listed the release build's folder
+  instead and looked like it had worked.
 - **The Play build has no All files access, and that is the whole point of it.**
   `assembleDebug` and `assembleRelease` declare `MANAGE_EXTERNAL_STORAGE`;
   `assemblePlay`/`bundlePlay` strip it in `app/src/play/AndroidManifest.xml` with

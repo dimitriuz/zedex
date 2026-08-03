@@ -1,8 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    The debug build installs beside the release one rather than replacing it,
-    so it has to say which it is: two icons called Zedex would be a coin toss.
--->
 <resources>
-    <string name="app_name">Zedex debug</string>
+    <!--
+        The debug build keeps its files apart from the release build's, as it
+        keeps its package, its settings and its storage permission apart.
+
+        It has to. The two are different packages and so different uids, and
+        scoped storage hands an app only the files it wrote itself: pointed at
+        one folder, whichever installed second sees an empty one it cannot even
+        write into, because the names it wants are taken by files it is not
+        allowed to see. That reads as "ROMs needed" on a machine where the
+        release build ran first, and nothing says why.
+
+        No space in the name, deliberately: every adb command, script and doc
+        that names the folder would need quoting, and one that forgot would list
+        the release build's folder instead and look like it had worked.
+    -->
+    <string name="data_folder" translatable="false">Zedex-debug</string>
 </resources>

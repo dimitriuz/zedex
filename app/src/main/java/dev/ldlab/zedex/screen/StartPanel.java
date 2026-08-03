@@ -656,7 +656,7 @@ public final class StartPanel {
         // worth offering to a build that can ask for the permission they need.
         boolean anywhere = Storage.canAskForAnyFolder(activity);
 
-        if (anywhere) roots.add(Storage.sharedRoot());
+        if (anywhere) roots.add(Storage.sharedRoot(activity));
         roots.addAll(Storage.roots(activity));
 
         String[] items = new String[roots.size() + (anywhere ? 1 : 0)];
