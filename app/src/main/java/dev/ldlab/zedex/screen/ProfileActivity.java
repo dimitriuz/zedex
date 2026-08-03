@@ -4,6 +4,7 @@ import dev.ldlab.zedex.FuseNative;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.input.ControlProfiles;
 import dev.ldlab.zedex.view.SpectrumKeyboardView;
+import dev.ldlab.zedex.view.SafeArea;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
@@ -59,6 +60,9 @@ public final class ProfileActivity extends Activity
 
         preferences = getSharedPreferences(SettingsActivity.PREFS, MODE_PRIVATE);
         setContentView(build());
+
+        // Nothing of ours under the status bar or the camera; see SafeArea.
+        SafeArea.fit(findViewById(android.R.id.content));
         showKeys();
     }
 

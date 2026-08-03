@@ -455,10 +455,25 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         layout.setOnApplyWindowInsetsListener((ignored, insets) -> {
             boolean visible = insets.isVisible(WindowInsets.Type.ime());
 
+            /*
+             * What the window is allowed to use, which is not all of it.
+             *
+             * An app targeting API 35 is laid out into the display cutout
+             * whether it asks or not: the mode that used to letterbox the
+             * window away from a camera hole is read as "always" now, so the
+             * quick bar's icons ended up underneath one. The bars are hidden
+             * here and report nothing, which is what makes asking for both
+             * safe - it comes out as the cutout alone, and as zero on a device
+             * without one.
+             */
+            android.graphics.Insets safe = insets.getInsets(
+                    WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+
             layout.setInsets(
                     visible ? insets.getInsets(WindowInsets.Type.ime()).bottom : 0,
                     insets.getInsets(WindowInsets.Type.mandatorySystemGestures())
-                          .bottom);
+                          .bottom,
+                    safe.left, safe.top, safe.right, safe.bottom);
 
             if (visible) imeSeen = true;
 

@@ -3,6 +3,7 @@ package dev.ldlab.zedex.screen;
 import dev.ldlab.zedex.EmulatorActivity;
 import dev.ldlab.zedex.FuseNative;
 import dev.ldlab.zedex.R;
+import dev.ldlab.zedex.view.SafeArea;
 import dev.ldlab.zedex.storage.States;
 import dev.ldlab.zedex.storage.Storage;
 import android.app.Activity;
@@ -78,6 +79,9 @@ public final class StatesActivity extends Activity {
 
         setTitle(saving ? R.string.menu_save_state : R.string.menu_load_state);
         setContentView(page());
+
+        // Nothing of ours under the status bar or the camera; see SafeArea.
+        SafeArea.fit(findViewById(android.R.id.content));
 
         // The platform's own bar carries the title and the way back, so there
         // is no heading of ours underneath it saying the same thing again.

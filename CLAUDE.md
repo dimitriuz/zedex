@@ -50,9 +50,28 @@ expensive to rediscover.
   builds, installs and runs on every current device while being unmappable on a
   16 KB one. The script asserts `0x4000` at the end for exactly that reason.
   **Bumping `targetSdk` therefore means re-running the native build**, not just
-  Gradle. Edge-to-edge enforcement, the other API 35 change, costs nothing here:
-  the app already calls `setDecorFitsSystemWindows(false)` and hides the system
-  bars.
+  Gradle.
+- **Everything of ours stays inside the safe area, and the cutout is the reason.**
+  Targeting API 35 lays a window into the display cutout whether it asks or not:
+  the mode that used to letterbox it away from a camera hole is read as
+  `ALWAYS`, and it cannot be opted out of. Hiding the system bars does not help
+  — a bar that is hidden reports a zero inset, but `displayCutout()` does not.
+  So both of these were wrong on a phone with a hole, and neither showed up on
+  an emulator without one: the quick bar's icons sat under the camera, and the
+  settings page drew its title over its own tabs.
+  - `EmulatorLayout` keeps a `safe` rect. `arrange()` is given the window minus
+    it and works from 0,0 as it always did; `placeChild` adds the offset. No
+    branch of that method knows a cutout exists, which is the only reason this
+    was a small change.
+  - Everything else — settings, states, about, the hotkeys and the profile
+    editor — builds its own view tree and gets `SafeArea.fit()` on
+    `android.R.id.content`. Padding is the whole of what a column needs.
+  - **Test it with a cutout, because the AVDs have none.**
+    `adb shell cmd overlay enable --user 0
+    com.android.internal.display.cutout.emulation.hole`, then reboot — the
+    overlay does not take effect until the display is reconfigured. `dumpsys
+    window | grep DisplayCutout` should report a top inset. Sideways it moves to
+    one end, which is where the joystick and the keys are.
 - **The debug build's data folder must not be the release build's.**
   `R.string.data_folder` is `Zedex` in `src/main` and `Zedex-debug` in
   `src/debug`, and that difference is load bearing. The two are separate

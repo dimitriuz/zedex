@@ -3,6 +3,7 @@ package dev.ldlab.zedex.screen;
 import dev.ldlab.zedex.input.ControlProfiles;
 import dev.ldlab.zedex.input.Controls;
 import dev.ldlab.zedex.view.SpectrumKeyboardView;
+import dev.ldlab.zedex.view.SafeArea;
 import dev.ldlab.zedex.EmulatorActivity;
 import dev.ldlab.zedex.FuseNative;
 import dev.ldlab.zedex.R;
@@ -345,6 +346,9 @@ public class SettingsActivity extends AppCompatActivity
         }
 
         setContentView(buildTabs());
+
+        // Nothing of ours under the status bar or the camera; see SafeArea.
+        SafeArea.fit(findViewById(android.R.id.content));
         show(selected);
     }
 

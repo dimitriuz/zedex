@@ -333,10 +333,29 @@ readelf -lW app/src/main/jniLibs/arm64-v8a/libfuse.so | grep LOAD
 So **raising `targetSdk` means re-running the native build**, not only Gradle. A
 4 KB library is invisible on every device anyone is likely to test on.
 
-**Edge-to-edge is enforced.** This costs nothing here: `EmulatorActivity`
-already calls `setDecorFitsSystemWindows(false)` and hides the system bars, so
-there is nothing for the bars to overlap. Verified on an API 36 emulator, both
-ways up, after the bump.
+**Edge-to-edge is enforced, and the display cutout with it.** This was the
+expensive half. A window is laid out into the cutout whether it asks or not —
+the mode that used to letterboxed it away from a camera hole is read as
+`ALWAYS` now, and there is no opting out — and hiding the system bars does not
+help, because a hidden bar reports a zero inset while `displayCutout()` does
+not. On a phone with a hole the quick bar's icons came out underneath it and the
+settings page drew its title across its own tabs. Neither appears on an emulator
+until a cutout is turned on:
+
+```sh
+adb shell cmd overlay enable --user 0 \
+    com.android.internal.display.cutout.emulation.hole
+adb reboot          # the overlay does not apply until the display is remade
+adb shell dumpsys window | grep -o 'DisplayCutout{[^}]*}'
+```
+
+`EmulatorLayout` now keeps a `safe` rect: `arrange()` is handed the window minus
+it and still works from 0,0, and `placeChild` adds the offset, so no branch of
+that method knows a cutout exists. Every other screen builds its own view tree
+and calls `SafeArea.fit()` on `android.R.id.content`. Verified on an API 36
+emulator with a 136 px hole, both ways up — sideways it moves to one end, which
+is where the joystick and the key buttons are — and the whole instrumentation
+suite passes with it on.
 
 ### Native debug symbols
 

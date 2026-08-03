@@ -222,6 +222,23 @@ public final class EmulatorLayout extends ViewGroup {
      * there sends the app to the background instead.
      */
     private int gestureInset;
+
+    /**
+     * The part of the window nothing of ours may use: a camera hole, and the
+     * system bars while they are showing, which here is never.
+     *
+     * An app targeting API 35 is laid out into the cutout whether it asks or
+     * not - the mode that used to letterbox the window away from it is
+     * interpreted as "always" now - so the quick bar's icons appeared under the
+     * camera. Everything is arranged inside this instead, which is the geometry
+     * the window used to be given, and the strip outside it stays the layout's
+     * own black.
+     *
+     * All four sides, not just the top: sideways the hole is at one end of the
+     * bar, and this is where the joystick and the keys go.
+     */
+    private final Rect safe = new Rect();
+
     private boolean keyboardWanted = true;
 
     /**
@@ -681,10 +698,24 @@ public final class EmulatorLayout extends ViewGroup {
      * is a measure input like any other; a change in it is a change of layout.
      */
     public void setInsets(int ime, int gestures) {
-        if (imeInset == ime && gestureInset == gestures) return;
+        setInsets(ime, gestures, safe.left, safe.top, safe.right, safe.bottom);
+    }
+
+    /**
+     * @param safeLeft the four sides of the window that are not ours to use;
+     *                 see {@link #safe}
+     */
+    public void setInsets(int ime, int gestures,
+                          int safeLeft, int safeTop, int safeRight, int safeBottom) {
+        if (imeInset == ime && gestureInset == gestures
+                && safe.left == safeLeft && safe.top == safeTop
+                && safe.right == safeRight && safe.bottom == safeBottom) {
+            return;
+        }
 
         imeInset = ime;
         gestureInset = gestures;
+        safe.set(safeLeft, safeTop, safeRight, safeBottom);
 
         // The phone's own keyboard is a keyboard too, and this is the only sign
         // of it: while it covers the window the overlay is not offered.
@@ -1335,7 +1366,9 @@ public final class EmulatorLayout extends ViewGroup {
         int width = MeasureSpec.getSize(widthMeasureSpec);
         int height = MeasureSpec.getSize(heightMeasureSpec);
 
-        arrange(width, height);
+        // Everything is arranged inside the safe area and shifted into place by
+        // placeChild, so no branch of arrange() has to know a cutout exists.
+        arrange(width - safe.left - safe.right, height - safe.top - safe.bottom);
 
         measureChild(screen, screenBox);
         measureChild(keyboard, keyboardBox);
@@ -1413,6 +1446,9 @@ public final class EmulatorLayout extends ViewGroup {
     private void placeChild(View child, Rect box) {
         if (!here(child)) return;
 
-        child.layout(box.left, box.top, box.right, box.bottom);
+        // arrange() worked from 0,0 within the safe area; this is where that
+        // becomes a position in the window.
+        child.layout(box.left + safe.left, box.top + safe.top,
+                     box.right + safe.left, box.bottom + safe.top);
     }
 }

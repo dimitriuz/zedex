@@ -1,6 +1,7 @@
 package dev.ldlab.zedex.screen;
 
 import dev.ldlab.zedex.R;
+import dev.ldlab.zedex.view.SafeArea;
 import dev.ldlab.zedex.cheats.PokeDatabase;
 import android.app.Activity;
 import android.content.Intent;
@@ -46,6 +47,9 @@ public final class AboutActivity extends Activity {
         page.addView(content());
 
         setContentView(page);
+
+        // Nothing of ours under the status bar or the camera; see SafeArea.
+        SafeArea.fit(findViewById(android.R.id.content));
     }
 
     private View content() {

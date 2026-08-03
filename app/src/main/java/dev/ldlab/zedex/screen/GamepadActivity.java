@@ -1,6 +1,7 @@
 package dev.ldlab.zedex.screen;
 
 import dev.ldlab.zedex.R;
+import dev.ldlab.zedex.view.SafeArea;
 import dev.ldlab.zedex.input.Gamepad;
 import dev.ldlab.zedex.input.Hotkeys;
 import android.app.Activity;
@@ -60,6 +61,9 @@ public final class GamepadActivity extends Activity {
 
         preferences = getSharedPreferences(SettingsActivity.PREFS, MODE_PRIVATE);
         setContentView(build());
+
+        // Nothing of ours under the status bar or the camera; see SafeArea.
+        SafeArea.fit(findViewById(android.R.id.content));
         showBindings();
     }
 
