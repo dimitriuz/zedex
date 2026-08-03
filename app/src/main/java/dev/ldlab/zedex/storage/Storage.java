@@ -3,8 +3,10 @@ package dev.ldlab.zedex.storage;
 import dev.ldlab.zedex.media.Media;
 import dev.ldlab.zedex.screen.SettingsActivity;
 import dev.ldlab.zedex.screen.StartPanel;
+import android.Manifest;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Environment;
 import android.provider.DocumentsContract;
@@ -70,8 +72,14 @@ public final class Storage {
     /** What a folder is called when it tells the media scanner to walk past. */
     private static final String NOMEDIA = ".nomedia";
 
-    /** The folder the app makes at the root of shared storage, by default. */
+    /** What the app calls its own folder, wherever that folder is. */
     private static final String SHARED_ROOT = "Zedex";
+
+    /**
+     * Whether this build declares All files access, cached because the answer
+     * cannot change while the process lives.
+     */
+    private static Boolean declaresAllFiles;
 
     /**
      * The DivMMC's firmware, which is not a machine ROM and not ours to ship.
@@ -90,6 +98,44 @@ public final class Storage {
     /** Whether a folder anywhere on storage can be used. */
     public static boolean canUseAnyFolder() {
         return Environment.isExternalStorageManager();
+    }
+
+    /**
+     * Whether this build can even ask for All files access.
+     *
+     * The Play build does not declare {@code MANAGE_EXTERNAL_STORAGE}: Play
+     * judges an app by what its manifest asks for rather than by what it does
+     * with it, and broad access is only for apps that cannot work without it -
+     * which this one can, since {@link #defaultRoot} needs no permission at
+     * all. So that build has no permission to be granted, and the settings
+     * page the grant button opens would have nothing on it.
+     *
+     * Asked of the manifest rather than of {@code BuildConfig}, so it is right
+     * in every variant with nothing to keep in step.
+     */
+    public static boolean canAskForAnyFolder(Context context) {
+        if (declaresAllFiles == null) {
+            declaresAllFiles = false;
+            try {
+                String[] asked = context.getPackageManager()
+                        .getPackageInfo(context.getPackageName(),
+                                        PackageManager.GET_PERMISSIONS)
+                        .requestedPermissions;
+
+                if (asked != null) {
+                    for (String permission : asked) {
+                        if (Manifest.permission.MANAGE_EXTERNAL_STORAGE.equals(permission)) {
+                            declaresAllFiles = true;
+                            break;
+                        }
+                    }
+                }
+            } catch (PackageManager.NameNotFoundException e) {
+                Log.w(TAG, "cannot read our own manifest", e);
+            }
+        }
+
+        return declaresAllFiles;
     }
 
     /**
@@ -163,9 +209,15 @@ public final class Storage {
         }
     }
 
-    /** Directories the app can write to without holding any permission. */
+    /**
+     * Directories the app can write to without holding any permission.
+     *
+     * The folder in Documents comes first because it is the only one of them a
+     * person can open in a file manager; see {@link #documentsRoot}.
+     */
     public static List<File> roots(Context context) {
         List<File> roots = new ArrayList<>();
+        roots.add(documentsRoot());
         roots.add(context.getFilesDir());
 
         for (File external : context.getExternalFilesDirs(null)) {
@@ -177,6 +229,7 @@ public final class Storage {
 
     public static String label(Context context, File root) {
         if (root.equals(context.getFilesDir())) return "Internal storage";
+        if (root.equals(documentsRoot())) return "Documents";
 
         try {
             if (Environment.isExternalStorageRemovable(root)) return "SD card";
@@ -384,27 +437,60 @@ public final class Storage {
     }
 
     /**
-     * {@code /storage/emulated/0/Zedex} - where the files go if nobody says
-     * otherwise, and somewhere a person can actually get at.
-     *
-     * The old default was the app's own storage, which on Android 11 and later
-     * is not somewhere a file manager will go: a hundred save states and every
-     * screenshot were in a folder the person who made them could not open. Even
-     * the shared app folder is no better - {@code Android/data} is closed to
-     * browsers too, and the path is sixty characters of package name.
-     *
-     * A name at the root is the one place that is neither, and it needs All
-     * files access to create. Without that permission this falls back to where
-     * it always was, and the first run offers the grant; nothing here demands
-     * it, and the app works either way.
+     * {@code /storage/emulated/0/Zedex} - reachable by anything, and needing
+     * All files access to make, so only the builds that declare it can offer
+     * this. See {@link #canAskForAnyFolder}.
      */
     public static File sharedRoot() {
         return new File(Environment.getExternalStorageDirectory(), SHARED_ROOT);
     }
 
+    /**
+     * {@code /storage/emulated/0/Documents/Zedex} - where the files go if
+     * nobody says otherwise.
+     *
+     * Scoped storage lets an app make a folder of its own inside a public
+     * collection and use it by path, with no permission whatsoever, which is
+     * exactly what Fuse's stdio needs. A folder at the *root* of shared storage
+     * is the one thing it will not allow: {@code mkdirs} there returns false
+     * and the write fails with ENOENT. Measured on API 36 rather than read
+     * somewhere.
+     *
+     * What this does not get is any file the app did not write itself. A tape
+     * copied in from a computer is owned by nobody the app knows and
+     * {@code .tap} is not media, so opening it fails with EACCES and - worse -
+     * it does not appear in a listing at all: the folder reads as empty. Those
+     * arrive through the picker instead, which stages them; see
+     * {@link Media#stage}.
+     *
+     * The alternatives are both worse. Internal storage is not somewhere a file
+     * manager will go, and neither is {@code Android/data} - closed to browsers
+     * since Android 11 and hidden outright since 13 - so a hundred save states
+     * and every screenshot end up where the person who made them cannot open
+     * them.
+     */
+    public static File documentsRoot() {
+        File documents = new File(Environment.getExternalStorageDirectory(),
+                                  Environment.DIRECTORY_DOCUMENTS);
+        return new File(documents, SHARED_ROOT);
+    }
+
+    /**
+     * Where the files go when nobody has chosen: the folder in Documents, or
+     * the app's own storage on a device that will not have it.
+     *
+     * Deliberately the same answer whether or not All files access is held, so
+     * that granting it later does not move anybody's files. It widens what
+     * {@link #roots} will accept; it does not change where things start.
+     */
     public static File defaultRoot(Context context) {
-        return canUseAnyFolder() && isWritable(sharedRoot())
-                ? sharedRoot() : context.getFilesDir();
+        if (isWritable(documentsRoot())) return documentsRoot();
+
+        for (File external : context.getExternalFilesDirs(null)) {
+            if (external != null && isWritable(external)) return external;
+        }
+
+        return context.getFilesDir();
     }
 
     /**
@@ -464,14 +550,44 @@ public final class Storage {
         return new File(romsDirectory(context), FIRMWARE);
     }
 
-    /** Where screenshots are written. */
-    public static File screenshotsDirectory(Context context) {
-        return new File(root(context), SHOTS);
-    }
+    /**
+     * Where screenshots and recordings go: {@code Pictures/Zedex}.
+     *
+     * Not in the data folder with everything else, and for one reason - a
+     * screenshot that cannot be found in the gallery afterwards is a screenshot
+     * taken for nothing. An image written anywhere under {@code Documents} is
+     * not in {@code MediaStore.Images} at all, so no gallery shows it.
+     * {@code Pictures} is a collection the gallery reads, and one an app may
+     * write to with no permission, exactly like the data folder.
+     *
+     * All three kinds together, in {@code Pictures} rather than the MP4s going
+     * to {@code Movies} where they would seem to belong, because a public
+     * collection refuses what does not match it. Measured with the permission
+     * denied, which is how the Play build always runs:
+     *
+     * <pre>
+     *   Pictures/  png ok    gif ok     mp4 ok     tap EPERM
+     *   Movies/    png EPERM gif EPERM  mp4 ok     tap EPERM
+     * </pre>
+     *
+     * A GIF is an image, and the GIF is the recording the app makes by default -
+     * so splitting them would have failed on the commonest recording there is,
+     * and only on the build nobody tests by hand. One folder takes all three,
+     * MediaStore still files each by its own type, and the menu row that opens
+     * the folder has one folder to open.
+     */
+    public static File capturesDirectory(Context context) {
+        File ours = new File(
+                new File(Environment.getExternalStorageDirectory(),
+                         Environment.DIRECTORY_PICTURES),
+                SHARED_ROOT);
 
-    /** Where recordings are written. */
-    public static File recordingsDirectory(Context context) {
-        return new File(root(context), FILMS);
+        // The cheap test first: this is asked for on every screenshot, and once
+        // the folder is there it is only a stat.
+        if (ours.isDirectory() || isWritable(ours)) return ours;
+
+        Log.w(TAG, "cannot use " + ours + "; keeping captures in the data folder");
+        return new File(root(context), SHOTS);
     }
 
     /** The folders exist from the first run, empty if need be. */
@@ -481,8 +597,10 @@ public final class Storage {
         tapesDirectory(context).mkdirs();
         disksDirectory(context).mkdirs();
         cardsDirectory(context).mkdirs();
-        screenshotsDirectory(context).mkdirs();
-        recordingsDirectory(context).mkdirs();
+
+        // Not the captures. Those are in the gallery's own collections now, and
+        // an empty Zedex folder in somebody's Pictures before they have taken a
+        // screenshot is litter. Capture makes the folder when it needs it.
 
         hideFromGallery(context);
     }
@@ -500,9 +618,10 @@ public final class Storage {
      * folders are made, so a folder that predates this, or one the user has
      * just pointed the app at, is covered too.
      *
-     * Not the screenshots, and not the recordings. Those are made deliberately
-     * and made to be shared, and a screenshot that cannot be found in the
-     * gallery afterwards is a screenshot taken for nothing.
+     * Every folder in the data folder is on this list, because the two that are
+     * meant for the gallery are not in it: screenshots and recordings live in
+     * {@code Pictures/Zedex} and {@code Movies/Zedex}. See
+     * {@link #capturesDirectory}.
      */
     private static void hideFromGallery(Context context) {
         File[] ours = {

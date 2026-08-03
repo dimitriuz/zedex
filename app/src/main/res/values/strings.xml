@@ -180,7 +180,7 @@
     <string name="setup_message">Both of these can be changed later, in Settings › Files. Leaving them as they are is fine too — the app will keep everything in its own storage.</string>
     <!-- %1$s is the folder's path. -->
     <string name="setup_data">Data folder: %1$s</string>
-    <string name="setup_data_hint">Where the ROMs, save states, tapes, disks, screenshots and recordings go. Somewhere shared \u2014 Documents, an SD card \u2014 keeps them when the app is uninstalled.</string>
+    <string name="setup_data_hint">Where the ROMs, save states, tapes and disks go. Somewhere shared \u2014 Documents, an SD card \u2014 keeps them when the app is uninstalled. Screenshots and recordings go to your gallery instead.</string>
     <!-- %1$s is the folder's name, or "not chosen". -->
     <string name="setup_content">Content folder: %1$s</string>
     <string name="setup_content_none">not chosen</string>
@@ -498,6 +498,6 @@
     <string name="capture_saved">Saved “%1$s”</string>
     <string name="capture_failed">Could not write “%1$s”: %2$s</string>
     <string name="capture_busy">Still finishing the last recording</string>
-    <string name="capture_open_folder">Open recordings folder</string>
+    <string name="capture_open_folder">Open captures folder</string>
     <string name="capture_no_browser">Recordings are in %1$s</string>
 </resources>

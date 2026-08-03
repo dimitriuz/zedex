@@ -43,8 +43,12 @@ public class CaptureTest {
 
     private final Emulator emulator = new Emulator();
 
-    private File screenshots;
-    private File recordings;
+    /**
+     * Screenshots and recordings share one folder — Pictures/Zedex — because a
+     * public collection refuses what does not match it and Movies will not take
+     * a GIF. See Storage.capturesDirectory.
+     */
+    private File captures;
 
     @Before
     public void setUp() {
@@ -52,11 +56,8 @@ public class CaptureTest {
         emulator.launch();
         assumeFalse("no ROMs in " + emulator.romFolder(), emulator.needsRoms());
 
-        screenshots = Storage.screenshotsDirectory(emulator.context());
-        recordings = Storage.recordingsDirectory(emulator.context());
-
-        clear(screenshots);
-        clear(recordings);
+        captures = Storage.capturesDirectory(emulator.context());
+        clear(captures);
     }
 
     @Test
@@ -64,7 +65,7 @@ public class CaptureTest {
         emulator.menu("Capture", "Save screenshot");
         emulator.idle(3 * Emulator.SECOND);
 
-        File png = onlyFile(screenshots);
+        File png = onlyFile(captures);
 
         BitmapFactory.Options size = new BitmapFactory.Options();
         size.inJustDecodeBounds = true;
@@ -122,7 +123,7 @@ public class CaptureTest {
         emulator.menu("Capture", "Stop recording");
         emulator.idle(FINISHING);
 
-        return onlyFile(recordings);
+        return onlyFile(captures);
     }
 
     /**

@@ -8,6 +8,7 @@ import dev.ldlab.zedex.view.Rows;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.media.MediaScannerConnection;
 import android.net.Uri;
 import android.provider.DocumentsContract;
 import android.widget.Toast;
@@ -59,7 +60,7 @@ public final class Capture {
     }
 
     public void screenshot() {
-        File target = fileIn(Storage.screenshotsDirectory(activity), "png");
+        File target = fileIn(Storage.capturesDirectory(activity), "png");
         if (target == null) return;
 
         Recorder.screenshotTo(target, this::report);
@@ -72,7 +73,7 @@ public final class Capture {
     }
 
     private void record(Recorder.Format format) {
-        File target = fileIn(Storage.recordingsDirectory(activity),
+        File target = fileIn(Storage.capturesDirectory(activity),
                              format.extension);
         if (target == null) return;
 
@@ -88,12 +89,31 @@ public final class Capture {
 
     /** Reported when the file is really written, not when it was asked for. */
     private void report(File file, String error) {
+        if (error == null) announce(file);
+
         String said = error == null
                 ? text(R.string.capture_saved, file.getName())
                 : text(R.string.capture_failed, file.getName(), error);
 
         activity.runOnUiThread(() ->
                 Toast.makeText(activity, said, Toast.LENGTH_LONG).show());
+    }
+
+    /**
+     * Tells the gallery that a file has appeared.
+     *
+     * Writing into {@code Pictures/Zedex} is not enough on its own. MediaStore
+     * indexes what it is told about or what it finds on some later idle scan,
+     * and a file written by path is neither - so a screenshot taken in order to
+     * be shared is not in the gallery when it is wanted. Measured on a tablet:
+     * the PNG was on disk and {@code MediaStore.Images} had no row for it at
+     * all until this call went in.
+     *
+     * Both kinds of capture come through here, so the recordings get it too.
+     */
+    private void announce(File file) {
+        MediaScannerConnection.scanFile(
+                activity, new String[] { file.getAbsolutePath() }, null, null);
     }
 
     /** Named after whatever is loaded, numbered so nothing is overwritten. */
@@ -124,7 +144,7 @@ public final class Capture {
      * own, no intent can reach it and the path is all there is to offer.
      */
     private void openFolder() {
-        File folder = Storage.recordingsDirectory(activity);
+        File folder = Storage.capturesDirectory(activity);
         folder.mkdirs();
 
         Uri uri = Storage.documentUriFor(folder);

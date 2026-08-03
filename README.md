@@ -136,7 +136,8 @@ kept on a list; decimal, or hex after `0x`, `$` or `#`.
 
 ## Capture
 
-Screenshots as PNG, and recording to GIF or MP4, both straight to your gallery.
+Screenshots as PNG, and recording to GIF or MP4. All three go to
+`Pictures/Zedex` and show up in your gallery, named after whatever is running.
 
 
 ## The machines
@@ -177,9 +178,17 @@ file identifies itself, and the machine switches when the media needs one — a
 **First start** asks for two folders; both can be changed later in *Settings ›
 Files*.
 
+Files the app writes there are yours to open, copy and delete. Files you copy
+*in* are a different matter: Android hands an app only what it wrote itself, so
+a tape dropped into `tapes` from a computer is invisible to the app and has to
+be opened through *Open file…* instead — which remembers it afterwards. The
+build from Releases here can additionally be granted All files access, and then
+any folder will do, `/storage/emulated/0/Zedex` included; the Play build cannot,
+because Play does not allow that permission to an app that works without it.
+
 | | |
 | --- | --- |
-| Data folder | `roms`, `states`, `tapes`, `disks`, `screenshots`, `recordings`. **`/storage/emulated/0/Zedex`** by default, where a file manager can reach it — that needs All files access, and without it the app keeps everything in its own storage instead. Only the last two reach your gallery; a save state's thumbnail is not a photograph |
+| Data folder | `roms`, `states`, `tapes`, `disks`, `cards`. **`/storage/emulated/0/Documents/Zedex`** by default — a folder any file manager can open, and one the app needs no permission at all to use. Screenshots and recordings are not in it: they go to `Pictures/Zedex`, which is what puts them in your gallery |
 | Content folder | where *Open file…* starts, on the first open after each launch |
 
 <!-- ![First run](docs/screenshots/first-run.jpg) — the two folder cards and the note about the demo tape -->
@@ -237,7 +246,8 @@ browser. Changes are written back once a second and whenever the app is paused.
 No advertising, no analytics, no accounts, nothing collected about you. The
 whole app carries a single library, for one settings screen. Two permissions:
 files, so your folder is somewhere you can reach, and internet, used for exactly
-one thing — fetching a ROM set, if you ever ask it to.
+one thing — fetching a ROM set, if you ever ask it to. The full account is in
+[docs/PRIVACY.md](docs/PRIVACY.md).
 
 
 ## Not yet

@@ -256,6 +256,42 @@ ABIS=x86_64 ./scripts/build-native.sh  # single ABI, while iterating
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
+### Three build types, and one of them is for Play
+
+| | | |
+| --- | --- | --- |
+| `assembleDebug` | `app-debug.apk` | `dev.ldlab.zedex.debug`, the repository's debug key |
+| `assembleRelease` | `app-release.apk` | what the GitHub release carries |
+| `assemblePlay`, `bundlePlay` | `app-play.apk`, `app-play.aab` | **what goes to Google Play** |
+
+`play` is `release` with All files access taken out of the manifest by
+`app/src/play/AndroidManifest.xml`, four lines of `tools:node="remove"`. Play
+judges an app by the permissions its manifest asks for rather than by what it
+does with them, and `MANAGE_EXTERNAL_STORAGE` is only allowed where an app
+cannot work without it — which this one can, the default folder being
+`Documents/Zedex`, which scoped storage grants for nothing. Declaring it anyway
+means defending it in the All files access declaration on every release, with
+the honest answer being "so the user can put the folder where they like", which
+the policy refuses. The builds nobody reviews keep the permission and offer it
+as a choice; see *Storage* below.
+
+A build type rather than a product flavour **on purpose**. Flavours rename every
+existing task and output — `assembleDebug` becomes `assembleFullDebug`,
+`connectedDebugAndroidTest` becomes `connectedFullDebugAndroidTest`,
+`app-release.apk` becomes `app-full-release.apk` — and both workflows, this file
+and the scripts all name those. A build type only adds tasks.
+
+The upload is the **`.aab`**, not the APK: `./gradlew bundlePlay`, signed with
+the real key when `ZEDEX_KEYSTORE` is set, exactly as `assembleRelease` is.
+Verify what it asks for before uploading, because this is the one thing that
+must never regress:
+
+```sh
+unzip -p app/build/outputs/bundle/play/app-play.aab base/manifest/AndroidManifest.xml \
+    | strings | grep permission.
+# android.permission.INTERNET   — and nothing else
+```
+
 **The debug build is a package of its own**, `dev.ldlab.zedex.debug`, called
 *Zedex debug* on the launcher. It installs beside the release build rather than
 replacing it — which it could not do anyway, the two being signed with

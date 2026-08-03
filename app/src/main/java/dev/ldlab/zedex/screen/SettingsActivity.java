@@ -641,13 +641,21 @@ public class SettingsActivity extends AppCompatActivity
          */
         private void chooseDataFolder() {
             List<File> roots = Storage.roots(getActivity());
-            String[] items = new String[roots.size() + 1];
+
+            // Only a build that declares All files access can go looking
+            // outside them; see Storage.canAskForAnyFolder.
+            boolean anywhere = Storage.canAskForAnyFolder(getActivity());
+            if (anywhere) roots.add(Storage.sharedRoot());
+
+            String[] items = new String[roots.size() + (anywhere ? 1 : 0)];
 
             for (int i = 0; i < roots.size(); i++) {
                 items[i] = Storage.label(getActivity(), roots.get(i))
                         + "\n" + roots.get(i).getAbsolutePath();
             }
-            items[roots.size()] = getString(R.string.settings_choose_folder);
+            if (anywhere) {
+                items[roots.size()] = getString(R.string.settings_choose_folder);
+            }
 
             new AlertDialog.Builder(getActivity(),
                     android.R.style.Theme_DeviceDefault_Dialog_Alert)
@@ -669,6 +677,11 @@ public class SettingsActivity extends AppCompatActivity
          * content:// URI, which Fuse's stdio cannot open.
          */
         private void chooseAnyFolder() {
+            // Unreachable in a build with no permission to grant - the item that
+            // leads here is not in the list - but the dialog it would put up
+            // offers a settings page that would open empty.
+            if (!Storage.canAskForAnyFolder(getActivity())) return;
+
             if (!Storage.canUseAnyFolder()) {
                 new AlertDialog.Builder(getActivity(),
                         android.R.style.Theme_DeviceDefault_Dialog_Alert)
@@ -1087,9 +1100,9 @@ public class SettingsActivity extends AppCompatActivity
             Storage.move(getActivity(), new File(previous, "disks"),
                          Storage.disksDirectory(getActivity()));
             Storage.move(getActivity(), new File(previous, "screenshots"),
-                         Storage.screenshotsDirectory(getActivity()));
+                         Storage.capturesDirectory(getActivity()));
             Storage.move(getActivity(), new File(previous, "recordings"),
-                         Storage.recordingsDirectory(getActivity()));
+                         Storage.capturesDirectory(getActivity()));
 
             // chdir is process wide and immediate, so the running emulator
             // finds ROMs in the new place too - no restart needed.

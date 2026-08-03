@@ -42,6 +42,46 @@ expensive to rediscover.
 - **`app/debug.keystore` is committed on purpose.** Gradle's own debug key is
   per machine, so a CI build could not update a local one — or another CI
   build. See *Building* in `docs/DEVELOPING.md`.
+- **The Play build has no All files access, and that is the whole point of it.**
+  `assembleDebug` and `assembleRelease` declare `MANAGE_EXTERNAL_STORAGE`;
+  `assemblePlay`/`bundlePlay` strip it in `app/src/play/AndroidManifest.xml` with
+  `tools:node="remove"`, and the `.aab` from `bundlePlay` is what Google Play
+  gets. Play judges the manifest, not the use, and the app works without it. A
+  build **type**, not a flavour: flavours rename `assembleDebug`,
+  `connectedDebugAndroidTest` and `app-release.apk`, which the workflows, the
+  docs and the scripts all name. Nothing may offer to grant a permission the
+  running build does not declare — `Storage.canAskForAnyFolder()` asks the
+  manifest, and the folder chooser and the first-run grant row both check it.
+- **What scoped storage allows, measured rather than assumed.** All of this on
+  API 36 with the permission denied, and none of it is guessable:
+  - `mkdirs` on `/storage/emulated/0/Zedex` returns **false** and the write
+    fails ENOENT. A folder at the *root* of shared storage cannot be made
+    without the permission. `Documents/Zedex` can, and works by plain path,
+    which is what Fuse's stdio needs — hence `Storage.documentsRoot()`.
+  - A root-level folder the **user** made reads `canRead()` true, `canWrite()`
+    false, `list()` empty — and `mkdirs` of a subfolder inside it returns
+    **true** while writing a file gives EPERM. That pair is why
+    `Storage.isWritable()` creates a probe file instead of trusting `mkdirs`; it
+    is the only test that gets this right, and it correctly refuses the folder.
+  - A file **anyone else** wrote into the app's own folder is invisible:
+    `exists()` true and `length()` right, but `list()` omits it and opening it
+    gives EACCES. So "copy your tapes into the folder" cannot work; they come
+    through the picker, which stages them. A folder that reads as empty is the
+    failure mode, not an error.
+  - Images written under `Documents` are **not** in `MediaStore.Images`, so a
+    screenshot there does not reach the gallery. That is why captures are not in
+    the data folder at all: `Storage.capturesDirectory()` is `Pictures/Zedex`.
+  - **A public collection refuses what does not match it.** `Pictures` takes
+    `png`, `gif` and `mp4`; `Movies` takes `mp4` and answers **EPERM** for `png`
+    and `gif`; neither takes `.tap`. So all three captures go to `Pictures` — the
+    obvious split, MP4s to `Movies`, would have failed on the GIF, which is the
+    recording the app makes by default, and only on the build nobody drives by
+    hand.
+  - **Writing the file is not enough to reach the gallery.** MediaStore had no
+    row at all for a PNG that was on disk in `Pictures/Zedex` until
+    `MediaScannerConnection.scanFile` was called; `Capture.announce()` does it
+    for every capture, from the callback that fires when the file is really
+    written.
 - **`ui_statusbar_update` is ours too.** `ui/widget/widget.c`'s version is a
   stub that discards the news, so the build weakens it the same way it weakens
   `ui_error_specific`, and `native/ui/android/android_status.c` keeps it for the
@@ -95,6 +135,18 @@ env JAVA_HOME=/opt/android-studio/jbr ./gradlew connectedDebugAndroidTest \
 
 Things learned the hard way, all of them recorded in the tests' own comments:
 
+- **Run the instrumentation tests on an emulator, not the tablet.** MIUI refuses
+  Gradle's install session with `INSTALL_FAILED_USER_RESTRICTED` unless *Install
+  via USB* is on, and it lapses. `connectedAndroidTest` **uninstalls first**, so a
+  refusal there leaves the device with no app at all and no way to put one back
+  until somebody touches the phone. A plain `adb install -r` is a different code
+  path and can still work when Gradle's does not; `am instrument` then runs a
+  class without Gradle, and without the uninstall that wipes the data folder.
+- **`Emulator.useDataFolder()` wants ROMs in `/sdcard/Download/Spectrum/roms`.**
+  Without them the app comes up on the ROMs panel, `launch()` fails with *the
+  keyboard never appeared* before `assumeFalse(needsRoms())` can skip the test,
+  and every test in the class fails for a reason that has nothing to do with what
+  it tests. `adb push roms/*.rom` puts it back.
 - **Sample the picture, not a view's bounds.** `borderColour()` computes the 4:3
   quad the way the renderer does. The window's corner was wrong once the bar took
   a strip; the SurfaceView's bounds are wrong sideways, where the picture is

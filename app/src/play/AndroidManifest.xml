@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The Play build's one difference from the release build: no All files access.
+
+    Everything the app needs works without it - the default data folder is
+    Documents/Zedex, which scoped storage lets an app make and use by path for
+    nothing, and files from elsewhere come in through the picker. What the
+    permission buys is a folder anywhere the user likes, and Play does not
+    accept convenience as a reason to ask for it. The builds that are not
+    distributed through Play keep it, and offer it as a choice.
+
+    tools:node="remove" rather than a second full manifest, so this file cannot
+    drift away from the real one.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission
+        android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:node="remove" />
+
+</manifest>

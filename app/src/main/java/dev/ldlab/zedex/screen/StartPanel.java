@@ -529,7 +529,12 @@ public final class StartPanel {
         // the permission missing, the folder can be stated and written to and
         // still lists as empty, so every test that touches it says the ROMs are
         // not there rather than that they cannot be seen.
-        boolean blocked = !startFailed && Storage.needsAllFiles(activity);
+        // Only a build that can be granted the permission may offer it. A Play
+        // install restored from a backup of one that could carries a folder it
+        // will never reach, and the answer for it is a different folder, not a
+        // grant button that opens an empty settings page.
+        boolean blocked = !startFailed && Storage.needsAllFiles(activity)
+                && Storage.canAskForAnyFolder(activity);
 
         title.setText(blocked ? R.string.roms_blocked
                     : startFailed ? R.string.roms_start_failed
@@ -647,16 +652,22 @@ public final class StartPanel {
         // being shown it. Picking it without the permission asks for that
         // instead, and comes back here.
         List<File> roots = new ArrayList<>();
-        roots.add(Storage.sharedRoot());
+        // A folder at the root of storage, and any folder at all, are both only
+        // worth offering to a build that can ask for the permission they need.
+        boolean anywhere = Storage.canAskForAnyFolder(activity);
+
+        if (anywhere) roots.add(Storage.sharedRoot());
         roots.addAll(Storage.roots(activity));
 
-        String[] items = new String[roots.size() + 1];
+        String[] items = new String[roots.size() + (anywhere ? 1 : 0)];
 
         for (int i = 0; i < roots.size(); i++) {
             items[i] = Storage.label(activity, roots.get(i))
                     + "\n" + roots.get(i).getAbsolutePath();
         }
-        items[roots.size()] = activity.getString(R.string.settings_choose_folder);
+        if (anywhere) {
+            items[roots.size()] = activity.getString(R.string.settings_choose_folder);
+        }
 
         new AlertDialog.Builder(activity,
                 android.R.style.Theme_DeviceDefault_Dialog_Alert)
@@ -682,6 +693,14 @@ public final class StartPanel {
      *            already and cannot read it.
      */
     private void askForAllFiles(int why) {
+        // Nothing to grant in a build that does not declare it, and the
+        // settings page would open empty. Every caller checks first; this is
+        // the backstop.
+        if (!Storage.canAskForAnyFolder(activity)) {
+            toast(R.string.settings_folder_unusable);
+            return;
+        }
+
         new AlertDialog.Builder(activity,
                 android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setMessage(why)
