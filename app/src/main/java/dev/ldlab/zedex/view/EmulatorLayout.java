@@ -950,9 +950,19 @@ public final class EmulatorLayout extends ViewGroup {
 
         // Set here rather than in placeJoystick, which returns from three
         // places; alpha is a draw property, so this is safe during a measure.
+        // Every control that floats, not just the two that were remembered: the
+        // three key buttons stayed at full strength beside a fire button at
+        // half, which read as a heavier ring rather than as a brighter one. The
+        // overlay's buttons go with them, sitting where the pad does.
         float alpha = joystickFloating ? FLOATING_ALPHA : 1f;
+
         if (pad != null) pad.setAlpha(alpha);
         if (fire != null) fire.setAlpha(alpha);
+        // this.keys, since a local of the same name says whether a keyboard has
+        // a place in this window.
+        for (JoystickView key : this.keys) key.setAlpha(alpha);
+        if (overlayOpen != null) overlayOpen.setAlpha(alpha);
+        if (overlayClose != null) overlayClose.setAlpha(alpha);
     }
 
     /**

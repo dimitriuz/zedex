@@ -50,6 +50,9 @@ public final class JoystickView extends View {
     /** The keyboard's press colour, so a pressed control reads the same way. */
     private static final int PRESSED = 0xcc00b0c8;
 
+    /** The ring's width as a share of the radius, so every control matches. */
+    private static final float EDGE_OF_RADIUS = 0.045f;
+
     /** Of the control's radius: inside this the stick is centred. */
     private static final float DEAD_ZONE = 0.3f;
 
@@ -69,6 +72,32 @@ public final class JoystickView extends View {
     /** Which control this is, for a parent laying the three of them out. */
     public Part part() {
         return part;
+    }
+
+    /**
+     * The face of a control, for something that is not one but sits among them.
+     *
+     * The overlay keyboard's two buttons live beside the pad and were drawn from
+     * a shape of their own: a solid dark disc where everything around it is
+     * fifteen per cent white, which over a picture read as a hole rather than a
+     * control. They borrow this instead, so there is one place the palette is
+     * written down and one look for anything round and translucent.
+     */
+    public static android.graphics.drawable.Drawable disc(float density) {
+        android.graphics.drawable.GradientDrawable shape =
+                new android.graphics.drawable.GradientDrawable();
+
+        shape.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+        shape.setColor(FACE);
+        shape.setStroke(Math.round(Math.max(1.5f, 22f * density * EDGE_OF_RADIUS)),
+                        EDGE);
+
+        return shape;
+    }
+
+    /** The colour a legend or an arrow is drawn in, for the same reason. */
+    public static int markColour() {
+        return MARK;
     }
 
     private final float density;
@@ -112,7 +141,7 @@ public final class JoystickView extends View {
 
         edge.setColor(EDGE);
         edge.setStyle(Paint.Style.STROKE);
-        edge.setStrokeWidth(2f * density);
+        // The width follows the radius; see onSizeChanged.
 
         mark.setColor(MARK);
         mark.setStyle(Paint.Style.FILL);
@@ -128,6 +157,14 @@ public final class JoystickView extends View {
         centreY = height / 2f;
         radius = Math.min(width, height) / 2f - INSET_DP * density;
         if (radius < 0) radius = 0;
+
+        // A ring in proportion to the control, not a fixed two dp for all of
+        // them. Fire is two and a half times the width of a key button beside
+        // it, so one stroke width made the small ones look drawn in a heavier
+        // pen - the same line is a hairline on the big disc and a band on the
+        // little one. The floor keeps it visible on the smallest button there
+        // is.
+        edge.setStrokeWidth(Math.max(1.5f, radius * EDGE_OF_RADIUS));
     }
 
     // --- drawing ----------------------------------------------------------

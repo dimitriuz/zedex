@@ -685,9 +685,14 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         button.setImageResource(icon);
         button.setContentDescription(getString(name));
-        button.setColorFilter(0xffdedee6);
         button.setScaleType(ImageButton.ScaleType.FIT_CENTER);
-        button.setBackgroundResource(R.drawable.overlay_button);
+
+        // The joystick's own face and legend colour, since this sits beside it:
+        // its own shape made a solid dark disc among controls that are barely
+        // there, which over a picture reads as a hole rather than a button.
+        button.setColorFilter(JoystickView.markColour());
+        button.setBackground(JoystickView.disc(
+                getResources().getDisplayMetrics().density));
 
         // Its own padding, equal on all four sides. An ImageButton takes its
         // from the style otherwise, and that one is not symmetrical: the glyph
@@ -696,7 +701,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         int inset = Math.round(11 * getResources().getDisplayMetrics().density);
         button.setPadding(inset, inset, inset, inset);
 
-        button.setAlpha(0.82f);
         button.setVisibility(View.GONE);
         button.setOnClickListener(v -> action.run());
 
