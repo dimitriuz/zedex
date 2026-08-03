@@ -72,7 +72,7 @@ jobs:
           ZEDEX_KEY_ALIAS: ${{ secrets.ZEDEX_KEY_ALIAS }}
           ZEDEX_KEY_PASSWORD: ${{ secrets.ZEDEX_KEY_PASSWORD }}
         run: |
-          ./gradlew --no-daemon assembleRelease
+          ./gradlew --no-daemon assembleRelease bundlePlay
 
       - name: Verify what was built
         run: |
@@ -87,8 +87,80 @@ jobs:
             unzip -l "$apk" | grep -q "lib/$abi/libfuse.so" \
               || { echo "::error::$abi/libfuse.so missing from the APK"; exit 1; }
           done
+
+          # This is the build that is *meant* to have All files access - it is
+          # the one nobody reviews, and the folder anywhere on storage is what
+          # it offers. A removal that went too far would take it out of both.
+          "$tools/aapt2" dump permissions "$apk" \
+            | grep -q 'MANAGE_EXTERNAL_STORAGE' \
+            || { echo "::error::the release APK lost All files access"; exit 1; }
+
           mv "$apk" "Zedex-$VERSION.apk"
           sha256sum "Zedex-$VERSION.apk" | tee "Zedex-$VERSION.apk.sha256"
+
+      # The artifact for the Play Console. Its one difference from the APK is a
+      # permission it does not ask for, so that is what is checked here: a
+      # merge that quietly put MANAGE_EXTERNAL_STORAGE back would mean an All
+      # files access declaration to defend on every release, and in all
+      # likelihood a refused review - and nothing else in the build would say so.
+      - name: Verify the Play bundle
+        run: |
+          aab=app/build/outputs/bundle/play/app-play.aab
+          [ -f "$aab" ] || {
+            echo "::error::no Play bundle - Gradle produced $(ls app/build/outputs/bundle/play/ 2>&1)"
+            exit 1
+          }
+
+          # The manifest in a bundle is protobuf, but the permission names are
+          # string literals in it either way, and bundletool is not on a runner.
+          manifest="$(unzip -p "$aab" base/manifest/AndroidManifest.xml | strings)"
+
+          if printf '%s' "$manifest" | grep -q 'MANAGE_EXTERNAL_STORAGE'; then
+            echo "::error::the Play bundle declares All files access - app/src/play/AndroidManifest.xml is not being applied"
+            exit 1
+          fi
+
+          printf '%s' "$manifest" | grep -q 'android.permission.INTERNET' \
+            || { echo "::error::the Play bundle does not ask for INTERNET"; exit 1; }
+
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            unzip -l "$aab" | grep -q "base/lib/$abi/libfuse.so" \
+              || { echo "::error::$abi/libfuse.so missing from the bundle"; exit 1; }
+          done
+
+          # Signed with the real key, and specifically not with the debug key
+          # that is committed to this repository: the first upload registers its
+          # certificate as the app's upload key, so that one would let anybody
+          # with a clone sign for Zedex, and a key reset is the only way back.
+          # -verbose:summary as well as -certs, and not -certs alone: without
+          # the verbose flag jarsigner prints no certificate at all, so a grep
+          # for the debug key finds nothing and passes whatever it was handed.
+          # Asked once and both questions put to the answer.
+          signature="$(jarsigner -verify -verbose:summary -certs "$aab")"
+
+          printf '%s' "$signature" | grep -q 'jar verified' \
+            || { echo "::error::the Play bundle is not signed"; exit 1; }
+
+          if printf '%s' "$signature" | grep -q 'CN=Android Debug'; then
+            echo "::error::the Play bundle is signed with the repository's debug key - ZEDEX_KEYSTORE was not picked up"
+            exit 1
+          fi
+
+          mv "$aab" "Zedex-$VERSION.aab"
+          sha256sum "Zedex-$VERSION.aab" | tee "Zedex-$VERSION.aab.sha256"
+
+      # Deliberately not a release asset. An .aab cannot be installed, and one
+      # sitting beside the APK on the release page is a support question waiting
+      # to happen. Take it from the run's artifacts and give that to the Console.
+      - uses: actions/upload-artifact@v7
+        with:
+          # ${{ }} and not $VERSION: a `with:` block is not a shell, and the
+          # unexpanded name would be a literal dollar sign in the artifact list.
+          name: Zedex-${{ env.VERSION }}-play
+          path: |
+            Zedex-${{ env.VERSION }}.aab
+            Zedex-${{ env.VERSION }}.aab.sha256
+          if-no-files-found: error
 
       # gh is on the runner already, so no third-party action in the release
       # path. Created as a draft: nothing is public until you have installed

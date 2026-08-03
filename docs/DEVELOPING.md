@@ -281,16 +281,36 @@ existing task and output — `assembleDebug` becomes `assembleFullDebug`,
 `app-release.apk` becomes `app-full-release.apk` — and both workflows, this file
 and the scripts all name those. A build type only adds tasks.
 
-The upload is the **`.aab`**, not the APK: `./gradlew bundlePlay`, signed with
-the real key when `ZEDEX_KEYSTORE` is set, exactly as `assembleRelease` is.
-Verify what it asks for before uploading, because this is the one thing that
-must never regress:
+The upload is the **`.aab`**, not the APK. Tagging a release builds it: the
+release workflow runs `assembleRelease bundlePlay`, checks it, and leaves it as
+a **run artifact** called `Zedex-<version>-play` rather than a release asset,
+because an `.aab` cannot be installed and one sitting beside the APK on the
+release page is a support question waiting to happen. Download that and give it
+to the Console.
+
+Building it by hand needs the real key, and **the debug key must never sign
+it**: the first upload registers its certificate as the app's upload key, and
+`app/debug.keystore` is in this repository with the published default password,
+so that one would let anybody with a clone sign for Zedex. A key reset request
+is the only way back. With `ZEDEX_KEYSTORE` unset, `bundlePlay` is signed with
+exactly that key, so a local bundle is for looking at and not for uploading.
 
 ```sh
-unzip -p app/build/outputs/bundle/play/app-play.aab base/manifest/AndroidManifest.xml \
-    | strings | grep permission.
+env ZEDEX_KEYSTORE=... ZEDEX_KEYSTORE_PASSWORD=... \
+    ZEDEX_KEY_ALIAS=... ZEDEX_KEY_PASSWORD=... ./gradlew bundlePlay
+
+aab=app/build/outputs/bundle/play/app-play.aab
+unzip -p "$aab" base/manifest/AndroidManifest.xml | strings | grep permission.
 # android.permission.INTERNET   — and nothing else
+
+jarsigner -verify -verbose:summary -certs "$aab" | grep 'Signed by'
+# anything but CN=Android Debug
 ```
+
+`-verbose:summary` is not optional in that last one. `jarsigner -verify -certs`
+on its own prints no certificate at all, so a grep for the debug key finds
+nothing and passes whatever it was handed - a check that always succeeds. The
+workflow makes the same two checks, and the ABIs, on every tag.
 
 **The debug build is a package of its own**, `dev.ldlab.zedex.debug`, called
 *Zedex debug* on the launcher. It installs beside the release build rather than
