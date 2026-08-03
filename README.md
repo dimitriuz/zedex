@@ -1,18 +1,149 @@
 # Zedex
 
-A ZX Spectrum emulator for Android 11 and later, with a native front end. The
-emulation is [Fuse](http://fuse-emulator.sourceforge.net/), unmodified.
+![Zedex running its own demo tape, fullscreen](docs/screenshots/demo-fullscreen.jpg)
 
-ROMs are included, so every machine runs out of the box. See
-[Licence](#licence).
+A ZX Spectrum that behaves like a modern console. Save at any moment, put the
+picture through the CRT you remember, pick up a controller and play. Nothing to
+set up — every machine boots the moment you open the app.
+
+Android 11 and later. The emulation is
+[Fuse](http://fuse-emulator.sourceforge.net/), unmodified; the front end is
+native. Most of the code was written by Claude, directed and reviewed by a
+professional software developer.
 
 Building, testing and releases: [docs/DEVELOPING.md](docs/DEVELOPING.md).
 How Fuse is wired in: [docs/INTERNALS.md](docs/INTERNALS.md).
 
-Most of the code was written by Claude, directed and reviewed by a professional software developer.
+
+## Save states
+
+![The states grid, each card showing the screen it holds](docs/screenshots/states.jpg)
+
+Stop wherever you like. States are a grid of cards, each showing the screen it
+holds, renamed and deleted on the card itself. Quick save and quick load sit on
+the shoulder buttons — **Select + R1** and **Select + L1** — and are named after
+whatever is running, so every game keeps its own pair. Written as SZX, Z80 or
+SNA.
 
 
-## Machines
+## Shaders
+
+![The menu over a picture curved like a CRT](docs/screenshots/shaders.jpg)
+
+- Scanlines, or a CRT with curvature, shadow mask and glow, or both together
+- The signal: RGB, composite or RF, with colour bleed and noise
+- A black-and-white television
+- Every effect's strength and the sharpness are yours to set
+
+Scaling runs on the GPU — fitted to the screen, or at a whole number of device
+pixels per emulated pixel. Border in full, slimmed to a quarter, or cropped
+away. Fullscreen leaves nothing but the picture and your thumbs.
+
+![Display settings](docs/screenshots/settings-display.jpg)
+
+
+
+## Dual screen
+
+On a dual-screen handheld — an AYN Thor and its like — the controls, the menu
+and the indicators move to the second panel entirely, leaving the first showing
+nothing but the machine. The setting cannot be switched on with no panel to move
+to, and unplugging one brings everything back.
+
+Android decides which display an input method appears on, so the *Android
+keyboard* skin usually opens over the machine. It still types into the Spectrum.
+
+<!-- ![Both panels of a dual-screen handheld](docs/screenshots/dual-screen.jpg) — the picture alone above, controls and lamps below -->
+
+
+## Controllers
+
+![Controller hotkeys](docs/screenshots/hotkeys.jpg)
+
+Plug one in and it works — no mapping screen. Stick, hat and D-pad steer, A is
+fire, B, X and Y are the key buttons, Start is Enter, and the on-screen pad
+steps aside.
+
+Hotkeys are RetroArch style: one button is the hotkey, and every action is that
+button and another, so nothing is taken from the game. The hotkey is Select by
+default and can be any button, or None, in which case bindings fire on their
+own. Twenty-two actions to bind; nine out of the box:
+
+| Action | Button |
+| --- | --- |
+| Pause or resume | Select + B |
+| Quit the app | Select + Start |
+| Quick save | Select + R1 |
+| Quick load | Select + L1 |
+| Fast forward | Select + R2, while held |
+| Fullscreen | Select + X |
+| Show or hide the keyboard | Select + Y |
+| Next key profile | Select + R3 |
+| Next joystick type | Select + L3 |
+
+Fast forward runs at 500% and stays silent. Rebind in ☰ *Controls… ›
+Controller hotkeys…*: tap a row, press the button.
+
+
+
+## Profiles
+
+![The key profile editor](docs/screenshots/key-profile.jpg)
+
+The joystick comes out as any of the Spectrum's seven interfaces — Kempston,
+Cursor, Sinclair 1 and 2, Timex 1 and 2, Fuller — or as keys. Key profiles
+cover QAOPM, QAOP and Space, the cursor keys, both Sinclair sets and WASD, and
+you can copy any of them, edit the eight keys, and delete what you no longer
+want.
+
+Interface, profile, keyboard and mouse all change from the bar across the top of
+the window, mid-game.
+
+![Controls settings](docs/screenshots/settings-controls.jpg)
+
+
+## Touch
+
+![Landscape: the picture, the joystick and a keyboard](docs/screenshots/landscape.jpg)
+
+The on-screen joystick is a thumb pad, fire and three key buttons in an arc, put
+where the picture leaves room and laid over it, translucent, when it does not.
+
+Four keyboards, drawn rather than photographed, so they stay sharp at any size:
+the rubber 48K and the 128K plate, each also slim with the BASIC left off. Every
+key carries its keyword, symbol-shift character, colour and extended-mode token,
+in the colours the machine printed them in. Two fingers give a shifted key; hold
+a shift for 400ms and it latches until tapped again. Your own input method is
+there too as a fifth choice.
+
+![The rubber 48K, every legend in its own colour](docs/screenshots/keyboard-48k.jpg)
+
+![The 128K plate](docs/screenshots/keyboard-128k.jpg)
+
+Whenever no keyboard is on screen — you put it away, or you are in fullscreen —
+a button by the pad raises a see-through one over the picture instead, in
+whichever skin you chose, and the joystick stays put, so a game wanting a key
+and a stick at once can have both.
+
+**Kempston mouse** — a mode. While on, a drag moves the pointer, and fire and
+the first key button are its buttons. Sensitivity is a setting.
+
+
+## Cheats
+
+![Cheats for what is loaded](docs/screenshots/cheats.jpg)
+
+Cheats for 3,682 games are built in, matched by the file's fingerprint or by
+name. Ones that take a number ask for it. Pokes of your own can be fired once or
+kept on a list; decimal, or hex after `0x`, `$` or `#`.
+
+
+## Capture
+
+Screenshots as PNG, and recording to GIF or MP4, both straight to your gallery.
+
+
+## The machines
 
 | Family | Machines |
 | --- | --- |
@@ -21,133 +152,47 @@ Most of the code was written by Claude, directed and reviewed by a professional 
 | Clones | Pentagon 128K · 512K · 1024K · Scorpion ZS 256 |
 | Other | Spectrum SE |
 
-Speed 25%–500%. Reset and NMI. Issue 2 keyboard.
+- Speed 25%–500%, reset, NMI, Issue 2 keyboard
+- AY-3-8912 in ACB or ABC stereo, on the 128K family
+- Beta 128 and TR-DOS, drives A:–D:, on the Pentagons and the Scorpion
+- The +3 floppy, drives A: and B:
+- DivMMC and a memory card, on any machine
+- Timex SCLD video and its hi-res modes
+- A tape deck that reads and writes
+- Kempston mouse
 
-
-## Hardware
-
-| | |
-| --- | --- |
-| Beta 128 / TR-DOS, drives A:–D: | Pentagon, Scorpion |
-| +3 floppy, drives A: and B: | +3, +3e |
-| AY-3-8912, ACB or ABC stereo | 128K family |
-| Timex SCLD video, hi-res modes | Timex machines |
-| DivMMC + memory card | any machine, with esxDOS firmware |
-| Tape deck | read and write |
-| Kempston mouse | drag on the picture, or the pad and a controller's stick |
-| Joystick | Kempston · Cursor · Sinclair 1/2 · Timex 1/2 · Fuller · keyboard |
-| Keyboard | on screen or physical |
+![The tape deck and every drive the machine has](docs/screenshots/media.jpg)
 
 
 ## Files
 
-Snapshots, tapes, disks, cartridges, microdrive images, RZX recordings. The file
-identifies itself; the machine switches when the media needs one — a `.dsk`
-brings up a +3, a `.trd` a Beta-equipped machine.
+Snapshots, tapes, disks, cartridges, microdrive images and RZX recordings. The
+file identifies itself, and the machine switches when the media needs one — a
+`.dsk` brings up a +3, a `.trd` a Beta-equipped machine.
 
-- Opens files from other apps
-- Fast tape loading: off, safe (ROM loaders), turbo (custom loaders too)
-- Save states, named, renamed and deleted from the list
+- Opens files handed over by other apps
+- Fast tape loading: off, safe (ROM loaders), or turbo (custom loaders too)
 - Writes tapes and disks out, or back over the file they came from
 - Recent files: the last ten
-- Screenshots as PNG, recording to GIF or MP4
 - A demo tape in your tapes folder — the first run says where
 
+![Tape settings](docs/screenshots/settings-tape.jpg)
 
-## Display
-
-- GPU-scaled, fitted or at a whole-pixel scale
-- Filters: scanlines, CRT (curve, shadow mask, glow), or both
-- Video output: RGB, composite or RF, with colour bleed and noise
-- Border in full, slimmed to a quarter, or cropped
-- Black and white palette
-- Fullscreen: picture and joystick, with the keyboard a button away
-- Second screen on dual-screen handhelds
-
-
-## Controls
-
-**On-screen keyboard** — the rubber 48K, the 128K plate, or your own input
-method; the 128K slim to begin with. Ours are drawn rather than photographed, so
-they stay sharp at any size: every key carries its BASIC keyword, symbol-shift
-character, colour and extended-mode token, in the colours the machine prints
-them in. Two fingers give a shifted key; holding a shift for 400ms latches it
-until tapped again.
-
-Each also comes **slim** — every key, none of the BASIC. A key shows its own
-legend and the character symbol shift gives it, the 48K keeps the cursor arrows
-and DELETE, and the rows are barely more than half as tall, which sideways is
-that much more picture.
-
-Whenever no keyboard is on screen — you put it away, or you are in fullscreen —
-a button by the pad brings one up **over the picture** instead, see-through, in
-whichever skin you chose, with a button in the same place to put it away. The
-joystick stays where it is, so a game wanting a key and a stick at once can have
-both.
-
-**On-screen joystick** — thumb pad, fire, and three key buttons in an arc.
-Appears as any of the Spectrum's seven interfaces, or as keys. Eight-key
-profiles: QAOPM, QAOP + Space, cursor keys, both Sinclair sets, WASD, and your
-own — copied and deleted from the same list they are chosen in.
-
-**Physical controllers** — no setup. Stick, hat and D-pad steer; A is fire; B, X
-and Y are the key buttons; Start is Enter. The on-screen pad steps aside.
-
-**Hotkeys** — RetroArch style: the modifier button plus another, so nothing is
-taken from the game. The modifier is Select by default and can be any button, or
-None, in which case bindings fire on their own. Twenty-two actions to choose
-from; nine are bound out of the box:
-
-| Action | Button |
-| --- | --- |
-| Pause or resume | B |
-| Quit the app | Start |
-| Quick save | R1 |
-| Quick load | L1 |
-| Fast forward | R2, while held |
-| Fullscreen | X |
-| Show or hide the keyboard | Y |
-| Next key profile | R3 |
-| Next joystick type | L3 |
-
-Rebind in ☰ *Controls… › Controller hotkeys…*: tap a row, press the button.
-
-**Kempston mouse** — a mode. While on, a drag moves the pointer, and fire and
-the first key button are its buttons. Sensitivity is a setting.
-
-
-## Cheats
-
-3,682 games' cheats are built in, found by the file's fingerprint or by name.
-Cheats that take a number ask for one. Pokes of your own can be applied once or
-kept on a list; decimal, or hex after `0x`, `$` or `#`.
-
-
-## Activity lamps
-
-Tape, disk, memory card, AY, keyboard, joystick, mouse. Blue reads, amber
-writes. The AY is three bars, one per channel. A lit joystick lamp with a dead
-stick means the game wants a different interface.
-
-
-## Using it
-
-**First start** asks for two folders. Both can be changed later in
-*Settings › Files*.
+**First start** asks for two folders; both can be changed later in *Settings ›
+Files*.
 
 | | |
 | --- | --- |
 | Data folder | `roms`, `states`, `tapes`, `disks`, `screenshots`, `recordings`. **`/storage/emulated/0/Zedex`** by default, where a file manager can reach it — that needs All files access, and without it the app keeps everything in its own storage instead. Only the last two reach your gallery; a save state's thumbnail is not a photograph |
-| Content folder | where *Open file…* starts |
+| Content folder | where *Open file…* starts, on the first open after each launch |
 
-**ROMs** are installed on first run, never over a file you put there yourself.
-If any are missing a panel says which, and offers to fetch a set from
-archive.org, take them from a folder, or take files you pick. *Run anyway*
-starts on what is there.
+<!-- ![First run](docs/screenshots/first-run.jpg) — the two folder cards and the note about the demo tape -->
 
-### The quick bar
 
-A strip across the top of the window, either way up.
+## Getting around
+
+**The quick bar** — a strip across the top of the window, either way up. Tap the
+picture to bring it back; it fades after three seconds.
 
 | | |
 | --- | --- |
@@ -160,81 +205,18 @@ A strip across the top of the window, either way up.
 | Fast forward | hold for 500%, silent |
 | Fullscreen | |
 
+**☰** has *Open file…*, *Open recent…*, *Machine…*, *States…*, *Pokes…*,
+*Media…*, *Capture…*, *Controls…*, *Settings…* and *Quit*. **Back** never
+exits: it leaves fullscreen, or goes up a menu page, or opens ☰. *Quit* warns
+about unsaved disks first.
 
-Fullscreen hides everything but the picture and the joystick — the keyboard is
-still a button away, over the picture. Tap the picture to bring the bar back;
-Back leaves fullscreen. There is no fullscreen button when
-the controls are on a second screen.
+**Settings** has six tabs — Machine, Tape, Display, Controls, Sound, Files.
+Everything that persists is there, exactly once; ☰ and the bar are shortcuts to
+the same settings.
 
-**Back** never exits: it leaves fullscreen, or goes up a menu page, or opens ☰.
-*Quit* exits, and warns about unsaved disks first.
-
-### ☰
-
-| | |
-| --- | --- |
-| Open file… | the picker |
-| Open recent… | the last ten, newest first |
-| Machine… | pause, change machine, reset, NMI |
-| States… | a grid of cards, each showing the screen it holds; rename and delete on the card |
-| Pokes… | the database for what is loaded, a search, and pokes of your own |
-| Media… | the tape deck, every drive the machine has, and the card slot |
-| Capture… | screenshots and recording |
-| Controls… | joystick, keyboard, mouse, controller hotkeys |
-| Settings… | |
-| Quit | |
-
-### Settings
-
-Six tabs. Everything that persists is there, exactly once; ☰ and the bar are
-shortcuts to the same settings.
-
-| Machine | |
-| --- | --- |
-| Machine at startup | which machine to boot |
-| Issue 2 keyboard | early 48K keyboard behaviour a few games need |
-| DivMMC interface | resets the machine |
-| DivMMC firmware | the 8K esxDOS ROM, which is yours to bring |
-| Speed | 25% to 500% |
-
-| Tape | |
-| --- | --- |
-| Fast loading | off, safe, turbo |
-| Detect loaders | start and stop the tape when a loader asks |
-| Loading sound | only exists when a tape runs in real time |
-| Autoload media | type `LOAD` on inserting a tape |
-
-| Display | |
-| --- | --- |
-| Filter | off, scanlines, CRT, or both |
-| Advanced… | each effect's strength, video output, sharpness |
-| Black and white TV | |
-| Border | full, slim, none |
-| Portrait / Landscape scale | fit, or whole device pixels per emulated pixel |
-| Activity indicators | |
-| Second screen | |
-| Keep the screen on | |
-
-| Controls | |
-| --- | --- |
-| Interface | which joystick the pad comes out as, or Keyboard |
-| Key profile | and an editor for it |
-| Hide the joystick for a controller | |
-| Keyboard type | 48K or 128K, either of them slim, or Android's. The 128K slim to begin with — the flattest of them, so it costs the picture least |
-| Mouse sensitivity | |
-| Controller hotkeys… | |
-
-| Sound | |
-| --- | --- |
-| Sound, AY volume, Beeper volume | restart the sound subsystem |
-| AY stereo separation | off, ACB or ABC |
-
-| Files | |
-| --- | --- |
-| Data folder | |
-| Content folder | |
-| Save state format | SZX, Z80 or SNA |
-| Save tape format | TAP or TZX |
+**Activity lamps** — tape, disk, memory card, AY, keyboard, joystick, mouse.
+Blue reads, amber writes; the AY is three bars, one per channel. A lit joystick
+lamp with a dead stick means the game wants a different interface.
 
 
 ## The memory card
@@ -247,25 +229,17 @@ A DivMMC with esxDOS on it. Two things are yours to bring:
    as a MiSTer `.vhd`, which gets an HDF header written for it. It needs
    esxDOS's own `BIN` and `SYS` folders on it.
 
-Switch on *DivMMC interface* in the same place; the machine resets.
-
-Then `.ls` lists the card, `.` commands are esxDOS's, and ☰ *Machine… › NMI*
-opens its file browser. Changes are written back once a second and whenever the
-app is paused.
+Switch on *DivMMC interface* in the same place; the machine resets. Then `.ls`
+lists the card, `.` commands are esxDOS's, and ☰ *Machine… › NMI* opens its file
+browser. Changes are written back once a second and whenever the app is paused.
 
 
-## Two screens
+## No ads, no tracking
 
-On a dual-screen handheld — an AYN Thor and its like — *Settings › Display ›
-Second screen* moves the keyboard, the joystick, the lamps and the quick bar to
-the other panel, leaving the first screen showing nothing but the machine. ☰,
-settings, about and the hotkeys open on the panel too.
-
-Android decides which display an input method appears on, so the *Android
-keyboard* skin usually opens over the machine. It still types into the Spectrum.
-
-The setting cannot be switched on with no panel to move to. Unplugging one
-brings everything back.
+No advertising, no analytics, no accounts, nothing collected about you. The
+whole app carries a single library, for one settings screen. Two permissions:
+files, so your folder is somewhere you can reach, and internet, used for exactly
+one thing — fetching a ROM set, if you ever ask it to.
 
 
 ## Not yet
@@ -293,7 +267,7 @@ trademark rights. Fork the code freely; ship it under your own name.
 **The ROMs are not under the GPL and are not ours.** Most are Fuse's set,
 redistributed by permission of the copyright holders — Amstrad for the Sinclair
 machines, others for the rest. [README.copyright.md](roms/README.copyright.md)
-is that permission, copied from Fuse whole.
+is that permission, copied from Fuse whole. **No games are included.**
 
 **The demo's music is not ours.** The tune the shipped demo tape plays is *Time
 Up* by [shiru8bit](https://opengameart.org/users/shiru8bit), from OpenGameArt
