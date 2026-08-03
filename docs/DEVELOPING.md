@@ -208,8 +208,41 @@ Requires the Android SDK with NDK r27, plus `autoconf`-era build tools on the
 host (`make`, `perl`, `pkg-config`, and a host `gcc` for libspectrum's
 build-time codegen).
 
+### The upstream version is pinned
+
 The two upstream tarballs are not in git. The build script downloads them into
 `vendor/` on first run, verifies their SHA-256, and never writes to them again.
+
+**An upstream release cannot arrive on its own.** The version is written down
+twice and both have to agree, so there is no "latest" for a new Fuse to slip
+into:
+
+```sh
+FUSE_VER="1.9.0"          # in the URL: .../fuse/$FUSE_VER/fuse-$FUSE_VER.tar.gz
+LIBSPECTRUM_VER="1.6.2"
+```
+
+and each `fetch` carries the hash of the exact tarball it expects. A release
+re-rolled under the same name fails the checksum and stops the build rather
+than compiling something nobody looked at.
+
+**Raising it is deliberate, and it is three steps.** Change the version, put in
+the new hash, and rebuild from clean:
+
+```sh
+curl -fsSL -o - https://downloads.sourceforge.net/project/fuse-emulator/fuse/1.10.0/fuse-1.10.0.tar.gz | sha256sum
+# edit FUSE_VER and the hash beside it in scripts/build-native.sh
+./scripts/build-native.sh clean && ./scripts/build-native.sh
+```
+
+Rebuild from clean because `fetch` skips a version whose folder is already
+there — so a bumped number with the old tree still in `vendor/` would quietly
+build the old code. And read the upstream changelog for the UI layer before
+trusting the result: the backend in `native/ui/android` stands in for `ui/fb`
+and takes `fuse_OBJECTS`, `fuse_LDADD` and two weakened symbols from the
+generated Makefile, so it follows upstream by asking rather than by copying —
+but a UI entry point that changes shape is still a compile error waiting for
+whoever bumps the number.
 
 Three ABIs: `arm64-v8a`, `armeabi-v7a` and `x86_64` — every phone in use, and
 the emulator. There is no 32-bit x86, which no device has needed for years.

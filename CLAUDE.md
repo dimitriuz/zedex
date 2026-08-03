@@ -14,6 +14,13 @@ expensive to rediscover.
   `--with-fb`, then never compile `ui/fb` and link `native/ui/android` in its
   place. One symbol is overridden with `llvm-objcopy --weaken-symbol`. If
   something seems to need a patch, it almost certainly does not.
+- **The upstream version is pinned and stays pinned.** `FUSE_VER` and
+  `LIBSPECTRUM_VER` in `scripts/build-native.sh` go into the URL, and each
+  tarball's SHA-256 is checked, so no release arrives by itself. Raising one
+  means the version *and* its hash *and* `build-native.sh clean` — `fetch`
+  skips a version already extracted, so a bumped number over an old
+  `vendor/` builds the old code and says nothing. See *The upstream version is
+  pinned* in `docs/DEVELOPING.md`.
 - **The debug build is a package of its own**, `dev.ldlab.zedex.debug`, so it
   installs beside the release one instead of fighting it over a certificate.
   Anything addressed to the app by name — `appops`, `run-as`, `am start` —
