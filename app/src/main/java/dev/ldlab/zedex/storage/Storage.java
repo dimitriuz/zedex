@@ -70,6 +70,9 @@ public final class Storage {
     /** What a folder is called when it tells the media scanner to walk past. */
     private static final String NOMEDIA = ".nomedia";
 
+    /** The folder the app makes at the root of shared storage, by default. */
+    private static final String SHARED_ROOT = "Zedex";
+
     /**
      * The DivMMC's firmware, which is not a machine ROM and not ours to ship.
      *
@@ -103,9 +106,14 @@ public final class Storage {
      * exactly the places the app can use with no permission at all.
      */
     public static boolean needsAllFiles(Context context) {
+        return needsAllFilesFor(context, root(context));
+    }
+
+    /** The same question about a folder that has not been chosen yet. */
+    public static boolean needsAllFilesFor(Context context, File folder) {
         if (canUseAnyFolder()) return false;
 
-        String chosen = root(context).getAbsolutePath();
+        String chosen = folder.getAbsolutePath();
 
         for (File usable : roots(context)) {
             if (chosen.equals(usable.getAbsolutePath())
@@ -372,7 +380,60 @@ public final class Storage {
             if (root.isDirectory()) return root;
         }
 
-        return context.getFilesDir();
+        return defaultRoot(context);
+    }
+
+    /**
+     * {@code /storage/emulated/0/Zedex} - where the files go if nobody says
+     * otherwise, and somewhere a person can actually get at.
+     *
+     * The old default was the app's own storage, which on Android 11 and later
+     * is not somewhere a file manager will go: a hundred save states and every
+     * screenshot were in a folder the person who made them could not open. Even
+     * the shared app folder is no better - {@code Android/data} is closed to
+     * browsers too, and the path is sixty characters of package name.
+     *
+     * A name at the root is the one place that is neither, and it needs All
+     * files access to create. Without that permission this falls back to where
+     * it always was, and the first run offers the grant; nothing here demands
+     * it, and the app works either way.
+     */
+    public static File sharedRoot() {
+        return new File(Environment.getExternalStorageDirectory(), SHARED_ROOT);
+    }
+
+    public static File defaultRoot(Context context) {
+        return canUseAnyFolder() && isWritable(sharedRoot())
+                ? sharedRoot() : context.getFilesDir();
+    }
+
+    /**
+     * Writes down where the files are, so that the answer cannot change under
+     * somebody later.
+     *
+     * {@link #root} falls back to {@link #defaultRoot} when nothing is stored,
+     * and what that returns depends on a permission - so an install that took
+     * the old default and was granted All files access for some other reason
+     * would silently start looking in a different folder, and every state ever
+     * saved would appear to have gone. Pinning the answer the first time it is
+     * asked for makes the preference the only thing that decides.
+     */
+    public static void pinRoot(Context context) {
+        SharedPreferences preferences =
+                context.getSharedPreferences(SettingsActivity.PREFS, Context.MODE_PRIVATE);
+
+        if (preferences.contains(KEY_STATES_ROOT)) return;
+
+        // Not on the very first run, which has not chosen yet and is detected
+        // by the preferences being empty - writing one here told the panel it
+        // had already been through setup, and the first thing a new install
+        // saw was the machine rather than the question. The first run pins its
+        // own answer when it finishes.
+        if (preferences.getAll().isEmpty()) return;
+
+        preferences.edit()
+                .putString(KEY_STATES_ROOT, root(context).getAbsolutePath())
+                .apply();
     }
 
     /** Where tapes the machine SAVEs to are written. */

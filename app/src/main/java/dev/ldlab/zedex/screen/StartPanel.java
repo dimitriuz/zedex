@@ -132,6 +132,16 @@ public final class StartPanel {
     private TextView demoNote;
 
     /**
+     * A folder chosen before the app was allowed to use it.
+     *
+     * Granting All files access is another screen, and the way back from it is
+     * a resume rather than a result - so the choice is kept here and made when
+     * the answer arrives, instead of asking the user to pick the same folder
+     * twice with no sign that the first time did anything.
+     */
+    private File pending;
+
+    /**
      * Whether the first run is on screen and unanswered.
      *
      * Needed because {@link #setupNeeded} stops being true the moment setup
@@ -564,6 +574,26 @@ public final class StartPanel {
         return asking;
     }
 
+    /**
+     * Back from somewhere - most usefully from Android's All files screen.
+     *
+     * A folder picked before the permission existed is applied now, and the
+     * rows are described again either way: the permission decides what the
+     * default folder is, so granting it changes what this screen should say
+     * even when nothing was picked.
+     */
+    public void onResumed() {
+        File wanted = pending;
+        pending = null;
+
+        if (wanted != null && Storage.canUseAnyFolder()) {
+            useDataFolder(wanted);
+            return;
+        }
+
+        if (asking) describeFolders();
+    }
+
     /** The first run: where things are kept, and where they are opened from. */
     public void showSetup() {
         asking = true;
@@ -611,7 +641,15 @@ public final class StartPanel {
      * {@code fopen}.
      */
     private void chooseDataFolder() {
-        List<File> roots = Storage.roots(activity);
+        // The short one at the root of storage goes first, and is offered
+        // whether or not the permission to make it is held: it is the answer
+        // most people want, and being told what it needs is more use than not
+        // being shown it. Picking it without the permission asks for that
+        // instead, and comes back here.
+        List<File> roots = new ArrayList<>();
+        roots.add(Storage.sharedRoot());
+        roots.addAll(Storage.roots(activity));
+
         String[] items = new String[roots.size() + 1];
 
         for (int i = 0; i < roots.size(); i++) {
@@ -656,6 +694,16 @@ public final class StartPanel {
     }
 
     private void useDataFolder(File folder) {
+        // A folder outside the app's own storage cannot even be made without
+        // All files access, so a refusal here is usually a permission and not a
+        // bad folder. Ask for the one, remember the other, and put it in place
+        // when the answer comes back - see {@link #onResumed}.
+        if (!Storage.canUseAnyFolder() && Storage.needsAllFilesFor(activity, folder)) {
+            pending = folder;
+            askForAllFiles(R.string.settings_all_files_folder);
+            return;
+        }
+
         if (!Storage.isWritable(folder)) {
             toast(R.string.settings_folder_unusable);
             return;
@@ -692,6 +740,11 @@ public final class StartPanel {
         asking = false;
         activity.getSharedPreferences(SettingsActivity.PREFS, Activity.MODE_PRIVATE)
                 .edit().putBoolean(Storage.KEY_SETUP_DONE, true).apply();
+
+        // Whatever the folder rows ended up saying, written down as the answer.
+        // Leaving the default unrecorded would let a permission granted later
+        // change where the app looks; see Storage.pinRoot.
+        Storage.pinRoot(activity);
 
         Storage.createFolders(activity);
         Storage.installRoms(activity);

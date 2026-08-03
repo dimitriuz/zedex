@@ -134,7 +134,7 @@ stick means the game wants a different interface.
 
 | | |
 | --- | --- |
-| Data folder | `roms`, `states`, `tapes`, `disks`, `screenshots`, `recordings`. Its own storage by default; somewhere shared keeps them if the app is uninstalled. Only the last two reach your gallery — a save state's thumbnail is not a photograph |
+| Data folder | `roms`, `states`, `tapes`, `disks`, `screenshots`, `recordings`. **`/storage/emulated/0/Zedex`** by default, where a file manager can reach it — that needs All files access, and without it the app keeps everything in its own storage instead. Only the last two reach your gallery; a save state's thumbnail is not a photograph |
 | Content folder | where *Open file…* starts |
 
 **ROMs** are installed on first run, never over a file you put there yourself.

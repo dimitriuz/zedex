@@ -327,6 +327,7 @@
     <string name="settings_data_folder">Data folder</string>
     <string name="settings_data_folder_summary">Where ROMs and save states are kept</string>
     <string name="settings_choose_folder">Choose folder\u2026</string>
+    <string name="settings_all_files_folder">A folder outside the app\'s own storage needs “All files access”. Grant it and Zedex will use that folder — there is nothing to choose again.</string>
     <string name="settings_all_files">Any folder needs \u201cAll files access\u201d. Grant it, then choose the folder.</string>
     <string name="settings_grant">Grant</string>
     <string name="settings_folder_unusable">That folder cannot be written to directly; pick another.</string>

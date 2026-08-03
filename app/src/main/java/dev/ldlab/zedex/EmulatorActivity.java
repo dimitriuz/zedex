@@ -274,6 +274,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         getApplication().registerActivityLifecycleCallbacks(panels.lifecycle());
         FuseNative.attach(this);
+
+        // Before the folders are made, and before anything reads one: this
+        // writes down where they are, so that granting a permission later
+        // cannot move them out from under a hundred save states.
+        Storage.pinRoot(this);
         Storage.createFolders(this);
 
         // The ROMs the app ships, before anything asks whether there are any -
@@ -538,6 +543,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         } else {
             getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }
+
+        // A folder chosen before the app was allowed to use it, and the panel's
+        // own rows: All files access is granted on a screen of Android's, and
+        // coming back from that is a resume rather than a result.
+        roms.onResumed();
 
         // The settings screen can have changed these while we were away.
         layout.setLightsVisible(
