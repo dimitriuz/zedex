@@ -1047,15 +1047,7 @@ public final class EmulatorLayout extends ViewGroup {
         int size = Math.min(wanted, leftBar - 2 * margin);
 
         if (size >= minimum && barBottom - barTop >= size + 2 * margin) {
-            // A little below the middle of the window, not against the foot of
-            // the strip. Sideways that strip is nearly the whole height, and
-            // the bottom of it is below where a hand holding a tablet actually
-            // is - the thumb ends up reaching down and under rather than
-            // resting. Clamped to the strip either way, so a short one still
-            // puts the controls inside it.
-            int centreY = Math.round(height * PAD_HEIGHT);
-            centreY = Math.max(barTop + margin + size / 2,
-                               Math.min(centreY, barBottom - margin - size / 2));
+            int centreY = comfortableY(height, barTop, barBottom, size, margin);
             int fireSize = Math.round(size * FIRE_OF_PAD);
 
             // The right bar reaches the window's edge unless the quick bar is
@@ -1097,12 +1089,39 @@ public final class EmulatorLayout extends ViewGroup {
             return;
         }
 
-        // 3. Nowhere left: over the picture's bottom corners.
+        // 3. Nowhere left: floating over the picture, at the same height as
+        // anywhere else. This is the case a 4:3 picture on a 16:10 tablet
+        // actually lands in - the bars either side are too narrow for a pad, so
+        // it floats - and it was the one branch still pinning the controls to
+        // the foot of the screen, which is what "the joystick is at the bottom
+        // again" was. Over the picture the cost is covering a little more of
+        // the game; they are translucent here, and a thumb that has to curl
+        // under the tablet to reach the stick is the worse trade.
         joystickFloating = true;
         size = Math.max(minimum, Math.min(wanted, picture.width() / 4));
         strip(picture.left, picture.right,
-              picture.bottom - margin - size / 2, size, margin);
+              comfortableY(height, picture.top, picture.bottom, size, margin),
+              size, margin);
         fireArea.set(picture);
+    }
+
+    /**
+     * A little below the middle of the window, kept inside the space given.
+     *
+     * That is where a hand holding a tablet is. The foot of the window is below
+     * it - reaching there means curling a thumb under the device rather than
+     * resting it - and sideways there is no shortage of height to spend.
+     *
+     * The clamp is what makes one rule fit every arrangement: a space too short
+     * to hold the controls that far up simply gets them as far up as it can,
+     * which for a narrow band is exactly where they used to be.
+     */
+    private int comfortableY(int height, int top, int bottom,
+                             int size, int margin) {
+        int wanted = Math.round(height * PAD_HEIGHT);
+
+        return Math.max(top + margin + size / 2,
+                        Math.min(wanted, bottom - margin - size / 2));
     }
 
     /**
