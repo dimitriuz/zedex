@@ -1,6 +1,6 @@
 # Zedex
 
-![Zedex running its own demo tape, fullscreen](docs/screenshots/demo-fullscreen.jpg)
+<a href="docs/screenshots/demo-fullscreen.jpg"><img src="docs/screenshots/demo-fullscreen.jpg" width="720" alt="Zedex running its own demo tape, fullscreen"></a>
 
 A ZX Spectrum that behaves like a modern console. Save at any moment, put the
 picture through the CRT you remember, pick up a controller and play. Nothing to
@@ -17,7 +17,7 @@ How Fuse is wired in: [docs/INTERNALS.md](docs/INTERNALS.md).
 
 ## Save states
 
-![The states grid, each card showing the screen it holds](docs/screenshots/states.jpg)
+<a href="docs/screenshots/states.jpg"><img src="docs/screenshots/states.jpg" width="400" alt="The states grid, each card showing the screen it holds"></a>
 
 Stop wherever you like. States are a grid of cards, each showing the screen it
 holds, renamed and deleted on the card itself. Quick save and quick load sit on
@@ -28,7 +28,8 @@ SNA.
 
 ## Shaders
 
-![The menu over a picture curved like a CRT](docs/screenshots/shaders.jpg)
+<a href="docs/screenshots/shaders.jpg"><img src="docs/screenshots/shaders.jpg" width="400" alt="Scanlines, CRT and composite video over a game"></a>
+<a href="docs/screenshots/settings-display.jpg"><img src="docs/screenshots/settings-display.jpg" width="400" alt="Display settings"></a>
 
 - Scanlines, or a CRT with curvature, shadow mask and glow, or both together
 - The signal: RGB, composite or RF, with colour bleed and noise
@@ -38,9 +39,6 @@ SNA.
 Scaling runs on the GPU — fitted to the screen, or at a whole number of device
 pixels per emulated pixel. Border in full, slimmed to a quarter, or cropped
 away. Fullscreen leaves nothing but the picture and your thumbs.
-
-![Display settings](docs/screenshots/settings-display.jpg)
-
 
 
 ## Dual screen
@@ -58,7 +56,7 @@ keyboard* skin usually opens over the machine. It still types into the Spectrum.
 
 ## Controllers
 
-![Controller hotkeys](docs/screenshots/hotkeys.jpg)
+<a href="docs/screenshots/hotkeys.jpg"><img src="docs/screenshots/hotkeys.jpg" width="400" alt="Controller hotkeys"></a>
 
 Plug one in and it works — no mapping screen. Stick, hat and D-pad steer, A is
 fire, B, X and Y are the key buttons, Start is Enter, and the on-screen pad
@@ -88,7 +86,8 @@ Controller hotkeys…*: tap a row, press the button.
 
 ## Profiles
 
-![The key profile editor](docs/screenshots/key-profile.jpg)
+<a href="docs/screenshots/key-profile.jpg"><img src="docs/screenshots/key-profile.jpg" width="400" alt="The key profile editor"></a>
+<a href="docs/screenshots/settings-controls.jpg"><img src="docs/screenshots/settings-controls.jpg" width="400" alt="Controls settings"></a>
 
 The joystick comes out as any of the Spectrum's seven interfaces — Kempston,
 Cursor, Sinclair 1 and 2, Timex 1 and 2, Fuller — or as keys. Key profiles
@@ -99,12 +98,10 @@ want.
 Interface, profile, keyboard and mouse all change from the bar across the top of
 the window, mid-game.
 
-![Controls settings](docs/screenshots/settings-controls.jpg)
-
 
 ## Touch
 
-![Landscape: the picture, the joystick and a keyboard](docs/screenshots/landscape.jpg)
+<a href="docs/screenshots/landscape.jpg"><img src="docs/screenshots/landscape.jpg" width="400" alt="Landscape: the picture, the joystick and a keyboard"></a>
 
 The on-screen joystick is a thumb pad, fire and three key buttons in an arc, put
 where the picture leaves room and laid over it, translucent, when it does not.
@@ -116,9 +113,8 @@ in the colours the machine printed them in. Two fingers give a shifted key; hold
 a shift for 400ms and it latches until tapped again. Your own input method is
 there too as a fifth choice.
 
-![The rubber 48K, every legend in its own colour](docs/screenshots/keyboard-48k.jpg)
-
-![The 128K plate](docs/screenshots/keyboard-128k.jpg)
+<a href="docs/screenshots/keyboard-48k.jpg"><img src="docs/screenshots/keyboard-48k.jpg" width="400" alt="The rubber 48K, every legend in its own colour"></a>
+<a href="docs/screenshots/keyboard-128k.jpg"><img src="docs/screenshots/keyboard-128k.jpg" width="400" alt="The 128K plate"></a>
 
 Whenever no keyboard is on screen — you put it away, or you are in fullscreen —
 a button by the pad raises a see-through one over the picture instead, in
@@ -131,7 +127,7 @@ the first key button are its buttons. Sensitivity is a setting.
 
 ## Cheats
 
-![Cheats for what is loaded](docs/screenshots/cheats.jpg)
+<a href="docs/screenshots/cheats.jpg"><img src="docs/screenshots/cheats.jpg" width="400" alt="Cheats for what is loaded"></a>
 
 Cheats for 3,682 games are built in, matched by the file's fingerprint or by
 name. Ones that take a number ask for it. Pokes of your own can be fired once or
@@ -161,7 +157,7 @@ Screenshots as PNG, and recording to GIF or MP4, both straight to your gallery.
 - A tape deck that reads and writes
 - Kempston mouse
 
-![The tape deck and every drive the machine has](docs/screenshots/media.jpg)
+<a href="docs/screenshots/media.jpg"><img src="docs/screenshots/media.jpg" width="400" alt="The tape deck and every drive the machine has"></a>
 
 
 ## Files
@@ -176,7 +172,7 @@ file identifies itself, and the machine switches when the media needs one — a
 - Recent files: the last ten
 - A demo tape in your tapes folder — the first run says where
 
-![Tape settings](docs/screenshots/settings-tape.jpg)
+<a href="docs/screenshots/settings-tape.jpg"><img src="docs/screenshots/settings-tape.jpg" width="400" alt="Tape settings"></a>
 
 **First start** asks for two folders; both can be changed later in *Settings ›
 Files*.
@@ -204,6 +200,8 @@ picture to bring it back; it fades after three seconds.
 | Display | scanlines, CRT, video output, border, lamps |
 | Fast forward | hold for 500%, silent |
 | Fullscreen | |
+
+<a href="docs/screenshots/main-menu.jpg"><img src="docs/screenshots/main-menu.jpg" width="400" alt="The main menu"></a>
 
 **☰** has *Open file…*, *Open recent…*, *Machine…*, *States…*, *Pokes…*,
 *Media…*, *Capture…*, *Controls…*, *Settings…* and *Quit*. **Back** never
