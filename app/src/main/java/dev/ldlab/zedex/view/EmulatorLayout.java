@@ -485,7 +485,25 @@ public final class EmulatorLayout extends ViewGroup {
      * {@link #placeOverlay}.
      */
     public boolean overlayAvailable() {
-        return fullscreen;
+        return !keyboardHere() && !lent && imeInset == 0;
+    }
+
+    /**
+     * Whether a drawn keyboard has a place in this window.
+     *
+     * Four ways it has not, and they are the same question whichever way up the
+     * device is: the user has put it away; fullscreen, which is the point of it;
+     * it is lent to a second screen; or the skin is Android's own, which comes
+     * up over the window rather than inside the layout.
+     *
+     * Asked by {@link #arrange} to decide whether to reserve room, and by
+     * {@link #overlayAvailable} to decide whether to offer the other keyboard -
+     * one question, so the two answers cannot disagree and leave the window
+     * with two keyboards or none.
+     */
+    private boolean keyboardHere() {
+        return keyboardWanted && !fullscreen && !lent
+                && (keyboard == null || keyboard.skin().drawn());
     }
 
     public boolean overlayShown() {
@@ -637,6 +655,10 @@ public final class EmulatorLayout extends ViewGroup {
 
         imeInset = ime;
         gestureInset = gestures;
+
+        // The phone's own keyboard is a keyboard too, and this is the only sign
+        // of it: while it covers the window the overlay is not offered.
+        applyOverlayVisibility();
         requestLayout();
     }
 
@@ -733,6 +755,11 @@ public final class EmulatorLayout extends ViewGroup {
      * is how layout loops start.
      */
     private void applyKeyboardVisibility() {
+        // Whether a keyboard is here decides whether the other one is offered,
+        // so the two are settled together: every path that changes the keyboard
+        // comes through this, and none of them has to remember the overlay.
+        applyOverlayVisibility();
+
         if (keyboard == null) return;
 
         // On a second screen the keyboard has a window of its own, so the rules
@@ -796,8 +823,7 @@ public final class EmulatorLayout extends ViewGroup {
         // leave the picture the size it was with a band of black where the keys
         // had been; it is lent to a second screen; or the skin is Android's own
         // keyboard, which comes up over the window whenever it is asked to.
-        boolean keys = keyboardWanted && !fullscreen && !lent
-                && (keyboard == null || keyboard.skin().drawn());
+        boolean keys = keyboardHere();
 
         panelBox.set(0, 0, width, height);
 
@@ -886,17 +912,11 @@ public final class EmulatorLayout extends ViewGroup {
         placeKeyButtons();
         placeOverlay(width, height);
 
-        // The keys lie across the foot of the window, which is where the pad
-        // and fire are: they would be behind them, unreachable, and showing
-        // through as a ring and a disc that do nothing. A hand typing is not a
-        // hand on the stick, so they stand down until it is put away - after
-        // the overlay has taken the pad's place for its button, which is the
-        // one thing that must not move when the keys appear.
-        if (overlayShown()) {
-            padBox.setEmpty();
-            fireBox.setEmpty();
-            for (Rect box : keyBoxes) box.setEmpty();
-        }
+        // The joystick stays while the keys are up. It used to stand down,
+        // because both wanted the foot of the window and the pad would have sat
+        // behind the keyboard, unreachable; now the controls are at 59% and the
+        // slim keyboard is under 300 pixels tall, so they never meet - and a
+        // game that wants a key *and* a stick can have both.
 
         // Set here rather than in placeJoystick, which returns from three
         // places; alpha is a draw property, so this is safe during a measure.
