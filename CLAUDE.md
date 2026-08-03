@@ -181,6 +181,19 @@ only name is their content description (`ui-tap.py` matches that too). ☰ has
 "Scorpion"`. The quick bar fades after three seconds, so tap the picture first
 to bring it back.
 
+**Test on the hardware when there is any.** Both scripts pick a real phone or
+tablet over an emulator when both are attached, and `ANDROID_SERIAL` overrides
+them. Prefer it for anything about layout: the two bugs this cost most —
+the key buttons vanishing, and a joystick too low to hold — were a tablet's
+geometry and dpi, and an emulator agreed with the wrong answer every time.
+`adb` itself does not pick, so a bare `adb shell` with both attached fails with
+*more than one device*; pass `-s`.
+
+**Check what is in front of the app before believing a measurement.** A settings
+page or a file picker taking focus turns "the buttons are gone" into a reading
+of the wrong screen — that happened three times in one session. Assert
+`ResumedActivity` is `EmulatorActivity`, or screenshot, before trusting a count.
+
 ## Where things live
 
 `FuseNative` and `EmulatorActivity` stay in `dev.ldlab.zedex` and cannot move:

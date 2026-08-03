@@ -24,6 +24,37 @@ import time
 
 ADB = os.environ.get("ADB", os.path.expanduser("~/Android/Sdk/platform-tools/adb"))
 
+
+def device():
+    """A real phone or tablet if one is plugged in, otherwise the emulator.
+
+    Same rule as ui-tap.py: with both attached a bare `adb shell` refuses to
+    guess, and the hardware is the answer that counts. ANDROID_SERIAL wins.
+    """
+    chosen = os.environ.get("ANDROID_SERIAL")
+    if chosen:
+        return ["-s", chosen]
+
+    listed = subprocess.run([ADB, "devices"], capture_output=True, text=True)
+    ready = [line.split()[0] for line in listed.stdout.splitlines()[1:]
+             if line.strip().endswith("\tdevice")]
+
+    hardware = [serial for serial in ready if not serial.startswith("emulator-")]
+    pick = (hardware or ready)
+
+    return ["-s", pick[0]] if pick else []
+
+
+ADB_TARGET = None
+
+
+def adb(*arguments):
+    global ADB_TARGET
+    if ADB_TARGET is None:
+        ADB_TARGET = device()
+
+    return [ADB] + ADB_TARGET + list(arguments)
+
 CAPS, SYMBOL = "\x01", "\x02"
 NAMED = {"ENTER": "\n", "SPACE": " ", "CS": CAPS, "SS": SYMBOL}
 
@@ -47,9 +78,9 @@ SYMBOLS = {
 
 def keys():
     """Every key on screen, by name, as the middle of where it is."""
-    subprocess.run([ADB, "shell", "uiautomator", "dump", "/sdcard/ui.xml"],
+    subprocess.run(adb("shell", "uiautomator", "dump", "/sdcard/ui.xml"),
                    capture_output=True)
-    dump = subprocess.run([ADB, "shell", "cat", "/sdcard/ui.xml"],
+    dump = subprocess.run(adb("shell", "cat", "/sdcard/ui.xml"),
                           capture_output=True, text=True).stdout
 
     found = {}
@@ -83,13 +114,13 @@ def main():
 
     def tap(character):
         x, y = at(character)
-        subprocess.run([ADB, "shell", "input", "tap", str(x), str(y)])
+        subprocess.run(adb("shell", "input", "tap", str(x), str(y)))
         time.sleep(0.25)
 
     def latch(shift):
         x, y = at(shift)
-        subprocess.run([ADB, "shell", "input", "swipe",
-                        str(x), str(y), str(x), str(y), "700"])
+        subprocess.run(adb("shell", "input", "swipe",
+                           str(x), str(y), str(x), str(y), "700"))
         time.sleep(0.25)
 
     def with_shift(shift, character):

@@ -19,6 +19,40 @@ import time
 
 ADB = os.environ.get("ADB", os.path.expanduser("~/Android/Sdk/platform-tools/adb"))
 
+
+def device():
+    """A real phone or tablet if one is plugged in, otherwise the emulator.
+
+    Both are usually attached here, and then a bare `adb shell` refuses to
+    guess - so this picks, and picks the hardware: what the app does on a
+    Xiaomi tablet is the answer that counts, and an emulator agreeing with it
+    is a convenience rather than evidence. ANDROID_SERIAL still wins, for
+    driving one of two devices deliberately.
+    """
+    chosen = os.environ.get("ANDROID_SERIAL")
+    if chosen:
+        return ["-s", chosen]
+
+    listed = subprocess.run([ADB, "devices"], capture_output=True, text=True)
+    ready = [line.split()[0] for line in listed.stdout.splitlines()[1:]
+             if line.strip().endswith("\tdevice")]
+
+    hardware = [serial for serial in ready if not serial.startswith("emulator-")]
+    pick = (hardware or ready)
+
+    return ["-s", pick[0]] if pick else []
+
+
+ADB_TARGET = None
+
+
+def adb(*arguments):
+    global ADB_TARGET
+    if ADB_TARGET is None:
+        ADB_TARGET = device()
+
+    return [ADB] + ADB_TARGET + list(arguments)
+
 # The quick bar and the keyboard are icons and pixels, so their nodes carry a
 # description and no text at all; the menu carries text. Take whichever is
 # there, description first, since a described node was named on purpose.
@@ -28,9 +62,9 @@ NODE = re.compile(r'text="([^"]*)"[^>]*?content-desc="([^"]*)"'
 
 
 def dump():
-    subprocess.run([ADB, "shell", "uiautomator", "dump", "/sdcard/ui.xml"],
+    subprocess.run(adb("shell", "uiautomator", "dump", "/sdcard/ui.xml"),
                    capture_output=True)
-    return subprocess.run([ADB, "shell", "cat", "/sdcard/ui.xml"],
+    return subprocess.run(adb("shell", "cat", "/sdcard/ui.xml"),
                           capture_output=True, text=True).stdout
 
 
@@ -63,7 +97,7 @@ def tap(target, timeout=8):
         match = best(target, on_screen)
         if match:
             text, _, x, y = match
-            subprocess.run([ADB, "shell", "input", "tap", str(x), str(y)])
+            subprocess.run(adb("shell", "input", "tap", str(x), str(y)))
             print(f"tapped {text!r} at ({x},{y})")
             time.sleep(1.2)
             return True
