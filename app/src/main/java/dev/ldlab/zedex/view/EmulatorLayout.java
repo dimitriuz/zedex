@@ -816,19 +816,25 @@ public final class EmulatorLayout extends ViewGroup {
         int top = barStrip;
 
         if (!keys) {
-            screenBox.set(0, top, width, height);
             keyboardBox.setEmpty();
 
-            // Except while the system keyboard is up, which covers the bottom
-            // of the window: then the picture takes the space above it and sits
-            // at the top of that, rather than staying centred in a window whose
-            // lower half it can no longer be seen in.
-            if (imeInset > 0) {
-                int room = height - imeInset - top;
-                int tall = Math.min(room, Math.round(width / SCREEN_ASPECT));
+            // The box is the picture's own height, never more, so the picture
+            // goes to the top of the window and every pixel left over ends up
+            // in one piece below it.
+            //
+            // The renderer centres the picture in whatever box it is given, so
+            // a box the height of the window put a 4:3 picture in the middle of
+            // an upright one with a band of black above it as well as below -
+            // and the band below is the half that is worth having: it is where
+            // a hand is, and where the joystick goes. Sideways this changes
+            // nothing, the picture being taller than the window at that width.
+            //
+            // It also covers the system keyboard, which takes the bottom of the
+            // window while it is up: the room is simply smaller.
+            int room = height - imeInset - top;
+            int tall = Math.min(room, Math.round(width / SCREEN_ASPECT));
 
-                if (tall > 0) screenBox.set(0, top, width, top + tall);
-            }
+            screenBox.set(0, top, width, top + Math.max(0, tall));
         } else {
             // The box stays the width of the window - the keyboard's own
             // background is the strip across the foot - but the keyboard inside
@@ -1078,12 +1084,14 @@ public final class EmulatorLayout extends ViewGroup {
         size = Math.min(wanted, floor - underPicture - 2 * margin);
 
         if (size >= minimum && size <= (width - 2 * margin) / 2) {
-            // Against the keyboard rather than floating in the middle of the
-            // band. That is where a thumb rests, it is what the side bars
-            // already do, and centring it left the controls in the middle of
-            // nowhere when the band was tall - or over the keys when the band
-            // was measured against a window the keyboard was covering.
-            strip(screenBox.left, screenBox.right, floor - margin - size / 2,
+            // The same height as the other two arrangements, which in a band
+            // only as tall as the controls comes out against the keyboard -
+            // where a thumb rests, and where this used to be pinned outright.
+            // Upright with the keyboard away the band is half the window, and
+            // pinning put the controls at ninety per cent of a ten-inch tablet:
+            // under the hand holding it rather than in it.
+            strip(screenBox.left, screenBox.right,
+                  comfortableY(height, underPicture, floor, size, margin),
                   size, margin);
             fireArea.set(screenBox.left, underPicture, screenBox.right, floor);
             return;
