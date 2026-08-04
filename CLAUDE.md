@@ -83,6 +83,22 @@ expensive to rediscover.
   either: every `adb shell ls` and script that names the folder would need
   quoting, and one that forgot silently listed the release build's folder
   instead and looked like it had worked.
+- **A preference's type is whatever wrote it, and the wrong getter throws.**
+  `joystickType` is `putInt` in three places; `getString` on it is a
+  ClassCastException. The trap is that it throws only when the key is *present* -
+  `getString` on an absent key returns the default quite happily - so a mismatch
+  passes every test on a fresh install and crashes on the first device where
+  somebody has changed that setting. That is how 1.1.0 shipped a crash in the bug
+  reporter, of all things. **Check the writer before reading a preference**, and
+  run `scripts/check-prefs.py`, which compares every `putX` against every `getX`
+  and exits non-zero on a mismatch. Where a report or anything else has no
+  business caring about the type, read `getAll()` and print what is there -
+  `Diagnostics.settings` does.
+- **New code that reads existing state must be tested against *used* state.**
+  The same lesson, one level up. A fresh install has no preferences, no save
+  states, an empty recent list and a default keyboard, so a test on one exercises
+  every "absent" branch and none of the others. Set the thing first - change the
+  setting, load a game, fill the folder - and then run the new code.
 - **A bug report is shown before it is sent, and that is the whole design.**
   `Diagnostics.report()` is built on request, `Feedback` puts it in an editable
   box, and the user's own mail app sends it. Nothing is gathered in the

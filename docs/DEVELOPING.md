@@ -426,6 +426,15 @@ emulator with a 136 px hole, both ways up — sideways it moves to one end, whic
 is where the joystick and the key buttons are — and the whole instrumentation
 suite passes with it on.
 
+### Preferences have no types
+
+`scripts/check-prefs.py` compares every `putX` against every `getX` for each
+preference key and fails on a mismatch. Worth running after touching anything
+that reads settings, because the failure mode is invisible in testing: a getter
+of the wrong type throws only when the key is *present*, and on a fresh install
+every key is absent. `joystickType` is an `Int`; `getString` on it shipped a
+crash in 1.1.0 that no test on a clean device could have caught.
+
 ### Bug reports and the crash catcher
 
 *About Zedex › Report a problem* builds `Diagnostics.report()`, shows it in an

@@ -12,6 +12,7 @@ import android.os.Build;
 import android.util.DisplayMetrics;
 
 import java.io.File;
+import java.util.Map;
 
 /**
  * What the app knows about itself, as a dozen lines of text.
@@ -121,22 +122,33 @@ public final class Diagnostics {
     /**
      * Only the settings that change what the app does, not all of them.
      *
+     * Read out of {@link SharedPreferences#getAll} rather than with getString and
+     * getBoolean, because <b>these are not all the same type and a report must
+     * never be the thing that crashes the app.</b> {@code joystickType} is written
+     * with {@code putInt} in three places; {@code getString} on it throws
+     * ClassCastException, which is what 1.1.0 did the moment anybody who had
+     * changed their joystick interface asked for a report - the worst possible
+     * moment to die. An absent preference throws nothing, which is why it survived
+     * every test and every phone that had left that setting alone.
+     *
+     * So nothing here asks what type anything is. Whatever is stored gets printed.
+     *
      * A setting nobody has touched reads "default" and not "?": elsewhere in this
      * report a question mark means the app could not find out, and the two are
      * worth telling apart by anyone reading it.
      */
     private static void settings(Context context, SharedPreferences preferences,
                                  StringBuilder out) {
-        line(out, "machine", set(preferences, SettingsActivity.KEY_MACHINE));
-        line(out, "filter", set(preferences, SettingsActivity.KEY_FILTER));
-        line(out, "scale", set(preferences, SettingsActivity.KEY_SCALE_PORTRAIT)
-                         + "/" + set(preferences, SettingsActivity.KEY_SCALE_LANDSCAPE));
-        line(out, "keyboard", set(preferences, SettingsActivity.KEY_KEYBOARD_SKIN));
-        line(out, "joystick", set(preferences, SettingsActivity.KEY_JOYSTICK_TYPE));
-        line(out, "fullscreen",
-             String.valueOf(preferences.getBoolean(SettingsActivity.KEY_FULLSCREEN, false)));
-        line(out, "secondScreen",
-             String.valueOf(preferences.getBoolean(SettingsActivity.KEY_SECOND_SCREEN, false)));
+        Map<String, ?> all = preferences.getAll();
+
+        line(out, "machine", set(all, SettingsActivity.KEY_MACHINE));
+        line(out, "filter", set(all, SettingsActivity.KEY_FILTER));
+        line(out, "scale", set(all, SettingsActivity.KEY_SCALE_PORTRAIT)
+                         + "/" + set(all, SettingsActivity.KEY_SCALE_LANDSCAPE));
+        line(out, "keyboard", set(all, SettingsActivity.KEY_KEYBOARD_SKIN));
+        line(out, "joystick", set(all, SettingsActivity.KEY_JOYSTICK_TYPE));
+        line(out, "fullscreen", set(all, SettingsActivity.KEY_FULLSCREEN));
+        line(out, "secondScreen", set(all, SettingsActivity.KEY_SECOND_SCREEN));
     }
 
     /**
@@ -165,10 +177,16 @@ public final class Diagnostics {
         line(out, "controllers", pads.length() == 0 ? "none" : pads.toString());
     }
 
-    /** A stored string, or the word for one nobody has changed. */
-    private static String set(SharedPreferences preferences, String key) {
-        String value = preferences.getString(key, null);
-        return value == null || value.isEmpty() ? "default" : value;
+    /**
+     * Whatever is stored under a key, whatever type it is, or the word for one
+     * nobody has changed. Asks the map and never the typed getters; see above.
+     */
+    private static String set(Map<String, ?> all, String key) {
+        Object stored = all.get(key);
+        if (stored == null) return "default";
+
+        String text = String.valueOf(stored);
+        return text.isEmpty() ? "default" : text;
     }
 
     private static void line(StringBuilder out, String key, String value) {

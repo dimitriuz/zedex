@@ -4,6 +4,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import android.content.Context;
+import android.content.SharedPreferences;
+
+import dev.ldlab.zedex.screen.SettingsActivity;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
@@ -28,6 +31,47 @@ public class DiagnosticsTest {
     private String report() {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         return Diagnostics.report(context);
+    }
+
+    /**
+     * A report must survive whatever type a preference is actually stored as.
+     *
+     * This is the bug that shipped in 1.1.0. Settings are not all strings -
+     * joystickType is written with putInt in three places - and the report read
+     * every one of them with getString, which throws ClassCastException. It went
+     * unnoticed because a preference nobody has changed is absent, and getString
+     * on an absent key returns the default rather than throwing: it crashed on
+     * the first phone that had ever changed its joystick interface, and only
+     * when asking for a report, which is the worst moment for the app to die.
+     */
+    @Test
+    public void survivesAPreferenceThatIsNotAString() {
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        SharedPreferences preferences = context.getSharedPreferences(
+                SettingsActivity.PREFS, Context.MODE_PRIVATE);
+
+        preferences.edit()
+                .putInt(SettingsActivity.KEY_JOYSTICK_TYPE, 1)
+                .putBoolean(SettingsActivity.KEY_FULLSCREEN, true)
+                .putString(SettingsActivity.KEY_MACHINE, "128")
+                .commit();
+
+        try {
+            String report = Diagnostics.report(context);
+
+            assertTrue("the int did not reach the report:\n" + report,
+                       report.contains("joystick=1"));
+            assertTrue("the boolean did not:\n" + report,
+                       report.contains("fullscreen=true"));
+            assertTrue("the string did not:\n" + report,
+                       report.contains("machine=128"));
+        } finally {
+            preferences.edit()
+                    .remove(SettingsActivity.KEY_JOYSTICK_TYPE)
+                    .remove(SettingsActivity.KEY_FULLSCREEN)
+                    .remove(SettingsActivity.KEY_MACHINE)
+                    .commit();
+        }
     }
 
     @Test
