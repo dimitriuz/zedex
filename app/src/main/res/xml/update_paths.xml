@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Just the one folder: where Updater puts the APK it downloaded. Nothing else
+    of ours is any of the installer's business.
+-->
+<paths>
+    <cache-path name="updates" path="." />
+</paths>

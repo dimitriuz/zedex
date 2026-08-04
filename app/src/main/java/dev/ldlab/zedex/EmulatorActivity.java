@@ -21,6 +21,7 @@ import dev.ldlab.zedex.screen.StatesActivity;
 import dev.ldlab.zedex.storage.Recents;
 import dev.ldlab.zedex.storage.States;
 import dev.ldlab.zedex.storage.Storage;
+import dev.ldlab.zedex.update.Updater;
 import dev.ldlab.zedex.view.ActivityLights;
 import dev.ldlab.zedex.view.EmulatorLayout;
 import dev.ldlab.zedex.view.JoystickView;
@@ -294,6 +295,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // The ROMs are not unpacked here any more: startEmulator does it, on
         // every start, so that a data folder chosen at any point gets them.
         if (!StartPanel.setupNeeded(this)) Storage.installDemo(this);
+
+        // Asks GitHub whether there is a newer APK than this one, on a thread of
+        // its own, and says nothing unless there is. Never for a Play install
+        // and never for a debug build; see Updater.available.
+        Updater.checkOnStart(this, preferences);
 
         Machine.prepare(this);
 

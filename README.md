@@ -251,10 +251,23 @@ browser. Changes are written back once a second and whenever the app is paused.
 ## No ads, no tracking
 
 No advertising, no analytics, no accounts, nothing collected about you. The
-whole app carries a single library, for one settings screen. Two permissions:
-files, so your folder is somewhere you can reach, and internet, used for exactly
-one thing — fetching a ROM set, if you ever ask it to. The full account is in
-[docs/PRIVACY.md](docs/PRIVACY.md).
+whole app carries a single library, for one settings screen. Internet access is
+used for two things and both are yours to ask for: fetching a ROM set, and
+asking GitHub whether there is a newer release than the one you are running. The
+full account is in [docs/PRIVACY.md](docs/PRIVACY.md).
+
+
+## Keeping it up to date
+
+The build from Releases here offers to update itself: one question to GitHub when
+the app starts, and if there is a newer release, a note saying so. Say yes and it
+downloads that APK, checks it against the `.sha256` published beside it, and
+hands it to Android's installer — which will ask you to allow Zedex to install
+apps, once. *Settings › Files › Check for updates* turns the whole thing off.
+
+The version from Google Play does none of this and has no such switch: Play
+updates its own apps, and this build does not contain the code or the permission
+to install anything.
 
 
 ## Not yet

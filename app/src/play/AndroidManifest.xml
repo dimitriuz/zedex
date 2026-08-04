@@ -19,4 +19,15 @@
         android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
         tools:node="remove" />
 
+    <!--
+        And no installing of APKs. Play updates its own apps; one of its own
+        downloading an APK and installing it is against its policy, and the
+        permission alone is something a review would stop to ask about. The code
+        behind it is not in this build either - src/noupdate/java has a stub that
+        answers no, so the switch in Settings hides itself too.
+    -->
+    <uses-permission
+        android:name="android.permission.REQUEST_INSTALL_PACKAGES"
+        tools:node="remove" />
+
 </manifest>

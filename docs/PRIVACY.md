@@ -1,6 +1,6 @@
 # Privacy policy
 
-**Zedex** · last updated 3 August 2026
+**Zedex** · last updated 4 August 2026
 
 Zedex collects nothing about you. There is no server to collect it with.
 
@@ -23,7 +23,8 @@ Everything the app keeps, it keeps on your device only:
 - **Your settings** — which machine, which keyboard, filter strengths, key
   profiles, controller bindings
 - **Your files** — the ROMs, save states, tapes, disks, screenshots and
-  recordings in the folder you chose, `/storage/emulated/0/Zedex` by default
+  recordings in the folder you chose, `/storage/emulated/0/Documents/Zedex` by
+  default
 - **The recent files list** — the names of the last ten files you opened
 
 None of it is transmitted anywhere. Removing the app removes the settings and
@@ -31,9 +32,19 @@ the recent list; the folder you chose is yours and is left alone.
 
 ## Network use
 
-Zedex holds the `INTERNET` permission for exactly one purpose. If you tap the
-button offering to fetch a set of system ROMs, the app downloads one file from
-the Internet Archive:
+Zedex holds the `INTERNET` permission for two purposes, and both of them are
+things you ask for.
+
+**One request to GitHub at startup**, in the build distributed as an APK, to ask
+what the newest release is — `api.github.com/repos/dimitriuz/zedex/releases/latest`.
+It sends nothing but the request; GitHub sees an IP address as any web request
+shows it. Nothing is downloaded unless you answer yes to the note that follows,
+and *Settings › Files › Check for updates* stops it being made at all. **The
+version from Google Play never makes this request**: it has neither the code nor
+the permission to install an update, because Play updates its own apps.
+
+**And the ROMs.** If you tap the button offering to fetch a set of system ROMs,
+the app downloads one file from the Internet Archive:
 
 ```
 https://archive.org/download/zx-roms-fuse-roms/zx%20roms.zip
@@ -42,7 +53,7 @@ https://archive.org/download/zx-roms-fuse-roms/zx%20roms.zip
 That is an ordinary HTTPS request, and archive.org sees what any download shows
 it — your IP address and the request itself. The Internet Archive's own privacy
 policy governs what they do with that. **No connection is made unless you ask
-for it**, and no other part of the app opens a network connection at all.
+for it**, and nothing else in the app opens one at all.
 
 Three places offer a link that leaves Zedex and opens your browser:
 
@@ -86,10 +97,12 @@ it off in your device's system settings if you would rather it did not happen.
 
 | Permission | Why | Play build |
 | --- | --- | --- |
-| `INTERNET` | the one optional ROM download described above | yes |
+| `INTERNET` | the update check and the optional ROM download, both described above | yes |
 | `MANAGE_EXTERNAL_STORAGE` | offered, never required, for a data folder outside the ones Android gives an app for free | **no** |
+| `REQUEST_INSTALL_PACKAGES` | handing a downloaded release to Android's installer, which asks you itself | **no** |
 
-The app declares no others. The version on Google Play declares only the first.
+The app declares no others, and the version on Google Play declares only the
+first — where it is used for the ROM download alone.
 
 ## Children
 

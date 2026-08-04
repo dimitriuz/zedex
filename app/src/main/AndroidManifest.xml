@@ -12,6 +12,12 @@
          from the ROMs panel. Nothing else in the app touches the network. -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Offering the newest GitHub release to a build that came from there;
+         see update/Updater.java. Taken out again for the Play build, which must
+         not have it: Play updates its own apps and forbids one of its own from
+         installing an APK it fetched. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
     <uses-feature android:glEsVersion="0x00020000" />
     <uses-feature
         android:name="android.hardware.touchscreen"
@@ -91,6 +97,19 @@
             android:label="@string/menu_states"
             android:theme="@android:style/Theme.DeviceDefault"
             android:exported="false" />
+        <!-- The downloaded APK, for the system installer to read. It runs in
+             another process and cannot open a file in our cache, and a file://
+             URI has been refused since Android 7. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.updates"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/update_paths" />
+        </provider>
+
     </application>
 
 </manifest>

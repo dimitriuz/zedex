@@ -275,6 +275,25 @@ the honest answer being "so the user can put the folder where they like", which
 the policy refuses. The builds nobody reviews keep the permission and offer it
 as a choice; see *Storage* below.
 
+The same split carries the **updater**. `src/sideload/java` holds the real one
+and is compiled into `debug` and `release`; `src/noupdate/java` holds a stub that
+answers no and is compiled into `play`. Two source sets rather than a flag in one
+class, so the Play artifact does not contain the code at all — and its manifest
+has `REQUEST_INSTALL_PACKAGES` removed with the same `tools:node="remove"`.
+Verify both after touching any of it:
+
+```sh
+# neither the permission nor the code, in the Play APK
+aapt2 dump permissions app/build/outputs/apk/play/app-play.apk | grep INSTALL_PACKAGES
+unzip -p app/build/outputs/apk/play/app-play.apk classes.dex | strings | grep releases/latest
+```
+
+Testing the updater needs a **release** build, since it refuses a debuggable one,
+and a version older than the newest release so there is something to offer:
+`./gradlew assembleRelease -PzedexVersionName=0.9.0`. It will get as far as
+Android's installer and stop there, because a locally built release is signed
+with the debug key while the APK on GitHub is signed with the real one.
+
 A build type rather than a product flavour **on purpose**. Flavours rename every
 existing task and output — `assembleDebug` becomes `assembleFullDebug`,
 `connectedDebugAndroidTest` becomes `connectedFullDebugAndroidTest`,

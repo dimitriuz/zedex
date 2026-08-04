@@ -12,6 +12,7 @@ import dev.ldlab.zedex.machine.Border;
 import dev.ldlab.zedex.machine.Filter;
 import dev.ldlab.zedex.media.Media;
 import dev.ldlab.zedex.storage.Storage;
+import dev.ldlab.zedex.update.Updater;
 import dev.ldlab.zedex.view.EmulatorLayout;
 import dev.ldlab.zedex.view.SpectrumKeyboardView;
 import android.app.Activity;
@@ -538,6 +539,15 @@ public class SettingsActivity extends AppCompatActivity
             populateControls();
             snapToEntries();
             updateSummaries();
+
+            /*
+             * The update switch is only a setting where updating is possible: a
+             * Play install updates itself, and the Play build has no updater in
+             * it at all. Hidden rather than disabled - a switch that cannot be
+             * moved is a question with no answer.
+             */
+            Preference updates = findPreference(Updater.KEY_CHECK);
+            if (updates != null) updates.setVisible(Updater.available(getActivity()));
 
             Preference folder = findPreference(Storage.KEY_STATES_ROOT);
             if (folder != null) {

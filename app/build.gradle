@@ -119,6 +119,22 @@ android {
         main {
             assets.srcDirs += ['../roms']
         }
+
+        /*
+         * The updater exists twice: once for real, and once as a stub that
+         * answers no.
+         *
+         * The builds distributed as an APK can offer the newest GitHub release
+         * and install it; the one that goes to Play must not, because Play
+         * updates its own and an app from the store fetching an APK is against
+         * its policy. Two source sets rather than a flag inside one class, so
+         * the Play artifact does not carry the code at all - there is nothing in
+         * it for a reviewer to ask about, and its manifest has the install
+         * permission removed to match.
+         */
+        debug   { java.srcDirs += 'src/sideload/java' }
+        release { java.srcDirs += 'src/sideload/java' }
+        play    { java.srcDirs += 'src/noupdate/java' }
     }
 
     defaultConfig {

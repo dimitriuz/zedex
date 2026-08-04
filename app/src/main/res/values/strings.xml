@@ -331,6 +331,20 @@
     <string name="settings_firmware_wrong">That is not an 8K DivMMC firmware</string>
 
     <string name="settings_storage">Folders</string>
+    <string name="settings_update_check">Check for updates</string>
+    <string name="settings_update_check_summary">Ask GitHub for the newest release when the app starts, and offer it</string>
+
+    <!-- %1$s is the version on offer: "1.0.5". -->
+    <string name="update_title">Zedex %1$s is out</string>
+    <string name="update_message">Download it and install it now? It replaces this build, and your files and settings stay where they are.</string>
+    <string name="update_allow_title">One permission first</string>
+    <string name="update_allow_message">Android will not let an app install another without being told it may. Allow Zedex to install apps on the next screen, then tap Update again.</string>
+    <string name="update_now">Update</string>
+    <string name="update_later">Not now</string>
+    <string name="update_downloading">Downloading the update\u2026</string>
+    <!-- %1$s is short and technical: "checksum", "HTTP 404", "SocketTimeoutException". -->
+    <string name="update_failed">The update did not download (%1$s)</string>
+
     <string name="settings_data_folder">Data folder</string>
     <string name="settings_data_folder_summary">Where ROMs and save states are kept</string>
     <string name="settings_choose_folder">Choose folder\u2026</string>

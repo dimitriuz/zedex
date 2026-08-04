@@ -83,6 +83,20 @@ expensive to rediscover.
   either: every `adb shell ls` and script that names the folder would need
   quoting, and one that forgot silently listed the release build's folder
   instead and looked like it had worked.
+- **The Play build cannot update itself, and must not look as though it could.**
+  Play updates its own apps, and one of its own downloading an APK and installing
+  it is against its policy - the permission alone is something a review stops to
+  ask about. So the updater exists twice: `src/sideload/java` for real, compiled
+  into debug and release, and `src/noupdate/java` as a stub that answers no,
+  compiled into `play`. The Play manifest removes `REQUEST_INSTALL_PACKAGES`
+  beside All files access. Checked in CI and worth checking by hand after any
+  change here — the Play APK must contain neither the permission nor the string
+  `releases/latest`. `Updater.available()` also refuses a debuggable build (the
+  GitHub APK is the release package, signed with the release key) and any install
+  whose installer was Play, so the sideload APK put on some other store stays
+  quiet too. **Holding the permission is not permission to install**: the user
+  must allow the app as a source in a page of Android's own, which is why the
+  check happens before the download rather than after fourteen megabytes.
 - **The Play build has no All files access, and that is the whole point of it.**
   `assembleDebug` and `assembleRelease` declare `MANAGE_EXTERNAL_STORAGE`;
   `assemblePlay`/`bundlePlay` strip it in `app/src/play/AndroidManifest.xml` with

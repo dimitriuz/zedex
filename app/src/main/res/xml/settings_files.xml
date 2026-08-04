@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
+        <!-- Hidden by SettingsActivity where it cannot apply: a Play install
+             updates itself, and the Play build has no updater in it at all. -->
+        <SwitchPreferenceCompat
+            android:key="updateCheck"
+            android:title="@string/settings_update_check"
+            android:summary="@string/settings_update_check_summary"
+            android:defaultValue="true" />
+
         <Preference
             android:key="statesRoot"
             android:title="@string/settings_data_folder"
