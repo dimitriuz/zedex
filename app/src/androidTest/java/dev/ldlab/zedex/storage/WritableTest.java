@@ -97,4 +97,31 @@ public class WritableTest {
     public void refusesWhatCannotBeWritten() {
         assertFalse(Storage.isWritable(new File("/proc/zedex")));
     }
+
+    /**
+     * A name already in the folder cannot make it look unwritable.
+     *
+     * The probe used to be called {@code .zedex} every time, and a leftover of
+     * that name - or worse, a MediaProvider row for one that is no longer on
+     * disk - answered "taken" to create and "absent" to exists(), which the
+     * folder was blamed for. The probe carries a nanoTime now; this holds the
+     * property that made that impossible.
+     */
+    @Test
+    public void aNameAlreadyThereDoesNotMatter() throws Exception {
+        File folder = new File(context().getFilesDir(), "writable-test");
+        assertTrue(folder.isDirectory() || folder.mkdirs());
+
+        try {
+            assertTrue(new File(folder, ".zedex").createNewFile());
+            assertTrue("a leftover probe was taken for a bad folder",
+                       Storage.isWritable(folder));
+        } finally {
+            for (File left : folder.listFiles() == null
+                    ? new File[0] : folder.listFiles()) {
+                left.delete();
+            }
+            folder.delete();
+        }
+    }
 }

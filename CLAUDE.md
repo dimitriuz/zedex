@@ -221,6 +221,18 @@ expensive to rediscover.
     question is about. `WritableTest` holds both halves, and skips itself where
     All files access is granted, since MediaProvider then steps out of the way
     and the old probe passes.
+  - **And the probe's name must be new each time.** MediaProvider keeps a row
+    per path, and a row can outlive the file — one written while the app held
+    All files access does. Then `createNewFile` is refused for a name that is
+    *taken* while `exists()` says it is *absent*, which is exactly the pair the
+    old code read as "this folder is no good", silently. That is what refused a
+    tablet's `Documents/Zedex`, and what made the same tap work an hour later
+    once something else had cleared the row — an hour spent looking at the
+    folder, which was never the problem. The probe carries a `nanoTime` now.
+  - **Read the whole stack before believing which folder was refused.**
+    "Cannot write to `Documents/Zedex`" was `moveData` asking about
+    `Pictures/Zedex` two frames down, and the toast named the folder the user
+    had picked. `Storage.refused()` logs the folder and why for this reason.
   - **Writing the file is not enough to reach the gallery.** MediaStore had no
     row at all for a PNG that was on disk in `Pictures/Zedex` until
     `MediaScannerConnection.scanFile` was called; `Capture.announce()` does it

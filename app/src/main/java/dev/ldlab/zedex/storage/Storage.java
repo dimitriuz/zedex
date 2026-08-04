@@ -225,20 +225,45 @@ public final class Storage {
      * the permission this is asking about.
      */
     public static boolean isWritable(File directory) {
-        if (!directory.isDirectory() && !directory.mkdirs()) return false;
+        if (!directory.isDirectory() && !directory.mkdirs()) {
+            return refused(directory, "not a folder and cannot be made one");
+        }
 
-        File probe = new File(directory, ".zedex");
+        // A name of its own each time. The old fixed .zedex could be refused for
+        // a file that was not there: MediaProvider keeps a row per path, and a
+        // stale one - a probe written while the app held All files access, whose
+        // row outlived the file - makes the name taken to createNewFile and
+        // absent to exists(), which is a silent no. That is what refused a
+        // tablet's Documents folder, and what made it work again an hour later
+        // once something else had cleared the row.
+        File probe = new File(directory, ".zedex-" + System.nanoTime());
         try {
-            // exists() covers a leftover from a version that probed with a file,
-            // and one an uninstall left owned by nobody: either way something of
-            // ours is there and deleting it may not be allowed.
-            if (!probe.mkdir() && !probe.exists()) return false;
+            if (!probe.mkdir()) {
+                return refused(directory, "cannot make " + probe.getName());
+            }
             probe.delete();
             return true;
         } catch (SecurityException e) {
             Log.w(TAG, "cannot write to " + directory, e);
             return false;
         }
+    }
+
+    /**
+     * Says why a folder was refused, and never refuses in silence.
+     *
+     * The refusal a user reported - "that folder cannot be written to directly"
+     * for a folder plainly there and plainly theirs - left nothing whatever in
+     * the log, so the whole of the diagnosis was guesswork about which of two
+     * silent returns it had been.
+     */
+    private static boolean refused(File directory, String why) {
+        Log.w(TAG, "cannot use " + directory + ": " + why
+                + " (isDirectory=" + directory.isDirectory()
+                + " exists=" + directory.exists()
+                + " canRead=" + directory.canRead()
+                + " canWrite=" + directory.canWrite() + ")");
+        return false;
     }
 
     /**
