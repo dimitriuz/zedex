@@ -225,6 +225,11 @@ the same settings.
 Blue reads, amber writes; the AY is three bars, one per channel. A lit joystick
 lamp with a dead stick means the game wants a different interface.
 
+Fullscreen gives the picture their strip back, and keeps one of them: the disk,
+over the corner of the picture, for as long as a drive is turning and not a
+moment longer. It is the lamp that answers "is it safe to close this yet".
+Turning the indicators off in *Settings › Display* turns that off too.
+
 
 ## The memory card
 

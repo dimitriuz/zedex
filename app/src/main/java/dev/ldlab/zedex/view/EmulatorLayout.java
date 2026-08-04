@@ -750,8 +750,13 @@ public final class EmulatorLayout extends ViewGroup {
 
     /**
      * The lamps take a strip beside the picture rather than floating over it, so
-     * dropping them in fullscreen gives the picture that strip back - which is
-     * what fullscreen is for.
+     * fullscreen drops six of the seven and gives the picture that strip back -
+     * which is what fullscreen is for.
+     *
+     * The one it keeps is the disk, and only while a drive is turning. That is
+     * the lamp with something to say that cannot be waited for: whether what was
+     * written has finished being written. The other six answer questions asked
+     * while setting a game up, not while playing it.
      *
      * They do not come back with the quick bar on a tap: they are in the layout
      * rather than over it, so that would move the picture every time anyone
@@ -760,12 +765,16 @@ public final class EmulatorLayout extends ViewGroup {
     private void applyLightsVisibility() {
         if (lights == null) return;
 
-        // Fullscreen is about giving the picture the strip back, and on a second
-        // screen the lamps are not taking it from anything.
-        boolean showing = lightsWanted && (lent || !fullscreen);
-        if ((lights.getVisibility() == VISIBLE) == showing) return;
+        // Wanted at all is the Display setting; on a second screen they are a
+        // strip of their own and not taking room from any picture.
+        boolean showing = lightsWanted;
+        boolean only = fullscreen && !lent;
 
-        lights.setVisibility(showing ? VISIBLE : GONE);
+        lights.setDiskOnly(only);
+
+        if ((lights.getVisibility() == VISIBLE) != showing) {
+            lights.setVisibility(showing ? VISIBLE : GONE);
+        }
     }
 
     /**
@@ -1073,6 +1082,32 @@ public final class EmulatorLayout extends ViewGroup {
         int wide = lights.getMeasuredWidth();
         int tall = lights.getMeasuredHeight();
         int gap = Math.round(BAR_GAP * getResources().getDisplayMetrics().density);
+
+        /*
+         * Fullscreen keeps the disk lamp alone, and it goes *over* the picture
+         * rather than beside it - at the corner the strip starts from, so it is
+         * where the lamps always were.
+         *
+         * Inside the picture on purpose. This box is what placeJoystick keeps
+         * clear of, so a strip reserved outside would push the joystick down by
+         * its height for something that is invisible almost all of the time; and
+         * in fullscreen sideways there is no outside to reserve anyway, which is
+         * why the branch below already falls inward.
+         *
+         * The axis comes from the window and not from the box's shape: one lamp
+         * is square, and `wide < tall` cannot tell which way up it is.
+         */
+        if (lights.diskOnly()) {
+            if (landscapeNow) {
+                lightsBox.set(picture.left + gap, picture.top + gap,
+                              picture.left + gap + wide, picture.top + gap + tall);
+            } else {
+                int middle = picture.left + (picture.width() - wide) / 2;
+                lightsBox.set(middle, picture.bottom - gap - tall,
+                              middle + wide, picture.bottom - gap);
+            }
+            return;
+        }
 
         boolean landscape = wide < tall;
 

@@ -136,11 +136,22 @@ public final class ActivityLights extends View {
             int now = FuseNative.activity();
             int loudness = FuseNative.ayLevels();
 
-            if (now != state || loudness != levels) {
-                state = now;
-                levels = loudness;
-                invalidate();
-            }
+            /*
+             * Only the disk's own bits are worth a repaint while the disk is all
+             * that is drawn. The AY meter's levels change on every poll for as
+             * long as anything is playing, and this view is over the picture in
+             * fullscreen - so without this it would recomposite the game ten
+             * times a second to draw nothing at all.
+             */
+            boolean changed = diskOnly
+                    ? ((now ^ state) & diskBits()) != 0
+                    : now != state || loudness != levels;
+
+            // Recorded either way: diskBusy() reads this, not the poll's local.
+            state = now;
+            levels = loudness;
+
+            if (changed) invalidate();
 
             // The mouse lamp's amber means the machine is reading the mouse's
             // ports with no mouse plugged in; the activity says what to do about
@@ -197,6 +208,56 @@ public final class ActivityLights extends View {
         invalidate();
     }
 
+    /**
+     * Whether this is the whole strip or the one lamp fullscreen keeps.
+     *
+     * Fullscreen gives the picture the strip the lamps were taking, and that is
+     * the point of it — but a disk being written to is the one thing worth
+     * interrupting it for, because the answer to "can I close this now" is on
+     * that lamp and nowhere else. So fullscreen keeps the disk and drops the
+     * other six.
+     *
+     * The lamp that is kept draws nothing at all while the disk is idle, rather
+     * than the view being hidden and shown as the motor turns. Hiding it would
+     * mean a layout pass every time a drive was touched — and this sits over the
+     * picture, so a layout pass is the picture moving. Nothing to see and
+     * nothing to lay out again is the same thing to look at and much less to go
+     * wrong.
+     */
+    private boolean diskOnly;
+
+    public void setDiskOnly(boolean only) {
+        if (diskOnly == only) return;
+
+        diskOnly = only;
+        requestLayout();   // one lamp is not the size of seven
+        invalidate();
+    }
+
+    /** Whether this is the one lamp, which decides where the box goes. */
+    public boolean diskOnly() {
+        return diskOnly;
+    }
+
+    /** The disk lamp, which is the only one {@link #diskOnly} draws. */
+    private Lamp diskLamp() {
+        for (Lamp lamp : lamps) {
+            if (lamp.bit == FuseNative.ACTIVITY_DISK) return lamp;
+        }
+        return null;
+    }
+
+    /** Lit and writing together: the two bits the disk lamp is made of. */
+    private static int diskBits() {
+        return FuseNative.ACTIVITY_DISK
+             | (FuseNative.ACTIVITY_DISK << FuseNative.ACTIVITY_WRITING);
+    }
+
+    /** Whether a drive is doing something this instant. */
+    private boolean diskBusy() {
+        return (state & diskBits()) != 0;
+    }
+
     /** A row in portrait, a column in landscape; see the class comment. */
     private boolean horizontal() {
         if (forced != null) return forced;
@@ -215,7 +276,8 @@ public final class ActivityLights extends View {
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         int one = lampSize();
-        int total = one * lamps.length + gap * (lamps.length - 1);
+        int count = diskOnly ? 1 : lamps.length;
+        int total = one * count + gap * (count - 1);
 
         setMeasuredDimension(
                 resolveSize(horizontal() ? total : one, widthMeasureSpec),
@@ -229,6 +291,28 @@ public final class ActivityLights extends View {
         boolean row = horizontal();
         int one = lampSize();
         float radius = one / 2f;
+
+        if (diskOnly) {
+            // Nothing at all while the drives are quiet: no backing pill, no
+            // idle lamp. Over a game, an indicator with nothing to indicate is
+            // just something in the way.
+            if (!diskBusy()) return;
+
+            Lamp disk = diskLamp();
+            if (disk == null || disk.image == null) return;
+
+            pill.set(0, 0, one, one);
+            canvas.drawRoundRect(pill, radius, radius, backing);
+
+            boolean writing = (state & (disk.bit << FuseNative.ACTIVITY_WRITING)) != 0;
+            disk.image.setTint(writing ? WRITING : READING);
+
+            canvas.save();
+            canvas.translate(pill.centerX() - icon / 2f, pill.centerY() - icon / 2f);
+            disk.image.draw(canvas);
+            canvas.restore();
+            return;
+        }
 
         for (int i = 0; i < lamps.length; i++) {
             Lamp lamp = lamps[i];
