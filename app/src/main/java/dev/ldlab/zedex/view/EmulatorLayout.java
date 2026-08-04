@@ -1084,32 +1084,20 @@ public final class EmulatorLayout extends ViewGroup {
         int gap = Math.round(BAR_GAP * getResources().getDisplayMetrics().density);
 
         /*
-         * Fullscreen keeps the disk lamp alone, and it goes *over* the picture
-         * rather than beside it - at the corner the strip starts from, so it is
-         * where the lamps always were.
+         * The one lamp fullscreen keeps goes exactly where the strip goes -
+         * under the picture upright, beside it sideways - so it is where anyone
+         * who has seen the lamps already looks.
          *
-         * Inside the picture on purpose. This box is what placeJoystick keeps
-         * clear of, so a strip reserved outside would push the joystick down by
-         * its height for something that is invisible almost all of the time; and
-         * in fullscreen sideways there is no outside to reserve anyway, which is
-         * why the branch below already falls inward.
+         * Its axis has to be asked of the window rather than read off the box,
+         * though: the strip is long and thin and its shape says which way it
+         * runs, and one lamp is square and says nothing.
          *
-         * The axis comes from the window and not from the box's shape: one lamp
-         * is square, and `wide < tall` cannot tell which way up it is.
+         * It takes no room from anything, unlike the strip. See {@link
+         * #lampsTakeRoom} - the joystick ignores this box while it holds the one
+         * lamp, because reserving the space would move the joystick for
+         * something that is invisible almost all of the time.
          */
-        if (lights.diskOnly()) {
-            if (landscapeNow) {
-                lightsBox.set(picture.left + gap, picture.top + gap,
-                              picture.left + gap + wide, picture.top + gap + tall);
-            } else {
-                int middle = picture.left + (picture.width() - wide) / 2;
-                lightsBox.set(middle, picture.bottom - gap - tall,
-                              middle + wide, picture.bottom - gap);
-            }
-            return;
-        }
-
-        boolean landscape = wide < tall;
+        boolean landscape = lights.diskOnly() ? landscapeNow : wide < tall;
 
         if (landscape) {
             // Down the left of the picture, from the top: the joystick's bar
@@ -1124,6 +1112,20 @@ public final class EmulatorLayout extends ViewGroup {
             lightsBox.set(left, picture.bottom + gap, left + wide,
                           picture.bottom + gap + tall);
         }
+    }
+
+    /**
+     * Whether the lamps are something the joystick has to keep clear of.
+     *
+     * The strip is: it is seven lamps against the edge of the picture and it is
+     * there for as long as it is wanted. The one lamp fullscreen keeps is not -
+     * it is drawn while a drive is turning and at no other time, so reserving
+     * its height would move the joystick permanently for something almost never
+     * on screen. It is small, it is at the edge, and on the rare occasion both
+     * are up at once they are simply near each other.
+     */
+    private boolean lampsTakeRoom() {
+        return !lightsBox.isEmpty() && !(lights != null && lights.diskOnly());
     }
 
     /**
@@ -1170,8 +1172,8 @@ public final class EmulatorLayout extends ViewGroup {
         // the bar at all. Either way the right bar is untouched, which is why
         // the two are measured separately - fire would otherwise be pushed out
         // towards the window's edge by however much the lamps took.
-        int leftBar = (lightsBox.isEmpty() ? picture.left
-                                           : Math.min(picture.left, lightsBox.left))
+        int leftBar = (lampsTakeRoom() ? Math.min(picture.left, lightsBox.left)
+                                       : picture.left)
                       - screenBox.left;
 
         int barTop = screenBox.top;
@@ -1205,8 +1207,8 @@ public final class EmulatorLayout extends ViewGroup {
         // picture, not below its box: with the keyboard hidden the box is the
         // whole window and the picture sits in the middle of it, so the two
         // are not the same edge.
-        int underPicture = lightsBox.isEmpty()
-                ? picture.bottom : Math.max(picture.bottom, lightsBox.bottom);
+        int underPicture = lampsTakeRoom()
+                ? Math.max(picture.bottom, lightsBox.bottom) : picture.bottom;
         size = Math.min(wanted, floor - underPicture - 2 * margin);
 
         if (size >= minimum && size <= (width - 2 * margin) / 2) {
