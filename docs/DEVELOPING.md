@@ -288,6 +288,42 @@ aapt2 dump permissions app/build/outputs/apk/play/app-play.apk | grep INSTALL_PA
 unzip -p app/build/outputs/apk/play/app-play.apk classes.dex | strings | grep releases/latest
 ```
 
+### What a release publishes, and how the numbers are read
+
+Four files, and two of them are for the app rather than for a person:
+
+| | |
+| --- | --- |
+| `Zedex-<v>.apk` | the build |
+| `Zedex-<v>.apk.sha256` | its hash, for anyone checking by hand |
+| `latest.json` | version, APK URL and hash — what the installed app reads |
+| `alive.txt` | nothing worth reading; it exists to be counted |
+
+The app asks `/releases/latest/download/latest.json`, which is a permanent
+redirect to the newest release's copy, so the URL never changes. It is an asset
+and not `api.github.com` for two unrelated reasons: the API's sixty requests an
+hour are *per IP* and a carrier NAT is one IP for a great many phones, and an
+asset is counted where an API call is not.
+
+That count is the project's only measure of use, and reading it is one request:
+
+```sh
+curl -s https://api.github.com/repos/dimitriuz/zedex/releases | python3 -c "
+import json,sys
+for r in json.load(sys.stdin):
+    print(r['tag_name'], {a['name']: a['download_count'] for a in r['assets']})"
+```
+
+`latest.json` counts app starts with the check on; `alive.txt`, being fetched from
+the release the running build came from, counts them per version — which is the
+figure to look at before dropping support for anything. Both are cumulative and
+GitHub keeps no history, so a daily snapshot is the only way to see a rate. And
+both include your own testing and any CI that fetches them, so treat small
+numbers as noise.
+
+**Assets on a draft release are not reachable** at those URLs until the draft is
+published, so a tagged build offers nobody an update until you press publish.
+
 Testing the updater needs a **release** build, since it refuses a debuggable one,
 and a version older than the newest release so there is something to offer:
 `./gradlew assembleRelease -PzedexVersionName=0.9.0`. It will get as far as

@@ -83,6 +83,18 @@ expensive to rediscover.
   either: every `adb shell ls` and script that names the folder would need
   quoting, and one that forgot silently listed the release build's folder
   instead and looked like it had worked.
+- **The update check reads a release asset, not the releases API, and both
+  reasons matter.** `api.github.com` allows sixty unauthenticated requests an
+  hour *per IP*, and a carrier NAT is one address for a great many phones - so
+  the API would fail for exactly the users who share one, silently. And an asset
+  has a `download_count`, which is the only anonymous measure of use this project
+  has: `latest.json` under `/releases/latest/download/` counts starts,
+  `alive.txt` under `/releases/download/v<version>/` counts them per version.
+  **A release must therefore publish both**, which the release workflow does and
+  checks; a release without `latest.json` offers nobody an update, silently and
+  by design. The counting is disclosed in `docs/PRIVACY.md` and the README, and
+  it has to stay disclosed - it is the one thing in the app that could make
+  "no usage statistics" untrue.
 - **The Play build cannot update itself, and must not look as though it could.**
   Play updates its own apps, and one of its own downloading an APK and installing
   it is against its policy - the permission alone is something a review stops to

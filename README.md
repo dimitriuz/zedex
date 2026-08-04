@@ -251,11 +251,17 @@ browser. Changes are written back once a second and whenever the app is paused.
 
 ## No ads, no tracking
 
-No advertising, no analytics, no accounts, nothing collected about you. The
-whole app carries a single library, for one settings screen. Internet access is
-used for two things and both are yours to ask for: fetching a ROM set, and
-asking GitHub whether there is a newer release than the one you are running. The
-full account is in [docs/PRIVACY.md](docs/PRIVACY.md).
+No advertising, no analytics library, no accounts, and nothing stored about you
+anywhere. The whole app carries a single library, for one settings screen.
+Internet access is used for two things and both are yours to ask for: fetching a
+ROM set, and asking GitHub whether there is a newer release than the one you are
+running.
+
+That second one is counted, and it is the only measure of use this project has:
+GitHub counts downloads of the two small files the check reads, so the totals say
+roughly how often the app is started and which versions are still in use. A
+total, and nobody in it who can be picked out. *Settings › App › Check for
+updates* stops it. The full account is in [docs/PRIVACY.md](docs/PRIVACY.md).
 
 
 ## Keeping it up to date

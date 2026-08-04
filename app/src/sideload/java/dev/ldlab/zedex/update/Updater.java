@@ -19,7 +19,6 @@ import android.widget.Toast;
 
 import androidx.core.content.FileProvider;
 
-import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
@@ -31,7 +30,6 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.security.MessageDigest;
-import java.util.Locale;
 
 /**
  * Offers the newest release from GitHub, for the builds that came from there.
@@ -60,9 +58,39 @@ public final class Updater {
     /** Whether to look at all. On unless somebody turns it off. */
     public static final String KEY_CHECK = "updateCheck";
 
-    /** The one request: what GitHub calls the newest release of this app. */
-    private static final String LATEST =
-            "https://api.github.com/repos/dimitriuz/zedex/releases/latest";
+    /** Where the releases live; both URLs below are built from this. */
+    private static final String RELEASES =
+            "https://github.com/dimitriuz/zedex/releases";
+
+    /**
+     * What the newest release says about itself: version, APK and its hash.
+     *
+     * An asset of the release rather than api.github.com, for two reasons that
+     * have nothing to do with each other and both matter.
+     *
+     * The API allows sixty unauthenticated requests an hour <em>per IP</em>, and
+     * a carrier NAT is one address for a great many phones - so the check would
+     * fail exactly for the users who share one, and fail silently, which is the
+     * worst way. An asset download has no such limit.
+     *
+     * And an asset is counted. GitHub keeps a download_count for each one, which
+     * is the only anonymous measure of use this project has any way of getting:
+     * nothing about anybody reaches the developer, a total does, from GitHub,
+     * later. {@code /releases/latest/download/} is a permanent redirect to the
+     * newest release's copy, so the URL never has to change.
+     */
+    private static final String LATEST = RELEASES + "/latest/download/latest.json";
+
+    /**
+     * Fetched purely to be counted, from the release this build came from.
+     *
+     * The counter on {@link #LATEST} says how much the app is being started; this
+     * one, being per release, says which versions are doing the starting - which
+     * is the question worth asking before dropping support for anything. It is
+     * one small file, its contents are not read, and a 404 for a release that
+     * predates all this is the expected answer and is ignored.
+     */
+    private static final String ALIVE = "/alive.txt";
 
     /** Long enough for a slow phone on a train, short enough not to hang about. */
     private static final int CONNECT_MS = 10_000;
@@ -78,10 +106,10 @@ public final class Updater {
     }
 
     /** What the releases API said, reduced to the three things that matter. */
-    private static final class Release {
-        String name;        // "1.0.5"
-        String apk;         // the browser_download_url of the APK
-        String checksum;    // ...and of the .sha256 beside it, if there is one
+    static final class Release {
+        String name;      // "1.0.5"
+        String apk;       // where the APK is
+        String sha256;    // and what it should hash to, or null
     }
 
     /**
@@ -147,6 +175,11 @@ public final class Updater {
         if (!preferences.getBoolean(KEY_CHECK, true)) return;
 
         new Thread(() -> {
+            // Counted first, so the figure is "app started with the check on"
+            // rather than "app found an update", which would only ever count the
+            // people who are behind.
+            ping(activity);
+
             Release latest = fetchLatest();
             if (latest == null || latest.apk == null) return;
 
@@ -164,42 +197,81 @@ public final class Updater {
         HttpURLConnection connection = null;
         try {
             connection = (HttpURLConnection) new URL(LATEST).openConnection();
+            connection.setInstanceFollowRedirects(true);   // /latest/ is a redirect
             connection.setConnectTimeout(CONNECT_MS);
             connection.setReadTimeout(READ_MS);
-            connection.setRequestProperty("Accept", "application/vnd.github+json");
 
             if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
                 Log.i(TAG, "no release news: HTTP " + connection.getResponseCode());
                 return null;
             }
 
-            JSONObject json;
             try (InputStream in = connection.getInputStream()) {
-                json = new JSONObject(new String(readAll(in, -1, null), "UTF-8"));
+                return parse(new String(readAll(in, 64 * 1024, null), "UTF-8"));
             }
-
-            Release release = new Release();
-            release.name = json.optString("tag_name", "").replaceFirst("^[vV]", "");
-
-            JSONArray assets = json.optJSONArray("assets");
-            for (int i = 0; assets != null && i < assets.length(); i++) {
-                JSONObject asset = assets.optJSONObject(i);
-                if (asset == null) continue;
-
-                String name = asset.optString("name", "")
-                                   .toLowerCase(Locale.ROOT);
-                String url = asset.optString("browser_download_url", null);
-                if (url == null) continue;
-
-                if (name.endsWith(".apk")) release.apk = url;
-                else if (name.endsWith(".apk.sha256")) release.checksum = url;
-            }
-
-            return release.name.isEmpty() ? null : release;
         } catch (Exception e) {
-            // Offline, rate limited, GitHub having a morning: all the same here.
+            // Offline, no such asset yet, GitHub having a morning: all the same.
             Log.i(TAG, "cannot ask about releases: " + e);
             return null;
+        } finally {
+            if (connection != null) connection.disconnect();
+        }
+    }
+
+    /**
+     * The three fields {@code latest.json} carries, and nothing assumed.
+     *
+     * Package-visible and taking a string rather than a connection so that the
+     * shape the release workflow writes can be tested without a network: this is
+     * a contract between a shell script and a parser, and the two are in
+     * different files in different languages.
+     *
+     * @return null unless all three fields are there, which is what makes a
+     *         half-written release no release at all
+     */
+    static Release parse(String json) {
+        try {
+            JSONObject object = new JSONObject(json);
+
+            Release release = new Release();
+            release.name = object.optString("version", "").replaceFirst("^[vV]", "");
+            release.apk = object.optString("apk", null);
+            release.sha256 = object.optString("sha256", null);
+
+            if (release.name.isEmpty() || release.apk == null) return null;
+
+            return release;
+        } catch (Exception e) {
+            Log.w(TAG, "latest.json did not parse", e);
+            return null;
+        }
+    }
+
+    /**
+     * Downloads the counted file from this build's own release, and throws the
+     * contents away.
+     *
+     * Best effort by design: it is one small GET whose only product is a number
+     * in somebody else's database, so a failure is not worth a line in the log,
+     * let alone telling the user about.
+     */
+    private static void ping(Context context) {
+        HttpURLConnection connection = null;
+        try {
+            String version = context.getPackageManager()
+                    .getPackageInfo(context.getPackageName(), 0).versionName;
+
+            connection = (HttpURLConnection) new URL(
+                    RELEASES + "/download/v" + version + ALIVE).openConnection();
+            connection.setInstanceFollowRedirects(true);
+            connection.setConnectTimeout(CONNECT_MS);
+            connection.setReadTimeout(READ_MS);
+
+            try (InputStream in = connection.getInputStream()) {
+                readAll(in, 4096, null);
+            }
+        } catch (Exception ignored) {
+            // A release that predates alive.txt has none, and that is fine.
         } finally {
             if (connection != null) connection.disconnect();
         }
@@ -335,8 +407,6 @@ public final class Updater {
      *         otherwise something short enough to put in a toast
      */
     private static String fetch(Release release, File apk, Progress progress) {
-        String published = release.checksum == null ? null : fetchChecksum(release.checksum);
-
         HttpURLConnection connection = null;
         try {
             connection = (HttpURLConnection) new URL(release.apk).openConnection();
@@ -370,15 +440,15 @@ public final class Updater {
             }
 
             /*
-             * The release publishes a .sha256 beside the APK, so a download that
-             * arrived short or scrambled is caught here rather than by the
-             * installer refusing a corrupt package. If GitHub had no hash to
-             * give, the install goes ahead on its own signature check.
+             * latest.json carries the hash the release workflow computed, so a
+             * download that arrived short or scrambled is caught here rather
+             * than by the installer refusing a corrupt package. A release
+             * without one installs anyway, on Android's signature check.
              */
-            if (published != null) {
+            if (release.sha256 != null) {
                 String got = hex(sha.digest());
-                if (!published.equalsIgnoreCase(got)) {
-                    Log.w(TAG, "download hash " + got + ", published " + published);
+                if (!release.sha256.equalsIgnoreCase(got)) {
+                    Log.w(TAG, "download hash " + got + ", published " + release.sha256);
                     return "checksum";
                 }
             }
@@ -387,30 +457,6 @@ public final class Updater {
         } catch (Exception e) {
             Log.w(TAG, "cannot download the update", e);
             return e.getClass().getSimpleName();
-        } finally {
-            if (connection != null) connection.disconnect();
-        }
-    }
-
-    /** The published hash, which is "<hex>  <filename>" in a very small file. */
-    private static String fetchChecksum(String url) {
-        HttpURLConnection connection = null;
-        try {
-            connection = (HttpURLConnection) new URL(url).openConnection();
-            connection.setInstanceFollowRedirects(true);
-            connection.setConnectTimeout(CONNECT_MS);
-            connection.setReadTimeout(READ_MS);
-
-            if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) return null;
-
-            try (InputStream in = connection.getInputStream()) {
-                String text = new String(readAll(in, 4096, null), "UTF-8").trim();
-                int space = text.indexOf(' ');
-                return space > 0 ? text.substring(0, space) : text;
-            }
-        } catch (Exception e) {
-            Log.i(TAG, "no published checksum: " + e);
-            return null;
         } finally {
             if (connection != null) connection.disconnect();
         }
