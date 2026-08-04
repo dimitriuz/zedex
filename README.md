@@ -178,7 +178,7 @@ file identifies itself, and the machine switches when the media needs one — a
 <a href="docs/screenshots/settings-tape.jpg"><img src="docs/screenshots/settings-tape.jpg" width="400" alt="Tape settings"></a>
 
 **First start** asks for two folders; both can be changed later in *Settings ›
-Files*.
+App*.
 
 Files the app writes there are yours to open, copy and delete. Files you copy
 *in* are a different matter: Android hands an app only what it wrote itself, so
@@ -219,7 +219,8 @@ picture to bring it back; it fades after three seconds.
 exits: it leaves fullscreen, or goes up a menu page, or opens ☰. *Quit* warns
 about unsaved disks first.
 
-**Settings** has six tabs — Machine, Tape, Display, Controls, Sound, Files.
+**Settings** has six tabs — Machine, Tape, Display, Controls, Sound, App. The
+first five are the Spectrum; the last one is Zedex: folders, formats, updates.
 Everything that persists is there, exactly once; ☰ and the bar are shortcuts to
 the same settings.
 
@@ -263,7 +264,7 @@ The build from Releases here offers to update itself: one question to GitHub whe
 the app starts, and if there is a newer release, a note saying so. Say yes and it
 downloads that APK, checks it against the `.sha256` published beside it, and
 hands it to Android's installer — which will ask you to allow Zedex to install
-apps, once. *Settings › Files › Check for updates* turns the whole thing off.
+apps, once. *Settings › App › Check for updates* turns the whole thing off.
 
 The version from Google Play does none of this and has no such switch: Play
 updates its own apps, and this build does not contain the code or the permission

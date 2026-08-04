@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The app's own housekeeping, as against the machine's: where it keeps things,
+    what it writes them as, and whether it looks for a newer version of itself.
+
+    Three headings because they are three unrelated questions. The other tabs are
+    each one subject and need none; this one is the tab for everything that is
+    about Zedex rather than about a Spectrum.
+-->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory android:title="@string/settings_group_folders">
+        <Preference
+            android:key="statesRoot"
+            android:title="@string/settings_data_folder"
+            android:summary="@string/settings_data_folder_summary" />
+        <Preference
+            android:key="contentTree"
+            android:title="@string/settings_content_folder"
+            android:summary="@string/settings_content_folder_summary" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/settings_group_saving">
+        <ListPreference
+            android:key="snapshotFormat"
+            android:title="@string/settings_snapshot_format"
+            android:entries="@array/format_names"
+            android:entryValues="@array/format_values"
+            android:defaultValue="szx" />
+        <ListPreference
+            android:key="tapeFormat"
+            android:title="@string/settings_tape_format"
+            android:entries="@array/tape_format_names"
+            android:entryValues="@array/tape_format_values"
+            android:defaultValue="tap" />
+    </PreferenceCategory>
+
+    <!--
+        The whole category hides itself where updating is impossible - a Play
+        install updates itself, and the Play build has no updater in it at all.
+        Hiding the switch alone would leave a heading over nothing; see
+        SettingsActivity.
+    -->
+    <PreferenceCategory
+        android:key="updates"
+        android:title="@string/settings_group_updates">
+        <SwitchPreferenceCompat
+            android:key="updateCheck"
+            android:title="@string/settings_update_check"
+            android:summary="@string/settings_update_check_summary"
+            android:defaultValue="true" />
+    </PreferenceCategory>
+</PreferenceScreen>

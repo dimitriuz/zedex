@@ -302,13 +302,17 @@ public class SettingsActivity extends AppCompatActivity
     }
 
     /**
-     * Five tabs, in the order you would go looking through them.
+     * Six tabs, in the order you would go looking through them.
      *
      * Twenty-eight preferences in one list was a scroll nobody could hold in
      * their head, and the picture filters alone were ten of it. The tab is now
      * the grouping, so a category inside one only survives where it still
-     * divides something — the picture tab keeps *Filters* and *Display* apart,
-     * and the rest need no headings at all.
+     * divides something: the picture tab keeps *Filters* and *Display* apart,
+     * and *App* holds three unrelated questions - folders, formats, updates.
+     * The other four are each one subject and need no headings at all.
+     *
+     * The last tab is *App* rather than *Files* because what is in it is about
+     * Zedex and not about a Spectrum. Everything else here is the machine.
      */
     private static final Tab[] TABS = {
         new Tab(R.string.settings_tab_machine, R.drawable.ic_chip,
@@ -321,8 +325,8 @@ public class SettingsActivity extends AppCompatActivity
                 R.xml.settings_controls),
         new Tab(R.string.settings_tab_sound, R.drawable.ic_sound,
                 R.xml.settings_sound),
-        new Tab(R.string.settings_tab_files, R.drawable.ic_folder,
-                R.xml.settings_files),
+        new Tab(R.string.settings_tab_app, R.drawable.ic_settings,
+                R.xml.settings_app),
     };
 
     private static final String STATE_TAB = "tab";
@@ -544,9 +548,10 @@ public class SettingsActivity extends AppCompatActivity
              * The update switch is only a setting where updating is possible: a
              * Play install updates itself, and the Play build has no updater in
              * it at all. Hidden rather than disabled - a switch that cannot be
-             * moved is a question with no answer.
+             * moved is a question with no answer - and the whole category goes,
+             * because a heading over nothing is worse than either.
              */
-            Preference updates = findPreference(Updater.KEY_CHECK);
+            Preference updates = findPreference("updates");
             if (updates != null) updates.setVisible(Updater.available(getActivity()));
 
             Preference folder = findPreference(Storage.KEY_STATES_ROOT);

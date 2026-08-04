@@ -39,7 +39,7 @@ things you ask for.
 what the newest release is — `api.github.com/repos/dimitriuz/zedex/releases/latest`.
 It sends nothing but the request; GitHub sees an IP address as any web request
 shows it. Nothing is downloaded unless you answer yes to the note that follows,
-and *Settings › Files › Check for updates* stops it being made at all. **The
+and *Settings › App › Check for updates* stops it being made at all. **The
 version from Google Play never makes this request**: it has neither the code nor
 the permission to install an update, because Play updates its own apps.
 
