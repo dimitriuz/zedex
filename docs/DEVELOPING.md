@@ -311,19 +311,37 @@ The app gets what it needs from what is already there:
 - **The usage count** — the app fetches *its own* version's `.sha256` at each
   start, 82 bytes whose only product is a number in GitHub's database.
 
-That last one is the project's only measure of use, and reading it is one request:
+A `.sha256` count is starts of that version — sum them for the app as a whole.
+The APK's count is how many took an update.
+
+**Both are cumulative and GitHub keeps no history**, so a rate can only be had by
+writing the totals down and subtracting. `scripts/snapshot-downloads.py` appends a
+row per asset per day to `docs/stats/downloads.csv`, and
+`.github/workflows/stats.yml` runs it at 04:17 UTC and commits the result. It is
+safe to run by hand — a day already recorded is replaced, not duplicated:
 
 ```sh
-curl -s https://api.github.com/repos/dimitriuz/zedex/releases | python3 -c "
-import json,sys
-for r in json.load(sys.stdin):
-    print(r['tag_name'], {a['name']: a['download_count'] for a in r['assets']})"
+scripts/snapshot-downloads.py --print    # today's totals, writing nothing
+scripts/snapshot-downloads.py            # record them
 ```
 
-A `.sha256` count is starts of that version — sum them for the app as a whole.
-The APK's count is how many took an update. Both are cumulative, GitHub keeps no
-history and updates them with a lag of some minutes, so snapshot daily for a rate
-and treat small numbers as noise: your own testing and any CI are in there too.
+`docs/stats/index.html` turns that CSV into daily figures — one file, no
+dependencies, no build step. **Enable GitHub Pages** on `main` / `/docs` and it is
+at `https://dimitriuz.github.io/zedex/stats/`; until then, open the file over any
+local server (`python3 -m http.server` from `docs/stats`, not `file://`, because it
+fetches the CSV).
+
+Two things to know before reading anything into the numbers. The counts include
+your own testing and any CI that fetches a release, so small figures are noise.
+And GitHub's totals lag by minutes — during one afternoon's updater testing the
+1.0.4 hash went from 2 to 4 well after the fetches that caused it.
+
+The CSV is written as LF and the page accepts either ending: Python's `csv` module
+writes CRLF by default, and a stray `\r` on the last column renames it, which
+made every figure `NaN` and the page draw nothing at all. That was caught by
+running the page's own functions under node against the real file — worth doing
+again after changing either side, since the two are a contract between a shell
+script and a browser.
 
 **This ties the app to the asset names.** `Updater` builds
 `Zedex-<version>.apk` from the version it read, so renaming the artifact in the

@@ -1,0 +1,43 @@
+name: Download figures
+
+# GitHub keeps a running total per release asset and no history whatsoever, so
+# the only way to know how many downloads happened on a given day is to write the
+# total down and subtract later. Once a day is plenty: the figures are a trend,
+# not a dashboard, and GitHub's own totals lag by minutes anyway.
+on:
+  schedule:
+    - cron: '17 4 * * *'      # a quiet hour, and not on the hour: cron peaks there
+  workflow_dispatch:           # and by hand, for the impatient
+
+# Nothing here needs a token beyond the default one, and the API it reads is
+# public: the counts are visible to anybody who asks for them.
+permissions:
+  contents: write
+
+concurrency:
+  group: download-figures
+  cancel-in-progress: false    # never abandon a run half-committed
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Record today's totals
+        run: scripts/snapshot-downloads.py
+
+      # Nothing to commit most days is not a failure - it means the script found
+      # the same numbers it wrote earlier, which happens if it runs twice.
+      - name: Commit the snapshot
+        run: |
+          if git diff --quiet docs/stats/downloads.csv; then
+            echo "no change today"
+            exit 0
+          fi
+
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/stats/downloads.csv
+          git commit -m "chore: download figures for $(date -u +%F)"
+          git push
