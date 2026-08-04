@@ -59,6 +59,13 @@ public final class Storage {
      */
     public static final String KEY_DEMO_INSTALLED = "demoInstalled";
 
+    /**
+     * The data folder whose ROM folder could not be used, if there was one; see
+     * {@link #romsDirectory}. Not a boolean, so that choosing another folder
+     * needs nothing cleared.
+     */
+    private static final String KEY_ROMS_ELSEWHERE = "romsElsewhere";
+
     /** The demo, staged into the assets from {@code demo/} by the build. */
     private static final String DEMO = "zedex.tap";
 
@@ -266,11 +273,44 @@ public final class Storage {
     }
 
     /**
-     * Where Fuse looks for ROMs. None are shipped, so this is the user's to
-     * fill; it is created empty so there is somewhere obvious to put them.
+     * Where Fuse looks for ROMs: in the data folder, or in the app's own storage
+     * when that one turned out to be unusable.
+     *
+     * The fallback is remembered against the root it applies to rather than as a
+     * plain flag, so pointing the app at a different data folder heals it with
+     * nothing to reset: a root that is not the one that failed is simply tried.
      */
     public static File romsDirectory(Context context) {
-        return new File(root(context), ROMS);
+        File shared = new File(root(context), ROMS);
+
+        SharedPreferences preferences =
+                context.getSharedPreferences(SettingsActivity.PREFS, Context.MODE_PRIVATE);
+        String failed = preferences.getString(KEY_ROMS_ELSEWHERE, null);
+
+        return failed != null && failed.equals(root(context).getAbsolutePath())
+                ? privateRoms(context) : shared;
+    }
+
+    /** The app's own ROM folder, which no other install can spoil. */
+    private static File privateRoms(Context context) {
+        return new File(context.getFilesDir(), ROMS);
+    }
+
+    private static void usePrivateRoms(Context context) {
+        context.getSharedPreferences(SettingsActivity.PREFS, Context.MODE_PRIVATE)
+               .edit()
+               .putString(KEY_ROMS_ELSEWHERE, root(context).getAbsolutePath())
+               .apply();
+    }
+
+    /** Forgets a fallback that is no longer needed - the folder may be fixed. */
+    private static void useSharedRoms(Context context) {
+        SharedPreferences preferences =
+                context.getSharedPreferences(SettingsActivity.PREFS, Context.MODE_PRIVATE);
+
+        if (preferences.contains(KEY_ROMS_ELSEWHERE)) {
+            preferences.edit().remove(KEY_ROMS_ELSEWHERE).apply();
+        }
     }
 
     /**
@@ -338,18 +378,53 @@ public final class Storage {
      * missing afterwards, and the panel that says so is still how they arrive.
      */
     public static void installRoms(Context context) {
-        File directory = romsDirectory(context);
-        if (!directory.isDirectory() && !directory.mkdirs()) return;
+        if (unpackRoms(context, new File(root(context), ROMS))) {
+            useSharedRoms(context);
+            return;
+        }
+
+        /*
+         * The data folder's ROM folder cannot be used, so the ROMs go in the
+         * app's own storage instead and Fuse is pointed there.
+         *
+         * This is not a folder that is merely full: it is one holding files
+         * whose names are the ones needed and whose contents cannot be read.
+         * Scoped storage does that whenever the folder outlived the install that
+         * made it - a reinstall gets a new uid, and MediaProvider clears the
+         * ownership of what the old one wrote, so twenty-nine ROMs are suddenly
+         * twenty-nine names in the way. It happens between the debug build and
+         * the release one too.
+         *
+         * The old behaviour was the ROMs panel, offering to download a set into
+         * the same unusable folder. Every machine the app ships a ROM for can
+         * start regardless, so it starts; the panel is left for the machines
+         * whose ROMs really are missing.
+         */
+        Log.w(TAG, "the data folder's ROMs cannot be used; keeping them privately");
+        usePrivateRoms(context);
+        unpackRoms(context, privateRoms(context));
+    }
+
+    /**
+     * Puts every shipped ROM into {@code directory}.
+     *
+     * @return whether the folder can hold them: false the moment one cannot be
+     *         written and is not already there and readable, which is what the
+     *         caller falls back on. A ROM of the user's own with the same name
+     *         is theirs and counts as readable, so it is left exactly as it was.
+     */
+    private static boolean unpackRoms(Context context, File directory) {
+        if (!directory.isDirectory() && !directory.mkdirs()) return false;
 
         String[] shipped;
         try {
             shipped = context.getAssets().list(ROM_ASSETS);
         } catch (IOException e) {
             Log.e(TAG, "cannot list the ROMs in the app", e);
-            return;
+            return false;
         }
 
-        if (shipped == null) return;
+        if (shipped == null) return false;
 
         for (String name : shipped) {
             // ROMs only: anything else that ends up in there is ours to keep
@@ -357,7 +432,18 @@ public final class Storage {
             if (!name.toLowerCase(Locale.ROOT).endsWith(".rom")) continue;
 
             File target = new File(directory, name);
-            if (target.exists()) continue;
+
+            // exists() is not enough. A file left by an install that is gone
+            // exists, has the right length, and cannot be opened - and the old
+            // code took that for "already there" and skipped all of them.
+            if (target.canRead() && target.length() > 0) continue;
+
+            // Something is in the way. Ours to clear if Android will let us;
+            // if it will not, this folder is no use for ROMs.
+            if (target.exists() && !target.delete()) {
+                Log.w(TAG, "cannot replace " + target);
+                return false;
+            }
 
             try (InputStream in = context.getAssets().open(name);
                  OutputStream out = new FileOutputStream(target)) {
@@ -368,8 +454,11 @@ public final class Storage {
             } catch (IOException e) {
                 Log.e(TAG, "cannot unpack " + name, e);
                 target.delete();
+                return false;
             }
         }
+
+        return true;
     }
 
     /** The demo tape, wherever the tapes folder is, whether or not it is there. */

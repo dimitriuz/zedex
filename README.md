@@ -172,6 +172,8 @@ file identifies itself, and the machine switches when the media needs one — a
 - Writes tapes and disks out, or back over the file they came from
 - Recent files: the last ten
 - A demo tape in your tapes folder — the first run says where
+- The machine ROMs are put there for you, and kept in the app's own storage
+  instead if that folder ever cannot hold them — nothing to do either way
 
 <a href="docs/screenshots/settings-tape.jpg"><img src="docs/screenshots/settings-tape.jpg" width="400" alt="Tape settings"></a>
 

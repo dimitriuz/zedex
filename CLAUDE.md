@@ -109,6 +109,15 @@ expensive to rediscover.
     gives EACCES. So "copy your tapes into the folder" cannot work; they come
     through the picker, which stages them. A folder that reads as empty is the
     failure mode, not an error.
+  - **`exists()` is not "already there".** A file left by an install that is
+    gone exists, reports the right length, and cannot be opened — MediaProvider
+    clears the ownership of what an uninstalled package wrote, and a reinstall
+    gets a new uid. `installRoms` took that for "the user's own ROM, leave it"
+    and skipped all twenty-nine, so a reinstall came up on the ROMs panel
+    offering to download a set into the folder it could not write. The test is
+    `canRead() && length() > 0`; anything else is in the way, and a name in the
+    way that cannot be deleted means the folder is no use for ROMs. See
+    `Storage.romsDirectory` for where they go instead.
   - Images written under `Documents` are **not** in `MediaStore.Images`, so a
     screenshot there does not reach the gallery. That is why captures are not in
     the data folder at all: `Storage.capturesDirectory()` is `Pictures/Zedex`.
