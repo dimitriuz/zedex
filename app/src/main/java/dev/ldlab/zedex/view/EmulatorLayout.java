@@ -573,6 +573,47 @@ public final class EmulatorLayout extends ViewGroup {
      * puts it away are the same control, and moving it to the far end while it
      * is open makes it a different one.
      */
+    /**
+     * The right edge of whatever control is on the left of the window, or zero.
+     *
+     * Only the ones on that side: a control past the middle is on the other side
+     * of the keyboard, and taking its right edge would push the keyboard off the
+     * screen.
+     */
+    private int besideOnTheLeft(int width) {
+        int edge = 0;
+
+        for (Rect box : controlBoxes()) {
+            if (box.isEmpty() || box.centerX() > width / 2) continue;
+            edge = Math.max(edge, box.right);
+        }
+
+        return edge;
+    }
+
+    /** And the left edge of whatever is on the right, or the window's own. */
+    private int besideOnTheRight(int width) {
+        int edge = width;
+
+        for (Rect box : controlBoxes()) {
+            if (box.isEmpty() || box.centerX() <= width / 2) continue;
+            edge = Math.min(edge, box.left);
+        }
+
+        return edge;
+    }
+
+    /** The pad, fire, and the key buttons in the arc beside it. */
+    private List<Rect> controlBoxes() {
+        List<Rect> boxes = new ArrayList<>(2 + keyBoxes.length);
+
+        boxes.add(padBox);
+        boxes.add(fireBox);
+        boxes.addAll(Arrays.asList(keyBoxes));
+
+        return boxes;
+    }
+
     private void placeOverlay(int width, int height) {
         overlayBox.setEmpty();
         overlayOpenBox.setEmpty();
@@ -585,24 +626,42 @@ public final class EmulatorLayout extends ViewGroup {
         int gap = Math.round(OVERLAY_GAP * density);
 
         if (overlayShown) {
-            // Sideways, the same share of the width the keyboard below the
-            // picture takes and centred like it: across the whole window the
-            // keys come out half again the size of the real keyboard's. Upright
-            // it has the width, as the real one does there.
+            // The same share of the width the keyboard below the picture takes,
+            // centred like it - so the keys come out the size they would there.
             int across = landscapeNow ? Math.round(width * LANDSCAPE_WIDE) : width;
-            int tall = Math.min(Math.round(across / overlay.aspect()),
+            int left = (width - across) / 2;
+            int right = left + across;
+
+            /*
+             * The controls stay on screen while this is open, and it must not
+             * cover them. Which way it gives is the whole difference between a
+             * keyboard the size of the real one and a toy.
+             *
+             * Sideways they are at the two ends, so it gives way sideways: held
+             * clear of the pad on the left and of fire and its keys on the right,
+             * and then as tall as the keyboard below the picture is allowed to be.
+             * It used to clamp the *height* against the bottom of those controls
+             * instead - and in fullscreen the pad sits low, so a full 128K plate
+             * came out 295px tall where the real one is 454, keys a third the
+             * size. There is room between the controls; there was never room
+             * beneath them.
+             */
+            if (landscapeNow) {
+                left = Math.max(left, besideOnTheLeft(width) + gap);
+                right = Math.min(right, besideOnTheRight(width) - gap);
+            }
+
+            int tall = Math.min(Math.round((right - left) / overlay.aspect()),
                                 Math.round(height * OVERLAY_TALL));
 
-            // And no further up than the joystick, which stays on screen now.
-            // A full plate is twice the height of a slim one and would reach it
-            // sideways, putting the pad behind the keys; the keyboard takes the
-            // room under the controls instead and scales into it, which is what
-            // it does with any box it is given.
-            int floor = Math.max(padBox.bottom, fireBox.bottom);
-            if (floor > 0) tall = Math.min(tall, height - floor - gap);
+            // Upright the controls are under the picture, squarely in the way,
+            // and there is nowhere sideways to go: the height is what yields.
+            if (!landscapeNow) {
+                int floor = Math.max(padBox.bottom, fireBox.bottom);
+                if (floor > 0) tall = Math.min(tall, height - floor - gap);
+            }
 
-            overlayBox.set((width - across) / 2, height - tall,
-                           (width + across) / 2, height);
+            overlayBox.set(left, height - tall, right, height);
 
             // Alpha is a draw property, so this is safe here - the same reason
             // the floating joystick sets its own during a measure.

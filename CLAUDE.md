@@ -83,6 +83,16 @@ expensive to rediscover.
   either: every `adb shell ls` and script that names the folder would need
   quoting, and one that forgot silently listed the release build's folder
   instead and looked like it had worked.
+- **The overlay keyboard gives way sideways, never downwards.** Sideways the
+  joystick is at the two ends of the window, so the keyboard is held clear of the
+  pad on the left and of fire and its keys on the right and is then as tall as the
+  keyboard below the picture is allowed to be - identical, in fact: 1095x390 of
+  keys either way, measured. Clamping its *height* against the bottom of those
+  controls instead, which is what it used to do, made a full 128K plate 295px tall
+  where the real one is 454 and the keys a third of the size. There is room
+  between the controls; there was never room beneath them. Upright is the other
+  way about - the controls sit under the picture with nowhere sideways to go - so
+  there the height is what yields, and that branch is unchanged.
 - **A preference's type is whatever wrote it, and the wrong getter throws.**
   `joystickType` is `putInt` in three places; `getString` on it is a
   ClassCastException. The trap is that it throws only when the key is *present* -
