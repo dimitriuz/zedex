@@ -4,15 +4,16 @@
 GitHub keeps a running total per asset and no history at all, so the number that
 matters - how many downloads happened *today* - can only be had by writing the
 total down and subtracting. That is all this does: one row per asset per day,
-appended to docs/stats/downloads.csv, which docs/stats/index.html then reads and
-turns into daily figures.
+appended to a CSV, which docs/stats/index.html then reads and turns into daily
+figures.
 
-    scripts/snapshot-downloads.py            # append today's totals
-    scripts/snapshot-downloads.py --print    # show them without writing
+    scripts/snapshot-downloads.py --print         # show the totals, write nothing
+    scripts/snapshot-downloads.py --file some.csv # append today's to that file
 
-Run by .github/workflows/stats.yml on a schedule. Safe to run twice: a day
-already recorded is replaced rather than duplicated, so a manual run after a
-scheduled one simply corrects it.
+Run by .github/workflows/stats.yml on a schedule, which keeps the CSV on a branch
+of its own called `stats` rather than on main - a commit a day of data has no
+business in the history of the app. Safe to run twice: a day already recorded is
+replaced rather than duplicated, so a manual run after a scheduled one corrects it.
 
 What the numbers mean, since they are not obvious:
 
@@ -37,7 +38,6 @@ import urllib.request
 REPO = "dimitriuz/zedex"
 API = f"https://api.github.com/repos/{REPO}/releases?per_page=100"
 
-CSV = pathlib.Path(__file__).resolve().parent.parent / "docs/stats/downloads.csv"
 FIELDS = ["date", "tag", "asset", "downloads"]
 
 
@@ -70,7 +70,11 @@ def main() -> int:
                         help="show the totals and write nothing")
     parser.add_argument("--date", default=datetime.date.today().isoformat(),
                         help="the day to record as (default: today)")
+    parser.add_argument("--file", default="downloads.csv", type=pathlib.Path,
+                        help="the CSV to append to (default: ./downloads.csv)")
     options = parser.parse_args()
+
+    csv_path = options.file
 
     try:
         totals = fetch()
@@ -90,13 +94,13 @@ def main() -> int:
     # Everything already recorded, minus any earlier attempt at today, so a
     # second run in a day corrects it instead of doubling it.
     kept = []
-    if CSV.exists():
-        with CSV.open(newline="") as handle:
+    if csv_path.exists():
+        with csv_path.open(newline="") as handle:
             kept = [row for row in csv.DictReader(handle)
                     if row["date"] != options.date]
 
-    CSV.parent.mkdir(parents=True, exist_ok=True)
-    with CSV.open("w", newline="") as handle:
+    csv_path.parent.mkdir(parents=True, exist_ok=True)
+    with csv_path.open("w", newline="") as handle:
         # LF and not the csv module's default CRLF. The page splits on newlines,
         # and a trailing \r rode along on the last column - which made its key
         # "downloads\r", so every figure came out NaN and the page drew nothing.
@@ -111,7 +115,7 @@ def main() -> int:
                              "asset": asset, "downloads": count})
 
     print(f"{options.date}: {len(totals)} assets recorded, "
-          f"{len(kept) + len(totals)} rows in {CSV.name}")
+          f"{len(kept) + len(totals)} rows in {csv_path}")
     return 0
 
 

@@ -67,7 +67,8 @@
   <h1>Zedex — downloads</h1>
   <p class="lede">
     What GitHub has counted, and what it means. Every figure here comes from
-    <code>docs/stats/downloads.csv</code>, written once a day by a workflow.
+    <code>downloads.csv</code> on the <code>stats</code> branch, written once a day
+    by a workflow.
   </p>
 
   <div class="cards" id="totals"></div>
@@ -91,7 +92,12 @@
 </main>
 
 <script>
-const CSV = "downloads.csv";
+// The data lives on a branch of its own, not beside this file: the workflow
+// appends to it once a day, and a commit a day of numbers has no business in the
+// history of the app. raw.githubusercontent.com answers with
+// access-control-allow-origin: *, so a browser may read it from anywhere, and
+// caches it for five minutes, which is finer granularity than a daily figure needs.
+const CSV = "https://raw.githubusercontent.com/dimitriuz/zedex/stats/downloads.csv";
 
 function parse(text) {
   // \r as well as \n: a CSV written by Python's csv module is CRLF unless told
@@ -216,9 +222,9 @@ fetch(CSV).then(r => {
   document.querySelector("#versions tbody").innerHTML = versions(rows);
 }).catch(problem => {
   document.getElementById("totals").innerHTML =
-    `<p class="note">Nothing to show: ${problem.message}. The workflow writes
-     <code>downloads.csv</code> once a day; run
-     <code>scripts/snapshot-downloads.py</code> to write one now.</p>`;
+    `<p class="note">Nothing to show: ${problem.message}. The figures live on the
+     <code>stats</code> branch, which the daily workflow creates the first time it
+     runs — there is nothing there until then.</p>`;
 });
 </script>
 </body>
