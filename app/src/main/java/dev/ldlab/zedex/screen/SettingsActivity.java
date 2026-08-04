@@ -695,6 +695,32 @@ public class SettingsActivity extends AppCompatActivity
          * path with All files access - a document tree grant hands back a
          * content:// URI, which Fuse's stdio cannot open.
          */
+        /**
+         * A folder chosen before the app was allowed to use it.
+         *
+         * The page that grants All files access is Android's own and returns no
+         * result, so the choice is kept here and made on the way back - see
+         * {@link #onResume}. Without that, granting it left the folder unchanged
+         * and nothing said, which is worse than the refusal it replaced.
+         */
+        private File pendingFolder;
+
+        /** The one dialog that offers the permission, for both ways in. */
+        private void askForAllFiles(int why) {
+            if (!Storage.canAskForAnyFolder(getActivity())) return;
+
+            new AlertDialog.Builder(getActivity(),
+                    android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                    .setMessage(why)
+                    .setPositiveButton(R.string.settings_grant, (dialog, which) ->
+                            startActivity(new Intent(
+                                    Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                                    Uri.parse("package:" + getActivity().getPackageName()))))
+                    .setNegativeButton(android.R.string.cancel,
+                            (dialog, which) -> pendingFolder = null)
+                    .show();
+        }
+
         private void chooseAnyFolder() {
             // Unreachable in a build with no permission to grant - the item that
             // leads here is not in the list - but the dialog it would put up
@@ -702,17 +728,7 @@ public class SettingsActivity extends AppCompatActivity
             if (!Storage.canAskForAnyFolder(getActivity())) return;
 
             if (!Storage.canUseAnyFolder()) {
-                new AlertDialog.Builder(getActivity(),
-                        android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                        .setMessage(R.string.settings_all_files)
-                        .setPositiveButton(R.string.settings_grant, (dialog, which) -> {
-                            Intent intent = new Intent(
-                                    Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
-                                    Uri.parse("package:" + getActivity().getPackageName()));
-                            startActivity(intent);
-                        })
-                        .setNegativeButton(android.R.string.cancel, null)
-                        .show();
+                askForAllFiles(R.string.settings_all_files);
                 return;
             }
 
@@ -721,6 +737,24 @@ public class SettingsActivity extends AppCompatActivity
         }
 
         private void useFolder(File folder) {
+            /*
+             * A folder outside the ones Android gives an app for free needs All
+             * files access, and this offered one - the folder at the root of
+             * storage - and then refused it with "cannot write to that folder"
+             * without ever mentioning a permission. Which is what a user hit, on
+             * the folder holding every save state they had: the first run had
+             * always asked, and this screen never did.
+             *
+             * Asked before isWritable, because without the permission that test
+             * fails for a reason no wording about a bad folder would explain.
+             */
+            if (!Storage.canUseAnyFolder()
+                    && Storage.needsAllFilesFor(getActivity(), folder)) {
+                pendingFolder = folder;
+                askForAllFiles(R.string.settings_all_files_folder);
+                return;
+            }
+
             if (!Storage.isWritable(folder)) {
                 Toast.makeText(getActivity(), R.string.settings_folder_unusable,
                         Toast.LENGTH_LONG).show();
@@ -1029,6 +1063,15 @@ public class SettingsActivity extends AppCompatActivity
             super.onResume();
             getPreferenceManager().getSharedPreferences()
                     .registerOnSharedPreferenceChangeListener(this);
+
+            // Back from the All files access page. Only a folder the user went
+            // there for, and only once it is actually allowed; still refused
+            // keeps it, since they may be on their way to allow it.
+            if (pendingFolder != null && Storage.canUseAnyFolder()) {
+                File folder = pendingFolder;
+                pendingFolder = null;
+                useFolder(folder);
+            }
         }
 
         @Override
