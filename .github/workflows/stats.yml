@@ -39,5 +39,8 @@ jobs:
           git config user.name  'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add docs/stats/downloads.csv
-          git commit -m "chore: download figures for $(date -u +%F)"
+          # [skip ci] because this is a one-line data commit and build.yml runs
+          # on every push to main - a full native cross-compile and assembleDebug
+          # for a CSV would be several minutes of runner time a day, for ever.
+          git commit -m "chore: download figures for $(date -u +%F) [skip ci]"
           git push

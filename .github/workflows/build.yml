@@ -3,6 +3,13 @@ name: Build
 on:
   push:
     branches: [main]
+    # A commit that only touches prose or the stats page cannot change the APK,
+    # and the native build is the slow part of this. Worth having quite apart
+    # from the daily download-figures commit, which also says [skip ci].
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - 'LICENSE'
   pull_request:
   workflow_dispatch:
 

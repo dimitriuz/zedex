@@ -325,6 +325,16 @@ scripts/snapshot-downloads.py --print    # today's totals, writing nothing
 scripts/snapshot-downloads.py            # record them
 ```
 
+That workflow **commits to `main`, once a day, as `github-actions[bot]`** — about
+365 commits a year of `chore: download figures for …`. Two things follow. The
+message carries `[skip ci]`, because `build.yml` runs on every push to main and a
+full native cross-compile for a one-line CSV would be minutes of runner time a
+day; `build.yml` also ignores `docs/**` and `**.md` now, which is worth having
+anyway. And **branch protection on `main` would break it** — a bot cannot satisfy
+a required review, so the push would fail and mail you about it every morning. If
+that ever goes on, move the data to a branch of its own and have the page fetch it
+from `raw.githubusercontent.com` instead.
+
 `docs/stats/index.html` turns that CSV into daily figures — one file, no
 dependencies, no build step. **Enable GitHub Pages** on `main` / `/docs` and it is
 at `https://dimitriuz.github.io/zedex/stats/`; until then, open the file over any
