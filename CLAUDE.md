@@ -118,11 +118,14 @@ expensive to rediscover.
   hour *per IP*, and a carrier NAT is one address for a great many phones - so
   the API would fail for exactly the users who share one, silently. And an asset
   has a `download_count`, which is the only anonymous measure of use this project
-  has: `latest.json` under `/releases/latest/download/` counts starts,
-  `alive.txt` under `/releases/download/v<version>/` counts them per version.
-  **A release must therefore publish both**, which the release workflow does and
-  checks; a release without `latest.json` offers nobody an update, silently and
-  by design. The counting is disclosed in `docs/PRIVACY.md` and the README, and
+  has, and it needs no asset of its own: the newest version comes from the
+  **redirect** on `/releases/latest`, whose `Location` header is
+  `.../releases/tag/v1.1.1`, and the counted file is the `.sha256` a release
+  already publishes beside its APK. Fetching this build's own `.sha256` counts one
+  start of this version; the APK's count is how many took an update. **This ties
+  the app to the asset naming the workflow uses** - `Zedex-<version>.apk` - and
+  that coupling is the price of a release page holding nothing but the two files a
+  person would want. The counting is disclosed in `docs/PRIVACY.md` and the README, and
   it has to stay disclosed - it is the one thing in the app that could make
   "no usage statistics" untrue.
 - **The Play build cannot update itself, and must not look as though it could.**

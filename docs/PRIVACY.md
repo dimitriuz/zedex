@@ -24,18 +24,19 @@ Uninstalling removes the settings. Your folder stays.
 Three times, and never otherwise.
 
 **1. Checking for a new version** — the version from GitHub only, at startup. It
-downloads two small files:
+asks two things: which release is newest, and the small checksum file published
+beside your own version's download.
 
 ```
-github.com/dimitriuz/zedex/releases/latest/download/latest.json
-github.com/dimitriuz/zedex/releases/download/v<your version>/alive.txt
+github.com/dimitriuz/zedex/releases/latest
+github.com/dimitriuz/zedex/releases/download/v<your version>/Zedex-<your version>.apk.sha256
 ```
 
 Nothing is sent but the request. GitHub sees your IP address, as any website
 does.
 
-GitHub counts how many times each file is downloaded, and the developer can read
-those totals. That is the only usage figure this app produces: downloads per
+GitHub counts how many times that checksum file is downloaded, and the developer
+can read the totals. That is the only usage figure this app produces: a count per
 version. It carries no identifier and cannot be traced to a person, a phone or a
 session. To stop it: **Settings › App › Check for updates**.
 

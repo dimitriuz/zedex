@@ -19,7 +19,6 @@ import android.widget.Toast;
 
 import androidx.core.content.FileProvider;
 
-import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -30,6 +29,8 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.security.MessageDigest;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Offers the newest release from GitHub, for the builds that came from there.
@@ -63,34 +64,40 @@ public final class Updater {
             "https://github.com/dimitriuz/zedex/releases";
 
     /**
-     * What the newest release says about itself: version, APK and its hash.
+     * Where the newest release's own page is. Asked with redirects turned off,
+     * because the answer is the redirect: it comes back
+     * {@code 302 Location: .../releases/tag/v1.1.1}, and that tag is the version.
      *
-     * An asset of the release rather than api.github.com, for two reasons that
-     * have nothing to do with each other and both matter.
-     *
-     * The API allows sixty unauthenticated requests an hour <em>per IP</em>, and
-     * a carrier NAT is one address for a great many phones - so the check would
-     * fail exactly for the users who share one, and fail silently, which is the
-     * worst way. An asset download has no such limit.
-     *
-     * And an asset is counted. GitHub keeps a download_count for each one, which
-     * is the only anonymous measure of use this project has any way of getting:
-     * nothing about anybody reaches the developer, a total does, from GitHub,
-     * later. {@code /releases/latest/download/} is a permanent redirect to the
-     * newest release's copy, so the URL never has to change.
+     * No asset of its own for this. An earlier version published a latest.json
+     * beside the APK and read that, which worked but put a file on the release
+     * page that means nothing to anybody downloading it. Everything needed is in
+     * the two files a release already has - the APK and its .sha256 - as long as
+     * their names follow the convention the release workflow gives them, which is
+     * {@code Zedex-<version>.apk}. That coupling is the price of a clean release
+     * page, and it is between two files in this repository.
      */
-    private static final String LATEST = RELEASES + "/latest/download/latest.json";
+    private static final String LATEST = RELEASES + "/latest";
 
     /**
-     * Fetched purely to be counted, from the release this build came from.
+     * The counted file, and the reason the check is worth anything as a measure.
      *
-     * The counter on {@link #LATEST} says how much the app is being started; this
-     * one, being per release, says which versions are doing the starting - which
-     * is the question worth asking before dropping support for anything. It is
-     * one small file, its contents are not read, and a 404 for a release that
-     * predates all this is the expected answer and is ignored.
+     * GitHub keeps a download_count per release asset, so fetching the .sha256 of
+     * the release this build came from counts one start of this version - and
+     * summed across releases, one start of the app. It is a file that has to
+     * exist anyway, for anybody checking a download by hand.
+     *
+     * The API would have been the obvious way to ask what the newest release is,
+     * and it is not used for two reasons: sixty unauthenticated requests an hour
+     * are counted *per IP*, and a carrier NAT is one address for a great many
+     * phones - and an API call is not counted, so it would tell us nothing.
      */
-    private static final String ALIVE = "/alive.txt";
+    private static String hashUrl(String version) {
+        return apkUrl(version) + ".sha256";
+    }
+
+    private static String apkUrl(String version) {
+        return RELEASES + "/download/v" + version + "/Zedex-" + version + ".apk";
+    }
 
     /** Long enough for a slow phone on a train, short enough not to hang about. */
     private static final int CONNECT_MS = 10_000;
@@ -180,10 +187,17 @@ public final class Updater {
             // people who are behind.
             ping(activity);
 
-            Release latest = fetchLatest();
-            if (latest == null || latest.apk == null) return;
+            String newest = newestVersion();
+            if (newest == null) return;
+            if (versionCode(newest) <= installedVersion(activity)) return;
 
-            if (versionCode(latest.name) <= installedVersion(activity)) return;
+            Release latest = new Release();
+            latest.name = newest;
+            latest.apk = apkUrl(newest);
+
+            // Only now, so somebody already up to date costs one redirect and
+            // nothing else.
+            latest.sha256 = fetchHash(hashUrl(newest));
 
             activity.runOnUiThread(() -> {
                 if (!activity.isFinishing()) offer(activity, latest);
@@ -193,24 +207,27 @@ public final class Updater {
 
     // --- asking ---------------------------------------------------------------
 
-    private static Release fetchLatest() {
+    /**
+     * What GitHub calls the newest release, from the redirect and nothing else.
+     *
+     * A HEAD, with following turned off: the body is a web page nobody here wants
+     * and the header is the whole answer. A draft or a pre-release is not the
+     * "latest" as far as GitHub is concerned, which is the behaviour wanted -
+     * an unfinished release offers itself to nobody.
+     */
+    private static String newestVersion() {
         HttpURLConnection connection = null;
         try {
             connection = (HttpURLConnection) new URL(LATEST).openConnection();
-            connection.setInstanceFollowRedirects(true);   // /latest/ is a redirect
+            connection.setRequestMethod("HEAD");
+            connection.setInstanceFollowRedirects(false);
             connection.setConnectTimeout(CONNECT_MS);
             connection.setReadTimeout(READ_MS);
 
-            if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
-                Log.i(TAG, "no release news: HTTP " + connection.getResponseCode());
-                return null;
-            }
-
-            try (InputStream in = connection.getInputStream()) {
-                return parse(new String(readAll(in, 64 * 1024, null), "UTF-8"));
-            }
+            String location = connection.getHeaderField("Location");
+            return versionFrom(location);
         } catch (Exception e) {
-            // Offline, no such asset yet, GitHub having a morning: all the same.
+            // Offline, GitHub having a morning: all the same here.
             Log.i(TAG, "cannot ask about releases: " + e);
             return null;
         } finally {
@@ -219,41 +236,62 @@ public final class Updater {
     }
 
     /**
-     * The three fields {@code latest.json} carries, and nothing assumed.
+     * {@code .../releases/tag/v1.1.1} to {@code 1.1.1}.
      *
-     * Package-visible and taking a string rather than a connection so that the
-     * shape the release workflow writes can be tested without a network: this is
-     * a contract between a shell script and a parser, and the two are in
-     * different files in different languages.
-     *
-     * @return null unless all three fields are there, which is what makes a
-     *         half-written release no release at all
+     * Package-visible and taking a string so the shape can be tested without a
+     * network: it is a contract with somebody else's redirect, and the app is
+     * silent rather than wrong if it ever changes - which is the sort of thing
+     * worth a test rather than a hope.
      */
-    static Release parse(String json) {
+    static String versionFrom(String location) {
+        if (location == null) return null;
+
+        Matcher tag = Pattern.compile("/releases/tag/v?([0-9]+(?:\\.[0-9]+)*)")
+                             .matcher(location);
+
+        return tag.find() ? tag.group(1) : null;
+    }
+
+    /**
+     * The hash a release published beside its APK, or null.
+     *
+     * The file is {@code "<hex>  <filename>"}. Null is not a failure worth
+     * reporting: the install then rests on Android's own signature check, which
+     * is the one that actually matters.
+     */
+    private static String fetchHash(String url) {
+        HttpURLConnection connection = null;
         try {
-            JSONObject object = new JSONObject(json);
+            connection = (HttpURLConnection) new URL(url).openConnection();
+            connection.setInstanceFollowRedirects(true);
+            connection.setConnectTimeout(CONNECT_MS);
+            connection.setReadTimeout(READ_MS);
 
-            Release release = new Release();
-            release.name = object.optString("version", "").replaceFirst("^[vV]", "");
-            release.apk = object.optString("apk", null);
-            release.sha256 = object.optString("sha256", null);
+            if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) return null;
 
-            if (release.name.isEmpty() || release.apk == null) return null;
-
-            return release;
+            try (InputStream in = connection.getInputStream()) {
+                String text = new String(readAll(in, 4096, null), "UTF-8").trim();
+                int space = text.indexOf(' ');
+                return space > 0 ? text.substring(0, space) : text;
+            }
         } catch (Exception e) {
-            Log.w(TAG, "latest.json did not parse", e);
+            Log.i(TAG, "no published hash: " + e);
             return null;
+        } finally {
+            if (connection != null) connection.disconnect();
         }
     }
 
     /**
-     * Downloads the counted file from this build's own release, and throws the
-     * contents away.
+     * Downloads this build's own {@code .sha256} and throws it away.
      *
-     * Best effort by design: it is one small GET whose only product is a number
-     * in somebody else's database, so a failure is not worth a line in the log,
-     * let alone telling the user about.
+     * Eighty-two bytes whose only product is a number in somebody else's
+     * database: the count on that asset is how many times this version has been
+     * started, and across releases how much the app is used at all. A release
+     * older than any of this has the file too, so old versions report as well.
+     *
+     * Best effort by design, so a failure is not worth a line in the log, let
+     * alone telling the user about.
      */
     private static void ping(Context context) {
         HttpURLConnection connection = null;
@@ -262,7 +300,7 @@ public final class Updater {
                     .getPackageInfo(context.getPackageName(), 0).versionName;
 
             connection = (HttpURLConnection) new URL(
-                    RELEASES + "/download/v" + version + ALIVE).openConnection();
+                    hashUrl(version)).openConnection();
             connection.setInstanceFollowRedirects(true);
             connection.setConnectTimeout(CONNECT_MS);
             connection.setReadTimeout(READ_MS);
@@ -271,7 +309,7 @@ public final class Updater {
                 readAll(in, 4096, null);
             }
         } catch (Exception ignored) {
-            // A release that predates alive.txt has none, and that is fine.
+            // A release too old to have the file has none, and that is fine.
         } finally {
             if (connection != null) connection.disconnect();
         }
@@ -440,10 +478,11 @@ public final class Updater {
             }
 
             /*
-             * latest.json carries the hash the release workflow computed, so a
-             * download that arrived short or scrambled is caught here rather
-             * than by the installer refusing a corrupt package. A release
-             * without one installs anyway, on Android's signature check.
+             * The .sha256 published beside the APK is the hash the release
+             * workflow computed, so a download that arrived short or scrambled
+             * is caught here rather than by the installer refusing a corrupt
+             * package. A release without one installs anyway, on Android's own
+             * signature check.
              */
             if (release.sha256 != null) {
                 String got = hex(sha.digest());

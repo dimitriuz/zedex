@@ -258,9 +258,10 @@ ROM set, and asking GitHub whether there is a newer release than the one you are
 running.
 
 That second one is counted, and it is the only measure of use this project has:
-GitHub counts downloads of the two small files the check reads, so the totals say
-roughly how often the app is started and which versions are still in use. A
-total, and nobody in it who can be picked out. *Settings › App › Check for
+the check fetches the small checksum file published beside your version's
+download, and GitHub counts downloads, so the totals say roughly how often the app
+is started and which versions are still in use. A total, and nobody in it who can
+be picked out. *Settings › App › Check for
 updates* stops it. The full account is in [docs/PRIVACY.md](docs/PRIVACY.md).
 
 
@@ -278,8 +279,8 @@ nothing is sent unless you send it.
 The build from Releases here offers to update itself: one question to GitHub when
 the app starts, and if there is a newer release, a note saying so. Say yes and it
 downloads that APK, checks it against the `.sha256` published beside it, and
-hands it to Android's installer — which will ask you to allow Zedex to install
-apps, once. *Settings › App › Check for updates* turns the whole thing off.
+checks it against the `.sha256` published beside it, and hands it to Android's
+installer — which will ask you to allow Zedex to install apps, once. *Settings › App › Check for updates* turns the whole thing off.
 
 The version from Google Play does none of this and has no such switch: Play
 updates its own apps, and this build does not contain the code or the permission

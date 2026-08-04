@@ -290,22 +290,28 @@ unzip -p app/build/outputs/apk/play/app-play.apk classes.dex | strings | grep re
 
 ### What a release publishes, and how the numbers are read
 
-Four files, and two of them are for the app rather than for a person:
+Two files, and nothing the app needs beyond them:
 
 | | |
 | --- | --- |
 | `Zedex-<v>.apk` | the build |
-| `Zedex-<v>.apk.sha256` | its hash, for anyone checking by hand |
-| `latest.json` | version, APK URL and hash — what the installed app reads |
-| `alive.txt` | nothing worth reading; it exists to be counted |
+| `Zedex-<v>.apk.sha256` | its hash — for anyone checking by hand, and for the updater |
 
-The app asks `/releases/latest/download/latest.json`, which is a permanent
-redirect to the newest release's copy, so the URL never changes. It is an asset
-and not `api.github.com` for two unrelated reasons: the API's sixty requests an
-hour are *per IP* and a carrier NAT is one IP for a great many phones, and an
-asset is counted where an API call is not.
+An earlier version of this also published a `latest.json` and an `alive.txt` for
+the app to read. They worked, and they cluttered the release page with files that
+mean nothing to anybody downloading it, so they are gone.
 
-That count is the project's only measure of use, and reading it is one request:
+The app gets what it needs from what is already there:
+
+- **Which release is newest** — a `HEAD` of `/releases/latest` with redirects
+  turned off. The answer is the redirect: `Location:
+  .../releases/tag/v1.1.1`. Nothing is downloaded, so nothing is counted.
+- **The hash to check a download against** — `Zedex-<v>.apk.sha256`, fetched only
+  when there is actually an update to offer.
+- **The usage count** — the app fetches *its own* version's `.sha256` at each
+  start, 82 bytes whose only product is a number in GitHub's database.
+
+That last one is the project's only measure of use, and reading it is one request:
 
 ```sh
 curl -s https://api.github.com/repos/dimitriuz/zedex/releases | python3 -c "
@@ -314,12 +320,15 @@ for r in json.load(sys.stdin):
     print(r['tag_name'], {a['name']: a['download_count'] for a in r['assets']})"
 ```
 
-`latest.json` counts app starts with the check on; `alive.txt`, being fetched from
-the release the running build came from, counts them per version — which is the
-figure to look at before dropping support for anything. Both are cumulative and
-GitHub keeps no history, so a daily snapshot is the only way to see a rate. And
-both include your own testing and any CI that fetches them, so treat small
-numbers as noise.
+A `.sha256` count is starts of that version — sum them for the app as a whole.
+The APK's count is how many took an update. Both are cumulative, GitHub keeps no
+history and updates them with a lag of some minutes, so snapshot daily for a rate
+and treat small numbers as noise: your own testing and any CI are in there too.
+
+**This ties the app to the asset names.** `Updater` builds
+`Zedex-<version>.apk` from the version it read, so renaming the artifact in the
+workflow silently stops updates being offered. The two live in this repository,
+which is the only reason that is an acceptable trade for a clean release page.
 
 **Assets on a draft release are not reachable** at those URLs until the draft is
 published, so a tagged build offers nobody an update until you press publish.

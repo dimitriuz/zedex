@@ -188,47 +188,6 @@ jobs:
       # gh is on the runner already, so no third-party action in the release
       # path. Created as a draft: nothing is public until you have installed
       # the APK and pressed publish. Drop --draft to publish on tag.
-      # What the installed app reads to find out there is a newer one, and the
-      # only thing it reads: one small asset instead of the releases API.
-      #
-      # Two reasons it is an asset and not api.github.com. The API allows sixty
-      # unauthenticated requests an hour *per IP*, and a carrier NAT is one IP
-      # for a great many phones, so the check would fail for exactly the users
-      # who share an address. And an asset is counted - GitHub keeps a
-      # download_count per asset, which makes this the anonymous usage figure the
-      # project has otherwise no way of having. Nothing about anybody reaches us;
-      # a total reaches us, from GitHub, some time later.
-      #
-      # alive.txt is counted per release rather than for the newest one, so its
-      # counts say which versions are still being started. It has no other
-      # purpose and no contents worth reading.
-      - name: Write what the app will read
-        run: |
-          hash="$(cut -d' ' -f1 < "Zedex-$VERSION.apk.sha256")"
-
-          cat > latest.json <<JSON
-          {
-            "version": "$VERSION",
-            "apk": "https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/Zedex-$VERSION.apk",
-            "sha256": "$hash"
-          }
-          JSON
-
-          # Valid JSON, and the three fields the app insists on. A release whose
-          # latest.json cannot be parsed is a release nobody is offered.
-          python3 - <<'CHECK'
-          import json
-          with open('latest.json') as f:
-              d = json.load(f)
-          for key in ('version', 'apk', 'sha256'):
-              assert d.get(key), f'latest.json has no {key}'
-          assert len(d['sha256']) == 64, 'that is not a sha256'
-          print('latest.json:', d['version'], d['sha256'][:12] + '…')
-          CHECK
-
-          echo "Zedex $VERSION. This file exists to be counted; see the release workflow." \
-              > alive.txt
-
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -237,5 +196,4 @@ jobs:
               --title "Zedex $VERSION" \
               --generate-notes \
               --draft \
-              "Zedex-$VERSION.apk" "Zedex-$VERSION.apk.sha256" \
-              latest.json alive.txt
+              "Zedex-$VERSION.apk" "Zedex-$VERSION.apk.sha256"
