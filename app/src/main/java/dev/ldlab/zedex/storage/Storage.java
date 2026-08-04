@@ -212,16 +212,30 @@ public final class Storage {
         }
     }
 
-    /** Proves a folder is really writable rather than merely plausible. */
+    /**
+     * Proves a folder is really writable rather than merely plausible.
+     *
+     * The probe is a folder, not a file, and that is the whole subtlety: a media
+     * collection takes only what belongs in it, so creating {@code .zedex} inside
+     * {@code Pictures/} fails with "Operation not permitted" for having no
+     * extension MediaProvider recognises - on a device where every screenshot
+     * the app writes there works perfectly. It said the captures folder was
+     * unusable and put the first screenshot after an install somewhere else.
+     * A directory has no type to disagree with, and mkdir is refused by exactly
+     * the permission this is asking about.
+     */
     public static boolean isWritable(File directory) {
         if (!directory.isDirectory() && !directory.mkdirs()) return false;
 
         File probe = new File(directory, ".zedex");
         try {
-            if (!probe.createNewFile() && !probe.exists()) return false;
+            // exists() covers a leftover from a version that probed with a file,
+            // and one an uninstall left owned by nobody: either way something of
+            // ours is there and deleting it may not be allowed.
+            if (!probe.mkdir() && !probe.exists()) return false;
             probe.delete();
             return true;
-        } catch (java.io.IOException | SecurityException e) {
+        } catch (SecurityException e) {
             Log.w(TAG, "cannot write to " + directory, e);
             return false;
         }

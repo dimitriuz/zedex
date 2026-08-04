@@ -212,6 +212,15 @@ expensive to rediscover.
     obvious split, MP4s to `Movies`, would have failed on the GIF, which is the
     recording the app makes by default, and only on the build nobody drives by
     hand.
+  - **So a folder cannot be tested by writing a file into it.**
+    `Storage.isWritable` probed with `.zedex`, which `Pictures` refuses for
+    having no extension it knows — "cannot write to
+    `/storage/emulated/0/Pictures/Zedex`", on a tablet where every screenshot
+    the app puts there works. It probes with `mkdir` now: a directory has no
+    type to disagree with, and mkdir is refused by exactly the permission the
+    question is about. `WritableTest` holds both halves, and skips itself where
+    All files access is granted, since MediaProvider then steps out of the way
+    and the old probe passes.
   - **Writing the file is not enough to reach the gallery.** MediaStore had no
     row at all for a PNG that was on disk in `Pictures/Zedex` until
     `MediaScannerConnection.scanFile` was called; `Capture.announce()` does it
@@ -337,6 +346,16 @@ adb shell "run-as dev.ldlab.zedex mkdir -p shared_prefs"
 
 Use the canonical `/storage/emulated/0/...`; `/sdcard` is a symlink and string
 comparisons against `getExternalStorageDirectory()` will not match it.
+
+**`MANAGE_EXTERNAL_STORAGE` is a uid op, and taking it away needs `--uid`.**
+`appops set <pkg> ... deny` writes a package line that
+`Environment.isExternalStorageManager()` ignores once the uid has been allowed —
+`appops get` shows both, the uid one first, and that is the one that counts.
+So a test meant to run without the permission ran with it and skipped instead,
+twice. Grant with either; revoke with `appops set --uid <pkg>
+MANAGE_EXTERNAL_STORAGE deny`, and read the *uid* line back. The package has to
+be installed for either: `appops` on an absent one says *No UID for …*, which is
+what a previous test run left behind.
 
 ## Driving the app from a terminal
 
