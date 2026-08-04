@@ -334,6 +334,23 @@
     <string name="settings_firmware_wrong">That is not an 8K DivMMC firmware</string>
 
     <string name="settings_storage">Folders</string>
+    <string name="feedback_open">Report a problem\u2026</string>
+    <string name="feedback_title">Report a problem</string>
+    <string name="feedback_title_crash">Zedex stopped last time</string>
+    <string name="feedback_explain">This is everything that will be sent, and you can change any of it. Nothing leaves your device until you tap Send.</string>
+    <string name="feedback_template">What happened, and what you were doing:\n</string>
+    <string name="feedback_send">Send</string>
+    <string name="feedback_copy">Copy</string>
+    <string name="feedback_copied">Copied</string>
+    <!-- %1$s is the address, for when there is no mail app to hand it to. -->
+    <string name="feedback_no_mail">No mail app here. The report is on the clipboard \u2014 send it to %1$s</string>
+    <string name="feedback_subject">Zedex \u2014 a problem</string>
+    <string name="feedback_subject_crash">Zedex \u2014 a crash</string>
+    <string name="feedback_crashed_title">Zedex stopped last time</string>
+    <string name="feedback_crashed_message">There is a report of it on this device. Nothing has been sent. Look at it and decide?</string>
+    <string name="feedback_look">Look at it</string>
+    <string name="feedback_discard">Discard</string>
+
     <string name="settings_update_check">Check for updates</string>
     <string name="settings_update_check_summary">Ask GitHub for the newest release when the app starts, and offer it</string>
 

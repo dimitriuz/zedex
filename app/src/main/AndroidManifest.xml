@@ -18,6 +18,20 @@
          installing an APK it fetched. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
+    <!--
+        Android 11 and later hide other apps from an app that has not said what it
+        is looking for, and that includes hiding them from resolveActivity and
+        from the chooser. Without this the Send button on a bug report finds no
+        mail app on a device that has one, which looks exactly like a bug in the
+        button. See feedback/Feedback.java.
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="mailto" />
+        </intent>
+    </queries>
+
     <uses-feature android:glEsVersion="0x00020000" />
     <uses-feature
         android:name="android.hardware.touchscreen"

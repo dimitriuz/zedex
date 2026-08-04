@@ -264,6 +264,15 @@ total, and nobody in it who can be picked out. *Settings › App › Check for
 updates* stops it. The full account is in [docs/PRIVACY.md](docs/PRIVACY.md).
 
 
+## Reporting a problem
+
+*About Zedex › Report a problem* writes down the version, the device, the Android
+version, where your files are and the settings that change what the app does —
+and the crash, if it stopped last time. You see all of it, can edit any of it,
+and it goes by your own mail app. Nothing is collected in the background and
+nothing is sent unless you send it.
+
+
 ## Keeping it up to date
 
 The build from Releases here offers to update itself: one question to GitHub when

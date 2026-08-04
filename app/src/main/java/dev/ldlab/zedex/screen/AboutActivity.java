@@ -1,6 +1,7 @@
 package dev.ldlab.zedex.screen;
 
 import dev.ldlab.zedex.R;
+import dev.ldlab.zedex.feedback.Feedback;
 import dev.ldlab.zedex.view.SafeArea;
 import dev.ldlab.zedex.cheats.PokeDatabase;
 import android.app.Activity;
@@ -74,6 +75,7 @@ public final class AboutActivity extends Activity {
         column.addView(text(build(), 14, DIM, pixels(20)));
         column.addView(text(getString(R.string.about_licence), 13, DIM, pixels(16)));
         column.addView(text(cheats(), 13, DIM, pixels(16)));
+        column.addView(feedback());
         column.addView(link());
 
         return column;
@@ -125,6 +127,18 @@ public final class AboutActivity extends Activity {
         }
 
         return getString(R.string.about_cheats, games, trainers) + "\n" + source;
+    }
+
+    /**
+     * A bug report, from the screen that already says which version this is.
+     *
+     * Here rather than in Settings because it is not a setting: it is a thing to
+     * do once, next to the version number a report has to quote anyway.
+     */
+    private View feedback() {
+        TextView view = text(getString(R.string.feedback_open), 15, LINK, pixels(24));
+        view.setOnClickListener(v -> Feedback.compose(this));
+        return view;
     }
 
     /** The source, which the licence obliges and curiosity wants. */

@@ -20,6 +20,8 @@ import dev.ldlab.zedex.screen.StartPanel;
 import dev.ldlab.zedex.screen.StatesActivity;
 import dev.ldlab.zedex.storage.Recents;
 import dev.ldlab.zedex.storage.States;
+import dev.ldlab.zedex.feedback.Crashes;
+import dev.ldlab.zedex.feedback.Feedback;
 import dev.ldlab.zedex.storage.Storage;
 import dev.ldlab.zedex.update.Updater;
 import dev.ldlab.zedex.view.ActivityLights;
@@ -300,6 +302,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // its own, and says nothing unless there is. Never for a Play install
         // and never for a debug build; see Updater.available.
         Updater.checkOnStart(this, preferences);
+
+        // Process-wide, so it covers the other screens too. Nothing is sent: it
+        // writes the last crash to a file, and the next start offers it.
+        Crashes.watch(this);
+        Feedback.offerLastCrash(this);
 
         Machine.prepare(this);
 

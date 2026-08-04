@@ -48,6 +48,21 @@ GitHub and is passed to Android's installer, which asks you before installing.
 **The version from Google Play does neither 1 nor 2.** It cannot install updates;
 Play updates it instead.
 
+## If you send a report
+
+*About Zedex › Report a problem* builds a report about your device and this
+build: app version, Android version, phone model, screen size, which folder your
+files are in, whether ROMs were found, and the settings that change how the app
+behaves. If Zedex has crashed, the report also holds the crash itself.
+
+**You see the whole report before it goes anywhere, and you can edit it.** It is
+sent by your own mail app, to the address at the foot of this page. Nothing is
+sent if you do not tap Send, nothing is gathered unless you ask for a report, and
+no report is stored anywhere but on your device.
+
+A crash report is kept on your device until you are asked about it, once. Whether
+you send it or discard it, the file is then deleted.
+
 ## Links that leave the app
 
 Tapping one opens your browser, and that site's privacy policy applies:

@@ -83,6 +83,20 @@ expensive to rediscover.
   either: every `adb shell ls` and script that names the folder would need
   quoting, and one that forgot silently listed the release build's folder
   instead and looked like it had worked.
+- **A bug report is shown before it is sent, and that is the whole design.**
+  `Diagnostics.report()` is built on request, `Feedback` puts it in an editable
+  box, and the user's own mail app sends it. Nothing is gathered in the
+  background, there is no server, and `docs/PRIVACY.md` says so - so a change
+  that sent anything automatically, or added an identifier to make grouping
+  easier, would make that policy untrue. `DiagnosticsTest` pins the keys a report
+  must carry and checks it holds no identifier and no email address.
+- **`ACTION_SENDTO` needs a `<queries>` block or it silently resolves to
+  nothing.** Android 11 hides other apps from an app that has not declared what
+  it looks for, including from the chooser - so the Send button finds no mail app
+  on a phone that has three, and looks like a broken button. `mailto` is declared
+  in the main manifest for exactly this. `Crashes` writes the last crash to
+  `files/crash.txt` and the next start offers it once, deleting it either way;
+  `adb shell am crash <package>` is how to test that without waiting for a real one.
 - **The update check reads a release asset, not the releases API, and both
   reasons matter.** `api.github.com` allows sixty unauthenticated requests an
   hour *per IP*, and a carrier NAT is one address for a great many phones - so

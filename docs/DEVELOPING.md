@@ -426,6 +426,29 @@ emulator with a 136 px hole, both ways up — sideways it moves to one end, whic
 is where the joystick and the key buttons are — and the whole instrumentation
 suite passes with it on.
 
+### Bug reports and the crash catcher
+
+*About Zedex › Report a problem* builds `Diagnostics.report()`, shows it in an
+editable box and hands it to a mail app. `Crashes` installs a process-wide
+`UncaughtExceptionHandler` that writes the trace plus the same report to
+`files/crash.txt`; the next start offers it once and deletes it either way.
+
+Forcing a crash is the only sane way to test that half:
+
+```sh
+adb shell am crash dev.ldlab.zedex.debug     # writes files/crash.txt
+adb shell run-as dev.ldlab.zedex.debug cat files/crash.txt
+adb shell am start -n dev.ldlab.zedex.debug/dev.ldlab.zedex.EmulatorActivity
+```
+
+`am crash` arrives as a `CrashedByAdbException` on the main thread, which is a
+real uncaught exception as far as the handler is concerned.
+
+**Sending needs the `<queries>` block in the manifest.** Android 11 and later hide
+other apps from one that has not said what it is looking for, and that includes
+hiding them from the chooser — without it the Send button finds no mail app on a
+device that has one.
+
 ### Native debug symbols
 
 `build-native.sh` keeps the unstripped library beside the stripped one:
