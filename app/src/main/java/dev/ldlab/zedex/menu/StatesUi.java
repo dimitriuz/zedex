@@ -65,10 +65,15 @@ public final class StatesUi {
                   subject == null ? text(R.string.hotkey_quick_save)
                                   : text(R.string.quick_save, subject),
                   this::quickSave);
-        rows.item(R.drawable.ic_load,
-                  subject == null ? text(R.string.hotkey_quick_load)
-                                  : text(R.string.quick_load, subject),
-                  this::quickLoad);
+        // Only when there is one to load. Offered unconditionally it was a row
+        // that existed to say "no quick save" after being tapped, which on a
+        // fresh machine is every time.
+        if (quickState() != null) {
+            rows.item(R.drawable.ic_load,
+                      subject == null ? text(R.string.hotkey_quick_load)
+                                      : text(R.string.quick_load, subject),
+                      this::quickLoad);
+        }
     }
 
     /** The list, for the two rows and the two controller hotkeys alike. */
@@ -88,20 +93,31 @@ public final class StatesUi {
     }
 
     public void quickLoad() {
+        States.Saved state = quickState();
+
+        if (state == null) {
+            // Still reachable: the row is not offered without one, but the
+            // controller's L1 is, and it says so rather than doing nothing.
+            host.note(R.string.hotkey_no_quick_save);
+            return;
+        }
+
+        // The media name is left as it is: what is loaded is still the game, and
+        // calling it "Tujad Quick" from here would name the next save after the
+        // save rather than after the game.
+        States.load(state);
+        host.note(R.string.state_loaded, state.name);
+    }
+
+    /** The quick save for what is running, or null when there is none. */
+    private States.Saved quickState() {
         String name = quickName();
 
         for (States.Saved state : States.all(activity)) {
-            if (state.name.equals(name)) {
-                // The media name is left as it is: what is loaded is still the
-                // game, and calling it "Tujad Quick" from here would name the
-                // next save after the save rather than after the game.
-                States.load(state);
-                host.note(R.string.state_loaded, state.name);
-                return;
-            }
+            if (state.name.equals(name)) return state;
         }
 
-        host.note(R.string.hotkey_no_quick_save);
+        return null;
     }
 
     private String quickName() {
