@@ -34,8 +34,16 @@ import android.widget.Toast;
  */
 public final class Feedback {
 
-    /** Where a report goes. Also in the privacy policy, and it should match. */
-    private static final String ADDRESS = "dimitriuz@gmail.com";
+    /**
+     * Where a report goes. Also in {@code docs/PRIVACY.md} and in the Play
+     * listing, and all three should say the same thing.
+     *
+     * An address on the project's own domain rather than a personal one, and a
+     * forwarded one rather than a mailbox: it can be retired without touching a
+     * published listing or a released app, which matters for the address a store
+     * shows the world.
+     */
+    private static final String ADDRESS = "zedex.support@ldlab.dev";
 
     private Feedback() {
     }

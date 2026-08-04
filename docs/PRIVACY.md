@@ -101,4 +101,4 @@ versions are in the project's git history.
 
 ## Contact
 
-dimitriuz@gmail.com · source code at https://github.com/dimitriuz/zedex
+zedex.support@ldlab.dev · source code at https://github.com/dimitriuz/zedex
