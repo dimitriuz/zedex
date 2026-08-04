@@ -371,7 +371,7 @@ public final class Updater {
          * device that had never been asked.
          */
         if (!activity.getPackageManager().canRequestPackageInstalls()) {
-            askToAllowInstalling(activity);
+            askToAllowInstalling(activity, release);
             return;
         }
 
@@ -417,22 +417,60 @@ public final class Updater {
      * it is a resume with no result, so the update is simply offered again next
      * start rather than resumed behind the user's back.
      */
-    private static void askToAllowInstalling(Activity activity) {
+    private static void askToAllowInstalling(Activity activity, Release release) {
         new AlertDialog.Builder(activity,
                 android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setTitle(R.string.update_allow_title)
                 .setMessage(R.string.update_allow_message)
                 .setPositiveButton(R.string.settings_grant, (dialog, which) -> {
+                    // Remembered here and not when the dialog appeared: going to
+                    // the page is the user saying yes, and only that should make
+                    // coming back start a download. Somebody who cancelled, and
+                    // later allows the app to install for their own reasons,
+                    // should not find it fetching something.
+                    awaiting = release;
+
                     try {
                         activity.startActivity(new Intent(
                                 Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
                                 Uri.parse("package:" + activity.getPackageName())));
                     } catch (Exception e) {
+                        awaiting = null;
                         Log.w(TAG, "no unknown-sources page to open", e);
                     }
                 })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
+    }
+
+    /**
+     * The update the user went to the settings page for, if they did.
+     *
+     * Static, because the page is another activity and this one may be recreated
+     * while it is open - and because there is only ever one of these in flight.
+     */
+    private static Release awaiting;
+
+    /**
+     * Carries on where {@link #askToAllowInstalling} left off.
+     *
+     * Called from onResume. Allowing an app to install packages is a page of
+     * Android's own with no result to wait for, so the only way to notice the
+     * answer is to look again on the way back - and without this the update
+     * simply stopped: permission granted, nothing downloaded, and the offer only
+     * returning after a restart. Which is what a user reported, and fairly.
+     *
+     * Still not allowed means the pending update is kept rather than dropped:
+     * they may be on their way to grant it. Nothing is said either way.
+     */
+    public static void resumeIfAllowed(Activity activity) {
+        Release release = awaiting;
+        if (release == null) return;
+
+        if (!activity.getPackageManager().canRequestPackageInstalls()) return;
+
+        awaiting = null;
+        download(activity, release);
     }
 
     /** How far along, in whole percent, for the bar. */

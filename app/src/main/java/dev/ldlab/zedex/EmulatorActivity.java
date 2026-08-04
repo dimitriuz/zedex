@@ -566,6 +566,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     protected void onResume() {
         super.onResume();
 
+        // Coming back from the page that allows this app to install packages.
+        // Nothing happens unless the user went there for an update and has now
+        // allowed it; see Updater.resumeIfAllowed.
+        Updater.resumeIfAllowed(this);
+
         if (preferences.getBoolean(SettingsActivity.KEY_KEEP_SCREEN_ON, true)) {
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         } else {

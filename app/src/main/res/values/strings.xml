@@ -358,7 +358,7 @@
     <string name="update_title">Zedex %1$s is out</string>
     <string name="update_message">Download it and install it now? It replaces this build, and your files and settings stay where they are.</string>
     <string name="update_allow_title">One permission first</string>
-    <string name="update_allow_message">Android will not let an app install another without being told it may. Allow Zedex to install apps on the next screen, then tap Update again.</string>
+    <string name="update_allow_message">Android will not let an app install another without being told it may. Allow Zedex to install apps on the next screen — the download starts when you come back.</string>
     <string name="update_now">Update</string>
     <string name="update_later">Not now</string>
     <string name="update_downloading">Downloading the update\u2026</string>

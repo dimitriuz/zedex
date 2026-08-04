@@ -113,6 +113,22 @@ expensive to rediscover.
   in the main manifest for exactly this. `Crashes` writes the last crash to
   `files/crash.txt` and the next start offers it once, deleting it either way;
   `adb shell am crash <package>` is how to test that without waiting for a real one.
+- **Never stop publishing what a shipped client fetches.** The updater's endpoint
+  is a protocol with every copy already installed, and they cannot be changed.
+  1.1.0 asks for `/releases/latest/download/latest.json`; the switch to reading the
+  redirect stopped publishing it, and v1.1.1 went out without it - so every 1.1.0
+  install got a 404 and said nothing, for ever, with no way out from inside the
+  app. It cost nothing only because v1.1.0 was never published: the one install was
+  a phone on this desk, mended by uploading `latest.json` to v1.1.1 by hand. Before
+  changing how the check works again, keep the old endpoint answering until the
+  per-version download counts show nobody is on the old version.
+- **A permission that lives in a settings page has no result to wait for.** Allowing
+  the app to install packages opens a page of Android's own; there is no
+  `onActivityResult`, so the only way to notice the answer is to look again in
+  `onResume`. Without that the update stopped dead: permission granted, nothing
+  downloaded, the offer back only after a restart - reported by a user, and fairly.
+  `Updater.resumeIfAllowed` carries on, and only for somebody who actually went to
+  the page.
 - **The update check reads a release asset, not the releases API, and both
   reasons matter.** `api.github.com` allows sixty unauthenticated requests an
   hour *per IP*, and a carrier NAT is one address for a great many phones - so

@@ -33,4 +33,7 @@ public final class Updater {
 
     public static void checkOnStart(Activity activity, SharedPreferences preferences) {
     }
+
+    public static void resumeIfAllowed(Activity activity) {
+    }
 }
