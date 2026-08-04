@@ -294,6 +294,20 @@ and a version older than the newest release so there is something to offer:
 Android's installer and stop there, because a locally built release is signed
 with the debug key while the APK on GitHub is signed with the real one.
 
+**Keep Android Studio's Build Variant on `debug`.** Adding a third build type
+changed the variant list, and Studio's remembered selection does not always
+survive that — it lands on `play` or `release`, both of which install as
+`dev.ldlab.zedex` rather than `dev.ldlab.zedex.debug`. Run then fails with
+
+```
+Activity class {dev.ldlab.zedex/dev.ldlab.zedex.EmulatorActivity} does not exist
+```
+
+which reads like a manifest problem and is not one: it is the wrong variant, and
+the package it names is simply not installed. *View ▸ Tool Windows ▸ Build
+Variants*, set `app` to `debug`. Neither of the other two is debuggable anyway,
+so breakpoints would not work in them even when they do run.
+
 A build type rather than a product flavour **on purpose**. Flavours rename every
 existing task and output — `assembleDebug` becomes `assembleFullDebug`,
 `connectedDebugAndroidTest` becomes `connectedFullDebugAndroidTest`,
