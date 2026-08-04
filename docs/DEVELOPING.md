@@ -315,26 +315,14 @@ A `.sha256` count is starts of that version — sum them for the app as a whole.
 The APK's count is how many took an update.
 
 **Both are cumulative and GitHub keeps no history**, so a rate can only be had by
-writing the totals down and subtracting.
+writing the totals down and subtracting — and none of that machinery is here. It
+lives in **`dimitriuz/zedex-stats`, a private repository**: a daily workflow, the
+snapshot script, the accumulated CSV and a page that reads it.
 
-`.github/workflows/stats.yml` does that at 04:17 UTC, and **nothing it writes
-touches `main`**. The numbers live on an orphan branch called `stats` holding one
-file, `downloads.csv`, and no source at all — a commit a day of data has no
-business in the app's history, and keeping it out means no `[skip ci]` dance, no
-other workflow to placate, and nothing in the way of `git log`. The branch shares
-no root commit with `main`, so there is never a merge to think about.
-
-```sh
-scripts/snapshot-downloads.py --print              # today's totals, writing nothing
-scripts/snapshot-downloads.py --file some.csv      # append them to a file
-```
-
-`docs/stats/index.html` reads that branch over `raw.githubusercontent.com`, which
-answers `access-control-allow-origin: *` and caches for five minutes. **Enable
-GitHub Pages** on `main` / `/docs` and the page is at
-`https://dimitriuz.github.io/zedex/stats/`; locally, serve it over any HTTP server
-(`python3 -m http.server` from `docs/stats` — not `file://`, because it fetches).
-Until the workflow has run once the branch does not exist and the page says so.
+Private on purpose, and the distinction is worth keeping straight. The *totals* are
+public — anyone may ask the releases API for them, and the one-liner above does. The
+*history* is not published by GitHub at all, so the day-by-day series exists only in
+that repository, and it is nobody else's business.
 
 Two things to know before reading anything into the numbers. The counts include
 your own testing and any CI that fetches a release, so small figures are noise.
