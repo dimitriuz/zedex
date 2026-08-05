@@ -372,6 +372,8 @@
     <string name="settings_sound_enabled">Audio</string>
     <string name="settings_volume_ay">Volume dell\'AY</string>
     <string name="settings_ay_stereo">Separazione stereo dell\'AY</string>
+    <string name="settings_turbosound">TurboSound</string>
+    <string name="settings_turbosound_summary">Un secondo chip AY. Sei canali invece di tre, su un Pentagon o uno Scorpion; le altre macchine non hanno il TurboSound e lo ignorano.</string>
     <string name="settings_volume_beeper">Volume del beeper</string>
 
     <string name="settings_filter">Immagine</string>

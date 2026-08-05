@@ -36,6 +36,7 @@ extern int androidstate_tape_changed;
 #include "machine.h"
 #include "memory_pages.h"
 #include "periph.h"
+#include "peripherals/sound/ay.h"
 #include "rzx.h"
 #include "settings.h"
 #include "snapshot.h"
@@ -164,6 +165,7 @@ enum {
   OPTION_BORDER,			/* 0 all of it, 1 a quarter, 2 none */
   OPTION_KEMPSTON_MOUSE,
   OPTION_DIVMMC,			/* the interface, not the card */
+  OPTION_TURBOSOUND,			/* the second AY, where there can be one */
 };
 
 /* The filters' shape, kept here because the settings arrive one at a time and
@@ -410,6 +412,16 @@ run_set_option( int option, int value )
     restart_sound();
     break;
   }
+
+  case OPTION_TURBOSOUND:
+    /* A second AY chip, on the machines that could have had one - the
+       Pentagons and the Scorpion; see the TurboSound patch in native/patches.
+       No restart: nothing about it is read when the sound subsystem starts, and
+       ay_update_chips() is what makes it take effect, on this thread, between
+       one frame and the next. */
+    settings_current.turbosound = value;
+    ay_update_chips();
+    break;
 
   case OPTION_DETECT_LOADER:
     /* Watches the ULA for the pattern of a loader polling it and starts the
@@ -1284,6 +1296,13 @@ Java_dev_ldlab_zedex_FuseNative_setAyStereo( JNIEnv *env, jclass class,
                                             jint separation )
 {
   queue_command( COMMAND_SET_OPTION, OPTION_AY_STEREO, separation );
+}
+
+JNIEXPORT void JNICALL
+Java_dev_ldlab_zedex_FuseNative_setTurboSound( JNIEnv *env, jclass class,
+                                               jboolean on )
+{
+  queue_command( COMMAND_SET_OPTION, OPTION_TURBOSOUND, on ? 1 : 0 );
 }
 
 JNIEXPORT void JNICALL

@@ -256,6 +256,84 @@ ABIS=x86_64 ./scripts/build-native.sh  # single ABI, while iterating
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
+### Patching Fuse
+
+Fuse is still upstream and `vendor/` is still never written to. What the build
+compiles is a *copy* of the release with `native/patches/*.patch` applied,
+unpacked into `build-native/src` by `scripts/fuse-src.sh`. With no patches
+present that copy is the release byte for byte, so this costs nothing until
+something needs it — and the first thing that did was TurboSound, which is a
+second AY chip and lives in Fuse's core rather than in a UI layer.
+
+The copy is a git repository of its own. Its first commit is the pristine
+release, tagged `upstream`, and every commit after it is one patch in
+`native/patches`, so the fork has history and the series is what a maintainer
+would want sent to them:
+
+```sh
+scripts/fuse-src.sh status                  # what is applied, and what is not
+$EDITOR "$(scripts/fuse-src.sh path)"/sound.c
+scripts/fuse-src.sh git commit -am 'sound: ...'
+scripts/fuse-src.sh save                    # commits -> native/patches/*.patch
+./scripts/build-native.sh
+```
+
+`save` refuses while anything is uncommitted, because a patch is made from
+commits and the rest would be silently left out. `reset` throws the tree away
+and builds it again from the series, which is the check that a fresh clone gets
+what this machine has — worth running after any edit to the patches, and it
+also drops the per-ABI build trees, since a file a removed patch reverted comes
+back older than the object built from it and make would keep the object.
+
+Two traps, both of which cost a build that looked fine:
+
+- **A build tree remembers the source directory it was configured against.** It
+  holds no sources of its own, so pointed at the patched tree while configured
+  for `vendor/` it finds every object up to date, says so, and links a library
+  with none of the patches in it. `build-native.sh` records the source path
+  beside the package name and reconfigures when either changes.
+- **The baseline comes from the tarball, not from `vendor/`.** Fuse's perl
+  codegen writes `settings.c`, the z80 opcode tables and the widget menus into
+  the *source* directory, so a tree that has been built in — which `vendor/`
+  was, before the build moved — holds files a fresh checkout would not, and the
+  patches would be against a baseline only one machine has.
+
+`settings.c` and `settings.h` *are* in the TurboSound patch, deliberately: they
+are generated from `settings.dat`, but the release ships them, so a tree that
+has not run the codegen still has a `settings_current.turbosound` to compile
+against.
+
+### Testing TurboSound
+
+`demo/tstest.asm` is 80 bytes that give the first chip a tone on channel A and
+the second a different tone on channel C:
+
+```sh
+./scripts/build-demo.py demo/tstest.asm     # -> demo/tstest.tap
+```
+
+Load it on a Pentagon or a Scorpion and the app's AY meter lights **two** bars,
+the first and the third. Load it on anything else — or with *Settings › Sound ›
+TurboSound* off — and only the third lights, because there the two chip select
+bytes are registers 15 and 14 and the second chip's writes land on the first
+chip's registers and silence channel A. That difference is the whole test, and
+it is visible in a screenshot without anything having to be listened to.
+
+What was measured, on an x86_64 emulator, by tapping the samples on their way
+to AAudio and taking an FFT of them:
+
+| | 448 Hz (chip 0) | 671 Hz (chip 1) |
+| --- | --- | --- |
+| Pentagon | 0.95 | 1.00 |
+| Spectrum 128K | 0.001 | 1.00 |
+
+and both fundamentals carried their odd harmonics, which is what a pair of
+independent square wave generators sounds like. A real six-channel `.pt3` — two
+PT3 modules in one file, played by two instances of `demo/pt3.asm` with its
+state block swapped between them — came out at 97.6% of the power sum of the
+two halves played separately, and its spectrum correlated better with the sum
+of the two (r = 0.982) than with either alone (0.946, 0.954).
+
 ### Three build types, and one of them is for Play
 
 | | | |

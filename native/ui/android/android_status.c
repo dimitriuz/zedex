@@ -143,20 +143,28 @@ ui_statusbar_update( ui_statusbar_item item, ui_statusbar_state state )
 static int
 ay_levels( void )
 {
-  const libspectrum_byte *r;
-  int channel, levels = 0;
+  int channel, chip, levels = 0;
 
   if( !machine_current ) return 0;
 
-  r = machine_current->ay.registers;
-
   for( channel = 0; channel < 3; channel++ ) {
-    int tone  = !( r[7] & ( 1 << channel ) );
-    int noise = !( r[7] & ( 1 << ( channel + 3 ) ) );
-    int amplitude = r[ 8 + channel ];
     int level = 0;
 
-    if( tone || noise ) level = amplitude & 0x10 ? 15 : amplitude & 0x0f;
+    /* A TurboSound has two chips and the meter has three channels, so a
+       channel shows the louder of the two chips playing into it - which is
+       what the one waveform that reaches the speaker is nearest to. */
+    for( chip = 0; chip < ay_chips; chip++ ) {
+      const libspectrum_byte *r = machine_current->ay[ chip ].registers;
+      int tone  = !( r[7] & ( 1 << channel ) );
+      int noise = !( r[7] & ( 1 << ( channel + 3 ) ) );
+      int amplitude = r[ 8 + channel ];
+      int this_chip = 0;
+
+      if( tone || noise )
+        this_chip = amplitude & 0x10 ? 15 : amplitude & 0x0f;
+
+      if( this_chip > level ) level = this_chip;
+    }
 
     levels |= level << ( channel * 8 );
   }

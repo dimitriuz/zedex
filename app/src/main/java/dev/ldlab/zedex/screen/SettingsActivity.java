@@ -94,6 +94,12 @@ public class SettingsActivity extends AppCompatActivity
     public static final String KEY_AY_VOLUME = "volumeAy";
     /** Fuse's own three words; it matches them with strcmp. */
     public static final String KEY_AY_STEREO = "ayStereo";
+    /**
+     * A second AY chip on the machines that could have had one - the Pentagons
+     * and the Scorpion. It does nothing at all on any other machine, where the
+     * two bytes that select a chip are ordinary register selects.
+     */
+    public static final String KEY_TURBOSOUND = "turbosound";
     public static final String KEY_BEEPER_VOLUME = "volumeBeeper";
     public static final String KEY_KEEP_SCREEN_ON = "keepScreenOn";
     /**
@@ -1264,6 +1270,9 @@ public class SettingsActivity extends AppCompatActivity
                     break;
                 case KEY_AY_STEREO:
                     FuseNative.setAyStereo(ayStereo(preferences));
+                    break;
+                case KEY_TURBOSOUND:
+                    FuseNative.setTurboSound(preferences.getBoolean(key, true));
                     break;
                 case KEY_AY_VOLUME:
                     FuseNative.setAyVolume(number(preferences, key, 100));

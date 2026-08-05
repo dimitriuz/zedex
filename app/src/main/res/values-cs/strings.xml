@@ -372,6 +372,8 @@
     <string name="settings_sound_enabled">Zvuk</string>
     <string name="settings_volume_ay">Hlasitost AY</string>
     <string name="settings_ay_stereo">Stereo oddělení AY</string>
+    <string name="settings_turbosound">TurboSound</string>
+    <string name="settings_turbosound_summary">Druhý čip AY. Šest kanálů místo tří, na Pentagonu nebo Scorpionu; ostatní počítače TurboSound nemají a ignorují jej.</string>
     <string name="settings_volume_beeper">Hlasitost beeperu</string>
 
     <string name="settings_filter">Obraz</string>

@@ -410,6 +410,16 @@ public final class FuseNative {
      */
     public static native void setAyStereo(int separation);
 
+    /**
+     * A TurboSound: a second AY chip, on a machine that could have had one.
+     *
+     * Only the Pentagons and the Scorpion can, and on anything else this does
+     * nothing — the two bytes that would select a chip are register selects
+     * there and always were. Takes effect between one frame and the next; no
+     * reset, and no restart of the sound subsystem.
+     */
+    public static native void setTurboSound(boolean on);
+
     /** Beeper volume, 0 to 100; restarts Fuse's sound subsystem. */
     public static native void setBeeperVolume(int volume);
 
