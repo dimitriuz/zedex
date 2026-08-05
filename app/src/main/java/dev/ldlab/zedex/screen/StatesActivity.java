@@ -48,6 +48,12 @@ import java.util.List;
  */
 public final class StatesActivity extends Activity {
 
+    /** Every screen speaks the chosen language; see {@link Language}. */
+    @Override
+    protected void attachBaseContext(android.content.Context base) {
+        super.attachBaseContext(Language.wrap(base));
+    }
+
     /** True to save over what is here, false to load one of them. */
     public static final String EXTRA_SAVING = "saving";
 

@@ -42,6 +42,12 @@ import java.util.List;
 public final class ProfileActivity extends Activity
         implements SpectrumKeyboardView.Picker {
 
+    /** Every screen speaks the chosen language; see {@link Language}. */
+    @Override
+    protected void attachBaseContext(android.content.Context base) {
+        super.attachBaseContext(Language.wrap(base));
+    }
+
     /** Bright enough to read as chosen against the dark rows. */
     private static final int SELECTED = 0xff00b0c8;
     private static final int ROW = 0x22ffffff;
@@ -57,6 +63,10 @@ public final class ProfileActivity extends Activity
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // The manifest label is resolved in the phone's language rather than
+        // this screen's, so the title is set here; see Language.
+        setTitle(R.string.profile_activity);
 
         preferences = getSharedPreferences(SettingsActivity.PREFS, MODE_PRIVATE);
         setContentView(build());

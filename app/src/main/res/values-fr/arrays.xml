@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Seules les listes contenant des mots ; les *_values sont lues par Fuse et comparées avec strcmp. -->
+<resources>
+    <string-array name="volume_names">
+        <item>Non</item>
+        <item>25%</item>
+        <item>50%</item>
+        <item>75%</item>
+        <item>100%</item>
+    </string-array>
+
+    <string-array name="loader_names">
+        <item>Non — en temps réel</item>
+        <item>Sûr — chargeurs de la ROM</item>
+        <item>Turbo — tous les chargeurs</item>
+    </string-array>
+
+    <string-array name="ay_stereo_names">
+        <item>Non — mono</item>
+        <item>ACB — A à gauche, C au centre, B à droite</item>
+        <item>ABC — A à gauche, B au centre, C à droite</item>
+    </string-array>
+
+    <string-array name="video_names">
+        <item>RGB — direct depuis la machine</item>
+        <item>Composite — la couleur bave sur les côtés</item>
+        <item>RF — par la prise d\'antenne</item>
+    </string-array>
+
+    <string-array name="tape_format_names">
+        <item>TAP — plus petit, le plus courant</item>
+        <item>TZX — garde les chargeurs personnalisés</item>
+    </string-array>
+
+    <string-array name="format_names">
+        <item>SZX — toutes les machines</item>
+        <item>Z80 — largement pris en charge</item>
+        <item>SNA — 48K et 128K seulement</item>
+    </string-array>
+
+    <string-array name="border_names">
+        <item>Complète — chaque pixel que dessine la machine</item>
+        <item>Fine — un quart de la bordure</item>
+        <item>Aucune — l\'image seule, 256×192</item>
+    </string-array>
+
+    <string-array name="video_short_names">
+        <item>RGB</item>
+        <item>Composite</item>
+        <item>RF</item>
+    </string-array>
+</resources>

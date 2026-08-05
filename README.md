@@ -220,7 +220,8 @@ exits: it leaves fullscreen, or goes up a menu page, or opens ☰. *Quit* warns
 about unsaved disks first.
 
 **Settings** has six tabs — Machine, Tape, Display, Controls, Sound, App. The
-first five are the Spectrum; the last one is Zedex: folders, formats, updates.
+first five are the Spectrum; the last one is Zedex: language, folders, formats,
+updates.
 Everything that persists is there, exactly once; ☰ and the bar are shortcuts to
 the same settings.
 
@@ -232,6 +233,13 @@ Fullscreen gives the picture their strip back, and keeps one of them: the disk,
 where the strip itself would be — under the picture upright, beside it sideways —
 for as long as a drive is turning and not a moment longer. It is the lamp that answers "is it safe to close this yet".
 Turning the indicators off in *Settings › Display* turns that off too.
+
+
+## Languages
+
+English, German, Spanish, French, Italian, Polish, Czech, Russian and
+Ukrainian. It follows the phone's language, and *Settings › App › App language*
+overrides it for Zedex alone.
 
 
 ## The memory card

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Nur die Listen mit Wörtern darin; *_values liest Fuse und vergleicht sie mit strcmp. -->
+<resources>
+    <string-array name="volume_names">
+        <item>Aus</item>
+        <item>25%</item>
+        <item>50%</item>
+        <item>75%</item>
+        <item>100%</item>
+    </string-array>
+
+    <string-array name="loader_names">
+        <item>Aus — in Echtzeit</item>
+        <item>Sicher — ROM-Lader</item>
+        <item>Turbo — jeder Lader</item>
+    </string-array>
+
+    <string-array name="ay_stereo_names">
+        <item>Aus — mono</item>
+        <item>ACB — A links, C Mitte, B rechts</item>
+        <item>ABC — A links, B Mitte, C rechts</item>
+    </string-array>
+
+    <string-array name="video_names">
+        <item>RGB — direkt aus der Maschine</item>
+        <item>Composite — Farbe läuft seitlich aus</item>
+        <item>RF — über die Antennenbuchse</item>
+    </string-array>
+
+    <string-array name="tape_format_names">
+        <item>TAP — kleiner, das übliche</item>
+        <item>TZX — behält eigene Lader</item>
+    </string-array>
+
+    <string-array name="format_names">
+        <item>SZX — jede Maschine</item>
+        <item>Z80 — weit unterstützt</item>
+        <item>SNA — nur 48K und 128K</item>
+    </string-array>
+
+    <string-array name="border_names">
+        <item>Voll — jeder Pixel, den die Maschine zeichnet</item>
+        <item>Schmal — ein Viertel des Rahmens</item>
+        <item>Keiner — nur das Bild, 256×192</item>
+    </string-array>
+
+    <string-array name="video_short_names">
+        <item>RGB</item>
+        <item>Composite</item>
+        <item>RF</item>
+    </string-array>
+</resources>

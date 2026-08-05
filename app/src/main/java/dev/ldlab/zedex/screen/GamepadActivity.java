@@ -37,6 +37,12 @@ import android.widget.TextView;
  */
 public final class GamepadActivity extends Activity {
 
+    /** Every screen speaks the chosen language; see {@link Language}. */
+    @Override
+    protected void attachBaseContext(android.content.Context base) {
+        super.attachBaseContext(Language.wrap(base));
+    }
+
     private static final int TEXT = 0xffededf2;
     private static final int DIM = 0xff9a9aa5;
     private static final int ROW = 0x22ffffff;
@@ -58,6 +64,10 @@ public final class GamepadActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // The manifest label is resolved in the phone's language rather than
+        // this screen's, so the title is set here; see Language.
+        setTitle(R.string.gamepad_activity);
 
         preferences = getSharedPreferences(SettingsActivity.PREFS, MODE_PRIVATE);
         setContentView(build());

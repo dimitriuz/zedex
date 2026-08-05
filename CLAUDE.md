@@ -251,6 +251,38 @@ expensive to rediscover.
   is a window-content-changed event each time, the accessibility tree never
   settles, and every UI Automator test fails with *the ☰ button never
   appeared*. The activity lamps did this and took the whole suite down.
+- **A new string is nine files, and an activity is one line.** The app is
+  translated into eight languages besides English; `values/strings.xml` is the
+  original and `values-{de,es,fr,it,pl,cs,ru,uk}/` follow it. A string with no
+  translation falls back to English, which is a fine way to ship one and an
+  embarrassing way to ship fifty — **`scripts/check-strings.py`** counts them,
+  and fails on a key no longer in `values/` or on a **format specifier that
+  disagrees**. That last one is why it exists: `%1$s` here and `%1$d` there is a
+  ClassCastException from `String.format` at the moment that one string is
+  shown, in a language nobody testing in English will ever see. What must *not*
+  be translated is listed in the script: `*_values` arrays are Fuse's own words
+  and it compares them with `strcmp`.
+  - **Every activity needs `attachBaseContext`.** Resources come from the
+    context an activity was built on, so a screen speaks whatever `Language.wrap`
+    put there when it opened. A new activity without that line is in the phone's
+    language while the rest of the app is in the chosen one.
+  - **`android:label` is resolved in the phone's language, not the app's.** The
+    system reads it out of the manifest with its own resources, so the four
+    screens that show a title set it in `onCreate` instead. Settings said
+    *Settings* over Russian tabs until they did.
+  - **The emulator screen is not recreated for a locale change**, because its
+    `configChanges` includes `locale`; its menus were built with the words of
+    the language chosen when it opened, so `onResume` compares the tag and calls
+    `recreate()` itself. Verified with the machine still running afterwards.
+  - **One mechanism, not two.** Android 13 has a per-app language of its own,
+    and the app deliberately does not use it: it does not exist on 11 or 12,
+    which `minSdk 30` still supports, and two controls able to disagree is
+    worse than one. The preference is the only truth. It composes anyway - with
+    the preference empty the app follows whatever locale the system hands it,
+    which is how *Same as the phone* works and why `adb shell cmd locale
+    set-app-locales dev.ldlab.zedex.debug --locales pl-PL` is a good way to test
+    that path on an emulator whose `persist.sys.locale` SELinux will not let you
+    set.
 - **A setting has to be applied as well as stored.** Two places do that and a
   new setting belongs in one of them: `SettingsActivity`'s
   `onSharedPreferenceChanged`, which pushes into Fuse as the value changes, or

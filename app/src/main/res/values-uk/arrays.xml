@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Тільки ті списки, у яких є слова; *_values читає Fuse і порівнює через strcmp. -->
+<resources>
+    <string-array name="volume_names">
+        <item>Вимк</item>
+        <item>25%</item>
+        <item>50%</item>
+        <item>75%</item>
+        <item>100%</item>
+    </string-array>
+
+    <string-array name="loader_names">
+        <item>Вимк — реальний час</item>
+        <item>Безпечно — завантажувачі ROM</item>
+        <item>Турбо — будь-які завантажувачі</item>
+    </string-array>
+
+    <string-array name="ay_stereo_names">
+        <item>Вимк — моно</item>
+        <item>ACB — A ліворуч, C у центрі, B праворуч</item>
+        <item>ABC — A ліворуч, B у центрі, C праворуч</item>
+    </string-array>
+
+    <string-array name="video_names">
+        <item>RGB — прямо з машини</item>
+        <item>Composite — колір розтікається по горизонталі</item>
+        <item>RF — через антенний вхід</item>
+    </string-array>
+
+    <string-array name="tape_format_names">
+        <item>TAP — менший, найпоширеніший</item>
+        <item>TZX — зберігає нестандартні завантажувачі</item>
+    </string-array>
+
+    <string-array name="format_names">
+        <item>SZX — усі машини</item>
+        <item>Z80 — широко підтримується</item>
+        <item>SNA — лише 48K і 128K</item>
+    </string-array>
+
+    <string-array name="border_names">
+        <item>Повний — кожен піксель, що малює машина</item>
+        <item>Вузький — четверть бордюра</item>
+        <item>Немає — лише картинка, 256×192</item>
+    </string-array>
+
+    <string-array name="video_short_names">
+        <item>RGB</item>
+        <item>Composite</item>
+        <item>RF</item>
+    </string-array>
+</resources>

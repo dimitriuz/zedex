@@ -32,6 +32,12 @@ import android.widget.Toast;
  */
 public final class AboutActivity extends Activity {
 
+    /** Every screen speaks the chosen language; see {@link Language}. */
+    @Override
+    protected void attachBaseContext(android.content.Context base) {
+        super.attachBaseContext(Language.wrap(base));
+    }
+
     private static final String SOURCE = "https://github.com/dimitriuz/zedex";
 
     private static final int TEXT = 0xffededf2;
@@ -41,6 +47,10 @@ public final class AboutActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // The manifest label is resolved in the phone's language rather than
+        // this screen's, so the title is set here; see Language.
+        setTitle(R.string.about_title);
 
         ScrollView page = new ScrollView(this);
         // The banner's own background, so the picture does not end in a seam.

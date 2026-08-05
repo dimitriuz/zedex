@@ -58,6 +58,12 @@ public class SettingsActivity extends AppCompatActivity
         implements androidx.preference.PreferenceFragmentCompat
                    .OnPreferenceStartScreenCallback {
 
+    /** Every screen speaks the chosen language; see {@link Language}. */
+    @Override
+    protected void attachBaseContext(android.content.Context base) {
+        super.attachBaseContext(Language.wrap(base));
+    }
+
     public static final String PREFS = "fuse";
 
     // Keys shared with EmulatorActivity.
@@ -340,6 +346,10 @@ public class SettingsActivity extends AppCompatActivity
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // The manifest label is resolved in the phone's language rather than
+        // this screen's, so the title is set here; see Language.
+        setTitle(R.string.settings_title);
 
         // The emulator does this too and it is idempotent; here because the
         // list about to be inflated reads the value, and this screen is not
@@ -1084,6 +1094,14 @@ public class SettingsActivity extends AppCompatActivity
         @Override
         public void onSharedPreferenceChanged(
                 android.content.SharedPreferences preferences, String key) {
+            // A language is not pushed anywhere: it is what the screens were
+            // built with, so the open one is built again. Nothing below would
+            // change a word of what is already on the display.
+            if (Language.KEY_LANGUAGE.equals(key)) {
+                getActivity().recreate();
+                return;
+            }
+
             apply(preferences, key);
             updateSummaries();
         }

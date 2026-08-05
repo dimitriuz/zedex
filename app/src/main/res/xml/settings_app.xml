@@ -3,11 +3,20 @@
     The app's own housekeeping, as against the machine's: where it keeps things,
     what it writes them as, and whether it looks for a newer version of itself.
 
-    Three headings because they are three unrelated questions. The other tabs are
+    Four headings because they are four unrelated questions. The other tabs are
     each one subject and need none; this one is the tab for everything that is
     about Zedex rather than about a Spectrum.
 -->
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory android:title="@string/settings_group_language">
+        <ListPreference
+            android:key="language"
+            android:title="@string/settings_language"
+            android:entries="@array/language_names"
+            android:entryValues="@array/language_values"
+            android:defaultValue="" />
+    </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/settings_group_folders">
         <Preference

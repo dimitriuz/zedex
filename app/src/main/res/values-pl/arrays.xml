@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tylko te listy, w których są słowa; *_values czyta Fuse i porównuje przez strcmp. -->
+<resources>
+    <string-array name="volume_names">
+        <item>Wył.</item>
+        <item>25%</item>
+        <item>50%</item>
+        <item>75%</item>
+        <item>100%</item>
+    </string-array>
+
+    <string-array name="loader_names">
+        <item>Wył. — w czasie rzeczywistym</item>
+        <item>Bezpiecznie — loadery z ROM-u</item>
+        <item>Turbo — każdy loader</item>
+    </string-array>
+
+    <string-array name="ay_stereo_names">
+        <item>Wył. — mono</item>
+        <item>ACB — A z lewej, C w środku, B z prawej</item>
+        <item>ABC — A z lewej, B w środku, C z prawej</item>
+    </string-array>
+
+    <string-array name="video_names">
+        <item>RGB — wprost z maszyny</item>
+        <item>Composite — kolor rozlewa się na boki</item>
+        <item>RF — przez gniazdo antenowe</item>
+    </string-array>
+
+    <string-array name="tape_format_names">
+        <item>TAP — mniejszy, ten zwykły</item>
+        <item>TZX — zachowuje własne loadery</item>
+    </string-array>
+
+    <string-array name="format_names">
+        <item>SZX — każda maszyna</item>
+        <item>Z80 — szeroko wspierany</item>
+        <item>SNA — tylko 48K i 128K</item>
+    </string-array>
+
+    <string-array name="border_names">
+        <item>Pełna — każdy piksel, który rysuje maszyna</item>
+        <item>Wąska — ćwierć ramki</item>
+        <item>Brak — tylko obraz, 256×192</item>
+    </string-array>
+
+    <string-array name="video_short_names">
+        <item>RGB</item>
+        <item>Composite</item>
+        <item>RF</item>
+    </string-array>
+</resources>

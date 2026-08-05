@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Jen ty seznamy, ve kterých jsou slova; *_values čte Fuse a porovnává je pomocí strcmp. -->
+<resources>
+    <string-array name="volume_names">
+        <item>Vyp.</item>
+        <item>25%</item>
+        <item>50%</item>
+        <item>75%</item>
+        <item>100%</item>
+    </string-array>
+
+    <string-array name="loader_names">
+        <item>Vyp. — v reálném čase</item>
+        <item>Bezpečně — nahrávače z ROM</item>
+        <item>Turbo — každý nahrávač</item>
+    </string-array>
+
+    <string-array name="ay_stereo_names">
+        <item>Vyp. — mono</item>
+        <item>ACB — A vlevo, C ve středu, B vpravo</item>
+        <item>ABC — A vlevo, B ve středu, C vpravo</item>
+    </string-array>
+
+    <string-array name="video_names">
+        <item>RGB — přímo z počítače</item>
+        <item>Composite — barva se rozpíjí do stran</item>
+        <item>RF — přes antenní vstup</item>
+    </string-array>
+
+    <string-array name="tape_format_names">
+        <item>TAP — menší, ten obvyklý</item>
+        <item>TZX — zachová vlastní nahrávače</item>
+    </string-array>
+
+    <string-array name="format_names">
+        <item>SZX — každý počítač</item>
+        <item>Z80 — široce podporovaný</item>
+        <item>SNA — jen 48K a 128K</item>
+    </string-array>
+
+    <string-array name="border_names">
+        <item>Celý — každý pixel, který počítač nakreslí</item>
+        <item>Úzký — čtvrtina okraje</item>
+        <item>Žádný — jen obraz, 256×192</item>
+    </string-array>
+
+    <string-array name="video_short_names">
+        <item>RGB</item>
+        <item>Composite</item>
+        <item>RF</item>
+    </string-array>
+</resources>

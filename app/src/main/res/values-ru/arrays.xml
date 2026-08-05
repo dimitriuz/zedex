@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Только те списки, в которых есть слова. speed_names и percent_names —
+    проценты, filter_names ссылается на строки, а *_values читает Fuse и
+    сравнивает через strcmp: их переводить нельзя.
+-->
+<resources>
+    <string-array name="volume_names">
+        <item>Выкл</item>
+        <item>25%</item>
+        <item>50%</item>
+        <item>75%</item>
+        <item>100%</item>
+    </string-array>
+
+    <string-array name="loader_names">
+        <item>Выкл — реальное время</item>
+        <item>Безопасно — загрузчики ROM</item>
+        <item>Турбо — любые загрузчики</item>
+    </string-array>
+
+    <string-array name="ay_stereo_names">
+        <item>Выкл — моно</item>
+        <item>ACB — A слева, C в центре, B справа</item>
+        <item>ABC — A слева, B в центре, C справа</item>
+    </string-array>
+
+    <string-array name="video_names">
+        <item>RGB — прямо из машины</item>
+        <item>Composite — цвет растекается по горизонтали</item>
+        <item>RF — через антенный вход</item>
+    </string-array>
+
+    <string-array name="tape_format_names">
+        <item>TAP — меньше, самый распространённый</item>
+        <item>TZX — сохраняет нестандартные загрузчики</item>
+    </string-array>
+
+    <string-array name="format_names">
+        <item>SZX — все машины</item>
+        <item>Z80 — широко поддерживается</item>
+        <item>SNA — только 48K и 128K</item>
+    </string-array>
+
+    <string-array name="border_names">
+        <item>Полный — каждый пиксель, что рисует машина</item>
+        <item>Узкий — четверть бордюра</item>
+        <item>Нет — только картинка, 256×192</item>
+    </string-array>
+
+    <string-array name="video_short_names">
+        <item>RGB</item>
+        <item>Composite</item>
+        <item>RF</item>
+    </string-array>
+</resources>

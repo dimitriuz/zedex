@@ -1,5 +1,6 @@
 package dev.ldlab.zedex;
 
+import dev.ldlab.zedex.screen.Language;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.input.ControlProfiles;
 import dev.ldlab.zedex.input.Gamepad;
@@ -76,6 +77,16 @@ import java.util.zip.ZipInputStream;
  * forward input.
  */
 public class EmulatorActivity extends Activity implements SurfaceHolder.Callback {
+
+    /** Every screen speaks the chosen language; see {@link Language}. */
+    @Override
+    protected void attachBaseContext(android.content.Context base) {
+        super.attachBaseContext(Language.wrap(base));
+        language = Language.tag(base);
+    }
+
+    /** What {@link #attachBaseContext} built this screen with. */
+    private String language = "";
 
     private static final String TAG = "Zedex";
 
@@ -565,6 +576,16 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     @Override
     protected void onResume() {
         super.onResume();
+
+        // Back from Settings, which may have changed the language. This screen
+        // handles locale changes itself rather than being recreated for them
+        // - see android:configChanges in the manifest - and its menus and
+        // buttons were built with the words of the language that was chosen
+        // when it opened, so the only way to change them is to build it again.
+        if (!language.equals(Language.tag(this))) {
+            recreate();
+            return;
+        }
 
         // Coming back from the page that allows this app to install packages.
         // Nothing happens unless the user went there for an update and has now

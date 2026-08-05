@@ -570,6 +570,44 @@ adb shell am start -a android.intent.action.VIEW \
     -n dev.ldlab.zedex/.EmulatorActivity
 ```
 
+## Languages
+
+`values/strings.xml` is the original; `values-de`, `values-es`, `values-fr`,
+`values-it`, `values-pl`, `values-cs`, `values-ru` and `values-uk` follow it,
+with `arrays.xml` beside each for the lists that contain words. Adding a string
+means adding it to `values/` and then to the eight, or accepting that it shows
+in English until somebody does.
+
+```sh
+scripts/check-strings.py          # completeness, stray keys, format specifiers
+```
+
+It exits non-zero on a key that is no longer in `values/` and on a format
+specifier that disagrees with the English — `%1$s` against `%1$d` is a crash in
+that language only, which is the failure this catches and no English test can.
+Missing keys are counted, not fatal.
+
+The app follows the phone unless *Settings › App › App language* says
+otherwise; the choice is a preference, applied in every activity's
+`attachBaseContext` through `screen/Language.java`. To see a language without
+digging through Settings:
+
+```sh
+# the chosen-language path: write the preference and relaunch
+adb shell "run-as dev.ldlab.zedex.debug sh -c \
+    'sed -i s/language\">[^<]*/language\">ru/ shared_prefs/fuse.xml'"
+
+# the follows-the-phone path, with the preference left empty. An emulator will
+# not let you set persist.sys.locale, but this reaches the same resources:
+adb shell cmd locale set-app-locales dev.ldlab.zedex.debug --user 0 --locales pl-PL
+adb shell cmd locale set-app-locales dev.ldlab.zedex.debug --user 0 --locales ""
+```
+
+`scripts/ui-tap.py` names things as they appear, so a script written against
+English will not find them in Russian: relaunch in English, or address the row
+by the translated name.
+
+
 ## Tests
 
 `app/src/androidTest` — UI Automator, run on a connected device:

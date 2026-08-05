@@ -541,4 +541,10 @@
     <string name="capture_busy">Still finishing the last recording</string>
     <string name="capture_open_folder">Open captures folder</string>
     <string name="capture_no_browser">Recordings are in %1$s</string>
+
+    <!-- Settings: the language the app itself speaks. -->
+    <string name="settings_group_language">Language</string>
+    <string name="settings_language">App language</string>
+    <string name="settings_language_system">Same as the phone</string>
+
 </resources>
