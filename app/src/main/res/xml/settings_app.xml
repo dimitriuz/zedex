@@ -29,6 +29,19 @@
             android:summary="@string/settings_content_folder_summary" />
     </PreferenceCategory>
 
+    <!--
+        Hides itself where there is no ES-DE to add anything to; see
+        SettingsActivity, and the updates category below for the same idea.
+    -->
+    <PreferenceCategory
+        android:key="frontends"
+        android:title="@string/settings_group_frontends">
+        <Preference
+            android:key="esde"
+            android:title="@string/settings_esde"
+            android:summary="@string/settings_esde_summary" />
+    </PreferenceCategory>
+
     <PreferenceCategory android:title="@string/settings_group_saving">
         <ListPreference
             android:key="snapshotFormat"

@@ -30,6 +30,16 @@
             <action android:name="android.intent.action.SENDTO" />
             <data android:scheme="mailto" />
         </intent>
+
+        <!--
+            ES-DE, so that Settings can offer to add Zedex to it. Android 11
+            hides every other app from one that has not said what it looks for,
+            and getPackageInfo on an undeclared package throws NameNotFound as
+            though it were not installed - which is indistinguishable from the
+            truth and would make the row hide itself on the devices it is for.
+        -->
+        <package android:name="org.es_de.frontend" />
+        <package android:name="org.es_de.frontend.galaxy" />
     </queries>
 
     <uses-feature android:glEsVersion="0x00020000" />

@@ -491,4 +491,12 @@
     <string name="settings_group_language">Язык</string>
     <string name="settings_language">Язык приложения</string>
     <string name="settings_language_system">Как в телефоне</string>
+
+    <string name="settings_group_frontends">Фронтенды</string>
+    <string name="settings_esde">Добавить в ES-DE</string>
+    <string name="settings_esde_summary">Предлагать Zedex как эмулятор Spectrum в ES-DE</string>
+    <string name="esde_done">Добавлено в ES-DE — выберите Zedex в «Alternative emulators» или для отдельной игры</string>
+    <string name="esde_failed">Не удалось записать в папку ES-DE</string>
+    <string name="esde_needs_all_files">ES-DE хранит свою конфигурацию в корне общего хранилища, а для этого нужен «Доступ ко всем файлам». Дайте его — и запись будет добавлена.</string>
+    <string name="esde_no_folder">ES-DE установлен, но его папка не в /storage/emulated/0/ES-DE. Верните её туда или добавьте запись вручную.</string>
 </resources>

@@ -251,6 +251,38 @@ expensive to rediscover.
   is a window-content-changed event each time, the accessibility tree never
   settles, and every UI Automator test fails with *the ☰ button never
   appeared*. The activity lamps did this and took the whole suite down.
+- **ES-DE's two files are its syntax, not ours, and one of them replaces
+  rather than merges.** `frontend/EsDe.java` writes
+  `ES-DE/custom_systems/es_find_rules.xml` and `.../es_systems.xml`; both are
+  documented in ES-DE's own INSTALL.md and the Android syntax differs from the
+  desktop one, so read that before changing a variable.
+  - A file in `custom_systems` **complements** the bundled configuration, but a
+    `<system>` in it **replaces** the bundled system of the same name, commands
+    and all. So the entry written for `zxspectrum` carries ES-DE's own Fuse and
+    Speccy commands as well as ours; writing only ours would take the user's
+    other two emulators away. The price is that our copy of their block freezes
+    their extension list at the version it was copied from.
+  - Nothing is overwritten. Both files are parsed, ours is added if absent, and
+    they are written back — so a second run changes nothing, and a file the user
+    wrote themselves keeps everything in it.
+  - **`<queries>` again.** `getPackageInfo` on an undeclared package throws
+    `NameNotFound` exactly as though ES-DE were not installed, so both of its
+    package names are in the manifest's `queries` block. Without them the row
+    hides itself on the very devices it is for.
+  - **`%ROMPROVIDER%` means no permission and no folder to point at**: ES-DE
+    grants read access to that one file as it launches. The cost is that the
+    grant is not persistable, so the game lands in *Open recent…* and can only
+    be reopened while ES-DE's grant lives; after that `Recents.forget` drops it,
+    which is the existing behaviour for any one-off hand-over.
+  - The row hides itself in the **Play build**: its folder is at the root of
+    shared storage, which needs All files access, and that build does not
+    declare it. ES-DE is not on Google Play either.
+  - **Test it against a real ES-DE**, and read `ES-DE/logs/es_log.txt` — it says
+    which configuration files it parsed and expands the launch command, which is
+    how "Data: %ROMPROVIDER% expanded: content://org.es_de.frontend.files/..."
+    was confirmed. ES-DE takes d-pad keyevents, so `adb shell input keyevent
+    KEYCODE_ENTER` walks into a system and launches a game without touching the
+    screen.
 - **A new string is nine files, and an activity is one line.** The app is
   translated into eight languages besides English; `values/strings.xml` is the
   original and `values-{de,es,fr,it,pl,cs,ru,uk}/` follow it. A string with no

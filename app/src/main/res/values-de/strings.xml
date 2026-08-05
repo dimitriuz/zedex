@@ -491,4 +491,12 @@
     <string name="settings_group_language">Sprache</string>
     <string name="settings_language">App-Sprache</string>
     <string name="settings_language_system">Wie das Telefon</string>
+
+    <string name="settings_group_frontends">Frontends</string>
+    <string name="settings_esde">Zu ES-DE hinzufügen</string>
+    <string name="settings_esde_summary">Zedex in ES-DE als Emulator für den Spectrum anbieten</string>
+    <string name="esde_done">Zu ES-DE hinzugefügt — wähle Zedex unter „Alternative emulators“, oder je Spiel</string>
+    <string name="esde_failed">In ES-DEs Ordner konnte nicht geschrieben werden</string>
+    <string name="esde_needs_all_files">ES-DE hat seine Konfiguration im Wurzelverzeichnis des gemeinsamen Speichers, und das braucht „Zugriff auf alle Dateien“. Erteile ihn, und der Eintrag wird geschrieben.</string>
+    <string name="esde_no_folder">ES-DE ist installiert, aber sein Ordner liegt nicht unter /storage/emulated/0/ES-DE. Verschiebe ihn zurück, oder trage den Eintrag von Hand ein.</string>
 </resources>

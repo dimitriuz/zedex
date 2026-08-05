@@ -11,6 +11,7 @@ import dev.ldlab.zedex.input.Controls;
 import dev.ldlab.zedex.machine.Border;
 import dev.ldlab.zedex.machine.Filter;
 import dev.ldlab.zedex.media.Media;
+import dev.ldlab.zedex.frontend.EsDe;
 import dev.ldlab.zedex.storage.Storage;
 import dev.ldlab.zedex.update.Updater;
 import dev.ldlab.zedex.view.EmulatorLayout;
@@ -564,6 +565,27 @@ public class SettingsActivity extends AppCompatActivity
             Preference updates = findPreference("updates");
             if (updates != null) updates.setVisible(Updater.available(getActivity()));
 
+            // Nothing to add Zedex to unless ES-DE is installed, and the whole
+            // category goes with the row rather than leaving a heading over
+            // nothing - the same reasoning as the updates one above.
+            // Only where there is an ES-DE, and only in a build that can hold
+            // the permission its folder needs: nothing may offer to grant what
+            // the running manifest does not declare, and the Play build does
+            // not declare All files access.
+            Preference frontends = findPreference("frontends");
+            if (frontends != null) {
+                frontends.setVisible(EsDe.installed(getActivity()) != null
+                                     && Storage.canAskForAnyFolder(getActivity()));
+            }
+
+            Preference esde = findPreference("esde");
+            if (esde != null) {
+                esde.setOnPreferenceClickListener(preference -> {
+                    addToEsDe();
+                    return true;
+                });
+            }
+
             Preference folder = findPreference(Storage.KEY_STATES_ROOT);
             if (folder != null) {
                 folder.setOnPreferenceClickListener(preference -> {
@@ -715,6 +737,39 @@ public class SettingsActivity extends AppCompatActivity
          */
         private File pendingFolder;
 
+        /**
+         * Writes Zedex into ES-DE's two configuration files.
+         *
+         * Its folder is at the root of shared storage, which scoped storage puts
+         * out of reach, so this needs All files access - and asks for it the same
+         * way the data folder does, remembering that it was ES-DE that was
+         * wanted and carrying on in {@link #onResume}.
+         */
+        private void addToEsDe() {
+            if (!Storage.canUseAnyFolder()) {
+                pendingEsDe = true;
+                askForAllFiles(R.string.esde_needs_all_files);
+                return;
+            }
+
+            if (EsDe.folder() == null) {
+                new AlertDialog.Builder(getActivity(),
+                        android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                        .setMessage(R.string.esde_no_folder)
+                        .setPositiveButton(android.R.string.ok, null)
+                        .show();
+                return;
+            }
+
+            Toast.makeText(getActivity(),
+                    EsDe.install(getActivity()) ? R.string.esde_done
+                                                : R.string.esde_failed,
+                    Toast.LENGTH_LONG).show();
+        }
+
+        /** Set when the ES-DE row sent the user to the permission page. */
+        private boolean pendingEsDe;
+
         /** The one dialog that offers the permission, for both ways in. */
         private void askForAllFiles(int why) {
             if (!Storage.canAskForAnyFolder(getActivity())) return;
@@ -726,8 +781,10 @@ public class SettingsActivity extends AppCompatActivity
                             startActivity(new Intent(
                                     Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
                                     Uri.parse("package:" + getActivity().getPackageName()))))
-                    .setNegativeButton(android.R.string.cancel,
-                            (dialog, which) -> pendingFolder = null)
+                    .setNegativeButton(android.R.string.cancel, (dialog, which) -> {
+                        pendingFolder = null;
+                        pendingEsDe = false;
+                    })
                     .show();
         }
 
@@ -1081,6 +1138,11 @@ public class SettingsActivity extends AppCompatActivity
                 File folder = pendingFolder;
                 pendingFolder = null;
                 useFolder(folder);
+            }
+
+            if (pendingEsDe && Storage.canUseAnyFolder()) {
+                pendingEsDe = false;
+                addToEsDe();
             }
         }
 

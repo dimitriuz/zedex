@@ -235,6 +235,14 @@ for as long as a drive is turning and not a moment longer. It is the lamp that a
 Turning the indicators off in *Settings › Display* turns that off too.
 
 
+## ES-DE
+
+If you use [ES-DE](https://es-de.org) as your frontend, *Settings › App › Add to
+ES-DE* writes Zedex into its list of Spectrum emulators — its own entries are
+kept, and the row only appears when ES-DE is installed. Games then launch
+straight from ES-DE into Zedex.
+
+
 ## Languages
 
 English, German, Spanish, French, Italian, Polish, Czech, Russian and

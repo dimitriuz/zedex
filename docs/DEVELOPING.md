@@ -570,6 +570,33 @@ adb shell am start -a android.intent.action.VIEW \
     -n dev.ldlab.zedex/.EmulatorActivity
 ```
 
+## ES-DE
+
+`Settings › App › Add to ES-DE` writes two files into ES-DE's own folder. To
+test it you need ES-DE itself — it is not free and not on Google Play, so an
+emulator with it installed is worth keeping around.
+
+```sh
+adb shell pm list packages | grep es_de          # org.es_de.frontend
+adb shell ls /sdcard/ES-DE/custom_systems/        # what we write
+adb shell cat /sdcard/ES-DE/logs/es_log.txt       # what ES-DE made of it
+```
+
+The log is the useful part: it names every configuration file it parsed, and on
+launching a game it prints the expanded intent — package, activity, action and
+the `content://` URI. ES-DE takes keyevents, so a whole launch can be driven
+without the screen:
+
+```sh
+adb shell am start -S -n org.es_de.frontend/.MainActivity
+adb shell input keyevent KEYCODE_ENTER            # into the system, then a game
+```
+
+A game arrives as a FileProvider URI with a one-shot grant, which is enough to
+load it and not enough to keep in *Open recent…*; see the ES-DE notes in
+`CLAUDE.md`.
+
+
 ## Languages
 
 `values/strings.xml` is the original; `values-de`, `values-es`, `values-fr`,
