@@ -120,6 +120,17 @@ final class Emulator {
         context.startActivity(intent);
 
         device.wait(Until.hasObject(By.pkg(pkg).depth(0)), BOOT);
+
+        // The first start asks where things are kept, and its panel sits over
+        // the quick bar - so ☰ is unreachable until it is answered, and every
+        // test that opens a menu fails with "the ☰ button never appeared" on a
+        // run that began with a fresh install. Which is every run: Gradle
+        // uninstalls the app first. Its defaults are what a test wants.
+        // By the app's own string rather than the English of it: measured to
+        // resolve through the app's resources from here, so it keeps working on
+        // a device whose language is not English.
+        tapIfPresent(context.getString(R.string.setup_start));
+
         assertNotNull("the keyboard never appeared",
                       device.wait(Until.findObject(By.desc("ENTER")), BOOT));
 

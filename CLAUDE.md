@@ -349,6 +349,17 @@ Things learned the hard way, all of them recorded in the tests' own comments:
   setup* below.
 - `UiObject2.longClick()` holds for the platform long-press timeout, which is
   the same 400ms the keyboard latches at. Hold with a zero-length swipe.
+- **A fresh install comes up on the first-run panel, not the machine.** It sits
+  over the quick bar, so ☰ cannot be reached and every test that opens a menu
+  fails with *the ☰ button never appeared* — fifteen of thirty-four did, and the
+  panel had been there five days before anyone ran the whole suite. Since Gradle
+  uninstalls the app first, **every** run starts this way. `Emulator.launch()`
+  answers it with `R.string.setup_start` — the app's own string, not the English
+  of it, because the app has languages now.
+- **Read the *first* failure, not the count.** One test leaving a dialog open, or
+  the joystick hidden, makes every later class fail with *the ☰ button never
+  appeared* — nine of them once, from a single flake three classes earlier. The
+  count says how far the cascade got; only the first line says what happened.
 - **☰ fades out after three seconds**, so it is usually gone by the time a
   test wants it, and it can vanish between being found and being clicked.
   `Emulator.menu()` taps the picture to reveal it every time, first.
