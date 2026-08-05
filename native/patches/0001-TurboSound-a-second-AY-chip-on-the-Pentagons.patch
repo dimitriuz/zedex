@@ -1,0 +1,1011 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Zedex <zedex@invalid>
+Date: Wed, 5 Aug 2026 14:37:52 +0200
+Subject: [PATCH 1/2] TurboSound: a second AY chip, on the Pentagons
+
+A TurboSound is two AY-3-8912s behind the one pair of ports, which was a
+Russian expansion and is where six-channel Spectrum music comes from.  A write
+to the register port of 0xff addresses the first chip and 0xfe the second;
+everything after it - the register select, the data writes, the reads - goes to
+whichever was chosen last.  A real AY latches only the bottom four bits of that
+byte, so on a machine without a TurboSound those two values are registers 15
+and 14 and nothing here changes: the decode is only looked for where ay_chips
+is 2, which is the Pentagons and nothing else.
+
+The state was single-chip in two places and both had to become an array:
+
+  - machine_current->ay is ayinfo[AY_CHIPS], and ay.c addresses ay_current_chip
+    of them.  Its other callers - the Timex ports, the three debuggers - are
+    machines that cannot have a TurboSound, so they name chip 0.
+
+  - sound.c held the generator in file statics: the tone ticks and periods,
+    the noise and envelope counters, the register copy, the write queue, and
+    the noise RNG and envelope, which were statics inside sound_ay_overlay().
+    They are struct ay_chip_tag now, one per chip, and the body of the overlay
+    is ay_chip_overlay(), which steps one chip and adds its three channels into
+    the caller's levels[].  The outer loop steps every chip at the same point
+    in the frame and sums them before the synth sees them, which is what two
+    chips sharing an output pin do.
+
+The channels are summed rather than given synths of their own because a channel
+is one waveform however many chips play into it, and because the stereo
+separation sound_init() sets up is of channels, not of chips - ACB with two
+chips is still ACB.  It cannot clip: the budget is 50 for the beeper, 2 for the
+tape and 24 for each AY channel out of the 255 a Blip_Synth's range is, so six
+channels reach 196 and stay inside it.
+
+What a second chip cannot do is be saved.  The snapshot formats have one AY in
+them, so ay_to_snapshot writes the first chip's and ay_from_snapshot restores
+it, leaving the second as the reset left it; .psg recording and the serial port
+that drives the printer are the first chip's for the same reason.
+
+`ay chip` joins `ay current` as a debugger system variable, since which chip
+the ports are addressing is otherwise invisible.
+---
+ machine.h              |   3 +-
+ machines/tc2068.c      |   8 +-
+ peripherals/sound/ay.c | 115 ++++++++--
+ peripherals/sound/ay.h |  18 ++
+ sound.c                | 480 +++++++++++++++++++++++------------------
+ sound.h                |   2 +-
+ ui/gtk3/debugger.c     |   2 +-
+ ui/widget/debugger.c   |   2 +-
+ ui/win32/debugger.c    |   2 +-
+ 9 files changed, 397 insertions(+), 235 deletions(-)
+
+diff --git a/machine.h b/machine.h
+index 9e24b1e..f8d4d80 100644
+--- a/machine.h
++++ b/machine.h
+@@ -76,7 +76,8 @@ typedef struct fuse_machine_info {
+ 						  from a port which isn't
+ 						  attached to anything */
+ 
+-  ayinfo ay;		/* The AY-3-8912 chip */
++  ayinfo ay[ AY_CHIPS ];	/* The AY-3-8912 chip; [1] is a TurboSound's
++				   second one, used only where ay_chips is 2 */
+ 
+   specdrum_info specdrum; /* SpecDrum settings */
+ 
+diff --git a/machines/tc2068.c b/machines/tc2068.c
+index 8570d62..a1760a6 100644
+--- a/machines/tc2068.c
++++ b/machines/tc2068.c
+@@ -50,7 +50,7 @@ static int empty_mapping_allocated = 0;
+ libspectrum_byte
+ tc2068_ay_registerport_read( libspectrum_word port, libspectrum_byte *attached )
+ {
+-  if( machine_current->ay.current_register == 14 ) return 0xff;
++  if( machine_current->ay[0].current_register == 14 ) return 0xff;
+ 
+   return ay_registerport_read( port, attached );
+ }
+@@ -58,7 +58,7 @@ tc2068_ay_registerport_read( libspectrum_word port, libspectrum_byte *attached )
+ libspectrum_byte
+ tc2068_ay_dataport_read( libspectrum_word port, libspectrum_byte *attached )
+ {
+-  if (machine_current->ay.current_register != 14) {
++  if (machine_current->ay[0].current_register != 14) {
+     return ay_registerport_read( port, attached );
+   } else {
+ 
+@@ -70,8 +70,8 @@ tc2068_ay_dataport_read( libspectrum_word port, libspectrum_byte *attached )
+        get 0xff in both cases anyway */
+     *attached = 0xff; /* TODO: check this */
+ 
+-    ret =   machine_current->ay.registers[7] & 0x40
+-	  ? machine_current->ay.registers[14]
++    ret =   machine_current->ay[0].registers[7] & 0x40
++	  ? machine_current->ay[0].registers[14]
+ 	  : 0xff;
+ 
+     if( port & 0x0100 ) ret &= ~joystick_timex_read( port, 0 );
+diff --git a/peripherals/sound/ay.c b/peripherals/sound/ay.c
+index 04ac83b..1f5a177 100644
+--- a/peripherals/sound/ay.c
++++ b/peripherals/sound/ay.c
+@@ -45,11 +45,18 @@ static const libspectrum_byte mask[ AY_REGISTERS ] = {
+ 
+ };
+ 
++/* See ay.h: how many chips this machine has, and which one the ports are
++   addressing at the moment. */
++int ay_chips = 1;
++int ay_current_chip = 0;
++
+ static void ay_reset( int hard_reset );
+ static void ay_from_snapshot( libspectrum_snap *snap );
+ static void ay_to_snapshot( libspectrum_snap *snap );
+ static libspectrum_dword get_current_register( void );
+ static void set_current_register( libspectrum_dword value );
++static libspectrum_dword get_current_chip( void );
++static void set_current_chip( libspectrum_dword value );
+ 
+ static module_info_t ay_module_info = {
+ 
+@@ -116,6 +123,7 @@ static periph_t ay_periph_timex = {
+ /* Debugger system variables */
+ static const char * const debugger_type_string = "ay";
+ static const char * const current_register_detail_string = "current";
++static const char * const current_chip_detail_string = "chip";
+ 
+ static int
+ ay_init( void *context )
+@@ -130,6 +138,10 @@ ay_init( void *context )
+     debugger_type_string, current_register_detail_string, get_current_register,
+     set_current_register );
+ 
++  debugger_system_variable_register(
++    debugger_type_string, current_chip_detail_string, get_current_chip,
++    set_current_chip );
++
+   return 0;
+ }
+ 
+@@ -144,13 +156,41 @@ ay_register_startup( void )
+                             ARRAY_SIZE( dependencies ), ay_init, NULL, NULL );
+ }
+ 
++/* Which machines have a TurboSound. It was a Russian expansion and the clones
++   are where it is found, so this is the Pentagons: on anything else the two
++   chip select bytes stay what they always were, registers 15 and 14. */
++static int
++machine_has_turbosound( void )
++{
++  switch( machine_current->machine ) {
++  case LIBSPECTRUM_MACHINE_PENT:
++  case LIBSPECTRUM_MACHINE_PENT512:
++  case LIBSPECTRUM_MACHINE_PENT1024:
++    return 1;
++  default:
++    return 0;
++  }
++}
++
+ static void
+ ay_reset( int hard_reset GCC_UNUSED )
+ {
+-  ayinfo *ay = &machine_current->ay;
++  int chip;
++
++  /* The machine is what decides this, and a reset is when the machine can
++     have changed; sound.c reads it every frame. */
++  ay_chips = machine_has_turbosound() ? AY_CHIPS : 1;
++  ay_current_chip = 0;
+ 
+-  ay->current_register = 0;
+-  memset( ay->registers, 0, sizeof( ay->registers ) );
++  /* Both chips, whether this machine hears the second one or not: state left
++     behind by a Pentagon would otherwise be waiting for it when a machine with
++     a TurboSound came back. */
++  for( chip = 0; chip < AY_CHIPS; chip++ ) {
++    ayinfo *ay = &machine_current->ay[ chip ];
++
++    ay->current_register = 0;
++    memset( ay->registers, 0, sizeof( ay->registers ) );
++  }
+ }
+ 
+ /* What happens when the AY register port (traditionally 0xfffd on the 128K
+@@ -158,12 +198,13 @@ ay_reset( int hard_reset GCC_UNUSED )
+ libspectrum_byte
+ ay_registerport_read( libspectrum_word port GCC_UNUSED, libspectrum_byte *attached )
+ {
++  ayinfo *ay = &machine_current->ay[ ay_current_chip ];
+   int current;
+   const libspectrum_byte port_input = 0xbf; /* always allow serial output */
+ 
+   *attached = 0xff;
+ 
+-  current = machine_current->ay.current_register;
++  current = ay->current_register;
+ 
+   /* The AY I/O ports return input directly from the port when in
+      input mode; but in output mode, they return an AND between the
+@@ -171,25 +212,33 @@ ay_registerport_read( libspectrum_word port GCC_UNUSED, libspectrum_byte *attach
+      reading R14... */
+ 
+   if( current == 14 ) {
+-    if(machine_current->ay.registers[7] & 0x40)
+-      return (port_input & machine_current->ay.registers[14]);
++    if( ay->registers[7] & 0x40 )
++      return (port_input & ay->registers[14]);
+     else
+       return port_input;
+   }
+ 
+   /* R15 is simpler to do, as the 8912 lacks the second I/O port, and
+      the input-mode input is always 0xff */
+-  if( current == 15 && !( machine_current->ay.registers[7] & 0x80 ) )
++  if( current == 15 && !( ay->registers[7] & 0x80 ) )
+     return 0xff;
+ 
+   /* Otherwise return register value, appropriately masked */
+-  return machine_current->ay.registers[ current ] & mask[ current ];
++  return ay->registers[ current ] & mask[ current ];
+ }
+ 
+ /* And when it's written to */
+ void
+ ay_registerport_write( libspectrum_word port GCC_UNUSED, libspectrum_byte b )
+ {
++  /* A TurboSound's chip select. 0xff is the first chip and 0xfe the second,
++     and the byte selects rather than latches, so the register each chip is
++     pointing at is its own and survives the other one being addressed. */
++  if( ay_chips > 1 && ( b & 0xfe ) == 0xfe ) {
++    ay_current_chip = ~b & 1;
++    return;
++  }
++
+   set_current_register( b );
+ }
+ 
+@@ -199,15 +248,22 @@ ay_registerport_write( libspectrum_word port GCC_UNUSED, libspectrum_byte b )
+ void
+ ay_dataport_write( libspectrum_word port GCC_UNUSED, libspectrum_byte b )
+ {
++  ayinfo *ay = &machine_current->ay[ ay_current_chip ];
+   int current;
+ 
+-  current = machine_current->ay.current_register;
++  current = ay->current_register;
++
++  ay->registers[ current ] = b & mask[ current ];
++  sound_ay_write( ay_current_chip, current, b, tstates );
+ 
+-  machine_current->ay.registers[ current ] = b & mask[ current ];
+-  sound_ay_write( current, b, tstates );
+-  if( psg_recording ) psg_write_register( current, b );
++  /* A .psg file is one chip's register writes and has nowhere to say which,
++     so a recording is of the first one; and the serial port that drives the
++     printer is the first chip's I/O port, not the second's. */
++  if( ay_current_chip == 0 ) {
++    if( psg_recording ) psg_write_register( current, b );
+ 
+-  if( current == 14 ) printer_serial_write( b );
++    if( current == 14 ) printer_serial_write( b );
++  }
+ }
+ 
+ void
+@@ -215,13 +271,16 @@ ay_state_from_snapshot( libspectrum_snap *snap )
+ {
+   size_t i;
+ 
+-  ay_registerport_write( 0xfffd,
+-                         libspectrum_snap_out_ay_registerport( snap ) );
++  /* A snapshot holds one AY, so it is the first chip's, and the second is left
++     as the reset left it. Not through ay_registerport_write(): a stored 0xff or
++     0xfe is a register there and would be read as a chip select here. */
++  ay_current_chip = 0;
++  set_current_register( libspectrum_snap_out_ay_registerport( snap ) );
+ 
+   for( i = 0; i < AY_REGISTERS; i++ ) {
+-    machine_current->ay.registers[i] =
++    machine_current->ay[0].registers[i] =
+       libspectrum_snap_ay_registers( snap, i );
+-    sound_ay_write( i, machine_current->ay.registers[i], 0 );
++    sound_ay_write( 0, i, machine_current->ay[0].registers[i], 0 );
+   }
+ }
+ 
+@@ -238,23 +297,37 @@ ay_to_snapshot( libspectrum_snap *snap )
+ {
+   size_t i;
+ 
++  /* The first chip again: the formats have one AY in them, so a TurboSound
++     tune saved here comes back playing three of its six channels. */
+   libspectrum_snap_set_out_ay_registerport(
+-    snap, machine_current->ay.current_register
++    snap, machine_current->ay[0].current_register
+   );
+ 
+   for( i = 0; i < AY_REGISTERS; i++ )
+     libspectrum_snap_set_ay_registers( snap, i,
+-				       machine_current->ay.registers[i] );
++				       machine_current->ay[0].registers[i] );
+ }
+ 
+ static libspectrum_dword
+ get_current_register( void )
+ {
+-  return machine_current->ay.current_register;
++  return machine_current->ay[ ay_current_chip ].current_register;
+ }
+ 
+ static void
+ set_current_register( libspectrum_dword value )
+ {
+-  machine_current->ay.current_register = (value & 0x0f);
++  machine_current->ay[ ay_current_chip ].current_register = (value & 0x0f);
++}
++
++static libspectrum_dword
++get_current_chip( void )
++{
++  return ay_current_chip;
++}
++
++static void
++set_current_chip( libspectrum_dword value )
++{
++  if( value < (libspectrum_dword) ay_chips ) ay_current_chip = value;
+ }
+diff --git a/peripherals/sound/ay.h b/peripherals/sound/ay.h
+index 666f87a..cc7d73a 100644
+--- a/peripherals/sound/ay.h
++++ b/peripherals/sound/ay.h
+@@ -29,11 +29,29 @@
+ 
+ #define AY_REGISTERS 16
+ 
++/* A TurboSound is two AY-3-8912s behind the one pair of ports, with a write to
++   the register port choosing which of them the following writes address: 0xff
++   for the first chip and 0xfe for the second. A real AY latches only the
++   bottom four bits of that byte, so on a machine with one chip those two
++   values are registers 15 and 14 and nothing has changed.
++
++   The second chip exists on every machine here - it is registers and a little
++   generator state, and the machine that has one is decided at reset - but only
++   the machines ay_chips is set for ever hear it. */
++#define AY_CHIPS 2
++
+ typedef struct ayinfo {
+   int current_register;
+   libspectrum_byte registers[ AY_REGISTERS ];
+ } ayinfo;
+ 
++/* How many of the AY_CHIPS this machine has: 1 everywhere, 2 on a machine with
++   a TurboSound. Set at reset, and read by sound.c, which mixes that many. */
++extern int ay_chips;
++
++/* Which chip the ports currently address; always 0 where ay_chips is 1. */
++extern int ay_current_chip;
++
+ void ay_register_startup( void );
+ 
+ libspectrum_byte ay_registerport_read( libspectrum_word port, libspectrum_byte *attached );
+diff --git a/sound.c b/sound.c
+index 24b0bfa..ae6969b 100644
+--- a/sound.c
++++ b/sound.c
+@@ -74,22 +74,37 @@ static int sound_channels;
+ 
+ static unsigned int ay_tone_levels[AY_ENV_STEPS];
+ 
+-static unsigned int ay_tone_tick[AY_CHANNELS], ay_tone_high[AY_CHANNELS], ay_noise_tick;
+-static unsigned int ay_tone_cycles, ay_env_cycles;
+-static unsigned int ay_env_internal_tick, ay_env_tick;
+-static unsigned int ay_tone_period[AY_CHANNELS], ay_noise_period, ay_env_period;
+-
+-/* Local copy of the AY registers */
+-static libspectrum_byte sound_ay_registers[AY_REGISTERS];
+-
+ struct ay_change_tag
+ {
+   libspectrum_dword tstates;
+   unsigned char reg, val;
+ };
+ 
+-static struct ay_change_tag ay_change[ AY_CHANGE_MAX ];
+-static int ay_change_count;
++/* Everything one AY chip is doing. A machine has ay_chips of these - one
++   normally, two where there is a TurboSound - and they are stepped together
++   and summed, which is what the two chips sharing an output do. */
++struct ay_chip_tag
++{
++  /* Local copy of the AY registers */
++  libspectrum_byte registers[AY_REGISTERS];
++
++  /* The writes this chip was sent this frame, in time order, and how far
++     through them the overlay has got */
++  struct ay_change_tag change[ AY_CHANGE_MAX ];
++  int change_count, change_next;
++
++  unsigned int tone_tick[AY_CHANNELS], tone_high[AY_CHANNELS], noise_tick;
++  unsigned int tone_cycles, env_cycles;
++  unsigned int env_internal_tick, env_tick;
++  unsigned int tone_period[AY_CHANNELS], noise_period, env_period;
++
++  /* Noise generator and envelope, which were function statics when there
++     could only be one chip */
++  int rng, noise_toggle;
++  int env_first, env_rev, env_counter;
++};
++
++static struct ay_chip_tag ay_chip[ AY_CHIPS ];
+ 
+ Blip_Buffer *left_buf = NULL;
+ Blip_Buffer *right_buf = NULL;
+@@ -171,19 +186,29 @@ sound_ay_init( void )
+     0x2B4C, 0x43C1, 0x5A4B, 0x732F,
+     0x9204, 0xAFF1, 0xD921, 0xFFFF
+   };
+-  int f;
++  int f, chip;
+ 
+   /* scale the values down to fit */
+   for( f = 0; f < AY_ENV_STEPS; f++ )
+     ay_tone_levels[f] = ( levels[f] * AMPL_AY_TONE + 0x8000 ) / 0xffff;
+ 
+-  ay_noise_tick = ay_noise_period = 0;
+-  ay_env_internal_tick = ay_env_tick = ay_env_period = 0;
+-  ay_tone_cycles = ay_env_cycles = 0;
+-  for( f = 0; f < AY_CHANNELS; f++ )
+-    ay_tone_tick[f] = ay_tone_high[f] = 0, ay_tone_period[f] = 1;
++  for( chip = 0; chip < AY_CHIPS; chip++ ) {
++    struct ay_chip_tag *c = &ay_chip[ chip ];
++
++    c->noise_tick = c->noise_period = 0;
++    c->env_internal_tick = c->env_tick = c->env_period = 0;
++    c->tone_cycles = c->env_cycles = 0;
++    for( f = 0; f < AY_CHANNELS; f++ )
++      c->tone_tick[f] = c->tone_high[f] = 0, c->tone_period[f] = 1;
++
++    c->rng = 1;
++    c->noise_toggle = 0;
++    c->env_first = 1;
++    c->env_rev = 0;
++    c->env_counter = AY_ENV_STEPS - 1;
+ 
+-  ay_change_count = 0;
++    c->change_count = 0;
++  }
+ }
+ 
+ #ifndef UI_WIN32
+@@ -409,19 +434,20 @@ sound_register_startup( void )
+ }
+ 
+ static inline void
+-ay_do_tone( int level, unsigned int tone_count, int *var, int chan )
++ay_do_tone( struct ay_chip_tag *c, int level, unsigned int tone_count,
++            int *var, int chan )
+ {
+   *var = 0;
+ 
+-  ay_tone_tick[ chan ] += tone_count;
++  c->tone_tick[ chan ] += tone_count;
+ 
+-  if( ay_tone_tick[ chan ] >= ay_tone_period[ chan ] ) {
+-    ay_tone_tick[ chan ] -= ay_tone_period[ chan ];
+-    ay_tone_high[ chan ] = !ay_tone_high[ chan ];
++  if( c->tone_tick[ chan ] >= c->tone_period[ chan ] ) {
++    c->tone_tick[ chan ] -= c->tone_period[ chan ];
++    c->tone_high[ chan ] = !c->tone_high[ chan ];
+   }
+ 
+   if( level ) {
+-    if( ay_tone_high[ chan ] )
++    if( c->tone_high[ chan ] )
+       *var = level;
+     else {
+       *var = 0;
+@@ -442,202 +468,231 @@ ay_do_tone( int level, unsigned int tone_count, int *var, int chan )
+    master clock by 2 to drive the AY */
+ #define AY_CLOCK_RATIO 2
+ 
++/* One chip, one pass over the frame's worth of AY clock steps at f, adding its
++   three channels into levels[]. The caller steps every chip the machine has at
++   the same f and sums them, which is what the chips of a TurboSound sharing an
++   output do; each keeps its own registers, generators and envelope, so the two
++   are independent in everything but when they are heard. */
+ static void
+-sound_ay_overlay( void )
++ay_chip_overlay( struct ay_chip_tag *c, libspectrum_dword f, int *levels )
+ {
+-  static int rng = 1;
+-  static int noise_toggle = 0;
+-  static int env_first = 1, env_rev = 0, env_counter = AY_ENV_STEPS - 1;
+   int tone_level[AY_CHANNELS];
+   int mixer, envshape;
+   int g, level;
+-  libspectrum_dword f;
+-  struct ay_change_tag *change_ptr = ay_change;
+-  int changes_left = ay_change_count;
++  struct ay_change_tag *change_ptr = c->change + c->change_next;
+   int reg, r, ch_vol;
+   int chan1, chan2, chan3;
+-  int last_chan1 = 0, last_chan2 = 0, last_chan3 = 0;
+   unsigned int tone_count, noise_count;
+ 
+-  /* If no AY chip, don't produce any AY sound (!) */
+-  if( !( periph_is_active( PERIPH_TYPE_FULLER) ||
+-         periph_is_active( PERIPH_TYPE_MELODIK ) ||
+-         machine_current->capabilities & LIBSPECTRUM_MACHINE_CAPABILITY_AY ) )
+-    return;
+-
+-  for( f = 0; f < machine_current->timings.tstates_per_frame;
+-       f+= AY_CLOCK_DIVISOR * AY_CLOCK_RATIO ) {
+-    /* update ay registers. */
+-    while( changes_left && f >= change_ptr->tstates ) {
+-      sound_ay_registers[ reg = change_ptr->reg ] = change_ptr->val;
+-      change_ptr++;
+-      changes_left--;
+-
+-      /* fix things as needed for some register changes */
+-      switch ( reg ) {
+-      case 0: case 1: case 2: case 3: case 4: case 5:
+-        r = reg >> 1;
+-        /* a zero-len period is the same as 1 */
+-        ay_tone_period[r] = ( sound_ay_registers[ reg & ~1 ] |
+-                              ( sound_ay_registers[ reg | 1 ] & 15 ) << 8 );
+-        if( !ay_tone_period[r] )
+-          ay_tone_period[r]++;
+-
+-        /* important to get this right, otherwise e.g. Ghouls 'n' Ghosts
+-         * has really scratchy, horrible-sounding vibrato.
+-         */
+-        if( ay_tone_tick[r] >= ay_tone_period[r] * 2 )
+-          ay_tone_tick[r] %= ay_tone_period[r] * 2;
+-        break;
+-      case 6:
+-        ay_noise_tick = 0;
+-        ay_noise_period = ( sound_ay_registers[ reg ] & 31 );
+-        break;
+-      case 11: case 12:
+-        ay_env_period =
+-          sound_ay_registers[11] | ( sound_ay_registers[12] << 8 );
+-        break;
+-      case 13:
+-        ay_env_internal_tick = ay_env_tick = ay_env_cycles = 0;
+-        env_first = 1;
+-        env_rev = 0;
+-        env_counter = ( sound_ay_registers[13] & AY_ENV_ATTACK ) ? 0 : AY_ENV_STEPS - 1;
+-        break;
+-      }
++  /* update ay registers. */
++  while( c->change_next < c->change_count && f >= change_ptr->tstates ) {
++    c->registers[ reg = change_ptr->reg ] = change_ptr->val;
++    change_ptr++;
++    c->change_next++;
++
++    /* fix things as needed for some register changes */
++    switch ( reg ) {
++    case 0: case 1: case 2: case 3: case 4: case 5:
++      r = reg >> 1;
++      /* a zero-len period is the same as 1 */
++      c->tone_period[r] = ( c->registers[ reg & ~1 ] |
++                            ( c->registers[ reg | 1 ] & 15 ) << 8 );
++      if( !c->tone_period[r] )
++        c->tone_period[r]++;
++
++      /* important to get this right, otherwise e.g. Ghouls 'n' Ghosts
++       * has really scratchy, horrible-sounding vibrato.
++       */
++      if( c->tone_tick[r] >= c->tone_period[r] * 2 )
++        c->tone_tick[r] %= c->tone_period[r] * 2;
++      break;
++    case 6:
++      c->noise_tick = 0;
++      c->noise_period = ( c->registers[ reg ] & 31 );
++      break;
++    case 11: case 12:
++      c->env_period = c->registers[11] | ( c->registers[12] << 8 );
++      break;
++    case 13:
++      c->env_internal_tick = c->env_tick = c->env_cycles = 0;
++      c->env_first = 1;
++      c->env_rev = 0;
++      c->env_counter = ( c->registers[13] & AY_ENV_ATTACK ) ? 0 : AY_ENV_STEPS - 1;
++      break;
+     }
++  }
+ 
+-    /* Per-channel tone level: use the envelope output if bit 4 of the
+-       channel's volume register is set, otherwise use the volume table. */
+-    envshape = sound_ay_registers[13];
+-    level = ay_tone_levels[ env_counter ];
++  /* Per-channel tone level: use the envelope output if bit 4 of the
++     channel's volume register is set, otherwise use the volume table. */
++  envshape = c->registers[13];
++  level = ay_tone_levels[ c->env_counter ];
+ 
+-    for( g = 0; g < AY_CHANNELS; g++ ) {
+-      ch_vol = sound_ay_registers[ 8 + g ];
+-      tone_level[g] = ( ch_vol & 16 ) ? level : ay_tone_levels[ ch_vol & 15 ];
+-    }
++  for( g = 0; g < AY_CHANNELS; g++ ) {
++    ch_vol = c->registers[ 8 + g ];
++    tone_level[g] = ( ch_vol & 16 ) ? level : ay_tone_levels[ ch_vol & 15 ];
++  }
+ 
+-    /* envelope output counter gets incr'd every 16 AY cycles. */
+-    ay_env_cycles += AY_CLOCK_DIVISOR;
+-    noise_count = 0;
+-    while( ay_env_cycles >= AY_CLOCK_DIVISOR ) {
+-      ay_env_cycles -= AY_CLOCK_DIVISOR;
+-      noise_count++;
+-      ay_env_tick++;
+-      while( ay_env_tick >= ay_env_period ) {
+-        ay_env_tick -= ay_env_period;
+-
+-        /* do a 1/16th-of-period incr/decr if needed */
+-        if( env_first ||
+-            ( ( envshape & AY_ENV_CONT ) && !( envshape & AY_ENV_HOLD ) ) ) {
+-          if( env_rev )
+-            env_counter -= ( envshape & AY_ENV_ATTACK ) ? 1 : -1;
+-          else
+-            env_counter += ( envshape & AY_ENV_ATTACK ) ? 1 : -1;
+-          if( env_counter < 0 )
+-            env_counter = 0;
+-          if( env_counter > AY_ENV_STEPS - 1 )
+-            env_counter = AY_ENV_STEPS - 1;
+-        }
++  /* envelope output counter gets incr'd every 16 AY cycles. */
++  c->env_cycles += AY_CLOCK_DIVISOR;
++  noise_count = 0;
++  while( c->env_cycles >= AY_CLOCK_DIVISOR ) {
++    c->env_cycles -= AY_CLOCK_DIVISOR;
++    noise_count++;
++    c->env_tick++;
++    while( c->env_tick >= c->env_period ) {
++      c->env_tick -= c->env_period;
++
++      /* do a 1/16th-of-period incr/decr if needed */
++      if( c->env_first ||
++          ( ( envshape & AY_ENV_CONT ) && !( envshape & AY_ENV_HOLD ) ) ) {
++        if( c->env_rev )
++          c->env_counter -= ( envshape & AY_ENV_ATTACK ) ? 1 : -1;
++        else
++          c->env_counter += ( envshape & AY_ENV_ATTACK ) ? 1 : -1;
++        if( c->env_counter < 0 )
++          c->env_counter = 0;
++        if( c->env_counter > AY_ENV_STEPS - 1 )
++          c->env_counter = AY_ENV_STEPS - 1;
++      }
+ 
+-        ay_env_internal_tick++;
+-        while( ay_env_internal_tick >= AY_ENV_STEPS ) {
+-          ay_env_internal_tick -= AY_ENV_STEPS;
+-
+-          /* end of cycle */
+-          if( !( envshape & AY_ENV_CONT ) )
+-            env_counter = 0;
+-          else {
+-            if( envshape & AY_ENV_HOLD ) {
+-              if( env_first && ( envshape & AY_ENV_ALT ) )
+-                env_counter = ( env_counter ? 0 : AY_ENV_STEPS - 1 );
+-            } else {
+-              /* non-hold */
+-              if( envshape & AY_ENV_ALT )
+-                env_rev = !env_rev;
+-              else
+-                env_counter = ( envshape & AY_ENV_ATTACK ) ? 0 : AY_ENV_STEPS - 1;
+-            }
++      c->env_internal_tick++;
++      while( c->env_internal_tick >= AY_ENV_STEPS ) {
++        c->env_internal_tick -= AY_ENV_STEPS;
++
++        /* end of cycle */
++        if( !( envshape & AY_ENV_CONT ) )
++          c->env_counter = 0;
++        else {
++          if( envshape & AY_ENV_HOLD ) {
++            if( c->env_first && ( envshape & AY_ENV_ALT ) )
++              c->env_counter = ( c->env_counter ? 0 : AY_ENV_STEPS - 1 );
++          } else {
++            /* non-hold */
++            if( envshape & AY_ENV_ALT )
++              c->env_rev = !c->env_rev;
++            else
++              c->env_counter = ( envshape & AY_ENV_ATTACK ) ? 0 : AY_ENV_STEPS - 1;
+           }
+-
+-          env_first = 0;
+         }
+ 
+-        /* don't keep trying if period is zero */
+-        if( !ay_env_period )
+-          break;
++        c->env_first = 0;
+       }
+-    }
+ 
+-    /* generate tone+noise... or neither.
+-     * (if no tone/noise is selected, the chip just shoves the
+-     * level out unmodified. This is used by some sample-playing
+-     * stuff.)
+-     */
+-    chan1 = tone_level[0];
+-    chan2 = tone_level[1];
+-    chan3 = tone_level[2];
+-    mixer = sound_ay_registers[7];
+-
+-    ay_tone_cycles += AY_CLOCK_DIVISOR;
+-    tone_count = ay_tone_cycles >> 3;
+-    ay_tone_cycles &= 7;
+-
+-    if( ( mixer & 1 ) == 0 ) {
+-      level = chan1;
+-      ay_do_tone( level, tone_count, &chan1, 0 );
++      /* don't keep trying if period is zero */
++      if( !c->env_period )
++        break;
+     }
+-    if( ( mixer & 0x08 ) == 0 && noise_toggle )
+-      chan1 = 0;
++  }
+ 
+-    if( ( mixer & 2 ) == 0 ) {
+-      level = chan2;
+-      ay_do_tone( level, tone_count, &chan2, 1 );
+-    }
+-    if( ( mixer & 0x10 ) == 0 && noise_toggle )
+-      chan2 = 0;
++  /* generate tone+noise... or neither.
++   * (if no tone/noise is selected, the chip just shoves the
++   * level out unmodified. This is used by some sample-playing
++   * stuff.)
++   */
++  chan1 = tone_level[0];
++  chan2 = tone_level[1];
++  chan3 = tone_level[2];
++  mixer = c->registers[7];
++
++  c->tone_cycles += AY_CLOCK_DIVISOR;
++  tone_count = c->tone_cycles >> 3;
++  c->tone_cycles &= 7;
++
++  if( ( mixer & 1 ) == 0 ) {
++    level = chan1;
++    ay_do_tone( c, level, tone_count, &chan1, 0 );
++  }
++  if( ( mixer & 0x08 ) == 0 && c->noise_toggle )
++    chan1 = 0;
+ 
+-    if( ( mixer & 4 ) == 0 ) {
+-      level = chan3;
+-      ay_do_tone( level, tone_count, &chan3, 2 );
+-    }
+-    if( ( mixer & 0x20 ) == 0 && noise_toggle )
+-      chan3 = 0;
++  if( ( mixer & 2 ) == 0 ) {
++    level = chan2;
++    ay_do_tone( c, level, tone_count, &chan2, 1 );
++  }
++  if( ( mixer & 0x10 ) == 0 && c->noise_toggle )
++    chan2 = 0;
+ 
+-    if( last_chan1 != chan1 ) {
+-      blip_synth_update( ay_a_synth, f, chan1 );
+-      if( ay_a_synth_r ) blip_synth_update( ay_a_synth_r, f, chan1 );
+-      last_chan1 = chan1;
+-    }
+-    if( last_chan2 != chan2 ) {
+-      blip_synth_update( ay_b_synth, f, chan2 );
+-      if( ay_b_synth_r ) blip_synth_update( ay_b_synth_r, f, chan2 );
+-      last_chan2 = chan2;
+-    }
+-    if( last_chan3 != chan3 ) {
+-      blip_synth_update( ay_c_synth, f, chan3 );
+-      if( ay_c_synth_r ) blip_synth_update( ay_c_synth_r, f, chan3 );
+-      last_chan3 = chan3;
++  if( ( mixer & 4 ) == 0 ) {
++    level = chan3;
++    ay_do_tone( c, level, tone_count, &chan3, 2 );
++  }
++  if( ( mixer & 0x20 ) == 0 && c->noise_toggle )
++    chan3 = 0;
++
++  levels[0] += chan1;
++  levels[1] += chan2;
++  levels[2] += chan3;
++
++  /* update noise RNG/filter */
++  c->noise_tick += noise_count;
++  while( c->noise_tick >= c->noise_period ) {
++    c->noise_tick -= c->noise_period;
++
++    if( ( c->rng & 1 ) ^ ( ( c->rng & 2 ) ? 1 : 0 ) )
++      c->noise_toggle = !c->noise_toggle;
++
++    /* rng is 17-bit shift reg, bit 0 is output.
++     * input is bit 0 xor bit 3.
++     */
++    if( c->rng & 1 ) {
++      c->rng ^= 0x24000;
+     }
++    c->rng >>= 1;
+ 
+-    /* update noise RNG/filter */
+-    ay_noise_tick += noise_count;
+-    while( ay_noise_tick >= ay_noise_period ) {
+-      ay_noise_tick -= ay_noise_period;
++    /* don't keep trying if period is zero */
++    if( !c->noise_period )
++      break;
++  }
++}
+ 
+-      if( ( rng & 1 ) ^ ( ( rng & 2 ) ? 1 : 0 ) )
+-        noise_toggle = !noise_toggle;
++static void
++sound_ay_overlay( void )
++{
++  libspectrum_dword f;
++  int chip, chips;
++  int last_chan1 = 0, last_chan2 = 0, last_chan3 = 0;
+ 
+-      /* rng is 17-bit shift reg, bit 0 is output.
+-       * input is bit 0 xor bit 3.
+-       */
+-      if( rng & 1 ) {
+-        rng ^= 0x24000;
+-      }
+-      rng >>= 1;
++  /* If no AY chip, don't produce any AY sound (!) */
++  if( !( periph_is_active( PERIPH_TYPE_FULLER) ||
++         periph_is_active( PERIPH_TYPE_MELODIK ) ||
++         machine_current->capabilities & LIBSPECTRUM_MACHINE_CAPABILITY_AY ) )
++    return;
+ 
+-      /* don't keep trying if period is zero */
+-      if( !ay_noise_period )
+-        break;
++  /* One, or two where the machine has a TurboSound; ay.c sets it at reset.
++     A Fuller or a Melodik is the one AY it has always been. */
++  chips = ay_chips;
++
++  for( chip = 0; chip < chips; chip++ )
++    ay_chip[ chip ].change_next = 0;
++
++  for( f = 0; f < machine_current->timings.tstates_per_frame;
++       f+= AY_CLOCK_DIVISOR * AY_CLOCK_RATIO ) {
++    int levels[AY_CHANNELS] = { 0, 0, 0 };
++
++    for( chip = 0; chip < chips; chip++ )
++      ay_chip_overlay( &ay_chip[ chip ], f, levels );
++
++    /* The chips are summed before the synth sees them: a channel is one
++       waveform however many chips are playing into it, and the stereo
++       separation set up in sound_init() is of channels, not of chips.
++
++       Two chips at once cannot clip. Fuse's budget is 50 for the beeper, 2 for
++       the tape and 24 for each of three AY channels, out of the 255 that a
++       Blip_Synth's range is; six channels bring that to 196, still inside it. */
++    if( last_chan1 != levels[0] ) {
++      blip_synth_update( ay_a_synth, f, levels[0] );
++      if( ay_a_synth_r ) blip_synth_update( ay_a_synth_r, f, levels[0] );
++      last_chan1 = levels[0];
++    }
++    if( last_chan2 != levels[1] ) {
++      blip_synth_update( ay_b_synth, f, levels[1] );
++      if( ay_b_synth_r ) blip_synth_update( ay_b_synth_r, f, levels[1] );
++      last_chan2 = levels[1];
++    }
++    if( last_chan3 != levels[2] ) {
++      blip_synth_update( ay_c_synth, f, levels[2] );
++      if( ay_c_synth_r ) blip_synth_update( ay_c_synth_r, f, levels[2] );
++      last_chan3 = levels[2];
+     }
+   }
+ }
+@@ -646,13 +701,19 @@ sound_ay_overlay( void )
+  * to be made by sound_frame() (via sound_ay_overlay()).
+  */
+ void
+-sound_ay_write( int reg, int val, libspectrum_dword now )
++sound_ay_write( int chip, int reg, int val, libspectrum_dword now )
+ {
+-  if( ay_change_count < AY_CHANGE_MAX ) {
+-    ay_change[ ay_change_count ].tstates = now;
+-    ay_change[ ay_change_count ].reg = ( reg & 15 );
+-    ay_change[ ay_change_count ].val = val;
+-    ay_change_count++;
++  struct ay_chip_tag *c;
++
++  if( chip < 0 || chip >= AY_CHIPS ) return;
++
++  c = &ay_chip[ chip ];
++
++  if( c->change_count < AY_CHANGE_MAX ) {
++    c->change[ c->change_count ].tstates = now;
++    c->change[ c->change_count ].reg = ( reg & 15 );
++    c->change[ c->change_count ].val = val;
++    c->change_count++;
+   }
+ }
+ 
+@@ -662,17 +723,21 @@ sound_ay_write( int reg, int val, libspectrum_dword now )
+ void
+ sound_ay_reset( void )
+ {
+-  int f;
++  int f, chip;
+ 
+   /* recalculate timings based on new machines ay clock */
+   sound_ay_init();
+ 
+-  ay_change_count = 0;
+-  for( f = 0; f < AY_REGISTERS; f++ )
+-    sound_ay_write( f, 0, 0 );
+-  for( f = 0; f < AY_CHANNELS; f++ )
+-    ay_tone_high[f] = 0;
+-  ay_tone_cycles = ay_env_cycles = 0;
++  for( chip = 0; chip < AY_CHIPS; chip++ ) {
++    struct ay_chip_tag *c = &ay_chip[ chip ];
++
++    c->change_count = 0;
++    for( f = 0; f < AY_REGISTERS; f++ )
++      sound_ay_write( chip, f, 0, 0 );
++    for( f = 0; f < AY_CHANNELS; f++ )
++      c->tone_high[f] = 0;
++    c->tone_cycles = c->env_cycles = 0;
++  }
+ }
+ 
+ /*
+@@ -728,6 +793,7 @@ void
+ sound_frame( void )
+ {
+   long count;
++  int f;
+ 
+   if( !sound_enabled )
+     return;
+@@ -756,7 +822,11 @@ sound_frame( void )
+ 
+   if( movie_recording )
+       movie_add_sound( samples, count );
+-  ay_change_count = 0;
++
++  /* The frame's writes have been played; every chip starts the next one
++     with an empty queue. */
++  for( f = 0; f < AY_CHIPS; f++ )
++    ay_chip[f].change_count = 0;
+ }
+ 
+ void
+diff --git a/sound.h b/sound.h
+index 7f13d71..f9f1417 100644
+--- a/sound.h
++++ b/sound.h
+@@ -33,7 +33,7 @@ void sound_init( const char *device );
+ void sound_pause( void );
+ void sound_unpause( void );
+ void sound_end( void );
+-void sound_ay_write( int reg, int val, libspectrum_dword now );
++void sound_ay_write( int chip, int reg, int val, libspectrum_dword now );
+ void sound_ay_reset( void );
+ void sound_specdrum_write( libspectrum_word port, libspectrum_byte val );
+ void sound_covox_write( libspectrum_word port, libspectrum_byte val );
+diff --git a/ui/gtk3/debugger.c b/ui/gtk3/debugger.c
+index 6905f00..503cfae 100644
+--- a/ui/gtk3/debugger.c
++++ b/ui/gtk3/debugger.c
+@@ -834,7 +834,7 @@ ui_debugger_update( void )
+     sprintf( format_string, "\n    AY %s", format_8_bit() );
+     length = strlen( buffer );
+     snprintf( &buffer[length], 1024-length, format_string,
+-	      machine_current->ay.current_register );
++	      machine_current->ay[0].current_register );
+   }
+ 
+   if( capabilities & LIBSPECTRUM_MACHINE_CAPABILITY_128_MEMORY ) {
+diff --git a/ui/widget/debugger.c b/ui/widget/debugger.c
+index 5471b47..2bcd093 100644
+--- a/ui/widget/debugger.c
++++ b/ui/widget/debugger.c
+@@ -325,7 +325,7 @@ static void display_registers( void )
+ 
+   if( capabilities & LIBSPECTRUM_MACHINE_CAPABILITY_AY )
+     show_register1( LC(29), LR(4), "AY",
+-		    machine_current->ay.current_register );
++		    machine_current->ay[0].current_register );
+ 
+   if( capabilities & LIBSPECTRUM_MACHINE_CAPABILITY_128_MEMORY )
+     show_register1( LC(6), LR(5), "128Mem",
+diff --git a/ui/win32/debugger.c b/ui/win32/debugger.c
+index baca2e5..0a91351 100644
+--- a/ui/win32/debugger.c
++++ b/ui/win32/debugger.c
+@@ -677,7 +677,7 @@ ui_debugger_update( void )
+     _stprintf( format_string, "\r\n    AY %s", format_8_bit() );
+     length = _tcslen( buffer );
+     _sntprintf( &buffer[length], 1024-length, format_string,
+-	        machine_current->ay.current_register );
++	        machine_current->ay[0].current_register );
+   }
+ 
+   if( capabilities & LIBSPECTRUM_MACHINE_CAPABILITY_128_MEMORY ) {

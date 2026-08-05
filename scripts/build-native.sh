@@ -3,11 +3,14 @@
 # Cross-compiles libspectrum + Fuse for Android and drops the result into the
 # Gradle project (app/src/main/jniLibs and app/src/main/assets).
 #
-# Fuse is used completely unmodified. Rather than adding an Android UI to its
-# build system, we configure it --with-fb (which builds Fuse's portable widget
-# UI and nothing framebuffer specific outside ui/fb), then simply never
-# compile ui/fb and link native/ui/android in its place. Same trick for the
-# sound driver.
+# Rather than adding an Android UI to Fuse's build system, we configure it
+# --with-fb (which builds Fuse's portable widget UI and nothing framebuffer
+# specific outside ui/fb), then simply never compile ui/fb and link
+# native/ui/android in its place. Same trick for the sound driver.
+#
+# What is compiled is a copy of the release with native/patches applied - see
+# scripts/fuse-src.sh. vendor/ is still exactly what was downloaded, and with
+# no patches present the copy is the release byte for byte.
 #
 # Usage:
 #   scripts/build-native.sh                 # build all ABIs
@@ -40,6 +43,18 @@ PKG="dev.ldlab.zedex"
 DATA_ROOT="/data/data/$PKG/files"      # -> FUSEDATADIR = $DATA_ROOT/fuse
 
 if [ "${1:-}" = "clean" ]; then
+  # The Fuse working tree is inside $BUILD and is the one thing here that can
+  # hold work: it is vendor/ plus native/patches/, and anything not yet saved
+  # as a patch exists nowhere else. Refuse rather than take it away.
+  SRC_TREE="$("$ROOT/scripts/fuse-src.sh" path)"
+  if [ -d "$SRC_TREE/.git" ] && \
+     [ -n "$(git -C "$SRC_TREE" status --porcelain)" ] && \
+     [ "${2:-}" != "--force" ]; then
+    echo "the Fuse working tree has changes that are not in native/patches:" >&2
+    git -C "$SRC_TREE" status --short >&2
+    echo "run 'scripts/fuse-src.sh save' first, or 'clean --force'" >&2
+    exit 1
+  fi
   rm -rf "$BUILD" "$APP/jniLibs" "$APP/assets/fuse"
   echo "cleaned"
   exit 0
@@ -79,6 +94,24 @@ fetch "fuse-$FUSE_VER" \
 fetch "libspectrum-$LIBSPECTRUM_VER" \
   "https://downloads.sourceforge.net/project/fuse-emulator/libspectrum/$LIBSPECTRUM_VER/libspectrum-$LIBSPECTRUM_VER.tar.gz" \
   74bb2bb0e78779a09808aa7636fe7fa6c815002e8344b46d914bfb7a864c88e0
+
+##############################################################################
+# What Fuse is actually built from: a copy of the release with native/patches/
+# applied. vendor/ stays exactly as downloaded. With no patches present this
+# is the release, byte for byte; see scripts/fuse-src.sh.
+##############################################################################
+"$ROOT/scripts/fuse-src.sh" ensure
+FUSE_SRC="$("$ROOT/scripts/fuse-src.sh" path)"
+
+# A tree edited but not saved builds something no one else can reproduce, and
+# `build-native.sh clean` would be the end of it. Say so on every build.
+if [ -n "$(git -C "$FUSE_SRC" status --porcelain 2>/dev/null)" ]; then
+  echo
+  echo "NOTE: the Fuse working tree has changes that are in no patch:"
+  git -C "$FUSE_SRC" status --short | sed 's/^/      /'
+  echo "      building them anyway; 'scripts/fuse-src.sh save' keeps them."
+  echo
+fi
 
 for ABI in $ABIS; do
   case "$ABI" in
@@ -138,9 +171,17 @@ for ABI in $ABIS; do
   # links and installs, and then cannot find its own font at runtime. The
   # tree records what it was configured for, and anything else - including a
   # tree from before this check existed, which has no record - is discarded.
+  #
+  # The source directory is in that record for the same reason and it is the
+  # sharper of the two: a build tree holds no sources, only a Makefile with the
+  # srcdir it was configured against and objects made from it. Pointed at the
+  # patched tree while it was configured for vendor/, make finds every object
+  # up to date against sources we are no longer building, says so, and links a
+  # library with none of the patches in it.
+  FUSE_STAMP="$PKG $FUSE_SRC"
   if [ -d "$FUSE_BUILD" ] && \
-     [ "$(cat "$FUSE_BUILD/.package" 2>/dev/null)" != "$PKG" ]; then
-    echo "configured for another package; reconfiguring for $PKG"
+     [ "$(cat "$FUSE_BUILD/.package" 2>/dev/null)" != "$FUSE_STAMP" ]; then
+    echo "configured for another package or source tree; reconfiguring"
     rm -rf "$FUSE_BUILD"
   fi
 
@@ -156,13 +197,13 @@ for ABI in $ABIS; do
     # compat_get_next_path(). Forcing limits.h first makes PATH_MAX consistent.
     ( cd "$FUSE_BUILD" && \
       CPPFLAGS="-include limits.h" \
-      "$VENDOR/fuse-$FUSE_VER/configure" \
+      "$FUSE_SRC/configure" \
         --host="$HOST" --prefix="$DATA_ROOT" --datadir="$DATA_ROOT" \
         --with-fb --without-gpm --with-audio-driver=null \
         --without-gtk --without-x --without-png \
         --without-libxml2 \
         --disable-desktop-integration ) && \
-      echo "$PKG" > "$FUSE_BUILD/.package"
+      echo "$FUSE_STAMP" > "$FUSE_BUILD/.package"
   fi
 
   # Ask the generated Makefile for its own variables rather than guessing at

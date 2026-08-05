@@ -19,6 +19,12 @@
             android:entryValues="@array/ay_stereo_values"
             android:defaultValue="None"
             android:dependency="sound" />
+        <SwitchPreference
+            android:key="turbosound"
+            android:title="@string/settings_turbosound"
+            android:summary="@string/settings_turbosound_summary"
+            android:defaultValue="true"
+            android:dependency="sound" />
         <ListPreference
             android:key="volumeBeeper"
             android:title="@string/settings_volume_beeper"

@@ -9,11 +9,27 @@ expensive to rediscover.
 
 ## Hard rules
 
-- **Never modify `vendor/`.** Fuse and libspectrum are used exactly as
-  released. The Android backend is swapped in at link time — configure with
-  `--with-fb`, then never compile `ui/fb` and link `native/ui/android` in its
-  place. One symbol is overridden with `llvm-objcopy --weaken-symbol`. If
-  something seems to need a patch, it almost certainly does not.
+- **Never modify `vendor/`.** It is what was downloaded, and it stays that way.
+  The Android backend is swapped in at link time — configure with `--with-fb`,
+  then never compile `ui/fb` and link `native/ui/android` in its place. Two
+  symbols are overridden with `llvm-objcopy --weaken-symbol`. Almost nothing
+  needs a patch, and reaching for one is usually a sign of looking in the wrong
+  layer.
+- **What does need one is a patch in git, never an edit in place.** The build
+  compiles a *copy* of the release with `native/patches/*.patch` applied, made
+  by `scripts/fuse-src.sh` in `build-native/src`; with no patches it is the
+  release byte for byte. The copy is a git repository whose first commit is the
+  pristine tarball, tagged `upstream`, so `scripts/fuse-src.sh save` turns
+  commits into the series and `reset` proves a fresh clone gets the same tree.
+  Two traps, both of which cost a build that looked fine: **a build tree
+  remembers the source directory it was configured against** — pointed at the
+  patched tree while configured for `vendor/` it finds every object up to date
+  and links a library with none of the patches in it, which is why the source
+  path is in `.package` beside the package name; and **the baseline is the
+  tarball, not `vendor/`**, because Fuse's perl codegen writes `settings.c` and
+  the z80 tables into the *source* directory and a tree that has been built in
+  holds files a fresh checkout would not. See *Patching Fuse* in
+  `docs/DEVELOPING.md`.
 - **The upstream version is pinned and stays pinned.** `FUSE_VER` and
   `LIBSPECTRUM_VER` in `scripts/build-native.sh` go into the URL, and each
   tarball's SHA-256 is checked, so no release arrives by itself. Raising one

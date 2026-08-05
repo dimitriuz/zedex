@@ -11,6 +11,7 @@ be one — an instruction it has never seen is an error, not silence.
     ./scripts/build-demo.py             # demo/zedex.asm -> demo/zedex.tap
     ./scripts/build-demo.py --list      # ...and what each line assembled to
     ./scripts/build-demo.py --logo [font.ttf]    # redraw demo/logo.inc
+    ./scripts/build-demo.py demo/tstest.asm      # ...or any other source
 
 The wordmark is a picture, and `--logo` is the only thing here that needs
 Pillow and a font on the machine: it writes `demo/logo.inc`, which is
@@ -757,7 +758,13 @@ def main(argv):
         draw_logo(os.path.join(DEMO, "logo.inc"), font)
         return 0
 
-    source = os.path.join(DEMO, "zedex.asm")
+    # Any source, not only the demo: the assembler is the only one this tree
+    # has, and a test tape wants it too. The tape is named after the source
+    # and lands beside it.
+    named = [arg for arg in argv if not arg.startswith("--")]
+    source = named[0] if named else os.path.join(DEMO, "zedex.asm")
+    name = os.path.splitext(os.path.basename(source))[0]
+
     assembler = Assembler()
     try:
         code = assembler.assemble(source)
@@ -775,9 +782,9 @@ def main(argv):
         (30, 'RANDOMIZE USR 32768'),
     ]
     program = basic(loader)
-    tape = os.path.join(DEMO, "zedex.tap")
+    tape = os.path.join(os.path.dirname(os.path.abspath(source)), name + ".tap")
     with open(tape, "wb") as out:
-        out.write(tap("zedex", program, 10, code, assembler.origin))
+        out.write(tap(name, program, 10, code, assembler.origin))
 
     print("%s: %d bytes of code at $%04x, %d bytes of tape"
           % (os.path.relpath(tape, HERE), len(code), assembler.origin,

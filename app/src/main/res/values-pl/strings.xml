@@ -372,6 +372,8 @@
     <string name="settings_sound_enabled">Dźwięk</string>
     <string name="settings_volume_ay">Głośność AY</string>
     <string name="settings_ay_stereo">Rozdzielenie stereo AY</string>
+    <string name="settings_turbosound">TurboSound</string>
+    <string name="settings_turbosound_summary">Drugi układ AY. Sześć kanałów zamiast trzech, na Pentagonie lub Scorpionie; pozostałe maszyny nie mają TurboSound i go ignorują.</string>
     <string name="settings_volume_beeper">Głośność beepera</string>
 
     <string name="settings_filter">Obraz</string>

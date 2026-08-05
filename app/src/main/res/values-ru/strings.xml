@@ -372,6 +372,8 @@
     <string name="settings_sound_enabled">Звук</string>
     <string name="settings_volume_ay">Громкость AY</string>
     <string name="settings_ay_stereo">Стереоразделение AY</string>
+    <string name="settings_turbosound">TurboSound</string>
+    <string name="settings_turbosound_summary">Второй чип AY. Шесть каналов вместо трёх, на Pentagon или Scorpion; на других машинах TurboSound нет, и настройка ничего не делает.</string>
     <string name="settings_volume_beeper">Громкость бипера</string>
 
     <string name="settings_filter">Картинка</string>

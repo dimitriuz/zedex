@@ -25,6 +25,27 @@ The script asks the generated Makefile for `fuse_OBJECTS`, `fuse_LDADD`,
 `AM_CPPFLAGS` and friends rather than hardcoding them, so the substitution
 follows upstream instead of drifting from it.
 
+### …except where it is patched, in the open
+
+Everything above still holds: the port is a UI layer swapped in at link time,
+and nothing about it needs a patch. But an emulator sometimes needs the core
+to grow something the core does not have — TurboSound is the first — and there
+is one way to do that:
+
+- `vendor/` is still exactly what was downloaded, and is still never written
+  to. The tarball and its SHA-256 are pinned as they were.
+- `native/patches/*.patch` is what we have changed, as a patch series in git.
+- `scripts/fuse-src.sh` copies `vendor/` to `build-native/src`, applies the
+  series and leaves a git repository there whose first commit is the pristine
+  release, tagged `upstream`; `build-native.sh` compiles that copy.
+
+So the diff against Fuse is a file anyone can read, it rebases onto the next
+release with `git am` rather than by hand, and it is already in the shape the
+Fuse project would want it in. With no patches present the build compiles the
+release byte for byte, which is the state to fall back to when something looks
+like an upstream bug. See *Patching Fuse* in `docs/DEVELOPING.md` for the
+working loop.
+
 ### The backend
 
 - **`android_display.c`** writes palette indices exactly as `ui/fb` does,
@@ -125,6 +146,53 @@ static and runs before there is a machine at all.
 it names: `compat_get_next_path` looks in `lib` beside the program before it
 falls back to the compile-time `FUSEDATADIR`, which is an absolute path with a
 package name in it.
+
+### TurboSound, and the two places one AY was assumed
+
+A TurboSound is two AY-3-8912s behind the one pair of ports, the expansion the
+Russian clones took and where six-channel Spectrum music comes from. Fuse has
+no notion of it, so this is the first thing in `native/patches` — see *…except
+where it is patched, in the open* above for how a patch is carried.
+
+**The chip select is a write to the register port**, `0xfffd`: `0xff` means the
+first chip and `0xfe` the second, and everything afterwards — the register
+select, the data writes, the reads — goes to whichever was named last. That is
+safe to look for only because a real AY latches four bits of that byte, so on
+any other machine those two values are registers 15 and 14 and always were.
+Where `ay_chips` is 1 the decode is not looked for at all.
+
+**Two things decide `ay_chips`, and both can change while the machine runs.**
+The machine has to be one that could have had a TurboSound — the Pentagons and
+the Scorpion, which is the same part of the world and the same expansion — and
+the user has to want it, which is `settings_current.turbosound` and the switch
+on the sound settings page. `ay_update_chips()` works it out, the reset calls
+it, and so does `OPTION_TURBOSOUND` in the bridge: turning the switch off has to
+silence the second chip between one frame and the next rather than at the next
+reset, and it also has to put the ports back on the first chip if the second was
+the one being addressed. The switch is on by default, and on a machine that
+cannot have one it does nothing at all.
+
+**One chip was assumed in two places, and both had to become arrays.**
+`machine_current->ay` is `ayinfo[AY_CHIPS]`; and Fuse's `sound.c` kept the whole
+generator — tone ticks and periods, the noise and envelope counters, the
+register copy, the frame's write queue, and the noise RNG and envelope, which
+were `static` *inside* `sound_ay_overlay()` — in file statics. They are a struct
+per chip now, and the body of the overlay is `ay_chip_overlay()`, one chip for
+one AY clock step, adding its three channels into the caller's `levels[]`.
+
+**The chips are summed before the synth sees them**, rather than given synths of
+their own: a channel is one waveform however many chips play into it, and the
+stereo separation `sound_init()` sets up is of channels, not of chips — ACB with
+two chips is still ACB. It cannot clip, and that was checked rather than hoped:
+Fuse budgets 50 for the beeper, 2 for the tape and 24 for each AY channel out of
+the 255 a `Blip_Synth`'s range is, so six channels reach 196 and stay inside it.
+
+**A second chip cannot be saved.** Every snapshot format has one AY in it, so
+`ay_to_snapshot` writes the first chip's registers and `ay_from_snapshot`
+restores them, leaving the second as the reset left it; a `.psg` recording and
+the serial port that drives the printer are the first chip's for the same
+reason. A TurboSound tune saved to a `.szx` comes back playing three of its six
+channels, and there is nowhere in the format to put the rest.
 
 ### The other screen
 
@@ -1875,8 +1943,9 @@ Getting at it takes four different routes, none of which touches `vendor/`:
   when the tape moves however it moved. A whole small tape can be trapped
   through in three frames, so that reading is held for half a second — a lamp
   that is technically right and never seen is no use.
-- **The AY** announces nothing at all, so `machine_current->ay.registers` is
-  read at the end of every frame.
+- **The AY** announces nothing at all, so `machine_current->ay[…].registers` is
+  read at the end of every frame — every chip the machine has, since a
+  TurboSound has two and the meter has three bars.
 - **A port read is reported by nothing, and there is no hook for one.** What
   there is, in `readport_internal()`, is a walk over *every* peripheral whose
   mask matches, ANDing what each returns. So a peripheral that returns `0xff`
@@ -1917,7 +1986,10 @@ head's position along the current track, which only advances inside
 
 The AY is three bars rather than one lamp, and the height of each is that
 channel's amplitude — a chip using one channel is doing something quite
-different from a chip using all three. A channel counts only while the mixer has
+different from a chip using all three. On a TurboSound a bar is the louder of
+the two chips' channel A, B or C: six channels do not fit three bars, and the
+loudest is the nearest thing to what the one waveform reaching the speaker is
+doing. A channel counts only while the mixer has
 not switched off both its tone and its noise, since a game that finishes with a
 channel usually silences it there and leaves the amplitude behind. **A channel
 following the envelope generator reads as full**: where the envelope has got to
