@@ -23,6 +23,7 @@ import android.content.Intent;
 import android.hardware.display.DisplayManager;
 import android.graphics.Rect;
 import android.net.Uri;
+import android.provider.DocumentsContract;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.Settings;
@@ -296,6 +297,7 @@ public class SettingsActivity extends AppCompatActivity
     private static final int REQUEST_CONTENT_TREE = 2;
     private static final int REQUEST_DATA_TREE = 3;
     private static final int REQUEST_FIRMWARE = 4;
+    private static final int REQUEST_ESDE_TREE = 5;
 
     /** One tab: what it is called, what it looks like, and what is on it. */
     private static final class Tab {
@@ -568,14 +570,12 @@ public class SettingsActivity extends AppCompatActivity
             // Nothing to add Zedex to unless ES-DE is installed, and the whole
             // category goes with the row rather than leaving a heading over
             // nothing - the same reasoning as the updates one above.
-            // Only where there is an ES-DE, and only in a build that can hold
-            // the permission its folder needs: nothing may offer to grant what
-            // the running manifest does not declare, and the Play build does
-            // not declare All files access.
+            // Wherever there is an ES-DE. It used to want All files access and
+            // so hid itself in the Play build; it asks to be shown the folder
+            // instead, which every build may do.
             Preference frontends = findPreference("frontends");
             if (frontends != null) {
-                frontends.setVisible(EsDe.installed(getActivity()) != null
-                                     && Storage.canAskForAnyFolder(getActivity()));
+                frontends.setVisible(EsDe.installed(getActivity()) != null);
             }
 
             Preference esde = findPreference("esde");
@@ -746,29 +746,55 @@ public class SettingsActivity extends AppCompatActivity
          * wanted and carrying on in {@link #onResume}.
          */
         private void addToEsDe() {
-            if (!Storage.canUseAnyFolder()) {
-                pendingEsDe = true;
-                askForAllFiles(R.string.esde_needs_all_files);
+            // The quick way, for a build that already holds All files access:
+            // ES-DE's folder is where its own documentation says it is and
+            // ordinary file writes reach it.
+            if (Storage.canUseAnyFolder() && EsDe.folder() != null) {
+                report(EsDe.install(getActivity()));
                 return;
             }
 
-            if (EsDe.folder() == null) {
-                new AlertDialog.Builder(getActivity(),
-                        android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                        .setMessage(R.string.esde_no_folder)
-                        .setPositiveButton(android.R.string.ok, null)
-                        .show();
+            // Otherwise a folder the user granted once. Trying it first means
+            // the picker only ever appears again if the grant was lost.
+            String kept = getPreferenceManager().getSharedPreferences()
+                    .getString(EsDe.KEY_ESDE_TREE, null);
+
+            if (kept != null && EsDe.install(getActivity(), Uri.parse(kept))) {
+                report(true);
                 return;
             }
 
-            Toast.makeText(getActivity(),
-                    EsDe.install(getActivity()) ? R.string.esde_done
-                                                : R.string.esde_failed,
-                    Toast.LENGTH_LONG).show();
+            new AlertDialog.Builder(getActivity(),
+                    android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                    .setMessage(R.string.esde_pick)
+                    .setPositiveButton(R.string.settings_choose_folder,
+                                       (dialog, which) -> pickEsDeFolder())
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show();
         }
 
-        /** Set when the ES-DE row sent the user to the permission page. */
-        private boolean pendingEsDe;
+        /** Opens the picker at ES-DE's folder if Android will take the hint. */
+        private void pickEsDeFolder() {
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+            Uri hint = Storage.documentUriFor(new File(
+                    android.os.Environment.getExternalStorageDirectory(), "ES-DE"));
+            if (hint != null) {
+                intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, hint);
+            }
+
+            try {
+                startActivityForResult(intent, REQUEST_ESDE_TREE);
+            } catch (android.content.ActivityNotFoundException e) {
+                Toast.makeText(getActivity(), R.string.open_failed,
+                        Toast.LENGTH_LONG).show();
+            }
+        }
+
+        private void report(boolean written) {
+            Toast.makeText(getActivity(),
+                    written ? R.string.esde_done : R.string.esde_failed,
+                    Toast.LENGTH_LONG).show();
+        }
 
         /** The one dialog that offers the permission, for both ways in. */
         private void askForAllFiles(int why) {
@@ -781,10 +807,8 @@ public class SettingsActivity extends AppCompatActivity
                             startActivity(new Intent(
                                     Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
                                     Uri.parse("package:" + getActivity().getPackageName()))))
-                    .setNegativeButton(android.R.string.cancel, (dialog, which) -> {
-                        pendingFolder = null;
-                        pendingEsDe = false;
-                    })
+                    .setNegativeButton(android.R.string.cancel,
+                            (dialog, which) -> pendingFolder = null)
                     .show();
         }
 
@@ -842,6 +866,30 @@ public class SettingsActivity extends AppCompatActivity
             updateSummaries();
         }
 
+        /**
+         * A folder the user says is ES-DE's.
+         *
+         * Checked before anything is written: a folder that is not ES-DE's would
+         * take the two files and never be read, and the row would have said it
+         * worked. The grant is kept so this happens once.
+         */
+        private void useEsDeFolder(Uri tree) {
+            if (!EsDe.looksLikeEsDe(getActivity(), tree)) {
+                Toast.makeText(getActivity(), R.string.esde_not_esde,
+                        Toast.LENGTH_LONG).show();
+                return;
+            }
+
+            getActivity().getContentResolver().takePersistableUriPermission(
+                    tree, Intent.FLAG_GRANT_READ_URI_PERMISSION
+                          | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+
+            getPreferenceManager().getSharedPreferences().edit()
+                    .putString(EsDe.KEY_ESDE_TREE, tree.toString()).apply();
+
+            report(EsDe.install(getActivity(), tree));
+        }
+
         private void pickContentFolder() {
             Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
             try {
@@ -877,6 +925,11 @@ public class SettingsActivity extends AppCompatActivity
                 }
 
                 useFolder(folder);
+                return;
+            }
+
+            if (request == REQUEST_ESDE_TREE) {
+                useEsDeFolder(tree);
                 return;
             }
 
@@ -1140,10 +1193,6 @@ public class SettingsActivity extends AppCompatActivity
                 useFolder(folder);
             }
 
-            if (pendingEsDe && Storage.canUseAnyFolder()) {
-                pendingEsDe = false;
-                addToEsDe();
-            }
         }
 
         @Override

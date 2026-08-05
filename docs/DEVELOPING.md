@@ -596,6 +596,16 @@ A game arrives as a FileProvider URI with a one-shot grant, which is enough to
 load it and not enough to keep in *Open recent…*; see the ES-DE notes in
 `CLAUDE.md`.
 
+There are two write paths and both are worth exercising. With All files access
+granted it writes ordinary files; without it the row asks to be shown ES-DE's
+folder and writes through the grant, which is the only way the Play build can do
+it. `adb shell pm clear <package>` forgets the grant and brings the picker back:
+
+```sh
+adb shell appops set --uid dev.ldlab.zedex.debug MANAGE_EXTERNAL_STORAGE deny
+adb shell pm clear dev.ldlab.zedex.debug     # and the remembered folder with it
+```
+
 
 ## Languages
 

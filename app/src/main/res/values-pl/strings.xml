@@ -497,6 +497,7 @@
     <string name="settings_esde_summary">Proponować Zedeksa jako emulator Spectrum w ES-DE</string>
     <string name="esde_done">Dodano do ES-DE — wybierz Zedeksa w „Alternative emulators”, albo dla danej gry</string>
     <string name="esde_failed">Nie udało się zapisać w folderze ES-DE</string>
-    <string name="esde_needs_all_files">ES-DE trzyma swoją konfigurację w katalogu głównym pamięci wspólnej, a to wymaga „Dostępu do wszystkich plików”. Daj go i wpis zostanie zapisany.</string>
+    <string name="esde_pick">Zedeksowi trzeba raz wskazać folder ES-DE — ten o nazwie ES-DE, z custom_systems w środku. Potem wystarcza już ta pozycja.</string>
+    <string name="esde_not_esde">To nie jest folder ES-DE. Wybierz ten o nazwie ES-DE.</string>
     <string name="esde_no_folder">ES-DE jest zainstalowany, ale jego folder nie jest w /storage/emulated/0/ES-DE. Przenieś go z powrotem albo dodaj wpis ręcznie.</string>
 </resources>

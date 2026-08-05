@@ -1,8 +1,12 @@
 package dev.ldlab.zedex.frontend;
 
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
+import android.net.Uri;
 import android.os.Environment;
+import android.provider.DocumentsContract;
 import android.util.Log;
 
 import org.w3c.dom.Document;
@@ -11,7 +15,9 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.io.OutputStream;
 
 import javax.xml.parsers.DocumentBuilder;
@@ -64,6 +70,19 @@ public final class EsDe {
         "org.es_de.frontend",
         "org.es_de.frontend.galaxy",
     };
+
+    /**
+     * The folder ES-DE was shown to us as, when it was shown through the picker.
+     *
+     * Written once and kept: a persisted tree grant outlives the app, so the
+     * user picks their ES-DE folder the first time and never again.
+     */
+    public static final String KEY_ESDE_TREE = "esdeTree";
+
+    /** The folder inside ES-DE's own where both files belong, and the two files. */
+    private static final String CUSTOM = "custom_systems";
+    private static final String RULES = "es_find_rules.xml";
+    private static final String SYSTEMS = "es_systems.xml";
 
     /** ES-DE's own name for the Spectrum, and the name it must keep. */
     private static final String SYSTEM = "zxspectrum";
@@ -158,19 +177,58 @@ public final class EsDe {
         File folder = folder();
         if (folder == null) return false;
 
-        File custom = new File(folder, "custom_systems");
+        File custom = new File(folder, CUSTOM);
         if (!custom.isDirectory() && !custom.mkdirs()) {
             Log.w(TAG, "cannot make " + custom);
             return false;
         }
 
-        return findRule(context, new File(custom, "es_find_rules.xml"))
-               && system(context, new File(custom, "es_systems.xml"));
+        return write(context, new Paths(custom));
+    }
+
+    /**
+     * The same, through a folder the user granted with the picker.
+     *
+     * This is the way that works everywhere: the folder is at the root of shared
+     * storage, which scoped storage keeps an app out of, and All files access is
+     * not something the Play build may even ask for — but two XML files in a
+     * folder the user pointed at needs no permission at all.
+     */
+    public static boolean install(Context context, Uri tree) {
+        Uri folder = child(context, tree, docId(tree), CUSTOM);
+
+        if (folder == null) {
+            folder = create(context, tree, docId(tree),
+                            DocumentsContract.Document.MIME_TYPE_DIR, CUSTOM);
+        }
+        if (folder == null) return false;
+
+        return write(context, new Tree(context, tree, DocumentsContract
+                .getDocumentId(folder)));
+    }
+
+    /**
+     * Whether a granted folder is ES-DE's own.
+     *
+     * A folder that is not is worse than none: the files would be written where
+     * ES-DE will never look and the row would say it had worked. Its own name,
+     * or the {@code custom_systems} folder it always has, is enough to tell.
+     */
+    public static boolean looksLikeEsDe(Context context, Uri tree) {
+        String name = DocumentsContract.getTreeDocumentId(tree);
+
+        return (name != null && name.endsWith("ES-DE"))
+               || child(context, tree, docId(tree), CUSTOM) != null
+               || child(context, tree, docId(tree), "settings") != null;
+    }
+
+    private static boolean write(Context context, Place place) {
+        return findRule(context, place) && system(context, place);
     }
 
     /** {@code <emulator name="ZEDEX">} and the package to start. */
-    private static boolean findRule(Context context, File file) {
-        Document document = read(file, "ruleList");
+    private static boolean findRule(Context context, Place place) {
+        Document document = read(place, RULES, "ruleList");
         if (document == null) return false;
 
         String entry = context.getPackageName() + "/" + ACTIVITY;
@@ -196,12 +254,12 @@ public final class EsDe {
             rule.appendChild(element);
         }
 
-        return write(document, file);
+        return write(document, place, RULES);
     }
 
     /** The {@code zxspectrum} system, with our command first and theirs kept. */
-    private static boolean system(Context context, File file) {
-        Document document = read(file, "systemList");
+    private static boolean system(Context context, Place place) {
+        Document document = read(place, SYSTEMS, "systemList");
         if (document == null) return false;
 
         Element system = null;
@@ -228,7 +286,7 @@ public final class EsDe {
             append(document, system, "platform", SYSTEM);
             append(document, system, "theme", SYSTEM);
             document.getDocumentElement().appendChild(system);
-            return write(document, file);
+            return write(document, place, SYSTEMS);
         }
 
         // A system the user wrote themselves. Add the command if it is not
@@ -238,7 +296,7 @@ public final class EsDe {
             command(document, system, label(context), COMMAND);
         }
 
-        return write(document, file);
+        return write(document, place, SYSTEMS);
     }
 
     /**
@@ -272,31 +330,33 @@ public final class EsDe {
      * A file that exists and cannot be parsed is left alone and reported: it is
      * the user's, and half of a broken XML file is worse than none of ours.
      */
-    private static Document read(File file, String root) {
+    private static Document read(Place place, String name, String root) {
         try {
             DocumentBuilder builder =
                     DocumentBuilderFactory.newInstance().newDocumentBuilder();
 
-            if (file.canRead() && file.length() > 0) {
-                Document document = builder.parse(file);
-                if (!root.equals(document.getDocumentElement().getNodeName())) {
-                    Log.w(TAG, file + " is not a " + root + " file");
-                    return null;
+            try (InputStream in = place.read(name)) {
+                if (in != null) {
+                    Document document = builder.parse(in);
+                    if (!root.equals(document.getDocumentElement().getNodeName())) {
+                        Log.w(TAG, name + " is not a " + root + " file");
+                        return null;
+                    }
+                    return document;
                 }
-                return document;
             }
 
             Document document = builder.newDocument();
             document.appendChild(document.createElement(root));
             return document;
         } catch (Exception e) {
-            Log.w(TAG, "cannot read " + file, e);
+            Log.w(TAG, "cannot read " + name, e);
             return null;
         }
     }
 
-    private static boolean write(Document document, File file) {
-        try (OutputStream out = new FileOutputStream(file)) {
+    private static boolean write(Document document, Place place, String name) {
+        try (OutputStream out = place.write(name)) {
             Transformer transformer = TransformerFactory.newInstance().newTransformer();
             transformer.setOutputProperty(OutputKeys.INDENT, "yes");
             transformer.setOutputProperty(
@@ -304,8 +364,121 @@ public final class EsDe {
             transformer.transform(new DOMSource(document), new StreamResult(out));
             return true;
         } catch (Exception e) {
-            Log.w(TAG, "cannot write " + file, e);
+            Log.w(TAG, "cannot write " + name, e);
             return false;
+        }
+    }
+
+    // --- the two places the files can be -------------------------------------
+
+    /**
+     * Where the two files are, so that everything above this line is the same
+     * whether they are reached by path or through a granted folder.
+     */
+    private interface Place {
+        /** The file's bytes, or null if it is not there yet. */
+        InputStream read(String name) throws Exception;
+
+        /** An empty file of that name, replacing one that was there. */
+        OutputStream write(String name) throws Exception;
+    }
+
+    /** With All files access: ordinary files in ES-DE's own folder. */
+    private static final class Paths implements Place {
+
+        private final File folder;
+
+        Paths(File folder) {
+            this.folder = folder;
+        }
+
+        @Override
+        public InputStream read(String name) throws Exception {
+            File file = new File(folder, name);
+            return file.canRead() && file.length() > 0
+                    ? new FileInputStream(file) : null;
+        }
+
+        @Override
+        public OutputStream write(String name) throws Exception {
+            return new FileOutputStream(new File(folder, name));
+        }
+    }
+
+    /** Without it: documents inside the folder the user pointed at. */
+    private static final class Tree implements Place {
+
+        private final Context context;
+        private final Uri tree;
+        private final String folder;
+
+        Tree(Context context, Uri tree, String folder) {
+            this.context = context;
+            this.tree = tree;
+            this.folder = folder;
+        }
+
+        @Override
+        public InputStream read(String name) throws Exception {
+            Uri file = child(context, tree, folder, name);
+            return file == null ? null
+                    : context.getContentResolver().openInputStream(file);
+        }
+
+        @Override
+        public OutputStream write(String name) throws Exception {
+            Uri file = child(context, tree, folder, name);
+
+            if (file == null) {
+                file = create(context, tree, folder, "text/xml", name);
+                if (file == null) throw new java.io.IOException("cannot make " + name);
+            }
+
+            // "wt" and not "w": a shorter document written over a longer one
+            // would otherwise keep the tail of the old one and parse as neither.
+            return context.getContentResolver().openOutputStream(file, "wt");
+        }
+    }
+
+    // --- the little that the framework makes verbose -------------------------
+
+    private static String docId(Uri tree) {
+        return DocumentsContract.getTreeDocumentId(tree);
+    }
+
+    /** The child of that folder with that name, or null. */
+    private static Uri child(Context context, Uri tree, String parent, String name) {
+        Uri children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, parent);
+        ContentResolver resolver = context.getContentResolver();
+
+        try (Cursor cursor = resolver.query(children, new String[] {
+                DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                DocumentsContract.Document.COLUMN_DISPLAY_NAME}, null, null, null)) {
+            if (cursor == null) return null;
+
+            while (cursor.moveToNext()) {
+                if (name.equals(cursor.getString(1))) {
+                    return DocumentsContract.buildDocumentUriUsingTree(
+                            tree, cursor.getString(0));
+                }
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "cannot look inside " + parent, e);
+        }
+
+        return null;
+    }
+
+    private static Uri create(Context context, Uri tree, String parent,
+                              String mime, String name) {
+        try {
+            return DocumentsContract.createDocument(
+                    context.getContentResolver(),
+                    DocumentsContract.buildDocumentUriUsingTree(tree, parent),
+                    mime, name);
+        } catch (Exception e) {
+            Log.w(TAG, "cannot create " + name, e);
+            return null;
         }
     }
 

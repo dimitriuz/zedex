@@ -497,6 +497,7 @@
     <string name="settings_esde_summary">Nabízet Zedex jako emulátor Spectra v ES-DE</string>
     <string name="esde_done">Přidáno do ES-DE — vyber Zedex v „Alternative emulators“, nebo u jednotlivé hry</string>
     <string name="esde_failed">Do složky ES-DE se nepodařilo zapsat</string>
-    <string name="esde_needs_all_files">ES-DE má svou konfiguraci v kořenovém adresáři společného úložiště, což vyžaduje „Přístup ke všem souborům“. Povol ho a záznam se zapíše.</string>
+    <string name="esde_pick">Zedexu je potřeba jednou ukázat složku ES-DE — tu, která se jmenuje ES-DE a má v sobě custom_systems. Pak už stačí tato položka.</string>
+    <string name="esde_not_esde">To není složka ES-DE. Vyber tu, která se jmenuje ES-DE.</string>
     <string name="esde_no_folder">ES-DE je nainstalované, ale jeho složka není v /storage/emulated/0/ES-DE. Vrať ji tam, nebo záznam přidej ručně.</string>
 </resources>

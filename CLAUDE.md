@@ -274,9 +274,33 @@ expensive to rediscover.
     grant is not persistable, so the game lands in *Open recent…* and can only
     be reopened while ES-DE's grant lives; after that `Recents.forget` drops it,
     which is the existing behaviour for any one-off hand-over.
-  - The row hides itself in the **Play build**: its folder is at the root of
-    shared storage, which needs All files access, and that build does not
-    declare it. ES-DE is not on Google Play either.
+  - **Two ways in, and the second is why this works on Play at all.** With All
+    files access it writes ordinary files; without it the user grants ES-DE's
+    folder through `ACTION_OPEN_DOCUMENT_TREE` and the same code writes
+    documents through the resolver — `EsDe.Place` is the seam, and everything
+    above it is identical. The grant is persisted under `esdeTree`, so the
+    picker appears once; it is tried before asking, and only a lost grant brings
+    it back.
+    - **Do not declare `MANAGE_EXTERNAL_STORAGE` in the Play build to get this.**
+      Play's permitted uses are file managers, document management, backup,
+      anti-virus, search, encryption and device migration — an emulator is none
+      of them — and the policy says to use it only where SAF or MediaStore
+      cannot serve. Undeclared or unapproved use risks the listing and the
+      account. This feature is the proof that SAF serves.
+    - `openOutputStream(uri, "wt")` and not `"w"`: without the truncate a
+      shorter document written over a longer one keeps the tail of the old one
+      and parses as neither.
+    - **Check the folder is ES-DE's before writing into it.** A folder that is
+      not takes both files quite happily and ES-DE never reads them, which would
+      look exactly like success; `looksLikeEsDe` wants the name or one of the
+      folders ES-DE always has, and says so plainly otherwise.
+    - `DocumentsContract.EXTRA_INITIAL_URI` with a document URI for
+      `/storage/emulated/0/ES-DE` opens the picker inside that folder, which
+      turns the pick into one tap. Verified on an emulator.
+  - The data folder is the other half of this and **cannot** be done the same
+    way: Fuse opens ROMs, states and disks by path through stdio, and a tree
+    grant confers no path access outside app-specific directories and public
+    collections. That is why `Documents/Zedex` is the default.
   - **Test it against a real ES-DE**, and read `ES-DE/logs/es_log.txt` — it says
     which configuration files it parsed and expands the launch command, which is
     how "Data: %ROMPROVIDER% expanded: content://org.es_de.frontend.files/..."

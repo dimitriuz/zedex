@@ -242,6 +242,9 @@ ES-DE* writes Zedex into its list of Spectrum emulators — its own entries are
 kept, and the row only appears when ES-DE is installed. Games then launch
 straight from ES-DE into Zedex.
 
+Unless Zedex already has All files access it will ask to be shown ES-DE's folder,
+once; nothing outside that folder is touched.
+
 
 ## Languages
 
@@ -293,20 +296,21 @@ nothing is sent unless you send it.
 ## What the Google Play version does not do
 
 The Play build is the same emulator — same core, same machines, same settings —
-but Play does not allow it two permissions, and three things go with them.
+but Play does not allow it two permissions, and two things go with them.
 
 | | |
 | --- | --- |
 | **Updating itself** | Play updates its own apps, so that build contains neither the code nor the `REQUEST_INSTALL_PACKAGES` permission to install an APK, and *Settings › App › Check for updates* is not there |
 | **Any folder as the data folder** | without All files access the data folder can only be somewhere Android gives an app for free: `Documents/Zedex`, the app's own storage, or `Android/data/…` on internal storage or an SD card. Not `/storage/emulated/0/Zedex`, and there is no *Choose folder…* |
-| **Add to ES-DE** | ES-DE keeps its configuration at the root of shared storage, which needs that same permission, so the row is not shown |
 
-Everything else is identical, including screenshots and recordings reaching your
-gallery — `Pictures/Zedex` needs no permission.
+Everything else is the same, *Add to ES-DE* included — it asks to be shown
+ES-DE's folder once instead of wanting access to everything. Screenshots and
+recordings still reach your gallery; `Pictures/Zedex` needs no permission
+either.
 
-The build from [Releases](https://github.com/dimitriuz/zedex/releases) does all
-three. Either build can be granted nothing at all and still work; the difference
-is only what it may ask for.
+The build from [Releases](https://github.com/dimitriuz/zedex/releases) does both.
+Either build can be granted nothing at all and still work; the difference is only
+what it may ask for.
 
 
 ## Keeping it up to date
