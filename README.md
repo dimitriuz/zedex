@@ -290,17 +290,33 @@ and it goes by your own mail app. Nothing is collected in the background and
 nothing is sent unless you send it.
 
 
+## What the Google Play version does not do
+
+The Play build is the same emulator — same core, same machines, same settings —
+but Play does not allow it two permissions, and three things go with them.
+
+| | |
+| --- | --- |
+| **Updating itself** | Play updates its own apps, so that build contains neither the code nor the `REQUEST_INSTALL_PACKAGES` permission to install an APK, and *Settings › App › Check for updates* is not there |
+| **Any folder as the data folder** | without All files access the data folder can only be somewhere Android gives an app for free: `Documents/Zedex`, the app's own storage, or `Android/data/…` on internal storage or an SD card. Not `/storage/emulated/0/Zedex`, and there is no *Choose folder…* |
+| **Add to ES-DE** | ES-DE keeps its configuration at the root of shared storage, which needs that same permission, so the row is not shown |
+
+Everything else is identical, including screenshots and recordings reaching your
+gallery — `Pictures/Zedex` needs no permission.
+
+The build from [Releases](https://github.com/dimitriuz/zedex/releases) does all
+three. Either build can be granted nothing at all and still work; the difference
+is only what it may ask for.
+
+
 ## Keeping it up to date
 
 The build from Releases here offers to update itself: one question to GitHub when
 the app starts, and if there is a newer release, a note saying so. Say yes and it
 downloads that APK, checks it against the `.sha256` published beside it, and
-checks it against the `.sha256` published beside it, and hands it to Android's
-installer — which will ask you to allow Zedex to install apps, once. *Settings › App › Check for updates* turns the whole thing off.
-
-The version from Google Play does none of this and has no such switch: Play
-updates its own apps, and this build does not contain the code or the permission
-to install anything.
+hands it to Android's installer — which will ask you to allow Zedex to install
+apps, once. *Settings › App › Check for updates* turns the whole thing off. The
+Play build has none of this, as above.
 
 
 ## Not yet
