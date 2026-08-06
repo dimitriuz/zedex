@@ -15,6 +15,7 @@ import dev.ldlab.zedex.menu.ControlsUi;
 import dev.ldlab.zedex.menu.PokesUi;
 import dev.ldlab.zedex.menu.StatesUi;
 import dev.ldlab.zedex.screen.AboutActivity;
+import dev.ldlab.zedex.screen.LibraryActivity;
 import dev.ldlab.zedex.screen.Panels;
 import dev.ldlab.zedex.screen.SettingsActivity;
 import dev.ldlab.zedex.screen.StartPanel;
@@ -91,6 +92,15 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     private static final String TAG = "Zedex";
 
     private static final String PREFS = SettingsActivity.PREFS;
+
+    /**
+     * Which entry of a zip to open, carried alongside the zip's own uri as
+     * the intent's data - a zip entry has no uri of its own that SAF can
+     * address, and a {@code file://} one is refused even to our own activity
+     * with FileUriExposedException. See {@link Media#stageAndOpenEntry} and
+     * docs/LIBRARY.md, "How a game is opened".
+     */
+    public static final String EXTRA_ZIP_ENTRY = "dev.ldlab.zedex.extra.ZIP_ENTRY";
 
 
     private SharedPreferences preferences;
@@ -561,16 +571,30 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         applyFullscreen();
     }
 
-    /** Opens media handed to us by a file manager, or by `am start -a VIEW`. */
+    /**
+     * Opens media handed to us by a file manager, by `am start -a VIEW`, or by
+     * the library - see {@link dev.ldlab.zedex.screen.LibraryActivity}.
+     *
+     * A plain file is the data alone, exactly as it has always worked. An
+     * entry inside a zip carries {@link #EXTRA_ZIP_ENTRY} beside it, since the
+     * data is the archive's own uri and the extra is the one thing it cannot
+     * say by itself: which entry, of however many, is the one to load.
+     */
     private void handleViewIntent(Intent intent) {
         if (intent == null || !Intent.ACTION_VIEW.equals(intent.getAction())) return;
 
         Uri uri = intent.getData();
         if (uri == null) return;
 
+        String inside = intent.getStringExtra(EXTRA_ZIP_ENTRY);
+
         // Safe before Fuse has started: the command simply waits in the queue
         // until the emulation thread drains it.
-        new Thread(() -> media.stageAndOpen(uri)).start();
+        if (inside != null) {
+            new Thread(() -> media.stageAndOpenEntry(uri, inside)).start();
+        } else {
+            new Thread(() -> media.stageAndOpen(uri)).start();
+        }
     }
 
     @Override
@@ -801,8 +825,19 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      * Opens one again. The grant may have gone - a document can be moved,
      * deleted or handed over for one launch only - and then it is dropped from
      * the list rather than sitting there failing.
+     *
+     * An entry of a zip carries {@link Recents.Item#inside}, and goes back
+     * through {@link Media#stageAndOpenEntry} exactly the way it was opened
+     * the first time - {@code item.uri} is the archive there, not the game,
+     * and staging it directly would try to load the zip itself as if it were
+     * one. A plain file has no such entry and takes the path this always did.
      */
     private void openRecent(Recents.Item item) {
+        if (item.inside != null) {
+            new Thread(() -> media.stageAndOpenEntry(item.uri, item.inside)).start();
+            return;
+        }
+
         new Thread(() -> {
             File staged = media.stage(item.uri);
 
@@ -1217,6 +1252,23 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         MenuDrawer menu = new MenuDrawer(this);
 
         menu.setRoot(sheet -> {
+            // Navigation, and the one row here that leaves this screen rather
+            // than acting on the machine or opening a page of it - so it
+            // goes first, above even Open file…, rather than at the foot
+            // among the things reached for rarely. Only when there is a
+            // library to go back to: LibraryActivity is a task of its own,
+            // launchMode="singleInstance" is what stops a second game
+            // standing up a second Fuse core, and Back here is already
+            // spoken for - opening this menu is what it does, since leaving
+            // the app any other way loses the machine's RAM. So the only way
+            // across is an explicit one, and only worth offering to somebody
+            // the library would actually show something to; see
+            // SettingsActivity.startsInLibrary and docs/LIBRARY.md.
+            if (SettingsActivity.startsInLibrary(this, preferences)) {
+                sheet.addItem(getString(R.string.library_title), R.drawable.ic_library,
+                              this::openLibrary);
+            }
+
             sheet.addItem(getString(R.string.menu_open), R.drawable.ic_folder,
                           media::pick);
 
@@ -1257,6 +1309,26 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         });
 
         return menu;
+    }
+
+    /**
+     * Brings the library's own task to the front instead of this one's.
+     *
+     * {@code REORDER_TO_FRONT} rather than starting a fresh instance: the
+     * library is already running in its own task - it is what started this
+     * activity in the first place, or is still sitting where the machine left
+     * it - and reordering brings that forward with whatever folder it was in
+     * still on screen, rather than standing up a second one on top of it.
+     * {@code NEW_TASK} is required to reorder a task this activity is not
+     * itself part of. The machine is untouched: {@link #onPause} pauses it as
+     * it always does when the window is lost, and it is exactly as it was
+     * left when Back reaches it again.
+     */
+    private void openLibrary() {
+        Intent intent = new Intent(this, LibraryActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                       | Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(intent);
     }
 
     // --- pause ---------------------------------------------------------------

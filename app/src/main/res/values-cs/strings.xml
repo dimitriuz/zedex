@@ -339,6 +339,9 @@
     <string name="settings_content_folder">Složka s hrami</string>
     <string name="settings_content_folder_summary">Odkud začíná „Otevřít soubor“</string>
     <string name="settings_content_folder_none">Nenastavena</string>
+    <string name="settings_library">Spouštět v knihovně</string>
+    <string name="settings_library_summary">Otevírat aplikaci u her místo u počítače. Vyžaduje složku s hrami.</string>
+    <string name="settings_library_needs_folder">Nejdřív vyber složku s hrami.</string>
     <string name="settings_states_moved">Uložené stavy přesunuty</string>
 
     <string name="settings_states">Uložené stavy</string>
@@ -508,4 +511,29 @@
     <string name="esde_pick">Zedexu je potřeba jednou ukázat složku ES-DE — tu, která se jmenuje ES-DE a má v sobě custom_systems. Pak už stačí tato položka.</string>
     <string name="esde_not_esde">To není složka ES-DE. Vyber tu, která se jmenuje ES-DE.</string>
     <string name="esde_no_folder">ES-DE je nainstalované, ale jeho složka není v /storage/emulated/0/ES-DE. Vrať ji tam, nebo záznam přidej ručně.</string>
+
+    <string name="library_title">Knihovna</string>
+    <string name="library_tab_browse">Procházet</string>
+    <string name="library_tab_favorites">Oblíbené</string>
+    <string name="library_tab_recents">Nedávné</string>
+    <string name="library_empty">Nic tu, co Spectrum umí otevřít.</string>
+    <string name="library_empty_search">Nic neodpovídá.</string>
+    <string name="library_empty_favorites">Zatím žádné oblíbené. Podrž hru pro přidání do oblíbených.</string>
+    <string name="library_empty_recents">Zatím nic nehráno.</string>
+    <string name="library_no_folder">Vyber složku s hrami k procházení.</string>
+    <string name="library_choose_folder">Vybrat složku…</string>
+    <string name="library_search">Hledat</string>
+    <string name="library_sort">Řadit</string>
+    <string name="library_sort_name">Název</string>
+    <string name="library_sort_date">Datum</string>
+    <string name="library_sort_size">Velikost</string>
+    <string name="library_view_list">Seznam</string>
+    <string name="library_view_grid">Mřížka</string>
+    <string name="library_favorite_add">Přidat do oblíbených</string>
+    <string name="library_favorite_remove">Odebrat z oblíbených</string>
+    <string name="library_unreadable">Ten soubor se nepodařilo přečíst.</string>
+    <string name="library_machine">Počítač</string>
+    <string name="library_play">Hrát</string>
+    <string name="library_nothing_selected">Vyberte hru a zobrazí se, co je o ní známo.</string>
+    <string name="library_up">Nahoru</string>
 </resources>

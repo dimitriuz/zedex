@@ -832,6 +832,165 @@ make.
 Loading a state is not the only way in: a `.szx`, `.z80` or `.sna` opened
 through **Open file…** takes the same path through Fuse.
 
+### The library
+
+`LibraryActivity` is the launcher now: on for a fresh install, it opens on the
+content folder chosen in *Settings › App*, browsable as a list or a grid, with
+folders and `.zip` archives to walk into and a game at the end of it.
+`EmulatorActivity` is still directly startable regardless of any of that -
+`am start -n dev.ldlab.zedex/.EmulatorActivity` is throughout the scripts and
+this document, and the ES-DE hand-off addresses it the same way, neither
+going through an intent filter at all. See `docs/LIBRARY.md` for the design
+and every choice behind it; this is what the code actually does with it.
+
+**The two screens cross over explicitly, and neither disturbs the other's
+task.** Two things that were already true rule out doing this through Back.
+`EmulatorActivity` is `launchMode="singleInstance"`, so it has never been in
+anybody's back stack - that is what stops a second game standing up a second
+Fuse core in one process, and a task of its own is not up for changing to get
+this. And its `onKeyDown` swallows BACK to open its own menu, deliberately: a
+machine is not a page to be backed out of, and a Spectrum put away by
+accident is a Spectrum whose RAM has gone. So each direction is a row of its
+own instead, and neither is a page transition. `openLibrary()` brings the
+library's own task forward with `FLAG_ACTIVITY_REORDER_TO_FRONT`. Its row sits
+at the very **top** of the ☰ sheet, above even *Open file…* - it is the one row
+there that leaves this screen rather than acting on the machine or opening a
+page of it, so it belongs with navigation rather than at the foot among the
+things reached for rarely - and it carries `ic_library` rather than the folder
+icon *Open file…* uses, since the two used to share a picture for two rows that
+mean quite different things now that one of them leaves the screen entirely.
+Offered only when `startsInLibrary` says there is a library to go back to -
+the same question the launcher itself asks, so it never leads nowhere. The
+library's own *Machine* button goes the other way, starting `EmulatorActivity`
+by component with no action and no data, so nothing is loaded and the machine
+comes forward exactly as it was left; opening a *game* is the other thing, and
+that one loads.
+
+**Nothing pauses the machine on the way across, because `onPause` already
+does.** The Android-caused half of *Pausing*, above, fires the moment any
+other activity takes the window: `pausedByAndroid` goes true and
+`FuseNative.setPaused(true)` stops the emulation thread's clock, and lifting
+it again in `onResume` is what lets a return resume by itself rather than
+come back to a stopped machine and a play button every time. A second pause
+laid on top in the library would do exactly that. Measured on an emulator:
+7.4% CPU with the machine in front, 0.0% with the library in front.
+
+**Listing is one `DocumentsContract` cursor, not `DocumentFile.listFiles()`.**
+The latter is one query per child and is famous for it on a folder of any
+size; `Listing.folder` instead asks `buildChildDocumentsUriUsingTree` once
+for the document id, the display name, the mime type, the size and the
+last-modified time in a single cursor, and sorts what comes back with folders
+first. A query that fails, or a null cursor, is thrown onward as an
+`IOException` rather than read as an empty folder - deliberately, because
+under scoped storage a lost grant and a folder with nothing in it look
+exactly alike from here, and the one thing this screen must never do is tell
+somebody their games are gone when the truth is that it cannot ask.
+
+**A zip is entered, not opened.** `Listing.archive` lists its supported
+entries by reading the whole thing with `ZipInputStream`, since there is no
+index to seek an entry by name; opening one does not extract it first and
+hand over a path - the intent carries the *archive's* own uri as its data
+plus `EmulatorActivity.EXTRA_ZIP_ENTRY` naming the entry inside it, because a
+zip entry has no uri of its own that SAF can address and a `file://` one
+throws `FileUriExposedException` even to our own activity.
+`Media.stageAndOpenEntry` is what unpicks that on the way in:
+`Listing.extract` pulls the one entry into the cache, named after a hash of
+the entry's own key - the archive's uri and the path within it together, so
+two files called the same inside two different archives cannot collide - and
+the extracted file is then run through the same `copyAndHash` a picked file
+goes through, which is what makes the md5 the poke database matches on the
+file as distributed inside the zip rather than the zip itself. It reaches
+`Recents` exactly as a plain file does, too: `Recents.Item` gained an
+optional `inside` field, absent on every row a stored list already held
+before this existed - which reads back exactly like a plain file's own
+absent one, so nothing here needed a migration - and the grant taken is the
+*archive's*, since that is the only document SAF actually knows about. The
+name carries the archive alongside the entry, `turbotest.tap — bundle.zip`
+rather than `turbotest.tap` alone, because a bare filename does not say which
+of several archives holding a same-named file this row means. That lets two
+recent entries share one archive uri, which the old one-entry-one-uri
+assumption never had to consider, so dropping one - off the end of the list,
+or because it failed to reopen - checks `Recents.referencedElsewhere` before
+giving the grant back: releasing it regardless would have broken whichever
+sibling entry of the same zip was not the one just dropped.
+
+**`Types` answers three questions, not one.** What Fuse can actually load
+(`openable`), what can be walked into instead of loaded (`archive` - `.zip`,
+for now), and what the library shows at all (`supported`, the two together).
+A fourth list, `forEsDe()`, is deliberately not derived from the other two:
+ES-DE's own extension list carries `.sh`, its convention for a
+shell-launcher, and `.7z`, which it unpacks itself before handing the result
+over, and Fuse opens neither. Showing them as ordinary rows here would look
+exactly like every other supported file and then fail the moment one was
+tapped - precisely the case `supported` exists to keep from happening - so
+the library hides them, and `forEsDe()` keeps its own frozen order, byte
+identical to what `EsDe.EXTENSIONS` has always been, rather than being
+rebuilt from lists that would put `.sh` somewhere else in it.
+
+**A file is selected, not opened; a folder or a zip still opens on the first
+tap.** `EntryAdapter.Callbacks.onOpen` fires for either, and
+`LibraryActivity.isContainer` is what tells them apart - a folder or a zip
+with nothing inside it yet (`entry.inside == null`) is walked into at once,
+through `enter()`, exactly as it always was, while a file becomes `selected`
+and fills the pane beside the list in landscape, or beneath it in portrait -
+reserved whether or not anything is selected, so it never jumps into being
+when the first row is tapped. Its own **Play** button is what starts the
+machine now, not the row: selecting a folder and then pressing something else
+to open it is not what anyone reaches for a folder expecting, so only a game
+gates behind the extra tap, and a d-pad gets the button its own focus can land
+on. What the pane shows today is a name, a size and a date - already known
+while browsing - and an empty cover area sized for what is not there yet: the
+shape is chosen for the pull request after this one, which is meant to fill it
+from ES-DE's own `ES-DE/gamelists/zxspectrum/gamelist.xml` - keyed by path
+relative to the ROM folder - with artwork from
+`ES-DE/downloaded_media/zxspectrum/`. Long-press still favourites, in every
+tab, untouched by any of this.
+
+**The search box is scoped to one listing, and is cleared - along with the
+selection and the keyboard - by anything that changes which listing is
+showing:** entering a folder or a zip, going up, switching tabs, or granting a
+new content folder. Both halves were bugs found on a device rather than
+reasoned out ahead of it. A search that survived walking into a zip went on
+filtering the zip's own contents by whatever text had found the zip in the
+first place, so a zip full of games came back reporting *Nothing here that
+the Spectrum can open* - which was simply untrue, and said nothing about the
+search box still holding the word that had done it; and the keyboard, once
+raised, does not give its focus back on its own, so it sat over the toolbar
+and hid the Up chevron underneath it until something explicitly asked it to
+go, which
+`dismissKeyboard()` now does on every tap that acts on a row - selecting a
+game, walking into a folder or a zip, or going up. A search matching nothing
+has its own empty state, apart from the three that say a folder, the
+favourites list or the recent list has nothing in it at all: those are claims
+about the underlying list, which a filtered view narrowing it to zero would
+otherwise make false.
+
+**Up is a chevron beside the breadcrumb, shown only below the root.** A
+touchscreen has no Back key to reach for, and popping Browse's own stack was
+otherwise invisible from the screen itself. So the chevron, a tap on the path
+label beside it, and the hardware Back key all call the one `popStack()`
+rather than each keeping its own copy of what going up means - which is what
+stops the three from drifting apart on what that is.
+
+**How the launch screen is decided.** `startsInLibrary` is the one question
+everything else asks - the ☰ sheet about its own Library row, and
+`LibraryActivity.onCreate` about itself - and it answers with the `library`
+preference and one thing the preference alone cannot promise: a content
+folder that is still granted, since the grant is revocable from Android's own
+settings independently of the app. Before answering, it runs a migration
+once: the preference defaults to on and stays on for a fresh install, but
+anyone already using the app when the library arrived keeps landing on the
+machine until they turn it on themselves - changing what an update opens on,
+for everyone, without asking, is not a thing to do to somebody who has had it
+one way for a year. The witness for "already had the app" is
+`firstInstallTime != lastUpdateTime` off the package manager, not whether the
+preferences file is empty: a fresh install writes several of its own within
+moments of starting - `setupDone` from the first-run panel, `demoInstalled`
+and `romsElsewhere` from `Storage`, `mediaName` the first time anything is
+opened - so by the time anything asks, `getAll().isEmpty()` is already false,
+and every new install would read as an update and switch the library off for
+everybody it was meant for.
+
 ### Settings
 
 `SettingsActivity` is a plain framework `PreferenceFragment` over the same

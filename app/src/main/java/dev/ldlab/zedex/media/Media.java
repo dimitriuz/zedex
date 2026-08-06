@@ -4,6 +4,8 @@ import dev.ldlab.zedex.EmulatorActivity;
 import dev.ldlab.zedex.FuseNative;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.cheats.PokeDatabase;
+import dev.ldlab.zedex.library.Entry;
+import dev.ldlab.zedex.library.Listing;
 import dev.ldlab.zedex.screen.SettingsActivity;
 import dev.ldlab.zedex.storage.CardImage;
 import dev.ldlab.zedex.storage.Recents;
@@ -253,20 +255,106 @@ public final class Media {
      * hashed, which is what the fingerprints in that database are of.
      */
     public File stage(Uri uri) {
-        File dir = new File(activity.getCacheDir(), MEDIA_DIR);
-        File staged = new File(dir, Storage.displayName(activity, uri));
+        String name = Storage.displayName(activity, uri);
+        File staged;
 
-        if (!dir.isDirectory() && !dir.mkdirs()) {
+        try (InputStream in = activity.getContentResolver().openInputStream(uri)) {
+            if (in == null) throw new IOException("cannot read " + uri);
+            staged = copyAndHash(in, name);
+        } catch (IOException | SecurityException e) {
+            Log.e(TAG, "failed to stage " + uri, e);
             reportOpenFailed();
             return null;
         }
 
+        if (staged == null) {
+            reportOpenFailed();
+            return null;
+        }
+
+        origins.put(staged.getName(), uri);
+        Recents.remember(activity.getContentResolver(), preferences, uri,
+                         staged.getName());
+
+        return staged;
+    }
+
+    /**
+     * Opens one entry from inside a zip - the library's own way of loading a
+     * game, alongside {@link #stageAndOpen} for a plain file. See
+     * docs/LIBRARY.md, "How a game is opened".
+     *
+     * Fuse opens files by path and a zip entry has no path of its own, so it
+     * is extracted to the cache first - see {@link Listing#extract} - and then
+     * staged exactly as a picked file is: copied under its own name and hashed
+     * on the way, so the md5 the poke database matches on is the entry as
+     * distributed inside the zip rather than the zip itself.
+     *
+     * Remembered in {@link Recents} against the <em>archive's</em> uri, with
+     * {@code inside} alongside it - {@link Recents.Item} can say which entry
+     * of an archive it was, so this reaches Recents exactly as a plain file
+     * does; see {@code Recents.remember(ContentResolver, SharedPreferences,
+     * Uri, String, String)}. The name carries the archive's own alongside the
+     * entry's - "turbotest.tap — bundle.zip" rather than "turbotest.tap" alone
+     * - since a bare filename does not say which of several archives holding
+     * the same name this row means. Not recorded as a drive's origin, unlike
+     * {@link #stage}: there is nothing to write a disk back over inside a zip.
+     */
+    public void stageAndOpenEntry(Uri archive, String inside) {
+        String name = inside.substring(inside.lastIndexOf('/') + 1);
+        Entry entry = new Entry(Entry.Kind.FILE, name, archive, inside, -1, 0);
+
+        File extracted;
+        try {
+            extracted = Listing.extract(activity, entry);
+        } catch (IOException e) {
+            Log.e(TAG, "cannot extract " + inside + " from " + archive, e);
+            reportOpenFailed();
+            return;
+        }
+
+        File staged;
+        try (InputStream in = new FileInputStream(extracted)) {
+            staged = copyAndHash(in, name);
+        } catch (IOException e) {
+            Log.e(TAG, "cannot stage " + inside, e);
+            reportOpenFailed();
+            return;
+        }
+
+        if (staged == null) {
+            reportOpenFailed();
+            return;
+        }
+
+        FuseNative.openFile(staged.getAbsolutePath());
+        host.note(R.string.file_opened, staged.getName());
+        host.opened(Storage.withoutExtension(staged.getName()));
+
+        String archiveName = Storage.displayName(activity, archive);
+        Recents.remember(activity.getContentResolver(), preferences, archive,
+                         name + " — " + archiveName, inside);
+    }
+
+    /**
+     * Copies a stream into the cache under {@code name}, taking its md5 on the
+     * way through - the shared half of {@link #stage} and
+     * {@link #stageAndOpenEntry}, which differ only in where their bytes come
+     * from and what happens once the file is in place.
+     *
+     * @return the staged file, or null if the cache folder itself could not be
+     *         made - reported to the user by whichever caller this was, since
+     *         only it knows which message that is.
+     */
+    private File copyAndHash(InputStream in, String name) throws IOException {
+        File dir = new File(activity.getCacheDir(), MEDIA_DIR);
+        File staged = new File(dir, name);
+
+        if (!dir.isDirectory() && !dir.mkdirs()) return null;
+
         hash = null;
 
-        try (InputStream in = activity.getContentResolver().openInputStream(uri);
-             OutputStream out = new FileOutputStream(staged)) {
-            if (in == null) throw new IOException("cannot read " + uri);
-
+        try (OutputStream out = new FileOutputStream(staged)) {
             MessageDigest md5 = MessageDigest.getInstance("MD5");
             byte[] buffer = new byte[64 * 1024];
             int read;
@@ -279,15 +367,7 @@ public final class Media {
         } catch (NoSuchAlgorithmException e) {
             // MD5 is in every Android; if it were not, the copy still stands.
             Log.e(TAG, "no MD5 on this device", e);
-        } catch (IOException | SecurityException e) {
-            Log.e(TAG, "failed to stage " + uri, e);
-            reportOpenFailed();
-            return null;
         }
-
-        origins.put(staged.getName(), uri);
-        Recents.remember(activity.getContentResolver(), preferences, uri,
-                         staged.getName());
 
         return staged;
     }

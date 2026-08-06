@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 24dp outline, 1.8 stroke, tinted by the row that draws it.
+
+     ic_file's own shape - the corner fold says "one document" - with a zip's
+     stripe of teeth down the middle, since that is the one thing about this
+     file worth drawing before it is even opened: what is inside it is not
+     one game but several. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:pathData="M6,3 h8 l5,5 v13 h-13 z" android:strokeColor="#ffffff"
+        android:strokeWidth="1.8" android:strokeLineCap="round"
+        android:strokeLineJoin="round" android:fillColor="#00000000"/>
+    <path android:pathData="M14,3 v5 h5" android:strokeColor="#ffffff"
+        android:strokeWidth="1.8" android:strokeLineCap="round"
+        android:strokeLineJoin="round" android:fillColor="#00000000"/>
+    <path android:pathData="M11,7 v2 M11,11 v2 M11,15 v2" android:strokeColor="#ffffff"
+        android:strokeWidth="1.8" android:strokeLineCap="round"
+        android:strokeLineJoin="round" android:fillColor="#00000000"/>
+</vector>

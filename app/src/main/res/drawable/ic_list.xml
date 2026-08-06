@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 24dp outline, 1.8 stroke, tinted by the row that draws it. Deliberately
+     not ic_menu's three full-width lines - a row and a bullet each, since this
+     means "rows of things" rather than "the ☰ sheet". -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:pathData="M8,6 h12 M8,12 h12 M8,18 h12" android:strokeColor="#ffffff"
+        android:strokeWidth="1.8" android:strokeLineCap="round"
+        android:strokeLineJoin="round" android:fillColor="#00000000"/>
+    <path android:pathData="M4,6 m-1,0 a1,1 0 1,0 2,0 a1,1 0 1,0 -2,0
+                             M4,12 m-1,0 a1,1 0 1,0 2,0 a1,1 0 1,0 -2,0
+                             M4,18 m-1,0 a1,1 0 1,0 2,0 a1,1 0 1,0 -2,0"
+        android:strokeWidth="0" android:fillColor="#ffffff"/>
+</vector>

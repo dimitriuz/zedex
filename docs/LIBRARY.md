@@ -22,22 +22,46 @@ selected.
 
 ## Decisions
 
-**It is its own activity, and the emulator sits on top of it.** `LibraryActivity`
-becomes the launcher; opening a game starts `EmulatorActivity` over it, and Back
-comes back. That gets the behaviour for free from the back stack: the machine
-pauses when it loses the window — which it already does — so a game is exactly
-where it was left, and nothing about the emulator's lifecycle, orientation
-handling or key routing has to learn about a browser.
+**It is its own activity, and the two cross over explicitly.** `LibraryActivity`
+is the launcher; opening a game starts `EmulatorActivity`. With the library
+switched off the launcher goes straight to the machine, as it does today.
+
+**Back does not carry you between them, and the first draft of this document was
+wrong to say it would.** Two things that were already true stop it, and both are
+right:
+
+- `EmulatorActivity` is `android:launchMode="singleInstance"`, so it lives in a
+  task of its own and has never been in anybody's back stack. That is what
+  makes a second game reuse the one instance — two of them would be two Fuse
+  cores in one process — and it is not up for changing.
+- Its `onKeyDown` swallows BACK to open its own menu, deliberately: a machine is
+  not a page to be backed out of, and a Spectrum put away by accident is a
+  Spectrum whose RAM has gone.
+
+So each direction is a row of its own, and neither disturbs the other's task:
 
 ```
-launcher → LibraryActivity
-                ↓ open game
-         EmulatorActivity
-                ↑ Back — machine paused, still loaded
+LibraryActivity  ──  open a game  ─────────→  EmulatorActivity
+      (task A)                                     (task B)
+                 ←──  ☰ › Library  ──────────
+                 ──   ⌗ Machine   ─────────→
 ```
 
-With the library switched off the launcher goes straight to the machine, as it
-does today.
+- **☰ › Library**, in the emulator's sheet, brings the library's task forward.
+  Shown only when the library is in use — it asks `startsInLibrary`, the same
+  one question the launcher asks — so it never leads nowhere.
+- **The Machine action** in the library's bar starts `EmulatorActivity` by
+  component with **no action and no data**, so nothing is loaded and the machine
+  comes forward exactly as it was left. Opening a *game* is the other thing, and
+  it loads.
+
+**Nothing needs to pause the machine on the way across.** `EmulatorActivity`'s
+`onPause` already sets `pausedByAndroid` and calls `FuseNative.setPaused(true)`,
+so emulation stops the moment the library takes the window. It stops there
+deliberately: Android's pause and the user's own are kept apart, and only the
+user's survives coming back, so the machine resumes by itself on return. A
+second pause laid on top would mean coming back to a stopped machine and a play
+button, every time.
 
 **On for new installs, off for updates.** A fresh install starts in the library;
 anyone updating from 1.3.1 keeps landing on the machine until they turn it on.

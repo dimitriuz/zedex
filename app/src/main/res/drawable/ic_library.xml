@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 24dp outline, 1.8 stroke, tinted by the row that draws it.
+
+     Three books standing on a shelf, at different heights - the library
+     screen, not a folder: ic_folder already means Open file… and the Files
+     group, and this must not read as the same thing they do. Also its own
+     shape beside ic_grid's four even tiles and ic_bookmark's single ribbon,
+     which are already in the bar and the tabs. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:pathData="M3,20 h18" android:strokeColor="#ffffff"
+        android:strokeWidth="1.8" android:strokeLineCap="round"
+        android:strokeLineJoin="round" android:fillColor="#00000000"/>
+    <path android:pathData="M5,20 v-11 h4 v11" android:strokeColor="#ffffff"
+        android:strokeWidth="1.8" android:strokeLineCap="round"
+        android:strokeLineJoin="round" android:fillColor="#00000000"/>
+    <path android:pathData="M11,20 v-15 h4 v15" android:strokeColor="#ffffff"
+        android:strokeWidth="1.8" android:strokeLineCap="round"
+        android:strokeLineJoin="round" android:fillColor="#00000000"/>
+    <path android:pathData="M17,20 v-8 h4 v8" android:strokeColor="#ffffff"
+        android:strokeWidth="1.8" android:strokeLineCap="round"
+        android:strokeLineJoin="round" android:fillColor="#00000000"/>
+</vector>

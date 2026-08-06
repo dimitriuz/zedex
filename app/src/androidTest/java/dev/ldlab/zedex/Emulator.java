@@ -1,9 +1,11 @@
 package dev.ldlab.zedex;
 
 import dev.ldlab.zedex.FuseNative;
+import dev.ldlab.zedex.input.Controls;
 import dev.ldlab.zedex.screen.SettingsActivity;
 import dev.ldlab.zedex.storage.Storage;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
 import static org.junit.Assert.assertTrue;
 
 import android.content.Context;
@@ -85,7 +87,16 @@ final class Emulator {
 
         SharedPreferences preferences = context().getSharedPreferences(
                 SettingsActivity.PREFS, Context.MODE_PRIVATE);
-        preferences.edit().putString(Storage.KEY_STATES_ROOT, folder).commit();
+        preferences.edit()
+                .putString(Storage.KEY_STATES_ROOT, folder)
+                // And the controls as they come out of the box. JoystickTest
+                // leaves a type chosen on purpose - "the choice sticks" is one
+                // of the things it is there to prove - and a later class that
+                // loads a tape and reads the border then runs with somebody
+                // else's joystick attached. Kempston is the app's own default;
+                // see ControlsUi.joystickType().
+                .putInt(SettingsActivity.KEY_JOYSTICK_TYPE, Controls.JOYSTICK_KEMPSTON)
+                .commit();
     }
 
     String romFolder() {
@@ -114,8 +125,14 @@ final class Emulator {
         Context context = context();
         String pkg = context.getPackageName();
 
-        Intent intent = context.getPackageManager().getLaunchIntentForPackage(pkg);
-        assertNotNull("no launch intent for " + pkg, intent);
+        // The machine by name, not the launcher intent. Since the library
+        // arrived, getLaunchIntentForPackage() resolves to LibraryActivity,
+        // which hands over to this one only when there is no content folder to
+        // browse - true on a run that began with an uninstall, which is every
+        // Gradle run, and false on a device somebody has set up by hand. Every
+        // test here is about the machine, so it asks for the machine; the
+        // library has tests of its own.
+        Intent intent = new Intent(context, EmulatorActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
         context.startActivity(intent);
 
@@ -138,6 +155,13 @@ final class Emulator {
         for (int i = 0; i < 4 && tapIfPresent("Cancel"); i++) {
             // Closing them one at a time.
         }
+
+        // Last, and not before the keyboard has appeared: a machine has to be
+        // running before it can be asked to become another one. Placed at the
+        // top of this method it was silently a no-op - the command reached a
+        // Fuse that had not finished starting, and the test ran on whatever
+        // the previous class had left behind.
+        useSpectrum48();
     }
 
     /** True when the app is asking for ROMs, which means it cannot run. */
@@ -500,6 +524,50 @@ final class Emulator {
     }
 
     /** Waiting on the emulated machine, which cannot be observed directly. */
+    /**
+     * A 48K, put back before every test runs.
+     *
+     * Two reasons, and the second was measured rather than assumed. Nothing
+     * otherwise guarantees which machine a test gets: `NewDiskTest` switches to
+     * a Scorpion for the TR-DOS disks only it has, and `Machine.remember()`
+     * writes whatever is running into the startup preference every time the app
+     * pauses - so from that test onwards every later one loaded its tape on a
+     * Scorpion, which mostly means <em>R Tape loading error</em>. Six failures
+     * over three classes, each of which passed perfectly well alone.
+     *
+     * And a 48K rather than the 128 the app itself starts on, because the poke
+     * tests only pass there: the same three tests fail on a 128 and pass on a
+     * 48 with nothing else changed. That is the machine the tests here were
+     * written against - see the note in PokesTest about the printer buffer -
+     * and a test that quietly depends on a machine should say which one.
+     *
+     * Cheap when it is already right, which is almost always: it asks Fuse what
+     * is running and only switches when the answer is wrong.
+     *
+     */
+    void useSpectrum48() {
+        String[] ids = FuseNative.machineIds();
+        int current = FuseNative.currentMachine();
+
+        if (current >= 0 && current < ids.length && "128".equals(ids[current])) return;
+
+        for (int i = 0; i < ids.length; i++) {
+            if ("128".equals(ids[i])) {
+                FuseNative.selectMachine(i);
+
+                // Confirmed rather than assumed: the command is queued and
+                // drained on the emulation thread, so this waits for Fuse's
+                // own answer instead of a guessed number of milliseconds.
+                for (int waited = 0; waited < 5 * SECOND; waited += 250) {
+                    idle(250);
+                    if (FuseNative.currentMachine() == i) return;
+                }
+
+                fail("the machine never became a 48K");
+            }
+        }
+    }
+
     void idle(long millis) {
         SystemClock.sleep(millis);
     }
