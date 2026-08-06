@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    One row in the list shape: an icon for what it is, and its name - see
-    library/ui/EntryAdapter.java. No second line any more: the pane already
-    says the size and the date for whatever is selected, and a folder of a
-    couple of thousand tapes needs the room a second line on every one of
-    them costs more than it needs the line itself.
+    One row in the list shape: a small picture for what it is, and its name -
+    see library/ui/EntryAdapter.java. No second line any more: the pane
+    already says the size and the date for whatever is selected, and a folder
+    of a couple of thousand tapes needs the room a second line on every one
+    of them costs more than it needs the line itself.
 
     40dp rather than Material's 48dp single-line spec: that figure is about a
     *touch* target on a phone held one-handed, and here the whole row is
@@ -13,6 +13,11 @@
     in this folder run long ("Aliens Neoplasma II v1.6 EN 128K
     (2024)(Sinc LAIR).tap"), and a step smaller fits more of one before the
     ellipsis, on top of fitting more rows on screen at once.
+
+    The icon has no android:tint here any more - EntryAdapter applies and
+    clears it in code, since this same view shows a scraped picture in place
+    of the type icon once one resolves, and a picture must not come out
+    tinted the muted grey a vector icon is.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -31,7 +36,7 @@
         android:id="@+id/icon"
         android:layout_width="20dp"
         android:layout_height="20dp"
-        android:tint="#8b8b99"
+        android:scaleType="centerCrop"
         android:contentDescription="@null" />
 
     <TextView

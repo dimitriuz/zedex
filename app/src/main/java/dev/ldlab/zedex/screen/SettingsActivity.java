@@ -12,6 +12,10 @@ import dev.ldlab.zedex.machine.Border;
 import dev.ldlab.zedex.machine.Filter;
 import dev.ldlab.zedex.media.Media;
 import dev.ldlab.zedex.frontend.EsDe;
+import dev.ldlab.zedex.library.meta.Artwork;
+import dev.ldlab.zedex.library.meta.EsdeLink;
+import dev.ldlab.zedex.library.meta.Meta;
+import dev.ldlab.zedex.library.meta.Metadata;
 import dev.ldlab.zedex.storage.Storage;
 import dev.ldlab.zedex.update.Updater;
 import dev.ldlab.zedex.view.EmulatorLayout;
@@ -43,7 +47,10 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.File;
+import java.io.IOException;
+import java.text.DateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -141,6 +148,13 @@ public class SettingsActivity extends AppCompatActivity
      * whatever the user has since chosen.
      */
     public static final String KEY_LIBRARY_MIGRATED = "libraryMigrated";
+    /**
+     * Whether the library shows the name ES-DE scraped rather than the
+     * filename - see docs/LIBRARY.md, "The list shows the scraped name".
+     * Written here by a plain SwitchPreferenceCompat and read by
+     * LibraryActivity; this screen never reads it back.
+     */
+    public static final String KEY_LIBRARY_NAMES = "libraryNames";
     /* How big the picture is drawn, one per orientation: the number of device
        pixels per emulated pixel, or "0" to fill the space. Stored as strings
        because a ListPreference stores strings, and separate because the two
@@ -405,6 +419,8 @@ public class SettingsActivity extends AppCompatActivity
     private static final int REQUEST_DATA_TREE = 3;
     private static final int REQUEST_FIRMWARE = 4;
     private static final int REQUEST_ESDE_TREE = 5;
+    private static final int REQUEST_ESDE_MEDIA_TREE = 6;
+    private static final int REQUEST_ESDE_FOLDER = 7;
 
     /** One tab: what it is called, what it looks like, and what is on it. */
     private static final class Tab {
@@ -418,7 +434,7 @@ public class SettingsActivity extends AppCompatActivity
     }
 
     /**
-     * Six tabs, in the order you would go looking through them.
+     * Seven tabs, in the order you would go looking through them.
      *
      * Twenty-eight preferences in one list was a scroll nobody could hold in
      * their head, and the picture filters alone were ten of it. The tab is now
@@ -426,6 +442,11 @@ public class SettingsActivity extends AppCompatActivity
      * divides something: the picture tab keeps *Filters* and *Display* apart,
      * and *App* holds three unrelated questions - folders, formats, updates.
      * The other four are each one subject and need no headings at all.
+     *
+     * *Library* sits between *Sound* and *App* - after the machine's own
+     * settings, before Zedex's housekeeping, which is what linking to a
+     * frontend's metadata is nearer to. See docs/LIBRARY.md, "The second
+     * pull request: linking to ES-DE".
      *
      * The last tab is *App* rather than *Files* because what is in it is about
      * Zedex and not about a Spectrum. Everything else here is the machine.
@@ -441,6 +462,8 @@ public class SettingsActivity extends AppCompatActivity
                 R.xml.settings_controls),
         new Tab(R.string.settings_tab_sound, R.drawable.ic_sound,
                 R.xml.settings_sound),
+        new Tab(R.string.settings_tab_library, R.drawable.ic_library,
+                R.xml.settings_library),
         new Tab(R.string.settings_tab_app, R.drawable.ic_settings,
                 R.xml.settings_app),
     };
@@ -720,6 +743,42 @@ public class SettingsActivity extends AppCompatActivity
             if (firmware != null) {
                 firmware.setOnPreferenceClickListener(preference -> {
                     pickFirmware();
+                    return true;
+                });
+            }
+
+            // The Library tab. "esde" above is the App tab's row that adds
+            // Zedex to ES-DE's own list of emulators; this one instead reads
+            // ES-DE's list of games back - two different rows, both named
+            // for the same frontend.
+            Preference esdeLink = findPreference("esdeLink");
+            if (esdeLink != null) {
+                esdeLink.setOnPreferenceClickListener(preference -> {
+                    runEsdeLink();
+                    return true;
+                });
+            }
+
+            Preference esdeUnlink = findPreference("esdeUnlink");
+            if (esdeUnlink != null) {
+                esdeUnlink.setOnPreferenceClickListener(preference -> {
+                    confirmUnlink();
+                    return true;
+                });
+            }
+
+            Preference esdeFolder = findPreference("esdeFolder");
+            if (esdeFolder != null) {
+                esdeFolder.setOnPreferenceClickListener(preference -> {
+                    pickEsdeFolderForLink();
+                    return true;
+                });
+            }
+
+            Preference esdeMediaTree = findPreference(EsdeLink.KEY_MEDIA_TREE);
+            if (esdeMediaTree != null) {
+                esdeMediaTree.setOnPreferenceClickListener(preference -> {
+                    pickEsdeMediaFolder();
                     return true;
                 });
             }
@@ -1004,6 +1063,220 @@ public class SettingsActivity extends AppCompatActivity
             report(EsDe.install(getActivity(), tree));
         }
 
+        /**
+         * Whether {@link #runEsdeLink} is still running, so
+         * {@link #updateSummaries} leaves the row's "Linking…" state alone
+         * instead of undoing it on every unrelated preference change - see
+         * {@link #onSharedPreferenceChanged}, which calls it after every one.
+         */
+        private boolean esdeLinking;
+
+        /**
+         * Reads ES-DE's list of games and copies it into our own metadata
+         * store - see docs/LIBRARY.md, "The second pull request: linking to
+         * ES-DE". {@link EsdeLink#read} both reads a file and walks a folder,
+         * so it runs off the UI thread, the same way {@code LibraryActivity}
+         * loads a folder; the result comes back through
+         * {@link Activity#runOnUiThread}.
+         */
+        private void runEsdeLink() {
+            if (esdeLinking) return;
+
+            Activity activity = getActivity();
+            if (activity == null) return;
+
+            esdeLinking = true;
+            Preference link = findPreference("esdeLink");
+            if (link != null) {
+                link.setEnabled(false);
+                link.setSummary(R.string.settings_esde_linking);
+            }
+
+            Context context = activity.getApplicationContext();
+
+            new Thread(() -> {
+                // Checked first, off its own back: EsdeLink.read fails soft
+                // (or, as it comes to throw for this reason too, fails loud
+                // in a way this would otherwise have to tell apart from a
+                // parse error) and either way this is the one question worth
+                // answering before attempting a read at all - see EsDe.reach,
+                // "is it there, and can we read it", asked in one place.
+                boolean reachable = EsDe.reach(context) != null;
+
+                List<Meta> found = null;
+                IOException failure = null;
+                int artwork = 0;
+
+                if (reachable) {
+                    try {
+                        found = EsdeLink.read(context);
+
+                        // Nothing is written unless there is something to
+                        // write: a folder that answered nothing - a lapsed
+                        // grant, ES-DE not actually scraped for this system -
+                        // is a reason to say so, never a reason to replace
+                        // whatever a real link found before it. See the
+                        // status line, which is exactly why this matters:
+                        // stamping a time here would have told the truth
+                        // about the attempt and a lie about the collection.
+                        if (!found.isEmpty()) {
+                            Metadata.replaceAll(context, found);
+
+                            // Off the UI thread along with the read itself: a
+                            // picture is resolved by a SAF query per game,
+                            // same as EsdeLink.read walks ES-DE's gamelist.
+                            for (Meta game : found) {
+                                if (Artwork.picture(context, game.path) != null) artwork++;
+                            }
+                        }
+                    } catch (IOException e) {
+                        failure = e;
+                    }
+                }
+
+                boolean finalReachable = reachable;
+                List<Meta> finalFound = found;
+                IOException finalFailure = failure;
+                int finalArtwork = artwork;
+                activity.runOnUiThread(() -> finishEsdeLink(
+                        finalReachable, finalFound, finalArtwork, finalFailure));
+            }, "zedex-esde-link").start();
+        }
+
+        /**
+         * Back on the UI thread: says what the link found, then settles down.
+         *
+         * Four outcomes, told apart rather than folded together, because they
+         * are different problems with different fixes: ES-DE could not be
+         * reached at all (the folder row above appears for exactly this), it
+         * was reached but has scraped nothing for this system, its gamelist
+         * could not be parsed, or games were found - possibly none showing a
+         * picture yet, which {@link EsdeLink#needsMediaFolder} says apart from
+         * "no pictures were ever scraped".
+         */
+        private void finishEsdeLink(boolean reachable, List<Meta> found,
+                int artwork, IOException failure) {
+            esdeLinking = false;
+            if (!isAdded()) return;
+
+            if (!reachable) {
+                Toast.makeText(getActivity(), R.string.settings_esde_link_unreachable,
+                        Toast.LENGTH_LONG).show();
+            } else if (failure != null) {
+                android.util.Log.w("Zedex", "cannot link ES-DE", failure);
+                Toast.makeText(getActivity(), R.string.settings_esde_link_failed,
+                        Toast.LENGTH_LONG).show();
+            } else if (found.isEmpty()) {
+                Toast.makeText(getActivity(), R.string.settings_esde_link_empty,
+                        Toast.LENGTH_LONG).show();
+            } else if (artwork == 0 && EsdeLink.needsMediaFolder(getActivity())) {
+                Toast.makeText(getActivity(),
+                        getString(R.string.settings_esde_link_done_needs_media, found.size()),
+                        Toast.LENGTH_LONG).show();
+            } else {
+                Toast.makeText(getActivity(),
+                        getString(R.string.settings_esde_link_done, found.size(), artwork),
+                        Toast.LENGTH_LONG).show();
+            }
+
+            updateSummaries();
+        }
+
+        /** Asks first: nothing of the user's own is lost, but it sounds final. */
+        private void confirmUnlink() {
+            new AlertDialog.Builder(getActivity(),
+                    android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                    .setTitle(R.string.settings_esde_unlink_confirm_title)
+                    .setMessage(R.string.settings_esde_unlink_confirm_message)
+                    .setPositiveButton(R.string.settings_esde_unlink, (dialog, which) -> {
+                        Metadata.clear(getActivity());
+                        updateSummaries();
+                        Toast.makeText(getActivity(), R.string.settings_esde_unlink_done,
+                                Toast.LENGTH_SHORT).show();
+                    })
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show();
+        }
+
+        /**
+         * ES-DE's own folder, shown only when {@link EsDe#reach} cannot find
+         * a way in at all - no All files access and no grant yet, which on
+         * the Play build is the only way in there ever is, since that build
+         * cannot hold All files access at all. Hinted and validated exactly
+         * like the App tab's own "Add to ES-DE" row - see {@link
+         * #pickEsDeFolder} and {@link #useEsDeFolder} - but kept apart from
+         * it: that row's job is writing ES-DE's configuration files, and this
+         * one's is only enabling a read, so it stores the grant and retries
+         * the link rather than doing what the other row does.
+         */
+        private void pickEsdeFolderForLink() {
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+            Uri hint = Storage.documentUriFor(new File(
+                    android.os.Environment.getExternalStorageDirectory(), "ES-DE"));
+            if (hint != null) {
+                intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, hint);
+            }
+
+            try {
+                startActivityForResult(intent, REQUEST_ESDE_FOLDER);
+            } catch (android.content.ActivityNotFoundException e) {
+                Toast.makeText(getActivity(), R.string.open_failed,
+                        Toast.LENGTH_LONG).show();
+            }
+        }
+
+        /**
+         * The folder just granted for {@link #pickEsdeFolderForLink}.
+         *
+         * Checked before it is kept, exactly as {@link #useEsDeFolder} checks
+         * its own - a folder that is not really ES-DE's is worse than none,
+         * since {@link EsdeLink} would then just find nothing and say so
+         * rather than explain what actually went wrong. Read only: nothing
+         * reached through this ever writes into ES-DE's folder. Retries the
+         * link immediately once the grant is kept, since fixing that is the
+         * whole reason the row was there.
+         */
+        private void grantEsdeFolder(Uri tree) {
+            if (!EsDe.looksLikeEsDe(getActivity(), tree)) {
+                Toast.makeText(getActivity(), R.string.esde_not_esde,
+                        Toast.LENGTH_LONG).show();
+                return;
+            }
+
+            getActivity().getContentResolver().takePersistableUriPermission(
+                    tree, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+            getPreferenceManager().getSharedPreferences().edit()
+                    .putString(EsDe.KEY_ESDE_TREE, tree.toString()).apply();
+
+            updateSummaries();
+            runEsdeLink();
+        }
+
+        /**
+         * ES-DE's own media folder, only asked for when
+         * {@link EsdeLink#needsMediaFolder} says it is not already inside the
+         * folder we hold a grant for - see docs/LIBRARY.md, "ES-DE's media
+         * folder is not always beside ES-DE". Hinted at ES-DE's own folder
+         * like {@link #pickEsDeFolder}, since the media folder is usually
+         * near it even when it is not inside our content folder.
+         */
+        private void pickEsdeMediaFolder() {
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+            Uri hint = Storage.documentUriFor(new File(
+                    android.os.Environment.getExternalStorageDirectory(), "ES-DE"));
+            if (hint != null) {
+                intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, hint);
+            }
+
+            try {
+                startActivityForResult(intent, REQUEST_ESDE_MEDIA_TREE);
+            } catch (android.content.ActivityNotFoundException e) {
+                Toast.makeText(getActivity(), R.string.open_failed,
+                        Toast.LENGTH_LONG).show();
+            }
+        }
+
         private void pickContentFolder() {
             Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
             try {
@@ -1044,6 +1317,23 @@ public class SettingsActivity extends AppCompatActivity
 
             if (request == REQUEST_ESDE_TREE) {
                 useEsDeFolder(tree);
+                return;
+            }
+
+            if (request == REQUEST_ESDE_FOLDER) {
+                grantEsdeFolder(tree);
+                return;
+            }
+
+            if (request == REQUEST_ESDE_MEDIA_TREE) {
+                // Read only: this folder is just resolved for pictures to
+                // draw, never written to.
+                getActivity().getContentResolver().takePersistableUriPermission(
+                        tree, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+                getPreferenceManager().getSharedPreferences().edit()
+                        .putString(EsdeLink.KEY_MEDIA_TREE, tree.toString()).apply();
+                updateSummaries();
                 return;
             }
 
@@ -1553,6 +1843,64 @@ public class SettingsActivity extends AppCompatActivity
                 library.setEnabled(haveFolder);
                 library.setSummary(haveFolder ? R.string.settings_library_summary
                                               : R.string.settings_library_needs_folder);
+            }
+
+            // The Library tab's own rows - see docs/LIBRARY.md, "The second
+            // pull request: linking to ES-DE".
+            Preference esdeLink = findPreference("esdeLink");
+            if (esdeLink != null && !esdeLinking) {
+                boolean installed = EsDe.installed(getActivity()) != null;
+
+                esdeLink.setEnabled(installed);
+                esdeLink.setSummary(installed
+                        ? R.string.settings_esde_link_summary
+                        : R.string.settings_esde_link_needs_esde);
+            }
+
+            // Shown only when ES-DE is there but EsDe.reach cannot find a way
+            // into its folder at all - the one thing that turned an empty
+            // link into a silent one, and the only row that can fix it from
+            // here, since the media-folder row below asks for something
+            // different.
+            Preference esdeFolder = findPreference("esdeFolder");
+            if (esdeFolder != null) {
+                esdeFolder.setVisible(EsDe.installed(getActivity()) != null
+                        && EsDe.reach(getActivity()) == null);
+            }
+
+            Preference esdeStatus = findPreference("esdeStatus");
+            if (esdeStatus != null) {
+                long when = Metadata.lastLinked(getActivity());
+
+                esdeStatus.setSummary(when == 0
+                        ? getString(R.string.settings_esde_status_never)
+                        : getString(R.string.settings_esde_status_summary,
+                                Metadata.count(getActivity()),
+                                DateFormat.getDateTimeInstance(
+                                        DateFormat.SHORT, DateFormat.SHORT)
+                                        .format(new Date(when))));
+            }
+
+            Preference esdeUnlink = findPreference("esdeUnlink");
+            if (esdeUnlink != null) {
+                esdeUnlink.setEnabled(Metadata.lastLinked(getActivity()) != 0);
+            }
+
+            // Shown only when ES-DE's own media directory is not already
+            // inside the folder we hold a grant for - a row that said "not
+            // needed" would be worse than no row at all.
+            Preference esdeMediaTree = findPreference(EsdeLink.KEY_MEDIA_TREE);
+            if (esdeMediaTree != null) {
+                boolean needed = EsdeLink.needsMediaFolder(getActivity());
+
+                esdeMediaTree.setVisible(needed);
+                if (needed) {
+                    String stored = settings.getString(EsdeLink.KEY_MEDIA_TREE, null);
+                    String described = stored != null ? Storage.describe(stored) : null;
+
+                    esdeMediaTree.setSummary(described != null ? described
+                            : getString(R.string.settings_esde_media_folder_none));
+                }
             }
 
             for (String key : new String[] { KEY_MACHINE, KEY_SPEED, KEY_SNAPSHOT_FORMAT,

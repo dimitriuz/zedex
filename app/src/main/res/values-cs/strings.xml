@@ -283,6 +283,7 @@
     <string name="settings_tab_display">Obraz</string>
     <string name="settings_tab_controls">Ovládání</string>
     <string name="settings_tab_sound">Zvuk</string>
+    <string name="settings_tab_library">Knihovna</string>
     <string name="settings_tab_app">Aplikace</string>
     <string name="settings_group_folders">Složky</string>
     <string name="settings_group_saving">Ukládání</string>
@@ -512,6 +513,32 @@
     <string name="esde_not_esde">To není složka ES-DE. Vyber tu, která se jmenuje ES-DE.</string>
     <string name="esde_no_folder">ES-DE je nainstalované, ale jeho složka není v /storage/emulated/0/ES-DE. Vrať ji tam, nebo záznam přidej ručně.</string>
 
+    <string name="settings_group_esde">ES-DE</string>
+    <string name="settings_esde_link">Propojit s ES-DE</string>
+    <string name="settings_esde_link_summary">Načte seznam her z ES-DE a zkopíruje, co našlo pro ty tvoje</string>
+    <string name="settings_esde_linking">Propojování…</string>
+    <string name="settings_esde_link_done">Nalezeno her: %1$d, s grafikou: %2$d</string>
+    <string name="settings_esde_link_done_needs_media">Nalezeno her: %1$d — níže vyber složku médií ES-DE, aby se zobrazila jejich grafika</string>
+    <string name="settings_esde_link_empty">ES-DE nemá pro tuto složku s obsahem uvedené žádné hry</string>
+    <string name="settings_esde_link_failed">Seznam her ES-DE se nepodařilo přečíst</string>
+    <string name="settings_esde_link_needs_esde">Nainstaluj ES-DE, aby ses s ním mohl propojit</string>
+    <string name="settings_esde_link_unreachable">Nepodařilo se dosáhnout na ES-DE — vyber níže jeho složku</string>
+    <string name="settings_esde_folder">Složka ES-DE</string>
+    <string name="settings_esde_folder_summary">Ukaž jednou složku ES-DE, aby z ní Zedex mohl číst hry</string>
+    <string name="settings_esde_status">Poslední propojení</string>
+    <string name="settings_esde_status_never">Zatím nepropojeno</string>
+    <string name="settings_esde_status_summary">Her: %1$d, propojeno %2$s</string>
+    <string name="settings_esde_unlink">Zrušit propojení</string>
+    <string name="settings_esde_unlink_summary">Zapomene jména a grafiku zkopírované z ES-DE</string>
+    <string name="settings_esde_unlink_confirm_title">Zrušit propojení s ES-DE?</string>
+    <string name="settings_esde_unlink_confirm_message">Tím Zedex zapomene jména a grafiku zkopírované z ES-DE. Nic tvého se neztratí — nové propojení vše vrátí zpět.</string>
+    <string name="settings_esde_unlink_done">Propojení zrušeno</string>
+    <string name="settings_esde_media_folder">Složka médií ES-DE</string>
+    <string name="settings_esde_media_folder_none">Zatím nevybráno — ES-DE má svá média někde, kam Zedex zatím nevidí</string>
+    <string name="settings_group_library_list">Seznam</string>
+    <string name="settings_library_names">Zobrazovat scrapovaná jména</string>
+    <string name="settings_library_names_summary">V seznamu zobrazí jméno, které scraplo ES-DE, a název souboru ponechá v panelu podrobností</string>
+
     <string name="library_title">Knihovna</string>
     <string name="library_tab_browse">Procházet</string>
     <string name="library_tab_favorites">Oblíbené</string>
@@ -535,6 +562,7 @@
     <string name="library_unreadable">Ten soubor se nepodařilo přečíst.</string>
     <string name="library_machine">Počítač</string>
     <string name="library_play">Hrát</string>
+    <string name="library_info">Podrobnosti o hře</string>
     <string name="library_open">Otevřít</string>
     <string name="library_nothing_selected">Vyberte hru a zobrazí se, co je o ní známo.</string>
     <string name="library_up">Nahoru</string>

@@ -283,6 +283,7 @@
     <string name="settings_tab_display">Екран</string>
     <string name="settings_tab_controls">Керування</string>
     <string name="settings_tab_sound">Звук</string>
+    <string name="settings_tab_library">Бібліотека</string>
     <string name="settings_tab_app">Застосунок</string>
     <string name="settings_group_folders">Теки</string>
     <string name="settings_group_saving">Збереження</string>
@@ -512,6 +513,32 @@
     <string name="esde_not_esde">Це не тека ES-DE. Виберіть ту, що називається ES-DE.</string>
     <string name="esde_no_folder">ES-DE встановлено, але його тека не в /storage/emulated/0/ES-DE. Поверніть її туди або додайте запис вручну.</string>
 
+    <string name="settings_group_esde">ES-DE</string>
+    <string name="settings_esde_link">Пов’язати з ES-DE</string>
+    <string name="settings_esde_link_summary">Читає список ігор ES-DE і копіює те, що знайшлося для ваших</string>
+    <string name="settings_esde_linking">Пов’язування…</string>
+    <string name="settings_esde_link_done">Знайдено ігор: %1$d, із зображеннями: %2$d</string>
+    <string name="settings_esde_link_done_needs_media">Знайдено ігор: %1$d — виберіть нижче теку медіа ES-DE, щоб побачити їхні зображення</string>
+    <string name="settings_esde_link_empty">У ES-DE немає ігор для цієї теки вмісту</string>
+    <string name="settings_esde_link_failed">Не вдалося прочитати список ігор ES-DE</string>
+    <string name="settings_esde_link_needs_esde">Встановіть ES-DE, щоб пов’язатися з ним</string>
+    <string name="settings_esde_link_unreachable">Не вдалося дістатися до ES-DE — виберіть нижче його теку</string>
+    <string name="settings_esde_folder">Тека ES-DE</string>
+    <string name="settings_esde_folder_summary">Покажіть теку ES-DE один раз, щоб Zedex міг читати її ігри</string>
+    <string name="settings_esde_status">Останнє пов’язування</string>
+    <string name="settings_esde_status_never">Ще не пов’язано</string>
+    <string name="settings_esde_status_summary">Ігор: %1$d, пов’язано %2$s</string>
+    <string name="settings_esde_unlink">Розв’язати</string>
+    <string name="settings_esde_unlink_summary">Забуває назви та зображення, скопійовані з ES-DE</string>
+    <string name="settings_esde_unlink_confirm_title">Розв’язати з ES-DE?</string>
+    <string name="settings_esde_unlink_confirm_message">Zedex забуде назви та зображення, скопійовані з ES-DE. Нічого вашого не загубиться — повторне пов’язування поверне все назад.</string>
+    <string name="settings_esde_unlink_done">Розв’язано</string>
+    <string name="settings_esde_media_folder">Тека медіа ES-DE</string>
+    <string name="settings_esde_media_folder_none">Ще не вибрано — ES-DE тримає своє медіа десь, куди Zedex поки не бачить</string>
+    <string name="settings_group_library_list">Список</string>
+    <string name="settings_library_names">Показувати назви зі скрапінгу</string>
+    <string name="settings_library_names_summary">Показує у списку назву, яку знайшов скрапінг ES-DE, і залишає назву файлу на панелі подробиць</string>
+
     <string name="library_title">Бібліотека</string>
     <string name="library_tab_browse">Перегляд</string>
     <string name="library_tab_favorites">Обране</string>
@@ -535,6 +562,7 @@
     <string name="library_unreadable">Не вдалося прочитати цей файл.</string>
     <string name="library_machine">Машина</string>
     <string name="library_play">Грати</string>
+    <string name="library_info">Про гру</string>
     <string name="library_open">Відкрити</string>
     <string name="library_nothing_selected">Виберіть гру, щоб побачити, що про неї відомо.</string>
     <string name="library_up">Вгору</string>

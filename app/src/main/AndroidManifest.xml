@@ -70,6 +70,14 @@
             </intent-filter>
         </activity>
 
+        <!-- Everything known about one game, opened from the library's pane -
+             see screen/GameInfoActivity.java. -->
+        <activity
+            android:name=".screen.GameInfoActivity"
+            android:label="@string/library_info"
+            android:theme="@android:style/Theme.DeviceDefault"
+            android:exported="false" />
+
         <activity
             android:name=".EmulatorActivity"
             android:label="@string/app_name"

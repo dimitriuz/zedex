@@ -283,6 +283,7 @@
     <string name="settings_tab_display">Obraz</string>
     <string name="settings_tab_controls">Sterowanie</string>
     <string name="settings_tab_sound">Dźwięk</string>
+    <string name="settings_tab_library">Biblioteka</string>
     <string name="settings_tab_app">Aplikacja</string>
     <string name="settings_group_folders">Foldery</string>
     <string name="settings_group_saving">Zapisywanie</string>
@@ -512,6 +513,32 @@
     <string name="esde_not_esde">To nie jest folder ES-DE. Wybierz ten o nazwie ES-DE.</string>
     <string name="esde_no_folder">ES-DE jest zainstalowany, ale jego folder nie jest w /storage/emulated/0/ES-DE. Przenieś go z powrotem albo dodaj wpis ręcznie.</string>
 
+    <string name="settings_group_esde">ES-DE</string>
+    <string name="settings_esde_link">Połącz z ES-DE</string>
+    <string name="settings_esde_link_summary">Odczytuje listę gier z ES-DE i kopiuje to, co znalazło dla twoich</string>
+    <string name="settings_esde_linking">Łączenie…</string>
+    <string name="settings_esde_link_done">Znalezionych gier: %1$d, z grafiką: %2$d</string>
+    <string name="settings_esde_link_done_needs_media">Znalezionych gier: %1$d — wybierz poniżej folder mediów ES-DE, aby zobaczyć ich grafikę</string>
+    <string name="settings_esde_link_empty">ES-DE nie ma żadnych gier dla tego folderu z zawartością</string>
+    <string name="settings_esde_link_failed">Nie udało się odczytać listy gier ES-DE</string>
+    <string name="settings_esde_link_needs_esde">Zainstaluj ES-DE, aby się z nim połączyć</string>
+    <string name="settings_esde_link_unreachable">Nie udało się dotrzeć do ES-DE — wybierz jego folder poniżej</string>
+    <string name="settings_esde_folder">Folder ES-DE</string>
+    <string name="settings_esde_folder_summary">Wskaż raz folder ES-DE, aby Zedeks mógł odczytać jego gry</string>
+    <string name="settings_esde_status">Ostatnie połączenie</string>
+    <string name="settings_esde_status_never">Jeszcze nie połączono</string>
+    <string name="settings_esde_status_summary">Gier: %1$d, połączono %2$s</string>
+    <string name="settings_esde_unlink">Rozłącz</string>
+    <string name="settings_esde_unlink_summary">Zapomina nazwy i grafikę skopiowane z ES-DE</string>
+    <string name="settings_esde_unlink_confirm_title">Rozłączyć z ES-DE?</string>
+    <string name="settings_esde_unlink_confirm_message">To sprawia, że Zedex zapomina nazwy i grafikę skopiowane z ES-DE. Nic twojego nie ginie — ponowne połączenie przywraca wszystko.</string>
+    <string name="settings_esde_unlink_done">Rozłączono</string>
+    <string name="settings_esde_media_folder">Folder mediów ES-DE</string>
+    <string name="settings_esde_media_folder_none">Jeszcze nie wybrano — ES-DE trzyma swoje media gdzieś, czego Zedeks jeszcze nie widzi</string>
+    <string name="settings_group_library_list">Lista</string>
+    <string name="settings_library_names">Pokazuj zeskrapowane nazwy</string>
+    <string name="settings_library_names_summary">Pokazuje na liście nazwę zeskrapowaną przez ES-DE, a nazwę pliku zachowuje w panelu szczegółów</string>
+
     <string name="library_title">Biblioteka</string>
     <string name="library_tab_browse">Przeglądaj</string>
     <string name="library_tab_favorites">Ulubione</string>
@@ -535,6 +562,7 @@
     <string name="library_unreadable">Nie udało się odczytać tego pliku.</string>
     <string name="library_machine">Maszyna</string>
     <string name="library_play">Graj</string>
+    <string name="library_info">Szczegóły gry</string>
     <string name="library_open">Otwórz</string>
     <string name="library_nothing_selected">Wybierz grę, aby zobaczyć, co o niej wiadomo.</string>
     <string name="library_up">W górę</string>

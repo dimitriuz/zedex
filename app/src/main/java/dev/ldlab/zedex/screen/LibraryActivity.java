@@ -5,6 +5,8 @@ import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.library.Entry;
 import dev.ldlab.zedex.library.Favorites;
 import dev.ldlab.zedex.library.Listing;
+import dev.ldlab.zedex.library.meta.Meta;
+import dev.ldlab.zedex.library.meta.Metadata;
 import dev.ldlab.zedex.library.ui.EntryAdapter;
 import dev.ldlab.zedex.library.ui.GamepadCursor;
 import dev.ldlab.zedex.library.ui.OptionsDialog;
@@ -16,8 +18,11 @@ import dev.ldlab.zedex.view.SafeArea;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
@@ -31,11 +36,14 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupMenu;
 import android.widget.ProgressBar;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.VideoView;
 
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -77,6 +85,14 @@ public final class LibraryActivity extends Activity {
 
     private static final int REQUEST_CONTENT_TREE = 1;
 
+    /** {@code onSaveInstanceState}'s own bundle key for {@link
+     *  #pendingSelectionKey} - deliberately not named {@code KEY_*}: that
+     *  prefix is what {@code scripts/check-prefs.py} watches for to cross
+     *  check a {@code SharedPreferences} read against its write, and a
+     *  {@code Bundle} answers to the same method names that class does
+     *  without being one. */
+    private static final String STATE_SELECTED_KEY = "selectedKey";
+
     /** "list" or "grid"; read with getString always - see CLAUDE.md. */
     private static final String KEY_VIEW = "libraryView";
     private static final String VIEW_LIST = "list";
@@ -99,6 +115,11 @@ public final class LibraryActivity extends Activity {
      *  getBoolean always. Ascending - name A-Z, oldest first, smallest first
      *  - is the default for every field alike, so one flag serves all three. */
     private static final String KEY_SORT_DESC = "librarySortDescending";
+
+    /** Whether a row with a scraped name shows it instead of the filename -
+     *  written by the settings screen's own Library tab, defaulting to true;
+     *  read with getBoolean always. Not this screen's to write. */
+    private static final String KEY_LIBRARY_NAMES = "libraryNames";
 
     private static final int BACKING = 0xff14151a;
     private static final int TEXT = 0xffededf2;
@@ -200,6 +221,14 @@ public final class LibraryActivity extends Activity {
      */
     private Entry selected;
 
+    /** The key {@link #onSaveInstanceState} saved, waiting for the first
+     *  listing this activity loads after being recreated - a rotation, most
+     *  likely, since nothing else about this screen is rebuilt from
+     *  scratch. Not a {@code SharedPreferences} key and never confused for
+     *  one - see {@link #STATE_SELECTED_KEY}. Consumed by {@link
+     *  #applyFilterSort} whether or not it finds a match. */
+    private String pendingSelectionKey;
+
     /**
      * Guards a slow load against answering after a newer one was asked for.
      * Walking into a folder and straight back out again is quicker than a
@@ -209,15 +238,70 @@ public final class LibraryActivity extends Activity {
      */
     private int loadToken;
 
+    /**
+     * Set by {@link #finishLoad}, right where {@link #loaded} is actually
+     * assigned from a completed query - never by anything that calls {@link
+     * #applyFilterSort} without a load behind it, which happens earlier than
+     * it looks like it should: {@code show}'s own {@link #clearSearch} sets
+     * the search field's text to {@code ""}, and setting an
+     * {@code EditText}'s text fires its {@code TextWatcher} synchronously,
+     * so {@code applyFilterSort} runs - with {@link #loaded} still at
+     * whatever it was before, {@code onCreate}'s own field initialiser on a
+     * fresh instance - moments into {@code onCreate}, well before the
+     * background thread {@link #load} started has had any chance to answer.
+     * {@link #applyFilterSort} reads this to tell that call apart from the
+     * real one that follows once the folder actually answers - an empty
+     * {@code shown} on its own cannot tell the two apart, since a genuinely
+     * empty folder or a search that matched nothing looks exactly the same
+     * as a load that has simply not finished yet, and only this flag says
+     * which one it is.
+     */
+    private boolean loadCompleted;
+
     private RecyclerView recycler;
     private EntryAdapter adapter;
     private GamepadCursor padCursor;
+
+    /**
+     * How many columns the grid shape has - recomputed from the recycler's
+     * own measured width by {@link #updateGridSpanCount}, never from the
+     * display's.
+     *
+     * Two until that first happens, which is the fewest the grid ever has:
+     * {@code onCreate} builds the {@code GridLayoutManager} before anything
+     * has been measured, and a first frame at two columns that corrects
+     * itself a moment later is better than one computed from a width the
+     * recycler does not have. See {@link #updateGridSpanCount} for what
+     * asking the display instead cost.
+     */
+    private int gridSpanCount = 2;
+
+    /**
+     * Roughly how wide a grid column should be, in dp.
+     *
+     * Not 100, which is what it was while the tile's picture was a fixed
+     * 100dp tall whatever its width: a tile is 3:4 now, so a 100dp column is
+     * a 133dp tall picture and the grid lost a column and gained height in
+     * the same change - three tiles across a portrait phone where there had
+     * been four, against a screen this user had already asked to be made
+     * more compact. 85 puts the fourth column back and keeps a tile about
+     * the height the old one was.
+     */
+    private static final int GRID_COLUMN_DP = 85;
 
     /** Select or the right stick's own click: the sort field, its direction
      *  and list-or-grid, all in one modal dialog a pad can actually use - see
      *  {@link OptionsDialog}. The toolbar's own sort popup and view button
      *  are untouched and stay the discoverable path for a finger. */
     private OptionsDialog optionsDialog;
+
+    /** {@code Metadata.lastLinked}'s answer as of the last time it was
+     *  checked - see {@link #onResume}. {@code -1} rather than 0 so the very
+     *  first check never mistakes "never linked" for "already known", even
+     *  though the two answer the same either way: a mismatch on a freshly
+     *  built adapter clears a cache that has nothing in it yet. */
+    private long lastLinkedAt = -1;
+
     private TextView pathLabel;
     private ImageButton upButton;
     private TextView emptyLabel;
@@ -233,11 +317,75 @@ public final class LibraryActivity extends Activity {
     // there is none.
     private View paneEmpty;
     private View paneDetails;
+
+    /** The picture, faded in over the empty box's own background once one
+     *  resolves - see {@link #updatePane}. Gone, showing the plain box
+     *  underneath, for anything unscraped. */
+    private ImageView paneCover;
+
+    /** The video, over the same box {@link #paneCover} sits in - see {@link
+     *  #startPaneVideo}. Gone until three seconds after the selection stops
+     *  changing, and only then if one was actually scraped. */
+    private VideoView paneVideo;
+
     private TextView paneTitle;
+
+    /** The filename, under {@link #paneTitle} - shown only when that title
+     *  is a scraped name rather than the filename itself, so "look closely
+     *  and the disk's own name is still there" has somewhere to say it. */
+    private TextView paneFilename;
+
+    /** Developer, publisher and the release year, whichever of the three
+     *  {@link Meta} actually has, one line, joined by the same separator
+     *  {@link EntryAdapter#detail} already uses for size and date. Gone
+     *  rather than empty when none of the three is known. */
+    private TextView paneFacts;
+
     private TextView paneSubtitle;
+
+    /** Scrollable on its own, inside a fixed share of the pane's own height -
+     *  see {@link #buildPane} - so a description that runs to three
+     *  paragraphs, which at least one game's does, scrolls rather than
+     *  pushing {@link #paneActionButton} off the bottom of the screen. Empty
+     *  rather than gone when there is nothing scraped, so the space it holds
+     *  still keeps the button pinned to the foot of the pane exactly as it
+     *  already was before any of this existed. */
+    private ImageButton paneInfoButton;
+
     /** Plays a file, or opens a folder or an archive - see {@link
      *  #updatePane}, which is the one place that decides which. */
     private Button paneActionButton;
+
+    /** Bumped on every {@link #updatePane} call, before anything
+     *  asynchronous is asked for - the same shape {@code EntryAdapter}'s own
+     *  {@code bindToken} is, for the same reason: a picture or a video that
+     *  resolves after the selection has already moved on must be told its
+     *  answer no longer applies. */
+    private int paneToken;
+
+    /** Where {@link #startPaneVideo}'s own three-second wait is scheduled,
+     *  and where it is cancelled from - see {@link #updatePane} and {@link
+     *  #stopPaneVideo}. */
+    private final Handler paneHandler = new Handler(Looper.getMainLooper());
+
+    /** Tags every {@link Handler#postDelayed} this screen schedules for the
+     *  pane's video, so {@link #stopPaneVideo} can cancel whichever one is
+     *  pending without needing to keep the exact {@link Runnable} it was
+     *  scheduled with. */
+    private final Object paneVideoToken = new Object();
+
+    /** How long the cursor has to rest on a row before its video starts -
+     *  long enough that walking through a list does not start a dozen of
+     *  them, short enough to feel like an answer to stopping; see
+     *  docs/LIBRARY.md. */
+    private static final int PANE_VIDEO_DELAY_MS = 3000;
+
+    /** Roughly what the pane's own cover box actually draws, in dp - bigger
+     *  than a row's or a tile's, since the box itself is, but still a
+     *  fraction of a full-size cover; see {@code Scraped#load}'s own note on
+     *  why decoding to a target rather than a picture's full resolution is
+     *  what keeps this from being needlessly slow. */
+    private static final int PANE_TARGET_DP = 240;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -292,13 +440,56 @@ public final class LibraryActivity extends Activity {
             }
         });
 
+        // A rotation recreates this activity outright - see buildPage's own
+        // note on why - and with everything else the pane now shows, losing
+        // the selection to that is a real loss of place rather than the
+        // minor thing it was when the pane held only a filename and a
+        // button. Restored once the first listing loads; see
+        // applyFilterSort.
+        if (state != null) {
+            pendingSelectionKey = state.getString(STATE_SELECTED_KEY);
+        }
+
         pushRoot();
         show(Tab.BROWSE);
+    }
+
+    /**
+     * Saves the selection's own key, if there is one, so a rotation can put
+     * it back - see {@link #pendingSelectionKey} and {@link
+     * #applyFilterSort}. Nothing else about where this screen was - which
+     * tab, which folder - is saved here; {@link #onCreate} always rebuilds
+     * those from the root, same as it already did before any of this.
+     */
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+
+        if (selected != null) outState.putString(STATE_SELECTED_KEY, selected.key());
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+
+        // Cheap - a file stat behind Metadata's own cache - and the one
+        // signal available that a link actually changed something: pressing
+        // Link again is what moves this, never simply coming back here, so
+        // an ordinary return from a game does not pay for a cache it never
+        // needed to lose. A mismatch means every cached name and picture may
+        // now be answering a question that has a different answer - see
+        // EntryAdapter.clearScraped.
+        long linkedAt = Metadata.lastLinked(this);
+        if (linkedAt != lastLinkedAt) {
+            lastLinkedAt = linkedAt;
+            adapter.clearScraped();
+        }
+
+        // Whether a scraped name replaces the filename - the settings
+        // screen's own Library tab is the only thing that writes this, and
+        // it is exactly as liable to have changed since last time as the
+        // folder or the sort is.
+        adapter.setShowScrapedNames(preferences.getBoolean(KEY_LIBRARY_NAMES, true));
 
         // Coming back from a game, from Settings, or from granting the
         // content folder: whichever tab is showing may be stale, and asking
@@ -318,6 +509,12 @@ public final class LibraryActivity extends Activity {
         // Same reasoning, for the dialog's own second GamepadCursor - closing
         // it releases that repeat too, via its own onDismiss.
         optionsDialog.dismiss();
+
+        // A player left running behind the screen is a real leak, and this
+        // screen is exactly the one people leave running - going to the
+        // background is not "the selection changed", but it is still one of
+        // the three times a video must not be left playing.
+        stopPaneVideo();
     }
 
     /** Browse's own way up, and the app's own way out from its root. */
@@ -464,7 +661,7 @@ public final class LibraryActivity extends Activity {
      *           {@code 1} in list mode, where a row is one entry.
      */
     private void moveCursor(int dx, int dy) {
-        int span = grid ? gridSpanCount() : 1;
+        int span = grid ? gridSpanCount : 1;
         moveCursorBy(dx != 0 ? dx : dy * span);
     }
 
@@ -608,7 +805,7 @@ public final class LibraryActivity extends Activity {
                 ? new LinearLayout.LayoutParams(pixels(1), LinearLayout.LayoutParams.MATCH_PARENT)
                 : new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, pixels(1)));
 
-        outer.addView(buildPane(), new LinearLayout.LayoutParams(
+        outer.addView(buildPane(landscape), new LinearLayout.LayoutParams(
                 landscape ? 0 : LinearLayout.LayoutParams.MATCH_PARENT,
                 landscape ? LinearLayout.LayoutParams.MATCH_PARENT : 0, 1f));
 
@@ -633,8 +830,17 @@ public final class LibraryActivity extends Activity {
         FrameLayout content = new FrameLayout(this);
 
         recycler = new RecyclerView(this);
-        recycler.setLayoutManager(grid ? new GridLayoutManager(this, gridSpanCount())
+        recycler.setLayoutManager(grid ? new GridLayoutManager(this, gridSpanCount)
                                        : new LinearLayoutManager(this));
+
+        // The recycler has no width yet - the rail and the pane have not
+        // been measured against it either - so gridSpanCount stays at its
+        // safe default until this fires with a real one, and again whenever
+        // it changes; see updateGridSpanCount.
+        recycler.addOnLayoutChangeListener((v, left, top, right, bottom,
+                oldLeft, oldTop, oldRight, oldBottom) -> {
+            if (right - left != oldRight - oldLeft) updateGridSpanCount();
+        });
 
         adapter = new EntryAdapter(this, new EntryAdapter.Callbacks() {
             @Override
@@ -938,17 +1144,30 @@ public final class LibraryActivity extends Activity {
      * portrait, both a third of the window against the other two thirds
      * {@link #buildMainColumn} takes. See docs/LIBRARY.md's second pull
      * request, "reserved... whether or not anything is selected" being the
-     * whole point of shipping the container before anything fills it.
+     * whole point of shipping the container before anything fills it, and
+     * "linking to ES-DE" for what actually fills it now.
      *
-     * PR 1 knows a name, a size and a date; the cover, the developer and year,
-     * and the description are ES-DE's own {@code gamelist.xml} and
-     * {@code downloaded_media}, scraped in the pull request after this one.
-     * The shapes are built now so that pull request only has to fill them:
-     * a picture area of a sensible aspect for a cover, a title, a subtitle
-     * line - developer and year there, size and date here, since that is
-     * what is known now - and room below for a description that can run long.
+     * The cover box holds {@link #paneCover} and {@link #paneVideo} over a
+     * plain background - see {@link #updatePane} for which of the three is
+     * showing at any moment, always exactly one.
+     *
+     * {@code details} itself is the one thing that differs by shape, and only
+     * in which way it stacks two pieces that are otherwise identical either
+     * way - the cover box, and everything {@link #addPaneDetailViews} adds.
+     * Landscape keeps the tall narrow column this always was: the box on top
+     * at a fixed height, the rest below it. Portrait cannot afford that -
+     * height is the scarce thing there, not width - so the box sits beside
+     * the text instead, both weighted against the pane's own width, 2 to 3,
+     * rather than a dp fixed at design time or a size derived from the
+     * pane's height, which on a strip far wider than it is tall left next to
+     * nothing for the text: a portrait pane is wide, not tall, and it is the
+     * width the box and the text column split, not the height. Either way,
+     * {@link #addPaneDetailViews} puts exactly one weighted child - the
+     * description - among the rest at their natural height, so the
+     * description is what yields to a short pane and {@link
+     * #paneActionButton} is always laid out, never squeezed out of it.
      */
-    private View buildPane() {
+    private View buildPane(boolean landscape) {
         FrameLayout frame = new FrameLayout(this);
 
         TextView empty = new TextView(this);
@@ -962,55 +1181,70 @@ public final class LibraryActivity extends Activity {
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
 
+        FrameLayout coverBox = new FrameLayout(this);
+        coverBox.setBackgroundColor(0x14ffffff);
+
+        // CENTER_INSIDE, where the grid's tiles crop: the pane is the one
+        // place a person looks at the picture rather than past it, and the
+        // box here is nothing like the shape of box art - 322x640 in
+        // portrait, against a cover's own 3:4 - so CENTER_CROP threw away a
+        // third of Ms. Pac-Man's width and cut "FROM ATARISOFT" off the
+        // bottom, while the tile above it in the grid showed the same cover
+        // whole. CENTER_INSIDE also declines to enlarge a small scrape past
+        // its own size, which is the other half of what looked wrong: the
+        // cropped cover was blown up and soft with it. The letterbox this
+        // leaves is the same one paneVideo has always had, so the two now
+        // agree instead of one filling and the other fitting.
+        paneCover = new ImageView(this);
+        paneCover.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+        paneCover.setVisibility(View.GONE);
+        paneCover.setContentDescription(null);
+        coverBox.addView(paneCover, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+
+        paneVideo = new VideoView(this);
+        paneVideo.setVisibility(View.GONE);
+
+        // VideoView keeps the video's own aspect regardless of the bounds
+        // it is given, so in a box taller than it is wide - portrait's own,
+        // sized for a cover - a video shorter than the box is left over
+        // FrameLayout's default gravity, which is the top: the empty space
+        // collects underneath rather than framing the video. Centring it
+        // splits that space evenly instead, which reads as a frame rather
+        // than as something unfinished; the still cover is unaffected,
+        // since CENTER_CROP already fills the box regardless of gravity.
+        FrameLayout.LayoutParams videoParams = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
+        videoParams.gravity = Gravity.CENTER;
+        coverBox.addView(paneVideo, videoParams);
+
         LinearLayout details = new LinearLayout(this);
-        details.setOrientation(LinearLayout.VERTICAL);
         details.setPadding(pixels(16), pixels(16), pixels(16), pixels(16));
 
-        // The cover: empty for now, and a fixed height rather than a measured
-        // aspect ratio, since there is nothing yet whose aspect it would need
-        // to keep. A sensible size for a box's worth of art all the same, so
-        // the next pull request drops a picture in rather than a layout.
-        View cover = new View(this);
-        cover.setBackgroundColor(0x14ffffff);
-        details.addView(cover, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, pixels(160)));
+        if (landscape) {
+            details.setOrientation(LinearLayout.VERTICAL);
+            details.addView(coverBox, new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, pixels(160)));
+            addPaneDetailViews(details);
+        } else {
+            details.setOrientation(LinearLayout.HORIZONTAL);
 
-        paneTitle = new TextView(this);
-        paneTitle.setTextColor(TEXT);
-        paneTitle.setTextSize(16);
-        paneTitle.setMaxLines(3);
-        paneTitle.setEllipsize(TextUtils.TruncateAt.END);
-        paneTitle.setPadding(0, pixels(12), 0, 0);
-        details.addView(paneTitle, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+            // 2 against 3 of the pane's own width - about 40% for the box,
+            // 60% for the text - rather than either a fixed dp or a size
+            // derived from the pane's height: a portrait pane is wide, not
+            // tall, so it is the width the two split, and a weight adapts to
+            // whatever that width actually is without measuring anything.
+            LinearLayout.LayoutParams coverParams = new LinearLayout.LayoutParams(
+                    0, LinearLayout.LayoutParams.MATCH_PARENT, 2f);
+            coverParams.rightMargin = pixels(16);
+            details.addView(coverBox, coverParams);
 
-        // The developer and the year, once the next pull request knows them;
-        // the size and the date, which is what this one does.
-        paneSubtitle = new TextView(this);
-        paneSubtitle.setTextColor(MUTED);
-        paneSubtitle.setTextSize(13);
-        paneSubtitle.setPadding(0, pixels(4), 0, 0);
-        details.addView(paneSubtitle, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        // Room for a description that can run long - Dizzy's runs to three
-        // paragraphs - pushing the Play button to the foot of the pane rather
-        // than leaving it crowding the subtitle. Empty until the next pull
-        // request has something to put in it.
-        View descriptionSpace = new View(this);
-        details.addView(descriptionSpace, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
-
-        // The label is set by updatePane, per selection - a folder or an
-        // archive is what is on screen here, not only a game, so there is
-        // nothing this button can say once and for all.
-        paneActionButton = new Button(this);
-        paneActionButton.setOnClickListener(v -> {
-            if (selected == null) return;
-            if (isContainer(selected)) enter(selected); else openGame(selected);
-        });
-        details.addView(paneActionButton, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+            LinearLayout textColumn = new LinearLayout(this);
+            textColumn.setOrientation(LinearLayout.VERTICAL);
+            addPaneDetailViews(textColumn);
+            details.addView(textColumn, new LinearLayout.LayoutParams(
+                    0, LinearLayout.LayoutParams.MATCH_PARENT, 3f));
+        }
 
         paneDetails = details;
         frame.addView(paneDetails, new FrameLayout.LayoutParams(
@@ -1023,6 +1257,135 @@ public final class LibraryActivity extends Activity {
     }
 
     /**
+     * The title, the filename, the facts line, the size and date, the
+     * description and the action button - the same six views regardless of
+     * shape, added straight into {@code column}: {@code details} itself in
+     * landscape, since that is already the vertical stack that wants them;
+     * a narrower column beside the cover box in portrait, which needs the
+     * exact same weighted description to resolve against its own height
+     * rather than the whole row's. The description is the one weighted
+     * child among these six - see its own comment - so it is always this,
+     * never the button beneath it, that gives way to a short column.
+     */
+    private void addPaneDetailViews(LinearLayout column) {
+        paneTitle = new TextView(this);
+        paneTitle.setTextColor(TEXT);
+        paneTitle.setTextSize(16);
+        paneTitle.setMaxLines(3);
+        paneTitle.setEllipsize(TextUtils.TruncateAt.END);
+        // In landscape this is the gap below the cover box sitting above it;
+        // in portrait, beside it, it is just breathing room at the top of
+        // the column - harmless either way.
+        paneTitle.setPadding(0, pixels(12), 0, 0);
+        column.addView(paneTitle, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        // Gone rather than empty when the title is already the filename -
+        // see updatePane - so "look closely and the disk's own name is
+        // still there" costs no blank line when there is nothing to add to
+        // what the title already says.
+        paneFilename = new TextView(this);
+        paneFilename.setTextColor(MUTED);
+        paneFilename.setTextSize(12);
+        paneFilename.setMaxLines(1);
+        paneFilename.setEllipsize(TextUtils.TruncateAt.MIDDLE);
+        paneFilename.setPadding(0, pixels(2), 0, 0);
+        paneFilename.setVisibility(View.GONE);
+        column.addView(paneFilename, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        // Developer, publisher, year - gone rather than empty when none of
+        // the three is known, which is most of this collection even linked;
+        // see factsLine.
+        paneFacts = new TextView(this);
+        paneFacts.setTextColor(MUTED);
+        paneFacts.setTextSize(13);
+        paneFacts.setPadding(0, pixels(6), 0, 0);
+        paneFacts.setVisibility(View.GONE);
+        column.addView(paneFacts, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        // The size and the date - unconditional, exactly as before any of
+        // this existed.
+        paneSubtitle = new TextView(this);
+        paneSubtitle.setTextColor(MUTED);
+        paneSubtitle.setTextSize(13);
+        paneSubtitle.setPadding(0, pixels(4), 0, 0);
+        column.addView(paneSubtitle, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        // Room for a description that can run long - one game's here runs to
+        // three paragraphs - scrolling inside this fixed share of the
+        // column's height rather than pushing the Play button off the
+        // bottom of the screen. Empty rather than gone when there is nothing
+        // scraped, so this keeps taking up the same space the plain spacer
+        // it replaces always did, and the button stays exactly where it
+        // always was - the one weighted child here, everything else at its
+        // own natural height, so this is what yields on a short pane and
+        // never the button beneath it.
+        // Whatever is left over, and nothing in it. The pane says the few
+        // facts that fit on one line each; a description does not fit on one
+        // line, and the version of this that tried ran out of room in
+        // landscape and squeezed itself down to 26px - a scroll bar with no
+        // room to scroll in. GameInfoActivity is where the long text lives
+        // now, and this spacer is what keeps the buttons at the foot of the
+        // pane rather than floating under the facts.
+        column.addView(new View(this), new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
+
+        LinearLayout actions = new LinearLayout(this);
+        actions.setOrientation(LinearLayout.HORIZONTAL);
+
+        // The label is set by updatePane, per selection - a folder or an
+        // archive is what is on screen here, not only a game, so there is
+        // nothing this button can say once and for all. Always laid out at
+        // its own natural height, whatever above it was squeezed to get
+        // there.
+        paneActionButton = new Button(this);
+        paneActionButton.setOnClickListener(v -> {
+            if (selected == null) return;
+            if (isContainer(selected)) enter(selected); else openGame(selected);
+        });
+        actions.addView(paneActionButton, new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        // Beside Play rather than anywhere in the facts, because it is about
+        // the same game Play is about. Hidden for a folder or an archive,
+        // which have nothing to tell.
+        paneInfoButton = new ImageButton(this);
+        paneInfoButton.setImageResource(R.drawable.ic_zoom);
+        paneInfoButton.setColorFilter(MUTED);
+        paneInfoButton.setBackground(Ripple.make());
+        paneInfoButton.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
+        paneInfoButton.setContentDescription(getString(R.string.library_info));
+        paneInfoButton.setOnClickListener(v -> showGameInfo());
+        actions.addView(paneInfoButton, new LinearLayout.LayoutParams(
+                pixels(48), LinearLayout.LayoutParams.MATCH_PARENT));
+
+        column.addView(actions, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+    }
+
+    /**
+     * Opens {@link GameInfoActivity} for whatever is selected, carrying the
+     * two things it needs to find everything else: the file's own name, and
+     * its path relative to the content tree, which is the key both the
+     * metadata store and the artwork are addressed by. Nothing else travels -
+     * the store is a lookup away on the other side, and passing a parsed
+     * {@link Meta} through an Intent would be a second copy able to go stale.
+     */
+    private void showGameInfo() {
+        if (selected == null || isContainer(selected)) return;
+
+        String relativePath = Metadata.relativePath(this, selected.uri);
+        if (relativePath == null) return;
+
+        startActivity(new Intent(this, GameInfoActivity.class)
+                .putExtra(GameInfoActivity.EXTRA_PATH, relativePath)
+                .putExtra(GameInfoActivity.EXTRA_NAME, selected.name));
+    }
+
+    /**
      * Shows what is known about the selection, or says there is none - the
      * one place that fills the pane, called from every route to a selection
      * there is: a tap, the pad's cursor landing on a row as it moves, a
@@ -1032,8 +1395,18 @@ public final class LibraryActivity extends Activity {
      * routine stop for the cursor, not a rare one reached only by coming back
      * out of it, so a label decided anywhere else would be showing whatever
      * the previous row happened to be by the time this one is looked at.
+     *
+     * The video always stops here, immediately - "stopping when the
+     * selection moves on" is not something to wait three seconds for, only
+     * starting one is - and a fresh three-second wait is scheduled for
+     * whatever is selected now, {@link #paneToken} telling a picture or a
+     * video that resolves after the selection has moved on again not to draw.
      */
     private void updatePane() {
+        int token = ++paneToken;
+
+        stopPaneVideo();
+
         boolean have = selected != null;
 
         paneEmpty.setVisibility(have ? View.GONE : View.VISIBLE);
@@ -1042,9 +1415,148 @@ public final class LibraryActivity extends Activity {
         if (!have) return;
 
         paneTitle.setText(selected.name);
+        paneFilename.setVisibility(View.GONE);
+        paneFacts.setVisibility(View.GONE);
+        paneCover.setVisibility(View.GONE);
         paneSubtitle.setText(EntryAdapter.detail(this, selected));
         paneActionButton.setText(isContainer(selected) ? R.string.library_open
                                                         : R.string.library_play);
+
+        // A folder or an archive has nothing an information screen could say,
+        // and neither has an entry inside a zip, which has no path of its own
+        // for the store to have matched - the same test showGameInfo makes
+        // before it does anything.
+        paneInfoButton.setVisibility(
+                !isContainer(selected) && selected.inside == null ? View.VISIBLE : View.GONE);
+
+        // A folder, an archive, or a file reached from inside a zip has no
+        // path of its own to have been scraped by - see EntryAdapter's own
+        // note on exactly this, which this mirrors.
+        if (isContainer(selected) || selected.inside != null) return;
+
+        String relativePath = Metadata.relativePath(this, selected.uri);
+        if (relativePath == null) return;
+
+        adapter.scraped().load(this, relativePath, pixels(PANE_TARGET_DP), (meta, picture) -> {
+            if (token != paneToken) return; // the selection moved on
+
+            applyPaneMeta(meta);
+
+            if (picture != null) {
+                paneCover.setImageBitmap(picture);
+                paneCover.setVisibility(View.VISIBLE);
+            }
+        });
+
+        paneHandler.postDelayed(() -> startPaneVideoAfterWait(token, relativePath),
+                paneVideoToken, PANE_VIDEO_DELAY_MS);
+    }
+
+    /**
+     * The name, the filename beneath it when the name replaced it, and
+     * developer/publisher/year - everything {@link Scraped#load}'s own
+     * answer can fill in beside the picture, which {@link #updatePane}
+     * applies itself since it alone decides whether the answer arrived in
+     * time to matter.
+     */
+    private void applyPaneMeta(Meta meta) {
+        if (meta != null && meta.name != null && !meta.name.isEmpty()) {
+            paneTitle.setText(meta.name);
+            paneFilename.setText(selected.name);
+            paneFilename.setVisibility(View.VISIBLE);
+        }
+
+        String facts = factsLine(meta);
+        if (facts != null) {
+            paneFacts.setText(facts);
+            paneFacts.setVisibility(View.VISIBLE);
+        }
+
+    }
+
+    /**
+     * Developer, publisher and the release year, joined the same way size
+     * and date already are - {@link EntryAdapter#detail} - skipping whatever
+     * of the three is not known rather than printing an empty label for it.
+     * Null, not empty, when none of the three is - the difference between
+     * "nothing to show" and "a blank line to show" that {@link #paneFacts}'s
+     * own visibility depends on.
+     */
+    private String factsLine(Meta meta) {
+        if (meta == null) return null;
+
+        StringBuilder line = new StringBuilder();
+        appendFact(line, meta.developer);
+        appendFact(line, meta.publisher);
+        appendFact(line, yearOf(meta.released));
+
+        return line.length() > 0 ? line.toString() : null;
+    }
+
+    private static void appendFact(StringBuilder line, String fact) {
+        if (fact == null || fact.isEmpty()) return;
+        if (line.length() > 0) line.append(" · ");
+        line.append(fact);
+    }
+
+    /**
+     * ES-DE writes a release date as {@code "20201218T000000"} - the year
+     * alone, the first four digits, is the only part of that worth showing
+     * here, and a value that does not start with four digits is not
+     * something to guess the rest of; nothing is shown for it rather than a
+     * wrong or half-parsed date.
+     */
+    private static String yearOf(String released) {
+        if (released == null || released.length() < 4) return null;
+
+        String year = released.substring(0, 4);
+        for (int i = 0; i < 4; i++) {
+            if (!Character.isDigit(year.charAt(i))) return null;
+        }
+        return year;
+    }
+
+    /**
+     * The far side of {@link #updatePane}'s own three-second wait: asks for
+     * the video off the UI thread - {@link Scraped#loadVideo} - and only
+     * then, since a resolve is itself a round trip worth doing without
+     * blocking anything, starts it. {@code token} is checked twice for the
+     * same reason a row's own bind token is checked once: the selection can
+     * move on between the wait elapsing and the resolve actually answering,
+     * not only before the wait starts.
+     */
+    private void startPaneVideoAfterWait(int token, String relativePath) {
+        if (token != paneToken) return;
+
+        adapter.scraped().loadVideo(this, relativePath, video -> {
+            if (token != paneToken || video == null) return;
+
+            paneVideo.setVideoURI(video);
+            paneVideo.setOnPreparedListener(mp -> {
+                mp.setVolume(0f, 0f);
+                mp.setLooping(true);
+            });
+            // The picture underneath would otherwise still be technically
+            // visible, the video simply drawn over it - correct either way,
+            // since nothing beneath a video view shows through it, but there
+            // is no reason to leave it marked visible for no one to see.
+            paneCover.setVisibility(View.GONE);
+            paneVideo.setVisibility(View.VISIBLE);
+            paneVideo.start();
+        });
+    }
+
+    /**
+     * Stops and releases whatever the video was doing - playing, still
+     * resolving, or merely scheduled to start - so a selection that has
+     * moved on never keeps one running behind it. {@code VideoView.
+     * stopPlayback} releases the {@code MediaPlayer} underneath itself,
+     * which is the whole of what letting one keep running would leak.
+     */
+    private void stopPaneVideo() {
+        paneHandler.removeCallbacksAndMessages(paneVideoToken);
+        paneVideo.stopPlayback();
+        paneVideo.setVisibility(View.GONE);
     }
 
     // --- tabs and Browse's stack ---------------------------------------------
@@ -1070,10 +1582,14 @@ public final class LibraryActivity extends Activity {
      *
      * Nothing here does any I/O: {@link Listing#root} only builds a Uri, so
      * this is safe on the calling thread, unlike everything {@link #load}
-     * goes on to ask of it.
+     * goes on to ask of it. A picture still resolving for a row from
+     * whatever folder was granted before this call is a different one,
+     * though, and {@link EntryAdapter#forgetPending} is what stops its
+     * answer from landing in a row it no longer has anything to do with.
      */
     private void pushRoot() {
         stack.clear();
+        adapter.forgetPending();
 
         String stored = preferences.getString(Storage.KEY_CONTENT_TREE, null);
         if (stored == null) return;
@@ -1187,6 +1703,7 @@ public final class LibraryActivity extends Activity {
         }
 
         loaded = result;
+        loadCompleted = true;
         applyFilterSort();
     }
 
@@ -1235,6 +1752,30 @@ public final class LibraryActivity extends Activity {
                 selected = match;
                 updatePane();
             }
+        } else if (pendingSelectionKey != null && loadCompleted) {
+            // A rotation - see onSaveInstanceState - restored against the
+            // first listing loaded afterwards, and only that one: matching
+            // against a later reload too would silently select whatever
+            // survived some unrelated change, which is exactly the guessing
+            // at a neighbour this is not meant to do. Consumed whether or
+            // not it found anything, so a folder that no longer has this
+            // row - a favourite removed, a folder changed underneath -
+            // leaves nothing selected rather than trying again forever.
+            //
+            // loadCompleted, not "shown is empty", is what tells that case
+            // apart from this one still waiting to happen: applyFilterSort
+            // runs once already, synchronously, before any of that - show's
+            // own clearSearch sets the search field's text to "", which
+            // fires its TextWatcher on the spot, which calls this - moments
+            // into onCreate and well before the background thread load
+            // started has had any chance to answer. shown is empty on that
+            // call too, for a reason that has nothing to do with the row
+            // being gone, and consuming the key against it - as an earlier
+            // version of this did - throws it away before the real listing
+            // ever arrives. See loadCompleted's own comment.
+            Entry match = findByKey(shown, pendingSelectionKey);
+            pendingSelectionKey = null;
+            if (match != null) select(match);
         }
 
         boolean empty = shown.isEmpty();
@@ -1616,17 +2157,55 @@ public final class LibraryActivity extends Activity {
         preferences.edit().putString(KEY_VIEW, grid ? VIEW_GRID : VIEW_LIST).apply();
 
         updateViewToggle();
-        recycler.setLayoutManager(grid ? new GridLayoutManager(this, gridSpanCount())
+        recycler.setLayoutManager(grid ? new GridLayoutManager(this, gridSpanCount)
                                        : new LinearLayoutManager(this));
         adapter.setGrid(grid);
     }
 
-    /** As many columns as fit at roughly 100dp each, never fewer than two. */
-    private int gridSpanCount() {
-        float density = getResources().getDisplayMetrics().density;
-        int widthDp = Math.round(getResources().getDisplayMetrics().widthPixels / density);
+    /**
+     * Recomputes {@link #gridSpanCount} from the recycler's own measured
+     * width, as many columns as fit at {@link #GRID_COLUMN_DP} each, never
+     * fewer than two. Not the display's width: the recycler never gets the whole
+     * display, since the rail and the pane both take their own share of it
+     * first, and asking the display for it was exactly the bug this
+     * replaced - measured on one landscape device, the display's own 914dp
+     * produced 9 columns for a recycler that was actually 535dp wide, tiles
+     * at 59dp against the 100dp the comment always promised.
+     *
+     * Called from the layout change listener {@link #buildMainColumn}
+     * registers, which is the only thing that knows when the recycler
+     * actually has a width to measure - {@code onCreate} does not, and
+     * building the {@code GridLayoutManager} there uses whatever this field
+     * already holds, correcting itself the moment the real width is known.
+     */
+    private void updateGridSpanCount() {
+        int widthPx = recycler.getWidth();
+        if (widthPx <= 0) return;
 
-        return Math.max(2, widthDp / 100);
+        int widthDp = Math.round(widthPx / getResources().getDisplayMetrics().density);
+        int spanCount = Math.max(2, widthDp / GRID_COLUMN_DP);
+
+        if (spanCount == gridSpanCount) return;
+        gridSpanCount = spanCount;
+
+        if (!grid) return;
+
+        // Posted, and setSpanCount rather than a whole new layout manager,
+        // because this is called from a layout change listener - which runs
+        // *during* the recycler's own layout. Swapping the manager there
+        // detaches every view and asks for a layout that the pass already
+        // under way never delivers, so the grid came up empty on a cold
+        // start and stayed empty: the width becomes known, the span changes
+        // two to four, and the recycler is torn down mid-layout with nothing
+        // to put it back. It looked like a loading failure and was not one -
+        // switching to the list and back rebuilt the manager from an
+        // ordinary callback and everything reappeared, which is what made it
+        // look intermittent.
+        RecyclerView.LayoutManager manager = recycler.getLayoutManager();
+
+        if (manager instanceof GridLayoutManager) {
+            recycler.post(() -> ((GridLayoutManager) manager).setSpanCount(gridSpanCount));
+        }
     }
 
     private void showSortMenu(View anchor) {

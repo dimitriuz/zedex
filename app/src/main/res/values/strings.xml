@@ -316,6 +316,7 @@
     <string name="settings_tab_display">Display</string>
     <string name="settings_tab_controls">Controls</string>
     <string name="settings_tab_sound">Sound</string>
+    <string name="settings_tab_library">Library</string>
     <string name="settings_tab_app">App</string>
     <string name="settings_group_folders">Folders</string>
     <string name="settings_group_saving">Saving</string>
@@ -569,6 +570,41 @@
     <string name="esde_not_esde">That is not ES-DE\u2019s folder. Pick the one called ES-DE.</string>
     <string name="esde_no_folder">ES-DE is installed but its folder is not at /storage/emulated/0/ES-DE. Move it back, or add the entry by hand.</string>
 
+    <!-- Settings: the Library tab, which reads ES-DE's own list of games back
+         rather than adding Zedex to ES-DE's - see settings_esde above for
+         that direction, and docs/LIBRARY.md, "The second pull request:
+         linking to ES-DE" for this one. -->
+    <string name="settings_group_esde">ES-DE</string>
+    <string name="settings_esde_link">Link to ES-DE</string>
+    <string name="settings_esde_link_summary">Read ES-DE’s list of games and copy what it found for yours</string>
+    <string name="settings_esde_linking">Linking…</string>
+    <!-- %1$d is how many games were found, %2$d how many of them have artwork. -->
+    <string name="settings_esde_link_done">%1$d game(s) found, %2$d with artwork</string>
+    <!-- %1$d is how many games were found; none of them can show artwork yet
+         because EsdeLink.needsMediaFolder said so - the row below asks for
+         the folder that would fix it. -->
+    <string name="settings_esde_link_done_needs_media">%1$d game(s) found — pick ES-DE’s media folder below to see their artwork</string>
+    <string name="settings_esde_link_empty">ES-DE has no games listed for this content folder</string>
+    <string name="settings_esde_link_failed">Could not read ES-DE’s list of games</string>
+    <string name="settings_esde_link_needs_esde">Install ES-DE to link to it</string>
+    <string name="settings_esde_link_unreachable">Could not reach ES-DE — pick its folder below</string>
+    <string name="settings_esde_folder">ES-DE’s folder</string>
+    <string name="settings_esde_folder_summary">Show ES-DE’s folder once, so Zedex can read its games</string>
+    <string name="settings_esde_status">Last link</string>
+    <string name="settings_esde_status_never">Not linked yet</string>
+    <!-- %1$d is how many games are linked, %2$s when the link last ran. -->
+    <string name="settings_esde_status_summary">%1$d game(s), linked %2$s</string>
+    <string name="settings_esde_unlink">Unlink</string>
+    <string name="settings_esde_unlink_summary">Forget the names and artwork copied from ES-DE</string>
+    <string name="settings_esde_unlink_confirm_title">Unlink from ES-DE?</string>
+    <string name="settings_esde_unlink_confirm_message">This forgets the names and artwork Zedex copied from ES-DE. Nothing of your own is lost — linking again brings it all back.</string>
+    <string name="settings_esde_unlink_done">Unlinked</string>
+    <string name="settings_esde_media_folder">ES-DE’s media folder</string>
+    <string name="settings_esde_media_folder_none">Not chosen yet — ES-DE keeps its media somewhere Zedex cannot already see</string>
+    <string name="settings_group_library_list">List</string>
+    <string name="settings_library_names">Show scraped names</string>
+    <string name="settings_library_names_summary">Show the name ES-DE scraped in the list, and keep the filename in the details pane</string>
+
     <!-- The library: the content folder, browsable. See docs/LIBRARY.md. -->
     <string name="library_title">Library</string>
     <string name="library_tab_browse">Browse</string>
@@ -604,6 +640,7 @@
          this is not a page to go to, it is there already. -->
     <string name="library_machine">Machine</string>
     <string name="library_play">Play</string>
+    <string name="library_info">Game details</string>
     <!-- The pane's own button, when the selection is a folder or an archive
          rather than a game - see LibraryActivity.updatePane. Matches
          menu_open's own word for the same action, minus its ellipsis: this

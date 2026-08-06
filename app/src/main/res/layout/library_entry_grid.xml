@@ -1,8 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    One tile in the grid shape: a name and an icon by type, nothing scraped -
-    see docs/LIBRARY.md, "whether the grid ... shows anything better" is still
-    open, and this is the answer for now.
+    One tile in the grid shape: a picture filling the tile where ES-DE has
+    scraped one - see docs/LIBRARY.md, "the second pull request: linking to
+    ES-DE" - and the type icon otherwise, exactly as it looked before that
+    existed. See library/ui/EntryAdapter.java.
+
+    The box is an AspectFrame, not a fixed height: 3:4 is the shape of box
+    art, and a tile whose picture kept the shape of whatever the column count
+    left over was cropped by however far that differed - see AspectFrame.
+
+    icon and cover sit in the same frame rather than one replacing the
+    other: cover starts gone and the fallback icon starts showing, so a tile
+    that turns out unscraped - most of them, on any collection that is not
+    entirely under one scraped folder - needs nothing more done to it than
+    staying exactly as it always looked. icon keeps android:tint here, unlike
+    the list row's, since nothing ever draws a real picture into this
+    particular view - cover is what does that, and is never tinted.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -12,12 +25,26 @@
     android:padding="10dp"
     android:foreground="?android:attr/selectableItemBackground">
 
-    <ImageView
-        android:id="@+id/icon"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:tint="#8b8b99"
-        android:contentDescription="@null" />
+    <dev.ldlab.zedex.library.ui.AspectFrame
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <ImageView
+            android:id="@+id/icon"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="center"
+            android:tint="#8b8b99"
+            android:contentDescription="@null" />
+
+        <ImageView
+            android:id="@+id/cover"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:visibility="gone"
+            android:contentDescription="@null" />
+    </dev.ldlab.zedex.library.ui.AspectFrame>
 
     <TextView
         android:id="@+id/title"
