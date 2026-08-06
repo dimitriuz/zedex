@@ -112,11 +112,30 @@ public final class LibraryActivity extends Activity {
      * One level of Browse's own back stack: the folder or zip it is showing,
      * and whether it is a zip - which decides whether {@link #load} asks
      * {@link Listing#folder} or {@link Listing#archive} for its children.
+     *
+     * Also where this listing was left, and what was entered to leave it -
+     * set by {@link #enter} on the level being left, just before a new one is
+     * pushed on top of it, and read back by {@link #popStack} once this level
+     * is on top again. Not final, and not known at construction: a level
+     * carries this about itself only from the moment something below it is
+     * walked into, which for most levels on the stack is never.
      */
     private static final class Level {
         final Uri uri;
         final boolean archive;
         final String name;
+
+        /** The row of this listing that was walked into, so returning here
+         *  can select it again - see {@link Entry#key}. Null until then. */
+        String returnKey;
+
+        /** Where the list was scrolled to when {@code returnKey} was walked
+         *  into: the first visible row and its pixel offset, exactly what
+         *  {@link androidx.recyclerview.widget.LinearLayoutManager
+         *  #scrollToPositionWithOffset} wants back. {@link
+         *  androidx.recyclerview.widget.RecyclerView#NO_POSITION} until set. */
+        int scrollPosition = RecyclerView.NO_POSITION;
+        int scrollOffset;
 
         Level(Uri uri, boolean archive, String name) {
             this.uri = uri;
@@ -133,6 +152,16 @@ public final class LibraryActivity extends Activity {
      * tabs, which are flat lists with nothing to walk into.
      */
     private final List<Level> stack = new ArrayList<>();
+
+    /**
+     * Set by {@link #popStack} just before its own {@link #load}, and read
+     * and cleared by {@link #applyFilterSort} once that load's rows are in
+     * the adapter - the one moment {@link Level#scrollPosition} and {@link
+     * Level#returnKey} can actually be acted on. False for every other
+     * reload - a fresh {@link #enter}, a sort, a search, {@link #onResume} -
+     * so none of those re-applies a scroll a pop already spent.
+     */
+    private boolean restoringPosition;
 
     private String sort = SORT_NAME;
     private boolean sortDescending;
@@ -376,6 +405,11 @@ public final class LibraryActivity extends Activity {
         clearSelection();
         clearSearch();
         dismissKeyboard();
+
+        // The level now on top is the one just left from - see enter() and
+        // captureScroll - so this load's own applyFilterSort should put it
+        // back where it was rather than at the top, once its rows are in.
+        restoringPosition = true;
         load();
         return true;
     }
@@ -976,6 +1010,16 @@ public final class LibraryActivity extends Activity {
         sortEntries(shown);
         adapter.setEntries(shown);
 
+        // Right here, and nowhere later: the adapter has this load's rows
+        // now, which is what scrollToPositionWithOffset needs before it can
+        // find anything to scroll to, and calling it any earlier - before
+        // setEntries, or on an adapter that has not bound them yet - would
+        // scroll a list that still has none. See popStack and captureScroll.
+        if (restoringPosition) {
+            restoringPosition = false;
+            restorePosition(shown);
+        }
+
         // The selection survives a re-sort or the search box narrowing the
         // list, as long as the row it names is still among what is shown -
         // typing a letter that hides it is "the folder changing" in every
@@ -1116,13 +1160,83 @@ public final class LibraryActivity extends Activity {
      * clearing it, the text that found the zip goes on filtering what is
      * inside it, and a zip full of games reads as empty - the very thing this
      * screen exists to avoid saying about a folder that is not.
+     *
+     * The level being left - still the top of {@link #stack} at this point -
+     * remembers {@code entry} and where the list was scrolled to, so {@link
+     * #popStack} can put it back exactly as it was rather than wherever a
+     * folder of hundreds happens to open.
      */
     private void enter(Entry entry) {
+        captureScroll(stack.get(stack.size() - 1), entry.key());
+
         stack.add(new Level(entry.uri, entry.kind == Entry.Kind.ARCHIVE, entry.name));
         clearSelection();
         clearSearch();
         dismissKeyboard();
         load();
+    }
+
+    /**
+     * Remembers, on {@code level}, the row named by {@code returnKey} and the
+     * list's current scroll - the first visible row and its own pixel offset,
+     * which is what {@link LinearLayoutManager#scrollToPositionWithOffset}
+     * takes back. Read from the layout manager rather than tracked as the
+     * user scrolls, since nothing needs it until the moment a level is left;
+     * {@code GridLayoutManager} answers the same calls {@code
+     * LinearLayoutManager} does, span count already folded in, which is why
+     * an index and an offset are enough - a pixel scroll position on its own
+     * would not be, list and grid disagreeing on how tall a row is.
+     */
+    private void captureScroll(Level level, String returnKey) {
+        level.returnKey = returnKey;
+        level.scrollPosition = RecyclerView.NO_POSITION;
+        level.scrollOffset = 0;
+
+        RecyclerView.LayoutManager manager = recycler.getLayoutManager();
+        if (!(manager instanceof LinearLayoutManager)) return;
+
+        LinearLayoutManager linear = (LinearLayoutManager) manager;
+        int position = linear.findFirstVisibleItemPosition();
+        if (position == RecyclerView.NO_POSITION) return;
+
+        View firstView = linear.findViewByPosition(position);
+        level.scrollPosition = position;
+        level.scrollOffset = firstView != null ? firstView.getTop() : 0;
+    }
+
+    /**
+     * The other half of {@link #captureScroll}: selects the row that was
+     * walked into last time this level was left, so the pane shows the very
+     * zip or folder just come out of and a pad's cursor carries on from
+     * there rather than from nothing, and puts the list back where it was
+     * scrolled to - both only if the level is still showing what it did, so
+     * a row that moved or vanished since is not selected by mistake.
+     *
+     * @param shown this load's rows, already filtered and sorted - the same
+     *              list {@link #applyFilterSort} just handed the adapter.
+     */
+    private void restorePosition(List<Entry> shown) {
+        if (stack.isEmpty()) return;
+        Level level = stack.get(stack.size() - 1);
+
+        Entry match = level.returnKey != null ? findByKey(shown, level.returnKey) : null;
+        if (match != null) select(match);
+
+        if (level.scrollPosition == RecyclerView.NO_POSITION) return;
+
+        // The row's own position in what is showing now, rather than the raw
+        // index captureScroll saw - the search box is already empty again by
+        // this point (popStack clears it same as enter does), so a capture
+        // taken while a search narrowed the list would otherwise scroll to
+        // the wrong row of the fuller one now showing. Falls back to the raw
+        // index only if the row itself cannot be found any more - renamed or
+        // removed while this level was not on top.
+        int position = match != null ? shown.indexOf(match) : level.scrollPosition;
+
+        RecyclerView.LayoutManager manager = recycler.getLayoutManager();
+        if (manager instanceof LinearLayoutManager) {
+            ((LinearLayoutManager) manager).scrollToPositionWithOffset(position, level.scrollOffset);
+        }
     }
 
     /**
