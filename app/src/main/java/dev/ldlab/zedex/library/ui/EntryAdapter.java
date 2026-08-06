@@ -121,7 +121,11 @@ public final class EntryAdapter extends RecyclerView.Adapter<EntryAdapter.Holder
 
         holder.icon.setImageResource(iconFor(entry));
         holder.title.setText(entry.name);
-        holder.subtitle.setText(detail(context, entry));
+
+        // Null in the list shape, which dropped its own second line - the
+        // pane already says the size and the date for whatever is selected -
+        // and kept only in the grid tile, which still has the room for one.
+        if (holder.subtitle != null) holder.subtitle.setText(detail(context, entry));
 
         // A tint rather than a state-list drawable, so it sits underneath the
         // ripple - see the layout's own android:foreground - instead of
@@ -205,6 +209,9 @@ public final class EntryAdapter extends RecyclerView.Adapter<EntryAdapter.Holder
     static final class Holder extends RecyclerView.ViewHolder {
         final ImageView icon;
         final TextView title;
+
+        /** Null for the list shape, which has no {@code R.id.subtitle} any
+         *  more; present for the grid tile, which still does. */
         final TextView subtitle;
 
         Holder(View view) {

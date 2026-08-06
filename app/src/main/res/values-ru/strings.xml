@@ -529,11 +529,13 @@
     <string name="library_sort_size">Размер</string>
     <string name="library_view_list">Список</string>
     <string name="library_view_grid">Сетка</string>
+    <string name="library_options_title">Сортировка и вид</string>
     <string name="library_favorite_add">Добавить в избранное</string>
     <string name="library_favorite_remove">Убрать из избранного</string>
     <string name="library_unreadable">Не удалось прочитать этот файл.</string>
     <string name="library_machine">Машина</string>
     <string name="library_play">Играть</string>
+    <string name="library_open">Открыть</string>
     <string name="library_nothing_selected">Выберите игру, чтобы увидеть, что о ней известно.</string>
     <string name="library_up">Вверх</string>
 </resources>

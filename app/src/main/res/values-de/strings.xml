@@ -529,11 +529,13 @@
     <string name="library_sort_size">Größe</string>
     <string name="library_view_list">Liste</string>
     <string name="library_view_grid">Raster</string>
+    <string name="library_options_title">Sortierung &amp; Ansicht</string>
     <string name="library_favorite_add">Zu Favoriten hinzufügen</string>
     <string name="library_favorite_remove">Aus Favoriten entfernen</string>
     <string name="library_unreadable">Diese Datei ließ sich nicht lesen.</string>
     <string name="library_machine">Maschine</string>
     <string name="library_play">Spielen</string>
+    <string name="library_open">Öffnen</string>
     <string name="library_nothing_selected">Wähle ein Spiel, um zu sehen, was darüber bekannt ist.</string>
     <string name="library_up">Nach oben</string>
 </resources>

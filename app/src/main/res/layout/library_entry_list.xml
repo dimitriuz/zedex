@@ -1,16 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    One row in the list shape: an icon for what it is, its name, and whatever
-    of its size and date could be read - see library/ui/EntryAdapter.java.
+    One row in the list shape: an icon for what it is, and its name - see
+    library/ui/EntryAdapter.java. No second line any more: the pane already
+    says the size and the date for whatever is selected, and a folder of a
+    couple of thousand tapes needs the room a second line on every one of
+    them costs more than it needs the line itself.
+
+    40dp rather than Material's 48dp single-line spec: that figure is about a
+    *touch* target on a phone held one-handed, and here the whole row is
+    already the target - the app's own menu rows are not much taller than
+    this. 14sp rather than 15 for the same reason the row shrank: the names
+    in this folder run long ("Aliens Neoplasma II v1.6 EN 128K
+    (2024)(Sinc LAIR).tap"), and a step smaller fits more of one before the
+    ellipsis, on top of fitting more rows on screen at once.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:minHeight="56dp"
-    android:paddingStart="16dp"
-    android:paddingEnd="16dp"
+    android:minHeight="40dp"
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp"
     android:foreground="?android:attr/selectableItemBackground">
     <!-- The ripple is the foreground rather than the background, so the
          selected row's own tint - set in code, on the background - shows
@@ -18,36 +29,19 @@
 
     <ImageView
         android:id="@+id/icon"
-        android:layout_width="28dp"
-        android:layout_height="28dp"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
         android:tint="#8b8b99"
         android:contentDescription="@null" />
 
-    <LinearLayout
+    <TextView
+        android:id="@+id/title"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:orientation="vertical"
-        android:paddingStart="16dp"
-        android:paddingTop="8dp"
-        android:paddingBottom="8dp">
-
-        <TextView
-            android:id="@+id/title"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:maxLines="1"
-            android:ellipsize="middle"
-            android:textSize="15sp"
-            android:textColor="#ededf2" />
-
-        <TextView
-            android:id="@+id/subtitle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:maxLines="1"
-            android:ellipsize="end"
-            android:textSize="12sp"
-            android:textColor="#8b8b99" />
-    </LinearLayout>
+        android:layout_marginStart="14dp"
+        android:maxLines="1"
+        android:ellipsize="middle"
+        android:textSize="14sp"
+        android:textColor="#ededf2" />
 </LinearLayout>

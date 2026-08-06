@@ -590,6 +590,12 @@
     <string name="library_sort_size">Size</string>
     <string name="library_view_list">List</string>
     <string name="library_view_grid">Grid</string>
+    <!-- The title of the modal dialog Select or the right stick's click
+         opens - see library/ui/OptionsDialog.java. Direction is shown as an
+         arrow there rather than as a word, so this is the only string the
+         dialog needs beyond library_sort_name/date/size and
+         library_view_list/grid, which its rows reuse as they are. -->
+    <string name="library_options_title">Sort &amp; view</string>
     <string name="library_favorite_add">Add to favourites</string>
     <string name="library_favorite_remove">Remove from favourites</string>
     <string name="library_unreadable">That file cannot be read.</string>
@@ -598,6 +604,11 @@
          this is not a page to go to, it is there already. -->
     <string name="library_machine">Machine</string>
     <string name="library_play">Play</string>
+    <!-- The pane's own button, when the selection is a folder or an archive
+         rather than a game - see LibraryActivity.updatePane. Matches
+         menu_open's own word for the same action, minus its ellipsis: this
+         is not a page to go to, it is entered directly. -->
+    <string name="library_open">Open</string>
     <string name="library_nothing_selected">Select a game to see what is known about it.</string>
     <!-- The chevron beside the breadcrumb, and the breadcrumb itself: both
          pop Browse's stack by one level, exactly as Back does. -->
