@@ -279,13 +279,25 @@ scripts/fuse-src.sh save                    # commits -> native/patches/*.patch
 ```
 
 `save` refuses while anything is uncommitted, because a patch is made from
-commits and the rest would be silently left out. `reset` throws the tree away
-and builds it again from the series, which is the check that a fresh clone gets
-what this machine has — worth running after any edit to the patches, and it
+commits and the rest would be silently left out. `ensure` - which every build
+runs - compares the tree's own commits with the series and **remakes the tree
+when the series has moved on**, refusing only when the tree holds work the
+series does not; that is what makes a pull, or a cached CI `build-native/`,
+safe. `reset` throws the tree away and builds it again from the series, which
+is the check that a fresh clone gets what this machine has — worth running after any edit to the patches, and it
 also drops the per-ABI build trees, since a file a removed patch reverted comes
 back older than the object built from it and make would keep the object.
 
-Two traps, both of which cost a build that looked fine:
+Three traps, each of which cost a build that looked fine:
+
+- **A tree that is not the current series.** CI caches the whole of
+  `build-native/`, so a run restored a copy of Fuse from before a patch existed
+  and, because `ensure` only asked whether the tree was *there*, never applied
+  it. The cached Fuse objects meant nothing rebuilt and nothing complained; the
+  failure came from `android_bridge.c`, which is always recompiled, calling a
+  function whose declaration was in the missing patch. Hence the comparison in
+  `ensure`, and `native/patches/*.patch` in the workflow's cache key.
+
 
 - **A build tree remembers the source directory it was configured against.** It
   holds no sources of its own, so pointed at the patched tree while configured

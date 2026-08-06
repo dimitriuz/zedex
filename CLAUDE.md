@@ -355,6 +355,17 @@ expensive to rediscover.
     set-app-locales dev.ldlab.zedex.debug --locales pl-PL` is a good way to test
     that path on an emulator whose `persist.sys.locale` SELinux will not let you
     set.
+- **A working tree that is not the current series is the one way this can be
+  silently wrong.** `fuse-src.sh ensure` used to only ask whether the tree
+  *existed*, so CI - which caches the whole of `build-native/` - restored a copy
+  of Fuse from before a patch was added and never applied it. The Fuse objects
+  were cached too, so nothing rebuilt and nothing complained; what failed was
+  `android_bridge.c`, which is always recompiled, calling a function whose
+  declaration was in the patch that was missing. `ensure` now compares the
+  tree's own commits with `native/patches` and remakes it when the series has
+  moved on, refusing only when the tree holds work the series does not. The
+  cache key covers `native/patches/*.patch` as well, so a stale cache is slow
+  rather than a rebuild.
 - **Fuse's perl codegen can leave the source tree's `settings.c` stale.** A
   VPATH build writes the regenerated one into `build-native/fuse/$ABI`, so the
   library gets full `--x` handling while the copy the *patch* would carry has

@@ -57,13 +57,20 @@ runs:
 
     # Restoring these skips the libspectrum and Fuse compiles, which is most
     # of the ~90s. Safe: the script always recompiles native/ and relinks, so
-    # our own changes still land. Keyed on the script, since that is what
-    # decides how the trees are configured.
+    # our own changes still land.
+    #
+    # The key covers everything that decides what those trees contain, and
+    # native/patches is in it because build-native/src is a *patched* copy of
+    # Fuse: a cache from before a patch was added restores a source tree
+    # without it. fuse-src.sh notices that and remakes the tree, so a stale
+    # cache is slow rather than wrong - but it went wrong first, with the
+    # cached tree's machine.h missing a declaration that our own code, which is
+    # always recompiled, had started to use.
     - name: Cache the native build trees
       uses: actions/cache@v6
       with:
         path: build-native
-        key: native-ndk27.0.12077973-${{ hashFiles('scripts/build-native.sh') }}-${{ inputs.abis }}
+        key: native-ndk27.0.12077973-${{ hashFiles('scripts/build-native.sh', 'scripts/fuse-src.sh', 'native/patches/*.patch') }}-${{ inputs.abis }}
 
     - name: Cross-compile
       shell: bash

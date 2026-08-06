@@ -47,8 +47,87 @@ SRC="$BUILD/src/fuse-$FUSE_VER"
 # and this stops one that is not from quietly reaching the outer tree.
 fgit() { git -C "$SRC" -c user.name=Zedex -c user.email=zedex@invalid "$@"; }
 
+# What the tree's own commits would be saved as, normalised: format-patch
+# numbers each subject "[PATCH 2/3]", so a tree two patches deep compared with a
+# series three deep differs on that line and on nothing else.
+series_from_tree() {
+  local out="$1" f
+  rm -rf "$out"; mkdir -p "$out"
+  fgit format-patch --quiet --no-signature --zero-commit \
+      --output-directory "$out" upstream..HEAD
+  for f in "$out"/*.patch; do
+    [ -e "$f" ] || continue
+    sed -i 's/^Subject: \[PATCH [0-9]*\/[0-9]*\]/Subject: [PATCH]/' "$f"
+  done
+}
+
+# ...and the same normalisation for the series in git, so the two are
+# comparable file by file.
+series_from_patches() {
+  local out="$1" p
+  rm -rf "$out"; mkdir -p "$out"
+  shopt -s nullglob
+  for p in "$PATCHES"/*.patch; do
+    sed 's/^Subject: \[PATCH [0-9]*\/[0-9]*\]/Subject: [PATCH]/' \
+        "$p" > "$out/$(basename "$p")"
+  done
+  shopt -u nullglob
+}
+
+# Whether the working tree is the series, is the series with fewer patches
+# applied - somebody pulled new ones - or is something else, which means it
+# holds work that native/patches does not.
+#
+#   same    the tree is exactly the series
+#   behind  the tree is a prefix of it; safe to throw away and remake
+#   ahead   it is not; refuse, because remaking it would lose something
+tree_state() {
+  local mine theirs a b n=0
+  mine="$BUILD/src/.cmp-tree"; theirs="$BUILD/src/.cmp-series"
+
+  [ -n "$( fgit status --porcelain )" ] && { echo ahead; return; }
+
+  series_from_tree "$mine"
+  series_from_patches "$theirs"
+
+  for a in "$mine"/*.patch; do
+    [ -e "$a" ] || break
+    b="$theirs/$(basename "$a")"
+    [ -f "$b" ] && cmp -s "$a" "$b" || { echo ahead; return; }
+    n=$(( n + 1 ))
+  done
+
+  if [ "$n" -eq "$( ls "$theirs"/*.patch 2>/dev/null | wc -l )" ]; then
+    echo same
+  else
+    echo behind
+  fi
+}
+
 ensure() {
-  [ -d "$SRC" ] && return 0
+  if [ -d "$SRC/.git" ]; then
+    case "$( tree_state )" in
+      same)   return 0 ;;
+      behind)
+        echo "=== fuse working tree: native/patches has moved on, remaking it ==="
+        # The per-ABI build trees were made from the old sources and compare
+        # timestamps against them, so they go too. This is what a cached CI
+        # build-native/ needs, and getting it wrong is not a build failure but
+        # a library quietly missing a patch.
+        rm -rf "$SRC" "$BUILD/fuse"
+        ;;
+      ahead)
+        echo "the Fuse working tree holds work that native/patches does not:" >&2
+        fgit status --short >&2
+        fgit log --oneline upstream..HEAD | sed 's/^/  /' >&2
+        echo "run 'scripts/fuse-src.sh save' to keep it, or 'reset' to lose it" >&2
+        exit 1
+        ;;
+    esac
+  elif [ -d "$SRC" ]; then
+    # A tree from before this repository existed, or half a checkout.
+    rm -rf "$SRC" "$BUILD/fuse"
+  fi
 
   [ -f "$TARBALL" ] || {
     echo "no $TARBALL - run scripts/build-native.sh first, which fetches it" >&2
