@@ -142,8 +142,61 @@ worth the small duplication: three tabs from the start settle the layout before
 any artwork arrives, and Recents costs almost nothing because the list is
 already there.
 
-The metadata pane, artwork and video are the second pull request on the same
-branch. Designing the layout with the pane in mind, and shipping without it.
+The metadata pane, artwork and video are the second pull request, on
+`feature/library-metadata`. The layout was designed with the pane in it and
+shipped without its contents.
+
+## The second pull request: linking to ES-DE
+
+The pane gets filled from ES-DE, because the person who has scraped a Spectrum
+collection has almost certainly scraped it there, and asking them to do it twice
+is a poor way to introduce ourselves. Fetching from an API of our own, and
+editing an entry by hand, come after this and are what the store is shaped for.
+
+**A new *Library* tab in Settings owns it**: a Link button, what the last link
+found, and Unlink. The library itself offers it once, quietly, when nothing has
+been linked and ES-DE is installed — a feature only reachable by somebody who
+goes reading the settings tabs is a feature most people never find.
+
+**Matching is by path, and assumes one folder.** ES-DE keys a game by its path
+relative to its own ROM folder — `./GOTY/GOTY 2020 […]/Dizzy VIII.tap` — so when
+the content folder *is* ES-DE's `zxspectrum` folder the two line up exactly,
+subfolders and all. That is the ordinary setup and the only one that can be
+matched without guessing; a folder that does not line up produces no matches
+rather than wrong ones, and says so.
+
+**Metadata is copied; media is not.** A link reads ES-DE's
+`gamelists/zxspectrum/gamelist.xml` and writes our own gamelist-shaped file into
+the data folder, with our own fields alongside ES-DE's. Artwork stays where ES-DE
+put it and is referenced by its path *relative to the media folder*, resolved
+each time it is drawn — so ES-DE re-scraping a game, or replacing its cover,
+needs no re-link, and a picture that has gone is a missing picture rather than a
+broken reference.
+
+**ES-DE's media folder is not always beside ES-DE.** It records the answer in
+`settings/es_settings.xml` as `MediaDirectory`, which lives inside the folder we
+already hold a grant for; empty means the default `downloaded_media` beside it.
+Only when the answer points outside our grant do we ask for that folder, and then
+remember it as a grant of its own.
+
+**Pressing Link again replaces.** What came from ES-DE is written again, games
+that appeared are added, and entries whose games are gone are dropped. Nothing of
+the user's own is at risk yet because nothing is editable yet — and when editing
+arrives, our fields are already kept apart from ES-DE's, which is what the
+separate namespace in the file is for.
+
+**What the pane shows**: the name, the description, developer, publisher and
+year, and one picture — the first of `covers`, `miximages`, `screenshots`,
+`titlescreens` that exists, so a partly scraped collection still looks furnished.
+A scraped **video** plays muted three seconds after the cursor comes to rest, and
+stops when it moves on: long enough that walking through a list does not start a
+dozen of them, short enough to feel like an answer to stopping.
+
+**The list shows the scraped name**, with the filename kept in the pane —
+"Wonderful Dizzy" rather than "Dizzy VIII - Wonderful Dizzy (2020) v1.0.tap",
+which is the single biggest thing metadata buys a browser. It is a setting,
+defaulting to on, because a collection is somebody's own and some people want to
+see what is actually on the disk.
 
 ## Notes for building it
 
