@@ -12,7 +12,13 @@ persisted SAF grant in `contentTree` — shown as a list or a grid, with folders
 and `.zip` archives you can enter. Opening a file loads it into the machine if
 it is a type the emulator supports; anything else is not shown at all.
 
-Beside it, eventually, a pane of metadata and artwork for whatever is selected.
+Three tabs: **Browse**, **Favorites**, **Recents**. It opens on Browse, because
+the folder tree is what the library is for and it is the same every time; a
+screen that changes under you depending on what you played last is harder to
+learn, and Recents is one tap away.
+
+Beside all of it, eventually, a pane of metadata and artwork for whatever is
+selected.
 
 ## Decisions
 
@@ -39,6 +45,20 @@ Changing what the app does on launch, for everyone, without asking, is not a
 thing to do to people who have had it one way for a year. One migration flag in
 the preferences pays for that.
 
+**A content folder is the gate.** The library cannot be switched on without one:
+the switch in *Settings* is disabled, saying so, with the folder row directly
+above it. So the default above is a default *preference*, not a default screen —
+a fresh install with no folder chosen still starts on the machine, and choosing
+a folder is what makes the library the thing it opens on. An update is off
+either way until somebody turns it on, which then requires the folder like
+anything else.
+
+There is no implicit fallback to the data folder or to *Documents*. A browser
+pointed at a folder the user did not choose shows them a folder they did not
+mean, and the interesting failure is the empty one: scoped storage hands an app
+only what it wrote itself, so a plausible-looking default would come up empty on
+exactly the devices where somebody else put the games there.
+
 **One root: the content folder.** Not the data folder as well — the tapes and
 disks Zedex wrote are already reachable from the emulator's own menus, and a
 browser that mixes a person's collection with the app's own working files has to
@@ -53,6 +73,23 @@ They do different jobs.
 need beyond it, rather than beside the games. The content folder can be
 read-only — a shared drive, a card — and a library that cannot record what has
 been played is worse than one that does not travel.
+
+**A game is identified by its path, with its hash kept alongside.** The document
+path is the key: it is cheap, it is known while browsing, and it is how ES-DE
+does it. The MD5 that `Media.stage()` already computes when a game is loaded is
+recorded next to it, so a later version can notice a file that moved or was
+renamed and repair the key rather than losing the entry. Keying by hash alone
+would be prettier and is not possible: nothing in a folder could be shown as a
+favourite until every file in it had been read from end to end, which is the
+folder of two thousand tapes again. A zip entry's key is the archive and the
+entry within it.
+
+**Recents is the list the app already keeps.** `Recents` holds what *Open
+recent…* shows in the emulator's menu, and the tab is a second view of it rather
+than a second list. Two consequences to build for: its entries can point outside
+the content folder — a download, a hand-off from ES-DE — and their grants can
+die, which `Recents.forget` already handles. *Open recent…* stays in the
+emulator's menu for the same reason *Open file…* does.
 
 **Zip only.** `java.util.zip` is in the platform and covers nearly every
 Spectrum download. Entering a zip lists the supported entries inside it; opening
@@ -71,7 +108,15 @@ Browse and launch, and nothing else:
 - opening a file loads it into the machine;
 - sort, and a search box that filters as you type — a folder of two thousand
   tapes is the case this screen exists for;
-- the setting, and the migration that leaves existing installs alone.
+- all three tabs: Browse, Favorites, Recents;
+- the setting, its content-folder gate, and the migration that leaves existing
+  installs alone.
+
+Favourites need a store of their own now — paths and their hashes, in the data
+folder — which the metadata PR then absorbs rather than leaves behind. It is
+worth the small duplication: three tabs from the start settle the layout before
+any artwork arrives, and Recents costs almost nothing because the list is
+already there.
 
 The metadata pane, artwork and video are the second pull request on the same
 branch. Designing the layout with the pane in mind, and shipping without it.
@@ -97,9 +142,9 @@ branch. Designing the layout with the pane in mind, and shipping without it.
 
 ## Still open
 
-- How metadata is keyed: by path, as ES-DE does, or by the MD5 `Media.stage()`
-  already computes, which survives a rename and a move. For the second PR.
 - Whether the grid, with no artwork scraped, shows anything better than a name
   and an icon by type.
 - Whether the library should be built focus-first now, since it is the obvious
   Android TV home screen — see `docs/ANDROID-TV.md`.
+- What a favourite means for a folder, or for a zip full of games, as opposed to
+  a single file.
