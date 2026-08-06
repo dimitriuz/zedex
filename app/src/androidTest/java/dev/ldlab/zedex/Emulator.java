@@ -1,7 +1,6 @@
 package dev.ldlab.zedex;
 
 import dev.ldlab.zedex.FuseNative;
-import dev.ldlab.zedex.input.Controls;
 import dev.ldlab.zedex.screen.SettingsActivity;
 import dev.ldlab.zedex.storage.Storage;
 import static org.junit.Assert.assertNotNull;
@@ -89,13 +88,6 @@ final class Emulator {
                 SettingsActivity.PREFS, Context.MODE_PRIVATE);
         preferences.edit()
                 .putString(Storage.KEY_STATES_ROOT, folder)
-                // And the controls as they come out of the box. JoystickTest
-                // leaves a type chosen on purpose - "the choice sticks" is one
-                // of the things it is there to prove - and a later class that
-                // loads a tape and reads the border then runs with somebody
-                // else's joystick attached. Kempston is the app's own default;
-                // see ControlsUi.joystickType().
-                .putInt(SettingsActivity.KEY_JOYSTICK_TYPE, Controls.JOYSTICK_KEMPSTON)
                 .commit();
     }
 
