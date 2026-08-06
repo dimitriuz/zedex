@@ -847,6 +847,35 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // rather than throwing its state away, and half of what it is for is
         // pressing it at a particular moment.
         rows.item(R.drawable.ic_bolt, getString(R.string.menu_nmi), machine::nmi);
+
+        // Only where the machine could have had one. A row that does nothing at
+        // all on a 48K would be worse than no row: the setting stays on the
+        // settings page, where its summary can say which machines it is for.
+        // Asked of Fuse rather than of a list of machine names kept here.
+        if (FuseNative.canTurbo()) {
+            boolean turbo = preferences.getBoolean(SettingsActivity.KEY_TURBO,
+                                                   false);
+            rows.rule();
+            rows.item(R.drawable.ic_turbo,
+                      getString(turbo ? R.string.quick_turbo_on
+                                      : R.string.quick_turbo_off),
+                      () -> setTurbo(!turbo));
+        }
+    }
+
+    /**
+     * The processor at 7MHz or 3.5, from the bar rather than the settings.
+     *
+     * Both places write the same preference and both push it into Fuse, since
+     * the settings screen only listens to its own changes while it is open. It
+     * takes effect between one frame and the next, so there is nothing to
+     * restart and nothing to confirm.
+     */
+    private void setTurbo(boolean on) {
+        preferences.edit().putBoolean(SettingsActivity.KEY_TURBO, on).apply();
+        FuseNative.setTurbo(on);
+
+        note(on ? R.string.turbo_on : R.string.turbo_off);
     }
 
     /**

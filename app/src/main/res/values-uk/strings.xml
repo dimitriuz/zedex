@@ -376,6 +376,10 @@
     <string name="settings_turbosound_summary">Другий чіп AY. Шість каналів замість трьох, на Pentagon або Scorpion; на інших машинах TurboSound немає, і налаштування нічого не робить.</string>
     <string name="settings_turbo">Турбо — 7 МГц</string>
     <string name="settings_turbo_summary">Удвічі швидший процесор, на Pentagon або Scorpion. Екран так само 50 Гц, і музика зберігає темп; гра просто встигає вдвічі більше між кадрами. Інші машини це ігнорують.</string>
+    <string name="quick_turbo_on">Турбо: увімк — 7 МГц</string>
+    <string name="quick_turbo_off">Турбо: вимк — 3,5 МГц</string>
+    <string name="turbo_on">Турбо увімкнено — 7 МГц</string>
+    <string name="turbo_off">Турбо вимкнено — 3,5 МГц</string>
     <string name="settings_volume_beeper">Гучність біпера</string>
 
     <string name="settings_filter">Картинка</string>

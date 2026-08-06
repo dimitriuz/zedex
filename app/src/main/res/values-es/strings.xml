@@ -376,6 +376,10 @@
     <string name="settings_turbosound_summary">Un segundo chip AY. Seis canales en lugar de tres, en un Pentagon o un Scorpion; las demás máquinas no tienen TurboSound y lo ignoran.</string>
     <string name="settings_turbo">Turbo — 7 MHz</string>
     <string name="settings_turbo_summary">El doble de procesador, en un Pentagon o un Scorpion. La pantalla sigue a 50 Hz y la música mantiene su tempo; el juego simplemente hace el doble entre fotogramas. Las demás máquinas lo ignoran.</string>
+    <string name="quick_turbo_on">Turbo: activado — 7 MHz</string>
+    <string name="quick_turbo_off">Turbo: desactivado — 3,5 MHz</string>
+    <string name="turbo_on">Turbo activado — 7 MHz</string>
+    <string name="turbo_off">Turbo desactivado — 3,5 MHz</string>
     <string name="settings_volume_beeper">Volumen del beeper</string>
 
     <string name="settings_filter">Imagen</string>

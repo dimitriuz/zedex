@@ -415,6 +415,10 @@
     <string name="settings_turbosound_summary">A second AY chip. Six channels instead of three, on a Pentagon or a Scorpion; other machines have no TurboSound and ignore it.</string>
     <string name="settings_turbo">Turbo — 7 MHz</string>
     <string name="settings_turbo_summary">Twice the processor, on a Pentagon or a Scorpion. The screen still runs at 50 Hz and the music keeps its tempo; the game simply gets twice as much done between frames. Other machines ignore it.</string>
+    <string name="quick_turbo_on">Turbo: on — 7 MHz</string>
+    <string name="quick_turbo_off">Turbo: off — 3.5 MHz</string>
+    <string name="turbo_on">Turbo on — 7 MHz</string>
+    <string name="turbo_off">Turbo off — 3.5 MHz</string>
     <string name="settings_volume_beeper">Beeper volume</string>
 
     <string name="settings_filter">Picture</string>

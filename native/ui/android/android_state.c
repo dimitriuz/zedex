@@ -43,6 +43,7 @@ static pthread_mutex_t machine_mutex = PTHREAD_MUTEX_INITIALIZER;
 static machine_entry machine_list[ MAX_MACHINES ];
 static int machine_list_count;
 static int machine_list_current = -1;
+static int machine_turbo_capable;
 static int tape_on_machine;
 static int tape_running;
 
@@ -221,6 +222,12 @@ androidstate_publish( void )
   } else {
     card_file[0] = '\0';
   }
+
+  /* Whether this machine could have a 7MHz turbo, which is not whether one is
+     switched on: the quick bar offers the row only where there is something to
+     offer, and the answer belongs to Fuse rather than to a list of machine
+     names kept on the Java side that could drift from it. */
+  machine_turbo_capable = machine_can_turbo();
 
   machine_list_current = -1;
   if( machine_current ) {
@@ -440,6 +447,18 @@ Java_dev_ldlab_zedex_FuseNative_hasDivmmc( JNIEnv *env, jclass class )
   pthread_mutex_unlock( &machine_mutex );
 
   return present;
+}
+
+JNIEXPORT jboolean JNICALL
+Java_dev_ldlab_zedex_FuseNative_canTurbo( JNIEnv *env, jclass class )
+{
+  jboolean can;
+
+  pthread_mutex_lock( &machine_mutex );
+  can = machine_turbo_capable ? JNI_TRUE : JNI_FALSE;
+  pthread_mutex_unlock( &machine_mutex );
+
+  return can;
 }
 
 JNIEXPORT jint JNICALL

@@ -376,6 +376,10 @@
     <string name="settings_turbosound_summary">Druhý čip AY. Šest kanálů místo tří, na Pentagonu nebo Scorpionu; ostatní počítače TurboSound nemají a ignorují jej.</string>
     <string name="settings_turbo">Turbo — 7 MHz</string>
     <string name="settings_turbo_summary">Dvojnásobný procesor, na Pentagonu nebo Scorpionu. Obraz stále běží na 50 Hz a hudba si drží tempo; hra jen stihne mezi snímky dvakrát tolik. Ostatní počítače to ignorují.</string>
+    <string name="quick_turbo_on">Turbo: zapnuto — 7 MHz</string>
+    <string name="quick_turbo_off">Turbo: vypnuto — 3,5 MHz</string>
+    <string name="turbo_on">Turbo zapnuto — 7 MHz</string>
+    <string name="turbo_off">Turbo vypnuto — 3,5 MHz</string>
     <string name="settings_volume_beeper">Hlasitost beeperu</string>
 
     <string name="settings_filter">Obraz</string>

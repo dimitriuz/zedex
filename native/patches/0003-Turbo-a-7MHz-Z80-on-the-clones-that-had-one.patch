@@ -41,18 +41,22 @@ settings_current.turbo is the only copy of whether it is on, so that the
 command line - read before there is a machine to tell - and a switch in the UI
 cannot disagree.  settings.c and settings.h are regenerated from settings.dat
 here for the same reason patch 0002 carried them.
+
+machine_can_turbo() is for a UI: whether the machine in front of the user could
+have had one is a different question from whether it is switched on, and a
+menu has to know not to offer it on a 48K.
 ---
- machine.c         | 112 ++++++++++++++++++++++++++++++++++++++++++++++
- machine.h         |   9 ++++
+ machine.c         | 121 ++++++++++++++++++++++++++++++++++++++++++++++
+ machine.h         |  12 +++++
  peripherals/ula.h |   7 ++-
- settings.c        |  39 +++++++++++-----
+ settings.c        |  39 +++++++++++----
  settings.dat      |   1 +
  settings.h        |   1 +
  sound.c           |  11 +++--
- 7 files changed, 166 insertions(+), 14 deletions(-)
+ 7 files changed, 178 insertions(+), 14 deletions(-)
 
 diff --git a/machine.c b/machine.c
-index 57415b8..d6129da 100644
+index 57415b8..009458a 100644
 --- a/machine.c
 +++ b/machine.c
 @@ -45,6 +45,7 @@
@@ -63,7 +67,7 @@ index 57415b8..d6129da 100644
  #include "tape.h"
  #include "timer/timer.h"
  #include "ui/ui.h"
-@@ -371,9 +372,53 @@ machine_reset( int hard_reset )
+@@ -371,9 +372,62 @@ machine_reset( int hard_reset )
    return 0;
  }
  
@@ -87,7 +91,7 @@ index 57415b8..d6129da 100644
 +/* Which machines had one. The Russian clones, the same ones that could have a
 +   TurboSound; a Sinclair machine ran at 3.5MHz and nothing else. */
 +static int
-+machine_has_turbo( libspectrum_machine machine )
++machine_has_turbo_type( libspectrum_machine machine )
 +{
 +  switch( machine ) {
 +  case LIBSPECTRUM_MACHINE_PENT:
@@ -100,13 +104,22 @@ index 57415b8..d6129da 100644
 +  }
 +}
 +
++/* Whether the machine in front of the user could have had a turbo at all,
++   which is a different question from whether it is switched on: a UI has to
++   know not to offer it on a 48K. */
++int
++machine_can_turbo( void )
++{
++  return machine_current && machine_has_turbo_type( machine_current->machine );
++}
++
 +int
 +machine_turbo_factor( void )
 +{
 +  if( !machine_current ) return 1;
 +
 +  return ( settings_current.turbo &&
-+           machine_has_turbo( machine_current->machine ) ) ? 2 : 1;
++           machine_has_turbo_type( machine_current->machine ) ) ? 2 : 1;
 +}
 +
  static void
@@ -117,7 +130,7 @@ index 57415b8..d6129da 100644
    /* Pull timings we use repeatedly out of libspectrum and store them
       for ourself */
    machine->timings.processor_speed =
-@@ -390,6 +435,22 @@ machine_set_const_timings( fuse_machine_info *machine )
+@@ -390,6 +444,22 @@ machine_set_const_timings( fuse_machine_info *machine )
      libspectrum_timings_interrupt_length( machine->machine );
    machine->timings.tstates_per_frame =
      libspectrum_timings_tstates_per_frame( machine->machine );
@@ -127,7 +140,7 @@ index 57415b8..d6129da 100644
 +     leave those alone and the picture would be drawn in the first half of
 +     every frame. */
 +  factor = ( settings_current.turbo &&
-+             machine_has_turbo( machine->machine ) ) ? 2 : 1;
++             machine_has_turbo_type( machine->machine ) ) ? 2 : 1;
 +  if( factor != 1 ) {
 +    machine->timings.processor_speed   *= factor;
 +    machine->timings.left_border       *= factor;
@@ -140,7 +153,7 @@ index 57415b8..d6129da 100644
  }
  
  static void
-@@ -424,6 +485,57 @@ machine_set_variable_timings( fuse_machine_info *machine )
+@@ -424,6 +494,57 @@ machine_set_variable_timings( fuse_machine_info *machine )
    }
  }
  
@@ -199,10 +212,10 @@ index 57415b8..d6129da 100644
  machine_end( void )
  {
 diff --git a/machine.h b/machine.h
-index f8d4d80..8c755c9 100644
+index f8d4d80..053d4c4 100644
 --- a/machine.h
 +++ b/machine.h
-@@ -109,4 +109,13 @@ int machine_load_rom( int page_num, const char *filename, const char *fallback,
+@@ -109,4 +109,16 @@ int machine_load_rom( int page_num, const char *filename, const char *fallback,
  
  int machine_reset( int hard_reset );
  
@@ -214,6 +227,9 @@ index f8d4d80..8c755c9 100644
 +/* 2 where the machine is running in turbo and 1 everywhere else, for the
 +   things that have a clock of their own and must not follow the CPU. */
 +int machine_turbo_factor( void );
++
++/* Whether this machine could have one, switched on or not. */
++int machine_can_turbo( void );
 +
  #endif			/* #ifndef FUSE_MACHINE_H */
 diff --git a/peripherals/ula.h b/peripherals/ula.h

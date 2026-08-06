@@ -230,7 +230,18 @@ the sound, because `sound_init()` reads the processor speed once for the blip
 buffer's clock rate.
 
 `settings_current.turbo` is the only copy of whether it is on, so the command
-line — read before there is a machine to tell — and the switch cannot disagree.
+line — read before there is a machine to tell — and the switches cannot
+disagree. There are two of them: the settings page, and a row on the quick
+bar's machine page, which writes the same preference and pushes it into Fuse
+itself, since the settings screen only listens to its own changes while it is
+open.
+
+**The bar's row is only there where the machine could have one.** A row that
+did nothing at all on a 48K would be worse than no row, and the setting stays
+on the settings page where its summary can say which machines it is for.
+Whether it could is `machine_can_turbo()`, published into the snapshot
+`android_state.c` keeps for the UI thread rather than answered from a list of
+machine names on the Java side, which is a second place to be wrong.
 
 ### The other screen
 

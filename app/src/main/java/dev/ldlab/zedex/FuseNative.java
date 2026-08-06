@@ -421,6 +421,14 @@ public final class FuseNative {
     public static native void setTurboSound(boolean on);
 
     /**
+     * Whether the machine running now could have a turbo at all — which is not
+     * whether one is switched on. Read from the snapshot the emulation thread
+     * publishes, so it is safe from the UI thread; the answer belongs to Fuse
+     * rather than to a list of machine names kept here that could drift.
+     */
+    public static native boolean canTurbo();
+
+    /**
      * Turbo: a 7MHz Z80 instead of 3.5, on a machine that had one.
      *
      * Not the same as {@link #setSpeed}. The speed setting runs the whole
