@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Zedex <zedex@invalid>
 Date: Wed, 5 Aug 2026 15:04:47 +0200
-Subject: [PATCH 2/2] TurboSound: a switch, and the Scorpion has one too
+Subject: [PATCH 2/3] TurboSound: a switch, and the Scorpion has one too
 
 Whether the second chip is there is now settings_current.turbosound, and
 ay_update_chips() works out how many chips are playing from that and from the

@@ -223,6 +223,7 @@ public final class Machine {
         flag(arguments, SettingsActivity.KEY_BW_TV, false, "bw-tv");
         flag(arguments, SettingsActivity.KEY_SOUND, true, "sound");
         flag(arguments, SettingsActivity.KEY_TURBOSOUND, true, "turbosound");
+        flag(arguments, SettingsActivity.KEY_TURBO, false, "turbo");
 
         value(arguments, SettingsActivity.KEY_SPEED, 100, "speed");
         value(arguments, SettingsActivity.KEY_AY_VOLUME, 100, "volume-ay");

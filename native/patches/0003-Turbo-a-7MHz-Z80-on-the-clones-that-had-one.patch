@@ -1,0 +1,451 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Zedex <zedex@invalid>
+Date: Thu, 6 Aug 2026 10:06:37 +0200
+Subject: [PATCH 3/3] Turbo: a 7MHz Z80 on the clones that had one
+
+The Pentagons and the Scorpion ran their Z80 at twice 3.5MHz while keeping the
+50Hz frame and everything else about the display, so a game got twice the work
+done between two interrupts and its music played at the same tempo.  That is
+not settings_current.emulation_speed, which makes the whole machine - music,
+tape and real time with it - run faster; it is twice as many tstates inside a
+frame that still lasts a fiftieth of a second.
+
+So every field of machine_timings is multiplied together, and a frame still
+takes tstates_per_frame / processor_speed seconds.  The borders and the line
+length are in that list because the display is driven from them: leave those
+alone and the picture would be drawn in the first half of every frame.
+
+Three things do not follow the CPU, and each was a bug before it was a line:
+
+  - The AY has a clock of its own and stays at 1.75MHz, so sound.c multiplies
+    AY_CLOCK_RATIO by machine_turbo_factor().  Without it every tune plays an
+    octave up in turbo, which is the first thing this got wrong.
+  - ULA_CONTENTION_SIZE was 80000, one entry per tstate, and the Pentagon's
+    doubled frame is 143360.  The array is indexed by a running tstate count
+    with no bound check of its own, so it is 160000 now.
+  - The contention array is filled again when the frame changes length, even
+    though every machine with a turbo is uncontended and it fills with zeroes:
+    entries past the old frame length would otherwise be read on the very
+    first turbo frame.
+
+machine_set_turbo() is for changing it while the machine runs, and has to be
+called at the end of a frame - which is where the UI's events are drained, so
+tstates is back to nearly nothing.  It re-schedules the frame's own event,
+since spectrum_frame() has already booked the next one at the old length:
+leaving it there costs one frame at the wrong speed turning turbo on, and one
+that lasts twice as long - a visible stutter - turning it off.  The caller
+restarts the sound, because sound_init() reads the processor speed once, for
+the blip buffer's clock rate.
+
+settings_current.turbo is the only copy of whether it is on, so that the
+command line - read before there is a machine to tell - and a switch in the UI
+cannot disagree.  settings.c and settings.h are regenerated from settings.dat
+here for the same reason patch 0002 carried them.
+---
+ machine.c         | 112 ++++++++++++++++++++++++++++++++++++++++++++++
+ machine.h         |   9 ++++
+ peripherals/ula.h |   7 ++-
+ settings.c        |  39 +++++++++++-----
+ settings.dat      |   1 +
+ settings.h        |   1 +
+ sound.c           |  11 +++--
+ 7 files changed, 166 insertions(+), 14 deletions(-)
+
+diff --git a/machine.c b/machine.c
+index 57415b8..d6129da 100644
+--- a/machine.c
++++ b/machine.c
+@@ -45,6 +45,7 @@
+ #include "settings.h"
+ #include "snapshot.h"
+ #include "sound.h"
++#include "spectrum.h"
+ #include "tape.h"
+ #include "timer/timer.h"
+ #include "ui/ui.h"
+@@ -371,9 +372,53 @@ machine_reset( int hard_reset )
+   return 0;
+ }
+ 
++/* Turbo mode: the clones ran their Z80 at 7MHz rather than 3.5, keeping the
++   50Hz frame and everything else about the display. So it is not the emulation
++   speed setting, which makes the whole machine - music, tape, real time - run
++   faster: it is twice as many tstates inside a frame that still lasts a
++   fiftieth of a second, which is what the hardware did, and why a game gets
++   twice the work done between two interrupts while its music plays at the same
++   tempo.
++
++   Everything in machine_timings is therefore doubled together, so that a frame
++   still takes tstates_per_frame / processor_speed seconds. The AY is the one
++   thing that does not follow, since it has a clock of its own: see
++   AY_CLOCK_RATIO in sound.c, which multiplies by this.
++
++   settings_current.turbo is the only copy of whether it is on, so that the
++   command line - which is read before there is a machine to tell - and the
++   switch in the UI cannot disagree. */
++
++/* Which machines had one. The Russian clones, the same ones that could have a
++   TurboSound; a Sinclair machine ran at 3.5MHz and nothing else. */
++static int
++machine_has_turbo( libspectrum_machine machine )
++{
++  switch( machine ) {
++  case LIBSPECTRUM_MACHINE_PENT:
++  case LIBSPECTRUM_MACHINE_PENT512:
++  case LIBSPECTRUM_MACHINE_PENT1024:
++  case LIBSPECTRUM_MACHINE_SCORP:
++    return 1;
++  default:
++    return 0;
++  }
++}
++
++int
++machine_turbo_factor( void )
++{
++  if( !machine_current ) return 1;
++
++  return ( settings_current.turbo &&
++           machine_has_turbo( machine_current->machine ) ) ? 2 : 1;
++}
++
+ static void
+ machine_set_const_timings( fuse_machine_info *machine )
+ {
++  int factor;
++
+   /* Pull timings we use repeatedly out of libspectrum and store them
+      for ourself */
+   machine->timings.processor_speed =
+@@ -390,6 +435,22 @@ machine_set_const_timings( fuse_machine_info *machine )
+     libspectrum_timings_interrupt_length( machine->machine );
+   machine->timings.tstates_per_frame =
+     libspectrum_timings_tstates_per_frame( machine->machine );
++
++  /* All of it together, so that a frame lasts what it always did. The borders
++     and the line length are in here because the display is driven from them:
++     leave those alone and the picture would be drawn in the first half of
++     every frame. */
++  factor = ( settings_current.turbo &&
++             machine_has_turbo( machine->machine ) ) ? 2 : 1;
++  if( factor != 1 ) {
++    machine->timings.processor_speed   *= factor;
++    machine->timings.left_border       *= factor;
++    machine->timings.horizontal_screen *= factor;
++    machine->timings.right_border      *= factor;
++    machine->timings.tstates_per_line  *= factor;
++    machine->timings.interrupt_length  *= factor;
++    machine->timings.tstates_per_frame *= factor;
++  }
+ }
+ 
+ static void
+@@ -424,6 +485,57 @@ machine_set_variable_timings( fuse_machine_info *machine )
+   }
+ }
+ 
++/* Turbo on or off while the machine runs. Called at the end of a frame, which
++   is where the UI's events are drained, so tstates is back to nearly nothing
++   and no event has to be moved but the frame's own.
++
++   The caller restarts the sound: sound_init() reads the processor speed once,
++   for the blip buffer's clock rate, and a doubled machine feeding a buffer
++   clocked for half of it plays everything an octave down. */
++int
++machine_set_turbo( int turbo )
++{
++  size_t i;
++  libspectrum_dword frame;
++
++  if( !machine_current ) { settings_current.turbo = turbo; return 0; }
++  if( settings_current.turbo == turbo ) return 0;
++
++  settings_current.turbo = turbo;
++
++  machine_set_const_timings( machine_current );
++  machine_set_variable_timings( machine_current );
++
++  frame = machine_current->timings.tstates_per_frame;
++
++  /* The contention array is per tstate and the frame just changed length.
++     Every machine with a turbo is uncontended, so this fills with zeroes -
++     but it is filled rather than assumed, since the array is indexed by a
++     running tstate count and stale entries past the old frame length would
++     be read on the very first turbo frame. */
++  if( frame > ULA_CONTENTION_SIZE ) frame = ULA_CONTENTION_SIZE;
++  for( i = 0; i < frame; i++ ) {
++    ula_contention[ i ] = machine_current->ram.contend_delay( i );
++    ula_contention_no_mreq[ i ] = machine_current->ram.contend_delay_no_mreq( i );
++  }
++
++  /* spectrum_frame() has already scheduled the next frame's end at the old
++     length. Leaving it there costs one frame at the wrong speed turning turbo
++     on, and one that lasts twice as long - a visible stutter - turning it
++     off. */
++  event_remove_type( spectrum_frame_event );
++  event_add( machine_current->timings.tstates_per_frame, spectrum_frame_event );
++
++  /* A snapshot loaded at the other setting, or an unlucky moment, can leave
++     the machine past the end of a frame it is no longer in. */
++  if( tstates > machine_current->timings.tstates_per_frame )
++    tstates = machine_current->timings.tstates_per_frame;
++
++  display_refresh_all();
++
++  return 0;
++}
++
+ static void
+ machine_end( void )
+ {
+diff --git a/machine.h b/machine.h
+index f8d4d80..8c755c9 100644
+--- a/machine.h
++++ b/machine.h
+@@ -109,4 +109,13 @@ int machine_load_rom( int page_num, const char *filename, const char *fallback,
+ 
+ int machine_reset( int hard_reset );
+ 
++/* Turbo mode: a 7MHz Z80 on the machines that had one, with the frame still
++   50Hz. Whether it is on is settings_current.turbo; this applies a change to
++   the machine that is already running. See machine.c. */
++int machine_set_turbo( int turbo );
++
++/* 2 where the machine is running in turbo and 1 everywhere else, for the
++   things that have a clock of their own and must not follow the CPU. */
++int machine_turbo_factor( void );
++
+ #endif			/* #ifndef FUSE_MACHINE_H */
+diff --git a/peripherals/ula.h b/peripherals/ula.h
+index ce11bd5..beb94e1 100644
+--- a/peripherals/ula.h
++++ b/peripherals/ula.h
+@@ -24,7 +24,12 @@
+ #ifndef FUSE_ULA_H
+ #define FUSE_ULA_H
+ 
+-#define ULA_CONTENTION_SIZE 80000
++/* One entry per tstate in a frame, so it has to cover the longest frame any
++   machine has: the Pentagon's 71680, doubled by turbo mode (see
++   machine_set_turbo), which is the only thing here that makes a frame longer
++   than the hardware ever did. The array is indexed by a running tstate count
++   with no bound check of its own, so this is a real limit and not a hint. */
++#define ULA_CONTENTION_SIZE 160000
+ 
+ /* How much contention do we get at every tstate when MREQ is active? */
+ extern libspectrum_byte ula_contention[ ULA_CONTENTION_SIZE ];
+diff --git a/settings.c b/settings.c
+index 3ed2318..70d1d46 100644
+--- a/settings.c
++++ b/settings.c
+@@ -20,7 +20,7 @@
+    E-mail: philip-fuse@shadowmagic.org.uk
+ 
+ */
+-#line 61"/home/dimitrius/repo/Zedex/build-native/src/fuse-1.9.0/settings.pl"
++#line 61"settings.pl"
+ 
+ /* This file is autogenerated from settings.dat by settings.pl.
+    Do not edit unless you know what will happen! */
+@@ -306,6 +306,7 @@ settings_info settings_default = {
+   /* teletext_port_3 */ 19763,
+   /* teletext_port_4 */ 19764,
+   /* ttx2000s */ 0,
++  /* turbo */ 0,
+   /* turbosound */ 1,
+   /* unittests */ 0,
+   /* usource */ 0,
+@@ -328,7 +329,7 @@ settings_info settings_default = {
+   /* zxmmc_enabled */ 0,
+   /* zxmmc_file */ (char *)NULL,
+   /* zxprinter */ 1,
+-#line 123"/home/dimitrius/repo/Zedex/build-native/src/fuse-1.9.0/settings.pl"
++#line 123"settings.pl"
+   /* show_help */ 0,
+   /* show_version */ 0,
+ };
+@@ -2198,6 +2199,13 @@ parse_xml( xmlDocPtr doc, settings_info *settings )
+         xmlFree( xmlstring );
+       }
+     } else
++    if( !strcmp( (const char*)node->name, "turbo" ) ) {
++      xmlstring = xmlNodeListGetString( doc, node->xmlChildrenNode, 1 );
++      if( xmlstring ) {
++        settings->turbo = atoi( (char*)xmlstring );
++        xmlFree( xmlstring );
++      }
++    } else
+     if( !strcmp( (const char*)node->name, "turbosound" ) ) {
+       xmlstring = xmlNodeListGetString( doc, node->xmlChildrenNode, 1 );
+       if( xmlstring ) {
+@@ -2356,7 +2364,7 @@ parse_xml( xmlDocPtr doc, settings_info *settings )
+         xmlFree( xmlstring );
+       }
+     } else
+-#line 263"/home/dimitrius/repo/Zedex/build-native/src/fuse-1.9.0/settings.pl"
++#line 263"settings.pl"
+     if( !strcmp( (const char*)node->name, "text" ) ) {
+       /* Do nothing */
+     } else {
+@@ -2796,6 +2804,7 @@ settings_write_config( settings_info *settings )
+   snprintf( buffer, 80, "%d", settings->teletext_port_4 );
+   xmlNewTextChild( root, NULL, (const xmlChar*)"teletextport4", (const xmlChar*)buffer );
+   xmlNewTextChild( root, NULL, (const xmlChar*)"ttx2000s", (const xmlChar*)(settings->ttx2000s ? "1" : "0") );
++  xmlNewTextChild( root, NULL, (const xmlChar*)"turbo", (const xmlChar*)(settings->turbo ? "1" : "0") );
+   xmlNewTextChild( root, NULL, (const xmlChar*)"turbosound", (const xmlChar*)(settings->turbosound ? "1" : "0") );
+   xmlNewTextChild( root, NULL, (const xmlChar*)"unittests", (const xmlChar*)(settings->unittests ? "1" : "0") );
+   xmlNewTextChild( root, NULL, (const xmlChar*)"usource", (const xmlChar*)(settings->usource ? "1" : "0") );
+@@ -2827,7 +2836,7 @@ settings_write_config( settings_info *settings )
+   if( settings->zxmmc_file )
+     xmlNewTextChild( root, NULL, (const xmlChar*)"zxmmcfile", (const xmlChar*)settings->zxmmc_file );
+   xmlNewTextChild( root, NULL, (const xmlChar*)"zxprinter", (const xmlChar*)(settings->zxprinter ? "1" : "0") );
+-#line 320"/home/dimitrius/repo/Zedex/build-native/src/fuse-1.9.0/settings.pl"
++#line 320"settings.pl"
+ 
+   xmlSaveFormatFile( path, doc, 1 );
+ 
+@@ -3864,6 +3873,10 @@ settings_var( settings_info *settings, unsigned char *name, unsigned char *last,
+     *val_int = &settings->ttx2000s;
+     return 0;
+   }
++  if( n == 5 && !strncmp( (const char *)name, "turbo", n ) ) {
++    *val_int = &settings->turbo;
++    return 0;
++  }
+   if( n == 10 && !strncmp( (const char *)name, "turbosound", n ) ) {
+     *val_int = &settings->turbosound;
+     return 0;
+@@ -3999,7 +4012,7 @@ parse_ini( utils_file *file, settings_info *settings )
+     while( ( cpos < ( file->buffer + file->length ) ) &&
+            ( *cpos == '\r' || *cpos == '\n' ) ) cpos++;
+ 
+-#line 462"/home/dimitrius/repo/Zedex/build-native/src/fuse-1.9.0/settings.pl"
++#line 462"settings.pl"
+   }
+ 
+   return 0;
+@@ -4760,6 +4773,9 @@ settings_write_config( settings_info *settings )
+   if( settings_boolean_write( doc, "ttx2000s",
+                               settings->ttx2000s ) )
+     goto error;
++  if( settings_boolean_write( doc, "turbo",
++                              settings->turbo ) )
++    goto error;
+   if( settings_boolean_write( doc, "turbosound",
+                               settings->turbosound ) )
+     goto error;
+@@ -4826,7 +4842,7 @@ settings_write_config( settings_info *settings )
+   if( settings_boolean_write( doc, "zxprinter",
+                               settings->zxprinter ) )
+     goto error;
+-#line 554"/home/dimitrius/repo/Zedex/build-native/src/fuse-1.9.0/settings.pl"
++#line 554"settings.pl"
+ 
+   compat_file_close( doc );
+ 
+@@ -5148,6 +5164,8 @@ settings_command_line( settings_info *settings, int *first_arg,
+     { "teletext-port-4", 1, NULL, 425 },
+     {    "ttx2000s", 0, &(settings->ttx2000s), 1 },
+     { "no-ttx2000s", 0, &(settings->ttx2000s), 0 },
++    {    "turbo", 0, &(settings->turbo), 1 },
++    { "no-turbo", 0, &(settings->turbo), 0 },
+     {    "turbosound", 0, &(settings->turbosound), 1 },
+     { "no-turbosound", 0, &(settings->turbosound), 0 },
+     {    "unittests", 0, &(settings->unittests), 1 },
+@@ -5183,7 +5201,7 @@ settings_command_line( settings_info *settings, int *first_arg,
+     { "zxmmc-file", 1, NULL, 434 },
+     {    "zxprinter", 0, &(settings->zxprinter), 1 },
+     { "no-zxprinter", 0, &(settings->zxprinter), 0 },
+-#line 609"/home/dimitrius/repo/Zedex/build-native/src/fuse-1.9.0/settings.pl"
++#line 609"settings.pl"
+ 
+     { "help", 0, NULL, 'h' },
+     { "version", 0, NULL, 'V' },
+@@ -5393,7 +5411,7 @@ settings_command_line( settings_info *settings, int *first_arg,
+     case 432: settings_set_string( &settings->zxatasp_slave_file, optarg ); break;
+     case 433: settings_set_string( &settings->zxcf_pri_file, optarg ); break;
+     case 434: settings_set_string( &settings->zxmmc_file, optarg ); break;
+-#line 659"/home/dimitrius/repo/Zedex/build-native/src/fuse-1.9.0/settings.pl"
++#line 659"settings.pl"
+ 
+     case 'h': settings->show_help = 1; break;
+     case 'V': settings->show_version = 1; break;
+@@ -5999,6 +6017,7 @@ settings_copy_internal( settings_info *dest, settings_info *src )
+   dest->teletext_port_3 = src->teletext_port_3;
+   dest->teletext_port_4 = src->teletext_port_4;
+   dest->ttx2000s = src->ttx2000s;
++  dest->turbo = src->turbo;
+   dest->turbosound = src->turbosound;
+   dest->unittests = src->unittests;
+   dest->usource = src->usource;
+@@ -6033,7 +6052,7 @@ settings_copy_internal( settings_info *dest, settings_info *src )
+     dest->zxmmc_file = utils_safe_strdup( src->zxmmc_file );
+   }
+   dest->zxprinter = src->zxprinter;
+-#line 706"/home/dimitrius/repo/Zedex/build-native/src/fuse-1.9.0/settings.pl"
++#line 706"settings.pl"
+ }
+ 
+ /* Copy one settings object to another */
+@@ -6244,7 +6263,7 @@ settings_free( settings_info *settings )
+   if( settings->zxatasp_slave_file ) libspectrum_free( settings->zxatasp_slave_file );
+   if( settings->zxcf_pri_file ) libspectrum_free( settings->zxcf_pri_file );
+   if( settings->zxmmc_file ) libspectrum_free( settings->zxmmc_file );
+-#line 807"/home/dimitrius/repo/Zedex/build-native/src/fuse-1.9.0/settings.pl"
++#line 807"settings.pl"
+ 
+   return 0;
+ }
+diff --git a/settings.dat b/settings.dat
+index a0fefae..f15cdea 100644
+--- a/settings.dat
++++ b/settings.dat
+@@ -100,6 +100,7 @@ stereo_ay, string, NULL,, separation
+ sound_force_8bit, boolean, 0
+ sound_freq, numeric, 44100, 'f'
+ speaker_type, string, NULL
++turbo, boolean, 0
+ turbosound, boolean, 1
+ volume_ay, numeric, 100
+ volume_beeper, numeric, 100
+diff --git a/settings.h b/settings.h
+index d14ef67..cb7082d 100644
+--- a/settings.h
++++ b/settings.h
+@@ -266,6 +266,7 @@ typedef struct settings_info {
+    int teletext_port_3;
+    int teletext_port_4;
+    int ttx2000s;
++   int turbo;
+    int turbosound;
+    int unittests;
+    int usource;
+diff --git a/sound.c b/sound.c
+index ae6969b..b5c3d77 100644
+--- a/sound.c
++++ b/sound.c
+@@ -649,7 +649,7 @@ static void
+ sound_ay_overlay( void )
+ {
+   libspectrum_dword f;
+-  int chip, chips;
++  int chip, chips, step;
+   int last_chan1 = 0, last_chan2 = 0, last_chan3 = 0;
+ 
+   /* If no AY chip, don't produce any AY sound (!) */
+@@ -665,8 +665,13 @@ sound_ay_overlay( void )
+   for( chip = 0; chip < chips; chip++ )
+     ay_chip[ chip ].change_next = 0;
+ 
+-  for( f = 0; f < machine_current->timings.tstates_per_frame;
+-       f+= AY_CLOCK_DIVISOR * AY_CLOCK_RATIO ) {
++  /* The AY has a clock of its own and does not follow the CPU, so a machine
++     in turbo has twice the tstates in a frame and the same 1.75MHz chip -
++     without this every tune plays an octave up in turbo, which was the first
++     thing turbo mode got wrong. */
++  step = AY_CLOCK_DIVISOR * AY_CLOCK_RATIO * machine_turbo_factor();
++
++  for( f = 0; f < machine_current->timings.tstates_per_frame; f += step ) {
+     int levels[AY_CHANNELS] = { 0, 0, 0 };
+ 
+     for( chip = 0; chip < chips; chip++ )

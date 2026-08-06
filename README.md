@@ -150,6 +150,7 @@ Screenshots as PNG, and recording to GIF or MP4. All three go to
 | Other | Spectrum SE |
 
 - Speed 25%–500%, reset, NMI, Issue 2 keyboard
+- Turbo — a 7 MHz processor at 50 Hz — on the Pentagons and the Scorpion
 - AY-3-8912 in ACB or ABC stereo, on the 128K family
 - TurboSound — two AY chips, six channels — on the Pentagons and the Scorpion
 - Beta 128 and TR-DOS, drives A:–D:, on the Pentagons and the Scorpion

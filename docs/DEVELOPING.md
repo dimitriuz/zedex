@@ -334,6 +334,48 @@ state block swapped between them — came out at 97.6% of the power sum of the
 two halves played separately, and its spectrum correlated better with the sum
 of the two (r = 0.982) than with either alone (0.946, 0.954).
 
+### Testing turbo
+
+`demo/turbotest.asm` counts how many times the CPU goes round a loop in one
+frame and prints it as hex. The frame is a fiftieth of a second either way, so
+the number is the processor speed and nothing else:
+
+```sh
+./scripts/build-demo.py demo/turbotest.asm
+```
+
+| | loops in one frame |
+| --- | --- |
+| Pentagon | `07DC` (2012) |
+| Pentagon, turbo | `0FD7` (4055) — 2.016× |
+| Spectrum 128K, turbo on | `0764` (1892), unchanged |
+
+Slightly over twice, because the interrupt's own fixed cost is a smaller share
+of a doubled frame; and a 128K is untouched with the switch on, which is the
+half of it that is easy to break. **Test the cold start as well as the switch**:
+the switch calls `machine_set_turbo()` while a machine runs, but a launch passes
+`--turbo` on Fuse's command line, and only one of those two paths goes through
+`settings.c`. That is not a hypothetical — see below.
+
+**The AY must keep its pitch in turbo.** With the tap described above,
+`demo/tstest.asm` on a Pentagon in turbo still measures 448 Hz and 671 Hz, the
+same as at 3.5MHz. If they come out at 896 and 1342 then the AY is being clocked
+from the CPU and `machine_turbo_factor()` is not being applied.
+
+**Fuse's perl codegen can write `settings.c` to the build tree and leave the
+source tree's copy stale**, which is how a build came out with
+`settings_current.turbo` in the header, full `--turbo` handling in the compiled
+library, and none of it in the copy the patch would carry. Everything worked on
+the device and a fresh clone would have been a coin toss on timestamps. After
+changing `settings.dat`, regenerate both by hand into the source tree before
+saving the patch:
+
+```sh
+cd "$(scripts/fuse-src.sh path)"
+perl -I perl settings.pl settings.dat > settings.c
+perl -I perl settings-header.pl settings.dat > settings.h
+```
+
 ### Three build types, and one of them is for Play
 
 | | | |

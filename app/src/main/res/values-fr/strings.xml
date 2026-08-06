@@ -374,6 +374,8 @@
     <string name="settings_ay_stereo">Séparation stéréo de l\'AY</string>
     <string name="settings_turbosound">TurboSound</string>
     <string name="settings_turbosound_summary">Une deuxième puce AY. Six canaux au lieu de trois, sur un Pentagon ou un Scorpion ; les autres machines n\'ont pas de TurboSound et l\'ignorent.</string>
+    <string name="settings_turbo">Turbo — 7 MHz</string>
+    <string name="settings_turbo_summary">Deux fois le processeur, sur un Pentagon ou un Scorpion. L\'image reste à 50 Hz et la musique garde son tempo ; le jeu fait simplement deux fois plus de travail entre deux images. Les autres machines l\'ignorent.</string>
     <string name="settings_volume_beeper">Volume du beeper</string>
 
     <string name="settings_filter">Image</string>

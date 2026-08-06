@@ -166,6 +166,7 @@ enum {
   OPTION_KEMPSTON_MOUSE,
   OPTION_DIVMMC,			/* the interface, not the card */
   OPTION_TURBOSOUND,			/* the second AY, where there can be one */
+  OPTION_TURBO,				/* 7MHz, where the machine had it */
 };
 
 /* The filters' shape, kept here because the settings arrive one at a time and
@@ -421,6 +422,19 @@ run_set_option( int option, int value )
        one frame and the next. */
     settings_current.turbosound = value;
     ay_update_chips();
+    break;
+
+  case OPTION_TURBO:
+    /* A 7MHz Z80 on the clones that had one - twice the tstates in a frame
+       that still lasts a fiftieth of a second, which is not the speed setting
+       and does not touch the tempo of the music. Safe here and nowhere else:
+       this runs at the end of a frame, which is the only moment the machine's
+       timings can change without an event being left behind at the old ones.
+
+       The sound has to be restarted because sound_init() reads the processor
+       speed once, for the blip buffer's clock rate. */
+    machine_set_turbo( value );
+    restart_sound();
     break;
 
   case OPTION_DETECT_LOADER:
@@ -1303,6 +1317,13 @@ Java_dev_ldlab_zedex_FuseNative_setTurboSound( JNIEnv *env, jclass class,
                                                jboolean on )
 {
   queue_command( COMMAND_SET_OPTION, OPTION_TURBOSOUND, on ? 1 : 0 );
+}
+
+JNIEXPORT void JNICALL
+Java_dev_ldlab_zedex_FuseNative_setTurbo( JNIEnv *env, jclass class,
+                                          jboolean on )
+{
+  queue_command( COMMAND_SET_OPTION, OPTION_TURBO, on ? 1 : 0 );
 }
 
 JNIEXPORT void JNICALL

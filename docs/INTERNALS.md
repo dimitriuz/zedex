@@ -194,6 +194,44 @@ the serial port that drives the printer are the first chip's for the same
 reason. A TurboSound tune saved to a `.szx` comes back playing three of its six
 channels, and there is nowhere in the format to put the rest.
 
+### Turbo, and the three things that must not follow the CPU
+
+The clones ran their Z80 at 7MHz rather than 3.5 while keeping the 50Hz frame,
+so a game got twice the work done between two interrupts and its music played
+at the same tempo. That is **not** the speed setting, which runs the whole
+machine faster — music, tape and real time with it. It is twice as many tstates
+inside a frame that still lasts a fiftieth of a second, so every field of
+`machine_timings` is multiplied together and a frame still takes
+`tstates_per_frame / processor_speed` seconds. The borders and the line length
+are in that list because the display is driven from them: leave those alone and
+the picture would be drawn in the first half of every frame.
+
+Three things do not follow the CPU, and each was a bug before it was a line:
+
+- **The AY has a clock of its own** and stays at 1.75MHz, so `sound.c`
+  multiplies `AY_CLOCK_RATIO` by `machine_turbo_factor()`. Without it every tune
+  plays an octave up in turbo, which is the first thing this got wrong and the
+  reason the test below measures pitch as well as speed.
+- **`ULA_CONTENTION_SIZE` was 80000**, one entry per tstate, against a doubled
+  Pentagon frame of 143360. The array is indexed by a running tstate count with
+  no bound check of its own, so it is 160000 now.
+- **The contention array is filled again** when the frame changes length, even
+  though every machine with a turbo is uncontended and it fills with zeroes:
+  entries past the old frame length would otherwise be read on the first turbo
+  frame.
+
+`machine_set_turbo()` changes it while the machine runs and has to be called at
+the **end of a frame**, which is where `ui_event()` drains the app's commands,
+so `tstates` is back to nearly nothing. It re-schedules the frame's own event,
+since `spectrum_frame()` has already booked the next one at the old length —
+leaving it there costs one frame at the wrong speed turning turbo on, and one
+that lasts twice as long, a visible stutter, turning it off. The caller restarts
+the sound, because `sound_init()` reads the processor speed once for the blip
+buffer's clock rate.
+
+`settings_current.turbo` is the only copy of whether it is on, so the command
+line — read before there is a machine to tell — and the switch cannot disagree.
+
 ### The other screen
 
 `SecondScreen` is what the panel looks like; `Panels` is the window half, which

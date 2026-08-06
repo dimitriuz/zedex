@@ -100,6 +100,11 @@ public class SettingsActivity extends AppCompatActivity
      * two bytes that select a chip are ordinary register selects.
      */
     public static final String KEY_TURBOSOUND = "turbosound";
+    /**
+     * A 7MHz Z80, on the machines that had one. Not the speed setting: the
+     * frame is still a fiftieth of a second, so only the CPU is faster.
+     */
+    public static final String KEY_TURBO = "turbo";
     public static final String KEY_BEEPER_VOLUME = "volumeBeeper";
     public static final String KEY_KEEP_SCREEN_ON = "keepScreenOn";
     /**
@@ -1273,6 +1278,9 @@ public class SettingsActivity extends AppCompatActivity
                     break;
                 case KEY_TURBOSOUND:
                     FuseNative.setTurboSound(preferences.getBoolean(key, true));
+                    break;
+                case KEY_TURBO:
+                    FuseNative.setTurbo(preferences.getBoolean(key, false));
                     break;
                 case KEY_AY_VOLUME:
                     FuseNative.setAyVolume(number(preferences, key, 100));

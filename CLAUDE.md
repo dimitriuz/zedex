@@ -355,6 +355,24 @@ expensive to rediscover.
     set-app-locales dev.ldlab.zedex.debug --locales pl-PL` is a good way to test
     that path on an emulator whose `persist.sys.locale` SELinux will not let you
     set.
+- **Fuse's perl codegen can leave the source tree's `settings.c` stale.** A
+  VPATH build writes the regenerated one into `build-native/fuse/$ABI`, so the
+  library gets full `--x` handling while the copy the *patch* would carry has
+  none of it — everything works on the device and a fresh clone is a coin toss
+  on timestamps. After changing `settings.dat`, run `settings.pl` and
+  `settings-header.pl` by hand into the source tree before `fuse-src.sh save`;
+  see *Testing turbo* in `docs/DEVELOPING.md`. And **test the cold start**, not
+  just the switch: a launch passes the option on Fuse's command line and only
+  that path goes through `settings.c`.
+- **Turbo is not the speed setting, and three things must not follow the CPU.**
+  7MHz means twice the tstates in a frame that still lasts a fiftieth of a
+  second, so `machine_timings` is multiplied as a whole. But the AY keeps its
+  own 1.75MHz clock (`AY_CLOCK_RATIO * machine_turbo_factor()`, or every tune
+  plays an octave up), `ULA_CONTENTION_SIZE` has to cover the doubled frame
+  (143360 against the old 80000, and it is indexed with no bound check), and the
+  contention array has to be refilled when the frame changes length. Timings may
+  only change at the **end of a frame** — `machine_set_turbo()` is called from
+  the command drain for exactly that reason.
 - **A setting has to be applied as well as stored.** Two places do that and a
   new setting belongs in one of them: `SettingsActivity`'s
   `onSharedPreferenceChanged`, which pushes into Fuse as the value changes, or

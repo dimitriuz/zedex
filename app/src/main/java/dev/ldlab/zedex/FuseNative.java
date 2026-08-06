@@ -420,6 +420,18 @@ public final class FuseNative {
      */
     public static native void setTurboSound(boolean on);
 
+    /**
+     * Turbo: a 7MHz Z80 instead of 3.5, on a machine that had one.
+     *
+     * Not the same as {@link #setSpeed}. The speed setting runs the whole
+     * machine faster — music, tape and real time with it; turbo gives the CPU
+     * twice as many tstates inside a frame that still lasts a fiftieth of a
+     * second, which is what the clones did, so a game gets twice the work done
+     * between two interrupts and its music plays at the same tempo. Only the
+     * Pentagons and the Scorpion have it; on anything else this does nothing.
+     */
+    public static native void setTurbo(boolean on);
+
     /** Beeper volume, 0 to 100; restarts Fuse's sound subsystem. */
     public static native void setBeeperVolume(int volume);
 

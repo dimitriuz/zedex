@@ -22,6 +22,12 @@
             android:title="@string/settings_firmware"
             android:persistent="false" />
 
+        <SwitchPreference
+            android:key="turbo"
+            android:title="@string/settings_turbo"
+            android:summary="@string/settings_turbo_summary"
+            android:defaultValue="false" />
+
         <ListPreference
             android:key="speed"
             android:title="@string/settings_speed"
