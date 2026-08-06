@@ -53,7 +53,7 @@ runs:
       uses: actions/cache@v6
       with:
         path: vendor/*.tar.gz
-        key: vendor-fuse-1.9.0-libspectrum-1.6.2
+        key: vendor-fuse-1.9.1-libspectrum-1.6.3
 
     # Restoring these skips the libspectrum and Fuse compiles, which is most
     # of the ~90s. Safe: the script always recompiles native/ and relinks, so

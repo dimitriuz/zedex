@@ -218,8 +218,8 @@ twice and both have to agree, so there is no "latest" for a new Fuse to slip
 into:
 
 ```sh
-FUSE_VER="1.9.0"          # in the URL: .../fuse/$FUSE_VER/fuse-$FUSE_VER.tar.gz
-LIBSPECTRUM_VER="1.6.2"
+FUSE_VER="1.9.1"          # in the URL: .../fuse/$FUSE_VER/fuse-$FUSE_VER.tar.gz
+LIBSPECTRUM_VER="1.6.3"
 ```
 
 and each `fetch` carries the hash of the exact tarball it expects. A release
@@ -374,18 +374,24 @@ the switch calls `machine_set_turbo()` while a machine runs, but a launch passes
 same as at 3.5MHz. If they come out at 896 and 1342 then the AY is being clocked
 from the CPU and `machine_turbo_factor()` is not being applied.
 
-**Fuse's perl codegen can write `settings.c` to the build tree and leave the
-source tree's copy stale**, which is how a build came out with
-`settings_current.turbo` in the header, full `--turbo` handling in the compiled
-library, and none of it in the copy the patch would carry. Everything worked on
-the device and a fresh clone would have been a coin toss on timestamps. After
-changing `settings.dat`, regenerate both by hand into the source tree before
-saving the patch:
+**`settings.c` and `settings.h` are generated, and where they land matters.**
+They come from `settings.dat` through perl, the release ships them, and
+`fuse-src.sh` regenerates them into the *source* tree whenever the series
+patches `settings.dat` — which is why they are not in the patches themselves,
+where they would conflict on every upstream release for no reason.
+
+It cannot be left to make. A `#include "settings.h"` from a file in the source
+tree resolves to the source tree's own copy **before any `-I` is looked at**, so
+a build-tree copy carrying the new setting loses to the shipped one sitting
+beside `machine.c`, and the compile fails on a struct member that is
+demonstrably there. Both halves of that were paid for: first a library built
+with full `--turbo` handling whose patch carried none of it, then a build that
+would not compile at all.
+
+After editing `settings.dat` in the tree, run it yourself — nothing else will:
 
 ```sh
-cd "$(scripts/fuse-src.sh path)"
-perl -I perl settings.pl settings.dat > settings.c
-perl -I perl settings-header.pl settings.dat > settings.h
+scripts/fuse-src.sh regen
 ```
 
 ### Three build types, and one of them is for Play

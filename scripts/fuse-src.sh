@@ -21,6 +21,7 @@
 #   scripts/fuse-src.sh status    # what is committed, and what is not
 #   scripts/fuse-src.sh diff      # working changes, not yet a commit
 #   scripts/fuse-src.sh save      # commits -> native/patches/*.patch
+#   scripts/fuse-src.sh regen     # settings.dat -> settings.c, settings.h
 #   scripts/fuse-src.sh git ...   # anything else, in the tree's own repo
 #
 # Typical loop:
@@ -46,6 +47,15 @@ SRC="$BUILD/src/fuse-$FUSE_VER"
 # The fork's own repository, never the app's: every git call here is -C "$SRC",
 # and this stops one that is not from quietly reaching the outer tree.
 fgit() { git -C "$SRC" -c user.name=Zedex -c user.email=zedex@invalid "$@"; }
+
+# Files the release ships but the build makes: they are tracked, because the
+# tarball has them, and apply_patches writes them again from the patched
+# settings.dat. Changing them is not work, so nothing here counts them as work
+# - otherwise the tree would look dirty the moment it was made.
+GENERATED=( ':(exclude)settings.c' ':(exclude)settings.h' )
+
+# What the tree has that no patch does. Empty means there is nothing to lose.
+dirty() { fgit status --porcelain -- . "${GENERATED[@]}"; }
 
 # What the tree's own commits would be saved as, normalised: format-patch
 # numbers each subject "[PATCH 2/3]", so a tree two patches deep compared with a
@@ -85,7 +95,7 @@ tree_state() {
   local mine theirs a b n=0
   mine="$BUILD/src/.cmp-tree"; theirs="$BUILD/src/.cmp-series"
 
-  [ -n "$( fgit status --porcelain )" ] && { echo ahead; return; }
+  [ -n "$( dirty )" ] && { echo ahead; return; }
 
   series_from_tree "$mine"
   series_from_patches "$theirs"
@@ -118,7 +128,7 @@ ensure() {
         ;;
       ahead)
         echo "the Fuse working tree holds work that native/patches does not:" >&2
-        fgit status --short >&2
+        dirty >&2
         fgit log --oneline upstream..HEAD | sed 's/^/  /' >&2
         echo "run 'scripts/fuse-src.sh save' to keep it, or 'reset' to lose it" >&2
         exit 1
@@ -151,6 +161,20 @@ ensure() {
   apply_patches
 }
 
+# settings.c and settings.h, from settings.dat. Run when the tree is made, and
+# by hand - `fuse-src.sh regen` - after editing settings.dat in the tree, since
+# then nothing else will: make would write them to the build tree, where the
+# quoted include cannot see them.
+regenerate() {
+  ( cd "$SRC" \
+    && perl -I perl settings.pl settings.dat > settings.c.tmp \
+    && mv settings.c.tmp settings.c \
+    && perl -I perl settings-header.pl settings.dat > settings.h.tmp \
+    && mv settings.h.tmp settings.h ) || {
+      echo "the perl codegen for settings.dat failed" >&2; exit 1; }
+  echo "regenerated settings.c and settings.h from settings.dat"
+}
+
 apply_patches() {
   local p n=0
   shopt -s nullglob
@@ -162,6 +186,33 @@ apply_patches() {
     n=$(( n + 1 ))
   done
   shopt -u nullglob
+
+  # Fuse generates settings.c and settings.h from settings.dat with perl, and
+  # the release ships the results - so a patch that changes settings.dat has to
+  # be followed by a regeneration, and it has to land in *this* tree rather
+  # than in the build tree.
+  #
+  # It cannot be left to make. `#include "settings.h"` from a file in the
+  # source tree resolves to the source tree's own copy before any -I is looked
+  # at, so a build-tree copy with the new setting in it loses to the shipped
+  # one sitting beside machine.c, and the compile fails on a member that is
+  # demonstrably there. That is worth a paragraph because it looks exactly like
+  # a stale build.
+  #
+  # Doing it here rather than carrying the results in the patches keeps
+  # generated files out of the series, where they conflict on every upstream
+  # release for no reason.
+  if fgit diff --name-only upstream..HEAD | grep -qx settings.dat; then
+    regenerate
+  fi
+
+  # And the objects have to notice: git writes every patched file with today's
+  # timestamp, but which of a file and its generated output lands first inside
+  # the same second is not something to rely on.
+  ( cd "$SRC" && fgit diff --name-only upstream..HEAD | while read -r f; do
+      [ -e "$f" ] && touch "$f"
+    done )
+
   echo "applied $n patch(es) from native/patches"
 }
 
@@ -177,9 +228,9 @@ case "${1:-}" in
     ;;
 
   reset)
-    if [ -d "$SRC" ] && [ -n "$(fgit status --porcelain)" ]; then
+    if [ -d "$SRC" ] && [ -n "$( dirty )" ]; then
       echo "the working tree has uncommitted changes:" >&2
-      fgit status --short >&2
+      dirty >&2
       echo "commit them and save them, or lose them with: rm -rf '$SRC'" >&2
       exit 1
     fi
@@ -198,9 +249,9 @@ case "${1:-}" in
     echo "patches: $(ls "$PATCHES"/*.patch 2>/dev/null | wc -l) in native/patches"
     echo "commits on top of upstream:"
     fgit log --oneline upstream..HEAD | sed 's/^/  /'
-    if [ -n "$(fgit status --porcelain)" ]; then
+    if [ -n "$( dirty )" ]; then
       echo "uncommitted changes (NOT in any patch):"
-      fgit status --short | sed 's/^/  /'
+      dirty | sed 's/^/  /'
     fi
     ;;
 
@@ -211,10 +262,10 @@ case "${1:-}" in
 
   save)
     [ -d "$SRC" ] || { echo "no working tree" >&2; exit 1; }
-    if [ -n "$(fgit status --porcelain)" ]; then
+    if [ -n "$( dirty )" ]; then
       echo "uncommitted changes; commit them first - a patch is made from" >&2
       echo "commits, so anything else would be silently left out:" >&2
-      fgit status --short >&2
+      dirty >&2
       exit 1
     fi
     mkdir -p "$PATCHES"
@@ -224,6 +275,15 @@ case "${1:-}" in
     fgit format-patch --quiet --no-signature --zero-commit \
         --output-directory "$PATCHES" upstream..HEAD
     ls "$PATCHES"/*.patch | sed "s|^$ROOT/|saved |"
+    ;;
+
+  regen)
+    regenerate
+    ;;
+
+  dirty)
+    # For the build script, which warns about a tree nobody else can reproduce.
+    [ -d "$SRC/.git" ] && dirty
     ;;
 
   git)

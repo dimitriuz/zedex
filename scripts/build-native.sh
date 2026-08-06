@@ -25,8 +25,8 @@ BUILD="$ROOT/build-native"
 APP="$ROOT/app/src/main"
 NATIVE="$ROOT/native"
 
-FUSE_VER="1.9.0"
-LIBSPECTRUM_VER="1.6.2"
+FUSE_VER="1.9.1"
+LIBSPECTRUM_VER="1.6.3"
 
 SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-$HOME/Android/Sdk}}"
 NDK="${ANDROID_NDK_HOME:-$(ls -d "$SDK"/ndk/* 2>/dev/null | sort -V | tail -1)}"
@@ -46,12 +46,9 @@ if [ "${1:-}" = "clean" ]; then
   # The Fuse working tree is inside $BUILD and is the one thing here that can
   # hold work: it is vendor/ plus native/patches/, and anything not yet saved
   # as a patch exists nowhere else. Refuse rather than take it away.
-  SRC_TREE="$("$ROOT/scripts/fuse-src.sh" path)"
-  if [ -d "$SRC_TREE/.git" ] && \
-     [ -n "$(git -C "$SRC_TREE" status --porcelain)" ] && \
-     [ "${2:-}" != "--force" ]; then
+  if [ -n "$("$ROOT/scripts/fuse-src.sh" dirty)" ] && [ "${2:-}" != "--force" ]; then
     echo "the Fuse working tree has changes that are not in native/patches:" >&2
-    git -C "$SRC_TREE" status --short >&2
+    "$ROOT/scripts/fuse-src.sh" dirty >&2
     echo "run 'scripts/fuse-src.sh save' first, or 'clean --force'" >&2
     exit 1
   fi
@@ -90,10 +87,10 @@ fetch() {
 
 fetch "fuse-$FUSE_VER" \
   "https://downloads.sourceforge.net/project/fuse-emulator/fuse/$FUSE_VER/fuse-$FUSE_VER.tar.gz" \
-  34618c419e215e16ae4584f227e899e4e55be1ddb90fb03380c910ac16cab38a
+  5815b42256d4dd28581d59f3ceec33fcd736b7a68afe032b1e65ba714fb55642
 fetch "libspectrum-$LIBSPECTRUM_VER" \
   "https://downloads.sourceforge.net/project/fuse-emulator/libspectrum/$LIBSPECTRUM_VER/libspectrum-$LIBSPECTRUM_VER.tar.gz" \
-  74bb2bb0e78779a09808aa7636fe7fa6c815002e8344b46d914bfb7a864c88e0
+  fa4a5e68c1ab5860dcdf99f5486ee6313995dbe30e84160e9f699d0f8db77d76
 
 ##############################################################################
 # What Fuse is actually built from: a copy of the release with native/patches/
@@ -105,10 +102,10 @@ FUSE_SRC="$("$ROOT/scripts/fuse-src.sh" path)"
 
 # A tree edited but not saved builds something no one else can reproduce, and
 # `build-native.sh clean` would be the end of it. Say so on every build.
-if [ -n "$(git -C "$FUSE_SRC" status --porcelain 2>/dev/null)" ]; then
+if [ -n "$("$ROOT/scripts/fuse-src.sh" dirty)" ]; then
   echo
   echo "NOTE: the Fuse working tree has changes that are in no patch:"
-  git -C "$FUSE_SRC" status --short | sed 's/^/      /'
+  "$ROOT/scripts/fuse-src.sh" dirty | sed 's/^/      /'
   echo "      building them anyway; 'scripts/fuse-src.sh save' keeps them."
   echo
 fi

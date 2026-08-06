@@ -340,8 +340,8 @@ Play build has none of this, as above.
 Zedex is free software under the **GNU General Public License, version 2 or (at
 your option) any later version**. The full text is in [LICENSE](LICENSE).
 
-`vendor/` keeps its own upstream copyright — see `vendor/fuse-1.9.0/AUTHORS` and
-`vendor/libspectrum-1.6.2/AUTHORS`. Everything outside it is © 2026 Dmitrii
+`vendor/` keeps its own upstream copyright — see `vendor/fuse-1.9.1/AUTHORS` and
+`vendor/libspectrum-1.6.3/AUTHORS`. Everything outside it is © 2026 Dmitrii
 Leshchenko.
 
 The name **Zedex** and the app icon are not covered by the GPL, which grants no

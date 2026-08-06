@@ -366,15 +366,16 @@ expensive to rediscover.
   moved on, refusing only when the tree holds work the series does not. The
   cache key covers `native/patches/*.patch` as well, so a stale cache is slow
   rather than a rebuild.
-- **Fuse's perl codegen can leave the source tree's `settings.c` stale.** A
-  VPATH build writes the regenerated one into `build-native/fuse/$ABI`, so the
-  library gets full `--x` handling while the copy the *patch* would carry has
-  none of it — everything works on the device and a fresh clone is a coin toss
-  on timestamps. After changing `settings.dat`, run `settings.pl` and
-  `settings-header.pl` by hand into the source tree before `fuse-src.sh save`;
-  see *Testing turbo* in `docs/DEVELOPING.md`. And **test the cold start**, not
-  just the switch: a launch passes the option on Fuse's command line and only
-  that path goes through `settings.c`.
+- **`settings.c`/`.h` are generated, and only the source tree's copy counts.**
+  A quoted `#include` from a file in the source tree finds that directory
+  *before any `-I`*, so a regenerated copy in the build tree loses to the one
+  the tarball shipped, and the compile fails on a struct member that is
+  demonstrably there. `fuse-src.sh` regenerates them into the source tree when
+  the series patches `settings.dat`, which is why they are not carried in the
+  patches; after editing `settings.dat` in the tree yourself, run
+  `scripts/fuse-src.sh regen`. And **test the cold start**, not just the
+  switch: a launch passes the option on Fuse's command line, and only that path
+  goes through `settings.c`.
 - **Turbo is not the speed setting, and three things must not follow the CPU.**
   7MHz means twice the tstates in a frame that still lasts a fiftieth of a
   second, so `machine_timings` is multiplied as a whole. But the AY keeps its
