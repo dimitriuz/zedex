@@ -6,7 +6,10 @@ import android.net.Uri;
 import android.provider.DocumentsContract;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -50,6 +53,10 @@ public final class Artwork {
     private static final Map<String, Uri> pictureCache = new HashMap<>();
     private static final Map<String, Uri> videoCache = new HashMap<>();
 
+    /** {@link #pictures}, which asks for all four folders where the two
+     *  above stop at the first answer. */
+    private static final Map<String, List<Uri>> galleryCache = new HashMap<>();
+
     /** The media root the two caches above were built against. */
     private static String cachedForRoot;
 
@@ -79,6 +86,46 @@ public final class Artwork {
         return found;
     }
 
+    /**
+     * Every picture ES-DE has for this game, in {@link #PICTURE_FOLDERS}
+     * order - the cover first, which is what a single-picture caller wants -
+     * and empty when it has none.
+     *
+     * One per folder, not one per file: a game has a cover *or* nothing in
+     * {@code covers}, and whether it was scraped as {@code .png} or
+     * {@code .jpg} is ES-DE's business rather than a second picture. So this
+     * is at most four, and usually one.
+     *
+     * Kept apart from {@link #picture} deliberately, cache and all. That one
+     * stops at the first hit and is called once per visible row as a list
+     * scrolls; this one always asks all four folders, and is called once, for
+     * the one game whose details are open.
+     */
+    public static synchronized List<Uri> pictures(Context context, String relativePath) {
+        Uri root = freshen(context);
+        if (root == null) return Collections.emptyList();
+
+        List<Uri> cached = galleryCache.get(relativePath);
+        if (cached != null) return cached;
+
+        String stem = withoutExtension(relativePath);
+        List<Uri> found = new ArrayList<>();
+
+        for (String folder : PICTURE_FOLDERS) {
+            for (String extension : PICTURE_EXTENSIONS) {
+                Uri one = resolve(context, root, folder, stem + "." + extension);
+                if (one != null) {
+                    found.add(one);
+                    break;
+                }
+            }
+        }
+
+        List<Uri> result = Collections.unmodifiableList(found);
+        galleryCache.put(relativePath, result);
+        return result;
+    }
+
     /** {@code videos/...}; null when there is none. */
     public static synchronized Uri video(Context context, String relativePath) {
         Uri root = freshen(context);
@@ -102,6 +149,7 @@ public final class Artwork {
         if (!java.util.Objects.equals(key, cachedForRoot)) {
             pictureCache.clear();
             videoCache.clear();
+            galleryCache.clear();
             cachedForRoot = key;
         }
 
