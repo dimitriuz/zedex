@@ -865,9 +865,12 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // The joystick's own face and legend colour, since this sits beside it:
         // its own shape made a solid dark disc among controls that are barely
         // there, which over a picture reads as a hole rather than a button.
-        button.setColorFilter(JoystickView.markColour());
+        // The in-a-bar palette to begin with; EmulatorLayout swaps both for the
+        // opaque set whenever the controls end up floating over the picture,
+        // where the translucent one cannot be seen at all.
+        button.setColorFilter(JoystickView.markColour(false));
         button.setBackground(JoystickView.disc(
-                getResources().getDisplayMetrics().density));
+                getResources().getDisplayMetrics().density, false));
 
         // Its own padding, equal on all four sides. An ImageButton takes its
         // from the style otherwise, and that one is not symmetrical: the glyph

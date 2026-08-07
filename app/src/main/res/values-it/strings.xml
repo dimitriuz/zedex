@@ -474,6 +474,9 @@
     <string name="lamp_mouse">mouse</string>
     <string name="lamp_card">scheda</string>
     <string name="lights_name">Indicatori di attività della macchina</string>
+    <string name="lamp_idle">inattivo</string>
+    <string name="lamp_reading">lettura</string>
+    <string name="lamp_writing">scrittura</string>
     <string name="settings_indicators">Indicatori di attività</string>
     <string name="settings_indicators_summary">Spie accanto all\'immagine per nastro, dischi, scheda, audio, tastiera, joystick e mouse</string>
     <string name="quick_joystick_show">Mostra il joystick</string>

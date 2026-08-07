@@ -474,6 +474,9 @@
     <string name="lamp_mouse">myš</string>
     <string name="lamp_card">karta</string>
     <string name="lights_name">Kontrolky činnosti počítače</string>
+    <string name="lamp_idle">nečinné</string>
+    <string name="lamp_reading">čte</string>
+    <string name="lamp_writing">zapisuje</string>
     <string name="settings_indicators">Kontrolky činnosti</string>
     <string name="settings_indicators_summary">Světla vedle obrazu pro kazetu, diskety, kartu, zvuk, klávesnici, joystick a myš</string>
     <string name="quick_joystick_show">Zobrazit joystick</string>

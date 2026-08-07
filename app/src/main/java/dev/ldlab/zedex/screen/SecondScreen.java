@@ -236,7 +236,7 @@ public final class SecondScreen extends Presentation {
 
             switchButton = new ImageButton(getContext());
             switchButton.setBackground(disc);
-            switchButton.setForeground(Ripple.make());
+            switchButton.setForeground(Ripple.make(getResources().getDisplayMetrics().density));
             switchButton.setPadding(padding, padding, padding, padding);
             switchButton.setColorFilter(0xffffffff);
             switchButton.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);

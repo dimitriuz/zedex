@@ -1062,13 +1062,44 @@ public final class EmulatorLayout extends ViewGroup {
         // overlay's buttons go with them, sitting where the pad does.
         float alpha = joystickFloating ? FLOATING_ALPHA : 1f;
 
-        if (pad != null) pad.setAlpha(alpha);
-        if (fire != null) fire.setAlpha(alpha);
+        // The palette goes with the alpha, and for the same reason: floating
+        // means the picture is what is behind the control, and the translucent
+        // set is unreadable over it - 1.04:1 against white paper once this
+        // alpha has been applied as well. JoystickView.setOverPicture explains
+        // why opacity rather than a darker scrim is the answer.
+        if (pad != null) { pad.setAlpha(alpha); pad.setOverPicture(joystickFloating); }
+        if (fire != null) { fire.setAlpha(alpha); fire.setOverPicture(joystickFloating); }
+
         // this.keys, since a local of the same name says whether a keyboard has
         // a place in this window.
-        for (JoystickView key : this.keys) key.setAlpha(alpha);
+        for (JoystickView key : this.keys) {
+            key.setAlpha(alpha);
+            key.setOverPicture(joystickFloating);
+        }
+
         if (overlayOpen != null) overlayOpen.setAlpha(alpha);
         if (overlayClose != null) overlayClose.setAlpha(alpha);
+
+        restyleOverlayButton(overlayOpen, joystickFloating);
+        restyleOverlayButton(overlayClose, joystickFloating);
+    }
+
+    /**
+     * The overlay keyboard's two buttons take the joystick's palette, because
+     * they sit among the controls and share whatever those are sitting on.
+     * Held here as plain Views - the activity builds them - so the background
+     * and the glyph tint are set rather than a method called on a known type.
+     */
+    private void restyleOverlayButton(View button, boolean overPicture) {
+        if (button == null) return;
+
+        button.setBackground(JoystickView.disc(
+                getResources().getDisplayMetrics().density, overPicture));
+
+        if (button instanceof android.widget.ImageView) {
+            ((android.widget.ImageView) button)
+                    .setColorFilter(JoystickView.markColour(overPicture));
+        }
     }
 
     /**

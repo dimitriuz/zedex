@@ -474,6 +474,9 @@
     <string name="lamp_mouse">souris</string>
     <string name="lamp_card">carte</string>
     <string name="lights_name">Témoins d\'activité de la machine</string>
+    <string name="lamp_idle">inactif</string>
+    <string name="lamp_reading">lecture</string>
+    <string name="lamp_writing">écriture</string>
     <string name="settings_indicators">Témoins d\'activité</string>
     <string name="settings_indicators_summary">Des voyants à côté de l\'image pour la cassette, les disquettes, la carte, le son, le clavier, le joystick et la souris</string>
     <string name="quick_joystick_show">Afficher le joystick</string>

@@ -474,6 +474,9 @@
     <string name="lamp_mouse">мишка</string>
     <string name="lamp_card">картка</string>
     <string name="lights_name">Індикатори роботи машини</string>
+    <string name="lamp_idle">бездіяльний</string>
+    <string name="lamp_reading">читання</string>
+    <string name="lamp_writing">запис</string>
     <string name="settings_indicators">Індикатори роботи</string>
     <string name="settings_indicators_summary">Лампочки біля картинки: стрічка, диски, картка, звук, клавіатура, джойстик і мишка</string>
     <string name="quick_joystick_show">Показати джойстик</string>

@@ -13,6 +13,7 @@ import dev.ldlab.zedex.library.ui.GamepadCursor;
 import dev.ldlab.zedex.library.ui.Manuals;
 import dev.ldlab.zedex.library.ui.OptionsDialog;
 import dev.ldlab.zedex.library.ui.Ripple;
+import dev.ldlab.zedex.library.ui.Selection;
 import dev.ldlab.zedex.storage.Recents;
 import dev.ldlab.zedex.storage.Storage;
 import dev.ldlab.zedex.view.SafeArea;
@@ -1196,7 +1197,7 @@ public final class LibraryActivity extends Activity {
         // pressed and focused states answer to the device theme's own
         // accent rather than anything chosen here - see Ripple.
         button.setBackgroundColor(0x00000000);
-        button.setForeground(Ripple.make());
+        button.setForeground(Ripple.make(getResources().getDisplayMetrics().density));
         button.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
         button.setOnClickListener(v -> show(which));
         button.setLayoutParams(new LinearLayout.LayoutParams(
@@ -1211,7 +1212,21 @@ public final class LibraryActivity extends Activity {
             boolean active = candidate == tab;
 
             button.setColorFilter(active ? ACTIVE : MUTED);
-            button.setBackgroundColor(active ? TAB_ACTIVE_BACKGROUND : 0x00000000);
+
+            // Selection.background, not the bare wash: cyan at 20% over this
+            // screen's backing is 1.37:1 against an inactive tab beside it,
+            // which is not enough to tell anybody which tab they are on.
+            if (active) {
+                button.setBackground(Selection.background(
+                        getResources().getDisplayMetrics().density));
+            } else {
+                button.setBackground(null);
+            }
+
+            // And say it rather than only drawing it. TalkBack reads all three
+            // of these tabs identically otherwise - "Browse", "Favourites",
+            // "Recent", with nothing to say which one you are looking at.
+            button.setSelected(active);
         }
     }
 
@@ -1356,7 +1371,7 @@ public final class LibraryActivity extends Activity {
         button.setColorFilter(TEXT);
         button.setContentDescription(description);
         button.setBackgroundColor(0x00000000);
-        button.setForeground(Ripple.make());
+        button.setForeground(Ripple.make(getResources().getDisplayMetrics().density));
         button.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
         button.setLayoutParams(new LinearLayout.LayoutParams(
                 Math.round(44 * density), Math.round(44 * density)));
@@ -1591,7 +1606,7 @@ public final class LibraryActivity extends Activity {
         paneInfoButton = new ImageButton(this);
         paneInfoButton.setImageResource(R.drawable.ic_zoom);
         paneInfoButton.setColorFilter(MUTED);
-        paneInfoButton.setBackground(Ripple.make());
+        paneInfoButton.setBackground(Ripple.make(getResources().getDisplayMetrics().density));
         paneInfoButton.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
         paneInfoButton.setContentDescription(getString(R.string.library_info));
         paneInfoButton.setOnClickListener(v -> showGameInfo());
@@ -1608,7 +1623,7 @@ public final class LibraryActivity extends Activity {
         paneManualButton = new ImageButton(this);
         paneManualButton.setImageResource(R.drawable.ic_manual);
         paneManualButton.setColorFilter(MUTED);
-        paneManualButton.setBackground(Ripple.make());
+        paneManualButton.setBackground(Ripple.make(getResources().getDisplayMetrics().density));
         paneManualButton.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
         paneManualButton.setContentDescription(getString(R.string.library_manual));
         paneManualButton.setVisibility(View.GONE);

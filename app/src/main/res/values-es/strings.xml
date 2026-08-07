@@ -474,6 +474,9 @@
     <string name="lamp_mouse">ratón</string>
     <string name="lamp_card">tarjeta</string>
     <string name="lights_name">Indicadores de actividad de la máquina</string>
+    <string name="lamp_idle">inactivo</string>
+    <string name="lamp_reading">leyendo</string>
+    <string name="lamp_writing">escribiendo</string>
     <string name="settings_indicators">Indicadores de actividad</string>
     <string name="settings_indicators_summary">Luces junto a la imagen para la cinta, los discos, la tarjeta, el sonido, el teclado, el joystick y el ratón</string>
     <string name="quick_joystick_show">Mostrar el joystick</string>
