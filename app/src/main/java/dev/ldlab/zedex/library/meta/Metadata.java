@@ -396,9 +396,59 @@ public final class Metadata {
     /** Only when there is something to say - an empty file is omitted, ES-DE's own way. */
     private static void append(Document document, Element parent, String name, String text) {
         if (text == null || text.isEmpty()) return;
+
+        String usable = xmlSafe(text);
+        if (usable.isEmpty()) return;
+
         Element element = document.createElement(name);
-        element.setTextContent(text);
+        element.setTextContent(usable);
         parent.appendChild(element);
+    }
+
+    /**
+     * Text with the characters XML cannot carry taken out of it.
+     *
+     * This is not defensive tidying; it is a file this app wrote and then could
+     * not read. One scraped description ended in U+0001 - "Selection between
+     * right-hand and left-hand drive." and then a stray control byte, from
+     * whatever scraper filled ES-DE's own gamelist. The DOM took it without
+     * complaint and the Transformer wrote it out as {@code &#1;}, which is not
+     * well-formed XML 1.0 at all: no parser will read that reference back.
+     *
+     * So the next {@link #load} threw, the catch turned it into {@link #EMPTY},
+     * and 803 games' worth of metadata vanished behind an app that said, in the
+     * same tone it uses when it is true, that the library had never been
+     * linked. Artwork went on working - it comes from ES-DE's media folder and
+     * never touches this file - so the link looked like it had worked. One byte
+     * out of 762 kilobytes.
+     *
+     * The permitted set is the one from the XML 1.0 specification: tab,
+     * newline, carriage return, and everything from {@code #x20} up, less the
+     * two non-characters at the end of the BMP. Surrogate pairs are left alone
+     * - a Java char in the surrogate range is half of an astral character, and
+     * dropping one of the pair would corrupt what it is trying to protect.
+     */
+    static String xmlSafe(String text) {
+        StringBuilder kept = null;
+
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+
+            boolean allowed = c == '\t' || c == '\n' || c == '\r'
+                    || (c >= 0x20 && c <= 0xD7FF)
+                    || (c >= 0xE000 && c <= 0xFFFD)
+                    || Character.isSurrogate(c);
+
+            if (allowed) {
+                if (kept != null) kept.append(c);
+                continue;
+            }
+
+            // The first one that has to go: copy what came before it.
+            if (kept == null) kept = new StringBuilder(text.length()).append(text, 0, i);
+        }
+
+        return kept == null ? text : kept.toString();
     }
 
     private static void write(Document document, OutputStream out) throws Exception {
@@ -455,7 +505,15 @@ public final class Metadata {
 
             return new Store(mtime, linkedAt, games);
         } catch (Exception e) {
-            Log.w(TAG, "cannot read " + file, e);
+            // Loud, and specific about the consequence: what is returned
+            // below is indistinguishable from an empty store, so every screen
+            // goes on to say the library has never been linked. A file that
+            // exists and will not parse is a different thing from no file at
+            // all, and here is the only place that difference is visible.
+            Log.e(TAG, "cannot read " + file + " - it exists but will not parse,"
+                       + " so the library will report itself as never linked."
+                       + " Linking again rewrites it; see Metadata.xmlSafe for"
+                       + " the character that used to cause this.", e);
             return EMPTY;
         }
     }
