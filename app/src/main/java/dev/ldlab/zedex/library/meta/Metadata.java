@@ -1,6 +1,7 @@
 package dev.ldlab.zedex.library.meta;
 
 import dev.ldlab.zedex.storage.Storage;
+import dev.ldlab.zedex.storage.Xml;
 import android.content.Context;
 import android.net.Uri;
 import android.provider.DocumentsContract;
@@ -25,7 +26,6 @@ import java.util.List;
 import java.util.Map;
 
 import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerFactory;
@@ -363,8 +363,7 @@ public final class Metadata {
     }
 
     private static Document build(long linkedAt, List<Meta> games) throws Exception {
-        DocumentBuilder builder =
-                DocumentBuilderFactory.newInstance().newDocumentBuilder();
+        DocumentBuilder builder = Xml.builder();
         Document document = builder.newDocument();
 
         Element root = document.createElement(ROOT);
@@ -424,8 +423,7 @@ public final class Metadata {
         if (mtime == 0) return EMPTY;
 
         try (InputStream in = new FileInputStream(file)) {
-            DocumentBuilder builder =
-                    DocumentBuilderFactory.newInstance().newDocumentBuilder();
+            DocumentBuilder builder = Xml.builder();
             Document document = builder.parse(in);
 
             if (!ROOT.equals(document.getDocumentElement().getNodeName())) {

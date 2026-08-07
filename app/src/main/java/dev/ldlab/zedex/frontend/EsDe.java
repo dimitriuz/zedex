@@ -3,6 +3,7 @@ package dev.ldlab.zedex.frontend;
 import dev.ldlab.zedex.library.Types;
 import dev.ldlab.zedex.screen.SettingsActivity;
 import dev.ldlab.zedex.storage.Storage;
+import dev.ldlab.zedex.storage.Xml;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -17,6 +18,7 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -25,7 +27,6 @@ import java.io.OutputStream;
 import java.util.Locale;
 
 import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerFactory;
@@ -409,8 +410,7 @@ public final class EsDe {
      */
     private static Document read(Place place, String name, String root) {
         try {
-            DocumentBuilder builder =
-                    DocumentBuilderFactory.newInstance().newDocumentBuilder();
+            DocumentBuilder builder = Xml.builder();
 
             try (InputStream in = place.read(name)) {
                 if (in != null) {
@@ -432,13 +432,42 @@ public final class EsDe {
         }
     }
 
+    /**
+     * The document, into a file that is the user's and not ours.
+     *
+     * Serialised whole into memory before the file is opened at all, because
+     * both {@link Place}s truncate on open — {@code FileOutputStream}, and the
+     * {@code "wt"} the tree needs for the reason given there. A transformer
+     * that threw partway would otherwise leave ES-DE's own {@code
+     * es_systems.xml} half written, and there would be no way back: {@link
+     * #read} cannot parse a partial file, so it declines to touch it and every
+     * later install fails the same way for ever. A zero-length file recovers by
+     * itself — {@code Paths.read} tests the length — but a truncated one does
+     * not.
+     *
+     * These files are a few kilobytes; holding one in memory costs nothing.
+     * {@code Metadata.store} does the same thing with a temporary file, which
+     * works there because the folder is ours to leave a {@code .tmp} in.
+     */
     private static boolean write(Document document, Place place, String name) {
-        try (OutputStream out = place.write(name)) {
+        byte[] bytes;
+
+        try {
             Transformer transformer = TransformerFactory.newInstance().newTransformer();
             transformer.setOutputProperty(OutputKeys.INDENT, "yes");
             transformer.setOutputProperty(
                     "{http://xml.apache.org/xslt}indent-amount", "4");
-            transformer.transform(new DOMSource(document), new StreamResult(out));
+
+            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+            transformer.transform(new DOMSource(document), new StreamResult(buffer));
+            bytes = buffer.toByteArray();
+        } catch (Exception e) {
+            Log.w(TAG, "cannot serialise " + name + "; left alone", e);
+            return false;
+        }
+
+        try (OutputStream out = place.write(name)) {
+            out.write(bytes);
             return true;
         } catch (Exception e) {
             Log.w(TAG, "cannot write " + name, e);

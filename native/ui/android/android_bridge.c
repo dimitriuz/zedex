@@ -817,9 +817,31 @@ static jmethodID on_screenshot_method;
 static volatile int recording;
 static volatile int screenshot_wanted;
 
+/* Log an exception the Java side left behind, and clear it.
+
+   Every call into Java from here is made on the emulation thread, which stays
+   attached for as long as Fuse is running - so nothing else will ever clear an
+   exception left pending on it. The next JNI call made with one pending is
+   undefined behaviour: CheckJNI aborts on the spot, and a release build, which
+   has it off, carries on into whatever comes of that.
+
+   The reachable case is a recording. Java's onFrame allocates a byte[] the
+   size of the frame for every frame, so an OutOfMemoryError there arrives back
+   here fifty times a second. Fuse has no idea what a Java exception is and
+   nothing it could do about one, so logging it and carrying on is the whole of
+   what is available - but it has to be done rather than ignored. */
+static void
+clear_pending( JNIEnv *env )
+{
+  if( !(*env)->ExceptionCheck( env ) ) return;
+
+  (*env)->ExceptionDescribe( env );     /* the stack trace, to logcat */
+  (*env)->ExceptionClear( env );
+}
+
 /* The emulation thread is a plain pthread, so it has to be attached before
-   it can call back into Java. It runs for the life of the process, so there
-   is nothing to detach. */
+   it can call back into Java. It is detached again where it exits - see
+   emulation_thread(), and the comment there about why that happens at all. */
 static JNIEnv *
 attached_env( void )
 {
@@ -859,6 +881,18 @@ JNI_OnLoad( JavaVM *vm, void *reserved )
     (*env)->DeleteLocalRef( env, local );
   }
 
+  /* FindClass and GetStaticMethodID each leave an exception pending when they
+     fail, and returning from JNI_OnLoad with one is undefined. The guards on
+     native_class and the three method ids already cope with the failure - the
+     callback is skipped - but the exception itself still has to go.
+
+     Getting here with one means the Java side is not what this was built
+     against: renamed, or stripped. R8 would remove onError, onFrame and
+     onScreenshot given the chance, since they are package-private statics that
+     nothing in Java calls - so turning minification on needs keep rules for
+     the three of them as well as for the class and its natives. */
+  clear_pending( env );
+
   return JNI_VERSION_1_6;
 }
 
@@ -876,10 +910,11 @@ androidbridge_report_error( int severity, const char *message )
   if( !env ) return;
 
   text = (*env)->NewStringUTF( env, message );
-  if( !text ) return;
+  if( !text ) { clear_pending( env ); return; }
 
   (*env)->CallStaticVoidMethod( env, native_class, on_error_method,
                                 (jint) severity, text );
+  clear_pending( env );
   (*env)->DeleteLocalRef( env, text );
 }
 
@@ -902,14 +937,18 @@ androidbridge_frame_ready( int width, int height )
 
   if( screenshot_wanted ) {
     screenshot_wanted = 0;
-    if( on_screenshot_method )
+    if( on_screenshot_method ) {
       (*env)->CallStaticVoidMethod( env, native_class, on_screenshot_method,
                                     (jint) width, (jint) height );
+      clear_pending( env );
+    }
   }
 
-  if( recording && on_frame_method )
+  if( recording && on_frame_method ) {
     (*env)->CallStaticVoidMethod( env, native_class, on_frame_method,
                                   (jint) width, (jint) height );
+    clear_pending( env );
+  }
 }
 
 /* --- emulation thread ------------------------------------------------- */
@@ -924,9 +963,26 @@ static char **fuse_argv;
 static void *
 emulation_thread( void *arg )
 {
+  JNIEnv *env;
+
   android_log( "emulation thread starting" );
   main( fuse_argc, fuse_argv );
   android_logw( "fuse main() returned" );
+
+  /* main() returning is not the impossible case it looks like: Fuse leaves it
+     on any failure to start, and it reports that failure through ui_error on
+     the way out - which is androidbridge_report_error here, which attaches
+     this thread. So the one path that exits is also the one path that has
+     certainly attached, and missing ROMs is the way a first run reaches it.
+
+     A pthread that exits while still attached gets a warning from ART's
+     thread-local destructor at best and an abort at worst, so undo it. GetEnv
+     rather than a flag of our own: it answers for this thread only, and says
+     nothing if attached_env() was never called at all. */
+  if( java_vm &&
+      (*java_vm)->GetEnv( java_vm, (void**) &env, JNI_VERSION_1_6 ) == JNI_OK )
+    (*java_vm)->DetachCurrentThread( java_vm );
+
   return NULL;
 }
 
