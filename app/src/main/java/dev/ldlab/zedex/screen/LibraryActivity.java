@@ -1891,7 +1891,28 @@ public final class LibraryActivity extends Activity {
         appendFact(line, meta.publisher);
         appendFact(line, yearOf(meta.released));
 
+        // Genre and the rating too, the same as the details screen has always
+        // shown - the pane had room for them and was showing three facts where
+        // GameInfoView showed five.
+        appendFact(line, meta.genre);
+        appendFact(line, outOfFive(meta));
+
         return line.length() > 0 ? line.toString() : null;
+    }
+
+    /**
+     * The scraped rating as {@code 4.5/5}, or null when there is none.
+     *
+     * Written out rather than drawn as stars: a row of glyphs is read aloud
+     * by a screen reader as "black star black star black star", and this line
+     * is plain text that goes straight into a contentDescription. The bare
+     * fraction ES-DE stores - 0.9 - would mean nothing here, so {@link
+     * Meta#stars} scales it; the "/5" is what makes 4.5 a rating rather than
+     * a number, and it needs no translating.
+     */
+    private static String outOfFive(Meta meta) {
+        String stars = meta.stars();
+        return stars == null ? null : stars + "/5";
     }
 
     private static void appendFact(StringBuilder line, String fact) {

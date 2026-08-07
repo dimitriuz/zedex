@@ -449,6 +449,11 @@ public final class GameInfoView extends LinearLayout {
         append(text, meta.genre);
         append(text, meta.players);
 
+        // See LibraryActivity.outOfFive for why this is written rather than
+        // drawn as stars.
+        String stars = meta.stars();
+        if (stars != null) append(text, stars + "/5");
+
         return text.length() > 0 ? text.toString() : null;
     }
 

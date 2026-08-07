@@ -135,7 +135,8 @@ public final class EsdeLink {
                 games.add(new Meta(path, text(element, "name"), text(element, "desc"),
                         text(element, "developer"), text(element, "publisher"),
                         text(element, "genre"), text(element, "releasedate"),
-                        text(element, "players"), "esde"));
+                        text(element, "players"), text(element, "rating"),
+                        "esde"));
             }
         } catch (IOException e) {
             throw e;

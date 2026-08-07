@@ -24,6 +24,15 @@ public final class Meta {
     public final String players;
 
     /**
+     * ES-DE's own scraped rating, as it writes it: a fraction from 0 to 1,
+     * kept as the string it arrived as rather than parsed here, so that a
+     * value this app does not understand survives a link and a write
+     * unchanged instead of being rounded into something else. Only about four
+     * games in ten have one. See {@link #stars}.
+     */
+    public final String rating;
+
+    /**
      * Where this entry came from - {@code "esde"} for anything a link
      * brought over. Kept apart from ES-DE's own fields so that a later
      * hand-edited value is never mistaken for a scraped one; not one of
@@ -33,7 +42,7 @@ public final class Meta {
 
     public Meta(String path, String name, String desc, String developer,
                 String publisher, String genre, String released, String players,
-                String source) {
+                String rating, String source) {
         this.path = path;
         this.name = name;
         this.desc = desc;
@@ -42,7 +51,32 @@ public final class Meta {
         this.genre = genre;
         this.released = released;
         this.players = players;
+        this.rating = rating;
         this.source = source;
+    }
+
+    /**
+     * The rating out of five, to one decimal place, or null when there is
+     * none or it does not read as a number.
+     *
+     * ES-DE stores a fraction - {@code 0.9} - which means nothing on its own
+     * on a screen. Out of five is what a person recognises, and one decimal
+     * is as much precision as a scraped average deserves. Null rather than
+     * zero when it cannot be read: no rating and a rating of nought are
+     * different things, and the row that shows this leaves the fact out
+     * entirely rather than claiming a game scored nothing.
+     */
+    public String stars() {
+        if (rating == null || rating.isEmpty()) return null;
+
+        try {
+            float fraction = Float.parseFloat(rating.trim());
+            if (fraction < 0f || fraction > 1f) return null;
+
+            return String.format(java.util.Locale.getDefault(), "%.1f", fraction * 5f);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     /**

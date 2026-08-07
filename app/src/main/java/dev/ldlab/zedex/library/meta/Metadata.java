@@ -386,6 +386,7 @@ public final class Metadata {
             append(document, element, "genre", game.genre);
             append(document, element, "releasedate", game.released);
             append(document, element, "players", game.players);
+            append(document, element, "rating", game.rating);
             append(document, element, SOURCE, game.source);
             root.appendChild(element);
         }
@@ -500,7 +501,8 @@ public final class Metadata {
                 games.put(path, new Meta(path, text(element, "name"), text(element, "desc"),
                         text(element, "developer"), text(element, "publisher"),
                         text(element, "genre"), text(element, "releasedate"),
-                        text(element, "players"), text(element, SOURCE)));
+                        text(element, "players"), text(element, "rating"),
+                        text(element, SOURCE)));
             }
 
             return new Store(mtime, linkedAt, games);
