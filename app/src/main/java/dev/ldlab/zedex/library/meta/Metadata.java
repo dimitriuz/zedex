@@ -62,7 +62,6 @@ import javax.xml.transform.stream.StreamResult;
 public final class Metadata {
 
     private static final String TAG = "Zedex";
-    private static final String FOLDER = "library";
     private static final String FILE = "gamelist.xml";
     private static final String ROOT = "gameList";
     private static final String GAME = "game";
@@ -359,7 +358,12 @@ public final class Metadata {
     }
 
     private static File file(Context context) {
-        return new File(new File(Storage.root(context), FOLDER), FILE);
+        // Storage.libraryDirectory, not a path built here from a FOLDER of our
+        // own: this folder has to be in the list Storage moves when the data
+        // folder changes, and while it was not, changing that folder left the
+        // store behind - silently, because a missing store reads as an empty
+        // one and the app then says it has never been linked.
+        return new File(Storage.libraryDirectory(context), FILE);
     }
 
     private static Document build(long linkedAt, List<Meta> games) throws Exception {
