@@ -60,6 +60,24 @@ public final class Panels {
     /** How many other screens of ours are up; the panel hides while any is. */
     private int ownScreens;
 
+    /** Whatever {@link #setGameInfo} was last told - the library's own
+     *  relative path for the game now loaded, and its name, or both null
+     *  when there is nothing the store could name for it. Kept here as well
+     *  as on the panel itself, so a panel that appears later - the setting
+     *  turned on, or the display reconnecting - opens already knowing what
+     *  to show rather than blank until the next game loads. */
+    private String infoPath;
+    private String infoName;
+
+    /** What the panel's own switch was last left at - kept here rather than
+     *  only on the panel because {@link #close} throws the panel away and a
+     *  fresh one built by a later {@link #apply} starts this over from
+     *  {@link SecondScreen}'s own default otherwise; see {@link
+     *  SecondScreen#setPreferInfo}. Starting a game is choosing to play it,
+     *  so a panel that has never had its switch touched opens on the
+     *  controls - false is that default. */
+    private boolean preferInfo;
+
     public Panels(Activity activity, SharedPreferences preferences, Host host) {
         this.activity = activity;
         this.preferences = preferences;
@@ -139,6 +157,17 @@ public final class Panels {
             return;
         }
 
+        // Whatever game is loaded now, if the store knows it - see
+        // setGameInfo - so a panel appearing after the game already started
+        // opens already knowing what to show rather than blank until the
+        // next load. And whichever side its own switch was last left
+        // showing, which this fresh instance has no memory of by itself -
+        // see preferInfo's own comment - plus a listener so the next time
+        // it is used updates that memory in turn.
+        panel.setGameInfo(infoPath, infoName);
+        panel.setPreferInfo(preferInfo);
+        panel.setOnModeChanged(info -> preferInfo = info);
+
         host.panelChanged();
     }
 
@@ -155,12 +184,51 @@ public final class Panels {
     }
 
     /**
+     * Told whenever the game changes - see {@code EmulatorActivity
+     * .handleViewIntent}, the one place that calls this. Threaded straight to
+     * the panel if one is up; kept here as well so a panel that appears
+     * later already knows - see {@link #apply}.
+     *
+     * {@code relativePath} is null for a game with nothing the library's own
+     * store could look up: a file manager's hand-over, ES-DE's {@code
+     * %ROMPROVIDER%}, <em>Open recent…</em>, or an entry inside a zip. {@link
+     * SecondScreen#setGameInfo} reads that as "no switch to offer", not "an
+     * empty info panel to show".
+     */
+    public void setGameInfo(String relativePath, String name) {
+        infoPath = relativePath;
+        infoName = name;
+        if (panel != null) panel.setGameInfo(infoPath, infoName);
+    }
+
+    /**
+     * Stops a video on the panel's own info side without taking the panel
+     * down - called from {@code onPause}, which is one of the moments a
+     * video must not be left running that has nothing to do with the
+     * selection or the panel itself. {@link #unwatch} already stops
+     * following the display; this is the other half of the same pause.
+     */
+    public void pauseVideo() {
+        if (panel != null) panel.pauseVideo();
+    }
+
+    /**
      * A display worth putting controls on: Android's own definition, which is
      * the displays that are not the one the activity is on and are meant to be
      * presented to. The last is taken, since that is the one most recently
      * attached.
      */
     private Display free() {
+        return free(activity);
+    }
+
+    /**
+     * {@link #free()}, shared: {@code LibraryPanel} wants the exact same
+     * rule for its own panel, and duplicating it risked drifting from
+     * whichever afternoon-costing corner this one was tuned against - see
+     * the class comment.
+     */
+    static Display free(Activity activity) {
         DisplayManager displays = activity.getSystemService(DisplayManager.class);
         if (displays == null) return null;
 

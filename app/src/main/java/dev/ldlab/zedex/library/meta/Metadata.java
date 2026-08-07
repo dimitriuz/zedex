@@ -16,6 +16,9 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -81,6 +84,17 @@ public final class Metadata {
     private static final Store EMPTY = new Store(0, 0, Collections.emptyMap());
 
     private static volatile Store cache;
+
+    /** {@link #resolve}'s own answers, keyed by the document it was asked
+     *  about - so a game opened the same way twice, {@code Open recent…}
+     *  most often, does not read and hash a handful of same-named files a
+     *  second time for an answer it already worked out. A miss is cached
+     *  too, as {@code null}, which is why {@link Map#containsKey} rather
+     *  than a null check is what {@link #resolve} tests this with. Cleared
+     *  whenever the store itself is - see {@link #store}, {@link
+     *  #replaceAll} and {@link #clear} - since a different set of games can
+     *  only mean a different answer. */
+    private static final Map<String, String> resolveCache = new HashMap<>();
 
     private Metadata() {
     }
@@ -156,6 +170,7 @@ public final class Metadata {
         }
 
         cache = new Store(file.lastModified(), linkedAt, byPath);
+        resolveCache.clear(); // a different set of games can only mean a different answer
     }
 
     /** Forgets everything - Unlink in Settings. */
@@ -165,6 +180,7 @@ public final class Metadata {
             Log.w(TAG, "cannot delete " + file);
         }
         cache = EMPTY;
+        resolveCache.clear();
     }
 
     /**
@@ -205,6 +221,141 @@ public final class Metadata {
             // one of ours to match, and not a crash either.
             return null;
         }
+    }
+
+    /**
+     * The library's own key for {@code document}, or null when nothing here
+     * can name it - the ordinary answer, since plenty of what opens this app
+     * has nothing to do with the library at all, and most of a collection is
+     * unscraped besides.
+     *
+     * Tries {@link #relativePath} first, which is exact and, being pure
+     * document-id arithmetic, costs nothing to try even when it is going to
+     * fail. That already covers a file manager's hand-over and <em>Open
+     * recent…</em> exactly as it covers a row of the library itself, since
+     * all three are documents from the very tree this app holds a grant for.
+     *
+     * ES-DE's own {@code %ROMPROVIDER%} hand-off is the case that needs the
+     * rest of this: the document comes from ES-DE's own provider, so its
+     * authority never matches the content tree's and {@link #relativePath}
+     * answers null even when it is the very file sitting in the library.
+     * {@code displayName} - the name the caller's own provider gave the
+     * document - is matched against the store by filename alone.
+     *
+     * One match by name is used outright. Several is not a guess: two
+     * folders holding a file of the same name is a real thing in a
+     * collection like this, so {@link #resolveByHash} reads the bytes
+     * instead, of {@code document} and of each same-named candidate in
+     * turn, and answers with whichever candidate's own bytes are the same
+     * file as the one actually opened - which settles it as a fact rather
+     * than a guess, and settles it even when the match is not unique
+     * either, since two files with the same name <em>and</em> the same
+     * bytes are the same game twice over, not two games to choose between.
+     * No candidate's bytes agreeing, the same as no candidate sharing the
+     * name at all, is answered with null.
+     *
+     * A file parse, the same one {@link #forPath} pays, and on a tie a
+     * handful of whole files read to be hashed - never call this from the
+     * UI thread. See {@code EmulatorActivity.resolveLibraryPath} for the one
+     * place that asks off it, {@code displayName} included: that is itself
+     * a provider query when the caller does not already have the name some
+     * other way. {@link #resolveCache} is what keeps a repeat of the same
+     * question - {@code Open recent…} on the same game, most often - from
+     * paying for the hashing twice.
+     */
+    public static synchronized String resolve(Context context, Uri document, String displayName) {
+        String exact = relativePath(context, document);
+        if (exact != null) return exact;
+        if (displayName == null || displayName.isEmpty()) return null;
+
+        String cacheKey = document.toString();
+        if (resolveCache.containsKey(cacheKey)) return resolveCache.get(cacheKey);
+
+        List<Meta> ties = new ArrayList<>();
+        for (Meta meta : store(context).games.values()) {
+            if (displayName.equals(filename(meta.path))) ties.add(meta);
+        }
+
+        String result = ties.size() == 1 ? ties.get(0).path
+                       : ties.size() > 1 ? resolveByHash(context, document, ties)
+                       : null;
+
+        resolveCache.put(cacheKey, result);
+        return result;
+    }
+
+    /**
+     * Which of {@code ties} - every game the store holds under {@code
+     * document}'s own display name - is actually the file that was opened,
+     * settled by reading the bytes rather than by guessing between them.
+     * {@code document} may be unreadable outright - a lapsed ES-DE grant,
+     * most likely - which is read the same as no candidate matching: a miss,
+     * quietly, not a failure.
+     */
+    private static String resolveByHash(Context context, Uri document, List<Meta> ties) {
+        byte[] opened = md5(context, document);
+        if (opened == null) return null;
+
+        for (Meta candidate : ties) {
+            Uri candidateDocument = documentFor(context, candidate.path);
+            if (candidateDocument == null) continue;
+
+            byte[] hash = md5(context, candidateDocument);
+            if (hash != null && Arrays.equals(opened, hash)) return candidate.path;
+        }
+
+        return null;
+    }
+
+    /**
+     * The reverse of {@link #relativePath}: the document {@code metaPath}
+     * names, under the content tree - only {@link #resolveByHash} needs
+     * this, since every other use of the store looks a game up by its path
+     * rather than needing to read the file it names.
+     */
+    private static Uri documentFor(Context context, String metaPath) {
+        Uri root = Storage.contentFolder(context);
+        if (root == null || metaPath == null || !metaPath.startsWith("./")) return null;
+
+        try {
+            String rootId = DocumentsContract.getDocumentId(root);
+            String docId = rootId + "/" + metaPath.substring(2);
+            return DocumentsContract.buildDocumentUriUsingTree(root, docId);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * {@code document}'s own md5, read straight through rather than staged
+     * anywhere - {@code Media}'s own hash, which the poke database matches
+     * on, is taken on the way to writing the file it hashes into the
+     * emulator's own cache, a side effect nothing here should have just to
+     * compare a handful of same-named candidates. The same algorithm all
+     * the same, read the same way, so the two cannot disagree about a file
+     * they both simply read whole. Null when the document cannot be read at
+     * all, which {@link #resolveByHash} reads as no match rather than a
+     * failure.
+     */
+    private static byte[] md5(Context context, Uri document) {
+        try (InputStream in = context.getContentResolver().openInputStream(document)) {
+            if (in == null) return null;
+
+            MessageDigest digest = MessageDigest.getInstance("MD5");
+            byte[] buffer = new byte[64 * 1024];
+            int read;
+            while ((read = in.read(buffer)) != -1) {
+                digest.update(buffer, 0, read);
+            }
+            return digest.digest();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static String filename(String path) {
+        int slash = path.lastIndexOf('/');
+        return slash < 0 ? path : path.substring(slash + 1);
     }
 
     private static File file(Context context) {
@@ -265,6 +416,7 @@ public final class Metadata {
 
         Store loaded = load(file, mtime);
         cache = loaded;
+        resolveCache.clear(); // the file moved on outside replaceAll/clear too - a hand edit, most likely
         return loaded;
     }
 

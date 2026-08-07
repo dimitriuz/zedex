@@ -2,11 +2,14 @@ package dev.ldlab.zedex.library.ui;
 
 import dev.ldlab.zedex.R;
 
+import android.app.ActivityOptions;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ResolveInfo;
 import android.net.Uri;
+import android.util.Log;
+import android.view.Display;
 import android.widget.Toast;
 
 import androidx.core.content.FileProvider;
@@ -25,7 +28,15 @@ import java.io.File;
  */
 public final class Manuals {
 
+    private static final String TAG = "Zedex";
+
     private Manuals() {
+    }
+
+    /** {@link #open(Context, Uri, Display)} with no display to ask for - the
+     *  ordinary path, unchanged from before that existed. */
+    public static void open(Context context, Uri manual) {
+        open(context, manual, null);
     }
 
     /**
@@ -35,8 +46,18 @@ public final class Manuals {
      * {@code ACTION_VIEW}/{@code application/pdf}, or Android 11 and later
      * hide every PDF viewer from an app that has not declared it, exactly the
      * trap {@code Feedback}'s own mail button hit first - see CLAUDE.md.
+     *
+     * {@code display}, when given, is asked for first through {@link
+     * ActivityOptions#setLaunchDisplayId} - a manual opened from the second
+     * screen's own game info should open there too, not behind it on the
+     * main one. The same technique {@code Panels.openOwnScreen} already uses
+     * for the app's own screens, not a second way of doing it: a task of its
+     * own, since a task lives on one display, and a plain fallback to the
+     * ordinary path when the display refuses it or the request fails for any
+     * other reason - a third-party viewer may ignore the ask or be moved by
+     * the system, and it must land on the main screen rather than fail.
      */
-    public static void open(Context context, Uri manual) {
+    public static void open(Context context, Uri manual, Display display) {
         if (manual == null) return;
 
         Uri shareable = manual;
@@ -83,6 +104,25 @@ public final class Manuals {
         // reached later through a chooser, rather than this call's own
         // list, ends up using.
         grantToResolvers(context, intent, shareable);
+
+        if (display != null) {
+            // A copy, not intent itself: a task of its own is only wanted
+            // for this attempt, and the ordinary path below must still be
+            // the plain intent if this one fails for any reason.
+            Intent targeted = new Intent(intent).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            ActivityOptions options = ActivityOptions.makeBasic();
+            options.setLaunchDisplayId(display.getDisplayId());
+
+            try {
+                context.startActivity(targeted, options.toBundle());
+                return;
+            } catch (RuntimeException e) {
+                // The display refused it, or anything else went wrong asking
+                // for it specifically - the ordinary path below is what a
+                // manual opened with no display in mind already does.
+                Log.w(TAG, "cannot open the manual on the second screen", e);
+            }
+        }
 
         try {
             context.startActivity(intent);

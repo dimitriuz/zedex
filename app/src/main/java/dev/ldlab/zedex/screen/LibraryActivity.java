@@ -353,6 +353,21 @@ public final class LibraryActivity extends Activity {
     private View paneEmpty;
     private View paneDetails;
 
+    /** The whole pane, {@link #paneEmpty} and {@link #paneDetails} both -
+     *  what {@link #applySecondScreen} hides in favour of the panel, and the
+     *  divider beside it, {@link #paneDivider}. Set once, by {@link
+     *  #buildPane}. */
+    private View paneRoot;
+    private View paneDivider;
+
+    /**
+     * The library's own side of the two-screen handheld - see {@link
+     * SecondScreen}'s class comment for the shape both this and {@link
+     * Panels} share, and {@link LibraryPanel}'s for why this is not that
+     * class widened to cover the library too.
+     */
+    private LibraryPanel libraryPanel;
+
     /** The pictures and, last, the video - swiped between, zoomed to {@link
      *  MediaViewerActivity} on a tap, and faded in over the empty box's own
      *  background as each resolves. Empty, showing the plain box underneath,
@@ -471,6 +486,15 @@ public final class LibraryActivity extends Activity {
         sortDescending = preferences.getBoolean(KEY_SORT_DESC, false);
         grid = VIEW_GRID.equals(preferences.getString(KEY_VIEW, VIEW_LIST));
 
+        // Built before buildPage(), which builds the pane, which calls
+        // updatePane() once straight away - see CLAUDE.md, "Build
+        // collaborators in onCreate, never as field initialisers", the same
+        // reasoning one step earlier than usual: applySecondScreen reads
+        // paneRoot and paneDivider, which do not exist yet either, but it is
+        // never called until watch() is, from onResume, by which time
+        // everything below has run.
+        libraryPanel = new LibraryPanel(this, preferences, this::applySecondScreen);
+
         setContentView(buildPage());
 
         // "Library" over a screen that is obviously the library earns
@@ -554,6 +578,12 @@ public final class LibraryActivity extends Activity {
         // Settings as the names switch beside it.
         videoAutoplay = preferences.getBoolean(KEY_LIBRARY_VIDEO_AUTOPLAY, true);
 
+        // Coming back to the front - which this always is by the time
+        // watch() runs, since it is onResume that calls it - re-checks the
+        // setting and the display exactly as Panels does for the emulator's
+        // own panel; see LibraryPanel and onStop for the other half of this.
+        libraryPanel.watch();
+
         // Coming back from a game, from Settings, or from granting the
         // content folder: whichever tab is showing may be stale, and asking
         // again is cheap next to what it would cost to show it wrong.
@@ -569,6 +599,14 @@ public final class LibraryActivity extends Activity {
         // see, and be moving it still when the screen comes back.
         padCursor.release();
 
+        // Stops watching for a display change while this activity is not
+        // the one in front - see Panels.unwatch's own identical reasoning -
+        // and stops a video on the panel's own info side without taking the
+        // panel down, one of the moments a video must not be left running
+        // that has nothing to do with the selection.
+        libraryPanel.unwatch();
+        libraryPanel.release();
+
         // Same reasoning, for the dialog's own second GamepadCursor - closing
         // it releases that repeat too, via its own onDismiss.
         optionsDialog.dismiss();
@@ -578,6 +616,23 @@ public final class LibraryActivity extends Activity {
         // background is not "the selection changed", but it is still one of
         // the three times a video must not be left playing.
         paneGallery.release();
+    }
+
+    /**
+     * The panel goes when the app does - the same reasoning {@code
+     * EmulatorActivity.onStop} already applies to its own: it is a window
+     * this activity owns, leaving it up would leak it, and it is only ever
+     * put back by {@link #onResume}'s own call to {@link
+     * LibraryPanel#watch}. Also what covers the hand-over to {@code
+     * EmulatorActivity} - opening a game stops this activity, which is
+     * exactly this - so the library's own panel is never still up once the
+     * emulator's own panel wants the same display; see {@link
+     * LibraryPanel}'s class comment.
+     */
+    @Override
+    protected void onStop() {
+        super.onStop();
+        libraryPanel.close();
     }
 
     /** Browse's own way up, and the app's own way out from its root. */
@@ -859,6 +914,7 @@ public final class LibraryActivity extends Activity {
 
         View divider = new View(this);
         divider.setBackgroundColor(DIVIDER);
+        paneDivider = divider;
 
         outer.addView(buildMainColumn(), new LinearLayout.LayoutParams(
                 landscape ? 0 : LinearLayout.LayoutParams.MATCH_PARENT,
@@ -908,7 +964,23 @@ public final class LibraryActivity extends Activity {
         adapter = new EntryAdapter(this, new EntryAdapter.Callbacks() {
             @Override
             public void onOpen(Entry entry) {
-                if (isContainer(entry)) enter(entry); else select(entry);
+                if (isContainer(entry)) {
+                    enter(entry);
+                    return;
+                }
+
+                // With the panel in use the pane, and its Play button, are
+                // both hidden - see applySecondScreen - so a second tap on
+                // the very row already selected is what plays it now,
+                // rather than the pane's own button. The pane's ordinary tap
+                // - select, and Play does the rest - is untouched, since it
+                // still has a button to reach.
+                if (libraryPanel.inUse() && selected != null
+                        && selected.key().equals(entry.key())) {
+                    openGame(entry);
+                } else {
+                    select(entry);
+                }
             }
 
             @Override
@@ -1295,6 +1367,7 @@ public final class LibraryActivity extends Activity {
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT));
 
+        paneRoot = frame;
         updatePane();
 
         return frame;
@@ -1507,6 +1580,27 @@ public final class LibraryActivity extends Activity {
 
         boolean have = selected != null;
 
+        // With the panel in use the pane itself is hidden outright - see
+        // applySecondScreen - so what fills it here is the panel instead,
+        // through LibraryPanel.setGameInfo, and nothing below this needs to
+        // run: it is all async work for views nobody can see. A folder, an
+        // archive, or a file reached from inside a zip has no path of its
+        // own to look up, the same test the ordinary path below makes for
+        // exactly the same reason - see its own comment a little further
+        // down.
+        if (libraryPanel.inUse()) {
+            String relativePath = have && !isContainer(selected) && selected.inside == null
+                    ? Metadata.relativePath(this, selected.uri) : null;
+
+            libraryPanel.setGameInfo(relativePath, relativePath == null ? null : selected.name);
+
+            // Kept empty rather than fed: a video playing behind a pane
+            // nobody can see is exactly the leak CLAUDE.md warns about, and
+            // there is nothing else here for an unseen pane to do.
+            paneGallery.clear();
+            return;
+        }
+
         paneEmpty.setVisibility(have ? View.GONE : View.VISIBLE);
         paneDetails.setVisibility(have ? View.VISIBLE : View.GONE);
 
@@ -1573,6 +1667,30 @@ public final class LibraryActivity extends Activity {
             paneHandler.postDelayed(() -> advanceToPaneVideo(token),
                     paneVideoToken, PANE_VIDEO_DELAY_MS);
         }
+    }
+
+    /**
+     * {@link LibraryPanel.Host#panelChanged()}: the panel appeared, went
+     * away, or - through {@link #onResume}'s own re-check - the setting or
+     * the display changed since last time. The pane and its divider hide
+     * outright in favour of it, giving the list or grid the rest of the
+     * window rather than a third the pane would otherwise keep; {@code
+     * LinearLayout} gives a {@code GONE} child's own weighted share to
+     * whichever weighted sibling is still visible, which is {@link
+     * #buildMainColumn}'s own root, so nothing about its layout params needs
+     * to change to fill the space.
+     *
+     * {@link #updatePane} is what actually decides which side - the pane or
+     * the panel - shows the current selection, so it runs again here rather
+     * than this method repeating that decision.
+     */
+    private void applySecondScreen() {
+        boolean hidden = libraryPanel.inUse();
+
+        paneRoot.setVisibility(hidden ? View.GONE : View.VISIBLE);
+        paneDivider.setVisibility(hidden ? View.GONE : View.VISIBLE);
+
+        updatePane();
     }
 
     /**
@@ -2197,7 +2315,17 @@ public final class LibraryActivity extends Activity {
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
 
         if (entry.inside != null) {
+            // No path of its own in the store - see EmulatorActivity
+            // .EXTRA_LIBRARY_PATH's own comment for how that is read.
             intent.putExtra(EmulatorActivity.EXTRA_ZIP_ENTRY, entry.inside);
+        } else {
+            // The fast path for EmulatorActivity's own panel: already known
+            // here, exactly, so there is nothing for it to ask its own
+            // Metadata.resolve for.
+            String relativePath = Metadata.relativePath(this, entry.uri);
+            if (relativePath != null) {
+                intent.putExtra(EmulatorActivity.EXTRA_LIBRARY_PATH, relativePath);
+            }
         }
 
         startActivity(intent);

@@ -1,5 +1,8 @@
 package dev.ldlab.zedex.screen;
 
+import dev.ldlab.zedex.R;
+import dev.ldlab.zedex.library.ui.GameInfoView;
+import dev.ldlab.zedex.library.ui.Ripple;
 import dev.ldlab.zedex.view.ActivityLights;
 import dev.ldlab.zedex.view.EmulatorLayout;
 import dev.ldlab.zedex.view.JoystickView;
@@ -20,6 +23,7 @@ import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
+import android.widget.ImageButton;
 import android.widget.LinearLayout;
 
 import java.util.ArrayList;
@@ -27,7 +31,7 @@ import java.util.List;
 
 /**
  * What the panel of a two-screen handheld looks like; {@link Panels} owns the
- * window it lives in.
+ * window it lives in for the emulator, {@link LibraryPanel} for the library.
  *
  * A dual-screen handheld — the AYN Thor and its like — is a game machine on top
  * and a panel below. That is the shape of this app: the picture wants a whole
@@ -35,20 +39,39 @@ import java.util.List;
  * a thumb rather than taking the picture's space to get there.
  *
  * A {@link Presentation} is Android's own answer — a window on another display,
- * owned by the activity and following its lifetime — so the app stays one
- * activity with one emulation thread and one surface.
+ * owned by the activity and following its lifetime — so each activity that uses
+ * one stays one activity with one emulation thread and one surface. Both the
+ * emulator and the library put one of these on the panel, and each gets a fresh
+ * instance: a {@code Presentation} belongs to whichever activity opened it and
+ * dies when that activity does, so nothing here is carried across the hand-over
+ * between them - see {@code docs/LIBRARY.md}'s notes on that hand-over and
+ * {@link #setGameInfo} for what does travel, which is a path, not a window.
  *
- * The views are <b>borrowed, not copied</b>. {@link EmulatorLayout#setLentAway}
- * detaches them and this window adopts them, so a latched shift or an open bar
- * group survives the move and every reference to them still works. They are
- * handed back the moment this window closes: nothing may be left parented to a
- * window that has gone.
+ * <b>Two things can be on screen, and a corner switch flips between them.</b>
+ * The controls — the bar, the joystick, the keyboard, the lamps — are what the
+ * emulator lends, exactly as before; the game info — the artwork, the name, the
+ * facts, the description — is {@link GameInfoView}, built from nothing but a
+ * path, since a {@code Presentation} cannot borrow a view from another
+ * activity's layout the way the controls are borrowed from this one's. The
+ * library has no controls to lend at all, so its own panel is game info and
+ * nothing else, with no switch to offer - {@link #hasControls} is what tells
+ * the two apart, and {@link #updateVisibility} is the one place that acts on
+ * it. See {@link LibraryPanel} for how the library uses this with an empty
+ * {@code borrowed} array.
  *
- * Top to bottom: the bar, the joystick in the space below it, the keyboard, and
- * the lamps at the foot — a hand's things near the hand, and the thing that is
- * only read out of the way. The bar is <em>over</em> the column rather than in
- * it, with a spacer holding its height, so a group opening does not push the
- * whole panel down.
+ * The controls' own views are <b>borrowed, not copied</b>. {@link
+ * EmulatorLayout#setLentAway} detaches them and this window adopts them, so a
+ * latched shift or an open bar group survives the move and every reference to
+ * them still works. They are handed back the moment this window closes: nothing
+ * may be left parented to a window that has gone. The game info side carries no
+ * such state - a game's own details are rebuilt from the store every time, so
+ * there is nothing to borrow and nothing to hand back for it.
+ *
+ * Top to bottom in the controls: the bar, the joystick in the space below it,
+ * the keyboard, and the lamps at the foot — a hand's things near the hand, and
+ * the thing that is only read out of the way. The bar is <em>over</em> the
+ * column rather than in it, with a spacer holding its height, so a group
+ * opening does not push the whole panel down.
  */
 public final class SecondScreen extends Presentation {
 
@@ -67,12 +90,64 @@ public final class SecondScreen extends Presentation {
     private static final float KEY_OF_FIRE = 0.46f;
     private static final int KEY_GAP = 5;
 
+    /** The corner switch's own side, dp - comfortably tappable without being
+     *  in the way of the artwork it floats over. */
+    private static final int SWITCH_SIZE_DP = 40;
+
+    private enum Mode { CONTROLS, INFO }
+
     private final View[] borrowed;
+
+    /** Whether there are any controls to switch away from at all - true only
+     *  for the emulator's own panel, which lends real ones; the library's has
+     *  none to lend, so its panel is {@link Mode#INFO} always and {@link
+     *  #switchButton} never appears. Decided once, from {@link #borrowed},
+     *  never re-read: a panel with nothing to lend does not gain controls
+     *  partway through being shown. */
+    private final boolean hasControls;
+
     private LinearLayout column;
+
+    /** Built and shown always, whether or not there is anything to switch
+     *  away from - see {@link #hasControls}. */
+    private GameInfoView infoView;
+
+    /** Only when {@link #hasControls}; null otherwise, and every method that
+     *  touches it checks that first. */
+    private View controlsRoot;
+    private ImageButton switchButton;
+
+    /** The game's own path relative to the content tree, or null when there
+     *  is nothing the store could name for whatever is loaded now - see
+     *  {@link #setGameInfo}. */
+    private String infoPath;
+
+    /** {@link Mode#CONTROLS} until the switch is used - the emulator's own
+     *  panel opens on its controls, since starting a game is choosing to
+     *  play it; the library's panel is {@link Mode#INFO} regardless, since
+     *  {@link #hasControls} overrides this in {@link #updateVisibility}.
+     *  Not reset by {@link #setGameInfo}: a person who flips to the info
+     *  side and then starts another game keeps looking at info for the new
+     *  one too, rather than being silently carried back to the controls.
+     *  {@link #setPreferInfo} is how a fresh instance is told what the last
+     *  one's own switch was left at - this field alone does not survive a
+     *  panel closing and reopening, since a new instance is what {@link
+     *  Panels#apply} builds each time; see that field's own comment. */
+    private Mode preferredMode = Mode.CONTROLS;
+
+    /** Told whenever the switch is used, so whichever of {@link Panels} or
+     *  {@link LibraryPanel} owns this instance can remember the choice past
+     *  this panel's own lifetime - see {@link #setOnModeChanged}. */
+    interface OnModeChanged {
+        void onModeChanged(boolean info);
+    }
+
+    private OnModeChanged modeListener;
 
     SecondScreen(Context context, Display display, View[] borrowed) {
         super(context, display);
         this.borrowed = borrowed;
+        this.hasControls = borrowed.length > 0;
     }
 
     @Override
@@ -89,6 +164,163 @@ public final class SecondScreen extends Presentation {
                 * getContext().getResources().getDisplayMetrics().density);
         int room = getContext().getResources().getDisplayMetrics().widthPixels;
 
+        FrameLayout stage = new FrameLayout(getContext());
+        stage.setBackgroundColor(BACKING);
+
+        infoView = new GameInfoView(getContext());
+        // The same room the controls get - see MARGIN's own comment - so
+        // the cover's own patterned border is never cut by the panel's edge
+        // the way it was when this had none at all.
+        FrameLayout.LayoutParams infoParams = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+        infoParams.setMargins(margin, margin, margin, margin);
+        stage.addView(infoView, infoParams);
+
+        if (hasControls) {
+            controlsRoot = buildControls(margin, room);
+            stage.addView(controlsRoot, new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+            switchButton = new ImageButton(getContext());
+            switchButton.setBackgroundColor(0x80000000);
+            switchButton.setForeground(Ripple.make());
+            switchButton.setColorFilter(0xffffffff);
+            switchButton.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
+            switchButton.setOnClickListener(v -> {
+                preferredMode = preferredMode == Mode.CONTROLS ? Mode.INFO : Mode.CONTROLS;
+                updateVisibility();
+                if (modeListener != null) modeListener.onModeChanged(preferredMode == Mode.INFO);
+            });
+
+            int side = Math.round(SWITCH_SIZE_DP
+                    * getContext().getResources().getDisplayMetrics().density);
+            FrameLayout.LayoutParams switchParams = new FrameLayout.LayoutParams(
+                    side, side, Gravity.TOP | Gravity.END);
+            switchParams.topMargin = switchParams.rightMargin = margin;
+            stage.addView(switchButton, switchParams);
+        }
+
+        setContentView(stage);
+        updateVisibility();
+
+        // After the content, not before: until there is a decor view there is
+        // no insets controller to ask, and asking is a crash. No status bar
+        // over the controls, for the same reason the machine's own window has
+        // none - every row of a panel this size is a row of keys, and the
+        // game info side wants the whole panel for the same reason the
+        // library's own screens do.
+        WindowInsetsController insets = getWindow().getInsetsController();
+        if (insets != null) {
+            insets.hide(WindowInsets.Type.systemBars());
+            insets.setSystemBarsBehavior(
+                    WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+        }
+    }
+
+    /**
+     * Told whenever the game changes - a fresh load, a different one while
+     * this panel is already up, or nothing at all, which is read the same
+     * way whether that is because nothing is selected or because whatever is
+     * loaded has no path the store could look up: a file manager's
+     * hand-over, ES-DE's {@code %ROMPROVIDER%}, <em>Open recent…</em>, or an
+     * entry inside a zip. Null for {@code relativePath} covers every one of
+     * those the same way - there is nothing to show, so the switch goes with
+     * it rather than staying to offer an empty panel.
+     *
+     * Callers only reach this once {@link #show} has succeeded - {@link
+     * Panels#apply} and {@link LibraryPanel#apply} both call it right after,
+     * so a panel that appears later already knows what to show from the
+     * very first frame.
+     */
+    void setGameInfo(String relativePath, String name) {
+        infoPath = relativePath;
+
+        if (relativePath == null) infoView.clear();
+        else infoView.showEntry(relativePath, name);
+
+        updateVisibility();
+    }
+
+    /** Told once, right after {@link #show} succeeds, what the switch was
+     *  last left at - see {@link #preferredMode}'s own comment for why this
+     *  instance cannot simply remember that for itself. A no-op for the
+     *  library's own panel, which has no switch to set. */
+    void setPreferInfo(boolean info) {
+        preferredMode = info ? Mode.INFO : Mode.CONTROLS;
+        updateVisibility();
+    }
+
+    /** Told whenever the switch is used - see {@link OnModeChanged}. */
+    void setOnModeChanged(OnModeChanged listener) {
+        this.modeListener = listener;
+    }
+
+    /**
+     * Shows whichever side {@link #hasControls}, {@link #infoPath} and
+     * {@link #preferredMode} say should be showing, and the switch with it -
+     * named for the mode tapping it would go <em>to</em>, the same rule
+     * {@code LibraryActivity.updateViewToggle} follows for its own view
+     * button, rather than the one already on screen.
+     *
+     * The one place a video on the info side is stopped for having lost the
+     * screen to the controls - the fourth of the moments CLAUDE.md lists a
+     * video must not be left running for, the other three being the
+     * selection moving on, the panel coming down, and the host activity
+     * pausing.
+     */
+    private void updateVisibility() {
+        boolean canSwitch = hasControls && infoPath != null;
+        boolean showInfo = !hasControls || (infoPath != null && preferredMode == Mode.INFO);
+
+        infoView.setVisibility(showInfo ? View.VISIBLE : View.GONE);
+        if (controlsRoot != null) controlsRoot.setVisibility(showInfo ? View.GONE : View.VISIBLE);
+
+        if (switchButton != null) {
+            switchButton.setVisibility(canSwitch ? View.VISIBLE : View.GONE);
+
+            if (canSwitch) {
+                switchButton.setImageResource(showInfo ? R.drawable.ic_chip : R.drawable.ic_info);
+                switchButton.setContentDescription(getContext().getString(
+                        showInfo ? R.string.library_machine : R.string.library_info));
+            }
+        }
+
+        if (!showInfo) infoView.release();
+    }
+
+    /**
+     * Stops the info side's own video without taking the panel down - the
+     * host activity pausing is one of the four moments listed on {@link
+     * #updateVisibility}, and it is not "the panel coming down": {@link
+     * Panels#apply} and {@link LibraryPanel#apply} both put the panel back
+     * on resume, and a video that was merely paused rather than reloaded is
+     * one less thing for a person to notice restarting.
+     */
+    void pauseVideo() {
+        infoView.release();
+    }
+
+    /**
+     * Gives the controls back before the window goes, which is the whole of
+     * the bargain: a view left parented here would be attached to a window
+     * that no longer exists, and the layout that owns it would never see it
+     * again. The info side has nothing borrowed to give back, only its own
+     * video to stop.
+     */
+    @Override
+    public void dismiss() {
+        returnBorrowed();
+        infoView.release();
+        super.dismiss();
+    }
+
+    /**
+     * The controls: the bar, the joystick, the keyboard and the lamps, sorted
+     * out of {@link #borrowed} and stacked exactly as this panel always
+     * stacked them before the info side existed. Only ever called when
+     * {@link #hasControls}.
+     */
+    private View buildControls(int margin, int room) {
         column = new LinearLayout(getContext());
         column.setOrientation(LinearLayout.VERTICAL);
         column.setBackgroundColor(BACKING);
@@ -221,29 +453,7 @@ public final class SecondScreen extends Presentation {
                     ViewGroup.LayoutParams.MATCH_PARENT));
         }
 
-        setContentView(root);
-
-        // After the content, not before: until there is a decor view there is
-        // no insets controller to ask, and asking is a crash. No status bar
-        // over the controls, for the same reason the machine's own window has
-        // none - every row of a panel this size is a row of keys.
-        WindowInsetsController insets = getWindow().getInsetsController();
-        if (insets != null) {
-            insets.hide(WindowInsets.Type.systemBars());
-            insets.setSystemBarsBehavior(
-                    WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
-        }
-    }
-
-    /**
-     * Gives the views back before the window goes, which is the whole of the
-     * bargain: a view left parented here would be attached to a window that no
-     * longer exists, and the layout that owns it would never see it again.
-     */
-    @Override
-    public void dismiss() {
-        release();
-        super.dismiss();
+        return root;
     }
 
     /**
@@ -340,7 +550,9 @@ public final class SecondScreen extends Presentation {
      * focus, and on a handheld the panel is the screen a hand touches last - so
      * without this the gamepad and any real keyboard would be talking to a
      * window whose only job is to hold a keyboard picture. The activity gets
-     * first refusal on everything, exactly as it would with one screen.
+     * first refusal on everything, exactly as it would with one screen. Just as
+     * true for the library's own panel: its gamepad handling lives in {@code
+     * LibraryActivity.dispatchKeyEvent} the same way the emulator's does.
      */
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
@@ -372,16 +584,20 @@ public final class SecondScreen extends Presentation {
     }
 
     /**
-     * Undoes everything this window did to the views it borrowed, and hands
-     * every one of them back parentless.
+     * Undoes everything {@link #buildControls} did to the views it borrowed,
+     * and hands every one of them back parentless. A no-op when {@link
+     * #hasControls} is false: {@link #column} was never built, so there is
+     * nothing to undo - the library's own panel reaches this through {@link
+     * #dismiss} exactly as the emulator's does, and simply finds nothing to
+     * do.
      *
-     * Each is asked for its own parent rather than the containers being emptied,
-     * because they are not all in the same one: the joystick's five parts are in
-     * a band of this window's making, and clearing the column took the band away
-     * with them still inside it - so the layout they went home to found them
-     * already spoken for, and threw.
+     * Each view is asked for its own parent rather than the containers being
+     * emptied, because they are not all in the same one: the joystick's five
+     * parts are in a band of this window's making, and clearing the column
+     * took the band away with them still inside it - so the layout they went
+     * home to found them already spoken for, and threw.
      */
-    public void release() {
+    private void returnBorrowed() {
         if (column == null) return;
 
         for (View view : borrowed) {
