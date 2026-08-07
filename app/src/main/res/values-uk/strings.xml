@@ -566,4 +566,6 @@
     <string name="library_open">Відкрити</string>
     <string name="library_nothing_selected">Виберіть гру, щоб побачити, що про неї відомо.</string>
     <string name="library_up">Вгору</string>
+    <string name="library_gallery_mute">Вимкнути звук</string>
+    <string name="library_gallery_unmute">Увімкнути звук</string>
 </resources>

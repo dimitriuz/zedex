@@ -650,5 +650,11 @@
     <!-- The chevron beside the breadcrumb, and the breadcrumb itself: both
          pop Browse's stack by one level, exactly as Back does. -->
     <string name="library_up">Up</string>
+    <!-- MediaViewerActivity's sound button, over the video page only - named
+         for the action tapping performs, not the state showing now; see
+         library_view_grid/list for the same rule applied to the toolbar's
+         own view-mode button. -->
+    <string name="library_gallery_mute">Mute</string>
+    <string name="library_gallery_unmute">Unmute</string>
 
 </resources>

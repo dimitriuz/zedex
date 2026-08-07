@@ -566,4 +566,6 @@
     <string name="library_open">Apri</string>
     <string name="library_nothing_selected">Seleziona un gioco per vedere cosa si sa di esso.</string>
     <string name="library_up">Su</string>
+    <string name="library_gallery_mute">Disattiva audio</string>
+    <string name="library_gallery_unmute">Attiva audio</string>
 </resources>

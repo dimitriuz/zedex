@@ -566,4 +566,6 @@
     <string name="library_open">Открыть</string>
     <string name="library_nothing_selected">Выберите игру, чтобы увидеть, что о ней известно.</string>
     <string name="library_up">Вверх</string>
+    <string name="library_gallery_mute">Выключить звук</string>
+    <string name="library_gallery_unmute">Включить звук</string>
 </resources>

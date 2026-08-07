@@ -566,4 +566,6 @@
     <string name="library_open">Otevřít</string>
     <string name="library_nothing_selected">Vyberte hru a zobrazí se, co je o ní známo.</string>
     <string name="library_up">Nahoru</string>
+    <string name="library_gallery_mute">Ztlumit</string>
+    <string name="library_gallery_unmute">Zapnout zvuk</string>
 </resources>

@@ -566,4 +566,6 @@
     <string name="library_open">Abrir</string>
     <string name="library_nothing_selected">Selecciona un juego para ver lo que se sabe de él.</string>
     <string name="library_up">Subir</string>
+    <string name="library_gallery_mute">Silenciar</string>
+    <string name="library_gallery_unmute">Activar sonido</string>
 </resources>

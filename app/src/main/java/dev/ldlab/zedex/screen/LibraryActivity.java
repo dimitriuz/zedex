@@ -8,6 +8,7 @@ import dev.ldlab.zedex.library.Listing;
 import dev.ldlab.zedex.library.meta.Meta;
 import dev.ldlab.zedex.library.meta.Metadata;
 import dev.ldlab.zedex.library.ui.EntryAdapter;
+import dev.ldlab.zedex.library.ui.Gallery;
 import dev.ldlab.zedex.library.ui.GamepadCursor;
 import dev.ldlab.zedex.library.ui.OptionsDialog;
 import dev.ldlab.zedex.library.ui.Ripple;
@@ -18,7 +19,6 @@ import dev.ldlab.zedex.view.SafeArea;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -36,14 +36,12 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupMenu;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.widget.VideoView;
 
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -318,15 +316,19 @@ public final class LibraryActivity extends Activity {
     private View paneEmpty;
     private View paneDetails;
 
-    /** The picture, faded in over the empty box's own background once one
-     *  resolves - see {@link #updatePane}. Gone, showing the plain box
-     *  underneath, for anything unscraped. */
-    private ImageView paneCover;
+    /** The pictures and, last, the video - swiped between, zoomed to {@link
+     *  MediaViewerActivity} on a tap, and faded in over the empty box's own
+     *  background as each resolves. Empty, showing the plain box underneath,
+     *  for anything unscraped; see {@link #updatePane}. */
+    private Gallery paneGallery;
 
-    /** The video, over the same box {@link #paneCover} sits in - see {@link
-     *  #startPaneVideo}. Gone until three seconds after the selection stops
-     *  changing, and only then if one was actually scraped. */
-    private VideoView paneVideo;
+    /** Set once a person has swiped {@link #paneGallery} for whatever is
+     *  currently selected - cleared by every {@link #updatePane}, since it
+     *  answers "has this selection's own gallery been swiped", not "has
+     *  anyone ever swiped anything". {@link #advanceToPaneVideo} reads this
+     *  so the three-second timer that would otherwise carry a person to the
+     *  video never overrides a page they chose for themselves. */
+    private boolean paneUserSwiped;
 
     private TextView paneTitle;
 
@@ -358,18 +360,20 @@ public final class LibraryActivity extends Activity {
 
     /** Bumped on every {@link #updatePane} call, before anything
      *  asynchronous is asked for - the same shape {@code EntryAdapter}'s own
-     *  {@code bindToken} is, for the same reason: a picture or a video that
-     *  resolves after the selection has already moved on must be told its
-     *  answer no longer applies. */
+     *  {@code bindToken} is, for the same reason: the facts a background
+     *  thread resolves, or the three-second timer that would bring the
+     *  video forward, must be told when the selection has already moved on
+     *  by the time either is ready to act. {@link #paneGallery} keeps its
+     *  own token for the pictures and the video themselves - see {@link
+     *  Gallery#load}. */
     private int paneToken;
 
-    /** Where {@link #startPaneVideo}'s own three-second wait is scheduled,
-     *  and where it is cancelled from - see {@link #updatePane} and {@link
-     *  #stopPaneVideo}. */
+    /** Where {@link #advanceToPaneVideo}'s own three-second wait is
+     *  scheduled, and where it is cancelled from - see {@link #updatePane}. */
     private final Handler paneHandler = new Handler(Looper.getMainLooper());
 
     /** Tags every {@link Handler#postDelayed} this screen schedules for the
-     *  pane's video, so {@link #stopPaneVideo} can cancel whichever one is
+     *  pane's video, so {@link #updatePane} can cancel whichever one is
      *  pending without needing to keep the exact {@link Runnable} it was
      *  scheduled with. */
     private final Object paneVideoToken = new Object();
@@ -514,7 +518,7 @@ public final class LibraryActivity extends Activity {
         // screen is exactly the one people leave running - going to the
         // background is not "the selection changed", but it is still one of
         // the three times a video must not be left playing.
-        stopPaneVideo();
+        paneGallery.release();
     }
 
     /** Browse's own way up, and the app's own way out from its root. */
@@ -1147,9 +1151,8 @@ public final class LibraryActivity extends Activity {
      * whole point of shipping the container before anything fills it, and
      * "linking to ES-DE" for what actually fills it now.
      *
-     * The cover box holds {@link #paneCover} and {@link #paneVideo} over a
-     * plain background - see {@link #updatePane} for which of the three is
-     * showing at any moment, always exactly one.
+     * The cover box holds {@link #paneGallery} over a plain background - see
+     * {@link #updatePane} for what fills it.
      *
      * {@code details} itself is the one thing that differs by shape, and only
      * in which way it stacks two pieces that are otherwise identical either
@@ -1184,39 +1187,20 @@ public final class LibraryActivity extends Activity {
         FrameLayout coverBox = new FrameLayout(this);
         coverBox.setBackgroundColor(0x14ffffff);
 
-        // CENTER_INSIDE, where the grid's tiles crop: the pane is the one
-        // place a person looks at the picture rather than past it, and the
-        // box here is nothing like the shape of box art - 322x640 in
-        // portrait, against a cover's own 3:4 - so CENTER_CROP threw away a
-        // third of Ms. Pac-Man's width and cut "FROM ATARISOFT" off the
-        // bottom, while the tile above it in the grid showed the same cover
-        // whole. CENTER_INSIDE also declines to enlarge a small scrape past
-        // its own size, which is the other half of what looked wrong: the
-        // cropped cover was blown up and soft with it. The letterbox this
-        // leaves is the same one paneVideo has always had, so the two now
-        // agree instead of one filling and the other fitting.
-        paneCover = new ImageView(this);
-        paneCover.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
-        paneCover.setVisibility(View.GONE);
-        paneCover.setContentDescription(null);
-        coverBox.addView(paneCover, new FrameLayout.LayoutParams(
+        // CENTER_INSIDE inside Gallery's own picture pages is where the
+        // grid's tiles crop instead: the pane is the one place a person
+        // looks at the picture rather than past it, and the box here is
+        // nothing like the shape of box art - 322x640 in portrait, against a
+        // cover's own 3:4 - so CENTER_CROP once threw away a third of Ms.
+        // Pac-Man's width and cut "FROM ATARISOFT" off the bottom, while the
+        // tile above it in the grid showed the same cover whole. See
+        // Gallery's own comment on exactly this.
+        paneGallery = new Gallery(this);
+        paneGallery.setPictureTargetPx(pixels(PANE_TARGET_DP));
+        paneGallery.setOnPageTapped(this::openViewerFromPane);
+        paneGallery.setOnUserSwipe(() -> paneUserSwiped = true);
+        coverBox.addView(paneGallery, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
-
-        paneVideo = new VideoView(this);
-        paneVideo.setVisibility(View.GONE);
-
-        // VideoView keeps the video's own aspect regardless of the bounds
-        // it is given, so in a box taller than it is wide - portrait's own,
-        // sized for a cover - a video shorter than the box is left over
-        // FrameLayout's default gravity, which is the top: the empty space
-        // collects underneath rather than framing the video. Centring it
-        // splits that space evenly instead, which reads as a frame rather
-        // than as something unfinished; the still cover is unaffected,
-        // since CENTER_CROP already fills the box regardless of gravity.
-        FrameLayout.LayoutParams videoParams = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
-        videoParams.gravity = Gravity.CENTER;
-        coverBox.addView(paneVideo, videoParams);
 
         LinearLayout details = new LinearLayout(this);
         details.setPadding(pixels(16), pixels(16), pixels(16), pixels(16));
@@ -1386,6 +1370,23 @@ public final class LibraryActivity extends Activity {
     }
 
     /**
+     * Opens {@link MediaViewerActivity} at whatever page of {@link
+     * #paneGallery} was tapped - the pane's own zoom, for the same reason
+     * {@link #showGameInfo} takes a path rather than carrying anything
+     * through the Intent: the gallery is a lookup away on the other side.
+     */
+    private void openViewerFromPane(int index) {
+        if (selected == null || isContainer(selected) || selected.inside != null) return;
+
+        String relativePath = Metadata.relativePath(this, selected.uri);
+        if (relativePath == null) return;
+
+        startActivity(new Intent(this, MediaViewerActivity.class)
+                .putExtra(MediaViewerActivity.EXTRA_PATH, relativePath)
+                .putExtra(MediaViewerActivity.EXTRA_INDEX, index));
+    }
+
+    /**
      * Shows what is known about the selection, or says there is none - the
      * one place that fills the pane, called from every route to a selection
      * there is: a tap, the pad's cursor landing on a row as it moves, a
@@ -1396,28 +1397,33 @@ public final class LibraryActivity extends Activity {
      * out of it, so a label decided anywhere else would be showing whatever
      * the previous row happened to be by the time this one is looked at.
      *
-     * The video always stops here, immediately - "stopping when the
+     * The gallery always stops here, immediately - "stopping when the
      * selection moves on" is not something to wait three seconds for, only
-     * starting one is - and a fresh three-second wait is scheduled for
-     * whatever is selected now, {@link #paneToken} telling a picture or a
-     * video that resolves after the selection has moved on again not to draw.
+     * bringing the video forward is - and a fresh three-second wait is
+     * scheduled for whatever is selected now, {@link #paneToken} telling a
+     * timer that fires after the selection has moved on again not to act.
+     * {@link #paneUserSwiped} is cleared here too: it answers for this
+     * selection's own gallery, not for the pane in general.
      */
     private void updatePane() {
         int token = ++paneToken;
 
-        stopPaneVideo();
+        paneHandler.removeCallbacksAndMessages(paneVideoToken);
+        paneUserSwiped = false;
 
         boolean have = selected != null;
 
         paneEmpty.setVisibility(have ? View.GONE : View.VISIBLE);
         paneDetails.setVisibility(have ? View.VISIBLE : View.GONE);
 
-        if (!have) return;
+        if (!have) {
+            paneGallery.clear();
+            return;
+        }
 
         paneTitle.setText(selected.name);
         paneFilename.setVisibility(View.GONE);
         paneFacts.setVisibility(View.GONE);
-        paneCover.setVisibility(View.GONE);
         paneSubtitle.setText(EntryAdapter.detail(this, selected));
         paneActionButton.setText(isContainer(selected) ? R.string.library_open
                                                         : R.string.library_play);
@@ -1432,32 +1438,39 @@ public final class LibraryActivity extends Activity {
         // A folder, an archive, or a file reached from inside a zip has no
         // path of its own to have been scraped by - see EntryAdapter's own
         // note on exactly this, which this mirrors.
-        if (isContainer(selected) || selected.inside != null) return;
+        if (isContainer(selected) || selected.inside != null) {
+            paneGallery.clear();
+            return;
+        }
 
         String relativePath = Metadata.relativePath(this, selected.uri);
-        if (relativePath == null) return;
+        if (relativePath == null) {
+            paneGallery.clear();
+            return;
+        }
 
+        // The gallery resolves and shows its own pictures and video now -
+        // see Gallery.load - so this call is left only with the words to
+        // ask the store for; the picture Scraped#load also decodes here is
+        // never assigned anywhere, kept only because this is the same
+        // resolve every row's own thumbnail shares the cache of.
         adapter.scraped().load(this, relativePath, pixels(PANE_TARGET_DP), (meta, picture) -> {
             if (token != paneToken) return; // the selection moved on
-
             applyPaneMeta(meta);
-
-            if (picture != null) {
-                paneCover.setImageBitmap(picture);
-                paneCover.setVisibility(View.VISIBLE);
-            }
         });
 
-        paneHandler.postDelayed(() -> startPaneVideoAfterWait(token, relativePath),
+        paneGallery.load(relativePath);
+
+        paneHandler.postDelayed(() -> advanceToPaneVideo(token),
                 paneVideoToken, PANE_VIDEO_DELAY_MS);
     }
 
     /**
      * The name, the filename beneath it when the name replaced it, and
      * developer/publisher/year - everything {@link Scraped#load}'s own
-     * answer can fill in beside the picture, which {@link #updatePane}
-     * applies itself since it alone decides whether the answer arrived in
-     * time to matter.
+     * answer carries besides the picture this no longer uses, applied by
+     * {@link #updatePane} itself since it alone decides whether the answer
+     * arrived in time to matter.
      */
     private void applyPaneMeta(Meta meta) {
         if (meta != null && meta.name != null && !meta.name.isEmpty()) {
@@ -1517,46 +1530,19 @@ public final class LibraryActivity extends Activity {
     }
 
     /**
-     * The far side of {@link #updatePane}'s own three-second wait: asks for
-     * the video off the UI thread - {@link Scraped#loadVideo} - and only
-     * then, since a resolve is itself a round trip worth doing without
-     * blocking anything, starts it. {@code token} is checked twice for the
-     * same reason a row's own bind token is checked once: the selection can
-     * move on between the wait elapsing and the resolve actually answering,
-     * not only before the wait starts.
+     * The far side of {@link #updatePane}'s own three-second wait: carries
+     * the gallery to its own video page, exactly as a swipe would, unless
+     * either reason to leave it alone applies - the selection has moved on
+     * since the wait was scheduled, or {@link #paneUserSwiped} says a person
+     * already chose a page of their own for this one. {@link Gallery#showPage}
+     * moves the pager without telling that listener about it, so a wait that
+     * does win the race never looks like the swipe it is not.
      */
-    private void startPaneVideoAfterWait(int token, String relativePath) {
-        if (token != paneToken) return;
+    private void advanceToPaneVideo(int token) {
+        if (token != paneToken || paneUserSwiped) return;
 
-        adapter.scraped().loadVideo(this, relativePath, video -> {
-            if (token != paneToken || video == null) return;
-
-            paneVideo.setVideoURI(video);
-            paneVideo.setOnPreparedListener(mp -> {
-                mp.setVolume(0f, 0f);
-                mp.setLooping(true);
-            });
-            // The picture underneath would otherwise still be technically
-            // visible, the video simply drawn over it - correct either way,
-            // since nothing beneath a video view shows through it, but there
-            // is no reason to leave it marked visible for no one to see.
-            paneCover.setVisibility(View.GONE);
-            paneVideo.setVisibility(View.VISIBLE);
-            paneVideo.start();
-        });
-    }
-
-    /**
-     * Stops and releases whatever the video was doing - playing, still
-     * resolving, or merely scheduled to start - so a selection that has
-     * moved on never keeps one running behind it. {@code VideoView.
-     * stopPlayback} releases the {@code MediaPlayer} underneath itself,
-     * which is the whole of what letting one keep running would leak.
-     */
-    private void stopPaneVideo() {
-        paneHandler.removeCallbacksAndMessages(paneVideoToken);
-        paneVideo.stopPlayback();
-        paneVideo.setVisibility(View.GONE);
+        int index = paneGallery.videoIndex();
+        if (index >= 0) paneGallery.showPage(index);
     }
 
     // --- tabs and Browse's stack ---------------------------------------------

@@ -78,6 +78,17 @@
             android:theme="@android:style/Theme.DeviceDefault"
             android:exported="false" />
 
+        <!-- One picture or the video, full screen, swipeable across the
+             rest of the same gallery - opened from a tap on a page in the
+             pane or in GameInfoActivity; see library/ui/Gallery.java and
+             screen/MediaViewerActivity.java. No title bar, so no label of
+             its own shows; the manifest one is only for the task switcher. -->
+        <activity
+            android:name=".screen.MediaViewerActivity"
+            android:label="@string/app_name"
+            android:theme="@android:style/Theme.DeviceDefault"
+            android:exported="false" />
+
         <activity
             android:name=".EmulatorActivity"
             android:label="@string/app_name"
