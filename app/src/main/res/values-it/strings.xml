@@ -339,6 +339,9 @@
     <string name="settings_content_folder">Cartella dei giochi</string>
     <string name="settings_content_folder_summary">Da dove parte «Apri file»</string>
     <string name="settings_content_folder_none">Non impostata</string>
+    <string name="settings_library">Avvia nella libreria</string>
+    <string name="settings_library_summary">Aprire l\'app sui tuoi giochi invece che sulla macchina. Serve una cartella dei giochi.</string>
+    <string name="settings_library_needs_folder">Scegli prima una cartella dei giochi.</string>
     <string name="settings_states_moved">Salvataggi spostati</string>
 
     <string name="settings_states">Salvataggi</string>
@@ -508,4 +511,31 @@
     <string name="esde_pick">Bisogna mostrare a Zedex la cartella di ES-DE una volta: quella che si chiama ES-DE, con custom_systems dentro. Dopo basta questa voce.</string>
     <string name="esde_not_esde">Quella non è la cartella di ES-DE. Scegli quella che si chiama ES-DE.</string>
     <string name="esde_no_folder">ES-DE è installato, ma la sua cartella non è in /storage/emulated/0/ES-DE. Rimettila lì, oppure aggiungi la voce a mano.</string>
+
+    <string name="library_title">Libreria</string>
+    <string name="library_tab_browse">Sfoglia</string>
+    <string name="library_tab_favorites">Preferiti</string>
+    <string name="library_tab_recents">Recenti</string>
+    <string name="library_empty">Niente qui che lo Spectrum possa aprire.</string>
+    <string name="library_empty_search">Niente corrisponde.</string>
+    <string name="library_empty_favorites">Ancora nessun preferito. Tieni premuto un gioco per aggiungerlo.</string>
+    <string name="library_empty_recents">Non hai ancora giocato a niente.</string>
+    <string name="library_no_folder">Scegli una cartella dei giochi da sfogliare.</string>
+    <string name="library_choose_folder">Scegli cartella…</string>
+    <string name="library_search">Cerca</string>
+    <string name="library_sort">Ordina</string>
+    <string name="library_sort_name">Nome</string>
+    <string name="library_sort_date">Data</string>
+    <string name="library_sort_size">Dimensione</string>
+    <string name="library_view_list">Lista</string>
+    <string name="library_view_grid">Griglia</string>
+    <string name="library_options_title">Ordine e visualizzazione</string>
+    <string name="library_favorite_add">Aggiungi ai preferiti</string>
+    <string name="library_favorite_remove">Rimuovi dai preferiti</string>
+    <string name="library_unreadable">Quel file non si è potuto leggere.</string>
+    <string name="library_machine">Macchina</string>
+    <string name="library_play">Gioca</string>
+    <string name="library_open">Apri</string>
+    <string name="library_nothing_selected">Seleziona un gioco per vedere cosa si sa di esso.</string>
+    <string name="library_up">Su</string>
 </resources>

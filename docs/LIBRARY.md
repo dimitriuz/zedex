@@ -1,0 +1,174 @@
+# The library
+
+A screen the app starts on: the content folder, browsable, with folders and zip
+archives to walk into and a game at the end of it. Decided 2026-08-06, before
+any code; this is what was chosen and why, so that the choices can be argued
+with later rather than rediscovered.
+
+## What it is
+
+The content folder — the one already chosen in *Settings › App* and held as a
+persisted SAF grant in `contentTree` — shown as a list or a grid, with folders
+and `.zip` archives you can enter. Opening a file loads it into the machine if
+it is a type the emulator supports; anything else is not shown at all.
+
+Three tabs: **Browse**, **Favorites**, **Recents**. It opens on Browse, because
+the folder tree is what the library is for and it is the same every time; a
+screen that changes under you depending on what you played last is harder to
+learn, and Recents is one tap away.
+
+Beside all of it, eventually, a pane of metadata and artwork for whatever is
+selected.
+
+## Decisions
+
+**It is its own activity, and the two cross over explicitly.** `LibraryActivity`
+is the launcher; opening a game starts `EmulatorActivity`. With the library
+switched off the launcher goes straight to the machine, as it does today.
+
+**Back does not carry you between them, and the first draft of this document was
+wrong to say it would.** Two things that were already true stop it, and both are
+right:
+
+- `EmulatorActivity` is `android:launchMode="singleInstance"`, so it lives in a
+  task of its own and has never been in anybody's back stack. That is what
+  makes a second game reuse the one instance — two of them would be two Fuse
+  cores in one process — and it is not up for changing.
+- Its `onKeyDown` swallows BACK to open its own menu, deliberately: a machine is
+  not a page to be backed out of, and a Spectrum put away by accident is a
+  Spectrum whose RAM has gone.
+
+So each direction is a row of its own, and neither disturbs the other's task:
+
+```
+LibraryActivity  ──  open a game  ─────────→  EmulatorActivity
+      (task A)                                     (task B)
+                 ←──  ☰ › Library  ──────────
+                 ──   ⌗ Machine   ─────────→
+```
+
+- **☰ › Library**, in the emulator's sheet, brings the library's task forward.
+  Shown only when the library is in use — it asks `startsInLibrary`, the same
+  one question the launcher asks — so it never leads nowhere.
+- **The Machine action** in the library's bar starts `EmulatorActivity` by
+  component with **no action and no data**, so nothing is loaded and the machine
+  comes forward exactly as it was left. Opening a *game* is the other thing, and
+  it loads.
+
+**Nothing needs to pause the machine on the way across.** `EmulatorActivity`'s
+`onPause` already sets `pausedByAndroid` and calls `FuseNative.setPaused(true)`,
+so emulation stops the moment the library takes the window. It stops there
+deliberately: Android's pause and the user's own are kept apart, and only the
+user's survives coming back, so the machine resumes by itself on return. A
+second pause laid on top would mean coming back to a stopped machine and a play
+button, every time.
+
+**On for new installs, off for updates.** A fresh install starts in the library;
+anyone updating from 1.3.1 keeps landing on the machine until they turn it on.
+Changing what the app does on launch, for everyone, without asking, is not a
+thing to do to people who have had it one way for a year. One migration flag in
+the preferences pays for that.
+
+**A content folder is the gate.** The library cannot be switched on without one:
+the switch in *Settings* is disabled, saying so, with the folder row directly
+above it. So the default above is a default *preference*, not a default screen —
+a fresh install with no folder chosen still starts on the machine, and choosing
+a folder is what makes the library the thing it opens on. An update is off
+either way until somebody turns it on, which then requires the folder like
+anything else.
+
+There is no implicit fallback to the data folder or to *Documents*. A browser
+pointed at a folder the user did not choose shows them a folder they did not
+mean, and the interesting failure is the empty one: scoped storage hands an app
+only what it wrote itself, so a plausible-looking default would come up empty on
+exactly the devices where somebody else put the games there.
+
+**One root: the content folder.** Not the data folder as well — the tapes and
+disks Zedex wrote are already reachable from the emulator's own menus, and a
+browser that mixes a person's collection with the app's own working files has to
+explain itself. With no content folder chosen the library says so and offers the
+picker.
+
+**`Open file…` stays.** The library browses the content folder; the system
+picker reaches everything else — a download, another app's folder, a stick.
+They do different jobs.
+
+**Metadata lives in the app's data folder**, in ES-DE's shape plus whatever we
+need beyond it, rather than beside the games. The content folder can be
+read-only — a shared drive, a card — and a library that cannot record what has
+been played is worse than one that does not travel.
+
+**A game is identified by its path, with its hash kept alongside.** The document
+path is the key: it is cheap, it is known while browsing, and it is how ES-DE
+does it. The MD5 that `Media.stage()` already computes when a game is loaded is
+recorded next to it, so a later version can notice a file that moved or was
+renamed and repair the key rather than losing the entry. Keying by hash alone
+would be prettier and is not possible: nothing in a folder could be shown as a
+favourite until every file in it had been read from end to end, which is the
+folder of two thousand tapes again. A zip entry's key is the archive and the
+entry within it.
+
+**Recents is the list the app already keeps.** `Recents` holds what *Open
+recent…* shows in the emulator's menu, and the tab is a second view of it rather
+than a second list. Two consequences to build for: its entries can point outside
+the content folder — a download, a hand-off from ES-DE — and their grants can
+die, which `Recents.forget` already handles. *Open recent…* stays in the
+emulator's menu for the same reason *Open file…* does.
+
+**Zip only.** `java.util.zip` is in the platform and covers nearly every
+Spectrum download. Entering a zip lists the supported entries inside it; opening
+one extracts that entry to the cache and hands it over exactly as a picked file
+is handed over today, through `Media.stage()`, so the MD5 the poke database
+matches on is still the file as distributed. `.7z` is in ES-DE's extension list
+and would need a dependency; it can come later if anyone asks.
+
+## The first pull request
+
+Browse and launch, and nothing else:
+
+- the content folder, folders and zips as folders;
+- list and grid, switchable;
+- files the emulator cannot open hidden;
+- opening a file loads it into the machine;
+- sort, and a search box that filters as you type — a folder of two thousand
+  tapes is the case this screen exists for;
+- all three tabs: Browse, Favorites, Recents;
+- the setting, its content-folder gate, and the migration that leaves existing
+  installs alone.
+
+Favourites need a store of their own now — paths and their hashes, in the data
+folder — which the metadata PR then absorbs rather than leaves behind. It is
+worth the small duplication: three tabs from the start settle the layout before
+any artwork arrives, and Recents costs almost nothing because the list is
+already there.
+
+The metadata pane, artwork and video are the second pull request on the same
+branch. Designing the layout with the pane in mind, and shipping without it.
+
+## Notes for building it
+
+- **Listing is `DocumentsContract`, not `File`.** The content folder is a tree
+  grant; `DocumentFile.listFiles()` is one query per child and is famously slow
+  on a large folder. Query the children directly with the columns wanted —
+  document id, display name, mime type — in one cursor.
+- **RecyclerView is already on the classpath**, transitively through
+  `androidx.preference` (→ `appcompat` → `recyclerview`). If the library uses
+  it, declare it in `app/build.gradle` rather than relying on that: it is one
+  line, it changes the APK by nothing measurable, and the alternative is a
+  hand-rolled recycling list for a folder of thousands.
+- **The supported extensions already exist in one place**: `EsDe.java`'s
+  `EXTENSIONS`, which is what ES-DE is told the app can open. The library must
+  agree with it, so it should read from a shared list rather than a second copy
+  — two lists that can disagree about `.udi` is a bug nobody would find.
+- **`EmulatorActivity` keeps its `VIEW` intent filter and its own launcher
+  path.** `am start` in the scripts and docs, and the ES-DE hand-off, both
+  address it directly; none of that may break.
+
+## Still open
+
+- Whether the grid, with no artwork scraped, shows anything better than a name
+  and an icon by type.
+- Whether the library should be built focus-first now, since it is the obvious
+  Android TV home screen — see `docs/ANDROID-TV.md`.
+- What a favourite means for a folder, or for a zip full of games, as opposed to
+  a single file.

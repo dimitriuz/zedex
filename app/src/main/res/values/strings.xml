@@ -375,6 +375,9 @@
     <string name="settings_content_folder">Content folder</string>
     <string name="settings_content_folder_summary">Where Open file starts</string>
     <string name="settings_content_folder_none">Not set</string>
+    <string name="settings_library">Start in the library</string>
+    <string name="settings_library_summary">Open the app on your games rather than on the machine. Needs a content folder.</string>
+    <string name="settings_library_needs_folder">Choose a content folder first.</string>
     <string name="settings_states_moved">Save states moved</string>
 
     <string name="settings_states">Save states</string>
@@ -565,5 +568,50 @@
     <string name="esde_pick">Zedex has to be shown ES-DE\u2019s folder once — the one called ES-DE, with custom_systems inside it. After that this row just works.</string>
     <string name="esde_not_esde">That is not ES-DE\u2019s folder. Pick the one called ES-DE.</string>
     <string name="esde_no_folder">ES-DE is installed but its folder is not at /storage/emulated/0/ES-DE. Move it back, or add the entry by hand.</string>
+
+    <!-- The library: the content folder, browsable. See docs/LIBRARY.md. -->
+    <string name="library_title">Library</string>
+    <string name="library_tab_browse">Browse</string>
+    <string name="library_tab_favorites">Favourites</string>
+    <string name="library_tab_recents">Recent</string>
+    <string name="library_empty">Nothing here that the Spectrum can open.</string>
+    <!-- Shown instead of library_empty when the list is empty because the
+         search text matched nothing, rather than because the folder itself
+         has nothing in it - see LibraryActivity.applyFilterSort. -->
+    <string name="library_empty_search">Nothing matches.</string>
+    <string name="library_empty_favorites">No favourites yet. Hold a game to add one.</string>
+    <string name="library_empty_recents">Nothing played yet.</string>
+    <string name="library_no_folder">Choose a content folder to browse.</string>
+    <string name="library_choose_folder">Choose folder…</string>
+    <string name="library_search">Search</string>
+    <string name="library_sort">Sort</string>
+    <string name="library_sort_name">Name</string>
+    <string name="library_sort_date">Date</string>
+    <string name="library_sort_size">Size</string>
+    <string name="library_view_list">List</string>
+    <string name="library_view_grid">Grid</string>
+    <!-- The title of the modal dialog Select or the right stick's click
+         opens - see library/ui/OptionsDialog.java. Direction is shown as an
+         arrow there rather than as a word, so this is the only string the
+         dialog needs beyond library_sort_name/date/size and
+         library_view_list/grid, which its rows reuse as they are. -->
+    <string name="library_options_title">Sort &amp; view</string>
+    <string name="library_favorite_add">Add to favourites</string>
+    <string name="library_favorite_remove">Remove from favourites</string>
+    <string name="library_unreadable">That file cannot be read.</string>
+    <!-- Goes to the running machine without loading anything - see
+         menu_machine_group, which this must agree with, minus its ellipsis:
+         this is not a page to go to, it is there already. -->
+    <string name="library_machine">Machine</string>
+    <string name="library_play">Play</string>
+    <!-- The pane's own button, when the selection is a folder or an archive
+         rather than a game - see LibraryActivity.updatePane. Matches
+         menu_open's own word for the same action, minus its ellipsis: this
+         is not a page to go to, it is entered directly. -->
+    <string name="library_open">Open</string>
+    <string name="library_nothing_selected">Select a game to see what is known about it.</string>
+    <!-- The chevron beside the breadcrumb, and the breadcrumb itself: both
+         pop Browse's stack by one level, exactly as Back does. -->
+    <string name="library_up">Up</string>
 
 </resources>

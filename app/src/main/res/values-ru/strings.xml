@@ -339,6 +339,9 @@
     <string name="settings_content_folder">Папка с играми</string>
     <string name="settings_content_folder_summary">Откуда начинает «Открыть файл»</string>
     <string name="settings_content_folder_none">Не задана</string>
+    <string name="settings_library">Запускаться в библиотеке</string>
+    <string name="settings_library_summary">Открывать приложение на играх, а не на машине. Нужна папка с играми.</string>
+    <string name="settings_library_needs_folder">Сначала выберите папку с играми.</string>
     <string name="settings_states_moved">Состояния перенесены</string>
 
     <string name="settings_states">Сохранённые состояния</string>
@@ -508,4 +511,31 @@
     <string name="esde_pick">Zedex нужно один раз показать папку ES-DE — ту, которая называется ES-DE и содержит custom_systems. Дальше эта строка работает сама.</string>
     <string name="esde_not_esde">Это не папка ES-DE. Выберите ту, которая называется ES-DE.</string>
     <string name="esde_no_folder">ES-DE установлен, но его папка не в /storage/emulated/0/ES-DE. Верните её туда или добавьте запись вручную.</string>
+
+    <string name="library_title">Библиотека</string>
+    <string name="library_tab_browse">Обзор</string>
+    <string name="library_tab_favorites">Избранное</string>
+    <string name="library_tab_recents">Недавние</string>
+    <string name="library_empty">Здесь нет ничего, что может открыть Spectrum.</string>
+    <string name="library_empty_search">Ничего не совпадает.</string>
+    <string name="library_empty_favorites">Пока нет избранного. Удерживайте игру, чтобы добавить её.</string>
+    <string name="library_empty_recents">Пока ничего не сыграно.</string>
+    <string name="library_no_folder">Выберите папку с играми для просмотра.</string>
+    <string name="library_choose_folder">Выбрать папку…</string>
+    <string name="library_search">Искать</string>
+    <string name="library_sort">Сортировать</string>
+    <string name="library_sort_name">Название</string>
+    <string name="library_sort_date">Дата</string>
+    <string name="library_sort_size">Размер</string>
+    <string name="library_view_list">Список</string>
+    <string name="library_view_grid">Сетка</string>
+    <string name="library_options_title">Сортировка и вид</string>
+    <string name="library_favorite_add">Добавить в избранное</string>
+    <string name="library_favorite_remove">Убрать из избранного</string>
+    <string name="library_unreadable">Не удалось прочитать этот файл.</string>
+    <string name="library_machine">Машина</string>
+    <string name="library_play">Играть</string>
+    <string name="library_open">Открыть</string>
+    <string name="library_nothing_selected">Выберите игру, чтобы увидеть, что о ней известно.</string>
+    <string name="library_up">Вверх</string>
 </resources>

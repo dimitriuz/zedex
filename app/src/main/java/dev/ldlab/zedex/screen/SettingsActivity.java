@@ -127,6 +127,20 @@ public class SettingsActivity extends AppCompatActivity
     public static final String KEY_KEYBOARD_SKIN = "keyboardSkin";
     /** Read by EmulatorActivity on resume; there is no immediate push for it. */
     public static final String KEY_INDICATORS = "indicators";
+    /**
+     * Whether the app opens on the library or on the machine, as it always
+     * did. Disabled without a content folder to browse - see
+     * docs/LIBRARY.md, "A content folder is the gate" - and kept in step
+     * with that in {@link SettingsFragment#updateSummaries}.
+     */
+    public static final String KEY_LIBRARY = "library";
+    /**
+     * Set once, the first time {@link #startsInLibrary} runs after this
+     * version introduced the library. Never read anywhere else - it exists
+     * only to stop that migration running a second time and overriding
+     * whatever the user has since chosen.
+     */
+    public static final String KEY_LIBRARY_MIGRATED = "libraryMigrated";
     /* How big the picture is drawn, one per orientation: the number of device
        pixels per emulated pixel, or "0" to fill the space. Stored as strings
        because a ListPreference stores strings, and separate because the two
@@ -215,6 +229,88 @@ public class SettingsActivity extends AppCompatActivity
     /** The border, which the renderer crops and the scale list counts. */
     public static void applyBorder(android.content.SharedPreferences preferences) {
         FuseNative.setBorder(Border.of(preferences).ordinal());
+    }
+
+    /**
+     * Turns the library off for anyone who already had the app, and leaves it
+     * at its own default of on for anyone who did not - see docs/LIBRARY.md,
+     * "On for new installs, off for updates". Changing what an update opens
+     * on for someone who has had it one way for a year, without asking, is
+     * not a thing to do; a fresh install has nobody to ask.
+     *
+     * "Already had the app" is not a question the preferences can answer, and
+     * an earlier version of this asked them anyway: a fresh install writes
+     * several of its own within moments of starting - setupDone from the
+     * first-run panel, demoInstalled and romsElsewhere from Storage,
+     * mediaName the first time anything is opened - so by the time anything
+     * calls this, an empty preferences file is not a thing that reliably
+     * still exists to test, and every new install read as an update. See
+     * {@link #isUpdate} for the question asked instead.
+     *
+     * Runs once, guarded by {@link #KEY_LIBRARY_MIGRATED}: a user who flips
+     * the switch either way afterwards is never put back by a second run of
+     * this. Not called directly by whatever decides the launch screen - see
+     * {@link #startsInLibrary}, which is.
+     */
+    private static void migrateLibraryDefault(Context context,
+            android.content.SharedPreferences preferences) {
+        if (preferences.getBoolean(KEY_LIBRARY_MIGRATED, false)) return;
+
+        android.content.SharedPreferences.Editor edit = preferences.edit();
+        if (isUpdate(context)) {
+            edit.putBoolean(KEY_LIBRARY, false);
+        }
+        edit.putBoolean(KEY_LIBRARY_MIGRATED, true);
+        edit.apply();
+    }
+
+    /**
+     * Whether this install has ever been updated - the question
+     * {@link #migrateLibraryDefault} actually needs to ask, in place of the
+     * preferences file, which a fresh install fills in within moments of
+     * starting and so cannot be read as "still empty" by the time anything
+     * calls this.
+     *
+     * {@code firstInstallTime} and {@code lastUpdateTime} are the same
+     * instant for exactly as long as an install has never replaced itself,
+     * and differ from the first update on - which is unaffected by anything
+     * this process has done to its own preferences, unlike
+     * {@code getAll().isEmpty()}. Any failure to read it answers "yes, this
+     * is an update": the conservative direction, since it is an existing
+     * user's launch screen that must not change under them, never a new
+     * user's.
+     */
+    private static boolean isUpdate(Context context) {
+        try {
+            android.content.pm.PackageInfo info = context.getPackageManager()
+                    .getPackageInfo(context.getPackageName(), 0);
+            return info.firstInstallTime != info.lastUpdateTime;
+        } catch (android.content.pm.PackageManager.NameNotFoundException e) {
+            return true;
+        }
+    }
+
+    /**
+     * Whether the app should open on the library rather than on the machine.
+     *
+     * Called by whoever builds the launcher - LibraryActivity, not this
+     * class - which is the point of it: that code asks one question and
+     * never has to know a migration exists. This runs
+     * {@link #migrateLibraryDefault} first, so the very first call after an
+     * update settles {@code library} before anything reads it, and then
+     * answers with the switch and one more thing the switch alone cannot
+     * promise - a content folder that is still granted. The grant is
+     * revocable from Android's own settings independently of this app, and a
+     * library with the switch on but nothing to list would be worse than the
+     * machine it replaced; see docs/LIBRARY.md, "A content folder is the
+     * gate".
+     */
+    public static boolean startsInLibrary(Context context,
+            android.content.SharedPreferences preferences) {
+        migrateLibraryDefault(context, preferences);
+
+        return preferences.getBoolean(KEY_LIBRARY, true)
+                && preferences.getString(Storage.KEY_CONTENT_TREE, null) != null;
     }
 
     /** Which way up the device is; both the scale settings hang off this. */
@@ -369,6 +465,13 @@ public class SettingsActivity extends AppCompatActivity
         // list about to be inflated reads the value, and this screen is not
         // reached only through that one.
         Filter.migrate(getSharedPreferences(PREFS, MODE_PRIVATE));
+
+        // Idempotent for the same reason: the launcher is where this really
+        // has to run, and opening Settings is not guaranteed to happen
+        // before that does. Calling it here as well costs nothing and keeps
+        // this screen's own switch right even for somebody who opens it
+        // first, without this screen having to know the migration exists.
+        startsInLibrary(this, getSharedPreferences(PREFS, MODE_PRIVATE));
 
         if (savedInstanceState != null) {
             selected = savedInstanceState.getInt(STATE_TAB, 0);
@@ -1204,6 +1307,11 @@ public class SettingsActivity extends AppCompatActivity
                 useFolder(folder);
             }
 
+            // The library row depends on the content folder, which the user
+            // may have just come back from choosing - the listener above was
+            // not registered to hear it happen while this fragment was paused
+            // for the trip to the picker.
+            updateSummaries();
         }
 
         @Override
@@ -1431,6 +1539,20 @@ public class SettingsActivity extends AppCompatActivity
                 second.setEnabled(have);
                 second.setSummary(have ? R.string.settings_second_screen_summary
                                        : R.string.settings_second_screen_none);
+            }
+
+            // The same idea as the second screen above: disabled with an
+            // explanation rather than hidden, because a content folder chosen
+            // a moment later legitimately turns this on - see
+            // docs/LIBRARY.md, "A content folder is the gate".
+            Preference library = findPreference(KEY_LIBRARY);
+            if (library != null) {
+                boolean haveFolder = settings.getString(
+                        Storage.KEY_CONTENT_TREE, null) != null;
+
+                library.setEnabled(haveFolder);
+                library.setSummary(haveFolder ? R.string.settings_library_summary
+                                              : R.string.settings_library_needs_folder);
             }
 
             for (String key : new String[] { KEY_MACHINE, KEY_SPEED, KEY_SNAPSHOT_FORMAT,

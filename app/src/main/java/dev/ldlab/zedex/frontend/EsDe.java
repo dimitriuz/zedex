@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.frontend;
 
+import dev.ldlab.zedex.library.Types;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -19,6 +20,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Locale;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -123,12 +125,37 @@ public final class EsDe {
     /** The rest of what a system entry needs, as ES-DE defines it. */
     private static final String FULLNAME = "Sinclair ZX Spectrum";
     private static final String PATH = "%ROMPATH%/" + SYSTEM;
-    private static final String EXTENSIONS =
-            ".dsk .DSK .gz .GZ .img .IMG .mgt .MGT .rzx .RZX .scl .SCL .sh .SH "
-            + ".sna .SNA .szx .SZX .tap .TAP .trd .TRD .tzx .TZX .udi .UDI .z80 "
-            + ".Z80 .7z .7Z .zip .ZIP";
+
+    /**
+     * Built from {@link Types#forEsDe()} rather than written out a second
+     * time - two lists that could disagree about, say, {@code .udi} is a bug
+     * nobody would find by reading either file on its own. That list is not
+     * what the library shows: it carries {@code .sh} and {@code .7z} as well,
+     * which are ES-DE's own business - a launcher script and something it
+     * unpacks itself - and Fuse opens neither. ES-DE wants both cases of each
+     * extension, dotted and space-separated; see {@link #extensions()}.
+     */
+    private static final String EXTENSIONS = extensions();
 
     private EsDe() {
+    }
+
+    /**
+     * {@code Types.forEsDe()} in ES-DE's own syntax: each extension twice,
+     * lower and upper case, dotted and separated by a single space. ES-DE's
+     * INSTALL.md does not say why it wants both cases rather than matching
+     * case-insensitively; it is copied here exactly as it always was.
+     */
+    private static String extensions() {
+        StringBuilder built = new StringBuilder();
+
+        for (String extension : Types.forEsDe()) {
+            if (built.length() > 0) built.append(' ');
+            built.append('.').append(extension)
+                 .append(" .").append(extension.toUpperCase(Locale.ROOT));
+        }
+
+        return built.toString();
     }
 
     /** The installed ES-DE's package name, or null if there is none. */

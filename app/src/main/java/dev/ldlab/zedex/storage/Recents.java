@@ -12,6 +12,7 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * The last few files opened, so that the second time is one tap.
@@ -32,7 +33,20 @@ import java.util.List;
  * the name is worth showing — and simply fail to open later, which the panel
  * reports like any other unreadable file.
  *
- * Stored as JSON in the preferences, like the pokes and the key profiles.
+ * <b>An entry inside a zip is remembered by the archive's own uri</b> plus the
+ * path within it - see {@link #remember(ContentResolver, SharedPreferences,
+ * Uri, String, String)} - since that path has no uri SAF can address on its
+ * own; the grant taken is the archive's, which is the document Android
+ * actually knows about. Two entries can therefore share a uri and still be
+ * two different rows, which is why every place here that used to compare rows
+ * by uri alone now compares by uri <em>and</em> entry, and why dropping one
+ * entry must not take a grant a sibling entry still needs with it - see
+ * {@link #referencedElsewhere}.
+ *
+ * Stored as JSON in the preferences, like the pokes and the key profiles. An
+ * old list has no {@code inside} field on any of its entries, which reads
+ * exactly like a plain file's own absent one - so nothing here needed a
+ * migration.
  */
 public final class Recents {
 
@@ -48,9 +62,17 @@ public final class Recents {
         public final String name;
         public final Uri uri;
 
-        Item(String name, Uri uri) {
+        /**
+         * The path within {@link #uri} when this is one entry of a zip
+         * archive, or null for a plain file - which is what every entry
+         * written before this field existed reads back as.
+         */
+        public final String inside;
+
+        Item(String name, Uri uri, String inside) {
             this.name = name;
             this.uri = uri;
+            this.inside = inside;
         }
     }
 
@@ -71,7 +93,12 @@ public final class Recents {
                 String name = entry.optString("name", "");
 
                 if (!uri.isEmpty() && !name.isEmpty()) {
-                    items.add(new Item(name, Uri.parse(uri)));
+                    // Missing on every row written before this field existed,
+                    // which is exactly what a plain file's own absent one
+                    // reads as - see Favorites, which reads the same way.
+                    String inside = entry.isNull("inside")
+                            ? null : entry.optString("inside", null);
+                    items.add(new Item(name, Uri.parse(uri), inside));
                 }
             }
         } catch (JSONException e) {
@@ -88,18 +115,41 @@ public final class Recents {
      */
     public static void remember(ContentResolver resolver, SharedPreferences preferences,
                          Uri uri, String name) {
+        remember(resolver, preferences, uri, name, null);
+    }
+
+    /**
+     * The same, for a game that is one entry inside a zip archive rather than
+     * a document of its own. {@code uri} is the <em>archive's</em> uri - the
+     * document Android actually grants access to, a zip entry having none of
+     * its own - and {@code inside} is the path within it, exactly what
+     * {@code Entry.inside} carries.
+     *
+     * "The same file" means the same uri <em>and</em> the same entry within
+     * it here, not the uri alone: two entries of one archive are two
+     * different games, and must not collapse onto one row the way opening the
+     * same plain file twice does.
+     */
+    public static void remember(ContentResolver resolver, SharedPreferences preferences,
+                         Uri uri, String name, String inside) {
         List<Item> items = all(preferences);
         List<Item> kept = new ArrayList<>();
 
-        kept.add(new Item(name, uri));
+        kept.add(new Item(name, uri, inside));
 
         for (Item item : items) {
-            if (!item.uri.equals(uri)) kept.add(item);
+            if (!sameEntry(item, uri, inside)) kept.add(item);
         }
 
-        // Whatever falls off the end gives its grant back; there is a limit on
-        // how many an app may hold and no reason to sit on one we cannot reach.
-        while (kept.size() > LIMIT) release(resolver, kept.remove(kept.size() - 1));
+        // Whatever falls off the end gives its grant back, unless a sibling
+        // entry of the same archive is still in the list and still needs it -
+        // there is a limit on how many an app may hold and no reason to sit on
+        // a grant we cannot reach, but taking away a grant a row still on the
+        // list depends on would be worse than reaching the limit a step sooner.
+        while (kept.size() > LIMIT) {
+            Item dropped = kept.remove(kept.size() - 1);
+            if (!referencedElsewhere(kept, dropped.uri)) release(resolver, dropped.uri);
+        }
 
         try {
             resolver.takePersistableUriPermission(
@@ -116,20 +166,55 @@ public final class Recents {
     /** Drops one, for a file that turned out not to open. */
     public static void forget(ContentResolver resolver, SharedPreferences preferences,
                        Uri uri) {
+        forget(resolver, preferences, uri, null);
+    }
+
+    /**
+     * The same, for one entry of a zip archive - see
+     * {@link #remember(ContentResolver, SharedPreferences, Uri, String, String)}.
+     * Matched by the archive's uri <em>and</em> the entry within it, so a
+     * different entry of the same archive that still opens fine is not
+     * dropped along with the one that does not - and its grant is kept for
+     * exactly the same reason; see {@link #referencedElsewhere}.
+     */
+    public static void forget(ContentResolver resolver, SharedPreferences preferences,
+                       Uri uri, String inside) {
         List<Item> kept = new ArrayList<>();
+        boolean dropped = false;
 
         for (Item item : all(preferences)) {
-            if (item.uri.equals(uri)) release(resolver, item);
+            if (sameEntry(item, uri, inside)) dropped = true;
             else kept.add(item);
         }
+
+        if (dropped && !referencedElsewhere(kept, uri)) release(resolver, uri);
 
         write(preferences, kept);
     }
 
-    private static void release(ContentResolver resolver, Item item) {
+    /** Whether a row is the one named by {@code uri} and {@code inside}. */
+    private static boolean sameEntry(Item item, Uri uri, String inside) {
+        return item.uri.equals(uri) && Objects.equals(item.inside, inside);
+    }
+
+    /**
+     * Whether some other row still needs the same document's grant.
+     *
+     * Two entries of one archive share a single uri, so dropping one - by
+     * falling off the end of the list, or because it failed to reopen - must
+     * not take the grant a sibling entry still on the list depends on.
+     */
+    private static boolean referencedElsewhere(List<Item> items, Uri uri) {
+        for (Item item : items) {
+            if (item.uri.equals(uri)) return true;
+        }
+        return false;
+    }
+
+    private static void release(ContentResolver resolver, Uri uri) {
         try {
             resolver.releasePersistableUriPermission(
-                    item.uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
         } catch (SecurityException e) {
             // Never held one, or it has gone already. Either is fine.
         }
@@ -144,6 +229,10 @@ public final class Recents {
             try {
                 entry.put("name", item.name);
                 entry.put("uri", item.uri.toString());
+                // JSONObject.put drops a null value rather than storing one,
+                // so a plain file's absent "inside" here reads back exactly
+                // like every row written before this field existed did.
+                entry.put("inside", item.inside);
             } catch (JSONException e) {
                 continue;
             }

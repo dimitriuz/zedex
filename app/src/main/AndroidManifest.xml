@@ -55,6 +55,21 @@
         android:theme="@style/AppTheme"
         android:hardwareAccelerated="true">
 
+        <!-- The launcher now, in place of EmulatorActivity: it decides for
+             itself whether it belongs on screen at all, and hands straight
+             over to the machine when the library is off or has no folder to
+             browse - see startsInLibrary and docs/LIBRARY.md. -->
+        <activity
+            android:name=".screen.LibraryActivity"
+            android:label="@string/library_title"
+            android:theme="@android:style/Theme.DeviceDefault"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
         <activity
             android:name=".EmulatorActivity"
             android:label="@string/app_name"
@@ -62,10 +77,13 @@
             android:launchMode="singleInstance"
             android:configChanges="layoutDirection|locale|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation|density"
             android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
+            <!-- Not the launcher: LibraryActivity is, and hands over to this
+                 one when the library is off or has nothing to browse - see
+                 docs/LIBRARY.md. Still directly startable regardless, by
+                 component name: `am start -n dev.ldlab.zedex/.EmulatorActivity`
+                 appears throughout the scripts and docs, and the ES-DE
+                 hand-off addresses it the same way, neither of which goes
+                 through an intent filter at all. -->
 
             <!-- Spectrum media has no registered MIME types of its own, so
                  every one of these files - .tap, .tzx, .z80, .szx, .trd,

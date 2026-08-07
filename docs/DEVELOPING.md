@@ -850,6 +850,20 @@ that has ROMs in it, `/sdcard/Download/Spectrum` unless told otherwise.
 The ROMs decide what can run, and every test skips rather than fails when the
 folder it was pointed at has none.
 
+**The library has no `adb` shortcut of its own.** A content folder is a
+persisted SAF grant, and there is no shell command that walks the picker for
+you the way `appops set` stands in for the All-files-access dialog - it has
+to be granted from the device, once, by hand: launch the app, choose the
+folder, and it survives from then on the way any persisted tree grant does.
+`Emulator.launch()` starts `EmulatorActivity` by name rather than through
+`getLaunchIntentForPackage()`, because that now resolves to `LibraryActivity`
+- true on every run here, since Gradle uninstalls the app first and a fresh
+install has no content folder to be shown - and every test in this suite is
+about the machine, not the library. To prove the machine really stops the
+moment the library takes the window, repeat the CPU measurement in
+*The library* (`docs/INTERNALS.md`) with each screen in front in turn: 7.4%
+with the machine on screen, 0.0% with the library on it.
+
 ## Releases
 
 CI does the same two steps in the same order. `.github/workflows/build.yml`

@@ -271,6 +271,17 @@ dependencies {
      */
     implementation 'androidx.preference:preference:1.2.1'
 
+    /*
+     * The library's browse list. Already on the classpath transitively -
+     * androidx.preference brings it in directly, at 1.0.0 - so this asks for
+     * exactly the version that would resolve anyway. Declared rather than
+     * relied upon because a dependency that only exists by way of preference
+     * is one Gradle is free to drop the moment preference stops needing it,
+     * and a folder of thousands is exactly the screen that cannot fall back
+     * to a hand-rolled list.
+     */
+    implementation 'androidx.recyclerview:recyclerview:1.0.0'
+
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test:runner:1.5.2'
     androidTestImplementation 'androidx.test.uiautomator:uiautomator:2.3.0'

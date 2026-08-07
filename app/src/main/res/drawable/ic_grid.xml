@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 24dp outline, 1.8 stroke, tinted by the row that draws it. Four tiles: a
+     shelf rather than a list. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:pathData="M4,4 h7 v7 h-7 z M13,4 h7 v7 h-7 z
+                             M4,13 h7 v7 h-7 z M13,13 h7 v7 h-7 z"
+        android:strokeColor="#ffffff" android:strokeWidth="1.8"
+        android:strokeLineCap="round" android:strokeLineJoin="round"
+        android:fillColor="#00000000"/>
+</vector>
