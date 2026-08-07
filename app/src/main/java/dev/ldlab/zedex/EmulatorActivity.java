@@ -11,6 +11,7 @@ import dev.ldlab.zedex.machine.Border;
 import dev.ldlab.zedex.machine.Filter;
 import dev.ldlab.zedex.machine.Machine;
 import dev.ldlab.zedex.media.Media;
+import dev.ldlab.zedex.media.Recorder;
 import dev.ldlab.zedex.menu.Capture;
 import dev.ldlab.zedex.menu.ControlsUi;
 import dev.ldlab.zedex.menu.PokesUi;
@@ -1664,6 +1665,15 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     protected void onDestroy() {
         super.onDestroy();
         getApplication().unregisterActivityLifecycleCallbacks(panels.lifecycle());
+
+        // Recorder's listeners are statics, and a listener here holds this
+        // activity. The recording path lets go of its own once the encoder has
+        // it; a screenshot asked for and never answered - the machine paused
+        // between the ask and the next frame, or the surface went - has
+        // nothing else to clear it. This activity is normally
+        // process-lifetime, so it only shows when it is recreated, which a
+        // language change deliberately does.
+        Recorder.forgetPendingScreenshot();
     }
 
     /**

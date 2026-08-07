@@ -120,6 +120,15 @@ public final class SecondScreen extends Presentation {
 
     private LinearLayout column;
 
+    /**
+     * The listener that keeps this window's strip the height of the borrowed
+     * bar, and the bar it is attached to, so {@link #returnBorrowed} can take
+     * it off before the bar goes home. A borrowed view outlives this window;
+     * anything of ours left on it outlives this window too.
+     */
+    private View.OnLayoutChangeListener barLayout;
+    private QuickBar barSized;
+
     /** Built and shown always, whether or not there is anything to switch
      *  away from - see {@link #hasControls}. */
     private GameInfoView infoView;
@@ -511,14 +520,26 @@ public final class SecondScreen extends Presentation {
             // The space kept for it below follows its icons, whatever they came
             // out as at this size, and ignores anything it opens.
             QuickBar sized = bar;
-            bar.addOnLayoutChangeListener((view, l, t2, r2, b2, ol, ot, or2, ob) -> {
+
+            // Kept in a field so returnBorrowed() can take it off again. The
+            // bar is *borrowed* - it belongs to EmulatorLayout and outlives
+            // this Presentation - while the strip it measures belongs to this
+            // window and dies with it. Left attached, the bar goes home still
+            // holding a listener that calls requestLayout() on a detached view
+            // every layout pass of the main window, and one more accumulates
+            // for each connect, disconnect, onStop and onResume, since
+            // Panels.apply() builds a fresh SecondScreen every time.
+            barLayout = (view, l, t2, r2, b2, ol, ot, or2, ob) -> {
                 int wanted = sized.rowHeight() + margin * 2;
 
                 if (strip.getLayoutParams().height != wanted) {
                     strip.getLayoutParams().height = wanted;
                     strip.requestLayout();
                 }
-            });
+            };
+
+            barSized = bar;
+            bar.addOnLayoutChangeListener(barLayout);
         }
 
         if (typist != null) {
@@ -677,6 +698,14 @@ public final class SecondScreen extends Presentation {
      */
     private void returnBorrowed() {
         if (column == null) return;
+
+        // Before the views go home: see where it is attached for why.
+        if (barSized != null && barLayout != null) {
+            barSized.removeOnLayoutChangeListener(barLayout);
+        }
+
+        barSized = null;
+        barLayout = null;
 
         for (View view : borrowed) {
             if (view instanceof ActivityLights) {

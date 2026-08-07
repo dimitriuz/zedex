@@ -241,11 +241,45 @@ public final class Recorder {
         FuseNative.captureScreenshot();
     }
 
+    /**
+     * Drops a screenshot that was asked for and never answered.
+     *
+     * {@link #screenshot} clears both fields when the frame arrives, and the
+     * frame usually does. When it does not - the machine paused between the
+     * ask and the next frame, or the surface went away - the Listener stays in
+     * a static field, and a Listener is {@code Capture::report}, which holds
+     * the Activity. Called from {@code EmulatorActivity.onDestroy} so that a
+     * screenshot nobody will ever answer does not outlive the screen that
+     * asked for it.
+     */
+    public static void forgetPendingScreenshot() {
+        screenshotTarget = null;
+        screenshotListener = null;
+    }
+
     // --- encoding ---------------------------------------------------------
 
     private static void encode() {
         File file = target;
         Listener whenDone = listener;
+
+        // Let go of it now the local copy has it. A Listener here is
+        // Capture::report, and Capture holds the Activity - so a static field
+        // still pointing at one after the recording finishes pins
+        // EmulatorActivity, EmulatorLayout, every keyboard plate and every
+        // cached bitmap for the life of the process.
+        //
+        // Invisible in the ordinary case, because that activity is
+        // process-lifetime anyway. Not invisible when it is recreated, which
+        // it deliberately is on a language change - record something, change
+        // the language, and the whole old view tree is unreclaimable.
+        //
+        // Safe to clear here rather than at the end: start() refuses while the
+        // worker is alive, so nothing can have written a new listener between
+        // that copy and this.
+        listener = null;
+        target = null;
+
         Recording out = null;
         String failure = null;
 

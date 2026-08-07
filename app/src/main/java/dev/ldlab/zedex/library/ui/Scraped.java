@@ -89,7 +89,26 @@ public final class Scraped {
      *  for the disk or the CPU either. */
     private static final int THREADS = 2;
 
-    private final ExecutorService executor = Executors.newFixedThreadPool(THREADS);
+    /**
+     * Shared across every instance, for the reason all three of {@link
+     * Gallery}'s pools are - and because this one was not, and leaked.
+     *
+     * One Scraped is built per {@code EntryAdapter}, which is built per
+     * {@code LibraryActivity.onCreate}, and that activity declares no
+     * {@code configChanges} - so every rotation made another pool. A
+     * {@code newFixedThreadPool} does not retire its core threads once a task
+     * has started them, and nothing here ever called {@code shutdown}, so each
+     * rotation left two more threads parked for the life of the process with
+     * nothing left to run. Twenty rotations, forty threads. This screen has
+     * been killed by the low-memory killer once already for a different
+     * unbounded thing; see the RecyclerView note in CLAUDE.md.
+     *
+     * Static rather than shut down from an {@code onDestroy} the activity does
+     * not have: the pool is stateless and two threads is the right number for
+     * the app rather than for one screen, which is exactly the argument
+     * {@code Gallery} already makes.
+     */
+    private static final ExecutorService executor = Executors.newFixedThreadPool(THREADS);
     private final Handler main = new Handler(Looper.getMainLooper());
     private final LruCache<String, Result> cache;
 
