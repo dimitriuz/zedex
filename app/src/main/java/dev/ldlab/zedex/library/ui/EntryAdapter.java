@@ -215,13 +215,11 @@ public final class EntryAdapter extends RecyclerView.Adapter<EntryAdapter.Holder
         holder.title.setText(entry.name);
         if (holder.cover != null) holder.cover.setVisibility(View.GONE);
 
-        // Null in the list shape, which dropped its own second line - the
-        // pane already says the size and the date for whatever is selected -
-        // and kept only in the grid tile, which still has the room for one.
-        // The format alone until a scrape answers with a year to put in front
-        // of it, which is what the callback below does; most rows never get
-        // one, and the format on its own is a complete answer rather than a
-        // half-drawn one waiting to be finished.
+        // Both shapes now: under the name in a tile, at the end of the row in
+        // a list. The format alone until a scrape answers with a year to put
+        // in front of it, which is what the callback below does; most rows
+        // never get one, and the format on its own is a complete answer
+        // rather than a half-drawn one waiting to be finished.
         if (holder.subtitle != null) holder.subtitle.setText(rowDetail(entry, null));
 
         // A tint rather than a state-list drawable, so it sits underneath the
@@ -384,8 +382,9 @@ public final class EntryAdapter extends RecyclerView.Adapter<EntryAdapter.Holder
         final ImageView icon;
         final TextView title;
 
-        /** Null for the list shape, which has no {@code R.id.subtitle} any
-         *  more; present for the grid tile, which still does. */
+        /** The year and the format. Present in both shapes - beneath the
+         *  name in a tile, at the far end of the row in a list - but still
+         *  null-checked at every use, since a layout is free to drop it. */
         final TextView subtitle;
 
         /** Null for the list shape, which shows a scraped picture in {@link
