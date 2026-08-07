@@ -644,6 +644,11 @@
     <string name="library_machine">Machine</string>
     <string name="library_play">Play</string>
     <string name="library_info">Game details</string>
+    <!-- Beside Play and the magnifier, in the pane and on the details screen -
+         shown only once resolving the manual off the UI thread has answered
+         yes; see LibraryActivity and GameInfoActivity. Tapping it opens the
+         PDF in whatever app the phone has for one. -->
+    <string name="library_manual">Manual</string>
     <!-- The pane's own button, when the selection is a folder or an archive
          rather than a game - see LibraryActivity.updatePane. Matches
          menu_open's own word for the same action, minus its ellipsis: this

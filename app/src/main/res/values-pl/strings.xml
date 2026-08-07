@@ -566,6 +566,7 @@
     <string name="library_machine">Maszyna</string>
     <string name="library_play">Graj</string>
     <string name="library_info">Szczegóły gry</string>
+    <string name="library_manual">Instrukcja</string>
     <string name="library_open">Otwórz</string>
     <string name="library_nothing_selected">Wybierz grę, aby zobaczyć, co o niej wiadomo.</string>
     <string name="library_up">W górę</string>

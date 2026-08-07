@@ -7,8 +7,8 @@ with later rather than rediscovered.
 
 ## What it is
 
-The content folder — the one already chosen in *Settings › App* and held as a
-persisted SAF grant in `contentTree` — shown as a list or a grid, with folders
+The content folder — the one already chosen in *Settings › Library* and held as
+a persisted SAF grant in `contentTree` — shown as a list or a grid, with folders
 and `.zip` archives you can enter. Opening a file loads it into the machine if
 it is a type the emulator supports; anything else is not shown at all.
 

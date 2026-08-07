@@ -10,6 +10,7 @@ import dev.ldlab.zedex.library.meta.Metadata;
 import dev.ldlab.zedex.library.ui.EntryAdapter;
 import dev.ldlab.zedex.library.ui.Gallery;
 import dev.ldlab.zedex.library.ui.GamepadCursor;
+import dev.ldlab.zedex.library.ui.Manuals;
 import dev.ldlab.zedex.library.ui.OptionsDialog;
 import dev.ldlab.zedex.library.ui.Ripple;
 import dev.ldlab.zedex.storage.Recents;
@@ -60,10 +61,13 @@ import java.util.Locale;
  * already keeps. See docs/LIBRARY.md for the design and why each choice in
  * here was made.
  *
- * {@link SettingsActivity#startsInLibrary} is asked before anything else: with
- * the switch off, or with no content folder granted, this activity's whole job
- * is to hand straight over to {@link EmulatorActivity} and get out of the way,
- * so the app opens on the machine exactly as it always has.
+ * {@link SettingsActivity#startsInLibrary} is asked before anything else, but
+ * only when this is the launcher path: with the switch off, or with no content
+ * folder granted, this activity's whole job is to hand straight over to
+ * {@link EmulatorActivity} and get out of the way, so the app opens on the
+ * machine exactly as it always has. {@link #EXTRA_FROM_MENU} is what tells the
+ * two paths apart - see its own comment and {@link #onCreate}, which is the
+ * only place either question is asked.
  *
  * Everything {@link Listing} does is a round trip to another app's content
  * provider, or a stream read from a zip - never safe to call from this
@@ -80,6 +84,33 @@ public final class LibraryActivity extends Activity {
     }
 
     private static final String TAG = "Zedex";
+
+    /**
+     * Set only by {@code EmulatorActivity.openLibrary}: this instance was
+     * reached by a deliberate tap on ☰ Library rather than by whatever
+     * starts the launcher's own task.
+     *
+     * The two ask a different question in {@link #onCreate}. The launcher's
+     * is "should the app open here at all", which {@link
+     * SettingsActivity#startsInLibrary} answers and can send this activity
+     * straight back to {@link EmulatorActivity} for - the switch, or no
+     * folder, means the machine is what a bare launch should show. A ☰
+     * Library tap has already answered that question: somebody asked for
+     * this screen by name, and {@code EmulatorActivity} only offers the row
+     * at all once {@link SettingsActivity#libraryExists} is true - see that
+     * row's own comment. Asking {@code startsInLibrary} again here, which
+     * also reads the switch, made the row silently hand back to the machine
+     * whenever the switch was off, indistinguishable from the tap doing
+     * nothing.
+     *
+     * With no content folder at all - a grant lost between the row being
+     * built and being tapped - this still does not bounce: {@link #onCreate}
+     * carries on and {@link #load} finds nothing to browse the ordinary way,
+     * which is what shows the "choose a content folder" view rather than a
+     * silent trip back to the machine. A deliberate tap earns an answer, not
+     * a bounce.
+     */
+    public static final String EXTRA_FROM_MENU = "dev.ldlab.zedex.extra.LIBRARY_FROM_MENU";
 
     private static final int REQUEST_CONTENT_TREE = 1;
 
@@ -367,6 +398,11 @@ public final class LibraryActivity extends Activity {
      *  already was before any of this existed. */
     private ImageButton paneInfoButton;
 
+    /** Beside {@link #paneInfoButton} - shown only once {@link
+     *  #updatePane}'s own call to {@code Scraped#loadManual} answers that
+     *  this selection has one; see {@link #buildPane}. */
+    private ImageButton paneManualButton;
+
     /** Plays a file, or opens a folder or an archive - see {@link
      *  #updatePane}, which is the one place that decides which. */
     private Button paneActionButton;
@@ -411,10 +447,15 @@ public final class LibraryActivity extends Activity {
         preferences = getSharedPreferences(SettingsActivity.PREFS, MODE_PRIVATE);
 
         // The one decision this screen makes before drawing anything: whether
-        // it should be here at all. Off, or with no folder granted, and the
-        // app opens on the machine exactly as it always has - see
-        // startsInLibrary and docs/LIBRARY.md, "A content folder is the gate".
-        if (!SettingsActivity.startsInLibrary(this, preferences)) {
+        // it should be here at all - and only the launcher path asks it. Off,
+        // or with no folder granted, and the app opens on the machine exactly
+        // as it always has - see startsInLibrary and docs/LIBRARY.md, "A
+        // content folder is the gate". A ☰ Library tap skips this outright;
+        // see EXTRA_FROM_MENU's own comment for why asking again here was a
+        // silently dead menu row.
+        boolean fromMenu = getIntent().getBooleanExtra(EXTRA_FROM_MENU, false);
+
+        if (!fromMenu && !SettingsActivity.startsInLibrary(this, preferences)) {
             startActivity(new Intent(this, EmulatorActivity.class));
             finish();
             return;
@@ -1205,14 +1246,15 @@ public final class LibraryActivity extends Activity {
         FrameLayout coverBox = new FrameLayout(this);
         coverBox.setBackgroundColor(0x14ffffff);
 
-        // CENTER_INSIDE inside Gallery's own picture pages is where the
-        // grid's tiles crop instead: the pane is the one place a person
-        // looks at the picture rather than past it, and the box here is
-        // nothing like the shape of box art - 322x640 in portrait, against a
-        // cover's own 3:4 - so CENTER_CROP once threw away a third of Ms.
-        // Pac-Man's width and cut "FROM ATARISOFT" off the bottom, while the
-        // tile above it in the grid showed the same cover whole. See
-        // Gallery's own comment on exactly this.
+        // Fitting the whole picture inside Gallery's own picture pages is
+        // where the grid's tiles crop instead: the pane is the one place a
+        // person looks at the picture rather than past it, and the box here
+        // is nothing like the shape of box art - 322x640 in portrait,
+        // against a cover's own 3:4 - so CENTER_CROP once threw away a third
+        // of Ms. Pac-Man's width and cut "FROM ATARISOFT" off the bottom,
+        // while the tile above it in the grid showed the same cover whole.
+        // See Gallery's own comment on exactly this, and on why FIT_CENTER
+        // rather than CENTER_INSIDE is what fits it now.
         paneGallery = new Gallery(this);
         paneGallery.setPictureTargetPx(pixels(PANE_TARGET_DP));
         paneGallery.setOnPageTapped(this::openViewerFromPane);
@@ -1364,6 +1406,23 @@ public final class LibraryActivity extends Activity {
         actions.addView(paneInfoButton, new LinearLayout.LayoutParams(
                 pixels(48), LinearLayout.LayoutParams.MATCH_PARENT));
 
+        // Beside the magnifier rather than in the gallery it used to be a
+        // page of - see docs/LIBRARY.md-equivalent reasoning in Gallery's own
+        // class comment. Starts hidden, same as paneInfoButton does for a
+        // folder or an archive; updatePane brings it back once (and only if)
+        // Scraped#loadManual answers off the UI thread that there is one -
+        // that round trip is a SAF query, never safe to make just to decide
+        // whether to draw a button.
+        paneManualButton = new ImageButton(this);
+        paneManualButton.setImageResource(R.drawable.ic_manual);
+        paneManualButton.setColorFilter(MUTED);
+        paneManualButton.setBackground(Ripple.make());
+        paneManualButton.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
+        paneManualButton.setContentDescription(getString(R.string.library_manual));
+        paneManualButton.setVisibility(View.GONE);
+        actions.addView(paneManualButton, new LinearLayout.LayoutParams(
+                pixels(48), LinearLayout.LayoutParams.MATCH_PARENT));
+
         column.addView(actions, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
     }
@@ -1429,6 +1488,11 @@ public final class LibraryActivity extends Activity {
         paneHandler.removeCallbacksAndMessages(paneVideoToken);
         paneUserSwiped = false;
 
+        // Hidden until (and unless) the async check below answers yes for
+        // this selection - covers every early return below the same way
+        // paneGallery.clear() does, without repeating it at each one.
+        paneManualButton.setVisibility(View.GONE);
+
         boolean have = selected != null;
 
         paneEmpty.setVisibility(have ? View.GONE : View.VISIBLE);
@@ -1475,6 +1539,16 @@ public final class LibraryActivity extends Activity {
         adapter.scraped().load(this, relativePath, pixels(PANE_TARGET_DP), (meta, picture) -> {
             if (token != paneToken) return; // the selection moved on
             applyPaneMeta(meta);
+        });
+
+        // Beside Play and the magnifier, but only once this answers - see
+        // paneManualButton's own comment for why the round trip has to
+        // happen off the UI thread rather than deciding this up front.
+        adapter.scraped().loadManual(this, relativePath, manual -> {
+            if (token != paneToken) return; // the selection moved on
+            paneManualButton.setVisibility(manual != null ? View.VISIBLE : View.GONE);
+            paneManualButton.setOnClickListener(
+                    manual != null ? v -> Manuals.open(this, manual) : null);
         });
 
         paneGallery.load(relativePath);

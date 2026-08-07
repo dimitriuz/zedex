@@ -1,36 +1,27 @@
 package dev.ldlab.zedex.library.ui;
 
-import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.library.meta.Artwork;
 
-import android.content.ActivityNotFoundException;
 import android.content.Context;
-import android.content.Intent;
-import android.content.pm.ResolveInfo;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.GradientDrawable;
-import android.graphics.pdf.PdfRenderer;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
-import android.os.ParcelFileDescriptor;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.Toast;
 import android.widget.VideoView;
 
-import androidx.core.content.FileProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.PagerSnapHelper;
 import androidx.recyclerview.widget.RecyclerView;
 
-import java.io.File;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -39,10 +30,16 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Every picture {@link Artwork} has for a game, with the video after them and
- * the manual, if there is one, last of all - swiped between, dots underneath
- * when there is more than one page, a tap on any page told to whoever asked
- * to be told, wrapping past either end back to the other.
+ * Every picture {@link Artwork} has for a game, with the video after them -
+ * swiped between, dots underneath when there is more than one page, a tap on
+ * any page told to whoever asked to be told, wrapping past either end back to
+ * the other.
+ *
+ * The manual is not a page here any more: it is a button of its own, beside
+ * Play and the magnifier in the pane and on {@code GameInfoActivity}, opened
+ * through {@link Manuals#open} - see that class, which is what {@code
+ * openManual} used to be before this stopped needing it. A manual is for
+ * reading, not for swiping past on the way to the video.
  *
  * The pane, {@code GameInfoActivity} and {@code MediaViewerActivity} all want
  * this: a strip in the pane, a slightly larger one in the details screen, and
@@ -63,12 +60,6 @@ import java.util.concurrent.Executors;
  * screen - {@link #updateCurrentPage} is what notices a swipe has moved on
  * and stops it - and {@link #release} is there for a host that is going away
  * without so much as a swipe to notice.
- *
- * The manual page is rendered from a PDF's first page and shown exactly like
- * a picture, but a tap on it opens that PDF in whatever app the phone has for
- * one instead of the fullscreen viewer every other page's tap goes to - see
- * {@link #openManual}. A manual is for reading, and page one of it, sized to
- * this pager's own box, is not.
  *
  * {@link GalleryAdapter#getItemCount} reports a large multiple of the real
  * item count so a swipe past either end lands back at the other, rather than
@@ -95,9 +86,6 @@ public final class Gallery extends LinearLayout {
         void onPageChanged(int index);
     }
 
-    /** A manual shares this one: it is rendered and shown exactly like a
-     *  picture, and only its click handler differs - see {@link
-     *  GalleryAdapter#onBindViewHolder}. */
     private static final int TYPE_PICTURE = 0;
     private static final int TYPE_VIDEO = 1;
 
@@ -295,12 +283,12 @@ public final class Gallery extends LinearLayout {
     }
 
     /**
-     * Resolves {@code relativePath}'s pictures, video and manual off the UI
-     * thread - all three are a round trip to another app's content provider,
-     * never safe on this one - and shows them, the video after the pictures
-     * and the manual last of all if either exists; see docs/LIBRARY.md and
-     * the class comment above. Lands on {@code startIndex} once they are in,
-     * clamped to whatever the gallery actually has.
+     * Resolves {@code relativePath}'s pictures and video off the UI thread -
+     * both are a round trip to another app's content provider, never safe on
+     * this one - and shows them, the video after the pictures; see
+     * docs/LIBRARY.md and the class comment above. Lands on {@code
+     * startIndex} once they are in, clamped to whatever the gallery actually
+     * has.
      *
      * Safe to call again for a different selection at any time: {@link
      * #loadToken} tells a resolve that is still in flight when a newer one is
@@ -315,7 +303,6 @@ public final class Gallery extends LinearLayout {
         new Thread(() -> {
             List<Uri> pictures;
             Uri video;
-            Uri manual;
 
             try {
                 pictures = Artwork.pictures(app, relativePath);
@@ -329,16 +316,9 @@ public final class Gallery extends LinearLayout {
                 video = null;
             }
 
-            try {
-                manual = Artwork.manual(app, relativePath);
-            } catch (Exception e) {
-                manual = null;
-            }
-
             List<MediaItem> items = new ArrayList<>();
             for (Uri picture : pictures) items.add(new MediaItem(MediaItem.Kind.PICTURE, picture));
             if (video != null) items.add(new MediaItem(MediaItem.Kind.VIDEO, video));
-            if (manual != null) items.add(new MediaItem(MediaItem.Kind.MANUAL, manual));
 
             List<MediaItem> result = items;
             handler.post(() -> {
@@ -669,141 +649,8 @@ public final class Gallery extends LinearLayout {
         }
     }
 
-    /**
-     * The manual's own first page, rendered to roughly {@link #targetPx} on
-     * its longest side - the same target a scraped picture is decoded to,
-     * since this is shown exactly like one from here on. {@code PdfRenderer}
-     * needs a local file descriptor rather than a stream, which is why this
-     * opens one directly instead of going through {@code
-     * ContentResolver#openInputStream} as {@link #decode} does; a
-     * {@code content://} document opens one over IPC the same as a plain
-     * file does, at least for the providers this has been tried against - a
-     * SAF grant on ES-DE's own media tree specifically was not one of them,
-     * and is worth checking on a device before trusting this path there.
-     */
-    private Bitmap decodeManualCover(Uri manual) {
-        if (manual == null) return null;
-
-        try (ParcelFileDescriptor pfd =
-                     getContext().getContentResolver().openFileDescriptor(manual, "r")) {
-            if (pfd == null) return null;
-
-            try (PdfRenderer renderer = new PdfRenderer(pfd)) {
-                if (renderer.getPageCount() <= 0) return null;
-
-                try (PdfRenderer.Page page = renderer.openPage(0)) {
-                    float scale = targetPx / (float) Math.max(page.getWidth(), page.getHeight());
-                    int width = Math.max(1, Math.round(page.getWidth() * scale));
-                    int height = Math.max(1, Math.round(page.getHeight() * scale));
-
-                    Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-
-                    // PdfRenderer only draws where the page itself paints -
-                    // nothing guarantees every manual lays down its own white
-                    // background - so a bitmap left at its default transparent
-                    // black would show through as this app's own dark window
-                    // behind whatever the page did not cover, rather than paper.
-                    bitmap.eraseColor(0xffffffff);
-                    page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);
-                    return bitmap;
-                }
-            }
-        } catch (Exception e) {
-            // A manual that will not render is no manual - same rule as
-            // decode()'s own for a picture that will not read, and just as
-            // important here: a blank grey box would be worse than no page
-            // at all, per docs/LIBRARY.md-equivalent guidance for this
-            // feature.
-            return null;
-        }
-    }
-
-    /**
-     * Opens the manual in whatever app the phone has for a PDF, rather than
-     * {@code MediaViewerActivity} - a manual is for reading, and the page
-     * this pager shows is only ever its cover. Needs the {@code <queries>}
-     * entry in the manifest for {@code ACTION_VIEW}/{@code application/pdf},
-     * or Android 11 and later hide every PDF viewer from an app that has not
-     * declared it, exactly the trap {@code Feedback}'s own mail button hit
-     * first - see CLAUDE.md.
-     */
-    private void openManual(Uri manual) {
-        if (manual == null) return;
-
-        Context context = getContext();
-        Uri shareable = manual;
-
-        if ("file".equals(manual.getScheme())) {
-            // A file:// Uri handed to another app's ACTION_VIEW has been
-            // refused outright since Android 7 - Updater.install hit the
-            // identical wall over the APK it downloads, and fixed it the
-            // same way: a content:// Uri from this app's own FileProvider,
-            // scoped to ES-DE's folder specifically, in place of the plain
-            // path Artwork.resolve hands back when this build reached that
-            // folder directly rather than through a SAF tree.
-            //
-            // In the other case - a SAF grant, so this Uri is already a
-            // content:// from ExternalStorageProvider - none of this branch
-            // runs and the Uri is passed straight through below. That
-            // provider declares its own grantUriPermissions and is the same
-            // mechanism ES-DE's own %ROMPROVIDER% hand-off already relies
-            // on elsewhere in this app, so it is expected to need no
-            // explicit grant of its own; grantToResolvers is applied to it
-            // anyway, since doing so costs nothing and removes the need to
-            // trust that expectation instead of covering it.
-            try {
-                shareable = FileProvider.getUriForFile(
-                        context, context.getPackageName() + ".esde", new File(manual.getPath()));
-            } catch (Exception e) {
-                Toast.makeText(context, R.string.open_failed, Toast.LENGTH_LONG).show();
-                return;
-            }
-        }
-
-        Intent intent = new Intent(Intent.ACTION_VIEW)
-                .setDataAndType(shareable, "application/pdf")
-                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-
-        // Belt and braces over the flag above: on a device this reached
-        // Google's own PDF viewer, which opened and then failed reading our
-        // FileProvider with a SecurityException naming a uid the grant never
-        // reached - the flag's own implicit grant did not arrive, for a
-        // reason narrower than this app can see into. Granting the same Uri
-        // explicitly, to every activity that could handle this intent,
-        // before any of them starts, is the reliable form of the same
-        // thing. The flag stays on the intent as well; that is what a viewer
-        // reached later through a chooser, rather than this call's own
-        // list, ends up using.
-        grantToResolvers(context, intent, shareable);
-
-        try {
-            context.startActivity(intent);
-        } catch (ActivityNotFoundException e) {
-            // No PDF viewer at all, rather than doing nothing silently - the
-            // same choice Feedback makes when there is no mail app.
-            Toast.makeText(context, R.string.open_failed, Toast.LENGTH_LONG).show();
-        }
-    }
-
-    /**
-     * {@code queryIntentActivities} is itself gated by the manifest's own
-     * {@code <queries>} block - without the {@code application/pdf} entry
-     * this would silently see no activities at all, the same as {@code
-     * resolveActivity} would - so that entry and this loop are load-bearing
-     * together now, not the {@code <queries>} entry alone. Safe to call with
-     * nothing found: an empty list grants nothing and {@link #openManual}'s
-     * own {@code ActivityNotFoundException} catch is still what answers "no
-     * viewer at all".
-     */
-    private void grantToResolvers(Context context, Intent intent, Uri uri) {
-        for (ResolveInfo info : context.getPackageManager().queryIntentActivities(intent, 0)) {
-            context.grantUriPermission(info.activityInfo.packageName, uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        }
-    }
-
     private static final class MediaItem {
-        enum Kind { PICTURE, VIDEO, MANUAL }
+        enum Kind { PICTURE, VIDEO }
 
         final Kind kind;
         final Uri uri;
@@ -924,9 +771,6 @@ public final class Gallery extends LinearLayout {
 
         @Override
         public int getItemViewType(int position) {
-            // A manual shares the picture type deliberately - see TYPE_PICTURE's
-            // own comment - so only bindPicture vs. bindManual, not a third
-            // view holder, has to know the difference.
             return items.get(realIndexOf(position)).kind == MediaItem.Kind.VIDEO
                     ? TYPE_VIDEO : TYPE_PICTURE;
         }
@@ -959,15 +803,23 @@ public final class Gallery extends LinearLayout {
 
             ImageView view = new ImageView(getContext());
 
-            // CENTER_INSIDE, not CENTER_CROP: this is the one place a person
+            // FIT_CENTER, not CENTER_CROP: this is the one place a person
             // looks straight at a picture rather than past it on the way to
             // something else, and cropping a cover to a box shaped nothing
             // like it cost the pane a third of one game's width and the
             // bottom of its logo before this existed - see the grid's own
-            // tiles, which crop deliberately for the opposite reason. Never
-            // enlarges a small scrape past its own size either, which is the
-            // other half of what a cropped-and-blown-up cover looked like.
-            view.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+            // tiles, which crop deliberately for the opposite reason.
+            //
+            // Not CENTER_INSIDE either, which this used to be: that never
+            // enlarges, so a 256x192 Spectrum screenshot sat at its own size
+            // in the middle of a box built for box art and looked lost.
+            // FIT_CENTER scales a small picture up to fill the box, aspect
+            // kept, which is what CENTER_INSIDE was reaching for and did not
+            // do - the two only differ on a picture smaller than the box,
+            // and every Spectrum screenshot is one. Do not "fix" this back to
+            // CENTER_INSIDE: that regression is what this comment exists to
+            // stop.
+            view.setScaleType(ImageView.ScaleType.FIT_CENTER);
             view.setContentDescription(null);
             view.setLayoutParams(new RecyclerView.LayoutParams(
                     width, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -987,8 +839,6 @@ public final class Gallery extends LinearLayout {
 
             if (holder instanceof VideoHolder) {
                 bindVideo((VideoHolder) holder, item.uri, position);
-            } else if (item.kind == MediaItem.Kind.MANUAL) {
-                bindManual((PictureHolder) holder, item.uri, position);
             } else {
                 bindPicture((PictureHolder) holder, item.uri, position);
             }
@@ -1002,30 +852,6 @@ public final class Gallery extends LinearLayout {
 
             decodeExecutor.execute(() -> {
                 Bitmap decoded = decode(picture);
-
-                handler.post(() -> {
-                    if (holder.bindToken != token) return; // recycled meanwhile
-                    holder.image.setImageBitmap(decoded);
-                });
-            });
-        }
-
-        /**
-         * Same shape as {@link #bindPicture} - a background render into the
-         * same {@code ImageView} - except the source is a PDF's first page
-         * rather than a picture file, and the tap opens that PDF in another
-         * app rather than {@code MediaViewerActivity}: see {@link
-         * #openManual} for why a manual gets its own click handler instead
-         * of {@link #notifyTap}.
-         */
-        private void bindManual(PictureHolder holder, Uri manual, int position) {
-            int token = ++holder.bindToken;
-
-            holder.image.setImageDrawable(null);
-            holder.image.setOnClickListener(v -> openManual(manual));
-
-            decodeExecutor.execute(() -> {
-                Bitmap decoded = decodeManualCover(manual);
 
                 handler.post(() -> {
                     if (holder.bindToken != token) return; // recycled meanwhile

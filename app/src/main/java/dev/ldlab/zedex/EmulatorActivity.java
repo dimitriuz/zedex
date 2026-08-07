@@ -1262,9 +1262,14 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             // spoken for - opening this menu is what it does, since leaving
             // the app any other way loses the machine's RAM. So the only way
             // across is an explicit one, and only worth offering to somebody
-            // the library would actually show something to; see
-            // SettingsActivity.startsInLibrary and docs/LIBRARY.md.
-            if (SettingsActivity.startsInLibrary(this, preferences)) {
+            // the library would actually show something to - libraryExists,
+            // not startsInLibrary: that one also asks the "library" switch,
+            // which says where the app opens and nothing about whether the
+            // library exists. Reading it here too once made turning the
+            // switch off take this row out of the menu as well, with no way
+            // back short of Settings; see SettingsActivity.libraryExists and
+            // docs/LIBRARY.md.
+            if (SettingsActivity.libraryExists(preferences)) {
                 sheet.addItem(getString(R.string.library_title), R.drawable.ic_library,
                               this::openLibrary);
             }
@@ -1323,9 +1328,18 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      * itself part of. The machine is untouched: {@link #onPause} pauses it as
      * it always does when the window is lost, and it is exactly as it was
      * left when Back reaches it again.
+     *
+     * That task does not always exist, though: with the switch off, the
+     * launcher's own instance of {@code LibraryActivity} hands straight back
+     * here and finishes itself, leaving nothing to reorder - so this row can
+     * just as well create a fresh instance. {@code EXTRA_FROM_MENU} is what
+     * tells that instance it was reached deliberately, from this row, rather
+     * than by the launcher: see its own comment on {@code LibraryActivity}
+     * for why the two must not ask the same question twice.
      */
     private void openLibrary() {
         Intent intent = new Intent(this, LibraryActivity.class);
+        intent.putExtra(LibraryActivity.EXTRA_FROM_MENU, true);
         intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
                        | Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(intent);

@@ -23,22 +23,6 @@
             android:key="statesRoot"
             android:title="@string/settings_data_folder"
             android:summary="@string/settings_data_folder_summary" />
-        <Preference
-            android:key="contentTree"
-            android:title="@string/settings_content_folder"
-            android:summary="@string/settings_content_folder_summary" />
-        <!--
-            Directly below the folder it needs, so cause and effect are
-            adjacent - see docs/LIBRARY.md, "A content folder is the gate".
-            Disabled and its summary swapped for settings_library_needs_folder
-            until contentTree holds something; see SettingsActivity, which
-            keeps that in step with picking the folder and with resuming.
-        -->
-        <SwitchPreferenceCompat
-            android:key="library"
-            android:title="@string/settings_library"
-            android:summary="@string/settings_library_summary"
-            android:defaultValue="true" />
     </PreferenceCategory>
 
     <!--

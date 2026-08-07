@@ -324,18 +324,38 @@ public class SettingsActivity extends AppCompatActivity
      * {@link #migrateLibraryDefault} first, so the very first call after an
      * update settles {@code library} before anything reads it, and then
      * answers with the switch and one more thing the switch alone cannot
-     * promise - a content folder that is still granted. The grant is
-     * revocable from Android's own settings independently of this app, and a
-     * library with the switch on but nothing to list would be worse than the
-     * machine it replaced; see docs/LIBRARY.md, "A content folder is the
-     * gate".
+     * promise - a content folder that is still granted, which is
+     * {@link #libraryExists}. The grant is revocable from Android's own
+     * settings independently of this app, and a library with the switch on
+     * but nothing to list would be worse than the machine it replaced; see
+     * docs/LIBRARY.md, "A content folder is the gate".
+     *
+     * Two different questions, kept apart on purpose: this one is about
+     * where the app opens, {@link #libraryExists} about whether the library
+     * is there to be reached at all. Folding them together cost
+     * {@code EmulatorActivity}'s own ☰ Library row, once - turning the
+     * switch off, which only ever promised to change where the app starts,
+     * also took the only way back into the library out of the menu, with
+     * nothing left short of Settings to undo it.
      */
     public static boolean startsInLibrary(Context context,
             android.content.SharedPreferences preferences) {
         migrateLibraryDefault(context, preferences);
 
         return preferences.getBoolean(KEY_LIBRARY, true)
-                && preferences.getString(Storage.KEY_CONTENT_TREE, null) != null;
+                && libraryExists(preferences);
+    }
+
+    /**
+     * Whether there is a library to show at all - a content folder chosen
+     * and still granted, regardless of what {@link #KEY_LIBRARY} says. See
+     * {@link #startsInLibrary}'s own comment for why this is not folded into
+     * that one: this is the question {@code EmulatorActivity}'s ☰ Library
+     * row needs answered, since that row is about whether the library
+     * exists, not about where the app happens to open.
+     */
+    public static boolean libraryExists(android.content.SharedPreferences preferences) {
+        return preferences.getString(Storage.KEY_CONTENT_TREE, null) != null;
     }
 
     /** Which way up the device is; both the scale settings hang off this. */
@@ -451,13 +471,17 @@ public class SettingsActivity extends AppCompatActivity
      * their head, and the picture filters alone were ten of it. The tab is now
      * the grouping, so a category inside one only survives where it still
      * divides something: the picture tab keeps *Filters* and *Display* apart,
-     * and *App* holds three unrelated questions - folders, formats, updates.
-     * The other four are each one subject and need no headings at all.
+     * and *App* holds three unrelated questions - the data folder, formats,
+     * updates. The other four are each one subject and need no headings at
+     * all.
      *
      * *Library* sits between *Sound* and *App* - after the machine's own
      * settings, before Zedex's housekeeping, which is what linking to a
      * frontend's metadata is nearer to. See docs/LIBRARY.md, "The second
-     * pull request: linking to ES-DE".
+     * pull request: linking to ES-DE". The content folder and the switch
+     * that opens on it live here too, first, above the ES-DE group - turning
+     * the library on is what somebody comes to this tab to do, and the App
+     * tab is no longer where they would look for it; see CLAUDE.md.
      *
      * The last tab is *App* rather than *Files* because what is in it is about
      * Zedex and not about a Spectrum. Everything else here is the machine.

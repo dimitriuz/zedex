@@ -566,6 +566,7 @@
     <string name="library_machine">Машина</string>
     <string name="library_play">Играть</string>
     <string name="library_info">Об игре</string>
+    <string name="library_manual">Инструкция</string>
     <string name="library_open">Открыть</string>
     <string name="library_nothing_selected">Выберите игру, чтобы увидеть, что о ней известно.</string>
     <string name="library_up">Вверх</string>

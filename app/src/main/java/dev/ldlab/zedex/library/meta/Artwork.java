@@ -159,9 +159,10 @@ public final class Artwork {
 
     /**
      * {@code manuals/....pdf}; null when there is none. Never a picture -
-     * see {@link #MANUAL_FOLDER} - so callers that want it drawn have to
-     * render it themselves, which is {@link dev.ldlab.zedex.library.ui.Gallery}'s
-     * job and not this class's.
+     * see {@link #MANUAL_FOLDER} - so this only tells a caller whether one
+     * exists, for a manual button to show itself or not; opening it is
+     * {@link dev.ldlab.zedex.library.ui.Manuals#open}'s job, not this
+     * class's.
      */
     public static synchronized Uri manual(Context context, String relativePath) {
         Uri root = freshen(context);

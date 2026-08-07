@@ -5,8 +5,34 @@
     ES-DE". The App tab's own "Add to ES-DE" row puts Zedex in ES-DE's list of
     emulators; this reads ES-DE's list of games back, which is a different
     direction and so a different row.
+
+    The content folder and the switch that opens on it come first, above all
+    of that: this tab is where anyone looking for "turn the library on" would
+    actually look, which the App tab no longer is - see CLAUDE.md. They stay
+    adjacent and in that order, folder then switch, for the same reason they
+    always were: the switch is disabled until the folder is set, and cause and
+    effect belong next to each other.
 -->
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory android:title="@string/settings_group_folders">
+        <Preference
+            android:key="contentTree"
+            android:title="@string/settings_content_folder"
+            android:summary="@string/settings_content_folder_summary" />
+        <!--
+            Directly below the folder it needs, so cause and effect are
+            adjacent - see docs/LIBRARY.md, "A content folder is the gate".
+            Disabled and its summary swapped for settings_library_needs_folder
+            until contentTree holds something; see SettingsActivity, which
+            keeps that in step with picking the folder and with resuming.
+        -->
+        <SwitchPreferenceCompat
+            android:key="library"
+            android:title="@string/settings_library"
+            android:summary="@string/settings_library_summary"
+            android:defaultValue="true" />
+    </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/settings_group_esde">
         <Preference

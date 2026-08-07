@@ -25,7 +25,7 @@ import androidx.core.content.FileProvider;
  * apart, and Android's own {@link FileProvider} documentation says so; this
  * one needs no method of its own, since everything {@link FileProvider}
  * does is already what {@link
- * dev.ldlab.zedex.library.ui.Gallery#openManual} wants. See {@code
+ * dev.ldlab.zedex.library.ui.Manuals#open} wants. See {@code
  * esde_manual_paths.xml} for the one folder it is allowed to answer for.
  */
 public final class EsdeManuals extends FileProvider {

@@ -67,6 +67,12 @@ public final class Scraped {
         void onReady(Uri video);
     }
 
+    /** {@link #loadManual}'s own answer - null when there is none, which is
+     *  what tells the pane's manual button to stay hidden. */
+    public interface ManualCallback {
+        void onReady(Uri manual);
+    }
+
     /** What one path answered, cached as a single unit rather than two - the
      *  facts cost the cache nothing worth measuring, so there is no reason
      *  to track them apart from the picture they were resolved alongside. */
@@ -173,6 +179,32 @@ public final class Scraped {
             if (atGeneration != generation) return; // the folder moved on
 
             Uri result = video;
+            main.post(() -> callback.onReady(result));
+        });
+    }
+
+    /**
+     * The pane's own manual button: whether {@link Artwork#manual} has one
+     * for {@code relativePath}, resolved off the UI thread for the same
+     * reason {@link #loadVideo} is - a SAF query, never safe on this one -
+     * and never decoded here, since a button either shows or does not and
+     * {@link Manuals#open} is what actually opens the PDF once it is tapped.
+     */
+    public void loadManual(Context context, String relativePath, ManualCallback callback) {
+        int atGeneration = generation;
+        Context app = context.getApplicationContext();
+
+        executor.execute(() -> {
+            Uri manual;
+            try {
+                manual = Artwork.manual(app, relativePath);
+            } catch (Exception e) {
+                manual = null;
+            }
+
+            if (atGeneration != generation) return; // the folder moved on
+
+            Uri result = manual;
             main.post(() -> callback.onReady(result));
         });
     }

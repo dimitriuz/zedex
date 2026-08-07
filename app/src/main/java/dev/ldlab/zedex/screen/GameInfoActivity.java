@@ -1,17 +1,23 @@
 package dev.ldlab.zedex.screen;
 
 import dev.ldlab.zedex.R;
+import dev.ldlab.zedex.library.meta.Artwork;
 import dev.ldlab.zedex.library.meta.Meta;
 import dev.ldlab.zedex.library.meta.Metadata;
 import dev.ldlab.zedex.library.ui.Gallery;
+import dev.ldlab.zedex.library.ui.Manuals;
 import dev.ldlab.zedex.view.SafeArea;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.Gravity;
 import android.view.View;
+import android.widget.FrameLayout;
+import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -59,6 +65,10 @@ public final class GameInfoActivity extends Activity {
 
     private Gallery gallery;
 
+    /** Beside {@link #gallery}, over its top corner - see {@link #media}.
+     *  Shown only once {@link #loadManualButton} answers this game has one. */
+    private ImageButton manualButton;
+
     /** The path this screen was opened with - kept so a tap on a page can
      *  open {@link MediaViewerActivity} against the same game, rather than
      *  the intent extra being read a second time. */
@@ -97,6 +107,7 @@ public final class GameInfoActivity extends Activity {
         if (path != null) {
             load(path);
             gallery.load(path);
+            loadManualButton(path);
         }
     }
 
@@ -156,18 +167,42 @@ public final class GameInfoActivity extends Activity {
      * The pictures, one per page, swiped between, and the video last if
      * there is one - see {@link Gallery}, which this used to build by hand
      * before the pane and {@code MediaViewerActivity} both wanted the same
-     * pager and a second copy stopped being worth it.
+     * pager and a second copy stopped being worth it. The manual button
+     * floats over its top corner, the same way {@code
+     * MediaViewerActivity}'s own sound button does over its gallery - there
+     * is no toolbar here for either to sit in.
      *
-     * A tap opens {@link MediaViewerActivity} at whichever page was tapped,
-     * in place of the {@code Dialog} this screen used to open itself - the
-     * viewer is swipeable across the rest of the gallery, which a dialog
-     * showing one bitmap never was.
+     * A tap on a picture or the video opens {@link MediaViewerActivity} at
+     * whichever page was tapped, in place of the {@code Dialog} this screen
+     * used to open itself - the viewer is swipeable across the rest of the
+     * gallery, which a dialog showing one bitmap never was. The manual is
+     * not a page of the gallery any more, so a tap on its own button opens
+     * it directly through {@link Manuals#open} instead.
      */
     private View media() {
+        FrameLayout box = new FrameLayout(this);
+
         gallery = new Gallery(this);
         gallery.setPictureTargetPx(pixels(ARTWORK_TARGET_DP));
         gallery.setOnPageTapped(this::openViewer);
-        return gallery;
+        box.addView(gallery, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+
+        manualButton = new ImageButton(this);
+        manualButton.setImageResource(R.drawable.ic_manual);
+        manualButton.setBackgroundColor(0x80000000);
+        manualButton.setColorFilter(0xffffffff);
+        manualButton.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
+        manualButton.setContentDescription(getString(R.string.library_manual));
+        manualButton.setVisibility(View.GONE);
+
+        FrameLayout.LayoutParams buttonParams = new FrameLayout.LayoutParams(
+                pixels(48), pixels(48), Gravity.TOP | Gravity.END);
+        buttonParams.topMargin = pixels(16);
+        buttonParams.rightMargin = pixels(16);
+        box.addView(manualButton, buttonParams);
+
+        return box;
     }
 
     private void openViewer(int index) {
@@ -176,6 +211,32 @@ public final class GameInfoActivity extends Activity {
         startActivity(new Intent(this, MediaViewerActivity.class)
                 .putExtra(MediaViewerActivity.EXTRA_PATH, path)
                 .putExtra(MediaViewerActivity.EXTRA_INDEX, index));
+    }
+
+    /**
+     * Whether this game has a manual - {@link Artwork#manual} is a SAF
+     * query, the same round trip {@link #load} makes for the words, so it
+     * gets the same treatment: a thread of its own, and an answer only
+     * applied if this screen is still here to receive it.
+     */
+    private void loadManualButton(String path) {
+        new Thread(() -> {
+            Uri manual;
+            try {
+                manual = Artwork.manual(this, path);
+            } catch (Exception e) {
+                manual = null;
+            }
+
+            Uri result = manual;
+            handler.post(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                if (result == null) return;
+
+                manualButton.setVisibility(View.VISIBLE);
+                manualButton.setOnClickListener(v -> Manuals.open(this, result));
+            });
+        }).start();
     }
 
     private View words(String name) {
