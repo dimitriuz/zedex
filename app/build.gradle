@@ -202,7 +202,19 @@ android {
         }
 
         release {
+            // Off, and the rules beside it are still declared on purpose.
+            //
+            // Turning this on without them is a crash on launch that no debug
+            // build can show, and turning it on with only the default file is
+            // worse: the class and its natives survive, the three C-called
+            // callbacks do not, and the app ships with errors that never
+            // appear and recording that writes nothing, silently. Wiring the
+            // rules in now means flipping this line is the whole change, and
+            // that the reasoning was read before somebody needed it in a
+            // hurry. See app/proguard-rules.pro.
             minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'),
+                          'proguard-rules.pro'
 
             // With a key, the real one; without, the debug key. A release built
             // with no key at all is an APK nothing can install - Gradle writes
