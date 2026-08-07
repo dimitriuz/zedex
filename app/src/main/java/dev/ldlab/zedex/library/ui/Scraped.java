@@ -6,13 +6,11 @@ import dev.ldlab.zedex.library.meta.Metadata;
 
 import android.content.Context;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.LruCache;
 
-import java.io.InputStream;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -248,49 +246,12 @@ public final class Scraped {
         } catch (Exception e) {
             return null;
         }
-        if (picture == null) return null;
 
-        try (InputStream probe = context.getContentResolver().openInputStream(picture)) {
-            if (probe == null) return null;
-
-            BitmapFactory.Options bounds = new BitmapFactory.Options();
-            bounds.inJustDecodeBounds = true;
-            BitmapFactory.decodeStream(probe, null, bounds);
-            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null;
-
-            BitmapFactory.Options options = new BitmapFactory.Options();
-            options.inSampleSize = sampleSize(bounds.outWidth, bounds.outHeight, targetPx);
-
-            try (InputStream in = context.getContentResolver().openInputStream(picture)) {
-                return in == null ? null : BitmapFactory.decodeStream(in, null, options);
-            }
-        } catch (Throwable t) {
-            // A corrupt file, a format BitmapFactory does not know, a grant
-            // that died mid-read, or simply too large to fit in memory -
-            // any of them means "no picture" here, not a crash; the same
-            // reasoning Favorites.resolvable already uses for a foreign
-            // provider answering unpredictably.
-            return null;
-        }
-    }
-
-    /**
-     * The largest power-of-two downsample that still leaves at least {@code
-     * targetPx} on the shorter side - {@code BitmapFactory}'s own {@code
-     * inSampleSize} only understands powers of two, and rounding down keeps
-     * a picture from coming out smaller than what is actually drawn. A 40dp
-     * thumbnail has no use for a 600px cover, and decoding one at full size
-     * only to hand it to an ImageView a few dp wide is exactly the cost this
-     * exists to avoid.
-     */
-    private static int sampleSize(int width, int height, int targetPx) {
-        if (targetPx <= 0) return 1;
-
-        int shorter = Math.min(width, height);
-        int sample = 1;
-        while (shorter / (sample * 2) >= targetPx) {
-            sample *= 2;
-        }
-        return sample;
+        // The actual decode-and-sample-down is PictureCache's job now, not
+        // this class's own - see its class comment for why a row's decode
+        // needs to be visible to the gallery this same game's details screen
+        // opens, and not only to the Result cache below, which is keyed by
+        // path rather than by the file this resolved to.
+        return PictureCache.decode(context, picture, targetPx);
     }
 }

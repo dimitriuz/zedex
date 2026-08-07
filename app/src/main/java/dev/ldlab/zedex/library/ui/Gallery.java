@@ -4,7 +4,6 @@ import dev.ldlab.zedex.library.meta.Artwork;
 
 import android.content.Context;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.drawable.GradientDrawable;
 import android.media.MediaPlayer;
 import android.net.Uri;
@@ -22,7 +21,6 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.PagerSnapHelper;
 import androidx.recyclerview.widget.RecyclerView;
 
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -123,8 +121,33 @@ public final class Gallery extends LinearLayout {
      *  shared by every {@link Gallery} instance rather than one pool each,
      *  since the pane, the details screen and the viewer are never all
      *  decoding at once in practice, and a shared bound is the whole point
-     *  of having one. */
+     *  of having one.
+     *
+     *  Reserved for a page a person is actually looking at, or about to
+     *  swipe to on their own: see {@link #prefetchExecutor} for the other
+     *  kind of decode, and why the two must never share a queue. */
     private static final ExecutorService decodeExecutor = Executors.newFixedThreadPool(2);
+
+    /**
+     * Decodes nobody is waiting on yet - a neighbour {@link
+     * #prefetchAround} is getting ahead of, on the chance a swipe reaches it
+     * next. One thread, not two: this work only ever saves a swipe from
+     * waiting on a decode that was going to happen anyway, so it is worth
+     * doing slowly rather than worth doing at {@link #decodeExecutor}'s own
+     * pace - and a queue of its own is the whole point, since a bind that is
+     * actually on screen must never sit behind a guess about one that is
+     * not. Shared across every {@link Gallery} instance for the same reason
+     * {@link #decodeExecutor} is.
+     */
+    private static final ExecutorService prefetchExecutor = Executors.newFixedThreadPool(1);
+
+    /**
+     * How many pages either side of the current one are kept decoded ahead
+     * of a swipe reaching them - two: enough that a fast swipe rarely finds
+     * a page still blank, not so many that opening a long gallery decodes
+     * pictures nobody may ever swipe to.
+     */
+    private static final int PREFETCH_RADIUS = 2;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
 
@@ -163,6 +186,28 @@ public final class Gallery extends LinearLayout {
      *  slow load in this app is guarded by; see CLAUDE.md's own notes on
      *  {@code EntryAdapter} and {@code LibraryActivity}. */
     private int loadToken;
+
+    /**
+     * A {@link #setItems} still waiting for {@link #pageWidth} to become
+     * real - null the rest of the time. Set only when {@link #load}'s own
+     * resolve answers before this gallery's recycler has been through its
+     * first layout at all: a brand new {@code GameInfoActivity} or {@code
+     * MediaViewerActivity} builds this view and starts the resolve in the
+     * same {@code onCreate}, and once {@link Artwork}'s own caches are warm
+     * - which, per docs/LIBRARY.md, is the ordinary case once the pane has
+     * resolved this same selection first - that resolve can answer before
+     * the window has drawn a single frame. Handing the adapter real items
+     * at that moment is exactly the "zero-width page" disaster {@link
+     * #currentPageWidth} warns about, just arrived at from a new direction:
+     * every earlier version of this bug needed a slow resolve to lose the
+     * race against the first layout, and a fast one no longer does.
+     * {@link #applyPageWidth} flushes this the moment a real width is
+     * known, which is at most one frame away regardless, since the screen
+     * this gallery sits in is already on its way to being laid out either
+     * way.
+     */
+    private List<MediaItem> pendingItems;
+    private int pendingStartIndex;
 
     /** Wherever the pager has actually settled - kept apart from asking the
      *  layout manager each time because a video prepares asynchronously and
@@ -248,10 +293,13 @@ public final class Gallery extends LinearLayout {
 
     /**
      * Roughly how large a picture is decoded, on its longest side - a pane's
-     * own box wants far less than a full screen does, and {@link #decode}
-     * samples down to whatever this says rather than ever decoding a scraped
-     * cover at its own resolution. Set once, before the first {@link #load};
-     * changing it after pictures are already decoded has no effect on them.
+     * own box wants far less than a full screen does, and {@link
+     * PictureCache#decode} samples down to whatever this says rather than
+     * ever decoding a scraped cover at its own resolution. Set once, before
+     * the first {@link #load}; changing it after pictures are already
+     * decoded has no effect on them, and changes the cache key every later
+     * bind asks for, since {@link PictureCache} keys on this alongside the
+     * uri.
      */
     public void setPictureTargetPx(int targetPx) {
         this.targetPx = targetPx;
@@ -410,6 +458,17 @@ public final class Gallery extends LinearLayout {
         }
 
         recycler.requestLayout();
+
+        // setItems held these back rather than hand the adapter a page it
+        // had no real width to give - see pendingItems's own comment for
+        // why. There is a real width now, so this is the same setItems
+        // that would have run at once had the resolve simply been slower.
+        if (pendingItems != null) {
+            List<MediaItem> items = pendingItems;
+            int startIndex = pendingStartIndex;
+            pendingItems = null;
+            setItems(items, startIndex);
+        }
     }
 
     /**
@@ -438,7 +497,9 @@ public final class Gallery extends LinearLayout {
     private int currentPageWidth() {
         if (pageWidth > 0) return pageWidth;
         int measured = recycler.getMeasuredWidth();
-        return measured > 0 ? measured : ViewGroup.LayoutParams.MATCH_PARENT;
+        if (measured > 0) return measured;
+        int laidOut = recycler.getWidth();
+        return laidOut > 0 ? laidOut : ViewGroup.LayoutParams.MATCH_PARENT;
     }
 
     /** Gives one page {@link #currentPageWidth}, if this page does not
@@ -457,6 +518,17 @@ public final class Gallery extends LinearLayout {
     }
 
     private void setItems(List<MediaItem> items, int startIndex) {
+        if (!items.isEmpty() && currentPageWidth() == ViewGroup.LayoutParams.MATCH_PARENT) {
+            // No page has anywhere real to measure itself against yet -
+            // see pendingItems's own comment for why this happens and what
+            // it used to cost. An empty list needs none of this: it hands
+            // the adapter nothing to create a page for at all.
+            pendingItems = items;
+            pendingStartIndex = startIndex;
+            return;
+        }
+        pendingItems = null;
+
         stopVideo();
         videoHolder = null;
 
@@ -482,6 +554,7 @@ public final class Gallery extends LinearLayout {
         buildDots(size);
         markDots(real);
         notifyPageChanged(real);
+        prefetchAround(real);
     }
 
     /**
@@ -523,6 +596,7 @@ public final class Gallery extends LinearLayout {
         int real = adapter.realIndexOf(currentIndex);
         markDots(real);
         notifyPageChanged(real);
+        prefetchAround(real);
     }
 
     private int currentPage() {
@@ -617,35 +691,42 @@ public final class Gallery extends LinearLayout {
     }
 
     /**
-     * Decoded to roughly {@link #targetPx}, the same two-pass way every
-     * other picture in this app is: the whole file is not worth holding to
-     * draw a fraction of it, and a scraped cover can be far larger than any
-     * box wants.
+     * Decodes every neighbour within {@link #PREFETCH_RADIUS} of {@code
+     * real} that is not already cached, so a swipe that reaches one finds
+     * {@link PictureCache} already holding it rather than starting a decode
+     * only once the page is actually on screen. Called once a fresh {@link
+     * #setItems} has landed and again every time {@link #updateCurrentPage}
+     * settles on a new page - never mid-swipe, since a page not yet settled
+     * on is not "current" and prefetching around it would guess wrong the
+     * moment the swipe actually lands.
+     *
+     * Never the video: {@code VideoView} does its own buffering, and there
+     * is nothing here for a decode to cache ahead of time.
      */
-    private Bitmap decode(Uri picture) {
-        if (picture == null) return null;
+    private void prefetchAround(int real) {
+        int size = adapter.realCount();
+        if (size <= 1) return;
 
-        try {
-            BitmapFactory.Options bounds = new BitmapFactory.Options();
-            bounds.inJustDecodeBounds = true;
+        Context app = getContext().getApplicationContext();
 
-            try (InputStream probe = getContext().getContentResolver().openInputStream(picture)) {
-                if (probe == null) return null;
-                BitmapFactory.decodeStream(probe, null, bounds);
-            }
+        for (int delta = -PREFETCH_RADIUS; delta <= PREFETCH_RADIUS; delta++) {
+            if (delta == 0) continue;
 
-            int longest = Math.max(bounds.outWidth, bounds.outHeight);
+            int neighbour = Math.floorMod(real + delta, size);
+            Uri picture = adapter.pictureUriAt(neighbour);
+            if (picture == null) continue; // no such page, or it is the video
 
-            BitmapFactory.Options options = new BitmapFactory.Options();
-            options.inSampleSize = Math.max(1, longest / Math.max(1, targetPx));
+            if (PictureCache.get(picture, targetPx) != null) continue; // already there
 
-            try (InputStream in = getContext().getContentResolver().openInputStream(picture)) {
-                return in == null ? null : BitmapFactory.decodeStream(in, null, options);
-            }
-        } catch (Exception e) {
-            // A picture that will not read is no picture; the rest of the
-            // gallery is still worth showing.
-            return null;
+            prefetchExecutor.execute(() -> {
+                // Checked again on this thread: two neighbours can name the
+                // same file - a cover and a back cover this game shares by
+                // mistake, say - and the first of them to actually run may
+                // already have decoded it by the time the second starts.
+                if (PictureCache.get(picture, targetPx) == null) {
+                    PictureCache.decode(app, picture, targetPx);
+                }
+            });
         }
     }
 
@@ -769,6 +850,15 @@ public final class Gallery extends LinearLayout {
             return -1;
         }
 
+        /** {@code real}'s own picture, or null when {@code real} is out of
+         *  range or names the video - {@link #prefetchAround}'s own use,
+         *  which has nothing to decode ahead of time for either. */
+        Uri pictureUriAt(int real) {
+            if (real < 0 || real >= items.size()) return null;
+            MediaItem item = items.get(real);
+            return item.kind == MediaItem.Kind.PICTURE ? item.uri : null;
+        }
+
         @Override
         public int getItemViewType(int position) {
             return items.get(realIndexOf(position)).kind == MediaItem.Kind.VIDEO
@@ -847,15 +937,40 @@ public final class Gallery extends LinearLayout {
         private void bindPicture(PictureHolder holder, Uri picture, int position) {
             int token = ++holder.bindToken;
 
-            holder.image.setImageDrawable(null);
             holder.image.setOnClickListener(v -> notifyTap(holder.getAdapterPosition()));
 
+            if (picture == null) {
+                holder.image.setImageDrawable(null);
+                return;
+            }
+
+            // An exact hit means nothing to decode at all - a swipe back to
+            // a page already shown, or a neighbour prefetchAround got to
+            // first. See PictureCache's own comment for why this is a cache
+            // shared with Scraped rather than one of this class's own.
+            Bitmap exact = PictureCache.get(picture, targetPx);
+            if (exact != null) {
+                holder.image.setImageBitmap(exact);
+                return;
+            }
+
+            // Nothing at this exact size yet, but the tile or row this game
+            // was opened from almost certainly decoded the same file only
+            // moments ago, at its own smaller size - showing that now turns
+            // a blank box into a soft one, replaced the moment the real
+            // decode lands rather than left blank until it does.
+            holder.image.setImageBitmap(PictureCache.placeholder(picture));
+
+            Context app = getContext().getApplicationContext();
             decodeExecutor.execute(() -> {
-                Bitmap decoded = decode(picture);
+                Bitmap decoded = PictureCache.decode(app, picture, targetPx);
 
                 handler.post(() -> {
                     if (holder.bindToken != token) return; // recycled meanwhile
-                    holder.image.setImageBitmap(decoded);
+                    if (decoded != null) holder.image.setImageBitmap(decoded);
+                    // A decode that failed leaves whatever was already
+                    // showing - the placeholder, or nothing - rather than
+                    // clearing a picture that did decode a moment ago.
                 });
             });
         }
