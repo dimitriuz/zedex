@@ -48,6 +48,11 @@ and the indicators move to the second panel entirely, leaving the first showing
 nothing but the machine. The setting cannot be switched on with no panel to move
 to, and unplugging one brings everything back.
 
+With the library on, the panel shows whichever game is selected — its artwork,
+the facts and the description — and the list gets the whole first screen. Once a
+game is running a corner switch flips the panel between the controls and that
+same page.
+
 Android decides which display an input method appears on, so the *Android
 keyboard* skin usually opens over the machine. It still types into the Spectrum.
 
@@ -198,6 +203,21 @@ because Play does not allow that permission to an app that works without it.
 <!-- ![First run](docs/screenshots/first-run.jpg) — the two folder cards and the note about the demo tape -->
 
 
+## Library
+
+The app can open on your games instead of the machine — *Settings › Library ›
+Start in the library*, which needs a content folder to browse. ☰ goes between
+the two either way.
+
+- The content folder as a list or a grid; zip archives open like folders
+- Favourites and Recent beside Browse; search, and sort by name, date or size
+- Names, descriptions, artwork and manuals from an ES-DE scrape — see below
+- A page per game: every picture ES-DE has for it, the video, and the manual
+- A controller drives all of it: the stick moves, **A** plays, **B** goes up,
+  **Y** favourites, **L1/R1** change tab, **L2/R2** page, **X** searches and
+  **Select** opens sort and view
+
+
 ## Getting around
 
 **The quick bar** — a strip across the top of the window, either way up. Tap the
@@ -221,9 +241,9 @@ picture to bring it back; it fades after three seconds.
 exits: it leaves fullscreen, or goes up a menu page, or opens ☰. *Quit* warns
 about unsaved disks first.
 
-**Settings** has six tabs — Machine, Tape, Display, Controls, Sound, App. The
-first five are the Spectrum; the last one is Zedex: language, folders, formats,
-updates.
+**Settings** has seven tabs — Machine, Tape, Display, Controls, Sound, Library,
+App. The first five are the Spectrum; the last two are Zedex: the library and
+its folder, then language, folders, formats, updates.
 Everything that persists is there, exactly once; ☰ and the bar are shortcuts to
 the same settings.
 
@@ -246,6 +266,11 @@ straight from ES-DE into Zedex.
 
 Unless Zedex already has All files access it will ask to be shown ES-DE's folder,
 once; nothing outside that folder is touched.
+
+*Settings › Library › Link to ES-DE* goes the other way: what ES-DE has scraped —
+names, descriptions, artwork, videos and manuals — becomes Zedex's own library.
+Only the words are copied; the pictures stay where ES-DE keeps them. Press it
+again to take in what has changed since.
 
 
 ## Languages
@@ -327,11 +352,9 @@ Play build has none of this, as above.
 
 ## Not yet
 
-- A file browser of our own, filtered by type and reading zip archives.
-  Android's picker cannot filter by extension
-- A library rather than a list of filenames: cover art, loading screens, maps,
-  manuals, the publisher and the year, looked up in ZXDB and the archives behind
-  it and kept on the device for offline use
+- Looking a game up ourselves — ZXDB and the archives behind it — rather than
+  taking in what ES-DE has already scraped
+- Editing a game's details by hand
 - A debugger, which the core supports and nothing yet exposes
 
 

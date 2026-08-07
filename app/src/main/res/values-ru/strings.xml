@@ -283,6 +283,7 @@
     <string name="settings_tab_display">Экран</string>
     <string name="settings_tab_controls">Управление</string>
     <string name="settings_tab_sound">Звук</string>
+    <string name="settings_tab_library">Библиотека</string>
     <string name="settings_tab_app">Приложение</string>
     <string name="settings_group_folders">Папки</string>
     <string name="settings_group_saving">Сохранение</string>
@@ -512,6 +513,35 @@
     <string name="esde_not_esde">Это не папка ES-DE. Выберите ту, которая называется ES-DE.</string>
     <string name="esde_no_folder">ES-DE установлен, но его папка не в /storage/emulated/0/ES-DE. Верните её туда или добавьте запись вручную.</string>
 
+    <string name="settings_group_esde">ES-DE</string>
+    <string name="settings_esde_link">Связать с ES-DE</string>
+    <string name="settings_esde_link_summary">Читает список игр ES-DE и копирует то, что нашлось для ваших</string>
+    <string name="settings_esde_linking">Связывание…</string>
+    <string name="settings_esde_link_done">Найдено игр: %1$d, с изображениями: %2$d</string>
+    <string name="settings_esde_link_done_needs_media">Найдено игр: %1$d — выберите ниже папку с медиа ES-DE, чтобы увидеть их изображения</string>
+    <string name="settings_esde_link_empty">В ES-DE нет игр для этой папки с контентом</string>
+    <string name="settings_esde_link_failed">Не удалось прочитать список игр ES-DE</string>
+    <string name="settings_esde_link_needs_esde">Установите ES-DE, чтобы связаться с ним</string>
+    <string name="settings_esde_link_unreachable">Не удалось получить доступ к ES-DE — выберите его папку ниже</string>
+    <string name="settings_esde_folder">Папка ES-DE</string>
+    <string name="settings_esde_folder_summary">Покажите папку ES-DE один раз, чтобы Zedex мог читать её игры</string>
+    <string name="settings_esde_status">Последняя связь</string>
+    <string name="settings_esde_status_never">Ещё не связано</string>
+    <string name="settings_esde_status_summary">Игр: %1$d, связано %2$s</string>
+    <string name="settings_esde_unlink">Отвязать</string>
+    <string name="settings_esde_unlink_summary">Забывает имена и изображения, скопированные из ES-DE</string>
+    <string name="settings_esde_unlink_confirm_title">Отвязать от ES-DE?</string>
+    <string name="settings_esde_unlink_confirm_message">Zedex забудет имена и изображения, скопированные из ES-DE. Ничего вашего не потеряется — повторная связь вернёт всё обратно.</string>
+    <string name="settings_esde_unlink_done">Отвязано</string>
+    <string name="settings_esde_media_folder">Папка с медиа ES-DE</string>
+    <string name="settings_esde_media_folder_none">Ещё не выбрана — ES-DE хранит свои медиафайлы там, куда Zedex пока не может заглянуть</string>
+    <string name="settings_group_library_list">Список</string>
+    <string name="settings_library_names">Показывать имена из скрейпинга</string>
+    <string name="settings_library_names_summary">Показывает в списке имя, которое нашёл скрейпинг ES-DE, и оставляет имя файла на панели подробностей</string>
+    <string name="settings_group_library_media">Медиа</string>
+    <string name="settings_library_video_autoplay">Автовоспроизведение видео</string>
+    <string name="settings_library_video_autoplay_summary">Через несколько секунд после выбора игры автоматически переходит к найденному видео. При отключении видео всё равно доступно свайпом.</string>
+
     <string name="library_title">Библиотека</string>
     <string name="library_tab_browse">Обзор</string>
     <string name="library_tab_favorites">Избранное</string>
@@ -535,7 +565,11 @@
     <string name="library_unreadable">Не удалось прочитать этот файл.</string>
     <string name="library_machine">Машина</string>
     <string name="library_play">Играть</string>
+    <string name="library_info">Об игре</string>
+    <string name="library_manual">Инструкция</string>
     <string name="library_open">Открыть</string>
     <string name="library_nothing_selected">Выберите игру, чтобы увидеть, что о ней известно.</string>
     <string name="library_up">Вверх</string>
+    <string name="library_gallery_mute">Выключить звук</string>
+    <string name="library_gallery_unmute">Включить звук</string>
 </resources>

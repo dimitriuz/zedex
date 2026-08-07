@@ -6,6 +6,7 @@ import dev.ldlab.zedex.input.ControlProfiles;
 import dev.ldlab.zedex.input.Gamepad;
 import dev.ldlab.zedex.input.Hotkeys;
 import dev.ldlab.zedex.input.Mouse;
+import dev.ldlab.zedex.library.meta.Metadata;
 import dev.ldlab.zedex.machine.Border;
 import dev.ldlab.zedex.machine.Filter;
 import dev.ldlab.zedex.machine.Machine;
@@ -35,6 +36,7 @@ import dev.ldlab.zedex.view.Rows;
 import dev.ldlab.zedex.view.SpectrumKeyboardView;
 import dev.ldlab.zedex.view.SystemKeyboardView;
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
@@ -101,6 +103,22 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      * docs/LIBRARY.md, "How a game is opened".
      */
     public static final String EXTRA_ZIP_ENTRY = "dev.ldlab.zedex.extra.ZIP_ENTRY";
+
+    /**
+     * The game's own path relative to the content tree, when the caller
+     * already knows it - set only by {@link
+     * dev.ldlab.zedex.screen.LibraryActivity#openGame}, and only when the
+     * game came from the content tree directly rather than from inside a
+     * zip, which has no such path of its own. A shortcut, not the only way
+     * this is found: {@link #resolveLibraryPath} answers the same question
+     * for every other way a game arrives here - a file manager's hand-over,
+     * <em>Open recent…</em>, ES-DE's own {@code %ROMPROVIDER%} - by asking
+     * {@code Metadata.resolve} instead, off the UI thread, since this extra
+     * being absent means only "nobody has already done that work", not
+     * "there is nothing to find". See that method's own comment for what it
+     * hands to {@link #panels}.
+     */
+    public static final String EXTRA_LIBRARY_PATH = "dev.ldlab.zedex.extra.LIBRARY_PATH";
 
 
     private SharedPreferences preferences;
@@ -588,6 +606,8 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         String inside = intent.getStringExtra(EXTRA_ZIP_ENTRY);
 
+        resolveLibraryPath(intent, uri, inside);
+
         // Safe before Fuse has started: the command simply waits in the queue
         // until the emulation thread drains it.
         if (inside != null) {
@@ -595,6 +615,80 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         } else {
             new Thread(() -> media.stageAndOpen(uri)).start();
         }
+    }
+
+    /**
+     * Whatever the panel's own switch should offer for this game, handed to
+     * {@link #panels} once it is known - see {@code Panels.setGameInfo} and
+     * {@code SecondScreen}, which read a null path as "no switch to offer"
+     * rather than "an empty panel to show".
+     *
+     * {@link #EXTRA_LIBRARY_PATH} is the fast path: the library already knew
+     * the answer when it started this activity, so there is nothing to ask.
+     * A zip entry has no path of its own in the store - the library's own
+     * rows offer no details for one either, so this is read the same way a
+     * miss is. Everything else - a file manager's hand-over, <em>Open
+     * recent…</em>, ES-DE's own {@code %ROMPROVIDER%} - goes through {@code
+     * Metadata.resolve} instead, which is the same question the library asks
+     * for a selected row, just answered here without already knowing the
+     * document is one of ours.
+     *
+     * That last path runs off the UI thread: {@link #queryDisplayName} is a
+     * provider round trip and {@code Metadata.resolve} is a file parse,
+     * neither safe here. Whatever was showing for a previous game is cleared
+     * first rather than left up while this resolves, the same reasoning
+     * {@code LibraryActivity.updatePane} already applies to its own pane. A
+     * miss - most of what opens this app has nothing to do with the library,
+     * and most of a collection is unscraped besides - is the ordinary
+     * answer, not a failure, so nothing is logged for it.
+     */
+    private void resolveLibraryPath(Intent intent, Uri uri, String inside) {
+        if (inside != null) {
+            panels.setGameInfo(null, null);
+            return;
+        }
+
+        String known = intent.getStringExtra(EXTRA_LIBRARY_PATH);
+        if (known != null) {
+            panels.setGameInfo(known, filenameOf(known));
+            return;
+        }
+
+        panels.setGameInfo(null, null);
+
+        Context app = getApplicationContext();
+        new Thread(() -> {
+            String name = queryDisplayName(uri);
+            String resolved = Metadata.resolve(app, uri, name);
+            String shown = resolved == null ? null : filenameOf(resolved);
+
+            runOnUiThread(() -> panels.setGameInfo(resolved, shown));
+        }).start();
+    }
+
+    /** The fallback shown before the store answers with a scraped name, or
+     *  forever when it never does - see {@code GameInfoView.showEntry}. The
+     *  path already carries it, as the segment after its last slash. */
+    private static String filenameOf(String relativePath) {
+        return relativePath.substring(relativePath.lastIndexOf('/') + 1);
+    }
+
+    /**
+     * {@code document}'s own display name, from whichever provider gave it
+     * to us - {@code Metadata.resolve}'s own fallback has nothing to match
+     * against without it. Not every provider answers this column, or
+     * answers at all, which is read the same as a miss rather than a crash.
+     */
+    private String queryDisplayName(Uri document) {
+        try (Cursor cursor = getContentResolver().query(document, null, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst()) {
+                int index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                if (index >= 0) return cursor.getString(index);
+            }
+        } catch (Exception e) {
+            // Nothing to show for it either way.
+        }
+        return null;
     }
 
     @Override
@@ -1262,9 +1356,14 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             // spoken for - opening this menu is what it does, since leaving
             // the app any other way loses the machine's RAM. So the only way
             // across is an explicit one, and only worth offering to somebody
-            // the library would actually show something to; see
-            // SettingsActivity.startsInLibrary and docs/LIBRARY.md.
-            if (SettingsActivity.startsInLibrary(this, preferences)) {
+            // the library would actually show something to - libraryExists,
+            // not startsInLibrary: that one also asks the "library" switch,
+            // which says where the app opens and nothing about whether the
+            // library exists. Reading it here too once made turning the
+            // switch off take this row out of the menu as well, with no way
+            // back short of Settings; see SettingsActivity.libraryExists and
+            // docs/LIBRARY.md.
+            if (SettingsActivity.libraryExists(preferences)) {
                 sheet.addItem(getString(R.string.library_title), R.drawable.ic_library,
                               this::openLibrary);
             }
@@ -1323,9 +1422,18 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      * itself part of. The machine is untouched: {@link #onPause} pauses it as
      * it always does when the window is lost, and it is exactly as it was
      * left when Back reaches it again.
+     *
+     * That task does not always exist, though: with the switch off, the
+     * launcher's own instance of {@code LibraryActivity} hands straight back
+     * here and finishes itself, leaving nothing to reorder - so this row can
+     * just as well create a fresh instance. {@code EXTRA_FROM_MENU} is what
+     * tells that instance it was reached deliberately, from this row, rather
+     * than by the launcher: see its own comment on {@code LibraryActivity}
+     * for why the two must not ask the same question twice.
      */
     private void openLibrary() {
         Intent intent = new Intent(this, LibraryActivity.class);
+        intent.putExtra(LibraryActivity.EXTRA_FROM_MENU, true);
         intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
                        | Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(intent);
@@ -1511,6 +1619,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         panels.unwatch();
 
+        // The panel itself survives an ordinary pause - see onStop for when
+        // it actually comes down - but a video on its info side must not run
+        // on behind a machine nobody is looking at either.
+        panels.pauseVideo();
+
         // A held direction has nobody to let go of it once we are not being sent
         // events any more.
         gamepad.releaseAll();
@@ -1528,6 +1641,23 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     protected void onStop() {
         super.onStop();
         panels.close();
+    }
+
+    /**
+     * The one signal available for a manual's own viewer being dismissed,
+     * which gives this activity no callback of its own - see {@link
+     * Panels#topFocusReturned}. Confirmed on the device: opening the viewer
+     * onto the panel's display, real hardware or the emulator's second
+     * screen alike, leaves this activity itself resumed throughout, so
+     * {@link #onResume} never runs again to hook - this is the one that
+     * does, the moment the front of the screen is ours again, by a touch on
+     * the machine's own screen or the viewer going away with nothing else
+     * claiming focus behind it.
+     */
+    @Override
+    public void onTopResumedActivityChanged(boolean isTopResumedActivity) {
+        super.onTopResumedActivityChanged(isTopResumedActivity);
+        if (isTopResumedActivity) panels.topFocusReturned();
     }
 
     @Override

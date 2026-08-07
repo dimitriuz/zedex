@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    One row in the list shape: an icon for what it is, and its name - see
-    library/ui/EntryAdapter.java. No second line any more: the pane already
-    says the size and the date for whatever is selected, and a folder of a
-    couple of thousand tapes needs the room a second line on every one of
-    them costs more than it needs the line itself.
+    One row in the list shape: a small picture for what it is, its name, and
+    the year and format at the far end - see library/ui/EntryAdapter.java.
+
+    At the *end* of the row rather than under the name, which is what the
+    grid tile does with the same two facts. A second line would cost a folder
+    of a couple of thousand tapes twice the height it has now, and this row
+    was deliberately shrunk to 40dp to fit more of them on screen; the name
+    already yields its width to an ellipsis, and it can yield a little more
+    cheaply than every row can grow.
 
     40dp rather than Material's 48dp single-line spec: that figure is about a
     *touch* target on a phone held one-handed, and here the whole row is
@@ -13,6 +17,11 @@
     in this folder run long ("Aliens Neoplasma II v1.6 EN 128K
     (2024)(Sinc LAIR).tap"), and a step smaller fits more of one before the
     ellipsis, on top of fitting more rows on screen at once.
+
+    The icon has no android:tint here any more - EntryAdapter applies and
+    clears it in code, since this same view shows a scraped picture in place
+    of the type icon once one resolves, and a picture must not come out
+    tinted the muted grey a vector icon is.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -31,7 +40,7 @@
         android:id="@+id/icon"
         android:layout_width="20dp"
         android:layout_height="20dp"
-        android:tint="#8b8b99"
+        android:scaleType="centerCrop"
         android:contentDescription="@null" />
 
     <TextView
@@ -44,4 +53,16 @@
         android:ellipsize="middle"
         android:textSize="14sp"
         android:textColor="#ededf2" />
+
+    <!-- Never squeezed by a long name: the name has the weight and this has
+         its own width, so "1987 · TZX" stays whole and the name is what
+         ellipses. Empty for a folder, which has neither. -->
+    <TextView
+        android:id="@+id/subtitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:maxLines="1"
+        android:textSize="12sp"
+        android:textColor="#8b8b99" />
 </LinearLayout>

@@ -1,6 +1,8 @@
 package dev.ldlab.zedex.frontend;
 
 import dev.ldlab.zedex.library.Types;
+import dev.ldlab.zedex.screen.SettingsActivity;
+import dev.ldlab.zedex.storage.Storage;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -249,6 +251,54 @@ public final class EsDe {
                || child(context, tree, docId(tree), "settings") != null;
     }
 
+    /**
+     * However the app currently reaches ES-DE's own folder for
+     * <em>reading</em> - a plain path when this build holds All files access
+     * and the folder is visible, the granted tree from the picker otherwise,
+     * or null when neither works. Unlike {@link Place}, a name here may be
+     * several segments deep, {@code "gamelists/zxspectrum/gamelist.xml"},
+     * because the library's metadata layer reads files that are not siblings
+     * of each other and of {@code custom_systems}.
+     */
+    public interface Reach {
+        /** The file's bytes, or null if it is not there. */
+        InputStream open(String relativePath) throws Exception;
+
+        /**
+         * A document for whatever is at that relative path - file or folder -
+         * without opening it, or null if it is not really there. What {@link
+         * EsdeLink#mediaRoot} uses to reach ES-DE's media folder when it is a
+         * child of ES-DE's own, which the ordinary, unconfigured case is.
+         */
+        Uri locate(String relativePath);
+    }
+
+    /**
+     * The one way in for {@code library.meta}: this build's own folder access
+     * if it has it, the same persisted {@link #KEY_ESDE_TREE} grant that
+     * {@link #install(Context, Uri)} uses otherwise, or null when ES-DE cannot
+     * be reached at all. Going through this rather than a second way of
+     * finding ES-DE keeps "is it there, and can we read it" answered in one
+     * place.
+     */
+    public static Reach reach(Context context) {
+        if (Storage.canUseAnyFolder()) {
+            File folder = folder();
+            if (folder != null) return new PathReach(folder);
+        }
+
+        String stored = context.getSharedPreferences(SettingsActivity.PREFS, Context.MODE_PRIVATE)
+                .getString(KEY_ESDE_TREE, null);
+        if (stored == null) return null;
+
+        try {
+            return new TreeReach(context, Uri.parse(stored));
+        } catch (Exception e) {
+            Log.w(TAG, "cannot use the granted ES-DE folder " + stored, e);
+            return null;
+        }
+    }
+
     private static boolean write(Context context, Place place) {
         return findRule(context, place) && system(context, place);
     }
@@ -464,6 +514,74 @@ public final class EsDe {
             // "wt" and not "w": a shorter document written over a longer one
             // would otherwise keep the tail of the old one and parse as neither.
             return context.getContentResolver().openOutputStream(file, "wt");
+        }
+    }
+
+    /** With All files access: an ordinary file, possibly several folders deep. */
+    private static final class PathReach implements Reach {
+
+        private final File folder;
+
+        PathReach(File folder) {
+            this.folder = folder;
+        }
+
+        @Override
+        public InputStream open(String relativePath) throws Exception {
+            File file = new File(folder, relativePath);
+            return file.canRead() && file.length() > 0
+                    ? new FileInputStream(file) : null;
+        }
+
+        @Override
+        public Uri locate(String relativePath) {
+            File file = new File(folder, relativePath);
+            return file.exists() ? Uri.fromFile(file) : null;
+        }
+    }
+
+    /** Without it: a document under the granted tree, found without listing it. */
+    private static final class TreeReach implements Reach {
+
+        private final Context context;
+        private final Uri tree;
+        private final String rootDocId;
+
+        TreeReach(Context context, Uri tree) {
+            this.context = context;
+            this.tree = tree;
+            this.rootDocId = docId(tree);
+        }
+
+        @Override
+        public InputStream open(String relativePath) throws Exception {
+            // ExternalStorageProvider's own document ids are literally
+            // volume:relative/path - the same fact Storage.pathFor relies on
+            // to go from a tree to a real path - so the file several folders
+            // down can be addressed in one step rather than by walking one
+            // query per folder level to get there.
+            Uri file = DocumentsContract.buildDocumentUriUsingTree(
+                    tree, rootDocId + "/" + relativePath);
+
+            try {
+                return context.getContentResolver().openInputStream(file);
+            } catch (Exception e) {
+                return null; // not there, or this provider does not shape ids that way
+            }
+        }
+
+        @Override
+        public Uri locate(String relativePath) {
+            Uri document = DocumentsContract.buildDocumentUriUsingTree(
+                    tree, rootDocId + "/" + relativePath);
+
+            try (Cursor cursor = context.getContentResolver().query(document,
+                    new String[] { DocumentsContract.Document.COLUMN_DOCUMENT_ID },
+                    null, null, null)) {
+                return cursor != null && cursor.moveToFirst() ? document : null;
+            } catch (Exception e) {
+                return null; // not there, or this provider does not shape ids that way
+            }
         }
     }
 

@@ -835,7 +835,7 @@ through **Open file…** takes the same path through Fuse.
 ### The library
 
 `LibraryActivity` is the launcher now: on for a fresh install, it opens on the
-content folder chosen in *Settings › App*, browsable as a list or a grid, with
+content folder chosen in *Settings › Library*, browsable as a list or a grid, with
 folders and `.zip` archives to walk into and a game at the end of it.
 `EmulatorActivity` is still directly startable regardless of any of that -
 `am start -n dev.ldlab.zedex/.EmulatorActivity` is throughout the scripts and

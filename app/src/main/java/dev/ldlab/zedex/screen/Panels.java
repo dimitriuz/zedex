@@ -31,6 +31,23 @@ import android.view.WindowManager;
  *     input method is sorted out. Acting on that reading once took the panel down
  *     with nothing to put it back, so {@link #apply} closes only a panel that is
  *     unwanted or whose display has really gone.</li>
+ * <li>A manual opened from the panel's own game info is put on the panel's
+ *     display too - see {@code Manuals.open} - and the same first corner above
+ *     applies to it: it would sit behind the panel exactly as one of the app's
+ *     own screens would. But it is a <em>foreign</em> activity, and one never
+ *     reaches {@link #lifecycle}'s callbacks, which only ever see activities of
+ *     ours - so nothing here would notice it open, and nothing would notice it
+ *     close either, a foreign activity finishing giving this app no callback at
+ *     all. {@code SecondScreen} tells {@link #foreignScreenOpened} the moment
+ *     one actually lands on the display; coming back uses the activity's own
+ *     {@code onTopResumedActivityChanged} instead of a matching "closed" signal
+ *     that does not exist, because that is the nearest thing to one - confirmed
+ *     on the device that launching another app's activity onto the panel's
+ *     display, exactly like the corner above, leaves this activity itself
+ *     resumed the whole time, so {@code onResume} never runs again to hook.
+ *     {@link #updateStepAside} is the one place that decides whether the panel
+ *     should be up, from both this and the app's own screens together, so the
+ *     two can never disagree about it.</li>
  * </ul>
  */
 public final class Panels {
@@ -59,6 +76,31 @@ public final class Panels {
 
     /** How many other screens of ours are up; the panel hides while any is. */
     private int ownScreens;
+
+    /** Whether a manual is up on the panel's own display right now - see
+     *  the class comment's fourth corner. Combined with {@link #ownScreens}
+     *  by {@link #updateStepAside}, never acted on by itself, so the two
+     *  can never leave the panel in a state neither of them actually
+     *  wanted. */
+    private boolean foreignScreenUp;
+
+    /** Whatever {@link #setGameInfo} was last told - the library's own
+     *  relative path for the game now loaded, and its name, or both null
+     *  when there is nothing the store could name for it. Kept here as well
+     *  as on the panel itself, so a panel that appears later - the setting
+     *  turned on, or the display reconnecting - opens already knowing what
+     *  to show rather than blank until the next game loads. */
+    private String infoPath;
+    private String infoName;
+
+    /** What the panel's own switch was last left at - kept here rather than
+     *  only on the panel because {@link #close} throws the panel away and a
+     *  fresh one built by a later {@link #apply} starts this over from
+     *  {@link SecondScreen}'s own default otherwise; see {@link
+     *  SecondScreen#setPreferInfo}. Starting a game is choosing to play it,
+     *  so a panel that has never had its switch touched opens on the
+     *  controls - false is that default. */
+    private boolean preferInfo;
 
     public Panels(Activity activity, SharedPreferences preferences, Host host) {
         this.activity = activity;
@@ -139,6 +181,25 @@ public final class Panels {
             return;
         }
 
+        // Whatever game is loaded now, if the store knows it - see
+        // setGameInfo - so a panel appearing after the game already started
+        // opens already knowing what to show rather than blank until the
+        // next load. And whichever side its own switch was last left
+        // showing, which this fresh instance has no memory of by itself -
+        // see preferInfo's own comment - plus a listener so the next time
+        // it is used updates that memory in turn.
+        panel.setGameInfo(infoPath, infoName);
+        panel.setPreferInfo(preferInfo);
+        panel.setOnModeChanged(info -> preferInfo = info);
+        panel.setOnForeignScreen(this::foreignScreenOpened);
+
+        // A fresh panel always shows itself first - see Presentation's own
+        // show() - so if either reason to step aside is somehow already
+        // true at this exact moment (an own screen open while a display was
+        // replugged, say) it has to be undone straight away rather than
+        // left for whatever tells updateStepAside next.
+        updateStepAside();
+
         host.panelChanged();
     }
 
@@ -148,10 +209,82 @@ public final class Panels {
         SecondScreen going = panel;
         panel = null;
 
+        // Whatever this panel was waiting to come back from does not carry
+        // over to whatever replaces it - see foreignScreenUp's own comment.
+        foreignScreenUp = false;
+
         going.dismiss();
         host.layout().setLentAway(false);
 
         host.panelChanged();
+    }
+
+    /**
+     * Told by {@code SecondScreen} the moment a manual actually lands on
+     * the panel's own display - see the class comment's fourth corner.
+     */
+    private void foreignScreenOpened() {
+        foreignScreenUp = true;
+        updateStepAside();
+    }
+
+    /**
+     * The activity's own {@code onTopResumedActivityChanged(true)} - the
+     * nearest signal available for a manual's viewer being dismissed, which
+     * gives this app no callback of its own; see the class comment's fourth
+     * corner. Cheap to call every time the activity is the focused one
+     * again, own screens and manuals both, since it does nothing unless a
+     * manual was actually the reason the panel stepped aside.
+     */
+    public void topFocusReturned() {
+        if (!foreignScreenUp) return;
+        foreignScreenUp = false;
+        updateStepAside();
+    }
+
+    /**
+     * The one place {@link SecondScreen#hide} and {@link SecondScreen#show}
+     * are called for either reason a screen not our own has covered this
+     * one - one of the app's own, counted in {@link #ownScreens}, or a
+     * manual on this same display, {@link #foreignScreenUp}. Worked out
+     * fresh from both every time rather than toggled by whichever changed,
+     * the same reasoning {@link #apply} itself follows, so the two can
+     * never disagree about whether the panel should be up.
+     */
+    private void updateStepAside() {
+        if (panel == null) return;
+
+        if (ownScreens > 0 || foreignScreenUp) panel.hide();
+        else panel.show();
+    }
+
+    /**
+     * Told whenever the game changes - see {@code EmulatorActivity
+     * .handleViewIntent}, the one place that calls this. Threaded straight to
+     * the panel if one is up; kept here as well so a panel that appears
+     * later already knows - see {@link #apply}.
+     *
+     * {@code relativePath} is null for a game with nothing the library's own
+     * store could look up: a file manager's hand-over, ES-DE's {@code
+     * %ROMPROVIDER%}, <em>Open recent…</em>, or an entry inside a zip. {@link
+     * SecondScreen#setGameInfo} reads that as "no switch to offer", not "an
+     * empty info panel to show".
+     */
+    public void setGameInfo(String relativePath, String name) {
+        infoPath = relativePath;
+        infoName = name;
+        if (panel != null) panel.setGameInfo(infoPath, infoName);
+    }
+
+    /**
+     * Stops a video on the panel's own info side without taking the panel
+     * down - called from {@code onPause}, which is one of the moments a
+     * video must not be left running that has nothing to do with the
+     * selection or the panel itself. {@link #unwatch} already stops
+     * following the display; this is the other half of the same pause.
+     */
+    public void pauseVideo() {
+        if (panel != null) panel.pauseVideo();
     }
 
     /**
@@ -161,6 +294,16 @@ public final class Panels {
      * attached.
      */
     private Display free() {
+        return free(activity);
+    }
+
+    /**
+     * {@link #free()}, shared: {@code LibraryPanel} wants the exact same
+     * rule for its own panel, and duplicating it risked drifting from
+     * whichever afternoon-costing corner this one was tuned against - see
+     * the class comment.
+     */
+    static Display free(Activity activity) {
         DisplayManager displays = activity.getSystemService(DisplayManager.class);
         if (displays == null) return null;
 
@@ -246,14 +389,15 @@ public final class Panels {
             if (started == activity) return;
 
             ownScreens++;
-            if (panel != null) panel.hide();
+            updateStepAside();
         }
 
         @Override
         public void onActivityStopped(Activity stopped) {
             if (stopped == activity || ownScreens == 0) return;
 
-            if (--ownScreens == 0 && panel != null) panel.show();
+            ownScreens--;
+            updateStepAside();
         }
 
         @Override

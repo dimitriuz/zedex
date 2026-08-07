@@ -16,4 +16,22 @@
         the release build's folder instead and look like it had worked.
     -->
     <string name="data_folder" translatable="false">Zedex-debug</string>
+
+    <!--
+        And its name in the launcher, for the same reason one step further
+        out: the debug build installs beside the release one rather than over
+        it, so both icons sit there together, and two called Zedex is a coin
+        toss every time. This is the name of the app everywhere it appears -
+        the launcher, the task switcher, the About screen - since app_name is
+        one string and all of them read it.
+
+        A space here, unlike data_folder, which must not have one: nothing
+        quotes this at a shell prompt, and "Zedex-debug" in a launcher would
+        only look like a typo.
+
+        Not translated, because app_name is not: it is a product name and
+        values/ holds the only copy, so this override covers every language
+        by covering the one string there is.
+    -->
+    <string name="app_name" translatable="false">Zedex debug</string>
 </resources>

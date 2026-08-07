@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Linking the library to ES-DE's own metadata, and how the list shows what
+    it copied - see docs/LIBRARY.md, "The second pull request: linking to
+    ES-DE". The App tab's own "Add to ES-DE" row puts Zedex in ES-DE's list of
+    emulators; this reads ES-DE's list of games back, which is a different
+    direction and so a different row.
+
+    The content folder and the switch that opens on it come first, above all
+    of that: this tab is where anyone looking for "turn the library on" would
+    actually look, which the App tab no longer is - see CLAUDE.md. They stay
+    adjacent and in that order, folder then switch, for the same reason they
+    always were: the switch is disabled until the folder is set, and cause and
+    effect belong next to each other.
+-->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory android:title="@string/settings_group_folders">
+        <Preference
+            android:key="contentTree"
+            android:title="@string/settings_content_folder"
+            android:summary="@string/settings_content_folder_summary" />
+        <!--
+            Directly below the folder it needs, so cause and effect are
+            adjacent - see docs/LIBRARY.md, "A content folder is the gate".
+            Disabled and its summary swapped for settings_library_needs_folder
+            until contentTree holds something; see SettingsActivity, which
+            keeps that in step with picking the folder and with resuming.
+        -->
+        <SwitchPreferenceCompat
+            android:key="library"
+            android:title="@string/settings_library"
+            android:summary="@string/settings_library_summary"
+            android:defaultValue="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/settings_group_esde">
+        <Preference
+            android:key="esdeLink"
+            android:title="@string/settings_esde_link"
+            android:summary="@string/settings_esde_link_summary" />
+        <!--
+            Hidden unless ES-DE is installed but EsDe.reach cannot find a way
+            into its folder at all - see SettingsActivity.updateSummaries.
+            The one way in on a build with no All files access, ever.
+        -->
+        <Preference
+            android:key="esdeFolder"
+            android:title="@string/settings_esde_folder"
+            android:summary="@string/settings_esde_folder_summary" />
+        <!--
+            Not a button: says what the last link found, or that there has
+            not been one. Unselectable so it does not ripple for nothing.
+        -->
+        <Preference
+            android:key="esdeStatus"
+            android:title="@string/settings_esde_status"
+            android:summary="@string/settings_esde_status_never"
+            android:selectable="false" />
+        <!--
+            Hidden unless EsdeLink.needsMediaFolder says so; see
+            SettingsActivity.updateSummaries. A row that said "not needed"
+            would be worse than no row.
+        -->
+        <Preference
+            android:key="esdeMediaTree"
+            android:title="@string/settings_esde_media_folder"
+            android:summary="@string/settings_esde_media_folder_none" />
+        <Preference
+            android:key="esdeUnlink"
+            android:title="@string/settings_esde_unlink"
+            android:summary="@string/settings_esde_unlink_summary" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/settings_group_library_list">
+        <SwitchPreferenceCompat
+            android:key="libraryNames"
+            android:title="@string/settings_library_names"
+            android:summary="@string/settings_library_names_summary"
+            android:defaultValue="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/settings_group_library_media">
+        <!--
+            True is what the pane already did before this switch existed - see
+            SettingsActivity.KEY_LIBRARY_VIDEO_AUTOPLAY - so upgrading changes
+            nobody's behaviour.
+        -->
+        <SwitchPreferenceCompat
+            android:key="libraryVideoAutoplay"
+            android:title="@string/settings_library_video_autoplay"
+            android:summary="@string/settings_library_video_autoplay_summary"
+            android:defaultValue="true" />
+    </PreferenceCategory>
+</PreferenceScreen>

@@ -3,6 +3,7 @@ package dev.ldlab.zedex.library.ui;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.library.Entry;
 import dev.ldlab.zedex.library.Types;
+import dev.ldlab.zedex.library.meta.Metadata;
 
 import android.content.Context;
 import android.text.format.DateFormat;
@@ -18,6 +19,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Rows for the library's three tabs, in either the list or the grid shape.
@@ -50,14 +52,51 @@ public final class EntryAdapter extends RecyclerView.Adapter<EntryAdapter.Holder
      *  about. */
     private static final int SELECTED_BACKGROUND = 0x3300b0c8;
 
+    /** The type icon's own tint - applied and cleared in code now rather
+     *  than fixed in the layout, since the same {@code ImageView} shows a
+     *  real picture once ES-DE has scraped one for a row, in the list
+     *  shape, and a picture must not be tinted the way a plain vector icon
+     *  is. */
+    private static final int ICON_TINT = 0xff8b8b99;
+
+    /** Roughly what is actually drawn, in dp - a small thumbnail in the list
+     *  shape, a tile-filling picture in the grid one. See {@link
+     *  Scraped#load} for why decoding to this rather than a cover's full
+     *  resolution is what keeps a scroll from stuttering; the grid figure
+     *  matches the tile's own image area in {@code library_entry_grid.xml}.
+     *
+     *  That area is 3:4 now rather than a fixed 100dp - see AspectFrame - so
+     *  the grid figure is its taller side, not its width: columns are laid
+     *  out at roughly 100dp, which leaves a tile about 98dp wide and 131dp
+     *  tall once its own padding is off, and decoding to the width would
+     *  hand a picture short of what the box draws. Over-decoding costs a
+     *  little memory; under-decoding is visibly soft. */
+    private static final int LIST_TARGET_DP = 20;
+    private static final int GRID_TARGET_DP = 140;
+
     private final Context context;
     private final Callbacks callbacks;
     private final List<Entry> entries = new ArrayList<>();
     private boolean grid;
 
+    /** {@code libraryNames}, handed here rather than read a second time from
+     *  a second copy of the preferences - {@code LibraryActivity} already
+     *  holds the one that matters. Defaults to the same true the preference
+     *  itself defaults to, so a holder bound before {@link
+     *  #setShowScrapedNames} is first called - never, in practice, but
+     *  nothing here should depend on that - still shows a name rather than
+     *  silently disagreeing with what the switch says once it is read. */
+    private boolean showScrapedNames = true;
+
     /** The key of the selected row, or null when nothing is - see
      *  {@link Entry#key()} and {@link dev.ldlab.zedex.screen.LibraryActivity}. */
     private String selectedKey;
+
+    /** Off the UI thread and cached, hit and miss alike - see its own class
+     *  comment. One instance for the adapter's whole life, so scrolling
+     *  back to a row already resolved answers from the cache rather than
+     *  asking the store and decoding a picture all over again. */
+    private final Scraped scraped = new Scraped();
 
     public EntryAdapter(Context context, Callbacks callbacks) {
         this.context = context;
@@ -71,11 +110,51 @@ public final class EntryAdapter extends RecyclerView.Adapter<EntryAdapter.Holder
         notifyDataSetChanged();
     }
 
+    /** Whether a row with a scraped name shows it instead of the filename -
+     *  the {@code libraryNames} preference. Read and handed here by {@code
+     *  LibraryActivity}, which owns the preferences; this class only ever
+     *  reads what it is told. */
+    public void setShowScrapedNames(boolean show) {
+        if (showScrapedNames == show) return;
+        showScrapedNames = show;
+        notifyDataSetChanged();
+    }
+
     /** Replaces every row at once; the caller has already sorted and filtered. */
     public void setEntries(List<Entry> replacement) {
         entries.clear();
         entries.addAll(replacement);
         notifyDataSetChanged();
+    }
+
+    /**
+     * The content folder changed under this adapter - see {@link
+     * Scraped#forget}, which this is the whole of. Walking into or out of a
+     * folder within the same content tree is not this: a row's path is
+     * still meaningful there, so nothing needs forgetting on the way.
+     */
+    public void forgetPending() {
+        scraped.forget();
+    }
+
+    /**
+     * A link replaced the metadata store - see {@link Scraped#clear}, which
+     * this is the whole of. Every cached name and picture, hit and miss
+     * alike, is now answering a question that may have a different answer.
+     */
+    public void clearScraped() {
+        scraped.clear();
+    }
+
+    /**
+     * The one cache this screen uses for names and pictures - rows, tiles
+     * and the pane alike, so a folder change or a link only ever has to be
+     * told once. {@code LibraryActivity}'s own pane reads this directly for
+     * the selected row's larger picture and its video, neither of which a
+     * row or a tile ever asks for.
+     */
+    public Scraped scraped() {
+        return scraped;
     }
 
     /**
@@ -119,13 +198,29 @@ public final class EntryAdapter extends RecyclerView.Adapter<EntryAdapter.Holder
     public void onBindViewHolder(Holder holder, int position) {
         Entry entry = entries.get(position);
 
+        // Bumped before anything asynchronous is asked for, so a decode
+        // that lands after this holder has been recycled to a different
+        // row - a fast scroll, most often - can tell its own answer is
+        // stale and discard it rather than draw a picture into a row it no
+        // longer belongs to.
+        int token = ++holder.bindToken;
+
+        // The fallback, exactly as it has always looked - everything below
+        // this may replace it once a picture or a name actually resolves,
+        // but nothing here waits for that, since most rows in a collection
+        // like this one have nothing to resolve to.
+        holder.icon.setVisibility(View.VISIBLE);
+        holder.icon.setColorFilter(ICON_TINT);
         holder.icon.setImageResource(iconFor(entry));
         holder.title.setText(entry.name);
+        if (holder.cover != null) holder.cover.setVisibility(View.GONE);
 
-        // Null in the list shape, which dropped its own second line - the
-        // pane already says the size and the date for whatever is selected -
-        // and kept only in the grid tile, which still has the room for one.
-        if (holder.subtitle != null) holder.subtitle.setText(detail(context, entry));
+        // Both shapes now: under the name in a tile, at the end of the row in
+        // a list. The format alone until a scrape answers with a year to put
+        // in front of it, which is what the callback below does; most rows
+        // never get one, and the format on its own is a complete answer
+        // rather than a half-drawn one waiting to be finished.
+        if (holder.subtitle != null) holder.subtitle.setText(rowDetail(entry, null));
 
         // A tint rather than a state-list drawable, so it sits underneath the
         // ripple - see the layout's own android:foreground - instead of
@@ -138,6 +233,53 @@ public final class EntryAdapter extends RecyclerView.Adapter<EntryAdapter.Holder
         holder.itemView.setOnLongClickListener(v -> {
             callbacks.onLongPress(entry);
             return true;
+        });
+
+        // Only a real file, in this content tree, is worth asking ES-DE's
+        // own store about - a folder or an archive to walk into is not a
+        // game, and an entry reached from inside a zip (Favourites and
+        // Browse's own archive listing both hand these back) has no path of
+        // its own for a gamelist to have matched by relative path; see
+        // docs/LIBRARY.md, "matching is by path". Metadata.relativePath
+        // answers null for the same reason for anything outside the
+        // content tree, Favourites and Recents included.
+        if (entry.kind != Entry.Kind.FILE || entry.inside != null) return;
+
+        String relativePath = Metadata.relativePath(context, entry.uri);
+        if (relativePath == null) return;
+
+        int targetPx = pixels(grid ? GRID_TARGET_DP : LIST_TARGET_DP);
+
+        scraped.load(context, relativePath, targetPx, (meta, picture) -> {
+            if (holder.bindToken != token) return; // this holder moved on
+
+            String name = meta != null ? meta.name : null;
+            if (showScrapedNames && name != null && !name.isEmpty()) {
+                holder.title.setText(name);
+            }
+
+            String year = meta != null ? meta.year() : null;
+            if (holder.subtitle != null && year != null) {
+                holder.subtitle.setText(rowDetail(entry, year));
+            }
+
+            if (picture == null) return;
+
+            if (holder.cover != null) {
+                // The grid tile: the fallback icon steps aside rather than
+                // being drawn under a picture that would hide it anyway, and
+                // the picture fills the tile around it - see
+                // library_entry_grid.xml.
+                holder.icon.setVisibility(View.GONE);
+                holder.cover.setImageBitmap(picture);
+                holder.cover.setVisibility(View.VISIBLE);
+            } else {
+                // The list row: the same view the type icon used, its tint
+                // cleared so a real picture is not muted the way a vector
+                // icon is.
+                holder.icon.clearColorFilter();
+                holder.icon.setImageBitmap(picture);
+            }
         });
     }
 
@@ -192,6 +334,32 @@ public final class EntryAdapter extends RecyclerView.Adapter<EntryAdapter.Holder
      * pane can say the same thing about the selected row that the row itself
      * already says, rather than a second copy of this that could drift.
      */
+    /**
+     * What a row says under its name: the release year and the file's own
+     * format, {@code "1987 · TZX"}.
+     *
+     * Not the size and the date, which is what it used to be and what {@link
+     * #detail} still gives the pane. A tile is browsing, and neither of those
+     * two helps anyone choose a game - every Spectrum file is small, and the
+     * date is when it happened to be copied onto this phone, which says
+     * nothing about the game at all. The year does, and the format is the one
+     * thing about the file worth knowing at a glance: a {@code .tap} and a
+     * {@code .trd} are different machines' worth of trouble.
+     *
+     * @param year the scraped year, or null before one has resolved and for
+     *             the greater part of any collection, which has none.
+     */
+    static String rowDetail(Entry entry, String year) {
+        if (entry.kind == Entry.Kind.FOLDER) return "";
+
+        String format = Types.extension(entry.name).toUpperCase(Locale.ROOT);
+
+        if (year == null) return format;
+        if (format.isEmpty()) return year;
+
+        return year + " · " + format;
+    }
+
     public static String detail(Context context, Entry entry) {
         StringBuilder text = new StringBuilder();
 
@@ -206,19 +374,36 @@ public final class EntryAdapter extends RecyclerView.Adapter<EntryAdapter.Holder
         return text.toString();
     }
 
+    private int pixels(int dp) {
+        return Math.round(dp * context.getResources().getDisplayMetrics().density);
+    }
+
     static final class Holder extends RecyclerView.ViewHolder {
         final ImageView icon;
         final TextView title;
 
-        /** Null for the list shape, which has no {@code R.id.subtitle} any
-         *  more; present for the grid tile, which still does. */
+        /** The year and the format. Present in both shapes - beneath the
+         *  name in a tile, at the far end of the row in a list - but still
+         *  null-checked at every use, since a layout is free to drop it. */
         final TextView subtitle;
+
+        /** Null for the list shape, which shows a scraped picture in {@link
+         *  #icon}'s own slot instead - see onBindViewHolder. Present for the
+         *  grid tile, which needs a picture to fill the tile around a
+         *  fallback icon that must keep its own size, not stretch to it. */
+        final ImageView cover;
+
+        /** Bumped on every bind, so a decode still resolving for whatever
+         *  this holder used to show can tell it no longer applies - see
+         *  onBindViewHolder. */
+        int bindToken;
 
         Holder(View view) {
             super(view);
             icon = view.findViewById(R.id.icon);
             title = view.findViewById(R.id.title);
             subtitle = view.findViewById(R.id.subtitle);
+            cover = view.findViewById(R.id.cover);
         }
     }
 }
