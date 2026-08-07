@@ -32,11 +32,18 @@ final class LibraryPanel {
 
     private static final String TAG = "Zedex";
 
-    /** What the library has to hand this: nothing but the fact that the
-     *  panel appeared or went, since there is no layout to lend here and no
-     *  fullscreen button or on-screen pad of the library's own to answer for. */
+    /** What the library has to hand this: the fact that the panel appeared
+     *  or went, since there is no layout to lend here and no fullscreen
+     *  button or on-screen pad of the library's own to answer for - and a
+     *  way to play whatever the panel is showing, which is the one thing
+     *  this class has no business doing itself. {@link #apply} installs
+     *  {@link #play} on the panel's own Play button; {@code Panels} has no
+     *  such method to give its own panel, which is the whole of why Play
+     *  never appears there - see {@code GameInfoView#setOnPlay}. */
     interface Host {
         void panelChanged();
+
+        void play();
     }
 
     private final Activity activity;
@@ -126,6 +133,7 @@ final class LibraryPanel {
 
         panel.setGameInfo(infoPath, infoName);
         panel.setOnForeignScreen(this::foreignScreenOpened);
+        panel.setOnPlay(host::play);
         host.panelChanged();
     }
 

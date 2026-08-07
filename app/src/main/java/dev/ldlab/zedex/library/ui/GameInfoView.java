@@ -13,6 +13,7 @@ import android.os.Looper;
 import android.view.Display;
 import android.view.Gravity;
 import android.view.View;
+import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
@@ -78,6 +79,7 @@ public final class GameInfoView extends LinearLayout {
 
     private final Gallery gallery;
     private final ImageButton manualButton;
+    private final Button playButton;
     private final TextView title;
     private final TextView filename;
     private final TextView facts;
@@ -96,6 +98,15 @@ public final class GameInfoView extends LinearLayout {
      *  covers a caller that never bothers, same as every other listener
      *  in this app. */
     private Runnable onManualOpened;
+
+    /** Whether playing a game means anything from here at all - only ever
+     *  set by {@link dev.ldlab.zedex.screen.LibraryPanel}, since only the
+     *  library's own panel shows a game that has not started yet; see this
+     *  class's own comment on {@link #setOnPlay} and CLAUDE.md's "the host
+     *  decides". Null on the emulator's panel, which never calls it, and
+     *  {@link #playButton} stays hidden for exactly that reason - see
+     *  {@link #updatePlayVisibility}. */
+    private Runnable onPlay;
 
     public GameInfoView(Context context) {
         super(context);
@@ -229,19 +240,43 @@ public final class GameInfoView extends LinearLayout {
         scroller.setVerticalFadingEdgeEnabled(true);
         scroller.setFadingEdgeLength(pixels(28));
 
+        // The words lane: the scroller, weighted to take whatever room is
+        // left, and Play pinned below it at its own natural height - outside
+        // the ScrollView on purpose, the same way LibraryActivity's own pane
+        // keeps its action row below a weighted spacer rather than inside
+        // whatever scrolls. A description long enough to scroll must never
+        // carry the one button that starts the game out of reach with it.
+        LinearLayout wordsLane = new LinearLayout(context);
+        wordsLane.setOrientation(VERTICAL);
+        wordsLane.addView(scroller, new LinearLayout.LayoutParams(
+                LayoutParams.MATCH_PARENT, 0, 1f));
+
+        playButton = new Button(context);
+        playButton.setText(R.string.library_play);
+        playButton.setVisibility(View.GONE);
+        playButton.setOnClickListener(v -> {
+            if (onPlay != null) onPlay.run();
+        });
+        LinearLayout.LayoutParams playParams = new LinearLayout.LayoutParams(
+                LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
+        playParams.leftMargin = playParams.rightMargin = pixels(24);
+        playParams.topMargin = pixels(16);
+        playParams.bottomMargin = pixels(24);
+        wordsLane.addView(playButton, playParams);
+
         if (landscape) {
             LinearLayout.LayoutParams mediaParams = new LinearLayout.LayoutParams(
                     0, LayoutParams.MATCH_PARENT, LANDSCAPE_MEDIA_WEIGHT);
             mediaParams.rightMargin = pixels(LANE_GAP_DP);
             addView(media, mediaParams);
-            addView(scroller, new LinearLayout.LayoutParams(
+            addView(wordsLane, new LinearLayout.LayoutParams(
                     0, LayoutParams.MATCH_PARENT, LANDSCAPE_WORDS_WEIGHT));
         } else {
             LinearLayout.LayoutParams mediaParams = new LinearLayout.LayoutParams(
                     LayoutParams.MATCH_PARENT, 0, 2f);
             mediaParams.bottomMargin = pixels(LANE_GAP_DP);
             addView(media, mediaParams);
-            addView(scroller, new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, 0, 3f));
+            addView(wordsLane, new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, 0, 3f));
         }
     }
 
@@ -275,6 +310,21 @@ public final class GameInfoView extends LinearLayout {
     }
 
     /**
+     * {@link #onPlay}'s own setter - public for the same reason {@link
+     * #setOnManualOpened} is, and never called at all by {@code Panels},
+     * whose panel shows a game already running; only {@code LibraryPanel}
+     * installs an action here, which is what keeps Play off the emulator's
+     * own panel without this view guessing from anything it can see for
+     * itself. Applied at once through {@link #updatePlayVisibility}, since a
+     * game may already be showing by the time this is set - see {@link
+     * dev.ldlab.zedex.screen.LibraryPanel#apply}.
+     */
+    public void setOnPlay(Runnable listener) {
+        this.onPlay = listener;
+        updatePlayVisibility();
+    }
+
+    /**
      * Fills every view from {@code relativePath}'s own store entry and
      * artwork - the title at once from {@code name}, everything scraped
      * once the store and the gallery answer off the UI thread; mirrors
@@ -291,6 +341,7 @@ public final class GameInfoView extends LinearLayout {
         facts.setVisibility(View.GONE);
         description.setVisibility(View.GONE);
         manualButton.setVisibility(View.GONE);
+        updatePlayVisibility();
 
         gallery.load(relativePath);
 
@@ -340,7 +391,16 @@ public final class GameInfoView extends LinearLayout {
         facts.setVisibility(View.GONE);
         description.setVisibility(View.GONE);
         manualButton.setVisibility(View.GONE);
+        updatePlayVisibility();
         gallery.clear();
+    }
+
+    /** Play shows exactly when there is both a game to play ({@link #path})
+     *  and somewhere for playing it to mean anything ({@link #onPlay}) - see
+     *  that field's own comment. Called from every place either can change:
+     *  {@link #showEntry}, {@link #clear} and {@link #setOnPlay} itself. */
+    private void updatePlayVisibility() {
+        playButton.setVisibility(onPlay != null && path != null ? View.VISIBLE : View.GONE);
     }
 
     /**

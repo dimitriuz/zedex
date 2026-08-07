@@ -493,7 +493,17 @@ public final class LibraryActivity extends Activity {
         // paneRoot and paneDivider, which do not exist yet either, but it is
         // never called until watch() is, from onResume, by which time
         // everything below has run.
-        libraryPanel = new LibraryPanel(this, preferences, this::applySecondScreen);
+        libraryPanel = new LibraryPanel(this, preferences, new LibraryPanel.Host() {
+            @Override
+            public void panelChanged() {
+                applySecondScreen();
+            }
+
+            @Override
+            public void play() {
+                playSelected();
+            }
+        });
 
         setContentView(buildPage());
 
@@ -2389,6 +2399,21 @@ public final class LibraryActivity extends Activity {
         }
 
         startActivity(intent);
+    }
+
+    /**
+     * {@link LibraryPanel.Host#play()}: the panel's own Play button, which
+     * shows only for whatever {@link #selected} already is - see {@link
+     * #updatePane}'s own test before it ever hands the panel a path at all.
+     * Calls straight into {@link #openGame}, the one place a game is
+     * actually started, rather than repeating any part of what it does; the
+     * same guard {@code updatePane} used to decide the panel had something
+     * to show is repeated here rather than trusted to still hold, since a
+     * tap and this callback are not the same instant.
+     */
+    private void playSelected() {
+        if (selected == null || isContainer(selected) || selected.inside != null) return;
+        openGame(selected);
     }
 
     /**

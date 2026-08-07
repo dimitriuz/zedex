@@ -22,6 +22,7 @@ import android.view.ViewGroup;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
+import android.graphics.drawable.GradientDrawable;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
@@ -90,9 +91,20 @@ public final class SecondScreen extends Presentation {
     private static final float KEY_OF_FIRE = 0.46f;
     private static final int KEY_GAP = 5;
 
-    /** The corner switch's own side, dp - comfortably tappable without being
-     *  in the way of the artwork it floats over. */
-    private static final int SWITCH_SIZE_DP = 40;
+    /** The corner switch's own side, dp - a primary control on a panel worked
+     *  by a thumb, not a status icon, so sized like {@link
+     *  dev.ldlab.zedex.library.ui.GameInfoView}'s manual button scaled up
+     *  for being the only thing to tap rather than one of several. The 40dp
+     *  this used to claim was never what showed: a 50% black fill on a
+     *  near-black panel painted nothing, so what was visible was a bare
+     *  outline icon read as a status indicator - it even sat in line with
+     *  the real ones. */
+    private static final int SWITCH_SIZE_DP = 64;
+
+    /** Room inside the disc the glyph does not fill, dp - see {@link
+     *  #SWITCH_SIZE_DP}; the same ratio {@code GameInfoView}'s manual button
+     *  keeps at its own smaller size. */
+    private static final int SWITCH_PADDING_DP = 14;
 
     private enum Mode { CONTROLS, INFO }
 
@@ -169,8 +181,8 @@ public final class SecondScreen extends Presentation {
 
         getWindow().setDecorFitsSystemWindows(false);
 
-        int margin = Math.round(MARGIN
-                * getContext().getResources().getDisplayMetrics().density);
+        float density = getContext().getResources().getDisplayMetrics().density;
+        int margin = Math.round(MARGIN * density);
         int room = getContext().getResources().getDisplayMetrics().widthPixels;
 
         FrameLayout stage = new FrameLayout(getContext());
@@ -197,9 +209,26 @@ public final class SecondScreen extends Presentation {
             stage.addView(controlsRoot, new FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
+            // A filled disc, the same treatment GameInfoView's own manual
+            // button already earned for the same reason: box art is as
+            // often pale as dark, and a scrim that only darkens is a coin
+            // toss against it. Opaque enough to win against any picture,
+            // with a faint ring so it still reads as an edge against black
+            // controls, and round so it reads as a button rather than as
+            // part of whatever it floats over - never the bare outline icon
+            // that used to sit here in line with the status bar's own
+            // signal/wifi/battery icons and read as one of them.
+            GradientDrawable disc = new GradientDrawable();
+            disc.setShape(GradientDrawable.OVAL);
+            disc.setColor(0xd0000000);
+            disc.setStroke(Math.round(density), 0x66ffffff);
+
+            int padding = Math.round(SWITCH_PADDING_DP * density);
+
             switchButton = new ImageButton(getContext());
-            switchButton.setBackgroundColor(0x80000000);
+            switchButton.setBackground(disc);
             switchButton.setForeground(Ripple.make());
+            switchButton.setPadding(padding, padding, padding, padding);
             switchButton.setColorFilter(0xffffffff);
             switchButton.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
             switchButton.setOnClickListener(v -> {
@@ -208,12 +237,25 @@ public final class SecondScreen extends Presentation {
                 if (modeListener != null) modeListener.onModeChanged(preferredMode == Mode.INFO);
             });
 
-            int side = Math.round(SWITCH_SIZE_DP
-                    * getContext().getResources().getDisplayMetrics().density);
+            int side = Math.round(SWITCH_SIZE_DP * density);
             FrameLayout.LayoutParams switchParams = new FrameLayout.LayoutParams(
                     side, side, Gravity.TOP | Gravity.END);
             switchParams.topMargin = switchParams.rightMargin = margin;
             stage.addView(switchButton, switchParams);
+
+            // hide() below asks for no status bar, but this display draws
+            // one anyway - confirmed on the emulator's own second screen -
+            // and the plain margin above put the switch directly under it.
+            // Rather than guess a height, ask the window for whatever it is
+            // actually reporting and add that on top of the ordinary
+            // margin; a display where the bar really is hidden reports zero
+            // here and nothing changes.
+            stage.setOnApplyWindowInsetsListener((view, windowInsets) -> {
+                int barTop = windowInsets.getInsets(WindowInsets.Type.systemBars()).top;
+                switchParams.topMargin = margin + barTop;
+                switchButton.setLayoutParams(switchParams);
+                return windowInsets;
+            });
         }
 
         setContentView(stage);
@@ -275,6 +317,17 @@ public final class SecondScreen extends Presentation {
      *  #foreignScreenListener}. */
     void setOnForeignScreen(Runnable listener) {
         this.foreignScreenListener = listener;
+    }
+
+    /** Forwarded straight to {@link GameInfoView#setOnPlay} - only {@link
+     *  LibraryPanel} ever calls this, since only its own panel shows a game
+     *  that has not started yet; {@link Panels} never does, and that is the
+     *  whole of how Play stays off the emulator's own panel. See {@link
+     *  GameInfoView#setOnPlay}'s own comment for why the host decides rather
+     *  than this view or {@link GameInfoView} guessing from anything either
+     *  can see for itself. */
+    void setOnPlay(Runnable listener) {
+        infoView.setOnPlay(listener);
     }
 
     /**
