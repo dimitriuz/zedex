@@ -2474,8 +2474,7 @@ public final class LibraryActivity extends Activity {
 
         // Without this the grant dies with this activity, exactly as
         // SettingsActivity's own picker takes care to avoid.
-        getContentResolver().takePersistableUriPermission(
-                tree, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        Storage.keepAccessTo(this, tree, Intent.FLAG_GRANT_READ_URI_PERMISSION);
 
         preferences.edit().putString(Storage.KEY_CONTENT_TREE, tree.toString()).apply();
 

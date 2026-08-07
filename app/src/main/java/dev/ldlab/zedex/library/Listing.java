@@ -210,13 +210,36 @@ public final class Listing {
         InputStream in = resolver.openInputStream(entry.uri);
         if (in == null) throw new IOException("cannot open " + entry.uri);
 
-        ZipInputStream zipIn = new ZipInputStream(in);
-        ZipEntry found;
-        while ((found = zipIn.getNextEntry()) != null) {
-            if (found.getName().equals(entry.inside)) return zipIn;
-        }
+        // Closed on every way out but the one that hands it to the caller.
+        //
+        // Not try-with-resources, because success here means *not* closing:
+        // the stream is the return value, positioned at the entry. So the scan
+        // is guarded by hand instead. Without this, a getNextEntry() that threw
+        // partway - a truncated archive, or a SAF grant dying mid-read - leaked
+        // the ZipInputStream and the ParcelFileDescriptor under it. One corrupt
+        // zip in a library leaks a descriptor per attempt, the library re-lists
+        // on scroll-back and on every rotation, and the process eventually
+        // fails at unrelated things with EMFILE and nothing in the log naming
+        // the archive that did it.
+        boolean handedOver = false;
 
-        zipIn.close();
-        throw new IOException(entry.inside + " is no longer in " + entry.uri);
+        try {
+            ZipInputStream zipIn = new ZipInputStream(in);
+            ZipEntry found;
+
+            while ((found = zipIn.getNextEntry()) != null) {
+                if (found.getName().equals(entry.inside)) {
+                    handedOver = true;
+                    return zipIn;
+                }
+            }
+
+            throw new IOException(entry.inside + " is no longer in " + entry.uri);
+        } finally {
+            // Closing the ZipInputStream would close this too, but only if it
+            // was constructed; a throw from its constructor leaves the raw
+            // stream as the only thing holding the descriptor.
+            if (!handedOver) in.close();
+        }
     }
 }

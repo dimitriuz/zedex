@@ -820,6 +820,34 @@ public final class Storage {
         }
     }
 
+    /**
+     * Keeps a picked folder past the activity that picked it, where the
+     * provider allows it.
+     *
+     * {@code takePersistableUriPermission} throws {@code SecurityException} for
+     * a grant that was not marked persistable, and that is not a hypothetical:
+     * {@code ACTION_OPEN_DOCUMENT_TREE} against Android's own
+     * {@code externalstorage} provider always is, but a third-party
+     * {@code DocumentsProvider} — a cloud client, a USB-OTG or MTP browser —
+     * need not be. Called bare, the app died the instant the picker returned,
+     * with the user having done nothing stranger than keeping their games on a
+     * cloud drive.
+     *
+     * Survivable rather than fatal, because the one-shot grant works for as
+     * long as this launch: the folder they just chose does what they expect
+     * now, and is asked for again next time. {@code Recents.remember} has taken
+     * the same view of the same call since it was written; this is that,
+     * everywhere else it is done.
+     */
+    public static void keepAccessTo(Context context, Uri tree, int flags) {
+        try {
+            context.getContentResolver().takePersistableUriPermission(tree, flags);
+        } catch (SecurityException e) {
+            Log.i(TAG, "cannot keep the grant for " + tree
+                       + "; it will last only this launch", e);
+        }
+    }
+
     /** The folder the file picker should open in, or null for wherever it likes. */
     public static Uri contentFolder(Context context) {
         SharedPreferences preferences =

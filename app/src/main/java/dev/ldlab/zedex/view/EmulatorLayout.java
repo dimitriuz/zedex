@@ -1011,7 +1011,14 @@ public final class EmulatorLayout extends ViewGroup {
                     ? room
                     : Math.min(room, Math.round(width / SCREEN_ASPECT));
 
-            screenBox.set(0, top, width, top + screenHeight);
+            // Clamped at zero, as the no-keyboard branch above does. `room` is
+            // what is left after the keyboard and the bar have taken theirs,
+            // and in a short enough window - split-screen, or a freeform one -
+            // there is nothing left and it goes negative. An inverted screenBox
+            // then inverts `picture` in measurePicture(), and placePlay() sizes
+            // the play button from a negative width and puts it somewhere off
+            // the window entirely, with the picture gone.
+            screenBox.set(0, top, width, top + Math.max(0, screenHeight));
             keyboardBox.set(0, height - keyboardHeight, width, height);
 
             // Room to miss into around the keys that are hardest to hit.
