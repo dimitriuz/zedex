@@ -2464,7 +2464,32 @@ public final class LibraryActivity extends Activity {
             }
         }
 
-        startActivity(intent);
+        try {
+            startActivity(intent);
+        } catch (SecurityException e) {
+            // The grant on this document is gone, and startActivity is where
+            // that shows: handing a content:// URI to another activity makes
+            // the system pass the grant along with it, and it throws rather
+            // than returning anything once we no longer hold one. This crashed
+            // the app outright on a phone, from Recent - "UID 10594 does not
+            // have permission to content://...".
+            //
+            // A persisted grant is not forever. The document can be moved or
+            // deleted, the provider can be replaced, a volume can come back
+            // with different ids, and there is a cap on how many an app may
+            // hold at once. Recent is where it lands, because that is the one
+            // list built to outlive the picker that filled it.
+            Log.w(TAG, "no permission left for " + entry.uri, e);
+
+            Toast.makeText(this, R.string.open_failed, Toast.LENGTH_LONG).show();
+
+            // And take the row away rather than leaving something that can
+            // only fail again. forget() matches on the archive entry as well,
+            // so a sibling of the same zip that still opens is left alone.
+            Recents.forget(getContentResolver(), preferences, entry.uri, entry.inside);
+
+            if (tab == Tab.RECENTS) load();
+        }
     }
 
     /**
