@@ -22,7 +22,11 @@ import android.view.WindowManager;
  * Otherwise this mirrors {@link Panels} closely, on purpose - the same
  * watch/apply/close shape, and the same "look again, work out the whole
  * answer each time" {@link #apply}. See {@link Panels}'s own class comment
- * for the three corners of Android this - and it - are built around.
+ * for the corners of Android this - and it - are built around, the fourth
+ * of which ({@link #foreignScreenOpened}, {@link #topFocusReturned}) this
+ * panel needs just as much as the emulator's own does, despite having no
+ * {@code ownScreens} of its own: a manual is exactly as foreign to the
+ * library as it is to the emulator.
  */
 final class LibraryPanel {
 
@@ -42,6 +46,14 @@ final class LibraryPanel {
     /** The panel, or null while there is none - either because it is not
      *  wanted, or because there is nowhere to put it. */
     private SecondScreen panel;
+
+    /** Whether a manual is up on this panel's own display right now - see
+     *  {@link Panels}'s class comment, the fourth corner, which applies
+     *  here identically even though this panel has no {@code ownScreens}
+     *  of its own to combine it with: the library never opens one of its
+     *  own screens onto this display, so a manual is the only thing that
+     *  ever asks this panel to step aside. */
+    private boolean foreignScreenUp;
 
     /** Whatever {@link #setGameInfo} was last told, kept here as well as on
      *  the panel so one that appears later already knows; see {@link
@@ -113,6 +125,7 @@ final class LibraryPanel {
         }
 
         panel.setGameInfo(infoPath, infoName);
+        panel.setOnForeignScreen(this::foreignScreenOpened);
         host.panelChanged();
     }
 
@@ -122,8 +135,39 @@ final class LibraryPanel {
         SecondScreen going = panel;
         panel = null;
 
+        // Whatever this panel was waiting to come back from does not carry
+        // over to whatever replaces it - see foreignScreenUp's own comment.
+        foreignScreenUp = false;
+
         going.dismiss();
         host.panelChanged();
+    }
+
+    /**
+     * Told by {@code SecondScreen} the moment a manual actually lands on
+     * this panel's own display - see {@link Panels}'s class comment, the
+     * fourth corner.
+     */
+    private void foreignScreenOpened() {
+        foreignScreenUp = true;
+        if (panel != null) panel.hide();
+    }
+
+    /**
+     * {@code LibraryActivity}'s own {@code onTopResumedActivityChanged(true)}
+     * - the nearest signal available for a manual's viewer being dismissed,
+     * which gives this app no callback of its own; see {@link Panels}'s
+     * class comment, the fourth corner, and its identical {@code
+     * topFocusReturned} for why this and not {@code onResume} is the hook.
+     * Cheap to call every time the activity is the focused one again, since
+     * it does nothing unless a manual was actually the reason the panel
+     * stepped aside.
+     */
+    void topFocusReturned() {
+        if (!foreignScreenUp) return;
+
+        foreignScreenUp = false;
+        if (panel != null) panel.show();
     }
 
     /**

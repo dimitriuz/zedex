@@ -320,7 +320,14 @@ public final class Gallery extends LinearLayout {
             public void onScrollStateChanged(RecyclerView view, int state) {
                 if (state == RecyclerView.SCROLL_STATE_DRAGGING) {
                     if (userSwipeListener != null) userSwipeListener.run();
-                } else if (state == RecyclerView.SCROLL_STATE_IDLE) {
+                } else if (state == RecyclerView.SCROLL_STATE_IDLE && isSettled()) {
+                    // isSettled()'s own comment is the reason for the guard -
+                    // an IDLE that fails it is not skipped for good, only
+                    // for this one dispatch: PagerSnapHelper's own listener,
+                    // registered on this recycler before this one is, is
+                    // about to send it after the very page it just refused
+                    // to read, and that scroll's own IDLE is what this
+                    // reaches next.
                     updateCurrentPage();
                 }
             }
@@ -759,6 +766,53 @@ public final class Gallery extends LinearLayout {
         RecyclerView.LayoutManager manager = recycler.getLayoutManager();
         return manager instanceof LinearLayoutManager
                 ? ((LinearLayoutManager) manager).findFirstVisibleItemPosition() : 0;
+    }
+
+    /**
+     * Whether {@link #currentPage} is actually flush with the edge of the
+     * viewport, rather than merely the page {@code RecyclerView} last has an
+     * opinion about - the two are not the same thing, and {@link
+     * #onScrollStateChanged}'s own guard exists because a real device found a
+     * case where they briefly disagree.
+     *
+     * {@link PagerSnapHelper} attaches its own scroll listener to this
+     * recycler before the constructor attaches this class's, in {@code
+     * SCROLL_STATE_IDLE} order that matters: given a raw drag that ends
+     * unaligned, both listeners are told the same {@code IDLE} in the same
+     * dispatch, and {@code PagerSnapHelper}'s runs first. It always corrects
+     * an unaligned rest - {@code snapToTargetExistingView} asks on every
+     * single {@code IDLE} - but the correction is a {@code smoothScrollBy}
+     * that only takes visible effect on the next frame; scroll state is
+     * still nominally {@code IDLE} for the remainder of this exact dispatch.
+     * A listener that trusts that {@code IDLE} unconditionally, as {@link
+     * #onScrollStateChanged} once did, marks a dot, starts or stops the
+     * video and tells a host the page has changed for a page {@code
+     * PagerSnapHelper} is already in the middle of correcting - which then
+     * visibly hops away underneath the dot that was just lit for it.
+     *
+     * Measured on the device, repeatably: an isolated swipe, left alone to
+     * settle, never mis-reports - {@link PagerSnapHelper}'s own correction
+     * for an ordinary drag-release always finishes before {@code IDLE} ever
+     * reaches this class. It takes a <em>second</em> swipe landing on top of
+     * an already-settling first one, and ending too gently itself to read as
+     * its own fling, to produce the unaligned {@code IDLE} this guards
+     * against - which is exactly "sometimes", and exactly why three
+     * unhurried swipes afterwards, each with nothing left to interrupt, look
+     * like the bug fixing itself: it was never the snap that failed, only
+     * this class reading it one dispatch too early.
+     *
+     * Nothing here asks for a corrective scroll of its own - {@code
+     * PagerSnapHelper} was already issuing the right one the whole time.
+     * Skipping the unaligned {@code IDLE} costs nothing: the aligned one
+     * behind it always follows, on the very next state change, and {@link
+     * #updateCurrentPage} answers to that one instead.
+     */
+    private boolean isSettled() {
+        RecyclerView.LayoutManager manager = recycler.getLayoutManager();
+        if (!(manager instanceof LinearLayoutManager)) return true;
+
+        View page = ((LinearLayoutManager) manager).findViewByPosition(currentPage());
+        return page == null || page.getLeft() == 0;
     }
 
     /**

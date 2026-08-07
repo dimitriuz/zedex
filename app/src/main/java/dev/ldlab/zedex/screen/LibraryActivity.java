@@ -635,6 +635,23 @@ public final class LibraryActivity extends Activity {
         libraryPanel.close();
     }
 
+    /**
+     * The one signal available for a manual's own viewer being dismissed,
+     * which gives this activity no callback of its own - see {@link
+     * LibraryPanel#topFocusReturned}. Confirmed on the device: opening the
+     * viewer onto the panel's display, real or the emulator's second
+     * screen alike, leaves this activity itself resumed throughout, so
+     * {@link #onResume} never runs again to hook - this is the one that
+     * does, the moment the front of the screen is ours again, by a touch
+     * on the machine's own screen or the viewer going away with nothing
+     * else claiming focus behind it.
+     */
+    @Override
+    public void onTopResumedActivityChanged(boolean isTopResumedActivity) {
+        super.onTopResumedActivityChanged(isTopResumedActivity);
+        if (isTopResumedActivity) libraryPanel.topFocusReturned();
+    }
+
     /** Browse's own way up, and the app's own way out from its root. */
     @Override
     public void onBackPressed() {
@@ -880,11 +897,13 @@ public final class LibraryActivity extends Activity {
     // --- building the page ---------------------------------------------------
 
     /**
-     * The rail, full height, beside everything else - which still splits
-     * into the main column and the pane exactly as it always did, side by
-     * side in landscape and stacked in portrait. The rail does not: one
-     * narrow strip down the left edge, the same in both, is the entire point
-     * of moving the tabs into it - see {@link #buildRail}.
+     * The rail, beside everything else in landscape and above it in portrait
+     * - which still splits into the main column and the pane exactly as it
+     * always did, side by side in landscape and stacked in portrait. Portrait
+     * asked for its own rail once - see {@link #buildRail} - because a
+     * column down the left is width portrait cannot spare the way it can
+     * spare height for a row across the top; landscape keeps the column it
+     * already had, since there height is the scarce thing and width is not.
      *
      * Not handled by {@code onConfigurationChanged}: this activity declares
      * no {@code configChanges} of its own, so a rotation recreates it and
@@ -896,17 +915,20 @@ public final class LibraryActivity extends Activity {
                 == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
 
         LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.HORIZONTAL);
+        root.setOrientation(landscape ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
         root.setBackgroundColor(BACKING);
 
-        root.addView(buildRail(), new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.MATCH_PARENT));
+        root.addView(buildRail(landscape), landscape
+                ? new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT)
+                : new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
         View railDivider = new View(this);
         railDivider.setBackgroundColor(DIVIDER);
-        root.addView(railDivider, new LinearLayout.LayoutParams(
-                pixels(1), LinearLayout.LayoutParams.MATCH_PARENT));
+        root.addView(railDivider, landscape
+                ? new LinearLayout.LayoutParams(pixels(1), LinearLayout.LayoutParams.MATCH_PARENT)
+                : new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, pixels(1)));
 
         LinearLayout outer = new LinearLayout(this);
         outer.setOrientation(landscape ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
@@ -928,8 +950,9 @@ public final class LibraryActivity extends Activity {
                 landscape ? 0 : LinearLayout.LayoutParams.MATCH_PARENT,
                 landscape ? LinearLayout.LayoutParams.MATCH_PARENT : 0, 1f));
 
-        root.addView(outer, new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.MATCH_PARENT, 1f));
+        root.addView(outer, landscape
+                ? new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
+                : new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
 
         return root;
     }
@@ -1024,24 +1047,34 @@ public final class LibraryActivity extends Activity {
     }
 
     /**
-     * The rail: three tab icons down the left edge, the machine button at
+     * The rail: three tab icons, a settings icon, and the machine button at
      * the foot of it. Icons rather than the labelled strip this replaced,
      * and a rail rather than a band, for the same reason - a label is what
      * was truncating in landscape, and the fix that removes the words
      * outright is also the one that costs the screen nothing but width,
      * which portrait can spare far more easily than a whole band of height.
-     * One layout now, not one per orientation - see {@link #buildPage}.
+     *
+     * A column down the left in landscape, the same as it always was; a row
+     * across the top in portrait, which is the shape a phone held upright
+     * can actually spare - {@code landscape} is the one thing that changes
+     * about this method, since every child already answers to its own
+     * fixed square size regardless of which axis it is stacked along.
      *
      * The machine button sits here rather than in the toolbar for the same
      * reason it sat beside the old strip: it is navigation, the same level as
      * Browse, Favourites and Recent, not something done to whichever list is
      * showing. At the foot rather than beside the three, with a rule between
-     * them, because leaving the library is not a fourth tab.
+     * them, because leaving the library is not a fourth tab - and settings
+     * sits between the rule and the machine button for the same reason:
+     * it is a way out of the library too, just to a different place, and it
+     * had no way in at all before this, ☰'s own menu inside the emulator
+     * being a strange place to look for it now that Settings has a Library
+     * tab of its own.
      */
-    private View buildRail() {
+    private View buildRail(boolean landscape) {
         LinearLayout rail = new LinearLayout(this);
-        rail.setOrientation(LinearLayout.VERTICAL);
-        rail.setGravity(Gravity.CENTER_HORIZONTAL);
+        rail.setOrientation(landscape ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);
+        rail.setGravity(landscape ? Gravity.CENTER_HORIZONTAL : Gravity.CENTER_VERTICAL);
 
         for (Tab candidate : Tab.values()) {
             View button = buildTab(candidate);
@@ -1049,18 +1082,31 @@ public final class LibraryActivity extends Activity {
             rail.addView(button);
         }
 
-        // Pushes the machine button to the foot of the rail, however tall
-        // the window is.
+        // Pushes the settings and machine buttons to the far end of the
+        // rail - the foot of it in landscape, the right edge of it in
+        // portrait - however long the window's own edge is.
         View spacer = new View(this);
-        rail.addView(spacer, new LinearLayout.LayoutParams(
-                pixels(RAIL_SIZE_DP), 0, 1f));
+        rail.addView(spacer, landscape
+                ? new LinearLayout.LayoutParams(pixels(RAIL_SIZE_DP), 0, 1f)
+                : new LinearLayout.LayoutParams(0, pixels(RAIL_SIZE_DP), 1f));
 
         View divider = new View(this);
         divider.setBackgroundColor(DIVIDER);
-        LinearLayout.LayoutParams dividerParams = new LinearLayout.LayoutParams(
-                Math.round(pixels(RAIL_SIZE_DP) * 0.6f), pixels(1));
-        dividerParams.topMargin = dividerParams.bottomMargin = pixels(8);
+        int dividerLength = Math.round(pixels(RAIL_SIZE_DP) * 0.6f);
+        LinearLayout.LayoutParams dividerParams = landscape
+                ? new LinearLayout.LayoutParams(dividerLength, pixels(1))
+                : new LinearLayout.LayoutParams(pixels(1), dividerLength);
+        if (landscape) {
+            dividerParams.topMargin = dividerParams.bottomMargin = pixels(8);
+        } else {
+            dividerParams.leftMargin = dividerParams.rightMargin = pixels(8);
+        }
         rail.addView(divider, dividerParams);
+
+        ImageButton settingsButton = railButton(R.drawable.ic_settings,
+                getString(R.string.settings_title));
+        settingsButton.setOnClickListener(v -> openSettings());
+        rail.addView(settingsButton);
 
         ImageButton machineButton = railButton(R.drawable.ic_chip,
                 getString(R.string.library_machine));
@@ -1222,6 +1268,20 @@ public final class LibraryActivity extends Activity {
         intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
                        | Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(intent);
+    }
+
+    /**
+     * The rail's own way into {@link SettingsActivity} - the only one the
+     * library offers at all, before this: ☰'s own menu, inside the machine,
+     * is the sole other door, which is a strange place to have to look now
+     * that Settings has a Library tab of its own to reach through it. An
+     * ordinary {@code startActivity}, not by component with flags the way
+     * {@link #openMachine} reaches the machine - Settings is not
+     * {@code singleInstance}, and this activity's own back stack is exactly
+     * where a page opened over the library belongs.
+     */
+    private void openSettings() {
+        startActivity(new Intent(this, SettingsActivity.class));
     }
 
     /**

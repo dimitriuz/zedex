@@ -144,6 +144,15 @@ public final class SecondScreen extends Presentation {
 
     private OnModeChanged modeListener;
 
+    /** Told the moment the info side puts a manual on this presentation's
+     *  own display - see {@link GameInfoView#setOnManualOpened} and {@link
+     *  Panels}'s class comment, the fourth corner. {@link Panels} and
+     *  {@link LibraryPanel} both set this to step their own window aside
+     *  for it, exactly as they already do for one of the app's own
+     *  screens - a manual is a foreign one, and never reaches either
+     *  owner's lifecycle callbacks the way one of ours would. */
+    private Runnable foreignScreenListener;
+
     SecondScreen(Context context, Display display, View[] borrowed) {
         super(context, display);
         this.borrowed = borrowed;
@@ -168,6 +177,13 @@ public final class SecondScreen extends Presentation {
         stage.setBackgroundColor(BACKING);
 
         infoView = new GameInfoView(getContext());
+        infoView.setOnManualOpened(() -> {
+            // The fifth of the moments listed on updateVisibility a video
+            // must not be left running for - the manual is about to cover
+            // this same display, whichever side of the switch is showing.
+            infoView.release();
+            if (foreignScreenListener != null) foreignScreenListener.run();
+        });
         // The same room the controls get - see MARGIN's own comment - so
         // the cover's own patterned border is never cut by the panel's edge
         // the way it was when this had none at all.
@@ -255,6 +271,12 @@ public final class SecondScreen extends Presentation {
         this.modeListener = listener;
     }
 
+    /** Told whenever a manual lands on this display - see {@link
+     *  #foreignScreenListener}. */
+    void setOnForeignScreen(Runnable listener) {
+        this.foreignScreenListener = listener;
+    }
+
     /**
      * Shows whichever side {@link #hasControls}, {@link #infoPath} and
      * {@link #preferredMode} say should be showing, and the switch with it -
@@ -266,7 +288,10 @@ public final class SecondScreen extends Presentation {
      * screen to the controls - the fourth of the moments CLAUDE.md lists a
      * video must not be left running for, the other three being the
      * selection moving on, the panel coming down, and the host activity
-     * pausing.
+     * pausing. A manual opening over this same display is a fifth, stopped
+     * where it happens instead - see {@link #foreignScreenListener}'s own
+     * wiring in {@link #onCreate} - since nothing here changes about which
+     * side is showing, only whether a foreign window covers it.
      */
     private void updateVisibility() {
         boolean canSwitch = hasControls && infoPath != null;

@@ -10,6 +10,7 @@ import android.content.res.Configuration;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.Display;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.FrameLayout;
@@ -87,6 +88,14 @@ public final class GameInfoView extends LinearLayout {
      *  #showEntry}'s own token. */
     private String path;
     private int token;
+
+    /** Told exactly when the manual button below puts a manual on this
+     *  view's own display - see {@link Manuals#open(Context, Uri, Display,
+     *  Runnable)}. Set once by {@code SecondScreen}, the only place this
+     *  view is ever shown; a null check at the one place it would be read
+     *  covers a caller that never bothers, same as every other listener
+     *  in this app. */
+    private Runnable onManualOpened;
 
     public GameInfoView(Context context) {
         super(context);
@@ -258,6 +267,13 @@ public final class GameInfoView extends LinearLayout {
         box.setLayoutParams(params);
     }
 
+    /** {@link #onManualOpened}'s own setter - public because the panel
+     *  that shows this view is in a different layer; see CLAUDE.md, "a
+     *  member another layer needs has to be public". */
+    public void setOnManualOpened(Runnable listener) {
+        this.onManualOpened = listener;
+    }
+
     /**
      * Fills every view from {@code relativePath}'s own store entry and
      * artwork - the title at once from {@code name}, everything scraped
@@ -305,9 +321,11 @@ public final class GameInfoView extends LinearLayout {
                 // getDisplay() is this view's own panel, whichever activity
                 // put it there - see the class comment. Null before the
                 // first layout pass, which Manuals.open reads as "no panel
-                // to ask for", the ordinary path.
+                // to ask for", the ordinary path - and onManualOpened with
+                // it, since nothing was put on a display that was never
+                // asked for.
                 manualButton.setOnClickListener(
-                        v -> Manuals.open(getContext(), result, getDisplay()));
+                        v -> Manuals.open(getContext(), result, getDisplay(), onManualOpened));
             });
         }).start();
     }

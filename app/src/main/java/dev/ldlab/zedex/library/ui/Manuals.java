@@ -39,6 +39,12 @@ public final class Manuals {
         open(context, manual, null);
     }
 
+    /** {@link #open(Context, Uri, Display, Runnable)} with nothing waiting
+     *  to know whether the display was actually used. */
+    public static void open(Context context, Uri manual, Display display) {
+        open(context, manual, display, null);
+    }
+
     /**
      * {@code ACTION_VIEW}, {@code application/pdf}, with the explicit grant
      * every resolver needs - see {@link #grantToResolvers}. Needs the
@@ -56,8 +62,21 @@ public final class Manuals {
      * ordinary path when the display refuses it or the request fails for any
      * other reason - a third-party viewer may ignore the ask or be moved by
      * the system, and it must land on the main screen rather than fail.
+     *
+     * {@code onDisplay}, when given, is told exactly once {@code
+     * startActivity} for that display has actually gone out with no
+     * exception - never when there was no display to ask for, and never on
+     * the fallback below, since neither of those puts anything on {@code
+     * display} at all. {@code GameInfoView} passes its own {@code
+     * onManualOpened} here, set once by {@code SecondScreen} - the only
+     * place that view is ever shown - because a {@link
+     * android.app.Presentation} draws above every activity window on its
+     * own display and would otherwise sit over whatever this puts there,
+     * exactly as it would over one of the app's own screens; unlike one of
+     * those, a foreign activity never reaches this app's own lifecycle
+     * callbacks; see {@code Panels}'s class comment, the fourth corner.
      */
-    public static void open(Context context, Uri manual, Display display) {
+    public static void open(Context context, Uri manual, Display display, Runnable onDisplay) {
         if (manual == null) return;
 
         Uri shareable = manual;
@@ -115,6 +134,7 @@ public final class Manuals {
 
             try {
                 context.startActivity(targeted, options.toBundle());
+                if (onDisplay != null) onDisplay.run();
                 return;
             } catch (RuntimeException e) {
                 // The display refused it, or anything else went wrong asking

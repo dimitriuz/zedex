@@ -1643,6 +1643,23 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         panels.close();
     }
 
+    /**
+     * The one signal available for a manual's own viewer being dismissed,
+     * which gives this activity no callback of its own - see {@link
+     * Panels#topFocusReturned}. Confirmed on the device: opening the viewer
+     * onto the panel's display, real hardware or the emulator's second
+     * screen alike, leaves this activity itself resumed throughout, so
+     * {@link #onResume} never runs again to hook - this is the one that
+     * does, the moment the front of the screen is ours again, by a touch on
+     * the machine's own screen or the viewer going away with nothing else
+     * claiming focus behind it.
+     */
+    @Override
+    public void onTopResumedActivityChanged(boolean isTopResumedActivity) {
+        super.onTopResumedActivityChanged(isTopResumedActivity);
+        if (isTopResumedActivity) panels.topFocusReturned();
+    }
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
