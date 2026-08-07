@@ -541,8 +541,13 @@ workflow makes the same two checks, and the ABIs, on every tag.
 
 ### 16 KB pages, and why a bump is not just a number
 
-Play's target-API floor moves; it is 35 as of August 2026, and `targetSdk` in
-`app/build.gradle` follows it. Two things come with targeting 35 or later.
+Play's target-API floor moves; it is 36 as of August 2027 — 35 before that —
+and `targetSdk` in `app/build.gradle` follows it. It is not `minSdk`, which
+stays at 30: the target is a statement about which behaviours the app has been
+tested against, not about who may install it, and Android 11 and 12 remain
+supported.
+
+Two things come with targeting 35 or later, and two more with 36.
 
 **Native libraries must be 16 KB page aligned.** Android 15 can run with 16 KB
 pages, and a library whose `LOAD` segments are 4 KB aligned cannot be mapped on

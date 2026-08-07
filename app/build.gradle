@@ -108,7 +108,7 @@ def zedexDate = gitStamp('log', '-1', '--date=format:%Y-%m-%d', '--format=%cd')
 
 android {
     namespace 'dev.ldlab.zedex'
-    compileSdk 35
+    compileSdk 36
 
     // The ROMs live at the root of the repository, beside the licence they
     // travel under, rather than buried three directories inside the app: they
@@ -139,12 +139,26 @@ android {
 
     defaultConfig {
         applicationId 'dev.ldlab.zedex'   // must match DATA_ROOT in scripts/build-native.sh
-        minSdk 30                        // Android 11
-        // Play's floor, and it moves: 35 since August 2026. Bumping it is not
-        // only a number - an app targeting 35 is edge to edge whether it asks
-        // or not, and its native libraries have to be built for 16 KB pages.
-        // Both are already true here; see docs/DEVELOPING.md.
-        targetSdk 35
+        minSdk 30                        // Android 11, and it stays there
+        // Play's floor, and it moves: 36 since August 2027, 35 before that.
+        // Independent of minSdk above - this says which behaviours the app has
+        // been tested against, not who may install it, and Android 11 and 12
+        // are still supported.
+        //
+        // Bumping it is not only a number. Everything 35 asked for still
+        // applies - edge to edge whether the app asks or not, native libraries
+        // built for 16 KB pages - and 36 adds:
+        //
+        //   * predictive back on by default, so an app that handled
+        //     KEYCODE_BACK in onKeyDown silently stops being asked. Handled:
+        //     EmulatorActivity and LibraryActivity register dispatcher
+        //     callbacks from API 33, and keep the old path for 30 to 32.
+        //   * orientation, resizability and aspect ratio requests ignored on
+        //     displays 600dp and wider. Nothing here asks for any of them.
+        //   * the edge-to-edge opt-out gone for good. Never used it.
+        //
+        // See docs/DEVELOPING.md.
+        targetSdk 36
         versionCode zedexVersionCode
         versionName zedexVersionName
 
