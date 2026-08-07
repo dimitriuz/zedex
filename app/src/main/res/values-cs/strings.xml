@@ -538,6 +538,9 @@
     <string name="settings_group_library_list">Seznam</string>
     <string name="settings_library_names">Zobrazovat scrapovaná jména</string>
     <string name="settings_library_names_summary">V seznamu zobrazí jméno, které scraplo ES-DE, a název souboru ponechá v panelu podrobností</string>
+    <string name="settings_group_library_media">Média</string>
+    <string name="settings_library_video_autoplay">Automatické přehrávání videa</string>
+    <string name="settings_library_video_autoplay_summary">Několik sekund po výběru hry automaticky přejde na scrapované video. Když je vypnuté, video je stále dostupné přejetím.</string>
 
     <string name="library_title">Knihovna</string>
     <string name="library_tab_browse">Procházet</string>

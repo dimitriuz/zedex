@@ -155,6 +155,17 @@ public class SettingsActivity extends AppCompatActivity
      * LibraryActivity; this screen never reads it back.
      */
     public static final String KEY_LIBRARY_NAMES = "libraryNames";
+    /**
+     * Whether the pane moves itself to a scraped video three seconds after
+     * the selection stops changing - see docs/LIBRARY.md and {@code
+     * LibraryActivity.advanceToPaneVideo}. Default true, which is what the
+     * app already did before this switch existed, so upgrading changes
+     * nobody's behaviour. Off leaves the video reachable by swiping to it,
+     * same as always - only the automatic move is what this turns off.
+     * Written here by a plain SwitchPreferenceCompat and read by
+     * LibraryActivity; this screen never reads it back.
+     */
+    public static final String KEY_LIBRARY_VIDEO_AUTOPLAY = "libraryVideoAutoplay";
     /* How big the picture is drawn, one per orientation: the number of device
        pixels per emulated pixel, or "0" to fill the space. Stored as strings
        because a ListPreference stores strings, and separate because the two

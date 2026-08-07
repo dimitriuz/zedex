@@ -538,6 +538,9 @@
     <string name="settings_group_library_list">Liste</string>
     <string name="settings_library_names">Gescrapte Namen anzeigen</string>
     <string name="settings_library_names_summary">Zeigt den von ES-DE gescrapten Namen in der Liste und behält den Dateinamen in der Detailansicht</string>
+    <string name="settings_group_library_media">Medien</string>
+    <string name="settings_library_video_autoplay">Video automatisch abspielen</string>
+    <string name="settings_library_video_autoplay_summary">Wechselt einige Sekunden nach der Auswahl eines Spiels automatisch zum gescrapten Video. Ausgeschaltet lässt es sich weiterhin per Wischen erreichen.</string>
 
     <string name="library_title">Bibliothek</string>
     <string name="library_tab_browse">Durchsuchen</string>

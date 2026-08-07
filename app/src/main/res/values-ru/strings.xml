@@ -538,6 +538,9 @@
     <string name="settings_group_library_list">Список</string>
     <string name="settings_library_names">Показывать имена из скрейпинга</string>
     <string name="settings_library_names_summary">Показывает в списке имя, которое нашёл скрейпинг ES-DE, и оставляет имя файла на панели подробностей</string>
+    <string name="settings_group_library_media">Медиа</string>
+    <string name="settings_library_video_autoplay">Автовоспроизведение видео</string>
+    <string name="settings_library_video_autoplay_summary">Через несколько секунд после выбора игры автоматически переходит к найденному видео. При отключении видео всё равно доступно свайпом.</string>
 
     <string name="library_title">Библиотека</string>
     <string name="library_tab_browse">Обзор</string>

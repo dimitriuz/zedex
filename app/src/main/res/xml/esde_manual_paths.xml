@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Only because a manual can be reached as a plain path when this build has
+    All files access; see Artwork.resolve's file-scheme branch. A file:// Uri
+    handed to another app's ACTION_VIEW has been refused since Android 7
+    (update_paths.xml exists for the identical reason, over the APK the
+    updater downloads); this is what lets Gallery.openManual hand the same
+    file over as a content:// one instead - see EsdeManuals for why that has
+    to be its own provider class.
+
+    Two roots: FileProvider matches a file against every declared root whose
+    path is a prefix of it and uses the longest one that matches, not
+    whichever is declared first, so the narrow one below wins for the
+    ordinary case on its own and the wide one only ever applies to a media
+    folder ES-DE was configured to keep somewhere else under its own folder.
+    Manuals are the only thing this provider is ever asked for - Artwork's
+    pictures and video are decoded in this app, never handed to another one
+    - so scoping tightly to where they actually live means a mistake here
+    could only ever expose a manual, not covers, saves, or anything else
+    EsDe.folder() reaches.
+-->
+<paths>
+    <!-- ES-DE's own default MediaDirectory - see EsdeLink.DEFAULT_MEDIA -
+         which is where a manual lives unless ES-DE was told to keep its
+         media somewhere else. -->
+    <external-path name="esde_manuals" path="ES-DE/downloaded_media/zxspectrum/manuals" />
+
+    <!-- The fallback: a configured MediaDirectory that still lies under
+         ES-DE's own folder - see EsdeLink.relativeToEsde - just not at the
+         default path above. Wider than the root really needs for the
+         common case, but a manual under a folder this app cannot yet name
+         specifically is still better reached than not opened at all. -->
+    <external-path name="esde" path="ES-DE" />
+</paths>

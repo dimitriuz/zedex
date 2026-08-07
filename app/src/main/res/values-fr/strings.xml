@@ -538,6 +538,9 @@
     <string name="settings_group_library_list">Liste</string>
     <string name="settings_library_names">Afficher les noms scrapés</string>
     <string name="settings_library_names_summary">Affiche dans la liste le nom qu\'ES-DE a scrapé, et garde le nom de fichier dans le panneau de détails</string>
+    <string name="settings_group_library_media">Médias</string>
+    <string name="settings_library_video_autoplay">Lecture automatique de la vidéo</string>
+    <string name="settings_library_video_autoplay_summary">Passe automatiquement à la vidéo scrapée quelques secondes après la sélection d\'un jeu. Désactivé, elle reste accessible en balayant jusqu\'à elle.</string>
 
     <string name="library_title">Bibliothèque</string>
     <string name="library_tab_browse">Parcourir</string>

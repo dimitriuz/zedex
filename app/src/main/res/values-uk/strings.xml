@@ -538,6 +538,9 @@
     <string name="settings_group_library_list">Список</string>
     <string name="settings_library_names">Показувати назви зі скрапінгу</string>
     <string name="settings_library_names_summary">Показує у списку назву, яку знайшов скрапінг ES-DE, і залишає назву файлу на панелі подробиць</string>
+    <string name="settings_group_library_media">Медіа</string>
+    <string name="settings_library_video_autoplay">Автовідтворення відео</string>
+    <string name="settings_library_video_autoplay_summary">Через кілька секунд після вибору гри автоматично переходить до знайденого відео. Якщо вимкнено, відео все одно доступне свайпом.</string>
 
     <string name="library_title">Бібліотека</string>
     <string name="library_tab_browse">Перегляд</string>

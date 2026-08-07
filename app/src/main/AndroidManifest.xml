@@ -32,6 +32,18 @@
         </intent>
 
         <!--
+            A manual's own page in the library's gallery opens in whatever app
+            the phone has for a PDF - see library/ui/Gallery.java's
+            openManual. The identical trap as the mailto entry above: Android
+            11 and later hide every PDF viewer from resolveActivity, and the
+            chooser, on an app that has not said this is what it looks for.
+        -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="application/pdf" />
+        </intent>
+
+        <!--
             ES-DE, so that Settings can offer to add Zedex to it. Android 11
             hides every other app from one that has not said what it looks for,
             and getPackageInfo on an undeclared package throws NameNotFound as
@@ -169,6 +181,28 @@
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/update_paths" />
+        </provider>
+
+        <!-- A manual under ES-DE's own folder, when this build reached it by a
+             plain path rather than through a SAF tree - see Artwork.resolve's
+             file-scheme branch and Gallery.openManual. The same file:// wall
+             as the provider above, over a different folder.
+
+             android:name is EsdeManuals, not androidx.core.content.FileProvider
+             again - see that class's own comment. FileProvider is keyed by
+             class, not by the authority in this entry, and two <provider>
+             tags both naming the framework's own class make one provider
+             instance that answers only its own authority; a Uri built for
+             this one is then handed to Updater's, which quite correctly
+             refuses a Uri that is not its own. -->
+        <provider
+            android:name=".library.meta.EsdeManuals"
+            android:authorities="${applicationId}.esde"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/esde_manual_paths" />
         </provider>
 
     </application>

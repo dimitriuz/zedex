@@ -53,4 +53,17 @@
             android:summary="@string/settings_library_names_summary"
             android:defaultValue="true" />
     </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/settings_group_library_media">
+        <!--
+            True is what the pane already did before this switch existed - see
+            SettingsActivity.KEY_LIBRARY_VIDEO_AUTOPLAY - so upgrading changes
+            nobody's behaviour.
+        -->
+        <SwitchPreferenceCompat
+            android:key="libraryVideoAutoplay"
+            android:title="@string/settings_library_video_autoplay"
+            android:summary="@string/settings_library_video_autoplay_summary"
+            android:defaultValue="true" />
+    </PreferenceCategory>
 </PreferenceScreen>

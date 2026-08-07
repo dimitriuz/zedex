@@ -604,6 +604,9 @@
     <string name="settings_group_library_list">List</string>
     <string name="settings_library_names">Show scraped names</string>
     <string name="settings_library_names_summary">Show the name ES-DE scraped in the list, and keep the filename in the details pane</string>
+    <string name="settings_group_library_media">Media</string>
+    <string name="settings_library_video_autoplay">Autoplay video</string>
+    <string name="settings_library_video_autoplay_summary">Move to a scraped video a few seconds after selecting a game. Off, it is still there to swipe to.</string>
 
     <!-- The library: the content folder, browsable. See docs/LIBRARY.md. -->
     <string name="library_title">Library</string>

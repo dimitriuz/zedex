@@ -119,6 +119,12 @@ public final class LibraryActivity extends Activity {
      *  read with getBoolean always. Not this screen's to write. */
     private static final String KEY_LIBRARY_NAMES = "libraryNames";
 
+    /** Whether {@link #advanceToPaneVideo}'s own three-second wait runs at
+     *  all - written by the same settings tab, defaulting to true, which is
+     *  what this screen always did before the switch existed; read with
+     *  getBoolean always. Not this screen's to write. */
+    private static final String KEY_LIBRARY_VIDEO_AUTOPLAY = "libraryVideoAutoplay";
+
     private static final int BACKING = 0xff14151a;
     private static final int TEXT = 0xffededf2;
     private static final int MUTED = 0xff8b8b99;
@@ -330,6 +336,13 @@ public final class LibraryActivity extends Activity {
      *  video never overrides a page they chose for themselves. */
     private boolean paneUserSwiped;
 
+    /** Whether {@link #updatePane} schedules {@link #advanceToPaneVideo} at
+     *  all - re-read every {@link #onResume}, the same as {@link
+     *  #KEY_LIBRARY_NAMES} beside it, since the settings screen's own Library
+     *  tab is exactly as liable to have changed since last time as the sort
+     *  or the folder is. */
+    private boolean videoAutoplay = true;
+
     private TextView paneTitle;
 
     /** The filename, under {@link #paneTitle} - shown only when that title
@@ -494,6 +507,11 @@ public final class LibraryActivity extends Activity {
         // it is exactly as liable to have changed since last time as the
         // folder or the sort is.
         adapter.setShowScrapedNames(preferences.getBoolean(KEY_LIBRARY_NAMES, true));
+
+        // Same reasoning: whether the pane's own three-second wait ever
+        // fires - see updatePane - is exactly as liable to have changed in
+        // Settings as the names switch beside it.
+        videoAutoplay = preferences.getBoolean(KEY_LIBRARY_VIDEO_AUTOPLAY, true);
 
         // Coming back from a game, from Settings, or from granting the
         // content folder: whichever tab is showing may be stale, and asking
@@ -1461,8 +1479,14 @@ public final class LibraryActivity extends Activity {
 
         paneGallery.load(relativePath);
 
-        paneHandler.postDelayed(() -> advanceToPaneVideo(token),
-                paneVideoToken, PANE_VIDEO_DELAY_MS);
+        // Off, the video is still there to swipe to and still plays once
+        // swiped to - see docs/LIBRARY.md and KEY_LIBRARY_VIDEO_AUTOPLAY's
+        // own comment - only this automatic move to it is what the setting
+        // turns off, so a timer with nothing to do is not even scheduled.
+        if (videoAutoplay) {
+            paneHandler.postDelayed(() -> advanceToPaneVideo(token),
+                    paneVideoToken, PANE_VIDEO_DELAY_MS);
+        }
     }
 
     /**

@@ -33,9 +33,15 @@ public final class Artwork {
 
     private static final String SYSTEM = "zxspectrum";
 
-    /** Tried in this order: the first that exists is what the pane shows. */
+    /**
+     * Tried in this order: the first that exists is what {@link #picture}
+     * shows, and the cover has to stay first in the list for exactly that
+     * reason - every row and tile draws whichever one this resolves. After
+     * it, the back and the cartridge/tape photo before the screenshot-ish
+     * folders, which is the order a box on a shelf would show them in.
+     */
     private static final String[] PICTURE_FOLDERS = {
-        "covers", "miximages", "screenshots", "titlescreens",
+        "covers", "backcovers", "physicalmedia", "miximages", "screenshots", "titlescreens",
     };
 
     /**
@@ -47,11 +53,21 @@ public final class Artwork {
     private static final String VIDEO_FOLDER = "videos";
     private static final String VIDEO_EXTENSION = "mp4";
 
+    /**
+     * ES-DE keeps a manual as a PDF, not a picture, so it is resolved on its
+     * own rather than folded into {@link #PICTURE_FOLDERS} - {@link
+     * #picture} and {@link #pictures} both decode with {@code
+     * BitmapFactory}, which cannot read one at all.
+     */
+    private static final String MANUAL_FOLDER = "manuals";
+    private static final String MANUAL_EXTENSION = "pdf";
+
     /** A cached miss, so the map can tell "not looked up" from "looked up, nothing there". */
     private static final Uri MISS = Uri.EMPTY;
 
     private static final Map<String, Uri> pictureCache = new HashMap<>();
     private static final Map<String, Uri> videoCache = new HashMap<>();
+    private static final Map<String, Uri> manualCache = new HashMap<>();
 
     /** {@link #pictures}, which asks for all four folders where the two
      *  above stop at the first answer. */
@@ -63,7 +79,7 @@ public final class Artwork {
     private Artwork() {
     }
 
-    /** covers, then miximages, then screenshots, then titlescreens; null when none exists. */
+    /** The first of {@link #PICTURE_FOLDERS} that exists; null when none does. */
     public static synchronized Uri picture(Context context, String relativePath) {
         Uri root = freshen(context);
         if (root == null) return null;
@@ -94,11 +110,11 @@ public final class Artwork {
      * One per folder, not one per file: a game has a cover *or* nothing in
      * {@code covers}, and whether it was scraped as {@code .png} or
      * {@code .jpg} is ES-DE's business rather than a second picture. So this
-     * is at most four, and usually one.
+     * is at most as many as {@link #PICTURE_FOLDERS} has, and usually one.
      *
      * Kept apart from {@link #picture} deliberately, cache and all. That one
      * stops at the first hit and is called once per visible row as a list
-     * scrolls; this one always asks all four folders, and is called once, for
+     * scrolls; this one always asks every folder, and is called once, for
      * the one game whose details are open.
      */
     public static synchronized List<Uri> pictures(Context context, String relativePath) {
@@ -141,7 +157,27 @@ public final class Artwork {
         return found;
     }
 
-    /** The current media root, clearing both caches first if it has changed since last time. */
+    /**
+     * {@code manuals/....pdf}; null when there is none. Never a picture -
+     * see {@link #MANUAL_FOLDER} - so callers that want it drawn have to
+     * render it themselves, which is {@link dev.ldlab.zedex.library.ui.Gallery}'s
+     * job and not this class's.
+     */
+    public static synchronized Uri manual(Context context, String relativePath) {
+        Uri root = freshen(context);
+        if (root == null) return null;
+
+        Uri cached = manualCache.get(relativePath);
+        if (cached != null) return cached == MISS ? null : cached;
+
+        Uri found = resolve(context, root,
+                MANUAL_FOLDER, withoutExtension(relativePath) + "." + MANUAL_EXTENSION);
+
+        manualCache.put(relativePath, found == null ? MISS : found);
+        return found;
+    }
+
+    /** The current media root, clearing every cache first if it has changed since last time. */
     private static Uri freshen(Context context) {
         Uri root = EsdeLink.mediaRoot(context);
         String key = root == null ? null : root.toString();
@@ -149,6 +185,7 @@ public final class Artwork {
         if (!java.util.Objects.equals(key, cachedForRoot)) {
             pictureCache.clear();
             videoCache.clear();
+            manualCache.clear();
             galleryCache.clear();
             cachedForRoot = key;
         }

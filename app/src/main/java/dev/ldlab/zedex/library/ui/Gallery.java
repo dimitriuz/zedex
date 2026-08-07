@@ -1,36 +1,48 @@
 package dev.ldlab.zedex.library.ui;
 
+import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.library.meta.Artwork;
 
+import android.content.ActivityNotFoundException;
 import android.content.Context;
+import android.content.Intent;
+import android.content.pm.ResolveInfo;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.pdf.PdfRenderer;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.ParcelFileDescriptor;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.Toast;
 import android.widget.VideoView;
 
+import androidx.core.content.FileProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.PagerSnapHelper;
 import androidx.recyclerview.widget.RecyclerView;
 
+import java.io.File;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
- * Every picture {@link Artwork} has for a game, with the video last if there
- * is one - swiped between, dots underneath when there is more than one page,
- * a tap on any page told to whoever asked to be told.
+ * Every picture {@link Artwork} has for a game, with the video after them and
+ * the manual, if there is one, last of all - swiped between, dots underneath
+ * when there is more than one page, a tap on any page told to whoever asked
+ * to be told, wrapping past either end back to the other.
  *
  * The pane, {@code GameInfoActivity} and {@code MediaViewerActivity} all want
  * this: a strip in the pane, a slightly larger one in the details screen, and
@@ -51,6 +63,21 @@ import java.util.List;
  * screen - {@link #updateCurrentPage} is what notices a swipe has moved on
  * and stops it - and {@link #release} is there for a host that is going away
  * without so much as a swipe to notice.
+ *
+ * The manual page is rendered from a PDF's first page and shown exactly like
+ * a picture, but a tap on it opens that PDF in whatever app the phone has for
+ * one instead of the fullscreen viewer every other page's tap goes to - see
+ * {@link #openManual}. A manual is for reading, and page one of it, sized to
+ * this pager's own box, is not.
+ *
+ * {@link GalleryAdapter#getItemCount} reports a large multiple of the real
+ * item count so a swipe past either end lands back at the other, rather than
+ * stopping - {@link RecyclerView.Adapter} has no over-scroll to catch, so a
+ * virtualised count is the ordinary way to fake one. Every position from the
+ * adapter's own callbacks is real modulo the underlying list's size, except
+ * where a comment says otherwise; {@link #notifyTap} and {@link
+ * #notifyPageChanged} always hand a caller the real one, since a host has no
+ * business knowing this trick exists.
  */
 public final class Gallery extends LinearLayout {
 
@@ -68,14 +95,48 @@ public final class Gallery extends LinearLayout {
         void onPageChanged(int index);
     }
 
+    /** A manual shares this one: it is rendered and shown exactly like a
+     *  picture, and only its click handler differs - see {@link
+     *  GalleryAdapter#onBindViewHolder}. */
     private static final int TYPE_PICTURE = 0;
     private static final int TYPE_VIDEO = 1;
+
+    /**
+     * How many times the real item list repeats in {@link
+     * GalleryAdapter#getItemCount} - the wraparound trick, see the class
+     * comment. A thousand laps is four thousand swipes from the middle to
+     * either end - nobody reaches that in one sitting - and it is kept
+     * deliberately small rather than merely "large": before wraparound
+     * existed, {@code getItemCount} was the real size, which was an
+     * accidental ceiling on a bug that was there the whole time - see {@link
+     * #currentPageWidth}. A page that measures zero wide makes {@code
+     * LinearLayoutManager} keep creating more of them to fill the viewport,
+     * and multiplying the count by 100,000 turned that from "stops after
+     * eight" into several hundred thousand binds, several hundred threads,
+     * and the low-memory killer inside ten seconds. Fixing the zero-width
+     * page is the real fix; this number is the second line of defence, so
+     * the *next* such mistake stalls a swipe instead of taking the process
+     * with it.
+     */
+    private static final int WRAP_LAPS = 1_000;
 
     /** The dots under a gallery of more than one page - see {@link
      *  #buildDots}. Copied from {@code GameInfoActivity}'s own, which drew
      *  the first version of this. */
     private static final int DOT_ON = 0xffededf2;
     private static final int DOT_OFF = 0x40ededf2;
+
+    /** Two at once, the same reasoning and the same number as {@code
+     *  Scraped}'s own pool: enough that a fast scroll does not queue dozens
+     *  of decodes behind each other, few enough not to fight the UI thread
+     *  for the disk or the CPU. A raw {@code Thread} per bind was the other
+     *  half of what turned a page measuring zero wide into the low-memory
+     *  killer - unbounded threads on top of an unbounded fill - and this is
+     *  shared by every {@link Gallery} instance rather than one pool each,
+     *  since the pane, the details screen and the viewer are never all
+     *  decoding at once in practice, and a shared bound is the whole point
+     *  of having one. */
+    private static final ExecutorService decodeExecutor = Executors.newFixedThreadPool(2);
 
     private final Handler handler = new Handler(Looper.getMainLooper());
 
@@ -234,12 +295,12 @@ public final class Gallery extends LinearLayout {
     }
 
     /**
-     * Resolves {@code relativePath}'s pictures and video off the UI thread -
-     * both are a round trip to another app's content provider, never safe on
-     * this one - and shows them, the video last if there is one at all; see
-     * docs/LIBRARY.md and the class comment above. Lands on {@code
-     * startIndex} once they are in, clamped to whatever the gallery actually
-     * has.
+     * Resolves {@code relativePath}'s pictures, video and manual off the UI
+     * thread - all three are a round trip to another app's content provider,
+     * never safe on this one - and shows them, the video after the pictures
+     * and the manual last of all if either exists; see docs/LIBRARY.md and
+     * the class comment above. Lands on {@code startIndex} once they are in,
+     * clamped to whatever the gallery actually has.
      *
      * Safe to call again for a different selection at any time: {@link
      * #loadToken} tells a resolve that is still in flight when a newer one is
@@ -254,6 +315,7 @@ public final class Gallery extends LinearLayout {
         new Thread(() -> {
             List<Uri> pictures;
             Uri video;
+            Uri manual;
 
             try {
                 pictures = Artwork.pictures(app, relativePath);
@@ -267,9 +329,16 @@ public final class Gallery extends LinearLayout {
                 video = null;
             }
 
+            try {
+                manual = Artwork.manual(app, relativePath);
+            } catch (Exception e) {
+                manual = null;
+            }
+
             List<MediaItem> items = new ArrayList<>();
-            for (Uri picture : pictures) items.add(new MediaItem(false, picture));
-            if (video != null) items.add(new MediaItem(true, video));
+            for (Uri picture : pictures) items.add(new MediaItem(MediaItem.Kind.PICTURE, picture));
+            if (video != null) items.add(new MediaItem(MediaItem.Kind.VIDEO, video));
+            if (manual != null) items.add(new MediaItem(MediaItem.Kind.MANUAL, manual));
 
             List<MediaItem> result = items;
             handler.post(() -> {
@@ -292,14 +361,23 @@ public final class Gallery extends LinearLayout {
         return adapter.videoIndex();
     }
 
-    /** Moves the pager to {@code index}, smoothly - a swipe a host asked for
-     *  on its own behalf, never a drag, so {@link #setOnUserSwipe}'s own
-     *  listener is not told about it; see {@code PagerSnapHelper} and {@link
-     *  RecyclerView#SCROLL_STATE_DRAGGING} for why only a real drag reaches
-     *  that one. */
+    /**
+     * Moves the pager to {@code index}, smoothly - a swipe a host asked for
+     * on its own behalf, never a drag, so {@link #setOnUserSwipe}'s own
+     * listener is not told about it; see {@code PagerSnapHelper} and {@link
+     * RecyclerView#SCROLL_STATE_DRAGGING} for why only a real drag reaches
+     * that one.
+     *
+     * {@code index} is real, i.e. what {@link #videoIndex} answers with, not
+     * a position on the virtualised pager the wraparound needs - see the
+     * class comment - so this asks {@link GalleryAdapter#nearestVirtual} for
+     * whichever lap of it is actually closest to where the pager already is,
+     * rather than always jumping back to the lap a fresh {@link #load}
+     * started on.
+     */
     public void showPage(int index) {
-        if (index < 0 || index >= adapter.getItemCount()) return;
-        recycler.smoothScrollToPosition(index);
+        if (index < 0 || index >= adapter.realCount()) return;
+        recycler.smoothScrollToPosition(adapter.nearestVirtual(currentIndex, index));
     }
 
     /**
@@ -354,17 +432,47 @@ public final class Gallery extends LinearLayout {
         recycler.requestLayout();
     }
 
-    /** Gives one page {@link #pageWidth}, if it is known and this page does
-     *  not already have it - called both here and as each page is created or
-     *  bound, so a holder made before the width was known still gets it the
-     *  moment it is. */
+    /**
+     * {@link #pageWidth} once the layout listener has learned it, or the
+     * recycler's own measured width as a stand-in before that - a {@code
+     * RecyclerView} measures itself before laying out its children, so this
+     * is already the right answer the very first time a page is created,
+     * not just eventually.
+     *
+     * There is no third case that falls back to {@code MATCH_PARENT}
+     * deliberately: that used to be the fallback, and on the scroll axis
+     * {@code LinearLayoutManager}'s own {@code getChildMeasureSpec} turns
+     * {@code MATCH_PARENT} into {@code UNSPECIFIED}, so a picture page with
+     * no bitmap decoded yet measured to <em>zero</em> wide. A zero-width
+     * page never fills the viewport, so {@code LinearLayoutManager} kept
+     * creating more of them without ever stopping - invisible before
+     * wraparound existed, because the real item count was itself a ceiling
+     * of a handful of pages; multiplying it, see {@link #WRAP_LAPS}, is what
+     * turned the same bug into hundreds of thousands of binds, one decode
+     * thread each, and the low-memory killer inside ten seconds. The
+     * fallback below is checked, not assumed: it only returns something
+     * other than a real width in the one moment before the recycler has
+     * measured itself at all, which {@link #applyWidth} still declines to
+     * apply.
+     */
+    private int currentPageWidth() {
+        if (pageWidth > 0) return pageWidth;
+        int measured = recycler.getMeasuredWidth();
+        return measured > 0 ? measured : ViewGroup.LayoutParams.MATCH_PARENT;
+    }
+
+    /** Gives one page {@link #currentPageWidth}, if this page does not
+     *  already have it - called both here and as each page is created or
+     *  bound, so a holder made before the real width was known still gets it
+     *  the moment it is. */
     private void applyWidth(View page) {
-        if (pageWidth <= 0) return;
+        int width = currentPageWidth();
+        if (width == ViewGroup.LayoutParams.MATCH_PARENT) return; // nothing to go on yet at all
 
         ViewGroup.LayoutParams params = page.getLayoutParams();
-        if (params == null || params.width == pageWidth) return;
+        if (params == null || params.width == width) return;
 
-        params.width = pageWidth;
+        params.width = width;
         page.setLayoutParams(params);
     }
 
@@ -373,8 +481,17 @@ public final class Gallery extends LinearLayout {
         videoHolder = null;
 
         adapter.setItems(items);
-        currentIndex = items.isEmpty() ? 0
-                : Math.max(0, Math.min(items.size() - 1, startIndex));
+
+        int size = items.size();
+        int real = size == 0 ? 0 : Math.max(0, Math.min(size - 1, startIndex));
+
+        // The middle lap of the virtualised count a fresh gallery lands on,
+        // not lap zero - see WRAP_LAPS and middleVirtual - so there is room
+        // to wrap in *both* directions from the very first page shown rather
+        // than only after enough swipes have carried it away from the start.
+        // Single item or none: real and virtual are the same position, since
+        // GalleryAdapter#getItemCount never multiplies a list that short.
+        currentIndex = size <= 1 ? real : adapter.middleVirtual(real);
 
         // Not smoothScrollToPosition: this is a fresh gallery, not a page a
         // person is being carried to, and animating from wherever the last
@@ -382,8 +499,9 @@ public final class Gallery extends LinearLayout {
         // pictures that do not belong to this game at all.
         recycler.scrollToPosition(currentIndex);
 
-        buildDots(items.size());
-        notifyPageChanged(currentIndex);
+        buildDots(size);
+        markDots(real);
+        notifyPageChanged(real);
     }
 
     /**
@@ -395,7 +513,6 @@ public final class Gallery extends LinearLayout {
      */
     private void updateCurrentPage() {
         currentIndex = currentPage();
-        markDots(currentIndex);
 
         if (videoHolder != null) {
             if (videoHolder.position == currentIndex) {
@@ -419,7 +536,13 @@ public final class Gallery extends LinearLayout {
             }
         }
 
-        notifyPageChanged(currentIndex);
+        // Both of these want the real page, 0..size-1 - see the class
+        // comment - never the virtualised position currentIndex actually
+        // holds; videoHolder.position above is the one comparison in this
+        // class that is deliberately virtual on both sides instead.
+        int real = adapter.realIndexOf(currentIndex);
+        markDots(real);
+        notifyPageChanged(real);
     }
 
     private int currentPage() {
@@ -428,14 +551,21 @@ public final class Gallery extends LinearLayout {
                 ? ((LinearLayoutManager) manager).findFirstVisibleItemPosition() : 0;
     }
 
-    private void notifyPageChanged(int index) {
-        if (pageListener != null) pageListener.onPageChanged(index);
+    private void notifyPageChanged(int realIndex) {
+        if (pageListener != null) pageListener.onPageChanged(realIndex);
     }
 
+    /**
+     * {@code position} is whatever the recycler's own click handler saw,
+     * which is virtual once wraparound has carried the pager past lap zero -
+     * converted to real here, once, so {@link #tapListener} never has to know
+     * about the trick: a page tapped after wrapping past the end still opens
+     * {@code MediaViewerActivity} on the picture it actually is, not on a
+     * position past the end of that screen's own, un-virtualised list.
+     */
     private void notifyTap(int position) {
-        if (position != RecyclerView.NO_POSITION && tapListener != null) {
-            tapListener.onPageTapped(position);
-        }
+        if (position == RecyclerView.NO_POSITION || tapListener == null) return;
+        tapListener.onPageTapped(adapter.realIndexOf(position));
     }
 
     /**
@@ -474,6 +604,10 @@ public final class Gallery extends LinearLayout {
         }
     }
 
+    /** Builds the dots themselves; {@link #setItems} marks the current one
+     *  right after, since it alone knows the real (non-virtualised) index to
+     *  mark - see the class comment on why currentIndex itself is the wrong
+     *  thing to ask here. */
     private void buildDots(int count) {
         dots.removeAllViews();
         dots.setVisibility(count > 1 ? View.VISIBLE : View.GONE);
@@ -487,8 +621,6 @@ public final class Gallery extends LinearLayout {
             params.leftMargin = params.rightMargin = pixels(4);
             dots.addView(dot, params);
         }
-
-        markDots(currentIndex);
     }
 
     private void markDots(int current) {
@@ -537,12 +669,147 @@ public final class Gallery extends LinearLayout {
         }
     }
 
+    /**
+     * The manual's own first page, rendered to roughly {@link #targetPx} on
+     * its longest side - the same target a scraped picture is decoded to,
+     * since this is shown exactly like one from here on. {@code PdfRenderer}
+     * needs a local file descriptor rather than a stream, which is why this
+     * opens one directly instead of going through {@code
+     * ContentResolver#openInputStream} as {@link #decode} does; a
+     * {@code content://} document opens one over IPC the same as a plain
+     * file does, at least for the providers this has been tried against - a
+     * SAF grant on ES-DE's own media tree specifically was not one of them,
+     * and is worth checking on a device before trusting this path there.
+     */
+    private Bitmap decodeManualCover(Uri manual) {
+        if (manual == null) return null;
+
+        try (ParcelFileDescriptor pfd =
+                     getContext().getContentResolver().openFileDescriptor(manual, "r")) {
+            if (pfd == null) return null;
+
+            try (PdfRenderer renderer = new PdfRenderer(pfd)) {
+                if (renderer.getPageCount() <= 0) return null;
+
+                try (PdfRenderer.Page page = renderer.openPage(0)) {
+                    float scale = targetPx / (float) Math.max(page.getWidth(), page.getHeight());
+                    int width = Math.max(1, Math.round(page.getWidth() * scale));
+                    int height = Math.max(1, Math.round(page.getHeight() * scale));
+
+                    Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+
+                    // PdfRenderer only draws where the page itself paints -
+                    // nothing guarantees every manual lays down its own white
+                    // background - so a bitmap left at its default transparent
+                    // black would show through as this app's own dark window
+                    // behind whatever the page did not cover, rather than paper.
+                    bitmap.eraseColor(0xffffffff);
+                    page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);
+                    return bitmap;
+                }
+            }
+        } catch (Exception e) {
+            // A manual that will not render is no manual - same rule as
+            // decode()'s own for a picture that will not read, and just as
+            // important here: a blank grey box would be worse than no page
+            // at all, per docs/LIBRARY.md-equivalent guidance for this
+            // feature.
+            return null;
+        }
+    }
+
+    /**
+     * Opens the manual in whatever app the phone has for a PDF, rather than
+     * {@code MediaViewerActivity} - a manual is for reading, and the page
+     * this pager shows is only ever its cover. Needs the {@code <queries>}
+     * entry in the manifest for {@code ACTION_VIEW}/{@code application/pdf},
+     * or Android 11 and later hide every PDF viewer from an app that has not
+     * declared it, exactly the trap {@code Feedback}'s own mail button hit
+     * first - see CLAUDE.md.
+     */
+    private void openManual(Uri manual) {
+        if (manual == null) return;
+
+        Context context = getContext();
+        Uri shareable = manual;
+
+        if ("file".equals(manual.getScheme())) {
+            // A file:// Uri handed to another app's ACTION_VIEW has been
+            // refused outright since Android 7 - Updater.install hit the
+            // identical wall over the APK it downloads, and fixed it the
+            // same way: a content:// Uri from this app's own FileProvider,
+            // scoped to ES-DE's folder specifically, in place of the plain
+            // path Artwork.resolve hands back when this build reached that
+            // folder directly rather than through a SAF tree.
+            //
+            // In the other case - a SAF grant, so this Uri is already a
+            // content:// from ExternalStorageProvider - none of this branch
+            // runs and the Uri is passed straight through below. That
+            // provider declares its own grantUriPermissions and is the same
+            // mechanism ES-DE's own %ROMPROVIDER% hand-off already relies
+            // on elsewhere in this app, so it is expected to need no
+            // explicit grant of its own; grantToResolvers is applied to it
+            // anyway, since doing so costs nothing and removes the need to
+            // trust that expectation instead of covering it.
+            try {
+                shareable = FileProvider.getUriForFile(
+                        context, context.getPackageName() + ".esde", new File(manual.getPath()));
+            } catch (Exception e) {
+                Toast.makeText(context, R.string.open_failed, Toast.LENGTH_LONG).show();
+                return;
+            }
+        }
+
+        Intent intent = new Intent(Intent.ACTION_VIEW)
+                .setDataAndType(shareable, "application/pdf")
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+        // Belt and braces over the flag above: on a device this reached
+        // Google's own PDF viewer, which opened and then failed reading our
+        // FileProvider with a SecurityException naming a uid the grant never
+        // reached - the flag's own implicit grant did not arrive, for a
+        // reason narrower than this app can see into. Granting the same Uri
+        // explicitly, to every activity that could handle this intent,
+        // before any of them starts, is the reliable form of the same
+        // thing. The flag stays on the intent as well; that is what a viewer
+        // reached later through a chooser, rather than this call's own
+        // list, ends up using.
+        grantToResolvers(context, intent, shareable);
+
+        try {
+            context.startActivity(intent);
+        } catch (ActivityNotFoundException e) {
+            // No PDF viewer at all, rather than doing nothing silently - the
+            // same choice Feedback makes when there is no mail app.
+            Toast.makeText(context, R.string.open_failed, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    /**
+     * {@code queryIntentActivities} is itself gated by the manifest's own
+     * {@code <queries>} block - without the {@code application/pdf} entry
+     * this would silently see no activities at all, the same as {@code
+     * resolveActivity} would - so that entry and this loop are load-bearing
+     * together now, not the {@code <queries>} entry alone. Safe to call with
+     * nothing found: an empty list grants nothing and {@link #openManual}'s
+     * own {@code ActivityNotFoundException} catch is still what answers "no
+     * viewer at all".
+     */
+    private void grantToResolvers(Context context, Intent intent, Uri uri) {
+        for (ResolveInfo info : context.getPackageManager().queryIntentActivities(intent, 0)) {
+            context.grantUriPermission(info.activityInfo.packageName, uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        }
+    }
+
     private static final class MediaItem {
-        final boolean video;
+        enum Kind { PICTURE, VIDEO, MANUAL }
+
+        final Kind kind;
         final Uri uri;
 
-        MediaItem(boolean video, Uri uri) {
-            this.video = video;
+        MediaItem(Kind kind, Uri uri) {
+            this.kind = kind;
             this.uri = uri;
         }
     }
@@ -594,25 +861,81 @@ public final class Gallery extends LinearLayout {
             notifyDataSetChanged();
         }
 
+        /** {@code items.size()} - the real count wraparound multiplies away;
+         *  see {@link #getItemCount}. */
+        int realCount() {
+            return items.size();
+        }
+
+        /** A virtual position modulo the real list - the identity when
+         *  there is no wraparound to undo, i.e. at most one item. Every
+         *  adapter callback below is keyed off this, once, rather than
+         *  scattering the same modulo through each of them. */
+        int realIndexOf(int position) {
+            int size = items.size();
+            return size == 0 ? 0 : position % size;
+        }
+
+        /**
+         * {@code real}, moved into the lap furthest from either physical end
+         * of {@link #getItemCount} - the middle one, since {@link
+         * #getItemCount} always multiplies by an even {@link #WRAP_LAPS}.
+         * What a fresh {@link #setItems} starts on, so the very first page
+         * shown already has room to wrap either way rather than only after
+         * enough swipes have carried it there.
+         */
+        int middleVirtual(int real) {
+            int size = items.size();
+            return size <= 1 ? real : (WRAP_LAPS / 2) * size + real;
+        }
+
+        /**
+         * Whichever virtual position stands for {@code targetReal} is
+         * closest to {@code fromVirtual} - the lap {@code fromVirtual} is
+         * already on, or the one before or after it, whichever lands
+         * nearest. {@link #showPage} uses this so carrying the pager to the
+         * video, say, is always the short way there, on whatever lap the
+         * pager happens to be on already, rather than a jump back to
+         * whatever lap {@link #middleVirtual} chose when this gallery loaded.
+         */
+        int nearestVirtual(int fromVirtual, int targetReal) {
+            int size = items.size();
+            if (size <= 1) return targetReal;
+
+            int lap = Math.floorDiv(fromVirtual, size);
+            int best = lap * size + targetReal;
+
+            for (int delta = -1; delta <= 1; delta++) {
+                int candidate = best + delta * size;
+                if (Math.abs(candidate - fromVirtual) < Math.abs(best - fromVirtual)) {
+                    best = candidate;
+                }
+            }
+
+            return Math.max(0, best);
+        }
+
         int videoIndex() {
             for (int i = 0; i < items.size(); i++) {
-                if (items.get(i).video) return i;
+                if (items.get(i).kind == MediaItem.Kind.VIDEO) return i;
             }
             return -1;
         }
 
         @Override
         public int getItemViewType(int position) {
-            return items.get(position).video ? TYPE_VIDEO : TYPE_PICTURE;
+            // A manual shares the picture type deliberately - see TYPE_PICTURE's
+            // own comment - so only bindPicture vs. bindManual, not a third
+            // view holder, has to know the difference.
+            return items.get(realIndexOf(position)).kind == MediaItem.Kind.VIDEO
+                    ? TYPE_VIDEO : TYPE_PICTURE;
         }
 
         @Override
         public RecyclerView.ViewHolder onCreateViewHolder(ViewGroup parent, int type) {
-            // pageWidth if it is already known, MATCH_PARENT otherwise - see
-            // pageWidth's own comment for why MATCH_PARENT alone is wrong on
-            // this axis, and applyWidth for what corrects a holder made
-            // before the real width was.
-            int width = pageWidth > 0 ? pageWidth : ViewGroup.LayoutParams.MATCH_PARENT;
+            // Never MATCH_PARENT here - see currentPageWidth's own comment
+            // for what that cost before this was fixed.
+            int width = currentPageWidth();
 
             if (type == TYPE_VIDEO) {
                 // The FrameLayout, not the VideoView, is what RecyclerView
@@ -660,10 +983,12 @@ public final class Gallery extends LinearLayout {
             // onCreateViewHolder.
             applyWidth(holder.itemView);
 
-            MediaItem item = items.get(position);
+            MediaItem item = items.get(realIndexOf(position));
 
             if (holder instanceof VideoHolder) {
                 bindVideo((VideoHolder) holder, item.uri, position);
+            } else if (item.kind == MediaItem.Kind.MANUAL) {
+                bindManual((PictureHolder) holder, item.uri, position);
             } else {
                 bindPicture((PictureHolder) holder, item.uri, position);
             }
@@ -675,14 +1000,38 @@ public final class Gallery extends LinearLayout {
             holder.image.setImageDrawable(null);
             holder.image.setOnClickListener(v -> notifyTap(holder.getAdapterPosition()));
 
-            new Thread(() -> {
+            decodeExecutor.execute(() -> {
                 Bitmap decoded = decode(picture);
 
                 handler.post(() -> {
                     if (holder.bindToken != token) return; // recycled meanwhile
                     holder.image.setImageBitmap(decoded);
                 });
-            }).start();
+            });
+        }
+
+        /**
+         * Same shape as {@link #bindPicture} - a background render into the
+         * same {@code ImageView} - except the source is a PDF's first page
+         * rather than a picture file, and the tap opens that PDF in another
+         * app rather than {@code MediaViewerActivity}: see {@link
+         * #openManual} for why a manual gets its own click handler instead
+         * of {@link #notifyTap}.
+         */
+        private void bindManual(PictureHolder holder, Uri manual, int position) {
+            int token = ++holder.bindToken;
+
+            holder.image.setImageDrawable(null);
+            holder.image.setOnClickListener(v -> openManual(manual));
+
+            decodeExecutor.execute(() -> {
+                Bitmap decoded = decodeManualCover(manual);
+
+                handler.post(() -> {
+                    if (holder.bindToken != token) return; // recycled meanwhile
+                    holder.image.setImageBitmap(decoded);
+                });
+            });
         }
 
         /** New page, or a rebind to the same one - see {@link #prepareVideo}
@@ -703,9 +1052,17 @@ public final class Gallery extends LinearLayout {
             prepareVideo(holder, video);
         }
 
+        /**
+         * A large multiple of the real count so a swipe never runs out of
+         * pages to move to in either direction - see the class comment and
+         * {@link #middleVirtual} - except for zero or one item, which is
+         * never multiplied: a single page that scrolls forever, with nothing
+         * else to land on, is a bug rather than a wraparound.
+         */
         @Override
         public int getItemCount() {
-            return items.size();
+            int size = items.size();
+            return size <= 1 ? size : size * WRAP_LAPS;
         }
     }
 }
