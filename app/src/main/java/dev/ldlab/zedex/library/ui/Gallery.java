@@ -10,6 +10,7 @@ import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
@@ -30,8 +31,8 @@ import java.util.concurrent.Executors;
 /**
  * Every picture {@link Artwork} has for a game, with the video after them -
  * swiped between, dots underneath when there is more than one page, a tap on
- * any page told to whoever asked to be told, wrapping past either end back to
- * the other.
+ * any page told to whoever asked to be told, and a drag pushed past either
+ * end jumping to the other once it settles, rather than stopping there.
  *
  * The manual is not a page here any more: it is a button of its own, beside
  * Play and the magnifier in the pane and on {@code GameInfoActivity}, opened
@@ -59,14 +60,32 @@ import java.util.concurrent.Executors;
  * and stops it - and {@link #release} is there for a host that is going away
  * without so much as a swipe to notice.
  *
- * {@link GalleryAdapter#getItemCount} reports a large multiple of the real
- * item count so a swipe past either end lands back at the other, rather than
- * stopping - {@link RecyclerView.Adapter} has no over-scroll to catch, so a
- * virtualised count is the ordinary way to fake one. Every position from the
- * adapter's own callbacks is real modulo the underlying list's size, except
- * where a comment says otherwise; {@link #notifyTap} and {@link
- * #notifyPageChanged} always hand a caller the real one, since a host has no
- * business knowing this trick exists.
+ * {@link GalleryAdapter#getItemCount} is the real item count and nothing
+ * more - every position anywhere in this class is real, full stop, which was
+ * not always true. It used to be multiplied by a large, fixed number of laps
+ * so a swipe past either end found another page already there rather than
+ * running out, since {@link RecyclerView.Adapter} has no over-scroll of its
+ * own to catch on. That trick cost three separate incidents before it was
+ * worth asking whether it was worth keeping: a page that measured zero wide
+ * made {@code LinearLayoutManager} fill the viewport forever, and
+ * multiplying the count by the same mistake turned "stops after eight" into
+ * hundreds of thousands of binds and the low-memory killer; a fast resolve
+ * later raced the same failure from the opposite direction, landing before
+ * the first layout had a real width to give a page at all. Neither had
+ * anything to do with the multiplier being wrong <em>as a trick</em> - both
+ * were the zero-width bug wearing it as a hundred-thousandfold amplifier -
+ * but a mechanism that is the first thing suspected every time, innocently or
+ * not, is still a cost, and the honest answer was to stop paying it. Wrapping
+ * is a jump now, done by {@link #wrapTarget} once a drag has actually settled
+ * back on the end it pushed past - never mid-drag, see that method - and a
+ * jump is not a swipe: the two pages either side of the join no longer slide
+ * past one another, which used to be seamless and now visibly is not. That is
+ * the price of this, on purpose, and it is not one to fix by bringing the
+ * multiplier back - see {@link #wrapTarget}'s own comment before reaching for
+ * it again. A real count does not remove the zero-width danger {@link
+ * #currentPageWidth} still explains; it only lowers the ceiling on it from
+ * "the process" to "the real number of pages", which is why every page still
+ * needs the pager's own measured width given to it explicitly.
  */
 public final class Gallery extends LinearLayout {
 
@@ -88,23 +107,19 @@ public final class Gallery extends LinearLayout {
     private static final int TYPE_VIDEO = 1;
 
     /**
-     * How many times the real item list repeats in {@link
-     * GalleryAdapter#getItemCount} - the wraparound trick, see the class
-     * comment. A thousand laps is four thousand swipes from the middle to
-     * either end - nobody reaches that in one sitting - and it is kept
-     * deliberately small rather than merely "large": before wraparound
-     * existed, {@code getItemCount} was the real size, which was an
-     * accidental ceiling on a bug that was there the whole time - see {@link
-     * #currentPageWidth}. A page that measures zero wide makes {@code
-     * LinearLayoutManager} keep creating more of them to fill the viewport,
-     * and multiplying the count by 100,000 turned that from "stops after
-     * eight" into several hundred thousand binds, several hundred threads,
-     * and the low-memory killer inside ten seconds. Fixing the zero-width
-     * page is the real fix; this number is the second line of defence, so
-     * the *next* such mistake stalls a swipe instead of taking the process
-     * with it.
+     * How far, in dp, a drag has to keep travelling past an end it has
+     * already reached before {@link #wrapTarget} sends it to the other one -
+     * see that method for how "past an end" is told apart from "arrived at
+     * an end by navigating there". Big enough that letting go right after a
+     * swipe lands on the last page - the ordinary way a swipe ends when
+     * there is nowhere further for {@code PagerSnapHelper} to snap to -
+     * leaves the gallery exactly where it landed: the platform's own {@code
+     * EdgeEffect} glow already says "this is the end" without anything
+     * moving, and the small extra travel a finger has while that shows is
+     * not a request to leave. Small enough that a real, continued push past
+     * the glow is not mistaken for hesitation either.
      */
-    private static final int WRAP_LAPS = 1_000;
+    private static final int EDGE_WRAP_THRESHOLD_DP = 72;
 
     /** The dots under a gallery of more than one page - see {@link
      *  #buildDots}. Copied from {@code GameInfoActivity}'s own, which drew
@@ -148,6 +163,27 @@ public final class Gallery extends LinearLayout {
      * pictures nobody may ever swipe to.
      */
     private static final int PREFETCH_RADIUS = 2;
+
+    /**
+     * What {@link #load} resolves {@code Artwork.pictures} and {@code
+     * Artwork.video} on - a raw {@code Thread} per call until this existed,
+     * which was fine as long as nothing called {@link #load} often. Once
+     * something did - {@code LibraryActivity} reselecting the row already
+     * showing on every held gamepad direction, every tab switch, every
+     * return from {@code GameInfoActivity} - that turned into a thread every
+     * time, climbing for as long as the reselecting kept happening, which is
+     * what read as the gallery scrolling on its own. The de-dupe in {@code
+     * LibraryActivity.select} and {@code refreshPaneFacts} is the real fix -
+     * the ordinary case now makes no call here at all - but the same
+     * reasoning as {@link #decodeExecutor} still applies: a future bug that
+     * calls {@link #load} too often should be slow, not one more unbounded
+     * thread pool towards the low-memory killer. Two, not one, for the same
+     * reason {@link #decodeExecutor} is two - the pane and a details screen
+     * open at once are each allowed one in flight without queuing behind the
+     * other - and shared across every {@link Gallery} instance for the same
+     * reason every pool here is.
+     */
+    private static final ExecutorService loadExecutor = Executors.newFixedThreadPool(2);
 
     private final Handler handler = new Handler(Looper.getMainLooper());
 
@@ -215,6 +251,37 @@ public final class Gallery extends LinearLayout {
      *  one showing. */
     private int currentIndex;
 
+    /**
+     * Wherever the pager was <em>before</em> the touch gesture now in
+     * progress, or {@code -1} between gestures - captured on every {@code
+     * ACTION_DOWN}, alongside {@link #dragStartX}, since {@link
+     * #wrapTarget} needs to know where a drag began, not merely where it
+     * ended: a drag that began at the last page and stayed pushed against it
+     * is a request to leave; one that began somewhere earlier and simply
+     * arrived at the last page, however far it travelled to get there, is
+     * navigation and must never wrap. Set back to {@code -1} the moment
+     * {@link #wrapTarget} has read its verdict, on the touch listener's own
+     * {@code ACTION_UP} - see that listener's comment for why the decision
+     * is made there and not from a settle - so a later, unrelated settle -
+     * {@link #showPage}'s own smooth scroll, in particular - never sees a
+     * stale one left over from the last real touch.
+     */
+    private int gestureStartIndex = -1;
+
+    /**
+     * The finger's own x, in the recycler's window, at this gesture's {@code
+     * ACTION_DOWN} and at its {@code ACTION_UP} or {@code ACTION_CANCEL} -
+     * not the recycler's own scroll delta, which is what {@link
+     * RecyclerView.OnScrollListener#onScrolled} would give and which clamps
+     * to nothing the moment a bounded list has nowhere further to move: once
+     * the pager is pinned against an end, every extra millimetre a finger
+     * drags produces no more scroll at all, so the raw touch position is the
+     * only place "how hard did this push" survives to be read at all. Read
+     * by {@link #wrapTarget}, from the same {@code ACTION_UP} that just set
+     * the second of the two.
+     */
+    private float dragStartX, dragEndX;
+
     /** The one video item's own holder, while it is bound - null when this
      *  selection has no video, or before it has been bound at all. At most
      *  one of these ever exists at a time, since {@link #setItems} only ever
@@ -256,6 +323,87 @@ public final class Gallery extends LinearLayout {
                 } else if (state == RecyclerView.SCROLL_STATE_IDLE) {
                     updateCurrentPage();
                 }
+            }
+        });
+
+        // Passive: onInterceptTouchEvent always returns false, so this never
+        // claims the gesture away from RecyclerView's own handling - and
+        // PagerSnapHelper's, riding on top of it - which is the whole of how
+        // this avoids fighting either. Every event of the stream still
+        // reaches onInterceptTouchEvent regardless, exactly because nothing
+        // ever claims it: RecyclerView keeps offering each one to every
+        // unclaimed listener, and onTouchEvent below is what a listener gets
+        // instead <em>after</em> it returns true from an intercept, which
+        // this deliberately never does - so ACTION_UP has to be read here
+        // too, not there, or it is never read at all.
+        //
+        // {@link #wrapTarget} is decided right here, on {@code ACTION_UP},
+        // rather than from {@link #onScrollStateChanged}'s own {@code
+        // SCROLL_STATE_IDLE} the way an ordinary settle is read elsewhere in
+        // this class. Measured on a real device and on this project's own
+        // AVD alike: a drag that starts at position 0 and is pushed further
+        // backward - the one direction a bounded list has never had to
+        // refuse before this - leaves {@code RecyclerView}'s own scroll
+        // state stuck on {@code DRAGGING} forever; the symmetric push
+        // forward past the last page settles normally. Confirmed not to be
+        // anything this class does: the same hang reproduces with this
+        // listener removed outright, so it is RecyclerView's or
+        // PagerSnapHelper's own handling of "nothing to scroll to" at
+        // position 0 specifically, on the platform this was tested on - not
+        // a fight this class picked. Waiting for that {@code IDLE} would
+        // make the backward half of wrapping simply never happen; deciding
+        // here instead needs nothing from it, since {@link
+        // #gestureStartIndex} and the two ends of the drag are already
+        // known the moment a finger lifts. The jump itself is still posted
+        // rather than run inline, so whatever {@code RecyclerView} does with
+        // this same {@code ACTION_UP} first - settling an ordinary swipe,
+        // or doing nothing at all for one that cannot move - happens first.
+        recycler.addOnItemTouchListener(new RecyclerView.OnItemTouchListener() {
+            @Override
+            public boolean onInterceptTouchEvent(RecyclerView view, MotionEvent event) {
+                switch (event.getActionMasked()) {
+                    case MotionEvent.ACTION_DOWN:
+                        dragStartX = event.getX();
+                        gestureStartIndex = currentIndex;
+                        break;
+                    case MotionEvent.ACTION_UP:
+                    case MotionEvent.ACTION_CANCEL:
+                        dragEndX = event.getX();
+                        int wrapTo = wrapTarget();
+                        gestureStartIndex = -1; // this gesture's own verdict is in either way
+                        if (wrapTo >= 0) {
+                            // Posting, not jumping inline, leaves a real gap
+                            // before this runs - long enough, on a device
+                            // that rotates and this activity's own lack of
+                            // configChanges, for the window this recycler
+                            // was in to have been torn down under it. Both
+                            // checked again once the gap has actually
+                            // passed, not just here before it: isAttachedToWindow
+                            // is what stops a jump nobody is here to see, and
+                            // settleOn's own defence against a video's
+                            // MediaPlayer having gone with it is what stops
+                            // the crash that cost an afternoon to trace to
+                            // exactly this gap.
+                            recycler.post(() -> {
+                                if (!recycler.isAttachedToWindow()) return;
+                                recycler.scrollToPosition(wrapTo);
+                                settleOn(wrapTo);
+                            });
+                        }
+                        break;
+                    default:
+                        break;
+                }
+                return false;
+            }
+
+            @Override
+            public void onTouchEvent(RecyclerView view, MotionEvent event) {
+                // Never reached - see this listener's own comment above.
+            }
+
+            @Override
+            public void onRequestDisallowInterceptTouchEvent(boolean disallow) {
             }
         });
 
@@ -340,7 +488,10 @@ public final class Gallery extends LinearLayout {
      *
      * Safe to call again for a different selection at any time: {@link
      * #loadToken} tells a resolve that is still in flight when a newer one is
-     * asked for that its own answer no longer applies.
+     * asked for that its own answer no longer applies. Runs on {@link
+     * #loadExecutor} rather than a {@code Thread} of its own - see that
+     * field's own comment for why a call here has to be bounded the same way
+     * every other decode in this class already is.
      */
     public void load(String relativePath, int startIndex) {
         int token = ++loadToken;
@@ -348,7 +499,7 @@ public final class Gallery extends LinearLayout {
 
         Context app = getContext().getApplicationContext();
 
-        new Thread(() -> {
+        loadExecutor.execute(() -> {
             List<Uri> pictures;
             Uri video;
 
@@ -373,7 +524,7 @@ public final class Gallery extends LinearLayout {
                 if (token != loadToken) return; // a newer load answered first, or this one moved on
                 setItems(result, startIndex);
             });
-        }).start();
+        });
     }
 
     /** Nothing selected: empties the gallery without asking anything of it. */
@@ -394,18 +545,13 @@ public final class Gallery extends LinearLayout {
      * on its own behalf, never a drag, so {@link #setOnUserSwipe}'s own
      * listener is not told about it; see {@code PagerSnapHelper} and {@link
      * RecyclerView#SCROLL_STATE_DRAGGING} for why only a real drag reaches
-     * that one.
-     *
-     * {@code index} is real, i.e. what {@link #videoIndex} answers with, not
-     * a position on the virtualised pager the wraparound needs - see the
-     * class comment - so this asks {@link GalleryAdapter#nearestVirtual} for
-     * whichever lap of it is actually closest to where the pager already is,
-     * rather than always jumping back to the lap a fresh {@link #load}
-     * started on.
+     * that one. {@code index} is real, the same number {@link #videoIndex}
+     * answers with - every position in this class is, now that {@link
+     * GalleryAdapter#getItemCount} is too; see the class comment.
      */
     public void showPage(int index) {
         if (index < 0 || index >= adapter.realCount()) return;
-        recycler.smoothScrollToPosition(adapter.nearestVirtual(currentIndex, index));
+        recycler.smoothScrollToPosition(index);
     }
 
     /**
@@ -484,15 +630,21 @@ public final class Gallery extends LinearLayout {
      * {@code MATCH_PARENT} into {@code UNSPECIFIED}, so a picture page with
      * no bitmap decoded yet measured to <em>zero</em> wide. A zero-width
      * page never fills the viewport, so {@code LinearLayoutManager} kept
-     * creating more of them without ever stopping - invisible before
-     * wraparound existed, because the real item count was itself a ceiling
-     * of a handful of pages; multiplying it, see {@link #WRAP_LAPS}, is what
-     * turned the same bug into hundreds of thousands of binds, one decode
-     * thread each, and the low-memory killer inside ten seconds. The
-     * fallback below is checked, not assumed: it only returns something
-     * other than a real width in the one moment before the recycler has
-     * measured itself at all, which {@link #applyWidth} still declines to
-     * apply.
+     * creating more of them without ever stopping - a handful of pages at
+     * most while {@code getItemCount} was the real count on its own, which
+     * is what made it look like nothing was wrong; multiplying that same
+     * count by a fixed number of laps, to make a swipe wrap past either end,
+     * is what turned it into hundreds of thousands of binds, one decode
+     * thread each, and the low-memory killer inside ten seconds - see the
+     * class comment for why that multiplier is gone rather than tuned. A
+     * real count lowers the ceiling on this same danger back down to a
+     * handful of pages; it does not raise it to none, since {@code
+     * LinearLayoutManager} still has no idea a page it created came out
+     * zero wide and there is still nothing else here to tell it to stop
+     * short of running out of real items. The fallback below is checked,
+     * not assumed: it only returns something other than a real width in the
+     * one moment before the recycler has measured itself at all, which
+     * {@link #applyWidth} still declines to apply.
      */
     private int currentPageWidth() {
         if (pageWidth > 0) return pageWidth;
@@ -537,35 +689,45 @@ public final class Gallery extends LinearLayout {
         int size = items.size();
         int real = size == 0 ? 0 : Math.max(0, Math.min(size - 1, startIndex));
 
-        // The middle lap of the virtualised count a fresh gallery lands on,
-        // not lap zero - see WRAP_LAPS and middleVirtual - so there is room
-        // to wrap in *both* directions from the very first page shown rather
-        // than only after enough swipes have carried it away from the start.
-        // Single item or none: real and virtual are the same position, since
-        // GalleryAdapter#getItemCount never multiplies a list that short.
-        currentIndex = size <= 1 ? real : adapter.middleVirtual(real);
+        // No gesture of this fresh gallery's own has happened yet - a stale
+        // one left over from whatever this instance showed before must not
+        // be read as the verdict on a drag that has not occurred against
+        // this selection at all.
+        gestureStartIndex = -1;
 
         // Not smoothScrollToPosition: this is a fresh gallery, not a page a
         // person is being carried to, and animating from wherever the last
         // selection happened to leave the pager would show a swipe through
         // pictures that do not belong to this game at all.
-        recycler.scrollToPosition(currentIndex);
+        recycler.scrollToPosition(real);
 
         buildDots(size);
-        markDots(real);
-        notifyPageChanged(real);
-        prefetchAround(real);
+        settleOn(real);
     }
 
     /**
-     * Reads the pager's own settled page, marks the dots for it, and starts
-     * or stops the video depending on whether it is the one now showing -
-     * the single place all three of those happen, called only once the pager
-     * is actually idle: a page mid-swipe is not "the" page yet, and marking
-     * a dot or starting a video against one would say so a swipe early.
+     * Reads the pager's own settled page and applies it - the single place
+     * a dot is marked or a video started or stopped, called only once the
+     * pager is actually idle: a page mid-swipe is not "the" page yet, and
+     * acting on one would say so a swipe early. This is the ordinary settle
+     * only - {@link #wrapTarget}'s own jump is decided and carried out from
+     * the touch listener's own {@code ACTION_UP}, not from here; see that
+     * listener's comment for why {@code SCROLL_STATE_IDLE} cannot be trusted
+     * to arrive at all for the one gesture that would need it to.
      */
     private void updateCurrentPage() {
-        currentIndex = currentPage();
+        settleOn(currentPage());
+    }
+
+    /**
+     * Marks the dots, starts or stops the video, and tells a host the page
+     * has changed, all for {@code real} - the one place any of those three
+     * happens, so a page reached by an ordinary settle and one reached by
+     * {@link #wrapTarget}'s own jump are told apart by nothing else in this
+     * class.
+     */
+    private void settleOn(int real) {
+        currentIndex = real;
 
         if (videoHolder != null) {
             if (videoHolder.position == currentIndex) {
@@ -578,8 +740,7 @@ public final class Gallery extends LinearLayout {
                     // than a page that only ever worked once per selection.
                     prepareVideo(videoHolder, videoHolder.uri);
                 } else {
-                    applyMute(videoHolder);
-                    if (videoHolder.player != null) videoHolder.view.start();
+                    safeStart(videoHolder);
                     // Still preparing: the onPreparedListener checks
                     // currentIndex itself and starts it the moment it is
                     // ready.
@@ -589,11 +750,6 @@ public final class Gallery extends LinearLayout {
             }
         }
 
-        // Both of these want the real page, 0..size-1 - see the class
-        // comment - never the virtualised position currentIndex actually
-        // holds; videoHolder.position above is the one comparison in this
-        // class that is deliberately virtual on both sides instead.
-        int real = adapter.realIndexOf(currentIndex);
         markDots(real);
         notifyPageChanged(real);
         prefetchAround(real);
@@ -605,21 +761,45 @@ public final class Gallery extends LinearLayout {
                 ? ((LinearLayoutManager) manager).findFirstVisibleItemPosition() : 0;
     }
 
+    /**
+     * Whether the drag that just settled the pager back onto an end page was
+     * a push to leave by that end, or only a swipe that happened to arrive
+     * there because that is where it was going anyway - told apart by where
+     * the drag <em>began</em>, {@link #gestureStartIndex}, not by how far it
+     * travelled or where it ended: a bounded list cannot travel past its own
+     * end at all, so "arrived at the last page" is true of both a drag that
+     * started there and pushed, and one that started three pages back and
+     * simply went all the way - only the first is a request to leave, and
+     * the second must never wrap however far or fast it was. Returns the
+     * real index to jump to, or {@code -1} to stay exactly where the drag
+     * left things.
+     *
+     * Never for a gallery of one page: {@link #EDGE_WRAP_THRESHOLD_DP} would
+     * otherwise send its only page to itself on every sufficiently long
+     * press, which is a bug wearing this feature's clothes, not the feature.
+     */
+    private int wrapTarget() {
+        int size = adapter.realCount();
+        if (size <= 1 || gestureStartIndex < 0) return -1;
+
+        float travel = dragStartX - dragEndX; // positive: finger moved toward higher indices
+        int threshold = pixels(EDGE_WRAP_THRESHOLD_DP);
+
+        if (gestureStartIndex == size - 1 && travel > threshold) return 0;
+        if (gestureStartIndex == 0 && -travel > threshold) return size - 1;
+        return -1;
+    }
+
     private void notifyPageChanged(int realIndex) {
         if (pageListener != null) pageListener.onPageChanged(realIndex);
     }
 
-    /**
-     * {@code position} is whatever the recycler's own click handler saw,
-     * which is virtual once wraparound has carried the pager past lap zero -
-     * converted to real here, once, so {@link #tapListener} never has to know
-     * about the trick: a page tapped after wrapping past the end still opens
-     * {@code MediaViewerActivity} on the picture it actually is, not on a
-     * position past the end of that screen's own, un-virtualised list.
-     */
+    /** {@code position} is real, the same number every position in this
+     *  class is now - see the class comment - so {@link #tapListener} is
+     *  simply handed it back. */
     private void notifyTap(int position) {
         if (position == RecyclerView.NO_POSITION || tapListener == null) return;
-        tapListener.onPageTapped(adapter.realIndexOf(position));
+        tapListener.onPageTapped(position);
     }
 
     /**
@@ -642,26 +822,63 @@ public final class Gallery extends LinearLayout {
         holder.view.setOnPreparedListener(mp -> {
             holder.player = mp;
             mp.setLooping(true);
-            applyMute(holder);
 
             // A video prepares asynchronously; the pager may already have
             // moved on to a different page by the time it answers, and
             // starting it now would be a video nobody asked for playing
             // behind whatever is actually on screen.
-            if (holder.position == currentIndex) holder.view.start();
+            if (holder.position == currentIndex) safeStart(holder);
         });
     }
 
+    /**
+     * {@code holder.view.start()}, muted first through {@link #applyMute} -
+     * the two always go together here, and only here, so a holder is never
+     * started at the wrong volume for even one frame. Guarded the same way
+     * {@link #applyMute} guards itself, and for the same reason: see that
+     * method's own comment.
+     */
+    private void safeStart(VideoHolder holder) {
+        applyMute(holder);
+        if (holder.player == null) return;
+
+        try {
+            holder.view.start();
+        } catch (IllegalStateException e) {
+            holder.player = null;
+        }
+    }
+
+    /**
+     * {@code holder.player.setVolume(...)}, treating an {@link
+     * IllegalStateException} the platform's own {@code MediaPlayer} throws
+     * as "no player any more" rather than a crash - the same reasoning
+     * {@code PictureCache.decodeFresh} already applies to a foreign
+     * provider or a corrupt file answering unpredictably, extended here to
+     * a player whose window has gone out from under it. Measured, not
+     * theoretical: {@link #wrapTarget}'s own jump is posted rather than run
+     * inline, and the gap that leaves - long enough, on a device that
+     * rotates and this activity's own lack of {@code configChanges}, for
+     * the window this holder's video was playing in to have been torn down
+     * - is exactly what threw this from {@link #settleOn} the first time
+     * the backward half of wrapping was tried on a device. Drops {@link
+     * VideoHolder#player} on the way out, the same as a deliberate {@link
+     * #release} does, so the next settle re-prepares from the same uri
+     * rather than throwing again.
+     */
     private void applyMute(VideoHolder holder) {
-        if (holder.player != null) {
+        if (holder.player == null) return;
+
+        try {
             holder.player.setVolume(muted ? 0f : 1f, muted ? 0f : 1f);
+        } catch (IllegalStateException e) {
+            holder.player = null;
         }
     }
 
     /** Builds the dots themselves; {@link #setItems} marks the current one
-     *  right after, since it alone knows the real (non-virtualised) index to
-     *  mark - see the class comment on why currentIndex itself is the wrong
-     *  thing to ask here. */
+     *  right after, through {@link #settleOn}, since a fresh load knows
+     *  which page it is landing on before the pager itself has moved there. */
     private void buildDots(int count) {
         dots.removeAllViews();
         dots.setVisibility(count > 1 ? View.VISIBLE : View.GONE);
@@ -702,6 +919,11 @@ public final class Gallery extends LinearLayout {
      *
      * Never the video: {@code VideoView} does its own buffering, and there
      * is nothing here for a decode to cache ahead of time.
+     *
+     * {@code Math.floorMod} wraps a neighbour past either end of the real
+     * list on purpose, independently of whether {@link #wrapTarget} would
+     * actually send a drag there: the picture after the last page is still
+     * the one a big enough push lands on, so it is still worth having ready.
      */
     private void prefetchAround(int real) {
         int size = adapter.realCount();
@@ -789,58 +1011,12 @@ public final class Gallery extends LinearLayout {
             notifyDataSetChanged();
         }
 
-        /** {@code items.size()} - the real count wraparound multiplies away;
-         *  see {@link #getItemCount}. */
+        /** {@code items.size()} - the same number {@link #getItemCount}
+         *  answers with directly now, kept under its own name only because
+         *  "real count" reads better at every call site than the override's
+         *  own name does. */
         int realCount() {
             return items.size();
-        }
-
-        /** A virtual position modulo the real list - the identity when
-         *  there is no wraparound to undo, i.e. at most one item. Every
-         *  adapter callback below is keyed off this, once, rather than
-         *  scattering the same modulo through each of them. */
-        int realIndexOf(int position) {
-            int size = items.size();
-            return size == 0 ? 0 : position % size;
-        }
-
-        /**
-         * {@code real}, moved into the lap furthest from either physical end
-         * of {@link #getItemCount} - the middle one, since {@link
-         * #getItemCount} always multiplies by an even {@link #WRAP_LAPS}.
-         * What a fresh {@link #setItems} starts on, so the very first page
-         * shown already has room to wrap either way rather than only after
-         * enough swipes have carried it there.
-         */
-        int middleVirtual(int real) {
-            int size = items.size();
-            return size <= 1 ? real : (WRAP_LAPS / 2) * size + real;
-        }
-
-        /**
-         * Whichever virtual position stands for {@code targetReal} is
-         * closest to {@code fromVirtual} - the lap {@code fromVirtual} is
-         * already on, or the one before or after it, whichever lands
-         * nearest. {@link #showPage} uses this so carrying the pager to the
-         * video, say, is always the short way there, on whatever lap the
-         * pager happens to be on already, rather than a jump back to
-         * whatever lap {@link #middleVirtual} chose when this gallery loaded.
-         */
-        int nearestVirtual(int fromVirtual, int targetReal) {
-            int size = items.size();
-            if (size <= 1) return targetReal;
-
-            int lap = Math.floorDiv(fromVirtual, size);
-            int best = lap * size + targetReal;
-
-            for (int delta = -1; delta <= 1; delta++) {
-                int candidate = best + delta * size;
-                if (Math.abs(candidate - fromVirtual) < Math.abs(best - fromVirtual)) {
-                    best = candidate;
-                }
-            }
-
-            return Math.max(0, best);
         }
 
         int videoIndex() {
@@ -861,8 +1037,7 @@ public final class Gallery extends LinearLayout {
 
         @Override
         public int getItemViewType(int position) {
-            return items.get(realIndexOf(position)).kind == MediaItem.Kind.VIDEO
-                    ? TYPE_VIDEO : TYPE_PICTURE;
+            return items.get(position).kind == MediaItem.Kind.VIDEO ? TYPE_VIDEO : TYPE_PICTURE;
         }
 
         @Override
@@ -925,7 +1100,7 @@ public final class Gallery extends LinearLayout {
             // onCreateViewHolder.
             applyWidth(holder.itemView);
 
-            MediaItem item = items.get(realIndexOf(position));
+            MediaItem item = items.get(position);
 
             if (holder instanceof VideoHolder) {
                 bindVideo((VideoHolder) holder, item.uri, position);
@@ -994,16 +1169,14 @@ public final class Gallery extends LinearLayout {
         }
 
         /**
-         * A large multiple of the real count so a swipe never runs out of
-         * pages to move to in either direction - see the class comment and
-         * {@link #middleVirtual} - except for zero or one item, which is
-         * never multiplied: a single page that scrolls forever, with nothing
-         * else to land on, is a bug rather than a wraparound.
+         * The real count, exactly - see the class comment for what used to
+         * be here instead and why it no longer is. Wrapping past either end
+         * is {@link #wrapTarget}'s job now, done once a drag has settled
+         * rather than by giving the pager more list than there really is.
          */
         @Override
         public int getItemCount() {
-            int size = items.size();
-            return size <= 1 ? size : size * WRAP_LAPS;
+            return items.size();
         }
     }
 }

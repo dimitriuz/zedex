@@ -1481,6 +1481,18 @@ public final class LibraryActivity extends Activity {
      * timer that fires after the selection has moved on again not to act.
      * {@link #paneUserSwiped} is cleared here too: it answers for this
      * selection's own gallery, not for the pane in general.
+     *
+     * Only for a selection that has actually changed - {@link #select} and
+     * {@link #applyFilterSort} both ask first, and call {@link
+     * #refreshPaneFacts} instead where the key is the same one already
+     * showing. Every one of the callers above can land on that: a repeat
+     * tap, a held gamepad direction clamped at either end of the list, and
+     * a reload as ordinary as a tab switch or {@code onResume} all hand this
+     * the very row already selected, and reaching this method for that would
+     * throw the gallery away and load it again for a game that never left -
+     * a fresh {@code Thread} per call before {@link Gallery#load} was given a
+     * bounded pool of its own, and unbounded reselecting is what once made
+     * that read as the gallery scrolling on its own.
      */
     private void updatePane() {
         int token = ++paneToken;
@@ -1561,6 +1573,32 @@ public final class LibraryActivity extends Activity {
             paneHandler.postDelayed(() -> advanceToPaneVideo(token),
                     paneVideoToken, PANE_VIDEO_DELAY_MS);
         }
+    }
+
+    /**
+     * The lighter half of {@link #updatePane}: a fresh {@link Entry} for the
+     * row already showing, not a different one - {@link #selected} has
+     * already been swapped to it by the caller, so this only redoes what
+     * {@code Entry} itself carries and a rescan could have moved, which is
+     * the size and date line and, in case a rescan ever found a file where a
+     * folder was or the other way round, what the action button says and
+     * whether the magnifier shows. The same three lines {@link #updatePane}
+     * itself sets before it gets to anything keyed by a path rather than by
+     * this object - the scraped words, the manual, the gallery's pictures and
+     * video, the three-second wait to the video - none of which are touched
+     * here, since all of them are still answering for the very same game:
+     * no new {@link Gallery#load}, no reset {@link #paneUserSwiped}, no
+     * {@link #paneToken} bumped to tell an in-flight resolve it arrived too
+     * late, because none of that is true.
+     */
+    private void refreshPaneFacts() {
+        if (selected == null) return;
+
+        paneSubtitle.setText(EntryAdapter.detail(this, selected));
+        paneActionButton.setText(isContainer(selected) ? R.string.library_open
+                                                        : R.string.library_play);
+        paneInfoButton.setVisibility(
+                !isContainer(selected) && selected.inside == null ? View.VISIBLE : View.GONE);
     }
 
     /**
@@ -1827,6 +1865,13 @@ public final class LibraryActivity extends Activity {
         // hands back a freshly parsed Entry for the same file, never the same
         // instance; the fresh one replaces the stale one so the pane's own
         // numbers are not left reporting what a previous read saw.
+        //
+        // refreshPaneFacts, not updatePane: match's key is selected's own, by
+        // construction of findByKey just above, so this is never a different
+        // game - only a fresh reading of the same one, and reloading the
+        // gallery for it was exactly what turned "return from GameInfoActivity"
+        // and "switch tabs and back" into an unbounded thread every time. See
+        // refreshPaneFacts's own comment.
         if (selected != null) {
             Entry match = findByKey(shown, selected.key());
 
@@ -1834,7 +1879,7 @@ public final class LibraryActivity extends Activity {
                 clearSelection();
             } else if (match != selected) {
                 selected = match;
-                updatePane();
+                refreshPaneFacts();
             }
         } else if (pendingSelectionKey != null && loadCompleted) {
             // A rotation - see onSaveInstanceState - restored against the
@@ -2071,11 +2116,29 @@ public final class LibraryActivity extends Activity {
      * Not the search: selecting a row does not change which folder is shown,
      * so unlike {@link #enter} this leaves it exactly as it was - but the
      * keyboard is in the way of the row just tapped either way, so it goes.
+     *
+     * Landing on the row already showing - a repeat tap, or a held gamepad
+     * direction clamped at either end of the list by {@link #moveCursorBy} -
+     * asks {@link #refreshPaneFacts} rather than {@link #updatePane}: the
+     * game has not changed, so there is nothing for the gallery, the manual
+     * button or the scraped words to redo, only whatever {@code entry} itself
+     * carries that a rescan could have moved. See {@link #applyFilterSort}'s
+     * own call to the same method, which is the ordinary way this happens -
+     * a game reselecting itself by nothing more than a reload landing on a
+     * fresh {@link Entry} for the same key.
      */
     private void select(Entry entry) {
+        boolean sameGame = selected != null && selected.key().equals(entry.key());
+
         selected = entry;
         adapter.setSelectedKey(entry.key());
-        updatePane();
+
+        if (sameGame) {
+            refreshPaneFacts();
+        } else {
+            updatePane();
+        }
+
         dismissKeyboard();
     }
 
