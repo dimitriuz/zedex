@@ -627,4 +627,8 @@
     <plurals name="settings_esde_link_done_needs_media">
         <item quantity="other">Nalezeno her: %1$d — níže vyberte složku médií ES-DE, aby se zobrazily obrázky</item>
     </plurals>
+    <string name="gallery_picture">Obrázek %1$d z %2$d</string>
+    <string name="gallery_video">Video %1$d z %2$d</string>
+    <string name="settings_keep_bar">Nechat rychlý panel zobrazený</string>
+    <string name="settings_keep_bar_summary">Jinak zmizí po třech sekundách. Se čtečkou obrazovky vždy zobrazen.</string>
 </resources>

@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.library.ui;
 
+import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.library.meta.Artwork;
 
 import android.content.Context;
@@ -976,6 +977,14 @@ public final class Gallery extends LinearLayout {
         dots.removeAllViews();
         dots.setVisibility(count > 1 ? View.VISIBLE : View.GONE);
 
+        // Decoration, and nothing else: they are 7dp circles that say which
+        // page is current by colour alone, at a contrast a sighted reader
+        // would struggle with and a screen reader cannot use at all. The page
+        // itself carries "Picture 2 of 5" now, which is the same information
+        // in a form that can be read, so these are taken out of the tree
+        // rather than left as unnamed focusable clutter.
+        dots.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+
         if (count <= 1) return;
 
         for (int i = 0; i < count; i++) {
@@ -1194,6 +1203,19 @@ public final class Gallery extends LinearLayout {
             applyWidth(holder.itemView);
 
             MediaItem item = items.get(position);
+
+            // Named, because these are clickable and they are the whole
+            // content of the pane: unlabelled, a screen reader announced the
+            // picture somebody is looking at as "unlabelled, button". The
+            // position goes in the name rather than being left to the dots,
+            // which are colour alone and now hidden from accessibility
+            // outright - so "Picture 2 of 5" says both what it is and where
+            // in the strip it sits.
+            holder.itemView.setContentDescription(getContext().getString(
+                    holder instanceof VideoHolder
+                            ? R.string.gallery_video
+                            : R.string.gallery_picture,
+                    position + 1, items.size()));
 
             if (holder instanceof VideoHolder) {
                 bindVideo((VideoHolder) holder, item.uri, position);

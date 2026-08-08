@@ -732,4 +732,8 @@
         <item quantity="one">%1$d game found — pick ES-DE’s media folder below to see its artwork</item>
         <item quantity="other">%1$d games found — pick ES-DE’s media folder below to see their artwork</item>
     </plurals>
+    <string name="gallery_picture">Picture %1$d of %2$d</string>
+    <string name="gallery_video">Video %1$d of %2$d</string>
+    <string name="settings_keep_bar">Keep the quick bar on screen</string>
+    <string name="settings_keep_bar_summary">It fades after three seconds otherwise. Always on with a screen reader.</string>
 </resources>

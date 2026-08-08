@@ -627,4 +627,8 @@
     <plurals name="settings_esde_link_done_needs_media">
         <item quantity="other">Знайдено ігор: %1$d — виберіть нижче теку медіа ES-DE, щоб побачити обкладинки</item>
     </plurals>
+    <string name="gallery_picture">Зображення %1$d з %2$d</string>
+    <string name="gallery_video">Відео %1$d з %2$d</string>
+    <string name="settings_keep_bar">Не ховати швидку панель</string>
+    <string name="settings_keep_bar_summary">Інакше зникає через три секунди. З екранним читачем — завжди.</string>
 </resources>

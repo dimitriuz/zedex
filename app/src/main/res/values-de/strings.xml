@@ -622,4 +622,8 @@
         <item quantity="one">%1$d Spiel gefunden — unten den Medienordner von ES-DE wählen, um das Artwork zu sehen</item>
         <item quantity="other">%1$d Spiele gefunden — unten den Medienordner von ES-DE wählen, um das Artwork zu sehen</item>
     </plurals>
+    <string name="gallery_picture">Bild %1$d von %2$d</string>
+    <string name="gallery_video">Video %1$d von %2$d</string>
+    <string name="settings_keep_bar">Schnellleiste eingeblendet lassen</string>
+    <string name="settings_keep_bar_summary">Sonst blendet sie nach drei Sekunden aus. Mit Screenreader immer an.</string>
 </resources>

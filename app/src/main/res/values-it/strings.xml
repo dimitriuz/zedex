@@ -622,4 +622,8 @@
         <item quantity="one">%1$d gioco trovato — scegli sotto la cartella media di ES-DE per vedere le immagini</item>
         <item quantity="other">%1$d giochi trovati — scegli sotto la cartella media di ES-DE per vedere le immagini</item>
     </plurals>
+    <string name="gallery_picture">Immagine %1$d di %2$d</string>
+    <string name="gallery_video">Video %1$d di %2$d</string>
+    <string name="settings_keep_bar">Mantieni la barra rapida sullo schermo</string>
+    <string name="settings_keep_bar_summary">Altrimenti svanisce dopo tre secondi. Sempre attiva con screen reader.</string>
 </resources>

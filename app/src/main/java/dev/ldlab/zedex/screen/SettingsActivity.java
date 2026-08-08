@@ -134,6 +134,11 @@ public class SettingsActivity extends AppCompatActivity
     public static final String KEY_KEYBOARD_SKIN = "keyboardSkin";
     /** Read by EmulatorActivity on resume; there is no immediate push for it. */
     public static final String KEY_INDICATORS = "indicators";
+
+    /** Stops the quick bar fading after three seconds; see
+     *  EmulatorActivity.keepBarUp. Always on in effect while touch
+     *  exploration is, whatever this says. */
+    public static final String KEY_KEEP_BAR = "keepBar";
     /**
      * Whether the app opens on the library or on the machine, as it always
      * did. Disabled without a content folder to browse - see

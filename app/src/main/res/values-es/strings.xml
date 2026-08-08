@@ -622,4 +622,8 @@
         <item quantity="one">%1$d juego encontrado — elige abajo la carpeta de medios de ES-DE para ver sus imágenes</item>
         <item quantity="other">%1$d juegos encontrados — elige abajo la carpeta de medios de ES-DE para ver sus imágenes</item>
     </plurals>
+    <string name="gallery_picture">Imagen %1$d de %2$d</string>
+    <string name="gallery_video">Vídeo %1$d de %2$d</string>
+    <string name="settings_keep_bar">Mantener la barra rápida en pantalla</string>
+    <string name="settings_keep_bar_summary">Si no, se desvanece tras tres segundos. Siempre visible con lector de pantalla.</string>
 </resources>

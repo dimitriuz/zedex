@@ -622,4 +622,8 @@
         <item quantity="one">%1$d jeu trouvé — choisissez ci-dessous le dossier média d’ES-DE pour voir ses illustrations</item>
         <item quantity="other">%1$d jeux trouvés — choisissez ci-dessous le dossier média d’ES-DE pour voir leurs illustrations</item>
     </plurals>
+    <string name="gallery_picture">Image %1$d sur %2$d</string>
+    <string name="gallery_video">Vidéo %1$d sur %2$d</string>
+    <string name="settings_keep_bar">Garder la barre rapide affichée</string>
+    <string name="settings_keep_bar_summary">Sinon elle disparaît après trois secondes. Toujours visible avec un lecteur d’écran.</string>
 </resources>

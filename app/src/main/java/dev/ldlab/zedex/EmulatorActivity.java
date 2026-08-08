@@ -1185,6 +1185,24 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         note(R.string.quick_border, getString(next.title));
     }
 
+    /**
+     * Whether the quick bar should stay where it is rather than fading.
+     *
+     * Two ways to say so, and either is enough: the setting, for somebody who
+     * simply prefers it, and touch exploration being on, because the fade is
+     * unusable then whatever the setting says. Asked each time rather than
+     * cached - a screen reader can be turned on while the app is running, and
+     * the answer has to change with it.
+     */
+    private boolean keepBarUp() {
+        android.view.accessibility.AccessibilityManager accessibility =
+                (android.view.accessibility.AccessibilityManager)
+                        getSystemService(ACCESSIBILITY_SERVICE);
+
+        return preferences.getBoolean(SettingsActivity.KEY_KEEP_BAR, false)
+                || (accessibility != null && accessibility.isTouchExplorationEnabled());
+    }
+
     private void showLights(boolean shown) {
         layout.setLightsVisible(shown);
         preferences.edit().putBoolean(SettingsActivity.KEY_INDICATORS, shown).apply();
@@ -1224,6 +1242,13 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // On a second screen the bar has a panel of its own and is never over
         // the picture, so there is nothing to fade out of the way of.
         if (panels.inUse()) return;
+
+        // Three seconds is not a length of time somebody exploring by touch
+        // can finish nine icons in - WCAG calls this Timing Adjustable, and a
+        // control that removes itself while you are still finding it is the
+        // clearest case of it. Kept up outright with a screen reader on, and
+        // by a switch for anyone else who wants it that way.
+        if (keepBarUp()) return;
 
         // An open group is somebody reading it. Three seconds is long enough to
         // notice the bar and nothing like long enough to decide which of eight

@@ -627,4 +627,8 @@
     <plurals name="settings_esde_link_done_needs_media">
         <item quantity="other">Znaleziono gier: %1$d — wybierz poniżej folder mediów ES-DE, aby zobaczyć grafikę</item>
     </plurals>
+    <string name="gallery_picture">Obraz %1$d z %2$d</string>
+    <string name="gallery_video">Wideo %1$d z %2$d</string>
+    <string name="settings_keep_bar">Nie ukrywaj paska szybkiego dostępu</string>
+    <string name="settings_keep_bar_summary">Inaczej znika po trzech sekundach. Z czytnikiem ekranu zawsze widoczny.</string>
 </resources>

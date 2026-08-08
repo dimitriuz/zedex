@@ -627,4 +627,8 @@
     <plurals name="settings_esde_link_done_needs_media">
         <item quantity="other">Найдено игр: %1$d — выберите ниже папку медиа ES-DE, чтобы увидеть обложки</item>
     </plurals>
+    <string name="gallery_picture">Изображение %1$d из %2$d</string>
+    <string name="gallery_video">Видео %1$d из %2$d</string>
+    <string name="settings_keep_bar">Не скрывать быструю панель</string>
+    <string name="settings_keep_bar_summary">Иначе исчезает через три секунды. С экранным диктором — всегда.</string>
 </resources>

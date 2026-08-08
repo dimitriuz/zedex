@@ -111,6 +111,11 @@
             android:summary="@string/settings_indicators_summary"
             android:defaultValue="true" />
         <SwitchPreference
+            android:key="keepBar"
+            android:title="@string/settings_keep_bar"
+            android:summary="@string/settings_keep_bar_summary"
+            android:defaultValue="false" />
+        <SwitchPreference
             android:key="secondScreen"
             android:title="@string/settings_second_screen"
             android:summary="@string/settings_second_screen_summary"
