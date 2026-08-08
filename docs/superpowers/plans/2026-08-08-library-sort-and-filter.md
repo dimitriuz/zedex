@@ -1424,40 +1424,39 @@ A filter that has excluded everything otherwise looks exactly like a library tha
 
 - [ ] **Step 3: Write the device test**
 
-Create `app/src/androidTest/java/dev/ldlab/zedex/FilterTest.java`, asserting on a real device that the toolbar and the gamepad dialog share one state:
+Create `app/src/androidTest/java/dev/ldlab/zedex/FilterTest.java`. It covers the
+half that can be driven without a controller: setting a filter from the toolbar
+flattens the list and shows the chips, and clearing it puts the folder back.
 
-```java
-package dev.ldlab.zedex;
+Model it on `RecentsTest`, which is the closest existing example of driving the
+library screen, and use `Emulator`'s own helpers rather than raw coordinates.
+The assertions that must be present, each with a message naming what failed:
 
-import static org.junit.Assert.assertTrue;
+1. **A filter narrows and flattens.** Note how many rows Browse shows at the
+   root. Open the filter sheet from the toolbar, choose the commonest genre,
+   dismiss. Assert the row count changed, and that a game which lives in a
+   subfolder is now visible at the top level — that is the flattening, and it is
+   the part a folder-scoped implementation would fail.
 
-import androidx.test.ext.junit.runners.AndroidJUnit4;
+2. **The chips say what is on.** Assert a view whose description names the
+   chosen genre is on screen while the filter is set.
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
+3. **An empty result says so.** Set a rating threshold of `4.5+` *and* a genre
+   that has no highly-rated games, so nothing matches. Assert the empty label
+   reads `library_empty_filtered` and not `library_empty` — a filter that has
+   excluded everything must not look like a library that has lost its games.
 
-/**
- * That both ways into the filter reach the same state.
- *
- * Two entry points into one piece of state is the pair that drifts, and this
- * app has had that exact bug twice - a predicate answering two questions, and
- * a settings row that agreed with the menu only by accident.
- */
-@RunWith(AndroidJUnit4.class)
-public class FilterTest {
+4. **Clearing puts it back.** Tap the chips' clear button. Assert the row count
+   returns to what it was in step 1 and the breadcrumb is showing again.
 
-    @Test
-    public void aFilterSetByTouchShowsAsSetInTheGamepadDialog() {
-        // 1. open the library
-        // 2. tap the toolbar filter button, choose a genre
-        // 3. dismiss, then open the gamepad options dialog
-        // 4. assert its Filter row says one field is set, not "No filter"
-        assertTrue("write this against Emulator's helpers", true);
-    }
-}
-```
+Use `assumeTrue` to skip the whole class when the store has no scraped games —
+the emulator this runs on may have no metadata at all, and a test that cannot
+find a genre to filter by should skip rather than fail. `Metadata.count` is how
+to ask.
 
-Replace the body with real UI Automator steps modelled on `RecentsTest`, which is the closest existing example of driving the library screen.
+Do **not** attempt the gamepad half of the design's "one state behind both". It
+needs a connected controller, which no emulator run has; the unit tests cover
+the shared state and the reviewer should not expect a device test for it.
 
 - [ ] **Step 4: Run everything**
 
