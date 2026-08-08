@@ -194,18 +194,38 @@ public class SettingsActivity extends AppCompatActivity
     public static final String KEY_FILTER_NOISE = "filterNoise";
 
     /**
-     * Each strength, the index it sets and what it is worth by default. Which
-     * effects are on at all is one setting and is handled apart from these.
+     * One filter strength: the preference it is stored under, the index the
+     * renderer knows it by, and what it is worth when nothing is stored.
+     *
+     * Three typed fields rather than the {@code Object[][]} this was. That
+     * table had the default written as a String and parsed on every call -
+     * at startup, not only on change - so a transposed pair of columns or a
+     * typed "5O" for "50" compiled cleanly and then threw ClassCastException
+     * or an uncaught NumberFormatException at launch. All three of those are
+     * compile errors now, and the parse is gone.
      */
-    private static final Object[][] FILTER_KEYS = {
-        { KEY_FILTER_SHARPNESS, FuseNative.FILTER_SHARPNESS, "100" },
-        { KEY_FILTER_SCANLINE,  FuseNative.FILTER_SCANLINE,  "50"  },
-        { KEY_FILTER_CURVE,     FuseNative.FILTER_CURVE,     "40"  },
-        { KEY_FILTER_MASK,      FuseNative.FILTER_MASK,      "40"  },
-        { KEY_FILTER_GLOW,      FuseNative.FILTER_GLOW,      "30"  },
-        { KEY_VIDEO,            FuseNative.FILTER_VIDEO,     "0"   },
-        { KEY_FILTER_BLEED,     FuseNative.FILTER_BLEED,     "50"  },
-        { KEY_FILTER_NOISE,     FuseNative.FILTER_NOISE,     "20"  },
+    private static final class FilterKey {
+        final String preference;
+        final int index;
+        final int fallback;
+
+        FilterKey(String preference, int index, int fallback) {
+            this.preference = preference;
+            this.index = index;
+            this.fallback = fallback;
+        }
+    }
+
+    /** Which effects are on at all is one setting, handled apart from these. */
+    private static final FilterKey[] FILTER_KEYS = {
+        new FilterKey(KEY_FILTER_SHARPNESS, FuseNative.FILTER_SHARPNESS, 100),
+        new FilterKey(KEY_FILTER_SCANLINE,  FuseNative.FILTER_SCANLINE,   50),
+        new FilterKey(KEY_FILTER_CURVE,     FuseNative.FILTER_CURVE,      40),
+        new FilterKey(KEY_FILTER_MASK,      FuseNative.FILTER_MASK,       40),
+        new FilterKey(KEY_FILTER_GLOW,      FuseNative.FILTER_GLOW,       30),
+        new FilterKey(KEY_VIDEO,            FuseNative.FILTER_VIDEO,       0),
+        new FilterKey(KEY_FILTER_BLEED,     FuseNative.FILTER_BLEED,      50),
+        new FilterKey(KEY_FILTER_NOISE,     FuseNative.FILTER_NOISE,      20),
     };
 
     /**
@@ -222,11 +242,11 @@ public class SettingsActivity extends AppCompatActivity
         FuseNative.setFilter(FuseNative.FILTER_SCANLINES, filter.scanlines ? 1 : 0);
         FuseNative.setFilter(FuseNative.FILTER_CRT, filter.crt ? 1 : 0);
 
-        for (Object[] entry : FILTER_KEYS) {
-            FuseNative.setFilter((Integer) entry[1],
+        for (FilterKey key : FILTER_KEYS) {
+            FuseNative.setFilter(key.index,
                                  SettingsFragment.number(preferences,
-                                        (String) entry[0],
-                                        Integer.parseInt((String) entry[2])));
+                                                         key.preference,
+                                                         key.fallback));
         }
     }
 
@@ -343,12 +363,25 @@ public class SettingsActivity extends AppCompatActivity
      * also took the only way back into the library out of the menu, with
      * nothing left short of Settings to undo it.
      */
-    public static boolean startsInLibrary(Context context,
-            android.content.SharedPreferences preferences) {
-        migrateLibraryDefault(context, preferences);
-
+    public static boolean startsInLibrary(android.content.SharedPreferences preferences) {
         return preferences.getBoolean(KEY_LIBRARY, true)
                 && libraryExists(preferences);
+    }
+
+    /**
+     * Runs the one-time library migration, if it has not run.
+     *
+     * Called from an entry point rather than from inside startsInLibrary,
+     * which is where it used to live. A question that writes is a question
+     * nobody expects to have to ask in the right order, and it only ever ran
+     * at all because LibraryActivity is the launcher and therefore asks
+     * first - true today, undocumented as a dependency, and silently skipped
+     * the day that changes. Both activities that can start this app call it
+     * now, and it is idempotent, so being asked twice costs one boolean read.
+     */
+    public static void migrateIfNeeded(Context context,
+            android.content.SharedPreferences preferences) {
+        migrateLibraryDefault(context, preferences);
     }
 
     /**
@@ -397,8 +430,8 @@ public class SettingsActivity extends AppCompatActivity
     private static boolean isFilterKey(String key) {
         if (KEY_FILTER.equals(key)) return true;
 
-        for (Object[] entry : FILTER_KEYS) {
-            if (entry[0].equals(key)) return true;
+        for (FilterKey entry : FILTER_KEYS) {
+            if (entry.preference.equals(key)) return true;
         }
         return false;
     }
@@ -529,12 +562,11 @@ public class SettingsActivity extends AppCompatActivity
         // reached only through that one.
         Filter.migrate(getSharedPreferences(PREFS, MODE_PRIVATE));
 
-        // Idempotent for the same reason: the launcher is where this really
-        // has to run, and opening Settings is not guaranteed to happen
-        // before that does. Calling it here as well costs nothing and keeps
-        // this screen's own switch right even for somebody who opens it
-        // first, without this screen having to know the migration exists.
-        startsInLibrary(this, getSharedPreferences(PREFS, MODE_PRIVATE));
+        // Named now rather than smuggled in through a question. Idempotent,
+        // and here as well as at the two entry points because this screen's
+        // own switch has to read right for somebody who opens Settings before
+        // anything else has asked.
+        migrateIfNeeded(this, getSharedPreferences(PREFS, MODE_PRIVATE));
 
         if (savedInstanceState != null) {
             selected = savedInstanceState.getInt(STATE_TAB, 0);

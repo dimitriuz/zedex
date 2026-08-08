@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.screen;
 
+import dev.ldlab.zedex.view.Palette;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.library.meta.Artwork;
 import dev.ldlab.zedex.library.meta.Meta;
@@ -53,9 +54,6 @@ public final class GameInfoActivity extends Activity {
     /** The file's own name, which is all this screen has to show until the store answers. */
     public static final String EXTRA_NAME = "dev.ldlab.zedex.extra.GAME_NAME";
 
-    private static final int TEXT = 0xffededf2;
-    private static final int MUTED = 0xff9a9aa5;
-    private static final int BACKING = 0xff0f0e13;
 
     /** Roughly what the artwork is drawn at here - a whole screen's worth,
      *  where the pane wanted a thumbnail. */
@@ -140,7 +138,7 @@ public final class GameInfoActivity extends Activity {
                 == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
 
         LinearLayout root = new LinearLayout(this);
-        root.setBackgroundColor(BACKING);
+        root.setBackgroundColor(Palette.BACKING);
         root.setOrientation(landscape ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
 
         ScrollView scroller = new ScrollView(this);
@@ -247,20 +245,20 @@ public final class GameInfoActivity extends Activity {
         // The filename until the store answers with a scraped name, exactly
         // as a row does - this screen is never blank while it waits.
         title = new TextView(this);
-        title.setTextColor(TEXT);
+        title.setTextColor(Palette.TEXT);
         title.setTextSize(22);
         title.setText(name);
         column.addView(title, wrap());
 
         filename = new TextView(this);
-        filename.setTextColor(MUTED);
+        filename.setTextColor(Palette.MUTED);
         filename.setTextSize(13);
         filename.setPadding(0, pixels(4), 0, 0);
         filename.setVisibility(View.GONE);
         column.addView(filename, wrap());
 
         facts = new TextView(this);
-        facts.setTextColor(MUTED);
+        facts.setTextColor(Palette.MUTED);
         facts.setTextSize(14);
         facts.setPadding(0, pixels(12), 0, 0);
         facts.setVisibility(View.GONE);
@@ -270,7 +268,7 @@ public final class GameInfoActivity extends Activity {
         // an empty screen that says the filename is a truthful answer to
         // "what is known about this?" - "nothing more" needs no label.
         description = new TextView(this);
-        description.setTextColor(TEXT);
+        description.setTextColor(Palette.TEXT);
         description.setTextSize(15);
         description.setLineSpacing(pixels(4), 1f);
         description.setPadding(0, pixels(20), 0, 0);

@@ -70,7 +70,6 @@ public final class QuickBar extends LinearLayout implements Rows {
     private static final float LIST_TEXT_SP = 15;
 
     /** Dark enough to read a white icon against any Spectrum screen. */
-    private static final int BACKING = 0x99000000;
     private static final int ICON = 0xffededf2;
 
     /** The open group's own icon, so it is clear which row belongs to what. */
@@ -167,7 +166,7 @@ public final class QuickBar extends LinearLayout implements Rows {
         LinearLayout row = new LinearLayout(context);
         GradientDrawable backing = new GradientDrawable();
 
-        backing.setColor(BACKING);
+        backing.setColor(Palette.SCRIM);
         backing.setCornerRadius(BUTTON_DP * density / 2f);
 
         row.setOrientation(HORIZONTAL);

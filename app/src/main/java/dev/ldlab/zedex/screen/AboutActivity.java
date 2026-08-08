@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.screen;
 
+import dev.ldlab.zedex.view.Palette;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.feedback.Feedback;
 import dev.ldlab.zedex.view.SafeArea;
@@ -40,8 +41,6 @@ public final class AboutActivity extends Activity {
 
     private static final String SOURCE = "https://github.com/dimitriuz/zedex";
 
-    private static final int TEXT = 0xffededf2;
-    private static final int DIM = 0xff9a9aa5;
     private static final int LINK = 0xff00b0c8;
 
     @Override
@@ -79,12 +78,12 @@ public final class AboutActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        column.addView(text(getString(R.string.app_name), 28, TEXT, pixels(20)));
-        column.addView(text(getString(R.string.about_tagline), 16, DIM, pixels(4)));
-        column.addView(text(getString(R.string.about_what), 14, TEXT, pixels(20)));
-        column.addView(text(build(), 14, DIM, pixels(20)));
-        column.addView(text(getString(R.string.about_licence), 13, DIM, pixels(16)));
-        column.addView(text(cheats(), 13, DIM, pixels(16)));
+        column.addView(text(getString(R.string.app_name), 28, Palette.TEXT, pixels(20)));
+        column.addView(text(getString(R.string.about_tagline), 16, Palette.MUTED, pixels(4)));
+        column.addView(text(getString(R.string.about_what), 14, Palette.TEXT, pixels(20)));
+        column.addView(text(build(), 14, Palette.MUTED, pixels(20)));
+        column.addView(text(getString(R.string.about_licence), 13, Palette.MUTED, pixels(16)));
+        column.addView(text(cheats(), 13, Palette.MUTED, pixels(16)));
         column.addView(feedback());
         column.addView(link());
 

@@ -220,6 +220,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         preferences = getSharedPreferences(PREFS, MODE_PRIVATE);
 
+        // The other way into this app - a launcher shortcut, ES-DE, a file
+        // handed over - so the one-time library migration is asked for here
+        // too. Idempotent: a second call is one boolean read.
+        SettingsActivity.migrateIfNeeded(this, preferences);
+
         media = new Media(this, preferences, new Media.Host() {
             @Override
             public void note(int message, Object... arguments) {
@@ -446,20 +451,27 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         lights.setWants(this::mouseWanted);
 
         layout = new EmulatorLayout(this);
-        layout.setChildren(screen, new SpectrumKeyboardView(this),
-                           new SystemKeyboardView(this),
-                           new JoystickView(this, JoystickView.Part.PAD),
-                           new JoystickView(this, JoystickView.Part.FIRE),
-                           keyButtons,
-                           overlayKeyboard(), overlayButton(
-                                   R.drawable.ic_keyboard,
-                                   R.string.overlay_open,
-                                   () -> layout.setOverlayShown(true)),
-                           overlayButton(R.drawable.ic_hide,
-                                         R.string.overlay_close,
-                                         () -> layout.setOverlayShown(false)),
-                           lights, playButton,
-                           roms.view(), quickBar, menu);
+        EmulatorLayout.Children children = new EmulatorLayout.Children();
+        children.screen = screen;
+        children.keyboard = new SpectrumKeyboardView(this);
+        children.system = new SystemKeyboardView(this);
+        children.pad = new JoystickView(this, JoystickView.Part.PAD);
+        children.fire = new JoystickView(this, JoystickView.Part.FIRE);
+        children.keys = keyButtons;
+        children.overlay = overlayKeyboard();
+        children.overlayOpen = overlayButton(R.drawable.ic_keyboard,
+                                             R.string.overlay_open,
+                                             () -> layout.setOverlayShown(true));
+        children.overlayClose = overlayButton(R.drawable.ic_hide,
+                                              R.string.overlay_close,
+                                              () -> layout.setOverlayShown(false));
+        children.lights = lights;
+        children.play = playButton;
+        children.panel = roms.view();
+        children.bar = quickBar;
+        children.drawer = menu;
+
+        layout.setChildren(children);
         layout.setJoystickVisible(
                 preferences.getBoolean(SettingsActivity.KEY_JOYSTICK, true));
         layout.setKeyboardVisible(

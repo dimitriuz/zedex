@@ -91,7 +91,6 @@ public final class ActivityLights extends View {
     };
 
     /** Dark enough to read against any Spectrum screen, like the quick bar. */
-    private static final int BACKING = 0x99000000;
 
     /** Off, taking something in, and putting something out. */
     private static final int IDLE = 0x59ededf2;
@@ -179,7 +178,7 @@ public final class ActivityLights extends View {
         pad = Math.round(PAD_DP * density);
         gap = Math.round(GAP_DP * density);
 
-        backing.setColor(BACKING);
+        backing.setColor(Palette.SCRIM);
 
         bar.setColor(WRITING);
 

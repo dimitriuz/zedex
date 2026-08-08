@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.screen;
 
+import dev.ldlab.zedex.view.Palette;
 import dev.ldlab.zedex.EmulatorActivity;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.storage.Storage;
@@ -245,13 +246,13 @@ public final class StartPanel {
 
         title = new TextView(activity);
         title.setTextSize(26);
-        title.setTextColor(TEXT);
+        title.setTextColor(Palette.TEXT);
         title.setLetterSpacing(-0.01f);
         content.addView(title);
 
         message = new TextView(activity);
         message.setTextSize(15);
-        message.setTextColor(DIM);
+        message.setTextColor(Palette.MUTED);
         message.setLineSpacing(unit(1), 1f);
         message.setPadding(0, unit(2), 0, unit(5));
         content.addView(message);
@@ -301,7 +302,7 @@ public final class StartPanel {
         // the ones that do.
         demoNote = new TextView(activity);
         demoNote.setTextSize(14);
-        demoNote.setTextColor(DIM);
+        demoNote.setTextColor(Palette.MUTED);
         demoNote.setLineSpacing(unit(1), 1f);
         demoNote.setPadding(unit(4), unit(3), unit(4), unit(3));
         demoNote.setBackground(stripe(CARD, CYAN));
@@ -371,13 +372,13 @@ public final class StartPanel {
         TextView name = new TextView(activity);
         name.setText(label);
         name.setTextSize(17);
-        name.setTextColor(primary ? ON_CYAN : TEXT);
+        name.setTextColor(primary ? ON_CYAN : Palette.TEXT);
         row.addView(name);
 
         TextView caption = new TextView(activity);
         caption.setText(description);
         caption.setTextSize(13);
-        caption.setTextColor(primary ? 0xcc05222a : DIM);
+        caption.setTextColor(primary ? 0xcc05222a : Palette.MUTED);
         caption.setLineSpacing(unit(1) / 2f, 1f);
         caption.setPadding(0, unit(1), 0, 0);
         row.addView(caption);
@@ -397,13 +398,13 @@ public final class StartPanel {
         touchable(row);
 
         value.setTextSize(17);
-        value.setTextColor(TEXT);
+        value.setTextColor(Palette.TEXT);
         row.addView(value);
 
         TextView caption = new TextView(activity);
         caption.setText(description);
         caption.setTextSize(13);
-        caption.setTextColor(DIM);
+        caption.setTextColor(Palette.MUTED);
         caption.setLineSpacing(unit(1) / 2f, 1f);
         caption.setPadding(0, unit(1), 0, 0);
         row.addView(caption);
@@ -441,8 +442,6 @@ public final class StartPanel {
     private static final int BACK = 0xff0e0f13;
     private static final int CARD = 0xff1b1d24;
     private static final int EDGE = 0x14ffffff;
-    private static final int TEXT = 0xfff1f1f6;
-    private static final int DIM = 0xff989aa6;
     private static final int CYAN = 0xff00b0c8;
     private static final int ON_CYAN = 0xff05222a;
 

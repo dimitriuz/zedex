@@ -76,7 +76,14 @@ import java.util.List;
  */
 public final class SecondScreen extends Presentation {
 
-    /** Black, like the main window: this is the same app, not a page. */
+    /**
+     * Black, like the main window: this is the same app, not a page.
+     *
+     * Deliberately not {@link dev.ldlab.zedex.view.Palette#BACKING}, which is
+     * the near-black the built screens are drawn on. This one sits behind the
+     * emulated picture on a panel that may be a television, where anything
+     * short of black is a visible grey rectangle around the game.
+     */
     private static final int BACKING = 0xff000000;
 
     /** Room around the strip, so nothing sits against the panel's edge, dp. */

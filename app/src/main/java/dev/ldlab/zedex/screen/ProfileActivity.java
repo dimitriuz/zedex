@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.screen;
 
+import dev.ldlab.zedex.view.Palette;
 import dev.ldlab.zedex.FuseNative;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.input.ControlProfiles;
@@ -51,8 +52,6 @@ public final class ProfileActivity extends Activity
     /** Bright enough to read as chosen against the dark rows. */
     private static final int SELECTED = 0xff00b0c8;
     private static final int ROW = 0x22ffffff;
-    private static final int TEXT = 0xffededf2;
-    private static final int DIM = 0xff9a9aa5;
 
     private SharedPreferences preferences;
     private final Button[] slots = new Button[ControlProfiles.SLOTS];
@@ -92,7 +91,7 @@ public final class ProfileActivity extends Activity
         page.addView(name());
 
         hint = new TextView(this);
-        hint.setTextColor(DIM);
+        hint.setTextColor(Palette.MUTED);
         hint.setTextSize(13);
         hint.setPadding(pixels(4), pixels(8), pixels(4), pixels(4));
         page.addView(hint);
@@ -141,7 +140,7 @@ public final class ProfileActivity extends Activity
         EditText field = new EditText(this);
 
         field.setText(profile().name);
-        field.setTextColor(TEXT);
+        field.setTextColor(Palette.TEXT);
         field.setTextSize(20);
         field.setSingleLine(true);
         field.setBackgroundColor(Color.TRANSPARENT);
@@ -210,7 +209,7 @@ public final class ProfileActivity extends Activity
             Button cell = new Button(this);
 
             cell.setAllCaps(false);
-            cell.setTextColor(TEXT);
+            cell.setTextColor(Palette.TEXT);
             cell.setTextSize(14);
             cell.setSingleLine(true);
             cell.setBackgroundColor(ROW);
@@ -243,7 +242,7 @@ public final class ProfileActivity extends Activity
 
             row.setText(ControlProfiles.slotName(slot) + "   "
                         + ControlProfiles.name(profile.keys[slot]));
-            row.setTextColor(slot == selected ? SELECTED : TEXT);
+            row.setTextColor(slot == selected ? SELECTED : Palette.TEXT);
         }
 
         hint.setText(getString(R.string.profile_hint,

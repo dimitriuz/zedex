@@ -286,13 +286,47 @@ public final class EmulatorLayout extends ViewGroup {
      * because most of these views leave for a second screen and have to come
      * back in the same order; see {@link #setLentAway}.
      */
-    public void setChildren(View screen, SpectrumKeyboardView keyboard,
-                     SystemKeyboardView system,
-                     JoystickView pad, JoystickView fire, JoystickView[] keys,
-                     SpectrumKeyboardView overlay, View overlayOpen,
-                     View overlayClose,
-                     ActivityLights lights,
-                     View play, View panel, QuickBar bar, View drawer) {
+    /**
+     * Everything this layout arranges, named.
+     *
+     * Fourteen positional parameters before this, of which five were plain
+     * {@code View} and three {@code JoystickView} - so any two adjacent
+     * arguments of the same type could be swapped and it still compiled,
+     * producing an arrangement that was subtly wrong rather than one that
+     * failed. Assigning them by name costs the caller nothing and makes that
+     * class of mistake impossible.
+     */
+    public static final class Children {
+        public View screen;
+        public SpectrumKeyboardView keyboard;
+        public SystemKeyboardView system;
+        public JoystickView pad;
+        public JoystickView fire;
+        public JoystickView[] keys;
+        public SpectrumKeyboardView overlay;
+        public View overlayOpen;
+        public View overlayClose;
+        public ActivityLights lights;
+        public View play;
+        public View panel;
+        public QuickBar bar;
+        public View drawer;
+    }
+
+    public void setChildren(Children children) {
+        View screen = children.screen;
+        SpectrumKeyboardView keyboard = children.keyboard;
+        SystemKeyboardView system = children.system;
+        JoystickView pad = children.pad;
+        JoystickView fire = children.fire;
+        JoystickView[] keys = children.keys;
+        SpectrumKeyboardView overlay = children.overlay;
+        View overlayOpen = children.overlayOpen;
+        View overlayClose = children.overlayClose;
+        ActivityLights lights = children.lights;
+        View play = children.play;
+        View panel = children.panel;
+
         this.screen = screen;
         this.keyboard = keyboard;
         this.system = system;
@@ -305,8 +339,8 @@ public final class EmulatorLayout extends ViewGroup {
         this.lights = lights;
         this.play = play;
         this.panel = panel;
-        this.menu = bar;
-        this.drawer = drawer;
+        this.menu = children.bar;
+        this.drawer = children.drawer;
 
         // Front to back is the order below: the drawer covers everything, the
         // button stays over the panel, the panel covers the screen and the
@@ -324,8 +358,8 @@ public final class EmulatorLayout extends ViewGroup {
         all.add(lights);
         all.add(play);
         all.add(panel);
-        all.add(bar);
-        all.add(drawer);
+        all.add(children.bar);
+        all.add(children.drawer);
 
         order = all.toArray(new View[0]);
         for (View child : order) addView(child);
