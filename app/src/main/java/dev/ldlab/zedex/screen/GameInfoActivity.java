@@ -286,6 +286,13 @@ public final class GameInfoActivity extends Activity {
      */
     private void load(String path) {
         new Thread(() -> {
+            // Asked for, and waited for: forPath answers from memory and
+            // never parses, so a screen opened before the store has been read
+            // - straight from ES-DE, most often - would otherwise show a game
+            // about which nothing is known. This is already a thread of its
+            // own, which is the only place waiting is allowed.
+            Metadata.ensureLoaded(getApplicationContext());
+
             Meta meta = Metadata.forPath(this, path);
 
             handler.post(() -> {
