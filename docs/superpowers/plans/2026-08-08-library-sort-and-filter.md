@@ -1519,6 +1519,79 @@ one piece of state is the pair that drifts."
 
 ---
 
+### Task 8: One Options button instead of three
+
+**Files:**
+- Modify: `app/src/main/java/dev/ldlab/zedex/screen/LibraryActivity.java`
+- Modify: `app/src/main/res/values/strings.xml` and all eight `values-*/strings.xml`
+- Create: `app/src/main/res/drawable/ic_options.xml`
+- Delete: `app/src/main/res/drawable/ic_filter.xml` and `ic_sort.xml` if nothing else uses them
+
+**Interfaces:**
+- Consumes: `OptionsDialog.show(int sortIndex, boolean descending, boolean grid)` — the three-page menu Task 6 built.
+- Produces: a single toolbar button; `showSortMenu` and the separate filter and view buttons gone.
+
+- [ ] **Step 1: Add the string, in nine files**
+
+`library_options` — "Options" in `values/`, and translated in the eight others:
+cs `Možnosti`, de `Optionen`, es `Opciones`, fr `Options`, it `Opzioni`,
+pl `Opcje`, ru `Параметры`, uk `Параметри`.
+
+Then `python3 scripts/check-strings.py` must print `8 translations agree with values/`.
+
+- [ ] **Step 2: Replace the three buttons with one**
+
+In `buildToolbar()`, delete the sort button, the filter button added in Task 5,
+and the list/grid toggle. Add one button in their place, built by the same
+`toolbarButton(...)` helper, with `ic_options` and `getString(R.string.library_options)`
+as its description. Its click handler opens the dialog exactly as the pad does:
+
+```java
+        optionsButton.setOnClickListener(v ->
+                optionsDialog.show(sortFieldIndex(sort), sortDescending, grid));
+```
+
+The dialog resolves its own filter values; nothing needs pre-loading here.
+
+- [ ] **Step 3: Delete `showSortMenu` and what it needed**
+
+`showSortMenu(View)` and its `PopupMenu` go entirely — the Sort page replaces
+it. Remove the `PopupMenu` import if nothing else uses it. Check whether
+`updateSortButton()` still has a button to update; if not, delete it and its
+call sites rather than leaving it to update nothing.
+
+- [ ] **Step 4: Keep the button out of the tabs that do not use it**
+
+Filtering is Browse only, but sort and view are not. Leave the Options button
+visible in every tab, and let the Filter row inside the dialog be the thing
+that is hidden or disabled outside Browse — one button that sometimes offers
+less, rather than a button that vanishes.
+
+- [ ] **Step 5: Build and check**
+
+```bash
+env JAVA_HOME=/opt/android-studio/jbr ./gradlew --no-daemon testDebugUnitTest
+env JAVA_HOME=/opt/android-studio/jbr ./gradlew --no-daemon assembleDebug
+python3 scripts/check-strings.py
+python3 scripts/check-prefs.py
+```
+
+Then on the emulator: one button where three were; it opens the three-page
+menu; View still flips the list and grid; Sort still sorts; Filter still
+filters; and the toolbar still looks right with the breadcrumb and the search
+box beside it.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add app/src/main/java/dev/ldlab/zedex/screen/LibraryActivity.java \
+        app/src/main/res/values*/strings.xml \
+        app/src/main/res/drawable/ic_options.xml
+git commit -m "feat: one Options button rather than three"
+```
+
+---
+
 ## Where this plan is specification rather than code
 
 Tasks 1 to 4 give the literal code, and their tests are runnable as written.
