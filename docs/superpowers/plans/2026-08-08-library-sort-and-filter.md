@@ -675,8 +675,16 @@ public final class Sorting {
             }
             case FORMAT:
                 return !Filters.formatOf(entry).isEmpty();
+            case SIZE:
+                // Entry documents size as -1 when it could not be determined,
+                // and that is a live value: every favourite, every recent and
+                // every entry inside an archive carries it. Left as "always
+                // known", ascending would float all of them above the smallest
+                // real file while descending hid it, since -1 is the minimum
+                // either way.
+                return entry.size >= 0;
             default:
-                return true;   // a name and a size are always known
+                return true;   // a name is always known
         }
     }
 
