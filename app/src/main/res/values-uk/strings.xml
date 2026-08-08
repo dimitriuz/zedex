@@ -561,6 +561,7 @@
     <string name="library_sort_size">Розмір</string>
     <string name="library_filter">Фільтр</string>
     <string name="library_filter_none">Без фільтра</string>
+    <string name="library_filter_count">%1$d полів</string>
     <string name="library_filter_format">Формат</string>
     <string name="library_filter_genre">Жанр</string>
     <string name="library_filter_rating">Оцінка</string>

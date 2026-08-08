@@ -533,15 +533,12 @@ public final class LibraryActivity extends Activity {
         padNav = buildPadNav();
         padCursor = new GamepadCursor(padNav);
 
-        optionsDialog = new OptionsDialog(this, new OptionsDialog.Callbacks() {
+        optionsDialog = new OptionsDialog(this, filters, new OptionsDialog.Callbacks() {
             @Override
             public void onSortField(int index) {
-                // OptionsDialog still only builds three rows - name, size and
-                // released, correctly labelled now that library_sort_date is
-                // gone - rather than all five of Sorting.FIELDS; format and
-                // rating reach the dialog once Task 6 wraps View, Sort and
-                // Filter into a menu of their own. index is always one of
-                // these three meanwhile.
+                // OptionsDialog's own SORT page now offers all five of
+                // Sorting.FIELDS, one page level under the menu Task 6 put
+                // above it - index is whichever of the five was chosen.
                 chooseSortField(Sorting.FIELDS[index]);
                 optionsDialog.refresh(sortFieldIndex(sort), sortDescending, grid);
             }
@@ -555,6 +552,16 @@ public final class LibraryActivity extends Activity {
             @Override
             public void onFiltersChanged() {
                 LibraryActivity.this.onFiltersChanged();
+            }
+
+            @Override
+            public void openFilters() {
+                // The menu's own Filter row - same facets walk the toolbar's
+                // button already does, just landing on OptionsDialog's own
+                // "entered from the menu" door instead of its "fresh dialog"
+                // one; see openFilterSheet and enterFiltersFromMenu's own
+                // comment for why the two doors cannot share a method.
+                openFilterSheet(true);
             }
         });
 
@@ -1337,20 +1344,7 @@ public final class LibraryActivity extends Activity {
         // all - a filter reachable only from there would be reachable only
         // with a controller. Hidden outside Browse; see show(Tab).
         filterButton = toolbarButton(R.drawable.ic_filter, getString(R.string.library_filter));
-        filterButton.setOnClickListener(v -> new Thread(() -> {
-            // Off the UI thread: this walks the whole store, which is 800
-            // games on the collection it was built against, and the whole
-            // content folder besides, for the formats - see
-            // everythingForFacets.
-            Map<Filters.Field, List<Facets.Value>> values =
-                    Facets.of(Metadata.all(this));
-            List<Facets.Value> formats = Facets.formatsOf(everythingForFacets());
-
-            runOnUiThread(() -> {
-                if (isFinishing() || isDestroyed()) return;
-                optionsDialog.showFilters(filters, values, formats);
-            });
-        }).start());
+        filterButton.setOnClickListener(v -> openFilterSheet(false));
         row.addView(filterButton);
 
         // Named for what it would do rather than what it is, like the bar's
@@ -2183,12 +2177,47 @@ public final class LibraryActivity extends Activity {
     }
 
     /**
+     * Off the UI thread, walks the whole store for the values a field can be
+     * narrowed to, then opens the filter sheet - the toolbar's own Filter
+     * button and {@link OptionsDialog}'s own menu row both need exactly this
+     * work, so it is one method rather than two copies that could drift on
+     * which of {@link Facets}'s own two calls builds "formats" or "values".
+     *
+     * @param fromMenu whether this is OptionsDialog's own menu row asking
+     *                 rather than the toolbar - decides which of that
+     *                 dialog's two doors the answer goes through, since only
+     *                 one of them has a MENU behind it to come back to; see
+     *                 {@code OptionsDialog.enterFiltersFromMenu}'s own
+     *                 comment.
+     */
+    private void openFilterSheet(boolean fromMenu) {
+        new Thread(() -> {
+            // Off the UI thread: this walks the whole store, which is 800
+            // games on the collection it was built against, and the whole
+            // content folder besides, for the formats - see
+            // everythingForFacets.
+            Map<Filters.Field, List<Facets.Value>> values =
+                    Facets.of(Metadata.all(this));
+            List<Facets.Value> formats = Facets.formatsOf(everythingForFacets());
+
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                if (fromMenu) {
+                    optionsDialog.enterFiltersFromMenu(values, formats);
+                } else {
+                    optionsDialog.showFilters(values, formats);
+                }
+            });
+        }).start();
+    }
+
+    /**
      * Every file under the content folder, root down, for {@link
      * Facets#formatsOf} - not whatever is currently loaded, which may be one
      * archive or a single folder, since a filter narrows the whole
      * collection, not the level Browse happens to be standing in. Called off
-     * the UI thread already, from the filter button's own click handler, so
-     * the walk itself costs nothing this method needs to worry about.
+     * the UI thread already, from {@link #openFilterSheet}, so the walk
+     * itself costs nothing this method needs to worry about.
      *
      * Empty on any failure or with no content folder granted at all: a stale
      * grant or a folder gone missing should leave the filter sheet with

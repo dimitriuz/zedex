@@ -561,6 +561,7 @@
     <string name="library_sort_size">Größe</string>
     <string name="library_filter">Filter</string>
     <string name="library_filter_none">Kein Filter</string>
+    <string name="library_filter_count">%1$d Felder</string>
     <string name="library_filter_format">Format</string>
     <string name="library_filter_genre">Genre</string>
     <string name="library_filter_rating">Bewertung</string>

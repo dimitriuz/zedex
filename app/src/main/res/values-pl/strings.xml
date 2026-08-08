@@ -561,6 +561,7 @@
     <string name="library_sort_size">Rozmiar</string>
     <string name="library_filter">Filtr</string>
     <string name="library_filter_none">Bez filtra</string>
+    <string name="library_filter_count">%1$d pól</string>
     <string name="library_filter_format">Format</string>
     <string name="library_filter_genre">Gatunek</string>
     <string name="library_filter_rating">Ocena</string>

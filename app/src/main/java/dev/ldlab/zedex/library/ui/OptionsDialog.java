@@ -3,9 +3,11 @@ package dev.ldlab.zedex.library.ui;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.library.Facets;
 import dev.ldlab.zedex.library.Filters;
+import dev.ldlab.zedex.library.Sorting;
 
 import android.app.Activity;
 import android.app.Dialog;
+import android.graphics.Rect;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.Gravity;
@@ -52,11 +54,19 @@ import java.util.Set;
  * "a row that was a dialog is a page now" - there is no OK button anywhere in
  * here, on either page, and every tap commits by its own name.
  *
- * This class has three pages now rather than one - see {@link Page} - which
- * is the "notion of depth" the filter sheet needed and the plain sort-and-view
- * column never did. {@link #rebuild} is the one place that throws away
- * whatever rows are showing and builds the ones the current page wants,
- * whether that is the dialog's first paint or a page changing under it.
+ * This class has four pages now rather than one flat column - see {@link
+ * Page}. Task 6 put a three-row menu, {@link Page#MENU}, above what used to
+ * be the whole dialog. View stayed a row on that menu rather than gaining a
+ * page of its own: flipping List and Grid is a flick, not a considered
+ * choice, and a page behind it would have cost three presses for something
+ * that used to cost one - so choosing it flips the mode on the spot, the
+ * same way a filter row commits by its own name. Sort did gain a page,
+ * since five fields and a direction is a considered choice; so did the
+ * filter sheet Task 5 built, which now has a second door in besides the
+ * toolbar's own Filter button. {@link #rebuild} is still the one place that
+ * throws away whatever rows are showing and builds the ones the current
+ * page wants, whether that is the dialog's first paint or a page changing
+ * under it.
  */
 public final class OptionsDialog {
 
@@ -65,7 +75,8 @@ public final class OptionsDialog {
      *  regardless of how it was chosen. {@code LibraryActivity} is the only
      *  implementation. */
     public interface Callbacks {
-        /** 0 = name, 1 = date, 2 = size. The same field twice reverses the
+        /** 0 = name, 1 = size, 2 = released, 3 = format, 4 = rating - {@code
+         *  Sorting.FIELDS}'s own order. The same field twice reverses the
          *  direction - the caller's business, not this dialog's, which only
          *  reports which field was chosen. */
         void onSortField(int index);
@@ -73,6 +84,14 @@ public final class OptionsDialog {
         void onViewMode(boolean grid);
         /** The filter changed; the library re-lists. */
         void onFiltersChanged();
+        /** MENU's own Filter row was chosen. Unlike the other three this
+         *  cannot finish here - the values a field can be narrowed to are not
+         *  known until {@code Facets} walks the whole store, off the UI
+         *  thread, the same work the toolbar's own Filter button already does
+         *  before calling {@link #showFilters} - so this only asks; {@code
+         *  LibraryActivity} is expected to do that work and then call {@link
+         *  #enterFiltersFromMenu} with the answer. */
+        void openFilters();
     }
 
     // Matches LibraryActivity's own palette - duplicated rather than shared,
@@ -101,17 +120,20 @@ public final class OptionsDialog {
     /**
      * Which of the dialog's own pages is showing.
      *
-     * OPTIONS is {@link #show}'s page, unchanged since before the filter
-     * sheet existed. FILTER and VALUES are that sheet: FILTER lists the five
-     * fields, {@link #showFilters} is what enters it, and VALUES is one field's
-     * own values, one level deeper. Nothing here is a stack more than two
-     * deep - VALUES always goes back to FILTER, and FILTER, for now, always
-     * dismisses the dialog rather than going back further, since nothing yet
-     * opens FILTER from anywhere but {@link #showFilters} itself. Task 6's
-     * own menu of View, Sort and Filter is what gives FILTER's back a second
-     * place to go instead of the door.
+     * MENU is {@link #show}'s own page now: View, Sort and Filter, each
+     * naming what it is currently set to so checking costs a glance rather
+     * than a page. View has no page of its own - activating that row flips
+     * List and Grid on the spot, the way a filter row commits by its own
+     * name - so MENU is as deep as that subject ever goes. SORT is one
+     * subject deep and reachable from nowhere but MENU, so its own back
+     * always returns there. FILTER is the sheet Task 5 built, reachable two
+     * ways - as MENU's own third subject, or straight from the toolbar's own
+     * Filter button with no MENU behind it at all - which is why {@link
+     * #goBack} has to ask where FILTER's own back goes rather than assume;
+     * see {@link #filterHasMenuParent}. VALUES is one field's own values, one
+     * level under FILTER regardless of how FILTER itself was reached.
      */
-    private enum Page { OPTIONS, FILTER, VALUES }
+    private enum Page { MENU, SORT, FILTER, VALUES }
 
     /**
      * The five rows the filter page offers. Four of them are {@link
@@ -124,18 +146,30 @@ public final class OptionsDialog {
      */
     private enum FilterRow { FORMAT, GENRE, RATING, DEVELOPER, PUBLISHER }
 
+    /** Where View, Sort and Filter sit among {@link #rows} on {@link
+     *  Page#MENU} - {@link #show} starts the cursor on MENU_VIEW, and {@link
+     *  #goBack} puts it back on MENU_SORT or MENU_FILTER for whichever of
+     *  those two led to the page it is leaving; View has no page to leave, so
+     *  nothing ever needs to land back on it that way. */
+    private static final int MENU_VIEW = 0, MENU_SORT = 1, MENU_FILTER = 2;
+
     private final Activity activity;
     private final Callbacks callbacks;
 
     private final List<TextView> rows = new ArrayList<>();
     private final List<Runnable> actions = new ArrayList<>();
 
-    /** The three sort rows, kept apart from {@link #rows} as well as in it,
-     *  so {@link #paint} can redraw the arrow without walking past the two
-     *  view rows to find them. Only ever populated on {@link Page#OPTIONS}. */
+    /** The five sort rows, kept apart from {@link #rows} as well as in it,
+     *  so {@link #paint} can redraw the arrow without walking past whatever
+     *  else the page has to find them. Only ever populated on {@link
+     *  Page#SORT}. */
     private final List<TextView> sortRows = new ArrayList<>();
-    private TextView listRow;
-    private TextView gridRow;
+
+    /** MENU's own View row, kept apart from {@link #rows} the same way {@link
+     *  #sortRows} is - so {@link #paint} can update its summary after a
+     *  toggle without searching {@link #rows} for it. Only ever populated on
+     *  {@link Page#MENU}. */
+    private TextView viewRow;
 
     private Dialog dialog;
     private GamepadCursor cursor;
@@ -150,16 +184,26 @@ public final class OptionsDialog {
     private boolean descending;
     private boolean grid;
 
-    private Page page = Page.OPTIONS;
+    private Page page = Page.MENU;
 
-    // --- the filter sheet's own state - null/empty until showFilters() ------
+    /** Whether the current {@link Page#FILTER} has {@link Page#MENU} to go
+     *  back to - true when {@link #enterFiltersFromMenu} opened it, false
+     *  when {@link #showFilters} did. Meaningless outside FILTER; {@link
+     *  #goBack} is the only reader. */
+    private boolean filterHasMenuParent;
 
     /** The library's own {@link Filters}, the same instance {@code
      *  LibraryActivity} holds - toggling a value here mutates it directly,
      *  which is what lets both doors into this dialog answer to one state,
      *  the way the sort field already answers to the popup and the pad
-     *  dialog alike. */
-    private Filters filters;
+     *  dialog alike. Set once, by the constructor: {@link Page#MENU}'s own
+     *  Filter row has to say how many fields are set before the filter sheet
+     *  has ever been opened, so this cannot wait for {@link #showFilters} the
+     *  way {@link #values} and {@link #formats} still do. */
+    private final Filters filters;
+
+    // --- the rest of the filter sheet's own state - null/empty until
+    // showFilters() or enterFiltersFromMenu() runs -------------------------
 
     /** Genre, developer and publisher, with a count for each - {@link
      *  Filters.Field#FORMAT} is not a key here; see {@link #formats}. */
@@ -193,15 +237,20 @@ public final class OptionsDialog {
      *  {@link #refreshValueRows} is allowed to touch. */
     private int valueRowsStart;
 
-    public OptionsDialog(Activity activity, Callbacks callbacks) {
+    public OptionsDialog(Activity activity, Filters filters, Callbacks callbacks) {
         this.activity = activity;
+        this.filters = filters;
         this.callbacks = callbacks;
     }
 
     /**
-     * Builds and shows the dialog, starting the pad's cursor on whichever
-     * field is already sorting - the same row a touch tap would already be
-     * looking at. Does nothing if one is already up.
+     * Builds and shows the dialog, opening on {@link Page#MENU} - the
+     * three-row menu Task 6 put above what {@code sortIndex}, {@code
+     * descending} and {@code grid} used to open directly. The field that is
+     * sorting is a row inside {@link Page#SORT} now, not on the page that
+     * opens, so the cursor starts on MENU's own first row rather than on it;
+     * a person who wants to check the sort field is one press away either
+     * way. Does nothing if one is already up.
      */
     public void show(int sortIndex, boolean descending, boolean grid) {
         if (dialog != null) return;
@@ -209,30 +258,56 @@ public final class OptionsDialog {
         this.sortIndex = sortIndex;
         this.descending = descending;
         this.grid = grid;
-        this.cursorRow = sortIndex;
-        this.page = Page.OPTIONS;
+        this.cursorRow = MENU_VIEW;
+        this.page = Page.MENU;
 
         rebuild();
     }
 
     /**
      * The filter sheet: five fields, each opening the values the collection
-     * actually has.
+     * actually has. Reached straight from {@code LibraryActivity}'s own
+     * Filter button, never through {@link #show} - touch has no other door
+     * into this dialog at all, so this opens a fresh dialog of its own rather
+     * than assuming one is already up. {@link #filterHasMenuParent} is left
+     * {@code false}: nothing led here but the toolbar, so FILTER's own back
+     * has nowhere to go but the door - see {@link #goBack}.
      *
-     * The same row-building code the sort page uses, entered here rather than
-     * at the top - one widget with two starting points, not a second list that
-     * could drift from the first about, say, whether genres are comma-split.
-     * Reached straight from {@code LibraryActivity}'s own Filter button,
-     * never through {@link #show}: touch has no other door into this dialog
-     * at all, so this one has to stand on its own rather than assume {@link
-     * #show} ran first.
+     * {@link #enterFiltersFromMenu} is the other door, MENU's own Filter row -
+     * kept apart from this one because that row cannot answer synchronously
+     * the way every other row here does; see {@link Callbacks#openFilters}.
      */
-    public void showFilters(Filters filters,
-                            Map<Filters.Field, List<Facets.Value>> values,
+    public void showFilters(Map<Filters.Field, List<Facets.Value>> values,
                             List<Facets.Value> formats) {
-        this.filters = filters;
         this.values = values;
         this.formats = formats;
+        filterHasMenuParent = false;
+
+        page = Page.FILTER;
+        cursorRow = 0;
+        rebuild();
+    }
+
+    /**
+     * The same filter sheet, entered from {@link Page#MENU}'s own Filter row
+     * by way of {@link Callbacks#openFilters} - {@code LibraryActivity} calls
+     * this once it has walked the store for the values a field can be
+     * narrowed to, which {@link #showFilters} needs no such round trip for
+     * since the toolbar's button already did that walk before calling it.
+     *
+     * Ignored if the dialog is no longer up: a person is free to press B and
+     * close the whole thing while that walk is still running, and proceeding
+     * anyway would reopen a dialog they already dismissed - the one thing
+     * {@link #showFilters} never had to guard against, since nothing can
+     * dismiss a dialog that was never shown.
+     */
+    public void enterFiltersFromMenu(Map<Filters.Field, List<Facets.Value>> values,
+                                     List<Facets.Value> formats) {
+        if (dialog == null) return;
+
+        this.values = values;
+        this.formats = formats;
+        filterHasMenuParent = true;
 
         page = Page.FILTER;
         cursorRow = 0;
@@ -250,11 +325,12 @@ public final class OptionsDialog {
 
     /**
      * Called after {@code LibraryActivity} applies a sort or view change, so
-     * the highlight and the arrow agree with what actually took effect -
-     * without this, choosing something from the pad would look like it did
-     * nothing until the dialog was closed and reopened. Safe to call whether
-     * or not the dialog is currently showing; a no-op unless {@link #page} is
-     * {@link Page#OPTIONS}, since nothing else calls this.
+     * the highlight and the arrow - or, on MENU, the View row's own summary -
+     * agree with what actually took effect, without this, choosing something
+     * from the pad would look like it did nothing until the dialog was closed
+     * and reopened. Safe to call whether or not the dialog is currently
+     * showing; a no-op unless {@link #page} is {@link Page#SORT} or {@link
+     * Page#MENU}, since nothing else calls this.
      */
     public void refresh(int sortIndex, boolean descending, boolean grid) {
         this.sortIndex = sortIndex;
@@ -271,6 +347,7 @@ public final class OptionsDialog {
                 if (dy == 0 || rows.isEmpty()) return;
                 cursorRow = Math.max(0, Math.min(rows.size() - 1, cursorRow + dy));
                 paint();
+                scrollCursorIntoView();
             }
 
             @Override
@@ -289,17 +366,7 @@ public final class OptionsDialog {
 
             @Override
             public void back() {
-                // One level of depth: VALUES goes back to the field list it
-                // came from, and everything else - OPTIONS, and FILTER until
-                // something else opens it - dismisses outright, since FILTER
-                // has nowhere else to go yet. See Page's own comment.
-                if (page == Page.VALUES) {
-                    page = Page.FILTER;
-                    cursorRow = 0;
-                    rebuild();
-                } else {
-                    dialog.dismiss();
-                }
+                goBack();
             }
 
             @Override
@@ -331,6 +398,70 @@ public final class OptionsDialog {
     }
 
     /**
+     * One level up - B's own job, and a page's own back row's, so both call
+     * this rather than each carrying a copy of what "up" means for it.
+     *
+     * VALUES always returns to FILTER. SORT always returns to MENU, since it
+     * is reachable no other way - View has no page of its own to return
+     * from at all, see {@link Page}'s own comment. FILTER returns to MENU
+     * only when a menu is actually where this session came from - {@link
+     * #filterHasMenuParent} - and dismisses otherwise, the same as MENU
+     * itself: both are as far up as this dialog goes from wherever they were
+     * reached.
+     */
+    private void goBack() {
+        switch (page) {
+            case VALUES:
+                page = Page.FILTER;
+                cursorRow = 0;
+                rebuild();
+                break;
+
+            case SORT:
+                page = Page.MENU;
+                cursorRow = MENU_SORT;
+                rebuild();
+                break;
+
+            case FILTER:
+                if (filterHasMenuParent) {
+                    page = Page.MENU;
+                    cursorRow = MENU_FILTER;
+                    rebuild();
+                } else {
+                    dialog.dismiss();
+                }
+                break;
+
+            case MENU:
+            default:
+                dialog.dismiss();
+                break;
+        }
+    }
+
+    /**
+     * Brings the cursor's own row into view inside whichever {@link
+     * ScrollView} it happens to sit in - {@link Page#VALUES} on Developer or
+     * Publisher, 277 and 196 values respectively on a real collection, is the
+     * only page long enough for this to matter, but nothing here needs to
+     * know that: {@link View#requestRectangleOnScreen} walks up through
+     * whatever ancestors a row actually has, and is a harmless no-op on
+     * every page whose rows are not inside a {@code ScrollView} at all.
+     * {@code ScrollView.smoothScrollTo} would have needed this method to
+     * compute the row's own offset by hand and would have scrolled it flush
+     * with an edge on every step; this only scrolls the amount actually
+     * needed, which is nothing at all most of the time a pad's cursor is
+     * already inside the visible page.
+     */
+    private void scrollCursorIntoView() {
+        if (cursorRow < 0 || cursorRow >= rows.size()) return;
+
+        View row = rows.get(cursorRow);
+        row.requestRectangleOnScreen(new Rect(0, 0, row.getWidth(), row.getHeight()), false);
+    }
+
+    /**
      * Throws away whatever rows the dialog is showing and builds the ones
      * {@link #page} wants now - the dialog's first paint and a page changing
      * under it are the same operation, since both start from nothing.
@@ -346,8 +477,7 @@ public final class OptionsDialog {
         rows.clear();
         actions.clear();
         sortRows.clear();
-        listRow = null;
-        gridRow = null;
+        viewRow = null;
 
         LinearLayout column = new LinearLayout(activity);
         column.setOrientation(LinearLayout.VERTICAL);
@@ -355,15 +485,18 @@ public final class OptionsDialog {
         column.setPadding(pixels(4), pixels(4), pixels(4), pixels(4));
 
         switch (page) {
+            case SORT:
+                buildSortPage(column);
+                break;
             case FILTER:
                 buildFilterPage(column);
                 break;
             case VALUES:
                 buildValuesPage(column);
                 break;
-            case OPTIONS:
+            case MENU:
             default:
-                buildOptionsPage(column);
+                buildMenuPage(column);
                 break;
         }
 
@@ -399,10 +532,26 @@ public final class OptionsDialog {
         paint();
     }
 
-    /** The sort fields and List/Grid - exactly what {@link #show} always
-     *  built, moved here unchanged so {@link #rebuild} can reach it through
-     *  the same switch every other page goes through. */
-    private void buildOptionsPage(LinearLayout column) {
+    /**
+     * The three rows Select or the right stick's own click opens onto now -
+     * View, Sort and Filter, each naming what it is currently set to so
+     * checking without changing costs one glance rather than one press.
+     *
+     * View activates on the spot rather than opening anything: flipping List
+     * and Grid is a flick, not a considered choice, and a page behind it
+     * would have cost three presses for what used to cost one - so choosing
+     * this row calls {@link Callbacks#onViewMode} immediately, the same way
+     * a filter row commits by its own name, and {@link #paint} is what keeps
+     * its own summary honest afterwards since nothing here rebuilds for it.
+     * Sort and Filter are genuinely considered choices - several fields, a
+     * direction, five filterable fields of their own - so they still open a
+     * page: {@link #buildSortPage} is what the old flat column's first half
+     * became, and {@link #buildFilterPage} is Task 5's own sheet, reached
+     * here through {@link Callbacks#openFilters} rather than {@link
+     * #showFilters} directly, since the values a field can be narrowed to
+     * are not known yet - see that callback's own comment.
+     */
+    private void buildMenuPage(LinearLayout column) {
         TextView title = new TextView(activity);
         title.setText(R.string.library_options_title);
         title.setTextColor(MUTED);
@@ -410,18 +559,58 @@ public final class OptionsDialog {
         title.setPadding(pixels(16), pixels(12), pixels(16), pixels(8));
         column.addView(title);
 
-        for (int i = 0; i < 3; i++) {
+        viewRow = addRow(column, menuRow(R.string.library_view, viewSummary()),
+                () -> callbacks.onViewMode(!grid));
+
+        addRow(column, menuRow(R.string.library_sort, sortLabel(sortIndex)), () -> {
+            page = Page.SORT;
+            // Row 0 on SORT is its own back row - see buildSortPage - so the
+            // sorting field is one past where its own index would put it.
+            cursorRow = sortIndex + 1;
+            rebuild();
+        });
+
+        addRow(column, menuRow(R.string.library_filter, filterSummary()),
+                callbacks::openFilters);
+    }
+
+    /** "View · List" or "Sort · Rating ▼" - the label a MENU row always
+     *  carries, plus whatever currently answers "what is this set to", joined
+     *  the same way {@link #filterRowLabel} already joins a filter field's
+     *  own name to what is picked of it. */
+    private String menuRow(int labelRes, String summary) {
+        return activity.getString(labelRes) + " · " + summary;
+    }
+
+    private String viewSummary() {
+        return activity.getString(grid ? R.string.library_view_grid : R.string.library_view_list);
+    }
+
+    /** {@link R.string#library_filter_none} with nothing set, or a count -
+     *  never the fields themselves, which is what {@link #buildFilterPage}'s
+     *  own rows are for; see {@link Filters#activeFieldCount}'s own comment,
+     *  written for exactly this row. */
+    private String filterSummary() {
+        int count = filters.activeFieldCount();
+        return count == 0
+                ? activity.getString(R.string.library_filter_none)
+                : activity.getString(R.string.library_filter_count, count);
+    }
+
+    /** {@link Page#SORT}: a back row to MENU, then all five of {@code
+     *  Sorting.FIELDS} - unlike the flat column this replaced, every field
+     *  is offered here now, not just the first three; the direction stays
+     *  what it always was, an arrow on whichever field is already sorting,
+     *  toggled by choosing that same field again - see {@link #sortLabel}. */
+    private void buildSortPage(LinearLayout column) {
+        addRow(column, "‹ " + activity.getString(R.string.library_sort), this::goBack);
+        column.addView(divider());
+
+        for (int i = 0; i < Sorting.FIELDS.length; i++) {
             int index = i;
             TextView row = addRow(column, sortLabel(i), () -> callbacks.onSortField(index));
             sortRows.add(row);
         }
-
-        column.addView(divider());
-
-        listRow = addRow(column, activity.getString(R.string.library_view_list),
-                () -> callbacks.onViewMode(false));
-        gridRow = addRow(column, activity.getString(R.string.library_view_grid),
-                () -> callbacks.onViewMode(true));
     }
 
     /**
@@ -430,14 +619,26 @@ public final class OptionsDialog {
      * Platform, Racing" when it is - see {@link #filterRowLabel}. "Clear all"
      * sits above them, only while {@link Filters#activeFieldCount} says
      * something is actually set.
+     *
+     * The very top row depends on how this page was reached - {@link
+     * #filterHasMenuParent} - since only one of its two doors leaves
+     * somewhere to go back to: a clickable "‹ Filter" the same shape {@link
+     * #buildValuesPage}'s own back row is, when MENU is behind this; the
+     * plain title it always was otherwise, since the toolbar's own Filter
+     * button opens this with nothing behind it at all.
      */
     private void buildFilterPage(LinearLayout column) {
-        TextView title = new TextView(activity);
-        title.setText(R.string.library_filter);
-        title.setTextColor(MUTED);
-        title.setTextSize(13);
-        title.setPadding(pixels(16), pixels(12), pixels(16), pixels(8));
-        column.addView(title);
+        if (filterHasMenuParent) {
+            addRow(column, "‹ " + activity.getString(R.string.library_filter), this::goBack);
+            column.addView(divider());
+        } else {
+            TextView title = new TextView(activity);
+            title.setText(R.string.library_filter);
+            title.setTextColor(MUTED);
+            title.setTextSize(13);
+            title.setPadding(pixels(16), pixels(12), pixels(16), pixels(8));
+            column.addView(title);
+        }
 
         if (filters.activeFieldCount() > 0) {
             addRow(column, activity.getString(R.string.library_filter_clear), () -> {
@@ -722,44 +923,53 @@ public final class OptionsDialog {
      *  actually sorting, so the others never claim a direction that is not
      *  theirs.
      *
-     * These three rows are {@code Sorting.FIELDS[0..2]} - name, size,
-     * released - matching {@code LibraryActivity.sortFieldIndex} exactly;
-     * format and rating are not offered here yet, only from the toolbar's
-     * own popup once it gains them, until Task 6 wraps this page into the
-     * three-way menu the design spec describes. Deliberately not "date",
-     * which named this row before {@code library_sort_date} existed at all -
-     * see CLAUDE.md on a stored sort field this build no longer reads. */
+     * These five rows are {@code Sorting.FIELDS} in its own order - name,
+     * size, released, format, rating - matching {@code
+     * LibraryActivity.sortFieldIndex} exactly, all five offered here since
+     * Task 6 gave the sort fields a page of their own with room for them.
+     * Deliberately not "date", which named this row before {@code
+     * library_sort_date} existed at all - see CLAUDE.md on a stored sort
+     * field this build no longer reads. Also used, with {@code index ==
+     * sortIndex} always true, to summarise the current field on MENU's own
+     * Sort row - see {@link #buildMenuPage}. */
     private String sortLabel(int index) {
         String[] names = { activity.getString(R.string.library_sort_name),
                             activity.getString(R.string.library_sort_size),
-                            activity.getString(R.string.library_sort_released) };
+                            activity.getString(R.string.library_sort_released),
+                            activity.getString(R.string.library_sort_format),
+                            activity.getString(R.string.library_sort_rating) };
 
         if (index != sortIndex) return names[index];
         return names[index] + (descending ? " ▼" : " ▲");
     }
 
     /**
-     * Redraws every row: on {@link Page#OPTIONS}, the text colour says which
-     * field and which view are actually set and the arrow on the sorting
-     * field says which way; on every page, a tint says where the pad's own
-     * cursor is - a separate signal from the text colour, since the cursor
-     * need not be on the row that is set and touch already proved a plain
-     * highlight alone is not enough once a pad can move without choosing.
-     * The filter sheet's own rows carry what is picked baked into their text
-     * already - see {@link #filterRowLabel} and {@link #refreshValueRows} -
-     * so this has nothing page-specific left to do for them beyond the tint
-     * every page gets.
+     * Redraws every row: on {@link Page#SORT}, the text colour says which
+     * field is actually sorting and the arrow on it says which way; on
+     * {@link Page#MENU}, the View row's own text is refreshed to match
+     * whatever {@link #grid} now is, since choosing it calls {@link
+     * Callbacks#onViewMode} directly rather than rebuilding the page the way
+     * every other row-with-a-summary does - see {@link #buildMenuPage}. On
+     * every page, a tint says where the pad's own cursor is - a separate
+     * signal from the text colour, since the cursor need not be on the row
+     * that is set and touch already proved a plain highlight alone is not
+     * enough once a pad can move without choosing. MENU's own Sort and
+     * Filter rows and the filter sheet's own carry what is set baked into
+     * their text already, fresh on every {@link #rebuild} - see {@link
+     * #filterRowLabel} and {@link #refreshValueRows} - so this has nothing
+     * further to do for them beyond the tint every page gets.
      */
     private void paint() {
-        if (page == Page.OPTIONS) {
+        if (page == Page.SORT) {
             for (int i = 0; i < sortRows.size(); i++) {
                 TextView row = sortRows.get(i);
                 row.setText(sortLabel(i));
                 row.setTextColor(i == sortIndex ? ACTIVE : TEXT);
             }
+        }
 
-            listRow.setTextColor(!grid ? ACTIVE : TEXT);
-            gridRow.setTextColor(grid ? ACTIVE : TEXT);
+        if (page == Page.MENU) {
+            viewRow.setText(menuRow(R.string.library_view, viewSummary()));
         }
 
         for (int i = 0; i < rows.size(); i++) {

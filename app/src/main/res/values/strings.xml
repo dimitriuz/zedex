@@ -631,6 +631,11 @@
     <string name="library_sort_size">Size</string>
     <string name="library_filter">Filter</string>
     <string name="library_filter_none">No filter</string>
+    <!-- The gamepad menu's own Filter row, once at least one field is set -
+         see OptionsDialog.filterSummary, which shows library_filter_none
+         instead while nothing is. Never the fields themselves, which are
+         what tapping through to the filter sheet's own rows is for. -->
+    <string name="library_filter_count">%1$d fields</string>
     <string name="library_filter_format">Format</string>
     <string name="library_filter_genre">Genre</string>
     <string name="library_filter_rating">Rating</string>
@@ -646,10 +651,13 @@
     <string name="library_view_list">List</string>
     <string name="library_view_grid">Grid</string>
     <!-- The title of the modal dialog Select or the right stick's click
-         opens - see library/ui/OptionsDialog.java. Direction is shown as an
-         arrow there rather than as a word, so this is the only string the
-         dialog needs beyond library_sort_name/date/size and
-         library_view_list/grid, which its rows reuse as they are. -->
+         opens, above its three-row menu - see library/ui/OptionsDialog.java.
+         Everything below that menu is built from strings that already exist
+         for their own reason: library_view(_list/grid), library_sort and
+         library_sort_name/size/released/format/rating (direction is an arrow
+         there, never a word), and library_filter(_none/count) plus the
+         filter sheet's own field and rating strings. This is the one string
+         the dialog needed beyond all of those. -->
     <string name="library_options_title">Sort &amp; view</string>
     <string name="library_favorite_add">Add to favourites</string>
     <string name="library_favorite_remove">Remove from favourites</string>

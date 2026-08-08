@@ -561,6 +561,7 @@
     <string name="library_sort_size">Taille</string>
     <string name="library_filter">Filtre</string>
     <string name="library_filter_none">Aucun filtre</string>
+    <string name="library_filter_count">%1$d champs</string>
     <string name="library_filter_format">Format</string>
     <string name="library_filter_genre">Genre</string>
     <string name="library_filter_rating">Note</string>
