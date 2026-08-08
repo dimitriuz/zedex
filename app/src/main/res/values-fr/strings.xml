@@ -576,7 +576,8 @@
     <string name="library_empty_filtered">Rien ne correspond à ce filtre</string>
     <string name="library_view_list">Liste</string>
     <string name="library_view_grid">Grille</string>
-    <string name="library_options_title">Tri et affichage</string>
+    <string name="library_options">Options</string>
+    <string name="library_options_title">Options</string>
     <string name="library_favorite_add">Ajouter aux favoris</string>
     <string name="library_favorite_remove">Retirer des favoris</string>
     <string name="library_unreadable">Ce fichier n\'a pas pu être lu.</string>

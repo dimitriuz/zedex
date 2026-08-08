@@ -576,7 +576,8 @@
     <string name="library_empty_filtered">Ничего не подходит под фильтр</string>
     <string name="library_view_list">Список</string>
     <string name="library_view_grid">Сетка</string>
-    <string name="library_options_title">Сортировка и вид</string>
+    <string name="library_options">Параметры</string>
+    <string name="library_options_title">Параметры</string>
     <string name="library_favorite_add">Добавить в избранное</string>
     <string name="library_favorite_remove">Убрать из избранного</string>
     <string name="library_unreadable">Не удалось прочитать этот файл.</string>

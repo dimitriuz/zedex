@@ -576,7 +576,8 @@
     <string name="library_empty_filtered">Filtru nic neodpovídá</string>
     <string name="library_view_list">Seznam</string>
     <string name="library_view_grid">Mřížka</string>
-    <string name="library_options_title">Řazení a zobrazení</string>
+    <string name="library_options">Možnosti</string>
+    <string name="library_options_title">Možnosti</string>
     <string name="library_favorite_add">Přidat do oblíbených</string>
     <string name="library_favorite_remove">Odebrat z oblíbených</string>
     <string name="library_unreadable">Ten soubor se nepodařilo přečíst.</string>

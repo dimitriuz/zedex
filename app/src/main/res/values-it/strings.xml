@@ -576,7 +576,8 @@
     <string name="library_empty_filtered">Nessun risultato per questo filtro</string>
     <string name="library_view_list">Lista</string>
     <string name="library_view_grid">Griglia</string>
-    <string name="library_options_title">Ordine e visualizzazione</string>
+    <string name="library_options">Opzioni</string>
+    <string name="library_options_title">Opzioni</string>
     <string name="library_favorite_add">Aggiungi ai preferiti</string>
     <string name="library_favorite_remove">Rimuovi dai preferiti</string>
     <string name="library_unreadable">Quel file non si è potuto leggere.</string>

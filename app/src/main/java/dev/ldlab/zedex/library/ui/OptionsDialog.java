@@ -29,15 +29,16 @@ import java.util.Set;
 
 /**
  * "How this list is shown": the sort field, its direction, list-or-grid, and
- * now the filter sheet too - see {@code LibraryActivity}, the only thing that
- * builds one. Reached by Select or the right stick's own click, since a pad
- * has no room for two buttons over two halves of one question; the toolbar's
- * own sort and view buttons are untouched and stay the discoverable path for
- * a finger, which does not need a modal dialog to reach either. The filter
- * sheet is the exception: touch has no other way in, so {@code
- * LibraryActivity}'s own Filter button opens {@link #showFilters} directly,
- * on the very same dialog a pad reaches through {@link #show} - one widget,
- * two doors.
+ * the filter sheet too - see {@code LibraryActivity}, the only thing that
+ * builds one. Reached by Select or the right stick's own click, and, since
+ * Task 8, by the toolbar's own Options button as well - one dialog, one door
+ * regardless of which asked, rather than the three separate toolbar buttons
+ * and this dialog's own menu that used to answer the same three questions
+ * twice over and could drift apart; see {@code
+ * LibraryActivity.buildToolbar}. Filtering is Browse's own - see {@link
+ * Callbacks#filteringAllowed()} - so MENU's own Filter row is the thing that
+ * goes missing outside Browse, not the button that opens this dialog: Sort
+ * and View still apply everywhere.
  *
  * A real {@link Dialog} rather than a popup, because modal is the point:
  * nothing behind it is reachable, on a pad or otherwise, for as long as it
@@ -62,11 +63,13 @@ import java.util.Set;
  * that used to cost one - so choosing it flips the mode on the spot, the
  * same way a filter row commits by its own name. Sort did gain a page,
  * since five fields and a direction is a considered choice; so did the
- * filter sheet Task 5 built, which now has a second door in besides the
- * toolbar's own Filter button. {@link #rebuild} is still the one place that
- * throws away whatever rows are showing and builds the ones the current
- * page wants, whether that is the dialog's first paint or a page changing
- * under it.
+ * filter sheet Task 5 built, reached the same way Sort's page is - through
+ * MENU's own row, {@link Callbacks#openFilters} - now that Task 8 removed
+ * the toolbar's own Filter button, which used to open the sheet a second
+ * way, straight from {@link #show}'s own door with no menu behind it at all.
+ * {@link #rebuild} is still the one place that throws away whatever rows are
+ * showing and builds the ones the current page wants, whether that is the
+ * dialog's first paint or a page changing under it.
  */
 public final class OptionsDialog {
 
@@ -84,16 +87,27 @@ public final class OptionsDialog {
         void onViewMode(boolean grid);
         /** The filter changed; the library re-lists. */
         void onFiltersChanged();
-        /** MENU's own Filter row was chosen. Unlike the other three this
+        /** MENU's own Filter row was chosen. Unlike the other two this
          *  cannot finish here - the values a field can be narrowed to are not
          *  known until {@code Facets} walks the whole store, off the UI
-         *  thread, the same work the toolbar's own Filter button already does
-         *  before calling {@link #showFilters} - so this only asks; {@code
-         *  LibraryActivity} is expected to do that work and then call {@link
-         *  #enterFiltersFromMenu} with the answer, passing {@code
-         *  requestToken} straight back so that method can tell whether
-         *  anyone still wants it - see that method's own comment. */
+         *  thread - so this only asks; {@code LibraryActivity} is expected to
+         *  do that work and then call {@link #enterFiltersFromMenu} with the
+         *  answer, passing {@code requestToken} straight back so that method
+         *  can tell whether anyone still wants it - see that method's own
+         *  comment. Never called while {@link #filteringAllowed} answers
+         *  false - MENU has no Filter row to choose in that case. */
         void openFilters(int requestToken);
+        /** Whether MENU should offer a Filter row at all - false outside
+         *  Browse, where {@code LibraryActivity.filtering()} already answers
+         *  no: Favourites and Recent are answers to a question of their own,
+         *  and a filter that narrowed neither would be worse than none.
+         *  Asked fresh every time {@link #buildMenuPage} runs rather than
+         *  carried by {@link #show}'s own three arguments, since a tab
+         *  switch can happen while this dialog is not up to be told about it
+         *  - there would be nowhere to hand a fourth argument to. Sort and
+         *  View have no such question: both apply to every tab, which is why
+         *  only this one row asks it. */
+        boolean filteringAllowed();
     }
 
     // Matches LibraryActivity's own palette - duplicated rather than shared,
@@ -122,18 +136,14 @@ public final class OptionsDialog {
     /**
      * Which of the dialog's own pages is showing.
      *
-     * MENU is {@link #show}'s own page now: View, Sort and Filter, each
-     * naming what it is currently set to so checking costs a glance rather
-     * than a page. View has no page of its own - activating that row flips
-     * List and Grid on the spot, the way a filter row commits by its own
-     * name - so MENU is as deep as that subject ever goes. SORT is one
-     * subject deep and reachable from nowhere but MENU, so its own back
-     * always returns there. FILTER is the sheet Task 5 built, reachable two
-     * ways - as MENU's own third subject, or straight from the toolbar's own
-     * Filter button with no MENU behind it at all - which is why {@link
-     * #goBack} has to ask where FILTER's own back goes rather than assume;
-     * see {@link #filterHasMenuParent}. VALUES is one field's own values, one
-     * level under FILTER regardless of how FILTER itself was reached.
+     * MENU is {@link #show}'s own page now: View, Sort and, outside Browse,
+     * Filter, each naming what it is currently set to so checking costs a
+     * glance rather than a page. View has no page of its own - activating
+     * that row flips List and Grid on the spot, the way a filter row commits
+     * by its own name - so MENU is as deep as that subject ever goes. SORT
+     * and FILTER are both one subject deep and reachable from nowhere but
+     * MENU, so both their own backs always return there - see {@link
+     * #goBack}. VALUES is one field's own values, one level under FILTER.
      */
     private enum Page { MENU, SORT, FILTER, VALUES }
 
@@ -188,12 +198,6 @@ public final class OptionsDialog {
 
     private Page page = Page.MENU;
 
-    /** Whether the current {@link Page#FILTER} has {@link Page#MENU} to go
-     *  back to - true when {@link #enterFiltersFromMenu} opened it, false
-     *  when {@link #showFilters} did. Meaningless outside FILTER; {@link
-     *  #goBack} is the only reader. */
-    private boolean filterHasMenuParent;
-
     /** Bumped every time MENU's own Filter row asks {@code LibraryActivity}
      *  to walk the store, and again every time MENU is left for somewhere
      *  else - Sort's own row, the one other thing MENU can do while that walk
@@ -208,16 +212,16 @@ public final class OptionsDialog {
 
     /** The library's own {@link Filters}, the same instance {@code
      *  LibraryActivity} holds - toggling a value here mutates it directly,
-     *  which is what lets both doors into this dialog answer to one state,
-     *  the way the sort field already answers to the popup and the pad
-     *  dialog alike. Set once, by the constructor: {@link Page#MENU}'s own
-     *  Filter row has to say how many fields are set before the filter sheet
-     *  has ever been opened, so this cannot wait for {@link #showFilters} the
-     *  way {@link #values} and {@link #formats} still do. */
+     *  which is what lets the toolbar's Options button and the pad's Select
+     *  answer to one state. Set once, by the constructor: {@link
+     *  Page#MENU}'s own Filter row has to say how many fields are set before
+     *  the filter sheet has ever been opened, so this cannot wait for {@link
+     *  #enterFiltersFromMenu} the way {@link #values} and {@link #formats}
+     *  still do. */
     private final Filters filters;
 
     // --- the rest of the filter sheet's own state - null/empty until
-    // showFilters() or enterFiltersFromMenu() runs -------------------------
+    // enterFiltersFromMenu() runs -------------------------------------------
 
     /** Genre, developer and publisher, with a count for each - {@link
      *  Filters.Field#FORMAT} is not a key here; see {@link #formats}. */
@@ -280,40 +284,17 @@ public final class OptionsDialog {
 
     /**
      * The filter sheet: five fields, each opening the values the collection
-     * actually has. Reached straight from {@code LibraryActivity}'s own
-     * Filter button, never through {@link #show} - touch has no other door
-     * into this dialog at all, so this opens a fresh dialog of its own rather
-     * than assuming one is already up. {@link #filterHasMenuParent} is left
-     * {@code false}: nothing led here but the toolbar, so FILTER's own back
-     * has nowhere to go but the door - see {@link #goBack}.
-     *
-     * {@link #enterFiltersFromMenu} is the other door, MENU's own Filter row -
-     * kept apart from this one because that row cannot answer synchronously
-     * the way every other row here does; see {@link Callbacks#openFilters}.
-     */
-    public void showFilters(Map<Filters.Field, List<Facets.Value>> values,
-                            List<Facets.Value> formats) {
-        this.values = values;
-        this.formats = formats;
-        filterHasMenuParent = false;
-
-        page = Page.FILTER;
-        cursorRow = 0;
-        rebuild();
-    }
-
-    /**
-     * The same filter sheet, entered from {@link Page#MENU}'s own Filter row
-     * by way of {@link Callbacks#openFilters} - {@code LibraryActivity} calls
-     * this once it has walked the store for the values a field can be
-     * narrowed to, which {@link #showFilters} needs no such round trip for
-     * since the toolbar's button already did that walk before calling it.
+     * actually has. The only door in now that Task 8 removed the toolbar's
+     * own Filter button - reached from {@link Page#MENU}'s own Filter row by
+     * way of {@link Callbacks#openFilters}, once {@code LibraryActivity} has
+     * walked the store for the values a field can be narrowed to; that walk
+     * is why this cannot finish inside {@link Callbacks#openFilters} itself
+     * the way every other row's action does, and needs a method of its own
+     * for the answer to land in once it is ready.
      *
      * Ignored if the dialog is no longer up: a person is free to press B and
      * close the whole thing while that walk is still running, and proceeding
-     * anyway would reopen a dialog they already dismissed - the one thing
-     * {@link #showFilters} never had to guard against, since nothing can
-     * dismiss a dialog that was never shown.
+     * anyway would reopen a dialog they already dismissed.
      *
      * Also ignored if {@code requestToken} no longer matches {@link
      * #filterRequestToken} - the walk can just as easily finish after
@@ -329,7 +310,6 @@ public final class OptionsDialog {
 
         this.values = values;
         this.formats = formats;
-        filterHasMenuParent = true;
 
         page = Page.FILTER;
         cursorRow = 0;
@@ -423,13 +403,11 @@ public final class OptionsDialog {
      * One level up - B's own job, and a page's own back row's, so both call
      * this rather than each carrying a copy of what "up" means for it.
      *
-     * VALUES always returns to FILTER. SORT always returns to MENU, since it
-     * is reachable no other way - View has no page of its own to return
-     * from at all, see {@link Page}'s own comment. FILTER returns to MENU
-     * only when a menu is actually where this session came from - {@link
-     * #filterHasMenuParent} - and dismisses otherwise, the same as MENU
-     * itself: both are as far up as this dialog goes from wherever they were
-     * reached.
+     * VALUES always returns to FILTER. SORT and FILTER both always return to
+     * MENU, since neither is reachable any other way - View has no page of
+     * its own to return from at all, see {@link Page}'s own comment. MENU
+     * itself is as far up as this dialog goes from wherever it was reached,
+     * so back there dismisses.
      */
     private void goBack() {
         switch (page) {
@@ -446,13 +424,9 @@ public final class OptionsDialog {
                 break;
 
             case FILTER:
-                if (filterHasMenuParent) {
-                    page = Page.MENU;
-                    cursorRow = MENU_FILTER;
-                    rebuild();
-                } else {
-                    dialog.dismiss();
-                }
+                page = Page.MENU;
+                cursorRow = MENU_FILTER;
+                rebuild();
                 break;
 
             case MENU:
@@ -576,9 +550,11 @@ public final class OptionsDialog {
     }
 
     /**
-     * The three rows Select or the right stick's own click opens onto now -
-     * View, Sort and Filter, each naming what it is currently set to so
-     * checking without changing costs one glance rather than one press.
+     * The rows Select or the right stick's own click opens onto now - View
+     * and Sort always, Filter too outside the tabs {@link
+     * Callbacks#filteringAllowed} says it answers nothing for - each naming
+     * what it is currently set to so checking without changing costs one
+     * glance rather than one press.
      *
      * View activates on the spot rather than opening anything: flipping List
      * and Grid is a flick, not a considered choice, and a page behind it
@@ -590,9 +566,9 @@ public final class OptionsDialog {
      * direction, five filterable fields of their own - so they still open a
      * page: {@link #buildSortPage} is what the old flat column's first half
      * became, and {@link #buildFilterPage} is Task 5's own sheet, reached
-     * here through {@link Callbacks#openFilters} rather than {@link
-     * #showFilters} directly, since the values a field can be narrowed to
-     * are not known yet - see that callback's own comment.
+     * here through {@link Callbacks#openFilters} rather than built directly,
+     * since the values a field can be narrowed to are not known yet - see
+     * that callback's own comment.
      */
     private void buildMenuPage(LinearLayout column) {
         TextView title = new TextView(activity);
@@ -619,8 +595,16 @@ public final class OptionsDialog {
             rebuild();
         });
 
-        addRow(column, menuRow(R.string.library_filter, filterSummary()),
-                () -> callbacks.openFilters(++filterRequestToken));
+        // Left off the menu entirely outside Browse, rather than shown
+        // disabled: Favourites and Recent are already answers to a question
+        // of their own, and a row that could only ever do nothing there is
+        // worse than one that is simply not offered - the same choice
+        // LibraryActivity made for the toolbar's own Filter button before
+        // Task 8 folded it into this menu.
+        if (callbacks.filteringAllowed()) {
+            addRow(column, menuRow(R.string.library_filter, filterSummary()),
+                    () -> callbacks.openFilters(++filterRequestToken));
+        }
     }
 
     /** "View · List" or "Sort · Rating ▼" - the label a MENU row always
@@ -669,25 +653,14 @@ public final class OptionsDialog {
      * sits above them, only while {@link Filters#activeFieldCount} says
      * something is actually set.
      *
-     * The very top row depends on how this page was reached - {@link
-     * #filterHasMenuParent} - since only one of its two doors leaves
-     * somewhere to go back to: a clickable "‹ Filter" the same shape {@link
-     * #buildValuesPage}'s own back row is, when MENU is behind this; the
-     * plain title it always was otherwise, since the toolbar's own Filter
-     * button opens this with nothing behind it at all.
+     * The very top row is a clickable "‹ Filter", the same shape {@link
+     * #buildValuesPage}'s own back row is - MENU is the only door in now
+     * that Task 8 removed the toolbar's own Filter button, so this page
+     * always has somewhere to go back to.
      */
     private void buildFilterPage(LinearLayout column) {
-        if (filterHasMenuParent) {
-            addRow(column, "‹ " + activity.getString(R.string.library_filter), this::goBack);
-            column.addView(divider());
-        } else {
-            TextView title = new TextView(activity);
-            title.setText(R.string.library_filter);
-            title.setTextColor(MUTED);
-            title.setTextSize(13);
-            title.setPadding(pixels(16), pixels(12), pixels(16), pixels(8));
-            column.addView(title);
-        }
+        addRow(column, "‹ " + activity.getString(R.string.library_filter), this::goBack);
+        column.addView(divider());
 
         if (filters.activeFieldCount() > 0) {
             addRow(column, activity.getString(R.string.library_filter_clear), () -> {

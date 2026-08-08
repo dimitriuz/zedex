@@ -650,15 +650,21 @@
     <string name="library_empty_filtered">Nothing matches this filter</string>
     <string name="library_view_list">List</string>
     <string name="library_view_grid">Grid</string>
-    <!-- The title of the modal dialog Select or the right stick's click
-         opens, above its three-row menu - see library/ui/OptionsDialog.java.
-         Everything below that menu is built from strings that already exist
+    <!-- The toolbar's own button, since Task 8 folded the old sort, filter
+         and view buttons into this one - opens the same OptionsDialog Select
+         or the right stick's click already did; see
+         screen/LibraryActivity.java and library/ui/OptionsDialog.java. -->
+    <string name="library_options">Options</string>
+    <!-- The title atop that dialog's own three-row menu - a generic word
+         rather than trying to name View, Sort and Filter on one line, which
+         is also why it reads the same as library_options above: the button
+         and the menu it opens are one thing, not two to name differently.
+         Everything below the title is built from strings that already exist
          for their own reason: library_view(_list/grid), library_sort and
          library_sort_name/size/released/format/rating (direction is an arrow
          there, never a word), and library_filter(_none/count) plus the
-         filter sheet's own field and rating strings. This is the one string
-         the dialog needed beyond all of those. -->
-    <string name="library_options_title">Sort &amp; view</string>
+         filter sheet's own field and rating strings. -->
+    <string name="library_options_title">Options</string>
     <string name="library_favorite_add">Add to favourites</string>
     <string name="library_favorite_remove">Remove from favourites</string>
     <string name="library_unreadable">That file cannot be read.</string>

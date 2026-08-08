@@ -576,7 +576,8 @@
     <string name="library_empty_filtered">Nic nie pasuje do filtra</string>
     <string name="library_view_list">Lista</string>
     <string name="library_view_grid">Siatka</string>
-    <string name="library_options_title">Sortowanie i widok</string>
+    <string name="library_options">Opcje</string>
+    <string name="library_options_title">Opcje</string>
     <string name="library_favorite_add">Dodaj do ulubionych</string>
     <string name="library_favorite_remove">Usuń z ulubionych</string>
     <string name="library_unreadable">Nie udało się odczytać tego pliku.</string>

@@ -57,14 +57,18 @@ import java.util.regex.Pattern;
  * and starting the activity directly is the same door {@code
  * EmulatorActivity.openLibrary} already opens.
  *
- * Covers the half of "one state behind both doors" a device can actually
+ * Covers the half of "one state behind one dialog" a device can actually
  * exercise without a controller: setting a filter from the toolbar's own
- * sheet narrows and flattens Browse, the chips say what is on, an empty
- * result says a filter did it rather than looking like a folder that lost
- * its games, and clearing puts the breadcrumb back. The gamepad half needs a
- * real pad - {@link dev.ldlab.zedex.library.ui.GamepadCursor#key} refuses
- * anything else - and is left to the unit tests for the state the two doors
- * share.
+ * Options button - {@link dev.ldlab.zedex.library.ui.OptionsDialog}'s own
+ * menu, the same dialog a pad's Select opens, since Task 8 folded the
+ * toolbar's separate sort, filter and view buttons into that one door -
+ * narrows and flattens Browse, the chips say what is on, an empty result
+ * says a filter did it rather than looking like a folder that lost its
+ * games, and clearing puts the breadcrumb back. Driving the dialog with an
+ * actual pad needs real hardware - {@link
+ * dev.ldlab.zedex.library.ui.GamepadCursor#key} refuses anything else - and
+ * is left to the unit tests for the state the two ways of opening the
+ * dialog share.
  *
  * Nothing here is hard-coded to one collection's own titles. The commonest
  * genre, a genre with no real match at all to prove emptiness with, and a
@@ -99,8 +103,8 @@ public class FilterTest {
 
     private Context context;
 
-    /** Ranked first by {@link Facets#of} - the same list the toolbar's own
-     *  Filter sheet builds its Genre rows from. */
+    /** Ranked first by {@link Facets#of} - the same list the filter sheet's
+     *  own Genre rows are built from. */
     private String commonestGenre;
 
     /** A real file tagged with {@link #commonestGenre} that lives inside a
@@ -179,9 +183,9 @@ public class FilterTest {
         nestedGameName = nested;
 
         // Facets.of ranks every genre the store has ever seen, real file or
-        // not - see openFilterSheet's own comment on where "values" comes
-        // from. The first one absent from realGenres matches nothing this
-        // device can actually browse, at any rating.
+        // not - see LibraryActivity.openFilterSheet's own comment on where
+        // "values" comes from. The first one absent from realGenres matches
+        // nothing this device can actually browse, at any rating.
         String candidate = null;
         for (Facets.Value value : genres) {
             if (!realGenres.contains(value.name)) {
@@ -277,20 +281,39 @@ public class FilterTest {
         intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_NEW_TASK);
         context.startActivity(intent);
 
-        // The Filter button is Browse's own, and Browse is where this
-        // activity always opens - waiting for it is waiting for the screen
-        // itself, not any one row that might not have loaded yet.
+        // The Options button is up in every tab, not only Browse's own - see
+        // OptionsDialog.Callbacks.filteringAllowed - but Browse is where this
+        // activity always opens regardless, so waiting for it is still
+        // waiting for the screen itself, not any one row that might not have
+        // loaded yet.
         assertNotNull("the library screen never came up", device.wait(
-                Until.findObject(By.desc(context.getString(R.string.library_filter))), FIND));
+                Until.findObject(By.desc(context.getString(R.string.library_options))), FIND));
     }
 
     // --- the filter sheet ------------------------------------------------------
 
+    /**
+     * Taps the toolbar's own Options button, then MENU's own Filter row -
+     * the one door into the filter sheet since Task 8 removed the toolbar's
+     * separate Filter button; see {@code LibraryActivity.buildToolbar} and
+     * {@code OptionsDialog.buildMenuPage}.
+     */
     private void openFilterSheet() {
         UiObject2 button = device.wait(
-                Until.findObject(By.desc(context.getString(R.string.library_filter))), FIND);
-        assertNotNull("the Filter button never appeared", button);
+                Until.findObject(By.desc(context.getString(R.string.library_options))), FIND);
+        assertNotNull("the Options button never appeared", button);
         button.click();
+        SystemClock.sleep(SETTLE);
+
+        // MENU's own Filter row reads "Filter · No filter" or "Filter · N
+        // fields" - see OptionsDialog.filterSummary - so a pattern rather
+        // than an exact match is what finds it regardless of what is
+        // currently set.
+        Pattern filterRow = Pattern.compile(
+                Pattern.quote(context.getString(R.string.library_filter)) + " · .*");
+        UiObject2 row = device.wait(Until.findObject(By.text(filterRow)), FIND);
+        assertNotNull("MENU's own Filter row never appeared", row);
+        row.click();
         SystemClock.sleep(SETTLE);
     }
 

@@ -4,8 +4,7 @@
      Three books standing on a shelf, at different heights - the library
      screen, not a folder: ic_folder already means Open file… and the Files
      group, and this must not read as the same thing they do. Also its own
-     shape beside ic_grid's four even tiles and ic_bookmark's single ribbon,
-     which are already in the bar and the tabs. -->
+     shape beside ic_bookmark's single ribbon, already in the tabs. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp" android:height="24dp"
     android:viewportWidth="24" android:viewportHeight="24">

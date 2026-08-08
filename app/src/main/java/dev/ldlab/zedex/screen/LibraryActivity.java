@@ -42,7 +42,6 @@ import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
-import android.widget.PopupMenu;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -334,10 +333,10 @@ public final class LibraryActivity extends Activity {
      */
     private static final int GRID_COLUMN_DP = 85;
 
-    /** Select or the right stick's own click: the sort field, its direction
-     *  and list-or-grid, all in one modal dialog a pad can actually use - see
-     *  {@link OptionsDialog}. The toolbar's own sort popup and view button
-     *  are untouched and stay the discoverable path for a finger. */
+    /** The sort field, its direction, list-or-grid and the filter sheet, all
+     *  in one modal dialog - reached by Select or the right stick's own
+     *  click, and, since Task 8, by the toolbar's own Options button too;
+     *  see {@link OptionsDialog}. */
     private OptionsDialog optionsDialog;
 
     /** {@code Metadata.lastLinked}'s answer as of the last time it was
@@ -367,9 +366,13 @@ public final class LibraryActivity extends Activity {
     private View noFolderView;
     private ProgressBar spinner;
     private EditText searchField;
-    private ImageButton sortButton;
-    private ImageButton filterButton;
-    private ImageButton viewToggle;
+
+    /** The one toolbar button left now that Task 8 folded the old sort,
+     *  filter and view buttons into it - opens {@link #optionsDialog}, the
+     *  same dialog a pad already reached through Select; see {@link
+     *  #buildToolbar} and {@code OptionsDialog}'s own class comment on why
+     *  one door beats two that could drift apart. */
+    private ImageButton optionsButton;
     private final List<View> tabViews = new ArrayList<>();
 
     // The pane: always present - see docs/LIBRARY.md and the second pull
@@ -571,15 +574,21 @@ public final class LibraryActivity extends Activity {
 
             @Override
             public void openFilters(int requestToken) {
-                // The menu's own Filter row - same facets walk the toolbar's
-                // button already does, just landing on OptionsDialog's own
-                // "entered from the menu" door instead of its "fresh dialog"
-                // one; see openFilterSheet and enterFiltersFromMenu's own
-                // comment for why the two doors cannot share a method.
                 // requestToken travels through untouched - it means nothing
                 // to this screen, only to the dialog that minted it and will
-                // compare it again once this thread's walk is done.
-                openFilterSheet(true, requestToken);
+                // compare it again once this thread's walk is done; see
+                // openFilterSheet and enterFiltersFromMenu's own comments.
+                openFilterSheet(requestToken);
+            }
+
+            @Override
+            public boolean filteringAllowed() {
+                // Not filtering() itself, which also asks whether anything
+                // is actually set - this asks the narrower question of
+                // whether the current tab could ever answer to one at all.
+                // Favourites and Recent never can - see show(Tab) - so
+                // MENU's own Filter row has nothing to offer there.
+                return tab == Tab.BROWSE;
             }
         });
 
@@ -766,8 +775,9 @@ public final class LibraryActivity extends Activity {
      * does: {@link #select} is the same one {@link EntryAdapter.Callbacks}
      * calls, {@link #popStack} is the same one Back and the chevron share,
      * {@link #toggleFavorite} is the same one a long press performs, and
-     * {@link #chooseSortField} and {@link #applyViewMode} are what the
-     * toolbar's own sort popup and view button already call. Built once, by
+     * {@link #chooseSortField} and {@link #applyViewMode} are what {@link
+     * OptionsDialog}'s own callbacks already call, the same dialog Select
+     * opens here and the toolbar's own Options button opens too. Built once, by
      * {@link #buildPadNav}, and handed to {@link GamepadCursor}, which is the
      * one place that turns a stick, a hat, a D-pad and six buttons into calls
      * to these eight - the one place, still, once the search field or the
@@ -1291,14 +1301,16 @@ public final class LibraryActivity extends Activity {
     }
 
     /**
-     * The breadcrumb, search, sort and the list/grid switch - the only row
-     * above the list now that the tabs moved into the rail: the chevron and
-     * the path on the left, search taking whatever room the path does not
-     * want, sort and view on the right, and the full width of the column to
-     * spread across, tabs no longer sharing it in either orientation.
+     * The breadcrumb, search and the Options button - the only row above the
+     * list now that the tabs moved into the rail: the chevron and the path
+     * on the left, search taking whatever room the path does not want, and
+     * Options on the right, spanning the full width of the column, tabs no
+     * longer sharing it in either orientation. One button rather than the
+     * sort, filter and view buttons this used to carry - see {@link
+     * #optionsButton}'s own comment.
      *
      * The way back to the machine lives in the rail instead, not here - see
-     * {@link #buildRail}, since it is navigation and none of these four is.
+     * {@link #buildRail}, since it is navigation and none of these is.
      */
     private View buildToolbar() {
         LinearLayout row = new LinearLayout(this);
@@ -1393,28 +1405,20 @@ public final class LibraryActivity extends Activity {
         row.addView(searchField, new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
-        sortButton = toolbarButton(R.drawable.ic_sort, getString(R.string.library_sort));
-        sortButton.setOnClickListener(this::showSortMenu);
-        row.addView(sortButton);
-        updateSortButton();
-
-        // Touch's only door into the filter sheet: OptionsDialog is what a
-        // gamepad reaches through Select, and touch never sees that dialog at
-        // all - a filter reachable only from there would be reachable only
-        // with a controller. Hidden outside Browse; see show(Tab).
-        filterButton = toolbarButton(R.drawable.ic_filter, getString(R.string.library_filter));
-        filterButton.setOnClickListener(v -> openFilterSheet(false, 0));
-        row.addView(filterButton);
-
-        // Named for what it would do rather than what it is, like the bar's
-        // own fullscreen button: it shows the shape you would switch to, not
-        // the one you are looking at.
-        viewToggle = toolbarButton(R.drawable.ic_grid,
-                getString(R.string.library_view_grid));
-        viewToggle.setOnClickListener(v -> toggleView());
-        row.addView(viewToggle);
-
-        updateViewToggle();
+        // One button rather than the three this replaced - see CLAUDE.md's
+        // own "one way in rather than two that could drift apart": touch
+        // used to reach View, Sort and Filter through three separate
+        // buttons, one of which (Filter) had no pad equivalent at all, while
+        // a pad reached all three through OptionsDialog's own menu. This
+        // opens exactly the dialog the pad's Select already does, so there
+        // is one answer to what any of View, Sort or Filter does regardless
+        // of how it was reached. The dialog resolves its own filter values;
+        // nothing needs pre-loading here the way the old Filter button had
+        // to walk the store before showFilters could open.
+        optionsButton = toolbarButton(R.drawable.ic_options, getString(R.string.library_options));
+        optionsButton.setOnClickListener(v ->
+                optionsDialog.show(sortFieldIndex(sort), sortDescending, grid));
+        row.addView(optionsButton);
 
         return row;
     }
@@ -2135,11 +2139,14 @@ public final class LibraryActivity extends Activity {
         upButton.setVisibility(browsing && stack.size() > 1 ? View.VISIBLE : View.GONE);
 
         // Filtering applies to Browse only - Favourites and Recent are
-        // already answers to a question of their own, and offering a button
-        // that would narrow neither is worse than not offering one; see the
-        // design spec, "Filtering applies to Browse only".
-        filterButton.setVisibility(tab == Tab.BROWSE ? View.VISIBLE : View.GONE);
-
+        // already answers to a question of their own, and offering
+        // something that would narrow neither is worse than not offering it;
+        // see the design spec, "Filtering applies to Browse only". The
+        // Options button itself stays up in every tab now - Sort and View
+        // apply everywhere - so it is OptionsDialog's own Filter row that
+        // hides for this, through Callbacks.filteringAllowed() below, rather
+        // than a whole button vanishing the way the toolbar's old Filter
+        // button did.
         syncBackCallback();
         clearSearch();
         clearSelection();
@@ -2242,28 +2249,18 @@ public final class LibraryActivity extends Activity {
 
     /**
      * Off the UI thread, walks the whole store for the values a field can be
-     * narrowed to, then opens the filter sheet - the toolbar's own Filter
-     * button and {@link OptionsDialog}'s own menu row both need exactly this
-     * work, so it is one method rather than two copies that could drift on
-     * which of {@link Facets}'s own two calls builds "formats" or "values".
+     * narrowed to, then hands them to {@link OptionsDialog}'s own menu row -
+     * the only way into the filter sheet now that Task 8 removed the
+     * toolbar's own Filter button, which used to do this same walk for its
+     * own separate door in.
      *
-     * @param fromMenu whether this is OptionsDialog's own menu row asking
-     *                 rather than the toolbar - decides which of that
-     *                 dialog's two doors the answer goes through, since only
-     *                 one of them has a MENU behind it to come back to; see
-     *                 {@code OptionsDialog.enterFiltersFromMenu}'s own
-     *                 comment.
      * @param requestToken meaningless to this screen, only to the dialog
      *                     that minted it - handed straight back to {@code
      *                     enterFiltersFromMenu} so it can tell a request
-     *                     nobody still wants from one still on offer.
-     *                     Ignored when {@code fromMenu} is false: {@code
-     *                     showFilters} has no such token, since nothing can
-     *                     supersede a request made through a door that
-     *                     opens a fresh dialog rather than asking one
-     *                     already up to change what it is showing.
+     *                     nobody still wants from one still on offer; see
+     *                     that method's own comment.
      */
-    private void openFilterSheet(boolean fromMenu, int requestToken) {
+    private void openFilterSheet(int requestToken) {
         new Thread(() -> {
             // Off the UI thread: this walks the whole store, which is 800
             // games on the collection it was built against, and the whole
@@ -2275,11 +2272,7 @@ public final class LibraryActivity extends Activity {
 
             runOnUiThread(() -> {
                 if (isFinishing() || isDestroyed()) return;
-                if (fromMenu) {
-                    optionsDialog.enterFiltersFromMenu(requestToken, values, formats);
-                } else {
-                    optionsDialog.showFilters(values, formats);
-                }
+                optionsDialog.enterFiltersFromMenu(requestToken, values, formats);
             });
         }).start();
     }
@@ -2913,28 +2906,18 @@ public final class LibraryActivity extends Activity {
         upButton.setVisibility(View.GONE);
     }
 
-    private void updateViewToggle() {
-        viewToggle.setImageResource(grid ? R.drawable.ic_list : R.drawable.ic_grid);
-        viewToggle.setContentDescription(getString(grid ? R.string.library_view_list
-                                                        : R.string.library_view_grid));
-    }
-
-    private void toggleView() {
-        applyViewMode(!grid);
-    }
-
     /**
-     * The whole of what choosing list or grid does, whichever asked -
-     * {@link #toggleView} flips to the other one; {@link OptionsDialog}'s own
-     * callback names the one it wants, since a dialog with both written out
-     * has no "other one" to flip to. One method either way, so the two never
-     * drift apart on what actually changing the view involves.
+     * The whole of what choosing list or grid does - called only from {@link
+     * OptionsDialog}'s own {@code onViewMode} callback now that Task 8
+     * removed the toolbar's own view toggle, which used to flip to whichever
+     * mode was not currently showing; the dialog's own View row names the
+     * one it wants instead, since a menu row with both written out has no
+     * "other one" to flip to.
      */
     private void applyViewMode(boolean wantGrid) {
         grid = wantGrid;
         preferences.edit().putString(KEY_VIEW, grid ? VIEW_GRID : VIEW_LIST).apply();
 
-        updateViewToggle();
         recycler.setLayoutManager(grid ? new GridLayoutManager(this, gridSpanCount)
                                        : new LinearLayoutManager(this));
         adapter.setGrid(grid);
@@ -2986,30 +2969,15 @@ public final class LibraryActivity extends Activity {
         }
     }
 
-    private void showSortMenu(View anchor) {
-        // Two rows for now, not all of Sorting.FIELDS - the popup gains
-        // released, format and rating in Task 5-7 alongside the chips; the
-        // file date sort it used to offer is simply gone, replaced by
-        // nothing, since the field it read no longer exists.
-        PopupMenu menu = new PopupMenu(this, anchor);
-        menu.getMenu().add(0, 0, 0, R.string.library_sort_name);
-        menu.getMenu().add(0, 1, 1, R.string.library_sort_size);
-
-        menu.setOnMenuItemClickListener(item -> {
-            chooseSortField(item.getItemId() == 1 ? Sorting.SIZE : Sorting.NAME);
-            return true;
-        });
-
-        menu.show();
-    }
-
     /**
      * Picking the field already showing reverses it; picking a different one
      * switches to it and keeps whichever direction was showing - the one
      * thing already in view before the menu opened, and so the one thing
-     * neither choice should reset without being asked to. Shared by the
-     * toolbar's own popup and {@link OptionsDialog}'s callback, so there is
-     * one answer to what choosing a field does regardless of which asked.
+     * neither choice should reset without being asked to. Called only from
+     * {@link OptionsDialog}'s own {@code onSortField} callback now that
+     * Task 8 removed the toolbar's own sort popup, which used to share this
+     * method with it so the two could never answer differently to the same
+     * choice.
      */
     private void chooseSortField(String field) {
         if (field.equals(sort)) {
@@ -3023,7 +2991,6 @@ public final class LibraryActivity extends Activity {
                 .putBoolean(KEY_SORT_DESC, sortDescending)
                 .apply();
 
-        updateSortButton();
         applyFilterSort();
     }
 
@@ -3036,19 +3003,9 @@ public final class LibraryActivity extends Activity {
         return 0;
     }
 
-    /**
-     * Turns the sort icon over for descending, so which way the list runs is
-     * something to see rather than something to remember having chosen - the
-     * bars already read as a wedge narrowing one way, and turning it upside
-     * down says the opposite without a second drawable to keep in step with
-     * the first.
-     */
-    private void updateSortButton() {
-        sortButton.setRotation(sortDescending ? 180f : 0f);
-    }
-
-    /** Called by both ways in - the toolbar sheet and the gamepad dialog -
-     *  whenever the filter has changed, since the two share one Filters. */
+    /** The one way in now, the toolbar's own Options button and the pad's
+     *  Select alike, both landing on {@link OptionsDialog} - called whenever
+     *  the filter has changed, since both share one {@link #filters}. */
     private void onFiltersChanged() {
         updateFilterChips();
         load();
