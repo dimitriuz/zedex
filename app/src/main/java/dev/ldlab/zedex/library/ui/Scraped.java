@@ -142,14 +142,31 @@ public final class Scraped {
     }
 
     /**
-     * Resolves the facts and the picture for {@code relativePath}, the
-     * picture decoded to roughly {@code targetPx} on a side - see {@link
-     * #decode}. Answers from the cache at once if it already knows;
-     * otherwise asks a background thread and calls {@code callback} on the
-     * main thread once it has an answer - unless the folder has moved on
-     * since it was asked, in which case the answer is dropped rather than
-     * delivered late into whatever is on screen now.
+     * The picture for {@code relativePath}, decoded to roughly {@code
+     * targetPx} on a side - see {@link #decode}. Answers from the cache at
+     * once if it already knows; otherwise asks a background thread and calls
+     * {@code callback} on the main thread once it has one, unless the folder
+     * has moved on since it was asked, in which case the answer is dropped
+     * rather than delivered late into whatever is on screen now.
+     *
+     * The picture alone, for a caller that already has the facts.
+     *
+     * A row's words come from {@link dev.ldlab.zedex.library.meta.Metadata}
+     * directly now - a map read, once the store has been loaded - so sending
+     * them through here as well meant a row drawn with its filename and
+     * rewritten with its name a moment later. What is left needs a thread
+     * because it needs decoding.
      */
+    public void picture(Context context, String relativePath, int targetPx,
+                        PictureCallback callback) {
+        load(context, relativePath, targetPx, (meta, picture) -> callback.onReady(picture));
+    }
+
+    /** @see #picture */
+    public interface PictureCallback {
+        void onReady(Bitmap picture);
+    }
+
     public void load(Context context, String relativePath, int targetPx, Callback callback) {
         String key = relativePath + '@' + targetPx;
 

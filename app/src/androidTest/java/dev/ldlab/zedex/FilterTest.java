@@ -164,6 +164,14 @@ public class FilterTest {
         SharedPreferences preferences =
                 context.getSharedPreferences(SettingsActivity.PREFS, Context.MODE_PRIVATE);
 
+        // Asked for before it is asked about. Metadata answers from memory
+        // and never parses on demand, so a caller that has not waited for it
+        // reads an empty store - and this test would then skip itself for
+        // "no scraped games known" on a device with eight hundred of them,
+        // reporting OK in two seconds. Instrumentation runs on its own
+        // thread, which is where waiting is allowed.
+        Metadata.ensureLoaded(context);
+
         assumeTrue("no scraped games known - nothing to filter by",
                    Metadata.count(context) > 0);
 

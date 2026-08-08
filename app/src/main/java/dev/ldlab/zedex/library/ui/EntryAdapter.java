@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.library.ui;
 
+import dev.ldlab.zedex.library.meta.Meta;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.library.Entry;
 import dev.ldlab.zedex.library.Types;
@@ -283,19 +284,20 @@ public final class EntryAdapter extends RecyclerView.Adapter<EntryAdapter.Holder
 
         int targetPx = pixels(grid ? GRID_TARGET_DP : LIST_TARGET_DP);
 
-        scraped.load(context, relativePath, targetPx, (meta, picture) -> {
+        // The words are set here and now. Metadata is a map in memory once it
+        // has been read - see Metadata.store - so asking it what this game is
+        // called costs a hash lookup, and sending that question to a worker
+        // meant the row was drawn with its filename and then rewritten a
+        // moment later with its name. That flicker is the whole of what a
+        // person sees while scrolling: every row twice, the second time
+        // saying something different.
+        //
+        // Only the picture goes to a thread, because only the picture has to
+        // be decoded.
+        applyMeta(holder, entry, Metadata.forPath(context, relativePath));
+
+        scraped.picture(context, relativePath, targetPx, picture -> {
             if (holder.bindToken != token) return; // this holder moved on
-
-            String name = meta != null ? meta.name : null;
-            if (showScrapedNames && name != null && !name.isEmpty()) {
-                holder.title.setText(name);
-            }
-
-            String year = meta != null ? meta.year() : null;
-            if (holder.subtitle != null && year != null) {
-                holder.subtitle.setText(rowDetail(entry, year));
-            }
-
             if (picture == null) return;
 
             if (holder.cover != null) {
@@ -354,19 +356,26 @@ public final class EntryAdapter extends RecyclerView.Adapter<EntryAdapter.Holder
     }
 
     /**
-     * Size and date, whichever of them is known; empty when neither is.
+     * The scraped name and year on a row, from metadata already in memory.
      *
-     * Not a folder's size: {@code DocumentsContract} hands one back for a
-     * directory row same as for a file, and it is the size of the directory
-     * entry itself, not of what is inside it - a number that reads as
-     * meaningful and is not. An archive's own size is the real byte count of
-     * the zip on disk, and an entry's is what it unpacks to, so both of those
-     * stay.
-     *
-     * Static and public so {@link dev.ldlab.zedex.screen.LibraryActivity}'s
-     * pane can say the same thing about the selected row that the row itself
-     * already says, rather than a second copy of this that could drift.
+     * Nothing here touches a file or a thread: it is the same two fields the
+     * picture's callback used to set, set before the row is first shown
+     * rather than a moment after it.
      */
+    private void applyMeta(Holder holder, Entry entry, Meta meta) {
+        if (meta == null) return;
+
+        String name = meta.name;
+        if (showScrapedNames && name != null && !name.isEmpty()) {
+            holder.title.setText(name);
+        }
+
+        String year = meta.year();
+        if (holder.subtitle != null && year != null) {
+            holder.subtitle.setText(rowDetail(entry, year));
+        }
+    }
+
     /**
      * What a row says under its name: the release year and the file's own
      * format, {@code "1987 · TZX"}.
@@ -393,6 +402,20 @@ public final class EntryAdapter extends RecyclerView.Adapter<EntryAdapter.Holder
         return year + " · " + format;
     }
 
+    /**
+     * Size and date, whichever of them is known; empty when neither is.
+     *
+     * Not a folder's size: {@code DocumentsContract} hands one back for a
+     * directory row same as for a file, and it is the size of the directory
+     * entry itself, not of what is inside it - a number that reads as
+     * meaningful and is not. An archive's own size is the real byte count of
+     * the zip on disk, and an entry's is what it unpacks to, so both of those
+     * stay.
+     *
+     * Static and public so {@link dev.ldlab.zedex.screen.LibraryActivity}'s
+     * pane can say the same thing about the selected row that the row itself
+     * already says, rather than a second copy of this that could drift.
+     */
     public static String detail(Context context, Entry entry) {
         StringBuilder text = new StringBuilder();
 

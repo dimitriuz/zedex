@@ -99,12 +99,12 @@ public final class Metadata {
     }
 
     /** The stored facts for one game, or null when nothing is known about it. */
-    public static synchronized Meta forPath(Context context, String relativePath) {
+    public static Meta forPath(Context context, String relativePath) {
         return store(context).games.get(relativePath);
     }
 
     /** How many games the store holds. */
-    public static synchronized int count(Context context) {
+    public static int count(Context context) {
         return store(context).games.size();
     }
 
@@ -114,12 +114,26 @@ public final class Metadata {
      * A copy rather than the live map: the caller walks this on a background
      * thread, and the store can be replaced by a link while it does.
      */
-    public static synchronized java.util.Collection<Meta> all(Context context) {
+    public static java.util.Collection<Meta> all(Context context) {
         return new java.util.ArrayList<>(store(context).games.values());
     }
 
+    /**
+     * A token that changes whenever the store does, and not otherwise.
+     *
+     * The Store object itself: it is immutable and replaced wholesale, so its
+     * identity is exactly "which version of the facts is in memory". A caller
+     * that derives something expensive from {@link #all} - the filter sheet's
+     * genres, developers and publishers, counted over every game - can hold
+     * its answer beside this and know in one reference comparison whether it
+     * is still the answer.
+     */
+    public static Object version(Context context) {
+        return store(context);
+    }
+
     /** When {@link #replaceAll} last ran, epoch millis, or 0 if it never has. */
-    public static synchronized long lastLinked(Context context) {
+    public static long lastLinked(Context context) {
         return store(context).linkedAt;
     }
 
@@ -468,18 +482,86 @@ public final class Metadata {
         transformer.transform(new DOMSource(document), new StreamResult(out));
     }
 
-    /** The current store, reloading only when the file's own mtime has moved on. */
+    /**
+     * The store, from memory, and never anything else.
+     *
+     * This asks no question of the filesystem and takes no lock. It used to
+     * stat the file on every call and every caller synchronized around that,
+     * which is asked once per game per filter pass and once per row as it
+     * binds - measured at 53 microseconds for what is a HashMap read.
+     *
+     * It also never parses. A caller on the UI thread that arrives before the
+     * store has been read gets an empty answer rather than 776 KB of XML on
+     * the thread drawing the list, and the screen rebinds when {@link
+     * #preload} finishes. Whoever needs the real thing and can afford to wait
+     * says so with {@link #ensureLoaded}.
+     */
     private static Store store(Context context) {
+        Store current = cache;
+        return current != null ? current : EMPTY;
+    }
+
+    /**
+     * Reads the store if it has not been read, blocking until it has.
+     *
+     * For a caller already on a background thread that cannot do its job
+     * without the facts - the filter sheet's own facets, the details screen.
+     * Never call this from the main thread.
+     */
+    public static void ensureLoaded(Context context) {
+        if (cache != null) return;
+        loadAndPublish(context);
+    }
+
+    /**
+     * Reads the store now, off whatever thread calls this, so the first
+     * screen that wants it does not wait for the parse.
+     *
+     * Called at app start. Cheap once it has run.
+     */
+    public static void preload(Context context) {
+        ensureLoaded(context);
+    }
+
+    /**
+     * Re-reads the file if it has moved on since it was last read.
+     *
+     * This is where the stat went. The moments the store can have changed
+     * under a running app are few and known - the library coming back to the
+     * front, a link or an unlink finishing - so the question is asked there
+     * rather than before every lookup. Not on the main thread: it may parse.
+     */
+    public static void refresh(Context context) {
         File file = file(context);
         long mtime = file.isFile() ? file.lastModified() : 0;
 
         Store current = cache;
-        if (current != null && current.mtime == mtime) return current;
+        if (current != null && current.mtime == mtime) return;
+
+        loadAndPublish(context);
+    }
+
+    /**
+     * Parses, then publishes.
+     *
+     * The parse is deliberately outside the lock. Holding the monitor across
+     * it is what defeated the preload: refresh held it for the whole 776 KB
+     * while the UI thread, arriving a moment later, either did the parse
+     * itself or blocked on the monitor for the rest of it - and either way
+     * the main thread paid for it at every cold start. Two threads arriving
+     * together now parse twice, which costs one wasted read and is the
+     * cheaper mistake by a wide margin.
+     */
+    private static void loadAndPublish(Context context) {
+        File file = file(context);
+        long mtime = file.isFile() ? file.lastModified() : 0;
 
         Store loaded = load(file, mtime);
-        cache = loaded;
-        resolveCache.clear(); // the file moved on outside replaceAll/clear too - a hand edit, most likely
-        return loaded;
+
+        synchronized (Metadata.class) {
+            cache = loaded;
+            resolveCache.clear();
+        }
     }
 
     private static Store load(File file, long mtime) {
