@@ -18,6 +18,10 @@
   __android_log_print( ANDROID_LOG_INFO, ANDROID_LOG_TAG, __VA_ARGS__ )
 #define android_logw( ... ) \
   __android_log_print( ANDROID_LOG_WARN, ANDROID_LOG_TAG, __VA_ARGS__ )
+/* For what stops the app doing what it was asked, rather than what it
+   recovered from - a level logcat can filter on and a bug report keeps. */
+#define android_loge( ... ) \
+  __android_log_print( ANDROID_LOG_ERROR, ANDROID_LOG_TAG, __VA_ARGS__ )
 
 /* --- display (android_display.c) ------------------------------------- */
 
@@ -87,6 +91,11 @@ void androidgl_end( void );
 /* Runs the window handover handshake with the UI thread and then draws.
    Called from uidisplay_frame_end(). */
 void androidbridge_present( const void *pixels, int width, int height );
+
+/* Answer the window handshake without drawing - for a caller that has no
+   frame, which is every iteration of the paused loop before Fuse has
+   managed to initialise its display. */
+void androidbridge_service_window( void );
 
 /* Whether there is a surface to draw into. For the paused loop, which slows
    right down when there is not. Any thread. */

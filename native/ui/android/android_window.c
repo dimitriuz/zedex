@@ -133,13 +133,11 @@ androidbridge_has_window( void )
   return have;
 }
 
-void
-androidbridge_present( const void *pixels, int width, int height )
+/* Answers surfaceDestroyed() and takes up whatever surfaceChanged() left.
+   Called with window_mutex held. */
+static void
+service_window( void )
 {
-  if( !worth_presenting() ) return;
-
-  pthread_mutex_lock( &window_mutex );
-
   if( teardown_requested ) {
     androidgl_detach();
     if( window ) { ANativeWindow_release( window ); window = NULL; }
@@ -156,6 +154,45 @@ androidbridge_present( const void *pixels, int width, int height )
     have_pending = 0;
     window_generation++;
     declared_rate = 0;		/* a new window has not been told anything */
+  }
+}
+
+/* The handshake on its own, for a caller with no frame to draw.
+
+   It used to be reachable only through androidbridge_present(), which the
+   paused loop calls only when there is a picture to show - and there is none
+   until uidisplay_init() has set the dimensions. A Fuse that never got that
+   far, because the ROMs are missing, therefore never answered
+   surfaceDestroyed() at all: the UI thread waited the full second, every
+   time, and two or three of those during a rotation is an ANR. The one case
+   where the screen is a black rectangle saying ROMs are needed is exactly the
+   one where nothing was drawing.
+
+   Servicing it costs a mutex and two branches, so the paused loop does it
+   every time round rather than reasoning about when it is needed. */
+void
+androidbridge_service_window( void )
+{
+  pthread_mutex_lock( &window_mutex );
+  service_window();
+  pthread_mutex_unlock( &window_mutex );
+}
+
+void
+androidbridge_present( const void *pixels, int width, int height )
+{
+  pthread_mutex_lock( &window_mutex );
+
+  /* Before the frame-rate throttle below, not after: a present that decides
+     this frame is too soon still has to answer a surfaceDestroyed() that is
+     already waiting, or the handover is held up by as much as a frame for no
+     reason - and on the throttle's own early return, was not answered at all
+     until the next one got through. */
+  service_window();
+
+  if( !worth_presenting() ) {
+    pthread_mutex_unlock( &window_mutex );
+    return;
   }
 
   declare_frame_rate();

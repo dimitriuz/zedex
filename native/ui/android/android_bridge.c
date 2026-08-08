@@ -771,6 +771,11 @@ run_while_paused( void )
     const void *pixels = androiddisplay_last_frame( &width, &height );
 
     drain_commands();
+
+    /* Unconditionally, and not only when there is a picture: without ROMs
+       there never is one, and surfaceDestroyed() would then wait out its
+       whole timeout on the UI thread every single time. */
+    androidbridge_service_window();
     if( pixels ) androidbridge_present( pixels, width, height );
 
     /* A window to draw into means somebody is looking at the paused picture:
@@ -1025,12 +1030,32 @@ Java_dev_ldlab_zedex_FuseNative_start( JNIEnv *env, jclass class,
   fuse_argv = calloc( count + 1, sizeof( char* ) );
   if( !fuse_argv ) return;
 
+  /* Checked, like every other GetStringUTFChars in this file - this was the
+     one that was not. Each of the three can fail: the element can be null if
+     the caller left a hole in the array, GetStringUTFChars answers null when
+     it cannot allocate, and so does strdup. All three ended in a strdup or a
+     main() reading a null, at startup, where there is no stack worth reading.
+
+     Giving up here rather than carrying on with a shorter argv: these are the
+     arguments that say which machine to be and where its files are, and a Fuse
+     started with some of them missing would come up as something the user did
+     not ask for. */
   for( i = 0; i < count; i++ ) {
     jstring value = (*env)->GetObjectArrayElement( env, args, i );
-    const char *utf = (*env)->GetStringUTFChars( env, value, NULL );
-    fuse_argv[i] = strdup( utf );
-    (*env)->ReleaseStringUTFChars( env, value, utf );
-    (*env)->DeleteLocalRef( env, value );
+    const char *utf = value ? (*env)->GetStringUTFChars( env, value, NULL ) : NULL;
+
+    fuse_argv[i] = utf ? strdup( utf ) : NULL;
+
+    if( utf ) (*env)->ReleaseStringUTFChars( env, value, utf );
+    if( value ) (*env)->DeleteLocalRef( env, value );
+
+    if( !fuse_argv[i] ) {
+      android_loge( "cannot read argument %d of %d - not starting", i, count );
+      while( i-- ) free( fuse_argv[i] );
+      free( fuse_argv );
+      fuse_argv = NULL;
+      return;
+    }
   }
   fuse_argc = count;
 
@@ -1122,14 +1147,19 @@ Java_dev_ldlab_zedex_FuseNative_ayLevels( JNIEnv *env, jclass class )
 JNIEXPORT jobjectArray JNICALL
 Java_dev_ldlab_zedex_FuseNative_joystickTypeNames( JNIEnv *env, jclass class )
 {
+  jclass string_class = (*env)->FindClass( env, "java/lang/String" );
   jobjectArray result;
   int i;
 
-  result = (*env)->NewObjectArray( env, JOYSTICK_TYPE_COUNT,
-             (*env)->FindClass( env, "java/lang/String" ), NULL );
+  if( !string_class ) return NULL;
+
+  result = (*env)->NewObjectArray( env, JOYSTICK_TYPE_COUNT, string_class,
+                                   NULL );
+  (*env)->DeleteLocalRef( env, string_class );
 
   for( i = 0; result && i < JOYSTICK_TYPE_COUNT; i++ ) {
     jstring value = (*env)->NewStringUTF( env, joystick_name[i] );
+    if( !value ) continue;
     (*env)->SetObjectArrayElement( env, result, i, value );
     (*env)->DeleteLocalRef( env, value );
   }
