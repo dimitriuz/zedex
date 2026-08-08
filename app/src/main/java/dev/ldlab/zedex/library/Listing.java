@@ -114,6 +114,54 @@ public final class Listing {
         return entries;
     }
 
+    /** How far {@link #everythingUnder} follows a folder into its own
+     *  subfolders - see that method's own comment for why this is a cap
+     *  rather than a limit worth raising. */
+    private static final int MAX_FLATTEN_DEPTH = 8;
+
+    /**
+     * Every file reachable under {@code folder}, at any depth, for a filter
+     * that is a question about the whole collection rather than about
+     * whichever level Browse happens to be showing. Folders are excluded
+     * from the result - a flat list is a list of games, and there is no
+     * moving in one - but are still walked into, to whatever it holds.
+     *
+     * A {@code .zip} inside the tree is kept as itself, an {@link
+     * Entry.Kind#ARCHIVE}, and never opened here: {@link #archive} reads a
+     * whole zip's central directory to list it, and doing that for every
+     * archive in a collection of hundreds while merely flattening a folder
+     * view would cost minutes and a great deal of memory for a question
+     * nobody asked. A game inside a zip is still reachable by walking into
+     * the zip by hand; it is simply not part of a filtered listing.
+     *
+     * The walk stops descending past {@link #MAX_FLATTEN_DEPTH} levels below
+     * {@code folder} rather than throwing - well beyond any real collection,
+     * and there only so a pathological tree (a symlink loop a content
+     * provider chases literally, say) cannot hang the screen.
+     *
+     * @throws IOException if {@code folder} itself, or any folder the walk
+     *                      has reached so far, cannot be queried.
+     */
+    public static List<Entry> everythingUnder(ContentResolver resolver, Uri folder)
+            throws IOException {
+        List<Entry> found = new ArrayList<>();
+        flatten(resolver, folder, found, 0);
+        return found;
+    }
+
+    private static void flatten(ContentResolver resolver, Uri folder, List<Entry> found,
+                                 int depth) throws IOException {
+        if (depth > MAX_FLATTEN_DEPTH) return;
+
+        for (Entry entry : folder(resolver, folder)) {
+            if (entry.kind == Entry.Kind.FOLDER) {
+                flatten(resolver, entry.uri, found, depth + 1);
+            } else {
+                found.add(entry);
+            }
+        }
+    }
+
     /**
      * The supported entries inside a {@code .zip}, A-Z case-insensitively.
      * Directories inside the zip are skipped, as is anything

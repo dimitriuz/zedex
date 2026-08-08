@@ -4,7 +4,9 @@ import dev.ldlab.zedex.EmulatorActivity;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.library.Entry;
 import dev.ldlab.zedex.library.Favorites;
+import dev.ldlab.zedex.library.Filters;
 import dev.ldlab.zedex.library.Listing;
+import dev.ldlab.zedex.library.Sorting;
 import dev.ldlab.zedex.library.meta.Meta;
 import dev.ldlab.zedex.library.meta.Metadata;
 import dev.ldlab.zedex.library.ui.EntryAdapter;
@@ -51,7 +53,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
@@ -128,18 +130,8 @@ public final class LibraryActivity extends Activity {
     private static final String VIEW_LIST = "list";
     private static final String VIEW_GRID = "grid";
 
-    /** "name", "date" or "size"; read with getString always. */
+    /** One of {@link Sorting#FIELDS}; read with getString always. */
     private static final String KEY_SORT = "librarySort";
-    private static final String SORT_NAME = "name";
-    private static final String SORT_DATE = "date";
-    private static final String SORT_SIZE = "size";
-
-    /** {@link #SORT_NAME}, {@link #SORT_DATE} and {@link #SORT_SIZE}, in the
-     *  order {@link OptionsDialog} shows them - its rows speak by index
-     *  rather than by this class's own field names, so {@link
-     *  #sortFieldIndex} and this array are the only place the two are tied
-     *  together. */
-    private static final String[] SORT_FIELDS = { SORT_NAME, SORT_DATE, SORT_SIZE };
 
     /** Reverses whichever field {@link #KEY_SORT} names; read with
      *  getBoolean always. Ascending - name A-Z, oldest first, smallest first
@@ -240,10 +232,23 @@ public final class LibraryActivity extends Activity {
      */
     private boolean restoringPosition;
 
-    private String sort = SORT_NAME;
+    private String sort = Sorting.NAME;
     private boolean sortDescending;
     private String query = "";
     private boolean grid;
+
+    /**
+     * What the library is currently narrowed to. Session-only and deliberately
+     * never written to preferences - see the design spec: a filter is a
+     * question being asked now, not a preference, and a forgotten one is how a
+     * library looks broken.
+     */
+    private final Filters filters = new Filters();
+
+    /** Whether anything is narrowed, which is also whether the list is flat. */
+    private boolean filtering() {
+        return !filters.isEmpty() && tab == Tab.BROWSE;
+    }
 
     /** What the last load produced, before the search box narrows it down -
      *  kept so that typing does not mean asking the folder again. */
@@ -488,7 +493,7 @@ public final class LibraryActivity extends Activity {
         // switcher reads it from here, not from the bar.
         setTitle(R.string.library_title);
 
-        sort = preferences.getString(KEY_SORT, SORT_NAME);
+        sort = Sorting.fieldOrDefault(preferences.getString(KEY_SORT, Sorting.NAME));
         sortDescending = preferences.getBoolean(KEY_SORT_DESC, false);
         grid = VIEW_GRID.equals(preferences.getString(KEY_VIEW, VIEW_LIST));
 
@@ -527,7 +532,14 @@ public final class LibraryActivity extends Activity {
         optionsDialog = new OptionsDialog(this, new OptionsDialog.Callbacks() {
             @Override
             public void onSortField(int index) {
-                chooseSortField(SORT_FIELDS[index]);
+                // OptionsDialog still only builds three rows, labelled name,
+                // date and size, and index is one of those three - so until
+                // it is rebuilt to offer all of Sorting.FIELDS (Task 5-7),
+                // its "date" row resolves to Sorting.FIELDS[1] (size) and its
+                // "size" row to Sorting.FIELDS[2] (released), both mislabelled
+                // rather than missing. Left as-is here since fixing the
+                // labels means touching OptionsDialog, which is that task's.
+                chooseSortField(Sorting.FIELDS[index]);
                 optionsDialog.refresh(sortFieldIndex(sort), sortDescending, grid);
             }
 
@@ -2106,14 +2118,24 @@ public final class LibraryActivity extends Activity {
         upButton.setVisibility(stack.size() > 1 ? View.VISIBLE : View.GONE);
         syncBackCallback();
 
+        // A filter asks a question about the whole collection, not about
+        // whichever folder is currently on screen, so it walks the tree from
+        // here down rather than listing just this level - see filtering()
+        // and Listing.everythingUnder. Not while level.archive: an archive's
+        // own listing is already flat, and everythingUnder's walk is written
+        // in terms of folder documents, not zip entries.
+        boolean flatten = filtering() && !level.archive;
+
         new Thread(() -> {
             List<Entry> result = null;
             IOException failure = null;
 
             try {
-                result = level.archive
-                        ? Listing.archive(getContentResolver(), level.uri)
-                        : Listing.folder(getContentResolver(), level.uri);
+                result = flatten
+                        ? Listing.everythingUnder(getContentResolver(), level.uri)
+                        : level.archive
+                                ? Listing.archive(getContentResolver(), level.uri)
+                                : Listing.folder(getContentResolver(), level.uri);
             } catch (IOException e) {
                 failure = e;
             }
@@ -2184,9 +2206,18 @@ public final class LibraryActivity extends Activity {
         String needle = query.toLowerCase(Locale.ROOT);
 
         for (Entry entry : loaded) {
-            if (needle.isEmpty() || entry.name.toLowerCase(Locale.ROOT).contains(needle)) {
-                shown.add(entry);
+            if (!needle.isEmpty()
+                    && !entry.name.toLowerCase(Locale.ROOT).contains(needle)) {
+                continue;
             }
+
+            // Folders are not filtered - they are how you move, not what you
+            // are looking for - and a filtered list is flat and has none.
+            if (entry.kind != Entry.Kind.FOLDER && !filters.matches(entry, metaOf(entry))) {
+                continue;
+            }
+
+            shown.add(entry);
         }
 
         sortEntries(shown);
@@ -2272,10 +2303,17 @@ public final class LibraryActivity extends Activity {
     /**
      * Folders stay first and alphabetical whatever the sort says - the same
      * rule {@link Listing#folder} itself sorts by - since they are what Browse
-     * is walked through rather than a game to weigh by size or date. A no-op
-     * split for Favourites and Recents, which are never folders.
+     * is walked through rather than a game to weigh by size or rating. A no-op
+     * split for Favourites and Recents, which are never folders, and skipped
+     * entirely while {@link #filtering()}: a flattened list has no folders in
+     * it to hold apart from the rest.
      */
     private void sortEntries(List<Entry> list) {
+        if (filtering()) {
+            Collections.sort(list, Sorting.comparator(sort, sortDescending, this::metaOf));
+            return;
+        }
+
         List<Entry> folders = new ArrayList<>();
         List<Entry> rest = new ArrayList<>();
 
@@ -2284,7 +2322,7 @@ public final class LibraryActivity extends Activity {
         }
 
         folders.sort((a, b) -> a.name.compareToIgnoreCase(b.name));
-        rest.sort(comparatorFor(sort, sortDescending));
+        Collections.sort(rest, Sorting.comparator(sort, sortDescending, this::metaOf));
 
         list.clear();
         list.addAll(folders);
@@ -2292,21 +2330,16 @@ public final class LibraryActivity extends Activity {
     }
 
     /**
-     * Ascending unless {@code descending} says otherwise - name A-Z, oldest
-     * first, smallest first - which is the one direction every field had
-     * before there was a choice about it for name, and the plainer of the two
-     * to default to for date and size as well.
+     * The store's entry for a row, or null.
+     *
+     * Folders and archive members have no path in the store, so they never
+     * have metadata; asking anyway would cost a URI round trip per row.
      */
-    private Comparator<Entry> comparatorFor(String key, boolean descending) {
-        Comparator<Entry> ascending;
+    private Meta metaOf(Entry entry) {
+        if (entry.kind == Entry.Kind.FOLDER || entry.inside != null) return null;
 
-        switch (key) {
-            case SORT_DATE: ascending = Comparator.comparingLong(e -> e.modified); break;
-            case SORT_SIZE: ascending = Comparator.comparingLong(e -> e.size); break;
-            default: ascending = (a, b) -> a.name.compareToIgnoreCase(b.name);
-        }
-
-        return descending ? ascending.reversed() : ascending;
+        String relativePath = Metadata.relativePath(this, entry.uri);
+        return relativePath == null ? null : Metadata.forPath(this, relativePath);
     }
 
     /** The row named by {@code key} in {@code list}, or null if it is not
@@ -2751,14 +2784,16 @@ public final class LibraryActivity extends Activity {
     }
 
     private void showSortMenu(View anchor) {
+        // Two rows for now, not all of Sorting.FIELDS - the popup gains
+        // released, format and rating in Task 5-7 alongside the chips; the
+        // file date sort it used to offer is simply gone, replaced by
+        // nothing, since the field it read no longer exists.
         PopupMenu menu = new PopupMenu(this, anchor);
         menu.getMenu().add(0, 0, 0, R.string.library_sort_name);
-        menu.getMenu().add(0, 1, 1, R.string.library_sort_date);
-        menu.getMenu().add(0, 2, 2, R.string.library_sort_size);
+        menu.getMenu().add(0, 1, 1, R.string.library_sort_size);
 
         menu.setOnMenuItemClickListener(item -> {
-            chooseSortField(item.getItemId() == 1 ? SORT_DATE
-                           : item.getItemId() == 2 ? SORT_SIZE : SORT_NAME);
+            chooseSortField(item.getItemId() == 1 ? Sorting.SIZE : Sorting.NAME);
             return true;
         });
 
@@ -2789,11 +2824,11 @@ public final class LibraryActivity extends Activity {
         applyFilterSort();
     }
 
-    /** {@code field}'s position in {@link #SORT_FIELDS} - what {@link
+    /** {@code field}'s position in {@link Sorting#FIELDS} - what {@link
      *  OptionsDialog} indexes its own rows by. */
     private int sortFieldIndex(String field) {
-        for (int i = 0; i < SORT_FIELDS.length; i++) {
-            if (SORT_FIELDS[i].equals(field)) return i;
+        for (int i = 0; i < Sorting.FIELDS.length; i++) {
+            if (Sorting.FIELDS[i].equals(field)) return i;
         }
         return 0;
     }
@@ -2807,6 +2842,19 @@ public final class LibraryActivity extends Activity {
      */
     private void updateSortButton() {
         sortButton.setRotation(sortDescending ? 180f : 0f);
+    }
+
+    /** Called by both ways in - the toolbar sheet and the gamepad dialog -
+     *  whenever the filter has changed, since the two share one Filters. */
+    private void onFiltersChanged() {
+        updateFilterChips();
+        load();
+    }
+
+    /** Draws the row of chips naming what filters() is narrowed to. Empty
+     *  for now - the sheet and the chips themselves are Task 7. */
+    private void updateFilterChips() {
+        // Task 7.
     }
 
     private int pixels(int dp) {
