@@ -90,8 +90,10 @@ public final class OptionsDialog {
          *  thread, the same work the toolbar's own Filter button already does
          *  before calling {@link #showFilters} - so this only asks; {@code
          *  LibraryActivity} is expected to do that work and then call {@link
-         *  #enterFiltersFromMenu} with the answer. */
-        void openFilters();
+         *  #enterFiltersFromMenu} with the answer, passing {@code
+         *  requestToken} straight back so that method can tell whether
+         *  anyone still wants it - see that method's own comment. */
+        void openFilters(int requestToken);
     }
 
     // Matches LibraryActivity's own palette - duplicated rather than shared,
@@ -191,6 +193,18 @@ public final class OptionsDialog {
      *  when {@link #showFilters} did. Meaningless outside FILTER; {@link
      *  #goBack} is the only reader. */
     private boolean filterHasMenuParent;
+
+    /** Bumped every time MENU's own Filter row asks {@code LibraryActivity}
+     *  to walk the store, and again every time MENU is left for somewhere
+     *  else - Sort's own row, the one other thing MENU can do while that walk
+     *  might still be running - while the answer is in flight. Either way,
+     *  the value {@link Callbacks#openFilters} was handed stops matching this
+     *  field, which is how {@link #enterFiltersFromMenu} tells "this is the
+     *  answer to the request still on offer" from "this is the answer to a
+     *  request nobody standing here asked any more" - a page has no business
+     *  yanking itself back to FILTER because of a tap that happened before
+     *  someone moved on to Sort. */
+    private int filterRequestToken;
 
     /** The library's own {@link Filters}, the same instance {@code
      *  LibraryActivity} holds - toggling a value here mutates it directly,
@@ -300,10 +314,18 @@ public final class OptionsDialog {
      * anyway would reopen a dialog they already dismissed - the one thing
      * {@link #showFilters} never had to guard against, since nothing can
      * dismiss a dialog that was never shown.
+     *
+     * Also ignored if {@code requestToken} no longer matches {@link
+     * #filterRequestToken} - the walk can just as easily finish after
+     * someone presses B once (landing back on MENU, not dismissing) and then
+     * taps Sort instead, and forcing {@link Page#FILTER} on them at that
+     * point would yank away the page they had actually moved to. A stale
+     * answer is simply dropped, the same as a dismissed dialog's.
      */
-    public void enterFiltersFromMenu(Map<Filters.Field, List<Facets.Value>> values,
+    public void enterFiltersFromMenu(int requestToken,
+                                     Map<Filters.Field, List<Facets.Value>> values,
                                      List<Facets.Value> formats) {
-        if (dialog == null) return;
+        if (dialog == null || requestToken != filterRequestToken) return;
 
         this.values = values;
         this.formats = formats;
@@ -453,6 +475,12 @@ public final class OptionsDialog {
      * with an edge on every step; this only scrolls the amount actually
      * needed, which is nothing at all most of the time a pad's cursor is
      * already inside the visible page.
+     *
+     * Called from {@link GamepadCursor.Nav#move}, moving the cursor a row at
+     * a time, and from {@link #rebuild} whenever it stays on {@link
+     * Page#VALUES} - the same row-relative idea covers both "the cursor
+     * stepped past the edge" and "the whole ScrollView was just rebuilt at
+     * offset 0 out from under a row that was not at the top".
      */
     private void scrollCursorIntoView() {
         if (cursorRow < 0 || cursorRow >= rows.size()) return;
@@ -530,6 +558,21 @@ public final class OptionsDialog {
         }
 
         paint();
+
+        // buildValuesPage's own ScrollView is rebuilt from nothing every time
+        // - fine for a fresh field, since openValues resets cursorRow to 0
+        // too and this then lands exactly on the top row that should be
+        // showing, but toggling a value below the fold rebuilds this same
+        // page and would otherwise snap back to the top with no sign of what
+        // was just picked. Reusing scrollCursorIntoView rather than saving
+        // and restoring a raw pixel offset keeps one mechanism for "keep the
+        // cursor row visible" instead of two that could disagree about where
+        // that is. Posted rather than called straight away: immediately
+        // after setContentView the new column has not been measured yet, so
+        // every row's width and height still read zero and there is nothing
+        // for requestRectangleOnScreen to scroll to - post() runs this once
+        // the pending layout has actually happened.
+        if (page == Page.VALUES) column.post(this::scrollCursorIntoView);
     }
 
     /**
@@ -563,6 +606,12 @@ public final class OptionsDialog {
                 () -> callbacks.onViewMode(!grid));
 
         addRow(column, menuRow(R.string.library_sort, sortLabel(sortIndex)), () -> {
+            // Bumped here too, not just when Filter is tapped: this is the
+            // one other thing MENU can do while a Filter answer might still
+            // be in flight, and leaving for Sort is exactly the case
+            // enterFiltersFromMenu's own comment on filterRequestToken
+            // guards against.
+            filterRequestToken++;
             page = Page.SORT;
             // Row 0 on SORT is its own back row - see buildSortPage - so the
             // sorting field is one past where its own index would put it.
@@ -571,7 +620,7 @@ public final class OptionsDialog {
         });
 
         addRow(column, menuRow(R.string.library_filter, filterSummary()),
-                callbacks::openFilters);
+                () -> callbacks.openFilters(++filterRequestToken));
     }
 
     /** "View · List" or "Sort · Rating ▼" - the label a MENU row always

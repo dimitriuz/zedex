@@ -555,13 +555,16 @@ public final class LibraryActivity extends Activity {
             }
 
             @Override
-            public void openFilters() {
+            public void openFilters(int requestToken) {
                 // The menu's own Filter row - same facets walk the toolbar's
                 // button already does, just landing on OptionsDialog's own
                 // "entered from the menu" door instead of its "fresh dialog"
                 // one; see openFilterSheet and enterFiltersFromMenu's own
                 // comment for why the two doors cannot share a method.
-                openFilterSheet(true);
+                // requestToken travels through untouched - it means nothing
+                // to this screen, only to the dialog that minted it and will
+                // compare it again once this thread's walk is done.
+                openFilterSheet(true, requestToken);
             }
         });
 
@@ -1344,7 +1347,7 @@ public final class LibraryActivity extends Activity {
         // all - a filter reachable only from there would be reachable only
         // with a controller. Hidden outside Browse; see show(Tab).
         filterButton = toolbarButton(R.drawable.ic_filter, getString(R.string.library_filter));
-        filterButton.setOnClickListener(v -> openFilterSheet(false));
+        filterButton.setOnClickListener(v -> openFilterSheet(false, 0));
         row.addView(filterButton);
 
         // Named for what it would do rather than what it is, like the bar's
@@ -2189,8 +2192,17 @@ public final class LibraryActivity extends Activity {
      *                 one of them has a MENU behind it to come back to; see
      *                 {@code OptionsDialog.enterFiltersFromMenu}'s own
      *                 comment.
+     * @param requestToken meaningless to this screen, only to the dialog
+     *                     that minted it - handed straight back to {@code
+     *                     enterFiltersFromMenu} so it can tell a request
+     *                     nobody still wants from one still on offer.
+     *                     Ignored when {@code fromMenu} is false: {@code
+     *                     showFilters} has no such token, since nothing can
+     *                     supersede a request made through a door that
+     *                     opens a fresh dialog rather than asking one
+     *                     already up to change what it is showing.
      */
-    private void openFilterSheet(boolean fromMenu) {
+    private void openFilterSheet(boolean fromMenu, int requestToken) {
         new Thread(() -> {
             // Off the UI thread: this walks the whole store, which is 800
             // games on the collection it was built against, and the whole
@@ -2203,7 +2215,7 @@ public final class LibraryActivity extends Activity {
             runOnUiThread(() -> {
                 if (isFinishing() || isDestroyed()) return;
                 if (fromMenu) {
-                    optionsDialog.enterFiltersFromMenu(values, formats);
+                    optionsDialog.enterFiltersFromMenu(requestToken, values, formats);
                 } else {
                     optionsDialog.showFilters(values, formats);
                 }
