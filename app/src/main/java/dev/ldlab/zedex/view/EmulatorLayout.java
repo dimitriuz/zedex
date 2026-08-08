@@ -980,7 +980,16 @@ public final class EmulatorLayout extends ViewGroup {
         // keyboard, which comes up over the window whenever it is asked to.
         boolean keys = keyboardHere();
 
-        panelBox.set(0, 0, width, height);
+        // Down to the keyboard, not to the bottom of the window. The sheet is
+        // where text gets typed - Pokes, Add a poke, three fields and a commit
+        // row - and at SDK 35 the app is edge-to-edge, so the legacy
+        // ADJUST_RESIZE that used to shrink the window for an IME no longer
+        // applies. Laid out full height, the field being typed into and the
+        // button that commits it sit under the keyboard in landscape, where
+        // the window is around 393dp and the IME takes half of it. The inset
+        // was already being tracked for the joystick floor; this is the same
+        // number.
+        panelBox.set(0, 0, width, height - imeInset);
 
         // The bar first, because the screen starts underneath it.
         measureBar(width, height);
