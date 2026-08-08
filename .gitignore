@@ -29,3 +29,6 @@ __pycache__/
 
 # Local code-review findings: working notes, not part of the project.
 /review/
+
+# Subagent-driven development scratch: ledgers, briefs, review packages.
+/.superpowers/
