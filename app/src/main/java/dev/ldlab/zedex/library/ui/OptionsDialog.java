@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.library.ui;
 
+import dev.ldlab.zedex.view.Palette;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.library.Facets;
 import dev.ldlab.zedex.library.Filters;
@@ -113,9 +114,6 @@ public final class OptionsDialog {
     // Matches LibraryActivity's own palette - duplicated rather than shared,
     // since a colour is not logic and widening a handful of private
     // constants to public just for this would cost more than it buys.
-    private static final int BACKING = 0xff14151a;
-    private static final int TEXT = 0xffededf2;
-    private static final int MUTED = 0xff8b8b99;
     private static final int ACTIVE = 0xff00b0c8;
 
     /** The tint a row gets while the pad's own cursor is on it - the same
@@ -491,7 +489,7 @@ public final class OptionsDialog {
 
         LinearLayout column = new LinearLayout(activity);
         column.setOrientation(LinearLayout.VERTICAL);
-        column.setBackgroundColor(BACKING);
+        column.setBackgroundColor(Palette.BACKING);
         column.setPadding(pixels(4), pixels(4), pixels(4), pixels(4));
 
         switch (page) {
@@ -588,7 +586,7 @@ public final class OptionsDialog {
     private void buildMenuPage(LinearLayout column) {
         TextView title = new TextView(activity);
         title.setText(R.string.library_options_title);
-        title.setTextColor(MUTED);
+        title.setTextColor(Palette.MUTED);
         title.setTextSize(13);
         title.setPadding(pixels(16), pixels(12), pixels(16), pixels(8));
         column.addView(title);
@@ -737,8 +735,8 @@ public final class OptionsDialog {
             EditText search = new EditText(activity);
             search.setHint(R.string.library_search);
             search.setSingleLine();
-            search.setTextColor(TEXT);
-            search.setHintTextColor(MUTED);
+            search.setTextColor(Palette.TEXT);
+            search.setHintTextColor(Palette.MUTED);
             search.setBackground(null);
             search.setPadding(pixels(16), pixels(8), pixels(16), pixels(8));
             search.addTextChangedListener(new TextWatcher() {
@@ -904,7 +902,7 @@ public final class OptionsDialog {
     private TextView addRow(LinearLayout column, String label, Runnable action) {
         TextView row = new TextView(activity);
         row.setText(label);
-        row.setTextColor(TEXT);
+        row.setTextColor(Palette.TEXT);
         row.setTextSize(15);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(pixels(16), pixels(12), pixels(16), pixels(12));
@@ -991,7 +989,7 @@ public final class OptionsDialog {
             for (int i = 0; i < sortRows.size(); i++) {
                 TextView row = sortRows.get(i);
                 row.setText(sortLabel(i));
-                row.setTextColor(i == sortIndex ? ACTIVE : TEXT);
+                row.setTextColor(i == sortIndex ? ACTIVE : Palette.TEXT);
             }
         }
 

@@ -44,6 +44,24 @@ public final class Language {
     }
 
     /**
+     * The language actually in force for a context, chosen or inherited.
+     *
+     * {@link #tag} answers what the *preference* says, and an empty answer -
+     * follow the phone - is the default. That makes it useless for noticing a
+     * change: with no preference set it reads "" before a system language
+     * change and "" after it, so a screen comparing it concludes nothing
+     * happened. This resolves what the resources were actually built with, so
+     * both kinds of change show up.
+     */
+    public static String effectiveTag(Context context) {
+        Configuration configuration = context.getResources().getConfiguration();
+
+        return configuration.getLocales().isEmpty()
+                ? ""
+                : configuration.getLocales().get(0).toLanguageTag();
+    }
+
+    /**
      * The context an activity should be built on.
      *
      * Called from {@code attachBaseContext}, which runs before anything else an

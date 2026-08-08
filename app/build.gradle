@@ -298,15 +298,21 @@ dependencies {
     implementation 'androidx.preference:preference:1.2.1'
 
     /*
-     * The library's browse list. Already on the classpath transitively -
-     * androidx.preference brings it in directly, at 1.0.0 - so this asks for
-     * exactly the version that would resolve anyway. Declared rather than
-     * relied upon because a dependency that only exists by way of preference
-     * is one Gradle is free to drop the moment preference stops needing it,
-     * and a folder of thousands is exactly the screen that cannot fall back
-     * to a hand-rolled list.
+     * The library's browse list. Declared rather than relied upon because a
+     * dependency that only exists by way of androidx.preference is one Gradle
+     * is free to drop the moment preference stops needing it, and a folder of
+     * thousands is exactly the screen that cannot fall back to a hand-rolled
+     * list.
+     *
+     * Above what preference resolves (1.0.0, from 2018), which is the point of
+     * declaring it: matching the transitive version made the declaration a
+     * no-op and left the app on a seven-year-old copy of the one widget it
+     * leans on hardest. 1.3.2's fixes are in measurement and prefetch, which is
+     * the territory of the bug CLAUDE.md records losing 1.9 GB to - a page
+     * measuring zero because MATCH_PARENT becomes UNSPECIFIED in the scroll
+     * direction.
      */
-    implementation 'androidx.recyclerview:recyclerview:1.0.0'
+    implementation 'androidx.recyclerview:recyclerview:1.3.2'
 
     /*
      * The JVM tier. Everything in library/ that decides something - what a
@@ -320,4 +326,44 @@ dependencies {
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test:runner:1.5.2'
     androidTestImplementation 'androidx.test.uiautomator:uiautomator:2.3.0'
+}
+
+/*
+ * The one local mistake this project repeats: changing C and installing the
+ * old library.
+ *
+ * Gradle only packages the .so that scripts/build-native.sh has already
+ * produced, so it has no idea the sources moved and cheerfully builds an APK
+ * with last week's emulator in it. Nothing says so - the app runs, and the
+ * change is simply absent. CI is safe, because the runner always runs the
+ * script; a bench is not.
+ *
+ * Compared against the *oldest* library rather than the newest, since a build
+ * of one ABI while iterating (ABIS=x86_64 ./scripts/build-native.sh) leaves the
+ * others behind on purpose, and it is the stale one that would ship.
+ *
+ * A warning and not a failure: which ABI is current is a choice while
+ * iterating, and a build that refuses to run is a worse answer than one that
+ * says what it did. The message carries its own fix.
+ */
+tasks.named('preBuild').configure {
+    doFirst {
+        def libs = fileTree('src/main/jniLibs') { include '**/libfuse.so' }.files
+        if (libs.isEmpty()) return
+
+        def oldestLib = libs*.lastModified().min()
+        def sources = fileTree(rootProject.file('native')) {
+            include '**/*.c', '**/*.h', '**/*.patch'
+        }.files
+        def newer = sources.findAll { it.lastModified() > oldestLib }
+
+        if (!newer.isEmpty()) {
+            def names = newer.take(3).collect { rootProject.relativePath(it) }
+            logger.warn("\nlibfuse.so is older than ${newer.size()} native "
+                        + "source file(s) - ${names.join(', ')}"
+                        + (newer.size() > 3 ? ', ...' : '')
+                        + "\nThis APK will package the previous build. Run "
+                        + "./scripts/build-native.sh first.\n")
+        }
+    }
 }

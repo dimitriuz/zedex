@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.library.ui;
 
+import dev.ldlab.zedex.view.Palette;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.library.meta.Artwork;
 import dev.ldlab.zedex.library.meta.Meta;
@@ -42,8 +43,6 @@ import android.widget.TextView;
  */
 public final class GameInfoView extends LinearLayout {
 
-    private static final int TEXT = 0xffededf2;
-    private static final int MUTED = 0xff9a9aa5;
 
     /** Roughly what the artwork is decoded at - a whole panel's worth, the
      *  same reasoning {@code GameInfoActivity}'s own target follows, bigger
@@ -197,26 +196,26 @@ public final class GameInfoView extends LinearLayout {
         // as GameInfoActivity's own title does - this is never blank while
         // it waits.
         title = new TextView(context);
-        title.setTextColor(TEXT);
+        title.setTextColor(Palette.TEXT);
         title.setTextSize(24);
         words.addView(title, wrap());
 
         filename = new TextView(context);
-        filename.setTextColor(MUTED);
+        filename.setTextColor(Palette.MUTED);
         filename.setTextSize(14);
         filename.setPadding(0, pixels(6), 0, 0);
         filename.setVisibility(View.GONE);
         words.addView(filename, wrap());
 
         facts = new TextView(context);
-        facts.setTextColor(MUTED);
+        facts.setTextColor(Palette.MUTED);
         facts.setTextSize(16);
         facts.setPadding(0, pixels(14), 0, 0);
         facts.setVisibility(View.GONE);
         words.addView(facts, wrap());
 
         description = new TextView(context);
-        description.setTextColor(TEXT);
+        description.setTextColor(Palette.TEXT);
         description.setTextSize(18);
         description.setLineSpacing(pixels(5), 1f);
         // Room under the last line, not only over the first. This column

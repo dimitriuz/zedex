@@ -186,6 +186,45 @@ static pthread_mutex_t command_mutex = PTHREAD_MUTEX_INITIALIZER;
 static queued_command command_queue[ COMMAND_QUEUE_SIZE ];
 static size_t command_head, command_tail;
 
+/* A key, joystick direction or character going *up*. The one thing in this
+   queue that cannot be thrown away: what a lost press costs is a keystroke
+   that never happened, and what a lost release costs is a key held down for
+   ever with nothing left to lift it - on a Spectrum, a machine that then does
+   nothing but repeat that letter. */
+static int
+is_release( command_type type, int b )
+{
+  return !b && ( type == COMMAND_KEY || type == COMMAND_JOYSTICK ||
+                 type == COMMAND_CHARACTER );
+}
+
+/* Puts a release into the slot of the oldest entry that can afford to go.
+   Called with command_mutex held, and only when the queue is full.
+
+   The release lands earlier in the order than it was asked for, which is a
+   key going up a few events early. The alternative is it never going up at
+   all. Whatever it displaces is a press, and a press that never happens is
+   also a release later on that finds nothing pressed, which Fuse ignores. */
+static int
+displace_for_release( command_type type, int a, int b, char *text )
+{
+  size_t i;
+
+  for( i = command_head; i != command_tail;
+       i = ( i + 1 ) % COMMAND_QUEUE_SIZE ) {
+    if( is_release( command_queue[i].type, command_queue[i].b ) ) continue;
+
+    free( command_queue[i].text );
+    command_queue[i].type = type;
+    command_queue[i].a = a;
+    command_queue[i].b = b;
+    command_queue[i].text = text;
+    return 1;
+  }
+
+  return 0;
+}
+
 /* `text', if given, is taken over by the queue. */
 static void
 queue_command_text( command_type type, int a, int b, char *text )
@@ -197,7 +236,17 @@ queue_command_text( command_type type, int a, int b, char *text )
   next = ( command_tail + 1 ) % COMMAND_QUEUE_SIZE;
   if( next == command_head ) {
     /* Full: the emulation thread has stalled. Dropping is better than
-       blocking the UI thread. */
+       blocking the UI thread - unless what would be dropped is a release.
+       256 entries is generous for a person typing, and not generous at all
+       against a snapshot write to slow external storage, which is exactly
+       when a finger comes off a key. */
+    if( is_release( type, b ) && displace_for_release( type, a, b, text ) ) {
+      android_logw( "command queue overflow, displaced a press to keep a"
+                    " release of type %d", type );
+      pthread_mutex_unlock( &command_mutex );
+      return;
+    }
+
     android_logw( "command queue overflow, dropping type %d", type );
     free( text );
   } else {
@@ -771,6 +820,11 @@ run_while_paused( void )
     const void *pixels = androiddisplay_last_frame( &width, &height );
 
     drain_commands();
+
+    /* Unconditionally, and not only when there is a picture: without ROMs
+       there never is one, and surfaceDestroyed() would then wait out its
+       whole timeout on the UI thread every single time. */
+    androidbridge_service_window();
     if( pixels ) androidbridge_present( pixels, width, height );
 
     /* A window to draw into means somebody is looking at the paused picture:
@@ -909,7 +963,7 @@ androidbridge_report_error( int severity, const char *message )
   env = attached_env();
   if( !env ) return;
 
-  text = (*env)->NewStringUTF( env, message );
+  text = androidtext_to_java( env, message );
   if( !text ) { clear_pending( env ); return; }
 
   (*env)->CallStaticVoidMethod( env, native_class, on_error_method,
@@ -995,7 +1049,7 @@ JNIEXPORT jboolean JNICALL
 Java_dev_ldlab_zedex_FuseNative_setWorkingDirectory( JNIEnv *env, jclass class,
                                                     jstring path )
 {
-  const char *utf = (*env)->GetStringUTFChars( env, path, NULL );
+  char *utf = androidtext_from_java( env, path );
   int ok;
 
   if( !utf ) return JNI_FALSE;
@@ -1003,7 +1057,7 @@ Java_dev_ldlab_zedex_FuseNative_setWorkingDirectory( JNIEnv *env, jclass class,
   ok = chdir( utf ) == 0;
   if( !ok ) android_logw( "cannot use %s as the working directory", utf );
 
-  (*env)->ReleaseStringUTFChars( env, path, utf );
+  free( utf );
 
   return ok ? JNI_TRUE : JNI_FALSE;
 }
@@ -1025,12 +1079,30 @@ Java_dev_ldlab_zedex_FuseNative_start( JNIEnv *env, jclass class,
   fuse_argv = calloc( count + 1, sizeof( char* ) );
   if( !fuse_argv ) return;
 
+  /* Checked, like every other GetStringUTFChars in this file - this was the
+     one that was not. Each of the three can fail: the element can be null if
+     the caller left a hole in the array, GetStringUTFChars answers null when
+     it cannot allocate, and so does strdup. All three ended in a strdup or a
+     main() reading a null, at startup, where there is no stack worth reading.
+
+     Giving up here rather than carrying on with a shorter argv: these are the
+     arguments that say which machine to be and where its files are, and a Fuse
+     started with some of them missing would come up as something the user did
+     not ask for. */
   for( i = 0; i < count; i++ ) {
     jstring value = (*env)->GetObjectArrayElement( env, args, i );
-    const char *utf = (*env)->GetStringUTFChars( env, value, NULL );
-    fuse_argv[i] = strdup( utf );
-    (*env)->ReleaseStringUTFChars( env, value, utf );
-    (*env)->DeleteLocalRef( env, value );
+
+    fuse_argv[i] = androidtext_from_java( env, value );
+
+    if( value ) (*env)->DeleteLocalRef( env, value );
+
+    if( !fuse_argv[i] ) {
+      android_loge( "cannot read argument %d of %d - not starting", i, count );
+      while( i-- ) free( fuse_argv[i] );
+      free( fuse_argv );
+      fuse_argv = NULL;
+      return;
+    }
   }
   fuse_argc = count;
 
@@ -1122,14 +1194,19 @@ Java_dev_ldlab_zedex_FuseNative_ayLevels( JNIEnv *env, jclass class )
 JNIEXPORT jobjectArray JNICALL
 Java_dev_ldlab_zedex_FuseNative_joystickTypeNames( JNIEnv *env, jclass class )
 {
+  jclass string_class = (*env)->FindClass( env, "java/lang/String" );
   jobjectArray result;
   int i;
 
-  result = (*env)->NewObjectArray( env, JOYSTICK_TYPE_COUNT,
-             (*env)->FindClass( env, "java/lang/String" ), NULL );
+  if( !string_class ) return NULL;
+
+  result = (*env)->NewObjectArray( env, JOYSTICK_TYPE_COUNT, string_class,
+                                   NULL );
+  (*env)->DeleteLocalRef( env, string_class );
 
   for( i = 0; result && i < JOYSTICK_TYPE_COUNT; i++ ) {
     jstring value = (*env)->NewStringUTF( env, joystick_name[i] );
+    if( !value ) continue;
     (*env)->SetObjectArrayElement( env, result, i, value );
     (*env)->DeleteLocalRef( env, value );
   }
@@ -1156,11 +1233,11 @@ Java_dev_ldlab_zedex_FuseNative_insertDisk( JNIEnv *env, jclass class,
                                            jint controller, jint drive,
                                            jstring path )
 {
-  const char *utf = (*env)->GetStringUTFChars( env, path, NULL );
+  /* Real UTF-8, not what GetStringUTFChars gives; the queue takes it. */
+  char *utf = androidtext_from_java( env, path );
 
   if( utf ) {
-    queue_command_text( COMMAND_DISK_INSERT, controller, drive, strdup( utf ) );
-    (*env)->ReleaseStringUTFChars( env, path, utf );
+    queue_command_text( COMMAND_DISK_INSERT, controller, drive, utf );
   }
 }
 
@@ -1188,11 +1265,11 @@ JNIEXPORT void JNICALL
 Java_dev_ldlab_zedex_FuseNative_loadDivmmcFirmware( JNIEnv *env, jclass class,
                                                    jstring path )
 {
-  const char *utf = (*env)->GetStringUTFChars( env, path, NULL );
+  /* Real UTF-8, not what GetStringUTFChars gives; the queue takes it. */
+  char *utf = androidtext_from_java( env, path );
 
   if( utf ) {
-    queue_command_text( COMMAND_CARD_FIRMWARE, 0, 0, strdup( utf ) );
-    (*env)->ReleaseStringUTFChars( env, path, utf );
+    queue_command_text( COMMAND_CARD_FIRMWARE, 0, 0, utf );
   }
 }
 
@@ -1200,11 +1277,11 @@ JNIEXPORT void JNICALL
 Java_dev_ldlab_zedex_FuseNative_insertCard( JNIEnv *env, jclass class,
                                            jstring path )
 {
-  const char *utf = (*env)->GetStringUTFChars( env, path, NULL );
+  /* Real UTF-8, not what GetStringUTFChars gives; the queue takes it. */
+  char *utf = androidtext_from_java( env, path );
 
   if( utf ) {
-    queue_command_text( COMMAND_CARD_INSERT, 0, 0, strdup( utf ) );
-    (*env)->ReleaseStringUTFChars( env, path, utf );
+    queue_command_text( COMMAND_CARD_INSERT, 0, 0, utf );
   }
 }
 
@@ -1232,11 +1309,11 @@ Java_dev_ldlab_zedex_FuseNative_writeDisk( JNIEnv *env, jclass class,
                                           jint controller, jint drive,
                                           jstring path )
 {
-  const char *utf = (*env)->GetStringUTFChars( env, path, NULL );
+  /* Real UTF-8, not what GetStringUTFChars gives; the queue takes it. */
+  char *utf = androidtext_from_java( env, path );
 
   if( utf ) {
-    queue_command_text( COMMAND_WRITE_DISK, controller, drive, strdup( utf ) );
-    (*env)->ReleaseStringUTFChars( env, path, utf );
+    queue_command_text( COMMAND_WRITE_DISK, controller, drive, utf );
   }
 }
 
@@ -1244,11 +1321,11 @@ JNIEXPORT void JNICALL
 Java_dev_ldlab_zedex_FuseNative_writeTape( JNIEnv *env, jclass class,
                                           jstring path )
 {
-  const char *utf = (*env)->GetStringUTFChars( env, path, NULL );
+  /* Real UTF-8, not what GetStringUTFChars gives; the queue takes it. */
+  char *utf = androidtext_from_java( env, path );
 
   if( utf ) {
-    queue_command_text( COMMAND_WRITE_TAPE, 0, 0, strdup( utf ) );
-    (*env)->ReleaseStringUTFChars( env, path, utf );
+    queue_command_text( COMMAND_WRITE_TAPE, 0, 0, utf );
   }
 }
 
@@ -1442,11 +1519,11 @@ JNIEXPORT void JNICALL
 Java_dev_ldlab_zedex_FuseNative_saveSnapshot( JNIEnv *env, jclass class,
                                              jstring path )
 {
-  const char *utf = (*env)->GetStringUTFChars( env, path, NULL );
+  /* Real UTF-8, not what GetStringUTFChars gives; the queue takes it. */
+  char *utf = androidtext_from_java( env, path );
 
   if( utf ) {
-    queue_command_text( COMMAND_SAVE_SNAPSHOT, 0, 0, strdup( utf ) );
-    (*env)->ReleaseStringUTFChars( env, path, utf );
+    queue_command_text( COMMAND_SAVE_SNAPSHOT, 0, 0, utf );
   }
 }
 
@@ -1504,11 +1581,11 @@ JNIEXPORT void JNICALL
 Java_dev_ldlab_zedex_FuseNative_saveThumbnail( JNIEnv *env, jclass class,
                                               jstring path )
 {
-  const char *utf = (*env)->GetStringUTFChars( env, path, NULL );
+  /* Real UTF-8, not what GetStringUTFChars gives; the queue takes it. */
+  char *utf = androidtext_from_java( env, path );
 
   if( utf ) {
-    queue_command_text( COMMAND_SAVE_THUMBNAIL, 0, 0, strdup( utf ) );
-    (*env)->ReleaseStringUTFChars( env, path, utf );
+    queue_command_text( COMMAND_SAVE_THUMBNAIL, 0, 0, utf );
   }
 }
 
@@ -1516,11 +1593,11 @@ JNIEXPORT void JNICALL
 Java_dev_ldlab_zedex_FuseNative_loadSnapshot( JNIEnv *env, jclass class,
                                              jstring path )
 {
-  const char *utf = (*env)->GetStringUTFChars( env, path, NULL );
+  /* Real UTF-8, not what GetStringUTFChars gives; the queue takes it. */
+  char *utf = androidtext_from_java( env, path );
 
   if( utf ) {
-    queue_command_text( COMMAND_LOAD_SNAPSHOT, 0, 0, strdup( utf ) );
-    (*env)->ReleaseStringUTFChars( env, path, utf );
+    queue_command_text( COMMAND_LOAD_SNAPSHOT, 0, 0, utf );
   }
 }
 
@@ -1528,10 +1605,10 @@ JNIEXPORT void JNICALL
 Java_dev_ldlab_zedex_FuseNative_openFile( JNIEnv *env, jclass class,
                                          jstring path )
 {
-  const char *utf = (*env)->GetStringUTFChars( env, path, NULL );
+  /* Real UTF-8, not what GetStringUTFChars gives; the queue takes it. */
+  char *utf = androidtext_from_java( env, path );
 
   if( utf ) {
-    queue_command_text( COMMAND_OPEN_FILE, 0, 0, strdup( utf ) );
-    (*env)->ReleaseStringUTFChars( env, path, utf );
+    queue_command_text( COMMAND_OPEN_FILE, 0, 0, utf );
   }
 }

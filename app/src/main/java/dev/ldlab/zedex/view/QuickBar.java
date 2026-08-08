@@ -70,7 +70,6 @@ public final class QuickBar extends LinearLayout implements Rows {
     private static final float LIST_TEXT_SP = 15;
 
     /** Dark enough to read a white icon against any Spectrum screen. */
-    private static final int BACKING = 0x99000000;
     private static final int ICON = 0xffededf2;
 
     /** The open group's own icon, so it is clear which row belongs to what. */
@@ -167,7 +166,7 @@ public final class QuickBar extends LinearLayout implements Rows {
         LinearLayout row = new LinearLayout(context);
         GradientDrawable backing = new GradientDrawable();
 
-        backing.setColor(BACKING);
+        backing.setColor(Palette.SCRIM);
         backing.setCornerRadius(BUTTON_DP * density / 2f);
 
         row.setOrientation(HORIZONTAL);
@@ -280,7 +279,7 @@ public final class QuickBar extends LinearLayout implements Rows {
      * two side by side in a container, for the same reason the sheet's rows
      * are: it keeps the words and the click on one accessibility node.
      */
-    public void addToRow(int drawable, String name, Runnable action) {
+    private void addToRow(int drawable, String name, Runnable action) {
         TextView row = new TextView(getContext());
         float density = getResources().getDisplayMetrics().density;
         int pad = Math.round(LIST_PAD_DP * density);
@@ -390,7 +389,7 @@ public final class QuickBar extends LinearLayout implements Rows {
      * A line across the list, for the group that holds two kinds of thing:
      * what can be done, and then what can be opened.
      */
-    public void addToRowRule() {
+    private void addToRowRule() {
         View rule = new View(getContext());
         float density = getResources().getDisplayMetrics().density;
 

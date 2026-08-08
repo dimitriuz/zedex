@@ -21,6 +21,7 @@
 #include <jni.h>
 #include <pthread.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "android_internals.h"
@@ -243,27 +244,85 @@ androidstate_publish( void )
 }
 
 
+static void
+free_strings( char **values, int count )
+{
+  int i;
+
+  if( !values ) return;
+  for( i = 0; i < count; i++ ) free( values[i] );
+  free( values );
+}
+
+/* Builds a String[] out of copies this file made under the lock.
+ *
+ * Called with machine_mutex *not* held, on purpose. Every accessor below used
+ * to allocate its Java objects inside the lock, which meant a GC triggered by
+ * a NewStringUTF on the UI thread stalled the emulation thread on the same
+ * mutex - and the emulation thread is the one that has to hand a frame to the
+ * sound card on time. Not a deadlock, just the kind of pause that is heard
+ * rather than seen. The snapshot under the lock is a few pointer copies; the
+ * allocation happens after it.
+ *
+ * A null element is left null rather than abandoning the array: the caller
+ * gets a String[] with a hole in it, which Java can see and reason about,
+ * where a null array says only that something went wrong.
+ */
+static jobjectArray
+strings_from( JNIEnv *env, char **values, int count )
+{
+  jclass string_class = (*env)->FindClass( env, "java/lang/String" );
+  jobjectArray result;
+  int i;
+
+  if( !string_class ) return NULL;
+
+  result = (*env)->NewObjectArray( env, count, string_class, NULL );
+  (*env)->DeleteLocalRef( env, string_class );
+
+  if( !result ) return NULL;
+
+  for( i = 0; i < count; i++ ) {
+    jstring value;
+
+    if( !values[i] ) continue;
+
+    value = androidtext_to_java( env, values[i] );
+    if( !value ) continue;          /* out of memory: leave the hole */
+
+    (*env)->SetObjectArrayElement( env, result, i, value );
+    (*env)->DeleteLocalRef( env, value );
+  }
+
+  return result;
+}
+
 /* Builds a String[] from the machine snapshot; `names' picks which column. */
 static jobjectArray
 machine_strings( JNIEnv *env, int names )
 {
   jobjectArray result;
+  char **values;
   int i, count;
 
   pthread_mutex_lock( &machine_mutex );
+
   count = machine_list_count;
+  values = count ? calloc( count, sizeof( char* ) ) : NULL;
 
-  result = (*env)->NewObjectArray( env, count,
-             (*env)->FindClass( env, "java/lang/String" ), NULL );
-
-  for( i = 0; result && i < count; i++ ) {
-    jstring value = (*env)->NewStringUTF( env, names ? machine_list[i].name
-                                                     : machine_list[i].id );
-    (*env)->SetObjectArrayElement( env, result, i, value );
-    (*env)->DeleteLocalRef( env, value );
-  }
+  /* strdup and not the pointer: machine_list's buffers are static, so they
+     cannot dangle, but they are rewritten in place when the list is rebuilt -
+     and reading one while that happens gives half of each name. A copy is the
+     only way the lock actually covers what it is being held for. */
+  for( i = 0; values && i < count; i++ )
+    values[i] = strdup( names ? machine_list[i].name : machine_list[i].id );
 
   pthread_mutex_unlock( &machine_mutex );
+
+  if( count && !values ) return NULL;
+
+  result = strings_from( env, values, count );
+  free_strings( values, count );
 
   return result;
 }
@@ -297,22 +356,23 @@ JNIEXPORT jobjectArray JNICALL
 Java_dev_ldlab_zedex_FuseNative_tapeBlocks( JNIEnv *env, jclass class )
 {
   jobjectArray result;
-  int i;
+  char **values;
+  int i, count;
 
   pthread_mutex_lock( &machine_mutex );
 
-  result = (*env)->NewObjectArray( env, tape_block_count,
-                                   (*env)->FindClass( env, "java/lang/String" ),
-                                   NULL );
-  if( result ) {
-    for( i = 0; i < tape_block_count; i++ ) {
-      jstring text = (*env)->NewStringUTF( env, tape_blocks[i] );
-      (*env)->SetObjectArrayElement( env, result, i, text );
-      (*env)->DeleteLocalRef( env, text );
-    }
-  }
+  count = tape_block_count;
+  values = count ? calloc( count, sizeof( char* ) ) : NULL;
+
+  for( i = 0; values && i < count; i++ )
+    values[i] = tape_blocks[i] ? strdup( tape_blocks[i] ) : NULL;
 
   pthread_mutex_unlock( &machine_mutex );
+
+  if( count && !values ) return NULL;
+
+  result = strings_from( env, values, count );
+  free_strings( values, count );
 
   return result;
 }
@@ -340,28 +400,6 @@ Java_dev_ldlab_zedex_FuseNative_tapePlaying( JNIEnv *env, jclass class )
   pthread_mutex_unlock( &machine_mutex );
 
   return playing;
-}
-
-JNIEXPORT jobjectArray JNICALL
-Java_dev_ldlab_zedex_FuseNative_driveNames( JNIEnv *env, jclass class )
-{
-  jobjectArray result;
-  int i;
-
-  pthread_mutex_lock( &machine_mutex );
-
-  result = (*env)->NewObjectArray( env, drive_list_count,
-             (*env)->FindClass( env, "java/lang/String" ), NULL );
-
-  for( i = 0; result && i < drive_list_count; i++ ) {
-    jstring value = (*env)->NewStringUTF( env, drive_list[i].name );
-    (*env)->SetObjectArrayElement( env, result, i, value );
-    (*env)->DeleteLocalRef( env, value );
-  }
-
-  pthread_mutex_unlock( &machine_mutex );
-
-  return result;
 }
 
 /* Controller in the high byte, drive in the low one. */
@@ -393,31 +431,29 @@ JNIEXPORT jobjectArray JNICALL
 Java_dev_ldlab_zedex_FuseNative_driveDetails( JNIEnv *env, jclass class )
 {
   jobjectArray result;
-  jclass string_class;
-  int i;
+  char **values;
+  int i, count;
 
   pthread_mutex_lock( &machine_mutex );
 
-  string_class = (*env)->FindClass( env, "java/lang/String" );
-  result = (*env)->NewObjectArray( env, drive_list_count * 3, string_class,
-                                   NULL );
+  /* Three per drive: name, what is in it, and whether that has been written
+     to. Flat rather than nested because a String[] needs no class lookup per
+     row, and Java pulls them apart three at a time. */
+  count = drive_list_count * 3;
+  values = count ? calloc( count, sizeof( char* ) ) : NULL;
 
-  for( i = 0; result && i < drive_list_count; i++ ) {
-    jstring name = (*env)->NewStringUTF( env, drive_list[i].name );
-    jstring disk = (*env)->NewStringUTF( env, drive_list[i].disk );
-    jstring dirty = (*env)->NewStringUTF( env,
-                      drive_list[i].dirty ? "1" : "0" );
-
-    (*env)->SetObjectArrayElement( env, result, i * 3, name );
-    (*env)->SetObjectArrayElement( env, result, i * 3 + 1, disk );
-    (*env)->SetObjectArrayElement( env, result, i * 3 + 2, dirty );
-
-    (*env)->DeleteLocalRef( env, name );
-    (*env)->DeleteLocalRef( env, disk );
-    (*env)->DeleteLocalRef( env, dirty );
+  for( i = 0; values && i < drive_list_count; i++ ) {
+    values[i * 3]     = strdup( drive_list[i].name );
+    values[i * 3 + 1] = strdup( drive_list[i].disk );
+    values[i * 3 + 2] = strdup( drive_list[i].dirty ? "1" : "0" );
   }
 
   pthread_mutex_unlock( &machine_mutex );
+
+  if( count && !values ) return NULL;
+
+  result = strings_from( env, values, count );
+  free_strings( values, count );
 
   return result;
 }
@@ -431,7 +467,7 @@ Java_dev_ldlab_zedex_FuseNative_cardName( JNIEnv *env, jclass class )
   jstring name;
 
   pthread_mutex_lock( &machine_mutex );
-  name = (*env)->NewStringUTF( env, card_file );
+  name = androidtext_to_java( env, card_file );
   pthread_mutex_unlock( &machine_mutex );
 
   return name;

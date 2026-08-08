@@ -113,28 +113,6 @@ public final class Favorites {
         return entries;
     }
 
-    /** Records the md5 taken when a favourite was actually loaded and played. */
-    public static void noteHash(Context context, String key, String md5) {
-        List<JSONObject> kept = new ArrayList<>();
-        boolean found = false;
-
-        for (JSONObject existing : read(context)) {
-            if (key.equals(existing.optString("key", null))) {
-                try {
-                    existing.put("md5", md5);
-                    found = true;
-                } catch (JSONException e) {
-                    Log.w(TAG, "cannot note the hash for " + key, e);
-                }
-            }
-            kept.add(existing);
-        }
-
-        // Nothing to write back for a key that was never a favourite; that is
-        // not this method's business to report, only to do nothing about.
-        if (found) write(context, kept);
-    }
-
     private static File file(Context context) {
         return new File(Storage.root(context), FILE);
     }

@@ -165,8 +165,30 @@ public final class EntryAdapter extends RecyclerView.Adapter<EntryAdapter.Holder
      */
     public void setSelectedKey(String key) {
         if (java.util.Objects.equals(selectedKey, key)) return;
+
+        String was = selectedKey;
         selectedKey = key;
-        notifyDataSetChanged();
+
+        // The two rows that changed, not the whole list. A held direction on
+        // a pad repeats every 130ms, and notifyDataSetChanged rebinds every
+        // visible holder each time - about twenty tiles on a grid, so a
+        // hundred and fifty binds a second, each of them re-deriving the
+        // entry's relative path and allocating its listeners, for a tint on
+        // two of them. Gallery already says as much for its own sibling case.
+        notifyRowChanged(was);
+        notifyRowChanged(key);
+    }
+
+    /** Redraws whichever row carries this key, if it is in the list. */
+    private void notifyRowChanged(String key) {
+        if (key == null) return;
+
+        for (int i = 0; i < entries.size(); i++) {
+            if (key.equals(entries.get(i).key())) {
+                notifyItemChanged(i);
+                return;
+            }
+        }
     }
 
     @Override

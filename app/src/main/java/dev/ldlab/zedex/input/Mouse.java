@@ -108,7 +108,7 @@ public final class Mouse {
         FuseNative.setKempstonMouse(wanted);
     }
 
-    public static void setSensitivity(int percent) {
+    private static void setSensitivity(int percent) {
         sensitivity = Math.max(10, Math.min(400, percent));
     }
 

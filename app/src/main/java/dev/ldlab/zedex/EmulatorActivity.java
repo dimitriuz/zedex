@@ -87,13 +87,20 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     @Override
     protected void attachBaseContext(android.content.Context base) {
         super.attachBaseContext(Language.wrap(base));
-        language = Language.tag(base);
+        language = Language.effectiveTag(this);
     }
 
-    /** What {@link #attachBaseContext} built this screen with. */
+    /**
+     * What language {@link #attachBaseContext} built this screen with.
+     *
+     * The effective one, not the preference. The preference is empty whenever
+     * the phone's own language is being followed, so comparing it saw no
+     * change when the phone's language was what changed - and this screen is
+     * not recreated for a locale either, since configChanges lists it. Every
+     * other screen picked the new language up and this one kept the old words
+     * until the process died.
+     */
     private String language = "";
-
-    private static final String TAG = "Zedex";
 
     private static final String PREFS = SettingsActivity.PREFS;
 
@@ -213,6 +220,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         preferences = getSharedPreferences(PREFS, MODE_PRIVATE);
 
+        // The other way into this app - a launcher shortcut, ES-DE, a file
+        // handed over - so the one-time library migration is asked for here
+        // too. Idempotent: a second call is one boolean read.
+        SettingsActivity.migrateIfNeeded(this, preferences);
+
         media = new Media(this, preferences, new Media.Host() {
             @Override
             public void note(int message, Object... arguments) {
@@ -234,6 +246,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             @Override
             public void note(int message, Object... arguments) {
                 EmulatorActivity.this.note(message, arguments);
+            }
+
+            @Override
+            public void noteText(String message) {
+                EmulatorActivity.this.noteText(message);
             }
 
             @Override
@@ -434,20 +451,27 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         lights.setWants(this::mouseWanted);
 
         layout = new EmulatorLayout(this);
-        layout.setChildren(screen, new SpectrumKeyboardView(this),
-                           new SystemKeyboardView(this),
-                           new JoystickView(this, JoystickView.Part.PAD),
-                           new JoystickView(this, JoystickView.Part.FIRE),
-                           keyButtons,
-                           overlayKeyboard(), overlayButton(
-                                   R.drawable.ic_keyboard,
-                                   R.string.overlay_open,
-                                   () -> layout.setOverlayShown(true)),
-                           overlayButton(R.drawable.ic_hide,
-                                         R.string.overlay_close,
-                                         () -> layout.setOverlayShown(false)),
-                           lights, playButton,
-                           roms.view(), quickBar, menu);
+        EmulatorLayout.Children children = new EmulatorLayout.Children();
+        children.screen = screen;
+        children.keyboard = new SpectrumKeyboardView(this);
+        children.system = new SystemKeyboardView(this);
+        children.pad = new JoystickView(this, JoystickView.Part.PAD);
+        children.fire = new JoystickView(this, JoystickView.Part.FIRE);
+        children.keys = keyButtons;
+        children.overlay = overlayKeyboard();
+        children.overlayOpen = overlayButton(R.drawable.ic_keyboard,
+                                             R.string.overlay_open,
+                                             () -> layout.setOverlayShown(true));
+        children.overlayClose = overlayButton(R.drawable.ic_hide,
+                                              R.string.overlay_close,
+                                              () -> layout.setOverlayShown(false));
+        children.lights = lights;
+        children.play = playButton;
+        children.panel = roms.view();
+        children.bar = quickBar;
+        children.drawer = menu;
+
+        layout.setChildren(children);
         layout.setJoystickVisible(
                 preferences.getBoolean(SettingsActivity.KEY_JOYSTICK, true));
         layout.setKeyboardVisible(
@@ -673,7 +697,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      *  forever when it never does - see {@code GameInfoView.showEntry}. The
      *  path already carries it, as the segment after its last slash. */
     private static String filenameOf(String relativePath) {
-        return relativePath.substring(relativePath.lastIndexOf('/') + 1);
+        return dev.ldlab.zedex.storage.Storage.filename(relativePath);
     }
 
     /**
@@ -703,7 +727,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // - see android:configChanges in the manifest - and its menus and
         // buttons were built with the words of the language that was chosen
         // when it opened, so the only way to change them is to build it again.
-        if (!language.equals(Language.tag(this))) {
+        if (!language.equals(Language.effectiveTag(this))) {
             recreate();
             return;
         }
@@ -1171,6 +1195,24 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         note(R.string.quick_border, getString(next.title));
     }
 
+    /**
+     * Whether the quick bar should stay where it is rather than fading.
+     *
+     * Two ways to say so, and either is enough: the setting, for somebody who
+     * simply prefers it, and touch exploration being on, because the fade is
+     * unusable then whatever the setting says. Asked each time rather than
+     * cached - a screen reader can be turned on while the app is running, and
+     * the answer has to change with it.
+     */
+    private boolean keepBarUp() {
+        android.view.accessibility.AccessibilityManager accessibility =
+                (android.view.accessibility.AccessibilityManager)
+                        getSystemService(ACCESSIBILITY_SERVICE);
+
+        return preferences.getBoolean(SettingsActivity.KEY_KEEP_BAR, false)
+                || (accessibility != null && accessibility.isTouchExplorationEnabled());
+    }
+
     private void showLights(boolean shown) {
         layout.setLightsVisible(shown);
         preferences.edit().putBoolean(SettingsActivity.KEY_INDICATORS, shown).apply();
@@ -1210,6 +1252,13 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // On a second screen the bar has a panel of its own and is never over
         // the picture, so there is nothing to fade out of the way of.
         if (panels.inUse()) return;
+
+        // Three seconds is not a length of time somebody exploring by touch
+        // can finish nine icons in - WCAG calls this Timing Adjustable, and a
+        // control that removes itself while you are still finding it is the
+        // clearest case of it. Kept up outright with a screen reader on, and
+        // by a switch for anyone else who wants it that way.
+        if (keepBarUp()) return;
 
         // An open group is somebody reading it. Three seconds is long enough to
         // notice the bar and nothing like long enough to decide which of eight
@@ -1606,8 +1655,14 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
     /** Says an action happened. Fuse itself is silent about most of them. */
     private void note(int message, Object... arguments) {
-        runOnUiThread(() -> Toast.makeText(this, getString(message, arguments),
-                                           Toast.LENGTH_SHORT).show());
+        noteText(getString(message, arguments));
+    }
+
+    /** For a string that has already been formatted - a plural, which cannot
+     *  be handed over as a resource id because choosing its form is what
+     *  resolves it. */
+    private void noteText(String message) {
+        runOnUiThread(() -> Toast.makeText(this, message, Toast.LENGTH_SHORT).show());
     }
 
     /**

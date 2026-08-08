@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.screen;
 
+import dev.ldlab.zedex.view.Palette;
 import dev.ldlab.zedex.EmulatorActivity;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.library.Entry;
@@ -152,9 +153,6 @@ public final class LibraryActivity extends Activity {
      *  getBoolean always. Not this screen's to write. */
     private static final String KEY_LIBRARY_VIDEO_AUTOPLAY = "libraryVideoAutoplay";
 
-    private static final int BACKING = 0xff14151a;
-    private static final int TEXT = 0xffededf2;
-    private static final int MUTED = 0xff8b8b99;
     private static final int ACTIVE = 0xff00b0c8;
     private static final int DIVIDER = 0x33ffffff;
 
@@ -478,6 +476,19 @@ public final class LibraryActivity extends Activity {
      *  scheduled with. */
     private final Object paneVideoToken = new Object();
 
+    /**
+     * True once onCreate has decided this screen should not be here and handed
+     * over to the machine.
+     *
+     * Everything below the early return is unbuilt at that point - the panel,
+     * the adapter - and onResume and onStop both dereference them. Nothing
+     * crashes today because ActivityThread does not deliver onStart or
+     * onResume to an activity that finished inside onCreate, which is a
+     * detail of the framework rather than anything this class arranges. The
+     * flag makes it something the code says.
+     */
+    private boolean handedOver;
+
     /** How long the cursor has to rest on a row before its video starts -
      *  long enough that walking through a list does not start a dozen of
      *  them, short enough to feel like an answer to stopping; see
@@ -506,9 +517,15 @@ public final class LibraryActivity extends Activity {
         // silently dead menu row.
         boolean fromMenu = getIntent().getBooleanExtra(EXTRA_FROM_MENU, false);
 
-        if (!fromMenu && !SettingsActivity.startsInLibrary(this, preferences)) {
+        // Before asking, because the answer depends on it. It used to happen
+        // inside the question, which meant it only ran because this activity
+        // is the launcher and so asks first.
+        SettingsActivity.migrateIfNeeded(this, preferences);
+
+        if (!fromMenu && !SettingsActivity.startsInLibrary(preferences)) {
             startActivity(new Intent(this, EmulatorActivity.class));
             finish();
+            handedOver = true;
             return;
         }
 
@@ -625,6 +642,11 @@ public final class LibraryActivity extends Activity {
 
     @Override
     protected void onResume() {
+        if (handedOver) {
+            super.onResume();
+            return;
+        }
+
         super.onResume();
 
         // Cheap - a file stat behind Metadata's own cache - and the one
@@ -704,6 +726,11 @@ public final class LibraryActivity extends Activity {
      */
     @Override
     protected void onStop() {
+        if (handedOver) {
+            super.onStop();
+            return;
+        }
+
         super.onStop();
         libraryPanel.close();
     }
@@ -1039,7 +1066,7 @@ public final class LibraryActivity extends Activity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(landscape ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
-        root.setBackgroundColor(BACKING);
+        root.setBackgroundColor(Palette.BACKING);
 
         root.addView(buildRail(landscape), landscape
                 ? new LinearLayout.LayoutParams(
@@ -1055,7 +1082,7 @@ public final class LibraryActivity extends Activity {
 
         LinearLayout outer = new LinearLayout(this);
         outer.setOrientation(landscape ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
-        outer.setBackgroundColor(BACKING);
+        outer.setBackgroundColor(Palette.BACKING);
 
         View divider = new View(this);
         divider.setBackgroundColor(DIVIDER);
@@ -1142,7 +1169,7 @@ public final class LibraryActivity extends Activity {
                 FrameLayout.LayoutParams.MATCH_PARENT));
 
         emptyLabel = new TextView(this);
-        emptyLabel.setTextColor(MUTED);
+        emptyLabel.setTextColor(Palette.MUTED);
         emptyLabel.setTextSize(15);
         emptyLabel.setGravity(Gravity.CENTER);
         emptyLabel.setPadding(pixels(32), pixels(32), pixels(32), pixels(32));
@@ -1274,7 +1301,7 @@ public final class LibraryActivity extends Activity {
             ImageButton button = (ImageButton) tabViews.get(candidate.ordinal());
             boolean active = candidate == tab;
 
-            button.setColorFilter(active ? ACTIVE : MUTED);
+            button.setColorFilter(active ? ACTIVE : Palette.MUTED);
 
             // Selection.background, not the bare wash: cyan at 20% over this
             // screen's backing is 1.37:1 against an inactive tab beside it,
@@ -1331,7 +1358,7 @@ public final class LibraryActivity extends Activity {
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
         pathLabel = new TextView(this);
-        pathLabel.setTextColor(MUTED);
+        pathLabel.setTextColor(Palette.MUTED);
         pathLabel.setTextSize(12);
         pathLabel.setSingleLine();
         // The start is cut, not the end: the folder you are in is the part
@@ -1356,7 +1383,7 @@ public final class LibraryActivity extends Activity {
         filterChipRow.setVisibility(View.GONE);
 
         filterChipLabel = new TextView(this);
-        filterChipLabel.setTextColor(MUTED);
+        filterChipLabel.setTextColor(Palette.MUTED);
         filterChipLabel.setTextSize(12);
         filterChipLabel.setSingleLine();
         filterChipLabel.setEllipsize(TextUtils.TruncateAt.END);
@@ -1370,7 +1397,7 @@ public final class LibraryActivity extends Activity {
         // rather than as anything a person tapping it would expect to hear.
         TextView filterChipClear = new TextView(this);
         filterChipClear.setText("×");
-        filterChipClear.setTextColor(TEXT);
+        filterChipClear.setTextColor(Palette.TEXT);
         filterChipClear.setTextSize(18);
         filterChipClear.setGravity(Gravity.CENTER);
         filterChipClear.setContentDescription(getString(R.string.library_filter_clear));
@@ -1389,8 +1416,8 @@ public final class LibraryActivity extends Activity {
         searchField = new EditText(this);
         searchField.setHint(R.string.library_search);
         searchField.setSingleLine();
-        searchField.setTextColor(TEXT);
-        searchField.setHintTextColor(MUTED);
+        searchField.setTextColor(Palette.TEXT);
+        searchField.setHintTextColor(Palette.MUTED);
         searchField.setBackground(null);
         searchField.addTextChangedListener(new TextWatcher() {
             @Override
@@ -1474,7 +1501,7 @@ public final class LibraryActivity extends Activity {
         float density = getResources().getDisplayMetrics().density;
 
         button.setImageResource(icon);
-        button.setColorFilter(TEXT);
+        button.setColorFilter(Palette.TEXT);
         button.setContentDescription(description);
         button.setBackgroundColor(0x00000000);
         button.setForeground(Ripple.make(getResources().getDisplayMetrics().density));
@@ -1493,7 +1520,7 @@ public final class LibraryActivity extends Activity {
 
         TextView text = new TextView(this);
         text.setText(R.string.library_no_folder);
-        text.setTextColor(MUTED);
+        text.setTextColor(Palette.MUTED);
         text.setTextSize(15);
         text.setGravity(Gravity.CENTER);
         column.addView(text);
@@ -1591,7 +1618,7 @@ public final class LibraryActivity extends Activity {
 
         TextView empty = new TextView(this);
         empty.setText(R.string.library_nothing_selected);
-        empty.setTextColor(MUTED);
+        empty.setTextColor(Palette.MUTED);
         empty.setTextSize(14);
         empty.setGravity(Gravity.CENTER);
         empty.setPadding(pixels(24), pixels(24), pixels(24), pixels(24));
@@ -1692,7 +1719,7 @@ public final class LibraryActivity extends Activity {
      */
     private void addPaneDetailViews(LinearLayout column) {
         paneTitle = new TextView(this);
-        paneTitle.setTextColor(TEXT);
+        paneTitle.setTextColor(Palette.TEXT);
         paneTitle.setTextSize(16);
         paneTitle.setMaxLines(3);
         paneTitle.setEllipsize(TextUtils.TruncateAt.END);
@@ -1708,7 +1735,7 @@ public final class LibraryActivity extends Activity {
         // still there" costs no blank line when there is nothing to add to
         // what the title already says.
         paneFilename = new TextView(this);
-        paneFilename.setTextColor(MUTED);
+        paneFilename.setTextColor(Palette.MUTED);
         paneFilename.setTextSize(12);
         paneFilename.setMaxLines(1);
         paneFilename.setEllipsize(TextUtils.TruncateAt.MIDDLE);
@@ -1721,7 +1748,7 @@ public final class LibraryActivity extends Activity {
         // the three is known, which is most of this collection even linked;
         // see factsLine.
         paneFacts = new TextView(this);
-        paneFacts.setTextColor(MUTED);
+        paneFacts.setTextColor(Palette.MUTED);
         paneFacts.setTextSize(13);
         paneFacts.setPadding(0, pixels(6), 0, 0);
         paneFacts.setVisibility(View.GONE);
@@ -1731,7 +1758,7 @@ public final class LibraryActivity extends Activity {
         // The size and the date - unconditional, exactly as before any of
         // this existed.
         paneSubtitle = new TextView(this);
-        paneSubtitle.setTextColor(MUTED);
+        paneSubtitle.setTextColor(Palette.MUTED);
         paneSubtitle.setTextSize(13);
         paneSubtitle.setPadding(0, pixels(4), 0, 0);
         column.addView(paneSubtitle, new LinearLayout.LayoutParams(
@@ -1777,7 +1804,7 @@ public final class LibraryActivity extends Activity {
         // which have nothing to tell.
         paneInfoButton = new ImageButton(this);
         paneInfoButton.setImageResource(R.drawable.ic_zoom);
-        paneInfoButton.setColorFilter(MUTED);
+        paneInfoButton.setColorFilter(Palette.MUTED);
         paneInfoButton.setBackground(Ripple.make(getResources().getDisplayMetrics().density));
         paneInfoButton.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
         paneInfoButton.setContentDescription(getString(R.string.library_info));
@@ -1794,7 +1821,7 @@ public final class LibraryActivity extends Activity {
         // whether to draw a button.
         paneManualButton = new ImageButton(this);
         paneManualButton.setImageResource(R.drawable.ic_manual);
-        paneManualButton.setColorFilter(MUTED);
+        paneManualButton.setColorFilter(Palette.MUTED);
         paneManualButton.setBackground(Ripple.make(getResources().getDisplayMetrics().density));
         paneManualButton.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
         paneManualButton.setContentDescription(getString(R.string.library_manual));
@@ -2061,7 +2088,7 @@ public final class LibraryActivity extends Activity {
         StringBuilder line = new StringBuilder();
         appendFact(line, meta.developer);
         appendFact(line, meta.publisher);
-        appendFact(line, yearOf(meta.released));
+        appendFact(line, meta.year());
 
         // Genre and the rating too, the same as the details screen has always
         // shown - the pane had room for them and was showing three facts where
@@ -2091,23 +2118,6 @@ public final class LibraryActivity extends Activity {
         if (fact == null || fact.isEmpty()) return;
         if (line.length() > 0) line.append(" · ");
         line.append(fact);
-    }
-
-    /**
-     * ES-DE writes a release date as {@code "20201218T000000"} - the year
-     * alone, the first four digits, is the only part of that worth showing
-     * here, and a value that does not start with four digits is not
-     * something to guess the rest of; nothing is shown for it rather than a
-     * wrong or half-parsed date.
-     */
-    private static String yearOf(String released) {
-        if (released == null || released.length() < 4) return null;
-
-        String year = released.substring(0, 4);
-        for (int i = 0; i < 4; i++) {
-            if (!Character.isDigit(year.charAt(i))) return null;
-        }
-        return year;
     }
 
     /**

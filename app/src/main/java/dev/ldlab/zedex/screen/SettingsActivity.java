@@ -134,6 +134,11 @@ public class SettingsActivity extends AppCompatActivity
     public static final String KEY_KEYBOARD_SKIN = "keyboardSkin";
     /** Read by EmulatorActivity on resume; there is no immediate push for it. */
     public static final String KEY_INDICATORS = "indicators";
+
+    /** Stops the quick bar fading after three seconds; see
+     *  EmulatorActivity.keepBarUp. Always on in effect while touch
+     *  exploration is, whatever this says. */
+    public static final String KEY_KEEP_BAR = "keepBar";
     /**
      * Whether the app opens on the library or on the machine, as it always
      * did. Disabled without a content folder to browse - see
@@ -189,18 +194,38 @@ public class SettingsActivity extends AppCompatActivity
     public static final String KEY_FILTER_NOISE = "filterNoise";
 
     /**
-     * Each strength, the index it sets and what it is worth by default. Which
-     * effects are on at all is one setting and is handled apart from these.
+     * One filter strength: the preference it is stored under, the index the
+     * renderer knows it by, and what it is worth when nothing is stored.
+     *
+     * Three typed fields rather than the {@code Object[][]} this was. That
+     * table had the default written as a String and parsed on every call -
+     * at startup, not only on change - so a transposed pair of columns or a
+     * typed "5O" for "50" compiled cleanly and then threw ClassCastException
+     * or an uncaught NumberFormatException at launch. All three of those are
+     * compile errors now, and the parse is gone.
      */
-    private static final Object[][] FILTER_KEYS = {
-        { KEY_FILTER_SHARPNESS, FuseNative.FILTER_SHARPNESS, "100" },
-        { KEY_FILTER_SCANLINE,  FuseNative.FILTER_SCANLINE,  "50"  },
-        { KEY_FILTER_CURVE,     FuseNative.FILTER_CURVE,     "40"  },
-        { KEY_FILTER_MASK,      FuseNative.FILTER_MASK,      "40"  },
-        { KEY_FILTER_GLOW,      FuseNative.FILTER_GLOW,      "30"  },
-        { KEY_VIDEO,            FuseNative.FILTER_VIDEO,     "0"   },
-        { KEY_FILTER_BLEED,     FuseNative.FILTER_BLEED,     "50"  },
-        { KEY_FILTER_NOISE,     FuseNative.FILTER_NOISE,     "20"  },
+    private static final class FilterKey {
+        final String preference;
+        final int index;
+        final int fallback;
+
+        FilterKey(String preference, int index, int fallback) {
+            this.preference = preference;
+            this.index = index;
+            this.fallback = fallback;
+        }
+    }
+
+    /** Which effects are on at all is one setting, handled apart from these. */
+    private static final FilterKey[] FILTER_KEYS = {
+        new FilterKey(KEY_FILTER_SHARPNESS, FuseNative.FILTER_SHARPNESS, 100),
+        new FilterKey(KEY_FILTER_SCANLINE,  FuseNative.FILTER_SCANLINE,   50),
+        new FilterKey(KEY_FILTER_CURVE,     FuseNative.FILTER_CURVE,      40),
+        new FilterKey(KEY_FILTER_MASK,      FuseNative.FILTER_MASK,       40),
+        new FilterKey(KEY_FILTER_GLOW,      FuseNative.FILTER_GLOW,       30),
+        new FilterKey(KEY_VIDEO,            FuseNative.FILTER_VIDEO,       0),
+        new FilterKey(KEY_FILTER_BLEED,     FuseNative.FILTER_BLEED,      50),
+        new FilterKey(KEY_FILTER_NOISE,     FuseNative.FILTER_NOISE,      20),
     };
 
     /**
@@ -217,11 +242,11 @@ public class SettingsActivity extends AppCompatActivity
         FuseNative.setFilter(FuseNative.FILTER_SCANLINES, filter.scanlines ? 1 : 0);
         FuseNative.setFilter(FuseNative.FILTER_CRT, filter.crt ? 1 : 0);
 
-        for (Object[] entry : FILTER_KEYS) {
-            FuseNative.setFilter((Integer) entry[1],
+        for (FilterKey key : FILTER_KEYS) {
+            FuseNative.setFilter(key.index,
                                  SettingsFragment.number(preferences,
-                                        (String) entry[0],
-                                        Integer.parseInt((String) entry[2])));
+                                                         key.preference,
+                                                         key.fallback));
         }
     }
 
@@ -338,12 +363,25 @@ public class SettingsActivity extends AppCompatActivity
      * also took the only way back into the library out of the menu, with
      * nothing left short of Settings to undo it.
      */
-    public static boolean startsInLibrary(Context context,
-            android.content.SharedPreferences preferences) {
-        migrateLibraryDefault(context, preferences);
-
+    public static boolean startsInLibrary(android.content.SharedPreferences preferences) {
         return preferences.getBoolean(KEY_LIBRARY, true)
                 && libraryExists(preferences);
+    }
+
+    /**
+     * Runs the one-time library migration, if it has not run.
+     *
+     * Called from an entry point rather than from inside startsInLibrary,
+     * which is where it used to live. A question that writes is a question
+     * nobody expects to have to ask in the right order, and it only ever ran
+     * at all because LibraryActivity is the launcher and therefore asks
+     * first - true today, undocumented as a dependency, and silently skipped
+     * the day that changes. Both activities that can start this app call it
+     * now, and it is idempotent, so being asked twice costs one boolean read.
+     */
+    public static void migrateIfNeeded(Context context,
+            android.content.SharedPreferences preferences) {
+        migrateLibraryDefault(context, preferences);
     }
 
     /**
@@ -392,8 +430,8 @@ public class SettingsActivity extends AppCompatActivity
     private static boolean isFilterKey(String key) {
         if (KEY_FILTER.equals(key)) return true;
 
-        for (Object[] entry : FILTER_KEYS) {
-            if (entry[0].equals(key)) return true;
+        for (FilterKey entry : FILTER_KEYS) {
+            if (entry.preference.equals(key)) return true;
         }
         return false;
     }
@@ -524,12 +562,11 @@ public class SettingsActivity extends AppCompatActivity
         // reached only through that one.
         Filter.migrate(getSharedPreferences(PREFS, MODE_PRIVATE));
 
-        // Idempotent for the same reason: the launcher is where this really
-        // has to run, and opening Settings is not guaranteed to happen
-        // before that does. Calling it here as well costs nothing and keeps
-        // this screen's own switch right even for somebody who opens it
-        // first, without this screen having to know the migration exists.
-        startsInLibrary(this, getSharedPreferences(PREFS, MODE_PRIVATE));
+        // Named now rather than smuggled in through a question. Idempotent,
+        // and here as well as at the two entry points because this screen's
+        // own switch has to read right for somebody who opens Settings before
+        // anything else has asked.
+        migrateIfNeeded(this, getSharedPreferences(PREFS, MODE_PRIVATE));
 
         if (savedInstanceState != null) {
             selected = savedInstanceState.getInt(STATE_TAB, 0);
@@ -602,6 +639,14 @@ public class SettingsActivity extends AppCompatActivity
         label.setText(tab.label);
         label.setTextSize(11);
         label.setSingleLine();
+
+        // With no ellipsize, setSingleLine turns on horizontal scrolling
+        // instead, so a label too wide for its cell is cut through the middle
+        // of a glyph at both ends with nothing to say it was. A seventh of a
+        // 360dp window is 51dp - about nine characters - which Bibliothek,
+        // Bibliotheque, Biblioteka and Управление all exceed, and at 200% font
+        // scale every label does, English included.
+        label.setEllipsize(android.text.TextUtils.TruncateAt.END);
         label.setGravity(Gravity.CENTER);
 
         holder.setOrientation(LinearLayout.VERTICAL);
@@ -1206,11 +1251,13 @@ public class SettingsActivity extends AppCompatActivity
                         Toast.LENGTH_LONG).show();
             } else if (artwork == 0 && EsdeLink.needsMediaFolder(getActivity())) {
                 Toast.makeText(getActivity(),
-                        getString(R.string.settings_esde_link_done_needs_media, found.size()),
+                        counted(R.plurals.settings_esde_link_done_needs_media,
+                                found.size(), found.size()),
                         Toast.LENGTH_LONG).show();
             } else {
                 Toast.makeText(getActivity(),
-                        getString(R.string.settings_esde_link_done, found.size(), artwork),
+                        counted(R.plurals.settings_esde_link_done,
+                                found.size(), found.size(), artwork),
                         Toast.LENGTH_LONG).show();
             }
 
@@ -1439,7 +1486,7 @@ public class SettingsActivity extends AppCompatActivity
                 String[] values = new String[all.length];
 
                 for (int i = 0; i < all.length; i++) {
-                    names[i] = all[i].title;
+                    names[i] = getString(all[i].title);
                     values[i] = all[i].value;
                 }
 
@@ -1565,6 +1612,45 @@ public class SettingsActivity extends AppCompatActivity
          * Numeric entries only. A machine id is not nearer or further from
          * another one.
          */
+        /**
+         * Pushes every setting on this screen into Fuse, one at a time.
+         *
+         * For the null key, which since API 30 is how Editor.clear() announces
+         * itself: everything changed at once, and the switch in apply() takes
+         * one key. The keys come from the preference hierarchy rather than a
+         * list written out here, because a second list is a second thing to
+         * forget - this one is the same set the screen was built from, so a
+         * row added to the XML is covered without anybody remembering to.
+         *
+         * Only this screen's own. A clear() while another page is open leaves
+         * that page's settings to whichever fragment is resumed next, which is
+         * the same fragment that would have applied them anyway.
+         */
+        private void applyAll(android.content.SharedPreferences preferences) {
+            PreferenceGroup screen = getPreferenceScreen();
+            if (screen == null) return;
+
+            for (int i = 0; i < screen.getPreferenceCount(); i++) {
+                Preference group = screen.getPreference(i);
+
+                if (!(group instanceof PreferenceGroup)) {
+                    applyOne(preferences, group);
+                    continue;
+                }
+
+                PreferenceGroup category = (PreferenceGroup) group;
+                for (int j = 0; j < category.getPreferenceCount(); j++) {
+                    applyOne(preferences, category.getPreference(j));
+                }
+            }
+        }
+
+        private void applyOne(android.content.SharedPreferences preferences,
+                              Preference preference) {
+            String key = preference.getKey();
+            if (key != null) apply(preferences, key);
+        }
+
         private void snapToEntries() {
             for (int i = 0; i < getPreferenceScreen().getPreferenceCount(); i++) {
                 Preference group = getPreferenceScreen().getPreference(i);
@@ -1666,6 +1752,18 @@ public class SettingsActivity extends AppCompatActivity
         @Override
         public void onSharedPreferenceChanged(
                 android.content.SharedPreferences preferences, String key) {
+            // Since API 30 a null key means Editor.clear() - everything at
+            // once, not one setting. Nothing calls clear() today, so this has
+            // never fired; it is the switch below that would throw, and a
+            // "reset all settings" row is exactly the sort of thing that gets
+            // added without anyone thinking about this method. Re-reading the
+            // lot is the honest response to being told the lot changed.
+            if (key == null) {
+                applyAll(preferences);
+                updateSummaries();
+                return;
+            }
+
             // A language is not pushed anywhere: it is what the screens were
             // built with, so the open one is built again. Nothing below would
             // change a word of what is already on the display.
@@ -1770,6 +1868,13 @@ public class SettingsActivity extends AppCompatActivity
             Storage.move(getActivity(), new File(previous, "recordings"),
                          Storage.capturesDirectory(getActivity()));
 
+            // The card is remembered by absolute path, so moving the file
+            // out from under that setting loses it: Machine.applyDivmmc checks
+            // isFile() and quietly inserts nothing, which reads as every save
+            // on the card having disappeared. The image itself is safe in the
+            // new folder - it is the pointer to it that has to move too.
+            repointCard(previous);
+
             // chdir is process wide and immediate, so the running emulator
             // finds ROMs in the new place too - no restart needed.
             FuseNative.setWorkingDirectory(
@@ -1777,6 +1882,45 @@ public class SettingsActivity extends AppCompatActivity
 
             Toast.makeText(getActivity(), R.string.settings_states_moved,
                     Toast.LENGTH_SHORT).show();
+        }
+
+        /**
+         * Follows the inserted card to wherever its folder has just gone.
+         *
+         * Only when the stored path was inside the folder that moved: a card
+         * the user opened from somewhere else entirely is still where it was,
+         * and rewriting that would point the setting at a file that does not
+         * exist. Checked against the file rather than assumed, so a move that
+         * did not carry this one leaves the old path alone to be reported
+         * rather than silently replaced with another wrong one.
+         */
+        private void repointCard(File previous) {
+            android.content.SharedPreferences preferences =
+                    getPreferenceManager().getSharedPreferences();
+            String card = preferences.getString(Media.PREF_CARD, null);
+            if (card == null) return;
+
+            File was = new File(card);
+            File from = new File(previous, Storage.CARDS);
+            if (!was.getParentFile().equals(from)) return;
+
+            File now = new File(Storage.cardsDirectory(getActivity()),
+                                was.getName());
+            if (!now.isFile()) return;
+
+            preferences.edit().putString(Media.PREF_CARD,
+                                         now.getAbsolutePath()).apply();
+        }
+
+        /**
+         * A counted string, in whichever form the language wants for that
+         * number. The count goes in twice: once to choose the form, once as
+         * the argument that fills the %d - separate ideas, since the form
+         * follows the last digit in Russian while the number printed is the
+         * whole count.
+         */
+        private String counted(int plural, int count, Object... arguments) {
+            return getResources().getQuantityString(plural, count, arguments);
         }
 
         /** ListPreference stores numbers as strings. */
@@ -1934,7 +2078,8 @@ public class SettingsActivity extends AppCompatActivity
 
                 esdeStatus.setSummary(when == 0
                         ? getString(R.string.settings_esde_status_never)
-                        : getString(R.string.settings_esde_status_summary,
+                        : counted(R.plurals.settings_esde_status_summary,
+                                Metadata.count(getActivity()),
                                 Metadata.count(getActivity()),
                                 DateFormat.getDateTimeInstance(
                                         DateFormat.SHORT, DateFormat.SHORT)

@@ -54,7 +54,15 @@
         <package android:name="org.es_de.frontend.galaxy" />
     </queries>
 
-    <uses-feature android:glEsVersion="0x00020000" />
+    <!-- ES 3.0, which is what the renderer actually asks for:
+         EGL_OPENGL_ES3_BIT and EGL_CONTEXT_CLIENT_VERSION 3 in android_gl.c,
+         "#version 300 es" shaders, and -lGLESv3 in the build. Declaring 2.0
+         let Play offer the app to an ES-2-only device, where eglChooseConfig
+         finds nothing and the picture is black for ever with nothing said.
+         No device that satisfies minSdk 30 lacks ES 3.0, so this changes who
+         can install it in theory only - but the declaration was simply not
+         true. -->
+    <uses-feature android:glEsVersion="0x00030000" />
     <uses-feature
         android:name="android.hardware.touchscreen"
         android:required="false" />
@@ -153,7 +161,11 @@
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
+                <!-- No BROWSABLE. It is what lets web content start an
+                     activity, and a browser will not navigate to file: or
+                     content: anyway - so it added no way in that works, while
+                     declaring this a target for anything a page can fire. The
+                     comment above wants the opposite of that. -->
                 <data android:scheme="file" />
                 <data android:scheme="content" />
                 <data android:mimeType="application/octet-stream" />

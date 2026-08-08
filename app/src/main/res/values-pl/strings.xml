@@ -16,13 +16,11 @@
     <string name="poke_search">Szukaj w bazie kodów…</string>
     <string name="poke_search_hint">Nazwa gry</string>
     <string name="poke_search_go">Szukaj</string>
-    <string name="poke_search_found">%1$d gier</string>
     <string name="poke_search_none">Nic o nazwie „%1$s”</string>
     <string name="poke_from_search">Z bazy, do %1$s. Najpierw wczytaj grę — poke to bajt w pamięci, a nie ma czego pokować, dopóki jej tam nie ma.</string>
     <string name="poke_tipshop">Sprawdź w The Tipshop…</string>
     <string name="poke_no_browser">Brak przeglądarki, żeby to otworzyć</string>
     <string name="poke_asks">Ten kod pyta o liczbę — zwykle ile żyć. Od 0 do 255.</string>
-    <string name="poke_trainer_done">%1$s — %2$d poke</string>
     <string name="poke_partly">%1$s — %2$d poke, pominięto %3$d: wymagają banku pamięci, do którego ta aplikacja nie dociera</string>
     <string name="poke_quick">Pokuj raz…</string>
     <string name="poke_add">Dodaj poke…</string>
@@ -186,11 +184,11 @@
     <string name="roms_files_hint">Wskazać pliki ROM samemu albo zip do rozpakowania — jedyna droga do Pobranych, których Android nie udostępnia jako folderu</string>
     <string name="roms_where">Zdobądź ROM-y</string>
     <string name="roms_where_hint">Pobrać zestaw z archive.org, około 350 kB. Nic więcej do zrobienia</string>
-    <string name="roms_imported">Skopiowano %1$d ROM-ów</string>
     <string name="roms_downloading_message">Pobieram zestaw z\n\n%1$s\n\nokoło 350 kB. Maszyna wystartuje sama, kiedy dojdą.</string>
     <string name="roms_download_did_not">Pobieranie się nie udało</string>
     <string name="roms_download_failed_message">%1$s\n\n%2$s\n\nSpróbuj ponownie albo jednym z dwóch pozostałych sposobów poniżej.</string>
     <string name="roms_download_empty">Nic w pobranym pliku nie wyglądało na ROM.</string>
+    <string name="roms_unpack_failed">Rozpakowywanie zatrzymało się po %1$d plikach ROM.\n\n%2$s</string>
     <string name="roms_missing">Brakuje części ROM-ów</string>
     <string name="roms_missing_message">ROM-ów do %1$d maszyn nie ma w folderze:\n\n%2$s\n\nMaszyny, które ich potrzebują, nie wystartują. Wszystkie pozostałe — tak.</string>
     <string name="roms_missing_more">, i jeszcze %1$d</string>
@@ -520,8 +518,6 @@
     <string name="settings_esde_link">Połącz z ES-DE</string>
     <string name="settings_esde_link_summary">Odczytuje listę gier z ES-DE i kopiuje to, co znalazło dla twoich</string>
     <string name="settings_esde_linking">Łączenie…</string>
-    <string name="settings_esde_link_done">Znalezionych gier: %1$d, z grafiką: %2$d</string>
-    <string name="settings_esde_link_done_needs_media">Znalezionych gier: %1$d — wybierz poniżej folder mediów ES-DE, aby zobaczyć ich grafikę</string>
     <string name="settings_esde_link_empty">ES-DE nie ma żadnych gier dla tego folderu z zawartością</string>
     <string name="settings_esde_link_failed">Nie udało się odczytać listy gier ES-DE</string>
     <string name="settings_esde_link_needs_esde">Zainstaluj ES-DE, aby się z nim połączyć</string>
@@ -530,7 +526,6 @@
     <string name="settings_esde_folder_summary">Wskaż raz folder ES-DE, aby Zedeks mógł odczytać jego gry</string>
     <string name="settings_esde_status">Ostatnie połączenie</string>
     <string name="settings_esde_status_never">Jeszcze nie połączono</string>
-    <string name="settings_esde_status_summary">Gier: %1$d, połączono %2$s</string>
     <string name="settings_esde_unlink">Rozłącz</string>
     <string name="settings_esde_unlink_summary">Zapomina nazwy i grafikę skopiowane z ES-DE</string>
     <string name="settings_esde_unlink_confirm_title">Rozłączyć z ES-DE?</string>
@@ -595,4 +590,45 @@
     <string name="library_up">W górę</string>
     <string name="library_gallery_mute">Wycisz</string>
     <string name="library_gallery_unmute">Włącz dźwięk</string>
+    <string name="skin_rubber">ZX Spectrum 48K</string>
+    <string name="skin_rubber_slim">ZX Spectrum 48K — wąska</string>
+    <string name="skin_plus">ZX Spectrum 128K</string>
+    <string name="skin_plus_slim">ZX Spectrum 128K — wąska</string>
+    <string name="skin_system">Klawiatura Androida</string>
+    <string name="storage_internal">Pamięć wewnętrzna</string>
+    <string name="storage_documents">Dokumenty</string>
+    <string name="storage_sd_card">Karta SD</string>
+    <string name="storage_shared">Pamięć współdzielona</string>
+    <string name="state_unnamed">Zrzut</string>
+    <plurals name="poke_trainer_done">
+        <item quantity="one">%1$s \u2014 %2$d poke</item>
+        <item quantity="few">%1$s \u2014 %2$d poke\u2019i</item>
+        <item quantity="many">%1$s \u2014 %2$d poke\u2019ów</item>
+        <item quantity="other">%1$s \u2014 %2$d poke\u2019i</item>
+    </plurals>
+    <plurals name="roms_imported">
+        <item quantity="one">Skopiowano %1$d ROM</item>
+        <item quantity="few">Skopiowano %1$d ROM-y</item>
+        <item quantity="many">Skopiowano %1$d ROM-ów</item>
+        <item quantity="other">Skopiowano %1$d ROM-y</item>
+    </plurals>
+    <plurals name="poke_search_found">
+        <item quantity="one">%1$d gra</item>
+        <item quantity="few">%1$d gry</item>
+        <item quantity="many">%1$d gier</item>
+        <item quantity="other">%1$d gry</item>
+    </plurals>
+    <plurals name="settings_esde_status_summary">
+        <item quantity="other">Gier: %1$d, połączono %2$s</item>
+    </plurals>
+    <plurals name="settings_esde_link_done">
+        <item quantity="other">Znaleziono gier: %1$d, z grafiką: %2$d</item>
+    </plurals>
+    <plurals name="settings_esde_link_done_needs_media">
+        <item quantity="other">Znaleziono gier: %1$d — wybierz poniżej folder mediów ES-DE, aby zobaczyć grafikę</item>
+    </plurals>
+    <string name="gallery_picture">Obraz %1$d z %2$d</string>
+    <string name="gallery_video">Wideo %1$d z %2$d</string>
+    <string name="settings_keep_bar">Nie ukrywaj paska szybkiego dostępu</string>
+    <string name="settings_keep_bar_summary">Inaczej znika po trzech sekundach. Z czytnikiem ekranu zawsze widoczny.</string>
 </resources>

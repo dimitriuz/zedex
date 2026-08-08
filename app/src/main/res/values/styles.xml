@@ -9,10 +9,20 @@
       androidx.preference draws through appcompat and an AppCompatActivity
       refuses anything but a Theme.AppCompat descendant, so
       Theme.DeviceDefault.Settings - which is what this screen used - is not an
-      option. DayNight is the nearest equivalent: it follows the device's light
-      or dark setting, which is what DeviceDefault did.
+      option.
+
+      Theme.AppCompat, the dark one, and not DayNight. Everything else here is
+      dark and stays dark whatever the device is set to: the emulator screen,
+      the menus, the library, the panel. DayNight made this the one page that
+      turned white on a device in light mode - and its own confirmation
+      dialogs did not follow, because they ask for
+      Theme_DeviceDefault_Dialog_Alert, which is the dark variant. A light
+      settings page popping dark dialogs is worse than either.
+
+      There is no values-night and no setDefaultNightMode anywhere, so nothing
+      else in the app was ever following that setting to begin with.
     -->
-    <style name="SettingsTheme" parent="Theme.AppCompat.DayNight">
+    <style name="SettingsTheme" parent="Theme.AppCompat">
         <item name="android:windowActionBar">true</item>
     </style>
 </resources>

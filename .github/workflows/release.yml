@@ -1,6 +1,18 @@
 name: Release
 
 # Tags only. Push v1.2.3 and this builds it, signs it and publishes it.
+#
+# Every action here is pinned to a commit, and build.yml's are not. The
+# difference is what is in the environment: this job decodes the release
+# keystore and holds its password, and has contents: write. A floating major
+# tag is a mutable pointer somebody else controls, so a compromised v7 on any
+# one of these would get the signing key - and the upload key cannot be
+# rotated without a reset, since the first upload registers its certificate as
+# the app's. build.yml has no secrets worth taking and stays on tags, where it
+# gets security fixes without a bump.
+#
+# The tag each SHA stood for is in the comment beside it. To move one: gh api
+# repos/<owner>/<repo>/git/ref/tags/<tag> --jq .object.sha
 on:
   push:
     tags: ['v*']
@@ -12,7 +24,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
 
       # The version lives in version.properties and nowhere else; the tag only
       # has to agree with it. Checked here rather than computed, so that a tag
@@ -56,12 +68,12 @@ jobs:
                   -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" > /dev/null \
             || { echo "::error::the keystore did not open - check the base64, the password and the alias"; exit 1; }
 
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961  # v5
         with:
           distribution: temurin
           java-version: '21'
 
-      - uses: gradle/actions/setup-gradle@v6
+      - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb  # v6
 
       - uses: ./.github/actions/native
 
@@ -123,6 +135,37 @@ jobs:
           printf '%s' "$manifest" | grep -q 'android.permission.INTERNET' \
             || { echo "::error::the Play bundle does not ask for INTERNET"; exit 1; }
 
+          # The Play build cannot update itself, and must not look as though it
+          # could. Two halves, and until now neither was checked by anything:
+          # the permission that would let it install an APK, and the code that
+          # would go looking for one. Holding the permission alone is enough to
+          # fail a review, and shipping the updater's own code with the
+          # permission stripped is a button that can only disappoint.
+          if printf '%s' "$manifest" | grep -q 'REQUEST_INSTALL_PACKAGES'; then
+            echo "::error::the Play bundle can install APKs - app/src/play/AndroidManifest.xml is not stripping REQUEST_INSTALL_PACKAGES"
+            exit 1
+          fi
+
+          # src/noupdate/java is meant to replace src/sideload/java here, so
+          # where the releases live should not be in the bundle at all. Read
+          # from the dex the same way as the manifest: strings over the binary,
+          # since neither bundletool nor a dex disassembler is on a runner.
+          #
+          # This literal and not the class name: both source sets call the class
+          # Updater, so the name is in either bundle and discriminates nothing.
+          # Nor 'releases/latest', which is never a literal - Updater builds
+          # that path from RELEASES at runtime. Measured: the base URL appears
+          # three times in the debug APK's dex and not once in this bundle's.
+          #
+          # Every dex, not base/dex/classes.dex alone: which one a class lands
+          # in is the shrinker's business, and a second one appears the moment
+          # the method count says so.
+          if unzip -p "$aab" 'base/dex/*.dex' | strings \
+               | grep -q 'github.com/dimitriuz/zedex/releases'; then
+            echo "::error::the updater's own code is in the Play bundle - the noupdate source set is not replacing sideload"
+            exit 1
+          fi
+
           for abi in arm64-v8a armeabi-v7a x86_64; do
             unzip -l "$aab" | grep -q "base/lib/$abi/libfuse.so" \
               || { echo "::error::$abi/libfuse.so missing from the bundle"; exit 1; }
@@ -174,7 +217,7 @@ jobs:
       # Deliberately not a release asset. An .aab cannot be installed, and one
       # sitting beside the APK on the release page is a support question waiting
       # to happen. Take it from the run's artifacts and give that to the Console.
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
         with:
           # ${{ }} and not $VERSION: a `with:` block is not a shell, and the
           # unexpanded name would be a literal dollar sign in the artifact list.

@@ -394,6 +394,18 @@ public final class Updater {
                     activity.runOnUiThread(() -> bar.setProgress(percent)));
 
             activity.runOnUiThread(() -> {
+                // The activity can be gone by now: this is a 14MB download on
+                // whatever link the phone has, and backing out during one is
+                // an ordinary thing to do. dismiss() on a window that has
+                // already been torn down throws IllegalArgumentException out
+                // of removeViewImmediate, which is a crash while closing the
+                // app - and the toast and the installer below have nothing to
+                // attach to either.
+                if (activity.isFinishing() || activity.isDestroyed()) {
+                    if (failure != null) apk.delete();
+                    return;
+                }
+
                 progress.dismiss();
 
                 if (failure != null) {

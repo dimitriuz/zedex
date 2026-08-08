@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.screen;
 
+import dev.ldlab.zedex.view.Palette;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.view.SafeArea;
 import dev.ldlab.zedex.input.Gamepad;
@@ -43,8 +44,6 @@ public final class GamepadActivity extends Activity {
         super.attachBaseContext(Language.wrap(base));
     }
 
-    private static final int TEXT = 0xffededf2;
-    private static final int DIM = 0xff9a9aa5;
     private static final int ROW = 0x22ffffff;
 
     private SharedPreferences preferences;
@@ -82,13 +81,13 @@ public final class GamepadActivity extends Activity {
         column.setOrientation(LinearLayout.VERTICAL);
         column.setPadding(pixels(12), pixels(12), pixels(12), pixels(24));
 
-        column.addView(note(getString(R.string.gamepad_explain), DIM, 13));
+        column.addView(note(getString(R.string.gamepad_explain), Palette.MUTED, 13));
 
         modifierRow = row(getString(R.string.gamepad_hotkey));
         modifierRow.setOnClickListener(view -> captureModifier());
         column.addView(modifierRow, rowParams());
 
-        column.addView(note(getString(R.string.gamepad_actions), DIM, 13));
+        column.addView(note(getString(R.string.gamepad_actions), Palette.MUTED, 13));
 
         for (Hotkeys.Action action : Hotkeys.Action.values()) {
             Button button = row(getString(action.title));
@@ -129,7 +128,7 @@ public final class GamepadActivity extends Activity {
                             + Hotkeys.buttonName(keycode) + held;
 
             button.setText(getString(action.title) + "\n" + pressing);
-            button.setTextColor(keycode == 0 ? DIM : TEXT);
+            button.setTextColor(keycode == 0 ? Palette.MUTED : Palette.TEXT);
         }
     }
 
@@ -231,7 +230,7 @@ public final class GamepadActivity extends Activity {
 
         button.setAllCaps(false);
         button.setText(title);
-        button.setTextColor(TEXT);
+        button.setTextColor(Palette.TEXT);
         button.setBackgroundColor(ROW);
         button.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
         button.setPadding(pixels(14), pixels(10), pixels(14), pixels(10));

@@ -16,14 +16,12 @@
     <string name="poke_search">Chercher dans la base de codes…</string>
     <string name="poke_search_hint">Nom du jeu</string>
     <string name="poke_search_go">Chercher</string>
-    <string name="poke_search_found">%1$d jeux</string>
     <string name="poke_search_none">Rien qui s\'appelle « %1$s »</string>
     <string name="poke_from_search">De la base, pour %1$s. Chargez d\'abord le jeu — un poke est un octet en mémoire, et il n\'y a rien à poker tant qu\'il n\'y est pas.</string>
     <string name="poke_tipshop">Chercher sur The Tipshop…</string>
     <string name="poke_no_browser">Aucun navigateur pour l\'ouvrir</string>
     <string name="poke_asks">Ce code demande un nombre — le nombre de vies, en général. De 0 à 255.</string>
-    <string name="poke_trainer_done">%1$s — %2$d poke(s)</string>
-    <string name="poke_partly">%1$s — %2$d poke(s), %3$d ignorés : ils demandent une banque mémoire hors d\'atteinte de cette app</string>
+    <string name="poke_partly">%1$s — appliqués : %2$d, ignorés : %3$d — ils demandent une banque mémoire hors d\'atteinte de cette app</string>
     <string name="poke_quick">Poker une fois…</string>
     <string name="poke_add">Ajouter un poke…</string>
     <string name="poke_stored">Enregistré</string>
@@ -186,11 +184,11 @@
     <string name="roms_files_hint">Choisir vous-même les fichiers ROM, ou un zip à décompresser — le seul moyen d\'atteindre Téléchargements, qu\'Android n\'accorde pas comme dossier</string>
     <string name="roms_where">Obtenir des ROM</string>
     <string name="roms_where_hint">Télécharger un jeu de ROM depuis archive.org, environ 350 ko. Rien d\'autre à faire</string>
-    <string name="roms_imported">%1$d ROM copiées</string>
     <string name="roms_downloading_message">Téléchargement d\'un jeu depuis\n\n%1$s\n\nenviron 350 ko. La machine démarre d\'elle-même à leur arrivée.</string>
     <string name="roms_download_did_not">Le téléchargement a échoué</string>
     <string name="roms_download_failed_message">%1$s\n\n%2$s\n\nRéessayez, ou passez par l\'un des deux autres moyens ci-dessous.</string>
     <string name="roms_download_empty">Rien dans le fichier téléchargé ne ressemblait à une ROM.</string>
+    <string name="roms_unpack_failed">La décompression s’est arrêtée après %1$d des fichiers ROM.\n\n%2$s</string>
     <string name="roms_missing">Certaines ROM manquent</string>
     <string name="roms_missing_message">Les ROM de %1$d machines ne sont pas dans le dossier :\n\n%2$s\n\nLes machines qui en ont besoin ne démarreront pas. Toutes les autres, oui.</string>
     <string name="roms_missing_more">, et %1$d de plus</string>
@@ -520,8 +518,6 @@
     <string name="settings_esde_link">Lier à ES-DE</string>
     <string name="settings_esde_link_summary">Lit la liste des jeux d\'ES-DE et copie ce qu\'elle a trouvé pour les vôtres</string>
     <string name="settings_esde_linking">Liaison en cours…</string>
-    <string name="settings_esde_link_done">%1$d jeu(x) trouvé(s), %2$d avec images</string>
-    <string name="settings_esde_link_done_needs_media">%1$d jeu(x) trouvé(s) — choisissez ci-dessous le dossier de médias d\'ES-DE pour voir leurs images</string>
     <string name="settings_esde_link_empty">ES-DE n\'a aucun jeu répertorié pour ce dossier de contenu</string>
     <string name="settings_esde_link_failed">Impossible de lire la liste des jeux d\'ES-DE</string>
     <string name="settings_esde_link_needs_esde">Installez ES-DE pour vous y lier</string>
@@ -530,7 +526,6 @@
     <string name="settings_esde_folder_summary">Montrez le dossier d\'ES-DE une fois, pour que Zedex puisse lire ses jeux</string>
     <string name="settings_esde_status">Dernière liaison</string>
     <string name="settings_esde_status_never">Pas encore de liaison</string>
-    <string name="settings_esde_status_summary">%1$d jeu(x), lié %2$s</string>
     <string name="settings_esde_unlink">Délier</string>
     <string name="settings_esde_unlink_summary">Oublie les noms et les images copiés depuis ES-DE</string>
     <string name="settings_esde_unlink_confirm_title">Se délier d\'ES-DE ?</string>
@@ -593,4 +588,42 @@
     <string name="library_up">Remonter</string>
     <string name="library_gallery_mute">Couper le son</string>
     <string name="library_gallery_unmute">Activer le son</string>
+    <string name="skin_rubber">ZX Spectrum 48K</string>
+    <string name="skin_rubber_slim">ZX Spectrum 48K — fin</string>
+    <string name="skin_plus">ZX Spectrum 128K</string>
+    <string name="skin_plus_slim">ZX Spectrum 128K — fin</string>
+    <string name="skin_system">Clavier Android</string>
+    <string name="storage_internal">Stockage interne</string>
+    <string name="storage_documents">Documents</string>
+    <string name="storage_sd_card">Carte SD</string>
+    <string name="storage_shared">Stockage partagé</string>
+    <string name="state_unnamed">Instantané</string>
+    <plurals name="poke_trainer_done">
+        <item quantity="one">%1$s \u2014 %2$d poke</item>
+        <item quantity="other">%1$s \u2014 %2$d pokes</item>
+    </plurals>
+    <plurals name="roms_imported">
+        <item quantity="one">%1$d ROM copiée</item>
+        <item quantity="other">%1$d ROMs copiées</item>
+    </plurals>
+    <plurals name="poke_search_found">
+        <item quantity="one">%1$d jeu</item>
+        <item quantity="other">%1$d jeux</item>
+    </plurals>
+    <plurals name="settings_esde_status_summary">
+        <item quantity="one">%1$d jeu, lié %2$s</item>
+        <item quantity="other">%1$d jeux, lié %2$s</item>
+    </plurals>
+    <plurals name="settings_esde_link_done">
+        <item quantity="one">%1$d jeu trouvé, %2$d avec illustrations</item>
+        <item quantity="other">%1$d jeux trouvés, %2$d avec illustrations</item>
+    </plurals>
+    <plurals name="settings_esde_link_done_needs_media">
+        <item quantity="one">%1$d jeu trouvé — choisissez ci-dessous le dossier média d’ES-DE pour voir ses illustrations</item>
+        <item quantity="other">%1$d jeux trouvés — choisissez ci-dessous le dossier média d’ES-DE pour voir leurs illustrations</item>
+    </plurals>
+    <string name="gallery_picture">Image %1$d sur %2$d</string>
+    <string name="gallery_video">Vidéo %1$d sur %2$d</string>
+    <string name="settings_keep_bar">Garder la barre rapide affichée</string>
+    <string name="settings_keep_bar_summary">Sinon elle disparaît après trois secondes. Toujours visible avec un lecteur d’écran.</string>
 </resources>

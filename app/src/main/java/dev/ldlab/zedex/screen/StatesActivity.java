@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.screen;
 
+import dev.ldlab.zedex.view.Palette;
 import dev.ldlab.zedex.EmulatorActivity;
 import dev.ldlab.zedex.FuseNative;
 import dev.ldlab.zedex.R;
@@ -57,8 +58,6 @@ public final class StatesActivity extends Activity {
     /** True to save over what is here, false to load one of them. */
     public static final String EXTRA_SAVING = "saving";
 
-    private static final int BACKING = 0xff14151a;
-    private static final int TEXT = 0xffededf2;
 
     /** A cell wide enough for a readable 4:3 picture, in dp. */
     private static final int CELL_DP = 190;
@@ -99,7 +98,7 @@ public final class StatesActivity extends Activity {
     private View page() {
         LinearLayout column = new LinearLayout(this);
         column.setOrientation(LinearLayout.VERTICAL);
-        column.setBackgroundColor(BACKING);
+        column.setBackgroundColor(Palette.BACKING);
 
         empty = new TextView(this);
         empty.setText(R.string.state_none);
@@ -233,7 +232,7 @@ public final class StatesActivity extends Activity {
                 .setView(input)
                 .setPositiveButton(android.R.string.ok, (dialog, which) -> {
                     String name = Storage.sanitise(input.getText().toString());
-                    if (name.isEmpty()) name = "Snapshot";
+                    if (name.isEmpty()) name = getString(R.string.state_unnamed);
                     save(name);
                 })
                 .setNegativeButton(android.R.string.cancel, null)

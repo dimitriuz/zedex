@@ -38,8 +38,14 @@ public final class SafeArea {
         int bottom = content.getPaddingBottom();
 
         content.setOnApplyWindowInsetsListener((view, insets) -> {
+            // The keyboard counts as something that is not ours to draw
+            // under, the same as a bar or a cutout. Without it the library's
+            // list and its whole details pane sit under the IME in portrait
+            // after a search, and a settings dialog's own buttons can too.
             Insets safe = insets.getInsets(
-                    WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+                    WindowInsets.Type.systemBars()
+                            | WindowInsets.Type.displayCutout()
+                            | WindowInsets.Type.ime());
 
             view.setPadding(left + safe.left, top + safe.top,
                             right + safe.right, bottom + safe.bottom);

@@ -286,13 +286,47 @@ public final class EmulatorLayout extends ViewGroup {
      * because most of these views leave for a second screen and have to come
      * back in the same order; see {@link #setLentAway}.
      */
-    public void setChildren(View screen, SpectrumKeyboardView keyboard,
-                     SystemKeyboardView system,
-                     JoystickView pad, JoystickView fire, JoystickView[] keys,
-                     SpectrumKeyboardView overlay, View overlayOpen,
-                     View overlayClose,
-                     ActivityLights lights,
-                     View play, View panel, QuickBar bar, View drawer) {
+    /**
+     * Everything this layout arranges, named.
+     *
+     * Fourteen positional parameters before this, of which five were plain
+     * {@code View} and three {@code JoystickView} - so any two adjacent
+     * arguments of the same type could be swapped and it still compiled,
+     * producing an arrangement that was subtly wrong rather than one that
+     * failed. Assigning them by name costs the caller nothing and makes that
+     * class of mistake impossible.
+     */
+    public static final class Children {
+        public View screen;
+        public SpectrumKeyboardView keyboard;
+        public SystemKeyboardView system;
+        public JoystickView pad;
+        public JoystickView fire;
+        public JoystickView[] keys;
+        public SpectrumKeyboardView overlay;
+        public View overlayOpen;
+        public View overlayClose;
+        public ActivityLights lights;
+        public View play;
+        public View panel;
+        public QuickBar bar;
+        public View drawer;
+    }
+
+    public void setChildren(Children children) {
+        View screen = children.screen;
+        SpectrumKeyboardView keyboard = children.keyboard;
+        SystemKeyboardView system = children.system;
+        JoystickView pad = children.pad;
+        JoystickView fire = children.fire;
+        JoystickView[] keys = children.keys;
+        SpectrumKeyboardView overlay = children.overlay;
+        View overlayOpen = children.overlayOpen;
+        View overlayClose = children.overlayClose;
+        ActivityLights lights = children.lights;
+        View play = children.play;
+        View panel = children.panel;
+
         this.screen = screen;
         this.keyboard = keyboard;
         this.system = system;
@@ -305,8 +339,8 @@ public final class EmulatorLayout extends ViewGroup {
         this.lights = lights;
         this.play = play;
         this.panel = panel;
-        this.menu = bar;
-        this.drawer = drawer;
+        this.menu = children.bar;
+        this.drawer = children.drawer;
 
         // Front to back is the order below: the drawer covers everything, the
         // button stays over the panel, the panel covers the screen and the
@@ -324,8 +358,8 @@ public final class EmulatorLayout extends ViewGroup {
         all.add(lights);
         all.add(play);
         all.add(panel);
-        all.add(bar);
-        all.add(drawer);
+        all.add(children.bar);
+        all.add(children.drawer);
 
         order = all.toArray(new View[0]);
         for (View child : order) addView(child);
@@ -365,10 +399,6 @@ public final class EmulatorLayout extends ViewGroup {
         // being sized to this window again.
         if (!away) applyBarMetrics();
         requestLayout();
-    }
-
-    public boolean lentAway() {
-        return lent;
     }
 
     /**
@@ -490,6 +520,26 @@ public final class EmulatorLayout extends ViewGroup {
     /** See-through enough to play through, solid enough to aim at. */
     private static final float OVERLAY_ALPHA = 0.82f;
 
+    /**
+     * How much of the plate upright yielding may cost before it stops being
+     * worth doing.
+     *
+     * There was no floor at all: the pad is admitted whenever its band is
+     * 108dp, and the keys then took whatever was left under it - which works
+     * out at about four device-independent pixels on the wrong geometry. A
+     * keyboard that thin is not a keyboard, and its close button goes just
+     * above it, so it lands within a few dp of the bottom edge and possibly
+     * under the gesture inset: no keys, and no way to put them away either.
+     *
+     * Below this, the keys keep their full height and cover the controls
+     * instead. That is the right way round - while the keys are up, typing is
+     * what is being done, and the joystick underneath is not - and it is what
+     * the landscape branch already does by moving aside rather than shrinking.
+     * CLAUDE.md records the same mistake once before, when clamping the height
+     * cut a full 128K plate to 295px against the real 454.
+     */
+    private static final float OVERLAY_LEAST = 0.6f;
+
     /** How big the two buttons are, and how far off the things they sit by. */
     private static final int OVERLAY_BUTTON = 44;
     private static final int OVERLAY_GAP = 8;
@@ -497,15 +547,20 @@ public final class EmulatorLayout extends ViewGroup {
     /**
      * Whether this window is one the overlay is for.
      *
-     * Fullscreen, either way up, and nowhere else: fullscreen is the one layout
-     * with no keyboard in it, so it is the one that needs another way to reach
-     * a key. Everywhere else there is a real keyboard a tap away, and a second
-     * one would be two answers to the same question.
+     * Wherever there is no drawn keyboard to reach a key with, which is more
+     * than fullscreen: the plate is also absent when it has been put away,
+     * when the skin is Android's own, and while the window is lent to a second
+     * screen. This used to say "fullscreen, either way up, and nowhere else",
+     * which read as a rule and was not one - keyboardHere() answers all four
+     * cases and the overlay is offered in every one of them.
+     *
+     * Not while the phone's own keyboard is up, though: that is a keyboard,
+     * and two on screen at once is two answers to the same question.
      *
      * Where it goes differs, and follows from what the window has spare. See
      * {@link #placeOverlay}.
      */
-    public boolean overlayAvailable() {
+    private boolean overlayAvailable() {
         return !keyboardHere() && !lent && imeInset == 0;
     }
 
@@ -527,7 +582,7 @@ public final class EmulatorLayout extends ViewGroup {
                 && (keyboard == null || keyboard.skin().drawn());
     }
 
-    public boolean overlayShown() {
+    private boolean overlayShown() {
         return overlayShown && overlayAvailable();
     }
 
@@ -559,20 +614,6 @@ public final class EmulatorLayout extends ViewGroup {
         }
     }
 
-    /**
-     * The overlay keyboard, and the one button that shows and hides it.
-     *
-     * Sideways it lies over the foot of the picture, see-through, because a
-     * landscape window is all picture and there is nowhere else for it. Upright
-     * there is: a 4:3 picture in a tall window leaves black below it, so the
-     * keyboard goes in the black and covers nothing, and needs no transparency
-     * to be seen through because there is nothing behind it.
-     *
-     * Both buttons take the same box, above the pad, because only ever one of
-     * them is on screen: the thing that shows the keyboard and the thing that
-     * puts it away are the same control, and moving it to the far end while it
-     * is open makes it a different one.
-     */
     /**
      * The right edge of whatever control is on the left of the window, or zero.
      *
@@ -614,6 +655,20 @@ public final class EmulatorLayout extends ViewGroup {
         return boxes;
     }
 
+    /**
+     * The overlay keyboard, and the one button that shows and hides it.
+     *
+     * Sideways it lies over the foot of the picture, see-through, because a
+     * landscape window is all picture and there is nowhere else for it. Upright
+     * there is: a 4:3 picture in a tall window leaves black below it, so the
+     * keyboard goes in the black and covers nothing, and needs no transparency
+     * to be seen through because there is nothing behind it.
+     *
+     * Both buttons take the same box, above the pad, because only ever one of
+     * them is on screen: the thing that shows the keyboard and the thing that
+     * puts it away are the same control, and moving it to the far end while it
+     * is open makes it a different one.
+     */
     private void placeOverlay(int width, int height) {
         overlayBox.setEmpty();
         overlayOpenBox.setEmpty();
@@ -655,10 +710,16 @@ public final class EmulatorLayout extends ViewGroup {
                                 Math.round(height * OVERLAY_TALL));
 
             // Upright the controls are under the picture, squarely in the way,
-            // and there is nowhere sideways to go: the height is what yields.
+            // and there is nowhere sideways to go: the height is what yields -
+            // but only down to OVERLAY_LEAST of the plate. Under that it keeps
+            // its height and covers them.
             if (!landscapeNow) {
                 int floor = Math.max(padBox.bottom, fireBox.bottom);
-                if (floor > 0) tall = Math.min(tall, height - floor - gap);
+                int room = height - floor - gap;
+
+                if (floor > 0 && room >= Math.round(tall * OVERLAY_LEAST)) {
+                    tall = Math.min(tall, room);
+                }
             }
 
             overlayBox.set(left, height - tall, right, height);
@@ -954,7 +1015,16 @@ public final class EmulatorLayout extends ViewGroup {
         // keyboard, which comes up over the window whenever it is asked to.
         boolean keys = keyboardHere();
 
-        panelBox.set(0, 0, width, height);
+        // Down to the keyboard, not to the bottom of the window. The sheet is
+        // where text gets typed - Pokes, Add a poke, three fields and a commit
+        // row - and at SDK 35 the app is edge-to-edge, so the legacy
+        // ADJUST_RESIZE that used to shrink the window for an IME no longer
+        // applies. Laid out full height, the field being typed into and the
+        // button that commits it sit under the keyboard in landscape, where
+        // the window is around 393dp and the IME takes half of it. The inset
+        // was already being tracked for the joystick floor; this is the same
+        // number.
+        panelBox.set(0, 0, width, height - imeInset);
 
         // The bar first, because the screen starts underneath it.
         measureBar(width, height);

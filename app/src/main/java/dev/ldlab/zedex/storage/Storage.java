@@ -73,12 +73,13 @@ public final class Storage {
     private static final String ROMS = "roms";
     private static final String TAPES = "tapes";
     private static final String DISKS = "disks";
-    private static final String CARDS = "cards";
+    /** Public because a data-folder move has to find the card again by
+     *  name; see SettingsActivity.repointCard. */
+    public static final String CARDS = "cards";
 
     /** The scraped metadata store's folder; see {@code library/meta/Metadata}. */
     private static final String LIBRARY = "library";
     private static final String SHOTS = "screenshots";
-    private static final String FILMS = "recordings";
 
     /** What a folder is called when it tells the media scanner to walk past. */
     private static final String NOMEDIA = ".nomedia";
@@ -288,22 +289,24 @@ public final class Storage {
     }
 
     public static String label(Context context, File root) {
-        if (root.equals(context.getFilesDir())) return "Internal storage";
-        if (root.equals(documentsRoot(context))) return "Documents";
+        if (root.equals(context.getFilesDir()))
+            return context.getString(R.string.storage_internal);
+        if (root.equals(documentsRoot(context)))
+            return context.getString(R.string.storage_documents);
 
         try {
-            if (Environment.isExternalStorageRemovable(root)) return "SD card";
+            if (Environment.isExternalStorageRemovable(root))
+                return context.getString(R.string.storage_sd_card);
         } catch (IllegalArgumentException e) {
             // Not a real external volume; fall through.
         }
 
-        return "Shared storage";
+        return context.getString(R.string.storage_shared);
     }
 
     /** Where save states live, falling back if the chosen root has gone away. */
     public static File statesDirectory(Context context) {
-        SharedPreferences preferences =
-                context.getSharedPreferences(SettingsActivity.PREFS, Context.MODE_PRIVATE);
+        SharedPreferences preferences = prefs(context);
 
         String chosen = preferences.getString(KEY_STATES_ROOT, null);
         if (chosen != null && !new File(chosen).isDirectory()) {
@@ -325,8 +328,7 @@ public final class Storage {
     public static File romsDirectory(Context context) {
         File shared = new File(root(context), ROMS);
 
-        SharedPreferences preferences =
-                context.getSharedPreferences(SettingsActivity.PREFS, Context.MODE_PRIVATE);
+        SharedPreferences preferences = prefs(context);
         String failed = preferences.getString(KEY_ROMS_ELSEWHERE, null);
 
         return failed != null && failed.equals(root(context).getAbsolutePath())
@@ -339,7 +341,7 @@ public final class Storage {
     }
 
     private static void usePrivateRoms(Context context) {
-        context.getSharedPreferences(SettingsActivity.PREFS, Context.MODE_PRIVATE)
+        prefs(context)
                .edit()
                .putString(KEY_ROMS_ELSEWHERE, root(context).getAbsolutePath())
                .apply();
@@ -347,8 +349,7 @@ public final class Storage {
 
     /** Forgets a fallback that is no longer needed - the folder may be fixed. */
     private static void useSharedRoms(Context context) {
-        SharedPreferences preferences =
-                context.getSharedPreferences(SettingsActivity.PREFS, Context.MODE_PRIVATE);
+        SharedPreferences preferences = prefs(context);
 
         if (preferences.contains(KEY_ROMS_ELSEWHERE)) {
             preferences.edit().remove(KEY_ROMS_ELSEWHERE).apply();
@@ -523,8 +524,7 @@ public final class Storage {
      * @return the tape, or null if it is not there and could not be put there.
      */
     public static File installDemo(Context context) {
-        SharedPreferences preferences =
-                context.getSharedPreferences(SettingsActivity.PREFS, Context.MODE_PRIVATE);
+        SharedPreferences preferences = prefs(context);
 
         File target = demoTape(context);
         if (preferences.getBoolean(KEY_DEMO_INSTALLED, false)) {
@@ -566,8 +566,7 @@ public final class Storage {
 
     /** The folder holding {@code roms} and {@code states}. */
     public static File root(Context context) {
-        SharedPreferences preferences =
-                context.getSharedPreferences(SettingsActivity.PREFS, Context.MODE_PRIVATE);
+        SharedPreferences preferences = prefs(context);
 
         String chosen = preferences.getString(KEY_STATES_ROOT, null);
         if (chosen != null) {
@@ -665,8 +664,7 @@ public final class Storage {
      * asked for makes the preference the only thing that decides.
      */
     public static void pinRoot(Context context) {
-        SharedPreferences preferences =
-                context.getSharedPreferences(SettingsActivity.PREFS, Context.MODE_PRIVATE);
+        SharedPreferences preferences = prefs(context);
 
         if (preferences.contains(KEY_STATES_ROOT)) return;
 
@@ -896,17 +894,50 @@ public final class Storage {
     }
 
     /** The folder the file picker should open in, or null for wherever it likes. */
+    /**
+     * What was built last, and what it was built from.
+     *
+     * One object rather than two fields, so a reader gets a matched pair or
+     * nothing: two would let a thread see the new string beside the old Uri.
+     * Keyed on the stored string, so choosing a different folder invalidates
+     * it without anybody having to remember to.
+     */
+    private static final class ContentFolder {
+        final String stored;
+        final Uri folder;
+
+        ContentFolder(String stored, Uri folder) {
+            this.stored = stored;
+            this.folder = folder;
+        }
+    }
+
+    private static final java.util.concurrent.atomic.AtomicReference<ContentFolder>
+            contentFolderCache = new java.util.concurrent.atomic.AtomicReference<>();
+
+    /**
+     * Cached because it is asked for per row, per bind, and the answer cannot
+     * change while the string it is derived from does not. Parsing a Uri and
+     * rebuilding a document Uri from its tree id is eight to twelve
+     * allocations and several string scans - small until a held pad direction
+     * asks for it a hundred and fifty times a second.
+     */
     public static Uri contentFolder(Context context) {
-        SharedPreferences preferences =
-                context.getSharedPreferences(SettingsActivity.PREFS, Context.MODE_PRIVATE);
+        SharedPreferences preferences = prefs(context);
 
         String stored = preferences.getString(KEY_CONTENT_TREE, null);
         if (stored == null) return null;
 
+        ContentFolder cached = contentFolderCache.get();
+        if (cached != null && stored.equals(cached.stored)) return cached.folder;
+
         try {
             Uri tree = Uri.parse(stored);
-            return DocumentsContract.buildDocumentUriUsingTree(
+            Uri folder = DocumentsContract.buildDocumentUriUsingTree(
                     tree, DocumentsContract.getTreeDocumentId(tree));
+
+            contentFolderCache.set(new ContentFolder(stored, folder));
+            return folder;
         } catch (Exception e) {
             Log.w(TAG, "cannot use content folder " + stored, e);
             return null;
@@ -993,9 +1024,32 @@ public final class Storage {
         return name.replaceAll("[/\\\\:*?\"<>|]", "_").trim();
     }
 
+    /** This app's settings. Eight places here wanted them; the two-line
+     *  incantation was written out at each one. */
+    private static SharedPreferences prefs(Context context) {
+        return context.getSharedPreferences(SettingsActivity.PREFS,
+                                            Context.MODE_PRIVATE);
+    }
+
+    /**
+     * The last component of a path, which is the file's own name.
+     *
+     * Here rather than in any of the five places that used to spell out
+     * {@code substring(lastIndexOf('/') + 1)} - one of them named, four of
+     * them not. Works on a document path, a zip entry and a plain filename
+     * alike: no separator means the whole string is already the name.
+     */
+    public static String filename(String path) {
+        return path == null ? null : path.substring(path.lastIndexOf('/') + 1);
+    }
+
     /**
      * A filename with its extension taken off, which is what media is named
      * after: "Tujad.z80" is a game called Tujad.
+     *
+     * Note that this sanitises as well, so it is not a drop-in for the bare
+     * extension strips elsewhere in the tree - those keep whatever characters
+     * they were given, deliberately.
      */
     public static String withoutExtension(String name) {
         int dot = name.lastIndexOf('.');

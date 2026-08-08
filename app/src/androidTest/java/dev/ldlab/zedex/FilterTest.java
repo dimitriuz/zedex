@@ -97,12 +97,28 @@ public class FilterTest {
     /** How often awaitRowCount asks the adapter again. */
     private static final long POLL = 100;
 
-    /** Scoped rather than a plain {@code scrollable(true)}: the pane sits
-     *  right beside Browse's own list in landscape and has scrollable
-     *  regions of its own (the description, the gallery), and a generic
-     *  selector would as happily find one of those as the list this test
-     *  actually means. */
-    private static final String RECYCLER_CLASS = "androidx.recyclerview.widget.RecyclerView";
+    /**
+     * What Browse's own list calls itself to accessibility, in the order worth
+     * trying.
+     *
+     * Scoped rather than a plain {@code scrollable(true)}: the pane sits right
+     * beside the list in landscape and has scrollable regions of its own (the
+     * description, the gallery), and a generic selector would as happily find
+     * one of those.
+     *
+     * Not one name, though, and not the class's own. A RecyclerView reports
+     * itself as whatever its layout manager implies - GridView for a grid,
+     * ListView for a linear one - so the answer changes with the view toggle.
+     * It also changed with the library: 1.0.0 reported the real class name and
+     * 1.3.2 does not, which broke this the moment recyclerview was raised off
+     * the 2018 version. The class name is kept last for a bench still on an
+     * older copy.
+     */
+    private static final String[] BROWSE_LIST_CLASSES = {
+        "android.widget.GridView",
+        "android.widget.ListView",
+        "androidx.recyclerview.widget.RecyclerView",
+    };
 
     private final UiDevice device =
             UiDevice.getInstance(InstrumentationRegistry.getInstrumentation());
@@ -359,9 +375,17 @@ public class FilterTest {
                       device.wait(Until.findObject(
                               By.desc(context.getString(R.string.library_up))), FIND));
 
+        int inFolder = rowCount();
+
         openFilterSheet();
         selectGenre(commonestGenre);
         dismissFilterSheet();
+
+        // The same wait the other test needs, for the same reason: closing the
+        // sheet starts the walk, it does not finish it. Scrolling a list that
+        // is still the folder's own finds no game from anywhere else, which is
+        // precisely what this test would then report as the bug it looks for.
+        awaitRowCount(count -> count != inFolder);
 
         assertTrue("filtering from inside " + pathToOtherFolder + " did not reach \""
                    + nestedGameName + "\" - the walk is scoped to whichever folder is "
@@ -391,7 +415,16 @@ public class FilterTest {
     private void launchLibrary() {
         Intent intent = new Intent(context, LibraryActivity.class);
         intent.putExtra(LibraryActivity.EXTRA_FROM_MENU, true);
-        intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_NEW_TASK);
+        // CLEAR_TOP, not REORDER_TO_FRONT: the activity keeps which folder
+        // Browse is standing in, and the filter, in its own fields, so
+        // reusing the instance means starting wherever the last test left it.
+        // The first test here walks into a folder; the second then began
+        // inside it and failed looking for a game that had been filtered out
+        // of that subtree - but only in a suite, where a prior class had not
+        // already destroyed the instance. This activity is launchMode
+        // standard, so CLEAR_TOP recreates it, and a new instance is at the
+        // root with nothing filtered.
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
 
         // On the display this test can see - see Screen. Run on its own the
         // library came up here anyway; run after a class that had left another
@@ -603,11 +636,26 @@ public class FilterTest {
     }
 
     private boolean scrollToText(String text) {
-        try {
-            UiScrollable list = new UiScrollable(new UiSelector().className(RECYCLER_CLASS));
-            return list.scrollTextIntoView(text);
-        } catch (UiObjectNotFoundException e) {
-            return false;
+        for (String className : BROWSE_LIST_CLASSES) {
+            UiScrollable list = new UiScrollable(new UiSelector().className(className));
+            if (!list.exists()) continue;
+
+            // From the top, and with room to reach the bottom. The default is
+            // thirty swipes from wherever the list happens to be sitting,
+            // which is an arbitrary bound on a list whose whole point is that
+            // filtering makes it longer: this is the flattened collection, and
+            // in grid mode a swipe covers a third of the rows a list-mode
+            // swipe does. A test that finds the row or not depending on how
+            // far down somebody left the list is not testing filtering.
+            list.setMaxSearchSwipes(80);
+
+            try {
+                list.scrollToBeginning(20);
+                if (list.scrollTextIntoView(text)) return true;
+            } catch (UiObjectNotFoundException e) {
+                // This one is not the list after all; try the next name.
+            }
         }
+        return false;
     }
 }

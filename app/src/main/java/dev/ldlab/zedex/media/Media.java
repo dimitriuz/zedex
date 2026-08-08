@@ -312,7 +312,7 @@ public final class Media {
      * {@link #stage}: there is nothing to write a disk back over inside a zip.
      */
     public void stageAndOpenEntry(Uri archive, String inside) {
-        String name = inside.substring(inside.lastIndexOf('/') + 1);
+        String name = Storage.filename(inside);
         Entry entry = new Entry(Entry.Kind.FILE, name, archive, inside, -1, 0);
 
         File extracted;

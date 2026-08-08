@@ -133,13 +133,11 @@ androidbridge_has_window( void )
   return have;
 }
 
-void
-androidbridge_present( const void *pixels, int width, int height )
+/* Answers surfaceDestroyed() and takes up whatever surfaceChanged() left.
+   Called with window_mutex held. */
+static void
+service_window( void )
 {
-  if( !worth_presenting() ) return;
-
-  pthread_mutex_lock( &window_mutex );
-
   if( teardown_requested ) {
     androidgl_detach();
     if( window ) { ANativeWindow_release( window ); window = NULL; }
@@ -157,12 +155,82 @@ androidbridge_present( const void *pixels, int width, int height )
     window_generation++;
     declared_rate = 0;		/* a new window has not been told anything */
   }
+}
 
+/* The handshake on its own, for a caller with no frame to draw.
+
+   It used to be reachable only through androidbridge_present(), which the
+   paused loop calls only when there is a picture to show - and there is none
+   until uidisplay_init() has set the dimensions. A Fuse that never got that
+   far, because the ROMs are missing, therefore never answered
+   surfaceDestroyed() at all: the UI thread waited the full second, every
+   time, and two or three of those during a rotation is an ANR. The one case
+   where the screen is a black rectangle saying ROMs are needed is exactly the
+   one where nothing was drawing.
+
+   Servicing it costs a mutex and two branches, so the paused loop does it
+   every time round rather than reasoning about when it is needed. */
+void
+androidbridge_service_window( void )
+{
+  pthread_mutex_lock( &window_mutex );
+  service_window();
+  pthread_mutex_unlock( &window_mutex );
+}
+
+/* Whether this frame is worth drawing, asked *before* it has been built.
+ *
+ * Takes the slot as well as answering: worth_presenting() stamps the time it
+ * allows a frame through, so it cannot be asked twice about the same one. A
+ * caller that gets 1 here is expected to go on and call
+ * androidbridge_present_now().
+ *
+ * This exists so the display can skip the palette expansion for a frame that
+ * is only going to be dropped - 76,800 lookups at 320x240, and at 500% speed
+ * about five frames in six are dropped, which is nineteen million lookups a
+ * second written into a buffer nothing reads. It costs nothing at 100%, where
+ * nothing is dropped, so what it buys is exactly fast-forward and tape
+ * loading: the times somebody is waiting.
+ */
+int
+androidbridge_wants_frame( void )
+{
+  int wanted;
+
+  pthread_mutex_lock( &window_mutex );
+
+  /* Serviced whatever the answer: a surfaceDestroyed() already waiting must
+     not be held up by a frame this one decides to skip. */
+  service_window();
+  wanted = worth_presenting();
+
+  pthread_mutex_unlock( &window_mutex );
+
+  return wanted;
+}
+
+/* Draws it, having already decided. */
+void
+androidbridge_present_now( const void *pixels, int width, int height )
+{
+  pthread_mutex_lock( &window_mutex );
+
+  service_window();
   declare_frame_rate();
 
   androidgl_frame( window, window_generation, pixels, width, height );
 
   pthread_mutex_unlock( &window_mutex );
+}
+
+/* The throttle and the drawing together, for a caller that already has a
+   frame in hand - the paused loop, which re-presents the last one. */
+void
+androidbridge_present( const void *pixels, int width, int height )
+{
+  if( !androidbridge_wants_frame() ) return;
+
+  androidbridge_present_now( pixels, width, height );
 }
 
 JNIEXPORT void JNICALL
