@@ -359,6 +359,11 @@ public final class LibraryActivity extends Activity {
      *  divider beside it, {@link #paneDivider}. Set once, by {@link
      *  #buildPane}. */
     private View paneRoot;
+
+    /** The box the artwork sits in, when there is a landscape pane whose
+     *  height follows whether there is any - see buildPane's own listener.
+     *  Null in portrait, where the split is by width and by weight. */
+    private View paneCover;
     private View paneDivider;
 
     /**
@@ -1435,6 +1440,51 @@ public final class LibraryActivity extends Activity {
      * description is what yields to a short pane and {@link
      * #paneActionButton} is always laid out, never squeezed out of it.
      */
+    /**
+     * How tall the picture is in a side pane, which is a share of the window
+     * rather than the 160dp it used to be always.
+     *
+     * A fixed height is right on a phone and wrong on a tablet, and it was the
+     * tablet that showed it: the pane is as tall as the window, a description
+     * takes what it needs and no more, and the rest was simply empty - a small
+     * picture at the top of a column of nothing. The one place a person looks
+     * *at* the artwork rather than past it had the least of it.
+     *
+     * A share of the height, since that is what differs: about two fifths, so
+     * the picture leads and the text still has the greater part. Floored at the
+     * old 160dp so no window gets less than it had, and capped so a very tall
+     * one does not turn the pane into a poster with a caption. On a phone in
+     * landscape - around 400dp of height - two fifths lands within a few dp of
+     * 160 anyway, so this changes nothing there, which is the point.
+     *
+     * Read from the display at build time rather than measured: this runs in
+     * onCreate, the activity is recreated on rotation, and a listener that
+     * resized a child after layout would be the thing CLAUDE.md warns about
+     * doing to a RecyclerView, which is what the gallery inside this box is.
+     */
+    private int coverHeight() {
+        int windowHeight = getResources().getDisplayMetrics().heightPixels;
+
+        int wanted = Math.round(windowHeight * 0.42f);
+        return Math.max(pixels(160), Math.min(wanted, pixels(320)));
+    }
+
+    /**
+     * What the pane's picture is decoded to.
+     *
+     * At least the old 240dp, and never less than the box it has to fill: a
+     * picture decoded to 240 and stretched into a 320dp box is a soft one, so
+     * enlarging the box without this would have traded empty space for blur.
+     *
+     * One method rather than the constant in two places, because {@code
+     * Scraped}'s cache is keyed by the path *and* the size asked for - two
+     * callers asking for different numbers would decode the same picture
+     * twice and keep both.
+     */
+    private int paneTargetPx() {
+        return Math.max(pixels(PANE_TARGET_DP), coverHeight());
+    }
+
     private View buildPane(boolean landscape) {
         FrameLayout frame = new FrameLayout(this);
 
@@ -1462,11 +1512,32 @@ public final class LibraryActivity extends Activity {
         // See Gallery's own comment on exactly this, and on why FIT_CENTER
         // rather than CENTER_INSIDE is what fits it now.
         paneGallery = new Gallery(this);
-        paneGallery.setPictureTargetPx(pixels(PANE_TARGET_DP));
+        paneGallery.setPictureTargetPx(paneTargetPx());
         paneGallery.setOnPageTapped(this::openViewerFromPane);
         paneGallery.setOnUserSwipe(() -> paneUserSwiped = true);
+
+        // How tall the box is depends on whether there is anything in it, and
+        // only the gallery knows - it resolves another app's content provider
+        // off this thread. A game ES-DE has never scraped would otherwise be
+        // handed the same room as one with seven screenshots, which on a
+        // tablet is a large empty rectangle where the artwork would be. It
+        // keeps the height it always had in that case; the extra is for
+        // pictures, and there are none.
+        paneGallery.setOnContent(count -> {
+            if (paneCover == null) return;
+
+            int wanted = count > 0 ? coverHeight() : pixels(160);
+            if (paneCover.getLayoutParams().height == wanted) return;
+
+            paneCover.getLayoutParams().height = wanted;
+            paneCover.requestLayout();
+        });
         coverBox.addView(paneGallery, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+
+        // Only the landscape pane resizes it; portrait splits the width by
+        // weight and has no fixed height to change - see below.
+        paneCover = landscape ? coverBox : null;
 
         LinearLayout details = new LinearLayout(this);
         details.setPadding(pixels(16), pixels(16), pixels(16), pixels(16));
@@ -1474,7 +1545,7 @@ public final class LibraryActivity extends Activity {
         if (landscape) {
             details.setOrientation(LinearLayout.VERTICAL);
             details.addView(coverBox, new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, pixels(160)));
+                    LinearLayout.LayoutParams.MATCH_PARENT, coverHeight()));
             addPaneDetailViews(details);
         } else {
             details.setOrientation(LinearLayout.HORIZONTAL);
@@ -1776,7 +1847,7 @@ public final class LibraryActivity extends Activity {
         // ask the store for; the picture Scraped#load also decodes here is
         // never assigned anywhere, kept only because this is the same
         // resolve every row's own thumbnail shares the cache of.
-        adapter.scraped().load(this, relativePath, pixels(PANE_TARGET_DP), (meta, picture) -> {
+        adapter.scraped().load(this, relativePath, paneTargetPx(), (meta, picture) -> {
             if (token != paneToken) return; // the selection moved on
             applyPaneMeta(meta);
         });

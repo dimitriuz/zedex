@@ -530,14 +530,38 @@ public final class Gallery extends LinearLayout {
             handler.post(() -> {
                 if (token != loadToken) return; // a newer load answered first, or this one moved on
                 setItems(result, startIndex);
+                tellContent();
             });
         });
+    }
+
+    /**
+     * Told how many items the gallery ended up with, whenever that changes -
+     * a load answering, or a {@link #clear}. Both are the same question to a
+     * host that has to decide how much room to give this: a game with no
+     * artwork at all should not be handed the same space as one with seven
+     * screenshots, and only the gallery knows which it is, asynchronously.
+     */
+    public interface OnContent {
+        void onContent(int count);
+    }
+
+    private OnContent onContent;
+
+    public void setOnContent(OnContent listener) {
+        onContent = listener;
+        if (listener != null) listener.onContent(adapter.realCount());
+    }
+
+    private void tellContent() {
+        if (onContent != null) onContent.onContent(adapter.realCount());
     }
 
     /** Nothing selected: empties the gallery without asking anything of it. */
     public void clear() {
         loadToken++; // drops whatever a previous load might still be resolving
         setItems(Collections.emptyList(), 0);
+        tellContent();
     }
 
     /** The video's own page, or {@code -1} when this selection has none -
