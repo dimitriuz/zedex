@@ -56,17 +56,6 @@ public final class Meta {
     }
 
     /**
-     * The rating out of five, to one decimal place, or null when there is
-     * none or it does not read as a number.
-     *
-     * ES-DE stores a fraction - {@code 0.9} - which means nothing on its own
-     * on a screen. Out of five is what a person recognises, and one decimal
-     * is as much precision as a scraped average deserves. Null rather than
-     * zero when it cannot be read: no rating and a rating of nought are
-     * different things, and the row that shows this leaves the fact out
-     * entirely rather than claiming a game scored nothing.
-     */
-    /**
      * The rating out of five as a number, or {@code -1} when there is none.
      *
      * Separate from {@link #stars}, which formats for a screen and is no use
@@ -86,6 +75,17 @@ public final class Meta {
         }
     }
 
+    /**
+     * The rating out of five, to one decimal place, or null when there is
+     * none or it does not read as a number.
+     *
+     * ES-DE stores a fraction - {@code 0.9} - which means nothing on its own
+     * on a screen. Out of five is what a person recognises, and one decimal
+     * is as much precision as a scraped average deserves. Null rather than
+     * zero when it cannot be read: no rating and a rating of nought are
+     * different things, and the row that shows this leaves the fact out
+     * entirely rather than claiming a game scored nothing.
+     */
     public String stars() {
         float out = ratingOutOfFive();
         if (out < 0f) return null;
