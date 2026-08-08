@@ -244,7 +244,10 @@ public final class LibraryActivity extends Activity {
      * What the library is currently narrowed to. Session-only and deliberately
      * never written to preferences - see the design spec: a filter is a
      * question being asked now, not a preference, and a forgotten one is how a
-     * library looks broken.
+     * library looks broken. And lost on a rotation, like the tab and the
+     * folder: this activity declares no configChanges, so a rotation
+     * recreates it and onCreate rebuilds this field from nothing - the same
+     * as it always did for those two, and not worth special-casing here.
      */
     private final Filters filters = new Filters();
 
@@ -335,7 +338,7 @@ public final class LibraryActivity extends Activity {
 
     /** The sort field, its direction, list-or-grid and the filter sheet, all
      *  in one modal dialog - reached by Select or the right stick's own
-     *  click, and, since Task 8, by the toolbar's own Options button too;
+     *  click, and by the toolbar's own Options button too;
      *  see {@link OptionsDialog}. */
     private OptionsDialog optionsDialog;
 
@@ -367,11 +370,11 @@ public final class LibraryActivity extends Activity {
     private ProgressBar spinner;
     private EditText searchField;
 
-    /** The one toolbar button left now that Task 8 folded the old sort,
-     *  filter and view buttons into it - opens {@link #optionsDialog}, the
-     *  same dialog a pad already reached through Select; see {@link
-     *  #buildToolbar} and {@code OptionsDialog}'s own class comment on why
-     *  one door beats two that could drift apart. */
+    /** The one toolbar button left now that the old sort,
+     *  filter and view buttons have been folded into it - opens {@link
+     *  #optionsDialog}, the same dialog a pad already reached through
+     *  Select; see {@link #buildToolbar} and {@code OptionsDialog}'s own
+     *  class comment on why one door beats two that could drift apart. */
     private ImageButton optionsButton;
     private final List<View> tabViews = new ArrayList<>();
 
@@ -555,8 +558,8 @@ public final class LibraryActivity extends Activity {
             @Override
             public void onSortField(int index) {
                 // OptionsDialog's own SORT page now offers all five of
-                // Sorting.FIELDS, one page level under the menu Task 6 put
-                // above it - index is whichever of the five was chosen.
+                // Sorting.FIELDS, one page level under the menu above it -
+                // index is whichever of the five was chosen.
                 chooseSortField(Sorting.FIELDS[index]);
                 optionsDialog.refresh(sortFieldIndex(sort), sortDescending, grid);
             }
@@ -2138,15 +2141,6 @@ public final class LibraryActivity extends Activity {
         updateFilterChips();
         upButton.setVisibility(browsing && stack.size() > 1 ? View.VISIBLE : View.GONE);
 
-        // Filtering applies to Browse only - Favourites and Recent are
-        // already answers to a question of their own, and offering
-        // something that would narrow neither is worse than not offering it;
-        // see the design spec, "Filtering applies to Browse only". The
-        // Options button itself stays up in every tab now - Sort and View
-        // apply everywhere - so it is OptionsDialog's own Filter row that
-        // hides for this, through Callbacks.filteringAllowed() below, rather
-        // than a whole button vanishing the way the toolbar's old Filter
-        // button did.
         syncBackCallback();
         clearSearch();
         clearSelection();
@@ -2216,16 +2210,30 @@ public final class LibraryActivity extends Activity {
 
         Level level = stack.get(stack.size() - 1);
         pathLabel.setText(pathText());
-        upButton.setVisibility(stack.size() > 1 ? View.VISIBLE : View.GONE);
+
+        // A flat list is not a folder - the breadcrumb is replaced by the
+        // filter's own chips while filtering(), so nothing on screen says
+        // where Up would even go - see updateFilterChips. Hidden here, not
+        // only there: this is what runs on every reload, including the one
+        // onFiltersChanged triggers, and show()'s own assignment of this
+        // same field is always overwritten by this method a few lines later
+        // anyway.
+        upButton.setVisibility(!filtering() && stack.size() > 1 ? View.VISIBLE : View.GONE);
         syncBackCallback();
 
         // A filter asks a question about the whole collection, not about
         // whichever folder is currently on screen, so it walks the tree from
-        // here down rather than listing just this level - see filtering()
-        // and Listing.everythingUnder. Not while level.archive: an archive's
-        // own listing is already flat, and everythingUnder's walk is written
-        // in terms of folder documents, not zip entries.
+        // the root down rather than from level, the folder actually on
+        // screen - see filtering() and Listing.everythingUnder, and
+        // everythingForFacets below, which answers the same question for the
+        // filter sheet's own value lists and counts and would otherwise
+        // disagree with what this flattens from: offering "z80  47" while
+        // standing in a folder of .tap files and then showing nothing once
+        // it is chosen. Not while level.archive: an archive's own listing is
+        // already flat, and everythingUnder's walk is written in terms of
+        // folder documents, not zip entries.
         boolean flatten = filtering() && !level.archive;
+        Uri flattenFrom = stack.get(0).uri;
 
         new Thread(() -> {
             List<Entry> result = null;
@@ -2233,7 +2241,7 @@ public final class LibraryActivity extends Activity {
 
             try {
                 result = flatten
-                        ? Listing.everythingUnder(getContentResolver(), level.uri)
+                        ? Listing.everythingUnder(getContentResolver(), flattenFrom)
                         : level.archive
                                 ? Listing.archive(getContentResolver(), level.uri)
                                 : Listing.folder(getContentResolver(), level.uri);
@@ -2250,9 +2258,9 @@ public final class LibraryActivity extends Activity {
     /**
      * Off the UI thread, walks the whole store for the values a field can be
      * narrowed to, then hands them to {@link OptionsDialog}'s own menu row -
-     * the only way into the filter sheet now that Task 8 removed the
-     * toolbar's own Filter button, which used to do this same walk for its
-     * own separate door in.
+     * the only way into the filter sheet now that the toolbar's own Filter
+     * button is gone, which used to do this same walk for its own separate
+     * door in.
      *
      * @param requestToken meaningless to this screen, only to the dialog
      *                     that minted it - handed straight back to {@code
@@ -2370,13 +2378,21 @@ public final class LibraryActivity extends Activity {
                 continue;
             }
 
-            // Filtering narrows Browse only - Favourites and Recent are
-            // already an answer to a question of their own, and a filter set
-            // in Browse and left in place must not narrow them too. See the
-            // design spec, "Filtering applies to Browse only". Folders are
-            // never filtered either way - they are how you move, not what
-            // you are looking for.
-            if (tab == Tab.BROWSE && entry.kind != Entry.Kind.FOLDER
+            // filtering(), not tab == Tab.BROWSE: that plain tab check is
+            // true on every keystroke in the search box even with nothing
+            // set, which ran cachedMeta - Storage.contentFolder plus
+            // Metadata.forPath, two stats of the gamelist file - for every
+            // non-folder row on every call for no reason at all.
+            // filtering() already implies Browse and short-circuits the
+            // moment nothing is set - see that method - which removes the
+            // whole cost from the unfiltered path without changing what is
+            // shown: Favourites and Recent are already an answer to a
+            // question of their own, and a filter set in Browse and left in
+            // place must not narrow them too. See the design spec,
+            // "Filtering applies to Browse only". Folders are never filtered
+            // either way - they are how you move, not what you are looking
+            // for.
+            if (filtering() && entry.kind != Entry.Kind.FOLDER
                     && !filters.matches(entry, cachedMeta(entry, metaCache))) {
                 continue;
             }
@@ -2908,8 +2924,8 @@ public final class LibraryActivity extends Activity {
 
     /**
      * The whole of what choosing list or grid does - called only from {@link
-     * OptionsDialog}'s own {@code onViewMode} callback now that Task 8
-     * removed the toolbar's own view toggle, which used to flip to whichever
+     * OptionsDialog}'s own {@code onViewMode} callback now that the
+     * toolbar's own view toggle is gone, which used to flip to whichever
      * mode was not currently showing; the dialog's own View row names the
      * one it wants instead, since a menu row with both written out has no
      * "other one" to flip to.
@@ -2974,10 +2990,9 @@ public final class LibraryActivity extends Activity {
      * switches to it and keeps whichever direction was showing - the one
      * thing already in view before the menu opened, and so the one thing
      * neither choice should reset without being asked to. Called only from
-     * {@link OptionsDialog}'s own {@code onSortField} callback now that
-     * Task 8 removed the toolbar's own sort popup, which used to share this
-     * method with it so the two could never answer differently to the same
-     * choice.
+     * {@link OptionsDialog}'s own {@code onSortField} callback now that the
+     * toolbar's own sort popup is gone, which used to share this method with
+     * it so the two could never answer differently to the same choice.
      */
     private void chooseSortField(String field) {
         if (field.equals(sort)) {
@@ -3058,22 +3073,9 @@ public final class LibraryActivity extends Activity {
             if (!chosen.isEmpty()) parts.add(String.join(", ", chosen));
         }
 
-        if (filters.minStars() > 0f) parts.add(ratingChipLabel(filters.minStars()));
+        if (filters.minStars() > 0f) parts.add(Filters.ratingLabel(filters.minStars()));
 
         return String.join("  ·  ", parts);
-    }
-
-    /** "3+" or "4.5+" - the same shape {@code OptionsDialog.ratingLabel}
-     *  draws its own rating rows with, duplicated rather than shared since
-     *  that method is private to a dialog with no reason to widen itself
-     *  for one caller outside it. {@code float}'s own {@code toString} is
-     *  exactly this for every threshold {@link Filters#setMinStars} is ever
-     *  called with from this screen - an integer or one decimal place,
-     *  never scientific notation or a trailing zero. */
-    private static String ratingChipLabel(float stars) {
-        String number = stars == Math.rint(stars)
-                ? String.valueOf((int) stars) : String.valueOf(stars);
-        return number + "+";
     }
 
     private int pixels(int dp) {

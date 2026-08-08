@@ -561,7 +561,12 @@
     <string name="library_sort_size">Velikost</string>
     <string name="library_filter">Filtr</string>
     <string name="library_filter_none">Bez filtru</string>
-    <string name="library_filter_count">%1$d polí</string>
+    <plurals name="library_filter_count">
+        <item quantity="one">%1$d pole</item>
+        <item quantity="few">%1$d pole</item>
+        <item quantity="many">%1$d pole</item>
+        <item quantity="other">%1$d polí</item>
+    </plurals>
     <string name="library_filter_format">Formát</string>
     <string name="library_filter_genre">Žánr</string>
     <string name="library_filter_rating">Hodnocení</string>

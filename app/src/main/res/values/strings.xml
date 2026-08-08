@@ -634,8 +634,16 @@
     <!-- The gamepad menu's own Filter row, once at least one field is set -
          see OptionsDialog.filterSummary, which shows library_filter_none
          instead while nothing is. Never the fields themselves, which are
-         what tapping through to the filter sheet's own rows is for. -->
-    <string name="library_filter_count">%1$d fields</string>
+         what tapping through to the filter sheet's own rows is for.
+
+         This app's first <plurals> - scripts/check-strings.py parses only
+         <string> and <string-array>, so it silently skips this key in every
+         language rather than checking it; the translations below were
+         reviewed by hand instead. -->
+    <plurals name="library_filter_count">
+        <item quantity="one">%1$d field</item>
+        <item quantity="other">%1$d fields</item>
+    </plurals>
     <string name="library_filter_format">Format</string>
     <string name="library_filter_genre">Genre</string>
     <string name="library_filter_rating">Rating</string>

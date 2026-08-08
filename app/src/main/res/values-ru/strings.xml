@@ -561,7 +561,12 @@
     <string name="library_sort_size">Размер</string>
     <string name="library_filter">Фильтр</string>
     <string name="library_filter_none">Без фильтра</string>
-    <string name="library_filter_count">%1$d полей</string>
+    <plurals name="library_filter_count">
+        <item quantity="one">%1$d поле</item>
+        <item quantity="few">%1$d поля</item>
+        <item quantity="many">%1$d полей</item>
+        <item quantity="other">%1$d поля</item>
+    </plurals>
     <string name="library_filter_format">Формат</string>
     <string name="library_filter_genre">Жанр</string>
     <string name="library_filter_rating">Оценка</string>

@@ -561,7 +561,10 @@
     <string name="library_sort_size">Dimensione</string>
     <string name="library_filter">Filtro</string>
     <string name="library_filter_none">Nessun filtro</string>
-    <string name="library_filter_count">%1$d campi</string>
+    <plurals name="library_filter_count">
+        <item quantity="one">%1$d campo</item>
+        <item quantity="other">%1$d campi</item>
+    </plurals>
     <string name="library_filter_format">Formato</string>
     <string name="library_filter_genre">Genere</string>
     <string name="library_filter_rating">Voto</string>

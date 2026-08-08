@@ -52,19 +52,33 @@ public final class Sorting {
                                                Lookup lookup) {
         String chosen = fieldOrDefault(field);
 
+        // Only RELEASED and RATING ever look at a Meta at all - resolving one
+        // for every pair on every other field would be a lookup that never
+        // gets used, on the search box's own keystroke path besides.
+        boolean needsMeta = RELEASED.equals(chosen) || RATING.equals(chosen);
+
         return (left, right) -> {
+            // Resolved once per entry per comparison, here, and handed to
+            // both has() and compareValues() below - not resolved again by
+            // either. A caller's Lookup is only ever asked to answer the same
+            // question twice this way if it is idempotent, which lookup.of
+            // itself never promised; asking once removes the requirement
+            // rather than documenting it.
+            Meta leftMeta = needsMeta ? lookup.of(left) : null;
+            Meta rightMeta = needsMeta ? lookup.of(right) : null;
+
             // Whether a value is known is decided before direction is applied,
             // and always the same way round: descending by rating opens on the
             // best games, and ascending does not open on the ones that have no
             // rating at all. Reversing the whole comparison would do exactly
             // that.
-            boolean hasLeft = has(chosen, left, lookup);
-            boolean hasRight = has(chosen, right, lookup);
+            boolean hasLeft = has(chosen, left, leftMeta);
+            boolean hasRight = has(chosen, right, rightMeta);
 
             if (hasLeft != hasRight) return hasLeft ? -1 : 1;
             if (!hasLeft) return byName(left, right);
 
-            int order = compareValues(chosen, left, right, lookup);
+            int order = compareValues(chosen, left, right, leftMeta, rightMeta);
             if (order != 0) return descending ? -order : order;
 
             // A stable, meaningful tie-break, so two games of the same year do
@@ -73,16 +87,12 @@ public final class Sorting {
         };
     }
 
-    private static boolean has(String field, Entry entry, Lookup lookup) {
+    private static boolean has(String field, Entry entry, Meta meta) {
         switch (field) {
-            case RELEASED: {
-                Meta meta = lookup.of(entry);
+            case RELEASED:
                 return meta != null && meta.year() != null;
-            }
-            case RATING: {
-                Meta meta = lookup.of(entry);
+            case RATING:
                 return meta != null && meta.ratingOutOfFive() >= 0f;
-            }
             case FORMAT:
                 return !Filters.formatOf(entry).isEmpty();
             case SIZE:
@@ -93,7 +103,7 @@ public final class Sorting {
     }
 
     private static int compareValues(String field, Entry left, Entry right,
-                                     Lookup lookup) {
+                                     Meta leftMeta, Meta rightMeta) {
         switch (field) {
             case SIZE:
                 return Long.compare(left.size, right.size);
@@ -102,11 +112,10 @@ public final class Sorting {
                 return Filters.formatOf(left).compareTo(Filters.formatOf(right));
 
             case RELEASED:
-                return lookup.of(left).year().compareTo(lookup.of(right).year());
+                return leftMeta.year().compareTo(rightMeta.year());
 
             case RATING:
-                return Float.compare(lookup.of(left).ratingOutOfFive(),
-                                     lookup.of(right).ratingOutOfFive());
+                return Float.compare(leftMeta.ratingOutOfFive(), rightMeta.ratingOutOfFive());
 
             default:
                 return byName(left, right);

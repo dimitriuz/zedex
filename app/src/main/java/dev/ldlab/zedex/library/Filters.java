@@ -7,6 +7,7 @@ import java.util.Collections;
 import java.util.EnumMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -150,5 +151,22 @@ public final class Filters {
      *  already lowercases and already answers "" rather than null. */
     public static String formatOf(Entry entry) {
         return Types.extension(entry.name);
+    }
+
+    /**
+     * "3+" or "4.5+" - {@link Locale#getDefault()}, not a plain {@code
+     * String.valueOf}, so the decimal point reads the way {@code Meta.stars()}
+     * already renders one, in German among others. Three copies of this used
+     * to exist, one in each of {@code OptionsDialog}, {@code LibraryActivity}
+     * and {@code FilterTest} - each for its own stated reason, and each still
+     * using the locale-blind {@code String.valueOf} because three copies is
+     * three places to remember the fix. Here instead, since both app callers
+     * already look at this class for the threshold itself.
+     */
+    public static String ratingLabel(float stars) {
+        String number = stars == Math.rint(stars)
+                ? String.valueOf((int) stars)
+                : String.format(Locale.getDefault(), "%.1f", stars);
+        return number + "+";
     }
 }

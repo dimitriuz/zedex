@@ -30,8 +30,8 @@ import java.util.Set;
 /**
  * "How this list is shown": the sort field, its direction, list-or-grid, and
  * the filter sheet too - see {@code LibraryActivity}, the only thing that
- * builds one. Reached by Select or the right stick's own click, and, since
- * Task 8, by the toolbar's own Options button as well - one dialog, one door
+ * builds one. Reached by Select or the right stick's own click, and by the
+ * toolbar's own Options button as well - one dialog, one door
  * regardless of which asked, rather than the three separate toolbar buttons
  * and this dialog's own menu that used to answer the same three questions
  * twice over and could drift apart; see {@code
@@ -56,16 +56,16 @@ import java.util.Set;
  * here, on either page, and every tap commits by its own name.
  *
  * This class has four pages now rather than one flat column - see {@link
- * Page}. Task 6 put a three-row menu, {@link Page#MENU}, above what used to
+ * Page}. A three-row menu, {@link Page#MENU}, sits above what used to
  * be the whole dialog. View stayed a row on that menu rather than gaining a
  * page of its own: flipping List and Grid is a flick, not a considered
  * choice, and a page behind it would have cost three presses for something
  * that used to cost one - so choosing it flips the mode on the spot, the
  * same way a filter row commits by its own name. Sort did gain a page,
  * since five fields and a direction is a considered choice; so did the
- * filter sheet Task 5 built, reached the same way Sort's page is - through
- * MENU's own row, {@link Callbacks#openFilters} - now that Task 8 removed
- * the toolbar's own Filter button, which used to open the sheet a second
+ * filter sheet, reached the same way Sort's page is - through
+ * MENU's own row, {@link Callbacks#openFilters} - now that the
+ * toolbar's own Filter button is gone, which used to open the sheet a second
  * way, straight from {@link #show}'s own door with no menu behind it at all.
  * {@link #rebuild} is still the one place that throws away whatever rows are
  * showing and builds the ones the current page wants, whether that is the
@@ -136,7 +136,7 @@ public final class OptionsDialog {
     /**
      * Which of the dialog's own pages is showing.
      *
-     * MENU is {@link #show}'s own page now: View, Sort and, outside Browse,
+     * MENU is {@link #show}'s own page now: View, Sort and, in Browse,
      * Filter, each naming what it is currently set to so checking costs a
      * glance rather than a page. View has no page of its own - activating
      * that row flips List and Grid on the spot, the way a filter row commits
@@ -263,7 +263,7 @@ public final class OptionsDialog {
 
     /**
      * Builds and shows the dialog, opening on {@link Page#MENU} - the
-     * three-row menu Task 6 put above what {@code sortIndex}, {@code
+     * three-row menu that sits above what {@code sortIndex}, {@code
      * descending} and {@code grid} used to open directly. The field that is
      * sorting is a row inside {@link Page#SORT} now, not on the page that
      * opens, so the cursor starts on MENU's own first row rather than on it;
@@ -272,6 +272,14 @@ public final class OptionsDialog {
      */
     public void show(int sortIndex, boolean descending, boolean grid) {
         if (dialog != null) return;
+
+        // Bumped here too, not just when Filter or Sort is tapped from MENU -
+        // see enterFiltersFromMenu's own comment on filterRequestToken. A
+        // Facets walk kicked off from before a dismiss can still be in
+        // flight when this reopens the dialog fresh; without this, that
+        // stale answer would match the request token a brand new MENU page
+        // never asked for and force it straight to FILTER.
+        filterRequestToken++;
 
         this.sortIndex = sortIndex;
         this.descending = descending;
@@ -284,8 +292,8 @@ public final class OptionsDialog {
 
     /**
      * The filter sheet: five fields, each opening the values the collection
-     * actually has. The only door in now that Task 8 removed the toolbar's
-     * own Filter button - reached from {@link Page#MENU}'s own Filter row by
+     * actually has. The only door in now that the toolbar's own Filter
+     * button is gone - reached from {@link Page#MENU}'s own Filter row by
      * way of {@link Callbacks#openFilters}, once {@code LibraryActivity} has
      * walked the store for the values a field can be narrowed to; that walk
      * is why this cannot finish inside {@link Callbacks#openFilters} itself
@@ -522,6 +530,13 @@ public final class OptionsDialog {
                 cursor.release();
                 cursor = null;
                 dialog = null;
+
+                // Same reasoning as show()'s own bump: a Facets walk asked
+                // for from this very dialog can still be in flight after it
+                // is dismissed, and a stale answer landing on a freshly
+                // reopened one must not match filterRequestToken and force
+                // it to FILTER.
+                filterRequestToken++;
             });
             dialog.setContentView(column, new ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -565,7 +580,7 @@ public final class OptionsDialog {
      * Sort and Filter are genuinely considered choices - several fields, a
      * direction, five filterable fields of their own - so they still open a
      * page: {@link #buildSortPage} is what the old flat column's first half
-     * became, and {@link #buildFilterPage} is Task 5's own sheet, reached
+     * became, and {@link #buildFilterPage} is the filter sheet, reached
      * here through {@link Callbacks#openFilters} rather than built directly,
      * since the values a field can be narrowed to are not known yet - see
      * that callback's own comment.
@@ -600,7 +615,7 @@ public final class OptionsDialog {
         // of their own, and a row that could only ever do nothing there is
         // worse than one that is simply not offered - the same choice
         // LibraryActivity made for the toolbar's own Filter button before
-        // Task 8 folded it into this menu.
+        // it was folded into this menu.
         if (callbacks.filteringAllowed()) {
             addRow(column, menuRow(R.string.library_filter, filterSummary()),
                     () -> callbacks.openFilters(++filterRequestToken));
@@ -627,7 +642,8 @@ public final class OptionsDialog {
         int count = filters.activeFieldCount();
         return count == 0
                 ? activity.getString(R.string.library_filter_none)
-                : activity.getString(R.string.library_filter_count, count);
+                : activity.getResources().getQuantityString(
+                        R.plurals.library_filter_count, count, count);
     }
 
     /** {@link Page#SORT}: a back row to MENU, then all five of {@code
@@ -655,7 +671,7 @@ public final class OptionsDialog {
      *
      * The very top row is a clickable "‹ Filter", the same shape {@link
      * #buildValuesPage}'s own back row is - MENU is the only door in now
-     * that Task 8 removed the toolbar's own Filter button, so this page
+     * that the toolbar's own Filter button is gone, so this page
      * always has somewhere to go back to.
      */
     private void buildFilterPage(LinearLayout column) {
@@ -768,7 +784,7 @@ public final class OptionsDialog {
         for (float threshold : thresholds) {
             String label = threshold <= 0f
                     ? activity.getString(R.string.library_filter_any_rating)
-                    : ratingLabel(threshold);
+                    : Filters.ratingLabel(threshold);
 
             // == rather than a tolerance: every threshold this row can ever
             // set is one of these five literals, so what minStars() reads
@@ -856,7 +872,7 @@ public final class OptionsDialog {
 
         if (row == FilterRow.RATING) {
             return filters.minStars() <= 0f
-                    ? name : name + " · " + ratingLabel(filters.minStars());
+                    ? name : name + " · " + Filters.ratingLabel(filters.minStars());
         }
 
         Set<String> chosen = filters.chosen(fieldOf(row));
@@ -883,17 +899,6 @@ public final class OptionsDialog {
             case PUBLISHER: return Filters.Field.PUBLISHER;
             default: return null;
         }
-    }
-
-    /** "3+" or "3.5+" - {@code float}'s own {@code toString} is exactly this
-     *  for every threshold {@link #buildRatingRows} ever passes it, an
-     *  integer or one decimal place, never scientific notation or a
-     *  trailing zero. */
-    private static String ratingLabel(float stars) {
-        String number = stars == Math.rint(stars)
-                ? String.valueOf((int) stars)
-                : String.valueOf(stars);
-        return number + "+";
     }
 
     private TextView addRow(LinearLayout column, String label, Runnable action) {
@@ -948,7 +953,7 @@ public final class OptionsDialog {
      * These five rows are {@code Sorting.FIELDS} in its own order - name,
      * size, released, format, rating - matching {@code
      * LibraryActivity.sortFieldIndex} exactly, all five offered here since
-     * Task 6 gave the sort fields a page of their own with room for them.
+     * the sort fields gained a page of their own with room for them.
      * Deliberately not "date", which named this row before {@code
      * library_sort_date} existed at all - see CLAUDE.md on a stored sort
      * field this build no longer reads. Also used, with {@code index ==

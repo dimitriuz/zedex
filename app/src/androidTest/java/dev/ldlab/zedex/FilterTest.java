@@ -43,6 +43,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -51,7 +53,7 @@ import java.util.regex.Pattern;
 
 /**
  * The first instrumentation test to drive the library screen at all, rather
- * than the machine {@link Emulator} exists for - see Task 7's own brief.
+ * than the machine {@link Emulator} exists for.
  * {@code LibraryActivity} never touches Fuse, so this does not use {@link
  * Emulator} either: there is no keyboard to find, no boot to wait through,
  * and starting the activity directly is the same door {@code
@@ -60,9 +62,9 @@ import java.util.regex.Pattern;
  * Covers the half of "one state behind one dialog" a device can actually
  * exercise without a controller: setting a filter from the toolbar's own
  * Options button - {@link dev.ldlab.zedex.library.ui.OptionsDialog}'s own
- * menu, the same dialog a pad's Select opens, since Task 8 folded the
- * toolbar's separate sort, filter and view buttons into that one door -
- * narrows and flattens Browse, the chips say what is on, an empty result
+ * menu, the same dialog a pad's Select opens, now that the toolbar's
+ * separate sort, filter and view buttons have been folded into that one
+ * door - narrows and flattens Browse, the chips say what is on, an empty result
  * says a filter did it rather than looking like a folder that lost its
  * games, and clearing puts the breadcrumb back. Driving the dialog with an
  * actual pad needs real hardware - {@link
@@ -118,6 +120,24 @@ public class FilterTest {
      *  is asked for alongside it. */
     private String emptyGenre;
 
+    /**
+     * The folder names to tap, in order, to reach a folder that is not on
+     * {@link #nestedGameName}'s own path at all - see {@link
+     * #filterFlattensFromRootRatherThanCurrentFolder}, the one test that
+     * walks this chain first: flattening from wherever Browse happens to be
+     * standing, rather than from the root, could never find {@link
+     * #nestedGameName} once this folder - not one of its own ancestors - is
+     * what is on screen.
+     *
+     * Not necessarily a single root-level folder: on the collection this was
+     * exercised against, the root holds exactly one folder at all, and that
+     * one *is* {@link #nestedGameName}'s own ancestor, so there is nothing to
+     * diverge from at the root. The chain instead follows {@link
+     * #nestedGameName}'s own path down until a level actually offers a
+     * sibling folder to step sideways into - see the walk in {@link #setUp}.
+     */
+    private final List<String> pathToOtherFolder = new ArrayList<>();
+
     @Before
     public void setUp() throws IOException {
         context = InstrumentationRegistry.getInstrumentation().getTargetContext();
@@ -154,6 +174,7 @@ public class FilterTest {
 
         Set<String> realGenres = new LinkedHashSet<>();
         String nested = null;
+        List<String> nestedFolderChain = null;
 
         for (Entry entry : allFiles) {
             String relativePath = Metadata.relativePath(context, entry.uri);
@@ -175,12 +196,57 @@ public class FilterTest {
                     && withoutLeadingDot.contains("/")) {
                 nested = showScrapedNames && meta.name != null && !meta.name.isEmpty()
                         ? meta.name : entry.name;
+
+                // Every folder name between the root and the game itself, in
+                // order - the game's own filename is the last segment, and is
+                // dropped: it is never a folder to tap through.
+                List<String> segments = new ArrayList<>(Arrays.asList(withoutLeadingDot.split("/")));
+                segments.remove(segments.size() - 1);
+                nestedFolderChain = segments;
             }
         }
 
         assumeTrue("no " + commonestGenre + " game lives in a subfolder - "
                    + "nothing to prove flattening with", nested != null);
         nestedGameName = nested;
+
+        // Follows nestedFolderChain down from the root, one real Listing.folder
+        // query per level - the same call load() itself makes - until a level
+        // offers a folder that is not the one on nestedGameName's own path.
+        // That folder is where the chain stops: everything walked through to
+        // reach it goes in pathToOtherFolder too, since the test has to tap
+        // through each of those in turn to get there.
+        Uri currentUri = Listing.root(Uri.parse(tree));
+        boolean diverged = false;
+
+        for (String expected : nestedFolderChain) {
+            List<Entry> children = Listing.folder(context.getContentResolver(), currentUri);
+
+            Entry onPath = null;
+            String sibling = null;
+            for (Entry candidate : children) {
+                if (candidate.kind != Entry.Kind.FOLDER) continue;
+                if (candidate.name.equals(expected)) {
+                    onPath = candidate;
+                } else if (sibling == null) {
+                    sibling = candidate.name;
+                }
+            }
+
+            if (sibling != null) {
+                pathToOtherFolder.add(sibling);
+                diverged = true;
+                break;
+            }
+
+            if (onPath == null) break; // the chain came from a real file - should not happen
+            pathToOtherFolder.add(expected);
+            currentUri = onPath.uri;
+        }
+
+        assumeTrue("every folder between the root and \"" + nestedGameName
+                   + "\" has nothing else in it - nowhere to walk into instead",
+                   diverged);
 
         // Facets.of ranks every genre the store has ever seen, real file or
         // not - see LibraryActivity.openFilterSheet's own comment on where
@@ -266,6 +332,49 @@ public class FilterTest {
                       device.wait(Until.findObject(By.text("/")), FIND));
     }
 
+    /**
+     * {@code LibraryActivity.load} flattens from the root down, not from
+     * whichever folder happens to be on screen - the same root {@code
+     * everythingForFacets} already walks to build the sheet's own value
+     * lists and counts. Walking {@link #pathToOtherFolder} first is what
+     * tells the two apart: it ends on a folder that is not an ancestor of
+     * {@link #nestedGameName} at all, so a flatten scoped to the folder on
+     * screen can never find it, while one scoped to the root always does.
+     *
+     * Also covers the Up chevron: it has somewhere to go while standing in
+     * a folder unfiltered, and nowhere sensible once the breadcrumb is
+     * replaced by the filter's own chips, since a flat list is not a
+     * folder and nothing else on screen would say where Up had taken you.
+     */
+    @Test
+    public void filterFlattensFromRootRatherThanCurrentFolder() {
+        enterFolder(pathToOtherFolder);
+
+        assertNotNull("the Up chevron did not appear after walking into "
+                      + pathToOtherFolder,
+                      device.wait(Until.findObject(
+                              By.desc(context.getString(R.string.library_up))), FIND));
+
+        openFilterSheet();
+        selectGenre(commonestGenre);
+        dismissFilterSheet();
+
+        assertTrue("filtering from inside " + pathToOtherFolder + " did not reach \""
+                   + nestedGameName + "\" - the walk is scoped to whichever folder is "
+                   + "on screen rather than to the root",
+                   scrollToText(nestedGameName));
+
+        assertNull("the Up chevron is still showing while a filter has flattened the list",
+                   device.wait(Until.findObject(
+                           By.desc(context.getString(R.string.library_up))), GLANCE));
+
+        tapClearChip();
+
+        assertNotNull("the Up chevron did not come back once the filter was cleared",
+                      device.wait(Until.findObject(
+                              By.desc(context.getString(R.string.library_up))), FIND));
+    }
+
     // --- getting onto the screen ---------------------------------------------
 
     /**
@@ -290,13 +399,23 @@ public class FilterTest {
                 Until.findObject(By.desc(context.getString(R.string.library_options))), FIND));
     }
 
+    /**
+     * Walks Browse down through a chain of folders, tapping each by its own
+     * name in turn - a folder row shows exactly {@code entry.name}, scraped
+     * or not, since {@code EntryAdapter} only ever replaces a file's title,
+     * never a folder's; see that class's own {@code onBindViewHolder}.
+     */
+    private void enterFolder(List<String> names) {
+        for (String name : names) tapExactText(name);
+    }
+
     // --- the filter sheet ------------------------------------------------------
 
     /**
      * Taps the toolbar's own Options button, then MENU's own Filter row -
-     * the one door into the filter sheet since Task 8 removed the toolbar's
-     * separate Filter button; see {@code LibraryActivity.buildToolbar} and
-     * {@code OptionsDialog.buildMenuPage}.
+     * the one door into the filter sheet now that the toolbar's own
+     * separate Filter button is gone; see {@code LibraryActivity.buildToolbar}
+     * and {@code OptionsDialog.buildMenuPage}.
      */
     private void openFilterSheet() {
         UiObject2 button = device.wait(
@@ -350,17 +469,7 @@ public class FilterTest {
 
     private void selectRating(float stars) {
         tapExactText(context.getString(R.string.library_filter_rating));
-        tapExactText(ratingLabel(stars));
-    }
-
-    /** "3+" or "4.5+" - the same shape {@code OptionsDialog.ratingLabel}
-     *  draws its own rows with; duplicated rather than shared since that
-     *  method is private to a dialog with no reason to widen itself for a
-     *  test outside it. */
-    private static String ratingLabel(float stars) {
-        String number = stars == Math.rint(stars)
-                ? String.valueOf((int) stars) : String.valueOf(stars);
-        return number + "+";
+        tapExactText(Filters.ratingLabel(stars));
     }
 
     private void tapExactText(String text) {
