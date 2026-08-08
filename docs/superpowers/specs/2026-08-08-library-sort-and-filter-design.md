@@ -28,8 +28,8 @@ worth playing" means knowing which they are already.
 existed, and it is the one nobody asked for. See *Migration* — the preference
 may still say `date`.
 
-**Filtering** is new: five fields, reachable from a `Filter` button beside
-`Sort`.
+**Filtering** is new: five fields, reached from the options popup — see *The
+options popup becomes three pages* below.
 
 | Field | Shape | Distinct values in the reference collection |
 |---|---|---|
@@ -49,6 +49,33 @@ know which other genre it was filed beside.
 Filters combine **AND across fields, OR within a field** — `Format ∈ {tap, tzx}`
 AND `Genre ∈ {Platform}`. That is the combination people actually want and the
 only one worth the ambiguity of explaining.
+
+## The options popup becomes three pages
+
+The popup behind the toolbar's sort button is one flat column today: the sort
+fields, then List and Grid, with nothing saying which group a row belongs to.
+Adding five filter fields to that would make a list of a dozen unlabelled rows.
+
+It becomes a menu of three, each opening a page of its own:
+
+```
+View   ▸        List · Grid
+Sort   ▸        Name · Size · Released · Format · Rating, and the direction
+Filter ▸        Format · Genre · Rating · Developer · Publisher
+```
+
+Each page has a way back to the three, and Filter's own rows open one level
+deeper into a value list. That is the same shape the emulator's ☰ sheet already
+uses, and CLAUDE.md records the rule it follows: a row that was a dialog is a
+page now, and it commits by its own name rather than by an OK button.
+
+Each of the three says what it is currently set to on its own row — `Sort ▸
+Rating, highest first` — so the common case of checking without changing costs
+one tap rather than two. Filter says how many fields are set, or nothing when
+none are.
+
+The toolbar's existing buttons are unchanged: search, the popup, and the
+list/grid toggle that already flips the view directly without opening anything.
 
 ## Behaviour
 
@@ -95,8 +122,11 @@ spread through the listing code.
 distinct values and counts per field. One walk, off the UI thread, feeding every
 list in the filter sheet.
 
-**`library/ui/OptionsDialog`** already builds a titled list of choosable rows for
-Sort. The filter sheet is a second use of it, not a second widget.
+**`library/ui/OptionsDialog`** grows the three pages and the way back between
+them. It already builds a column of choosable rows and already knows how to
+show which one is current; what it does not have is a notion of depth, and that
+is what this adds. The filter value lists are the same row-building code one
+level further in, not a second widget.
 
 **`screen/LibraryActivity`** gains a `Filters` field, a call to it where the
 listing is assembled, and the chip row. It does not gain the matching logic. The
@@ -125,19 +155,21 @@ Worth pinning:
 - a filter matching nothing returns empty rather than everything
 
 Device-level checks stay in the instrumentation suite: that the chips appear,
-that clearing restores the folder you were in, and that the stored-preference
-migration below does not leave a blank sort row.
+that clearing restores the folder you were in, that each of the three pages
+opens and goes back, and that an unrecognised stored sort field does not leave a
+blank row.
 
-## Migration
+## An unrecognised stored sort
 
-`librarySort` may already hold `date` on any device where it was chosen. The
-option is going away, so the stored value has to fall back to `Name` rather than
-select nothing — a `ListPreference`-shaped hazard this codebase has met before,
-where a stored value with no matching entry renders blank and tells the user
-nothing. `scripts/check-prefs.py` still applies: `librarySort` is written as a
-String and must stay one.
+There is no migration to write: nothing is publicly released, so no device holds
+a `librarySort` this build cannot read except a bench that chose the old file
+date.
 
-No migration is needed for the new sorts or for filters: absent means default.
+The fallback matters anyway, as correctness rather than as a migration story: a
+stored sort field that no longer exists must resolve to Name, not to nothing.
+This codebase has drawn a blank settings row exactly that way before, from a
+stored value with no matching entry. `scripts/check-prefs.py` still applies —
+`librarySort` is written as a String and must stay one.
 
 ## Decisions, and what they were chosen against
 
@@ -156,6 +188,11 @@ finding one.
 
 **File date removed rather than renamed.** Renaming it to "File date" would have
 kept a sort nobody asked for and cost nine translations to relabel.
+
+**Three pages rather than one longer list.** Sort and view already share an
+unlabelled column; five filter fields would have made it a dozen rows with no
+grouping. Pages also give each group somewhere to say what it is currently set
+to.
 
 ## Not in this change
 
