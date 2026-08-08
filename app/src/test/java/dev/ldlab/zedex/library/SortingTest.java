@@ -101,6 +101,14 @@ public class SortingTest {
                 sorted(Sorting.RELEASED, true, file("undated", 1), file("dated", 1)));
     }
 
+    @Test
+    public void unknownSizeSortsLastToo() {
+        assertEquals(Arrays.asList("sized", "unsized"),
+                sorted(Sorting.SIZE, false, file("unsized", -1), file("sized", 100)));
+        assertEquals(Arrays.asList("sized", "unsized"),
+                sorted(Sorting.SIZE, true, file("unsized", -1), file("sized", 100)));
+    }
+
     /** A stored field this build no longer has must not select nothing. */
     @Test
     public void anUnknownStoredFieldFallsBackToName() {

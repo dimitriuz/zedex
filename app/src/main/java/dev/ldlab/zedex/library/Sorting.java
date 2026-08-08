@@ -85,8 +85,10 @@ public final class Sorting {
             }
             case FORMAT:
                 return !Filters.formatOf(entry).isEmpty();
+            case SIZE:
+                return entry.size >= 0;
             default:
-                return true;   // a name and a size are always known
+                return true;   // a name is always known
         }
     }
 
