@@ -1,7 +1,6 @@
 package dev.ldlab.zedex.library.ui;
 
 import dev.ldlab.zedex.library.meta.Artwork;
-import dev.ldlab.zedex.library.meta.Meta;
 import dev.ldlab.zedex.library.meta.Metadata;
 
 import android.content.Context;
@@ -15,15 +14,18 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * The scraped facts and the picture for one row, resolved and decoded
- * together - both come from the same path, and the same background thread
- * reaches both in one trip. See docs/LIBRARY.md, "the second pull request:
- * linking to ES-DE": metadata is copied into a store of our own, but artwork
- * stays where ES-DE put it and is resolved fresh each time it is drawn,
- * which is exactly what {@link Metadata#forPath} and {@link Artwork#picture}
- * do - cheaply or not, this class does not assume, and keeps both off the UI
- * thread either way. A picture is also a real decode from a SAF document,
- * which is never cheap.
+ * The picture for one row, resolved and decoded off the UI thread.
+ *
+ * The facts used to come back through here as well, and no longer do:
+ * {@link Metadata} is an in-memory map once it has been read, so a name is a
+ * hash lookup and asking a worker for it only meant every row was drawn with
+ * its filename and rewritten a moment later. Callers read the words
+ * themselves; what is left here needs a thread because it needs decoding.
+ *
+ * See docs/LIBRARY.md, "the second pull request: linking to ES-DE": metadata
+ * is copied into a store of our own, but artwork stays where ES-DE put it and
+ * is resolved fresh each time it is drawn - {@link Artwork#picture} - and a
+ * picture is a real decode from a SAF document, which is never cheap.
  *
  * What this answers is cached, hit and miss alike, keyed by the path and the
  * size asked for. Most of a folder like this one is unscraped - on the
@@ -34,12 +36,9 @@ import java.util.concurrent.Executors;
  * cache a few bytes, the same structure as a hit, rather than a second one
  * to keep in step - see {@link Result}.
  *
- * The whole {@link Meta} is handed back rather than just a name, so both a
- * row - which only ever reads {@code meta.name} - and the pane - which reads
- * the rest of it too - are answered by the one resolve; a row's own bind
- * asks at a small size, the pane's own selection at a larger one, and the
- * key already tells the two apart, so both sizes for the same path sit in
- * the cache at once without one evicting the other.
+ * A row's own bind asks at a small size and the pane's selection at a larger
+ * one; the key carries the size, so both for the same path sit in the cache
+ * at once without one evicting the other.
  *
  * {@link #forget} answers a folder changing under a resolve still in
  * flight; {@link #clear} answers the store itself no longer being
@@ -49,13 +48,6 @@ import java.util.concurrent.Executors;
  */
 public final class Scraped {
 
-    /** Told the answer once it is ready - always on the main thread, so it
-     *  can be drawn straight into a view. Either may be null: nothing known,
-     *  no picture, or neither - which is what most rows in an unscraped
-     *  collection answer, and is meant to look exactly as it always has. */
-    public interface Callback {
-        void onReady(Meta meta, Bitmap picture);
-    }
 
     /** The pane's own use of {@link #loadVideo} - a video is never decoded
      *  or cached here the way a picture is, since {@code VideoView} does its
@@ -74,12 +66,17 @@ public final class Scraped {
     /** What one path answered, cached as a single unit rather than two - the
      *  facts cost the cache nothing worth measuring, so there is no reason
      *  to track them apart from the picture they were resolved alongside. */
+    /**
+     * A decoded picture, or the absence of one.
+     *
+     * A wrapper rather than the Bitmap itself so that "asked, and there is
+     * none" is cacheable: most of a collection has no artwork, and a null in
+     * the map is indistinguishable from a miss.
+     */
     private static final class Result {
-        final Meta meta;
         final Bitmap picture;
 
-        Result(Meta meta, Bitmap picture) {
-            this.meta = meta;
+        Result(Bitmap picture) {
             this.picture = picture;
         }
     }
@@ -131,11 +128,10 @@ public final class Scraped {
         cache = new LruCache<String, Result>(Math.max(maxBytes, 1)) {
             @Override
             protected int sizeOf(String key, Result value) {
-                // Meta is a handful of short strings, not worth measuring; a
-                // miss - nothing known, no picture, which is the common
-                // answer here - is as cheap as this guess says, so thousands
-                // of them cost the cache almost nothing. A picture's own
-                // byte count is what actually fills the budget.
+                // A miss - no picture, which is the common answer here - is
+                // as cheap as this guess says, so thousands of them cost the
+                // cache almost nothing. A picture's own byte count is what
+                // actually fills the budget.
                 return value.picture != null ? value.picture.getByteCount() : 64;
             }
         };
@@ -149,30 +145,20 @@ public final class Scraped {
      * has moved on since it was asked, in which case the answer is dropped
      * rather than delivered late into whatever is on screen now.
      *
-     * The picture alone, for a caller that already has the facts.
-     *
-     * A row's words come from {@link dev.ldlab.zedex.library.meta.Metadata}
-     * directly now - a map read, once the store has been loaded - so sending
-     * them through here as well meant a row drawn with its filename and
-     * rewritten with its name a moment later. What is left needs a thread
-     * because it needs decoding.
+     * The picture alone. The facts used to come back through here too, and
+     * that was the whole of the flicker: a row's name is a map read once
+     * Metadata has been loaded, so sending it to a thread meant every row was
+     * drawn with its filename and rewritten a moment later. Callers read the
+     * words themselves now; only this needs a thread, because only this needs
+     * decoding.
      */
     public void picture(Context context, String relativePath, int targetPx,
                         PictureCallback callback) {
-        load(context, relativePath, targetPx, (meta, picture) -> callback.onReady(picture));
-    }
-
-    /** @see #picture */
-    public interface PictureCallback {
-        void onReady(Bitmap picture);
-    }
-
-    public void load(Context context, String relativePath, int targetPx, Callback callback) {
         String key = relativePath + '@' + targetPx;
 
         Result cached = cache.get(key);
         if (cached != null) {
-            callback.onReady(cached.meta, cached.picture);
+            callback.onReady(cached.picture);
             return;
         }
 
@@ -180,7 +166,6 @@ public final class Scraped {
         Context app = context.getApplicationContext();
 
         executor.execute(() -> {
-            Meta meta = resolveMeta(app, relativePath);
             Bitmap picture = decode(app, relativePath, targetPx);
 
             // Checked before the cache is written, not after. The key is a
@@ -191,10 +176,15 @@ public final class Scraped {
             // the generation without evicting, so this is the only guard.
             if (atGeneration != generation) return; // the folder moved on
 
-            cache.put(key, new Result(meta, picture));
+            cache.put(key, new Result(picture));
 
-            main.post(() -> callback.onReady(meta, picture));
+            main.post(() -> callback.onReady(picture));
         });
+    }
+
+    /** @see #picture */
+    public interface PictureCallback {
+        void onReady(Bitmap picture);
     }
 
     /**
@@ -268,17 +258,6 @@ public final class Scraped {
     public void clear() {
         cache.evictAll();
         forget();
-    }
-
-    private static Meta resolveMeta(Context context, String relativePath) {
-        try {
-            return Metadata.forPath(context, relativePath);
-        } catch (Exception e) {
-            // Metadata.forPath answering badly is not this row's fault to
-            // crash over - nothing known is what "unscraped" already looks
-            // like.
-            return null;
-        }
     }
 
     private static Bitmap decode(Context context, String relativePath, int targetPx) {

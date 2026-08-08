@@ -1995,15 +1995,14 @@ public final class LibraryActivity extends Activity {
             return;
         }
 
-        // The gallery resolves and shows its own pictures and video now -
-        // see Gallery.load - so this call is left only with the words to
-        // ask the store for; the picture Scraped#load also decodes here is
-        // never assigned anywhere, kept only because this is the same
-        // resolve every row's own thumbnail shares the cache of.
-        adapter.scraped().load(this, relativePath, paneTargetPx(), (meta, picture) -> {
-            if (token != paneToken) return; // the selection moved on
-            applyPaneMeta(meta);
-        });
+        // Read here and now. The gallery resolves and shows its own pictures
+        // and video, so what was left of this call was the words - and those
+        // are a map read once Metadata has been loaded, so asking a worker
+        // for them is what made the pane show a filename and then replace it
+        // with the game's name a moment later. Null until the store lands on
+        // a cold start, and loadMetadataInBackground calls updatePane again
+        // when it does.
+        applyPaneMeta(Metadata.forPath(this, relativePath));
 
         // Beside Play and the magnifier, but only once this answers - see
         // paneManualButton's own comment for why the round trip has to

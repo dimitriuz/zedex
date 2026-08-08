@@ -14,7 +14,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -144,57 +150,130 @@ public final class Listing {
      * provider chases literally, say) cannot hang the screen.
      *
      * A subfolder below {@code folder} that cannot be read - see {@link
-     * #descend} - is logged and skipped rather than losing everything
+     * #submitWalk} - is logged and skipped rather than losing everything
      * already found; only {@code folder} itself, the one folder the caller
      * actually chose, fails this method outright.
+     *
+     * The folders below it are queried several at a time - see {@link
+     * #WALK_THREADS} - so the entries come back in whatever order the threads
+     * produced them.
      *
      * @throws IOException if {@code folder} itself cannot be queried - a lost
      *                      grant, most likely, and the caller's to explain.
      */
     public static List<Entry> everythingUnder(ContentResolver resolver, Uri folder)
             throws IOException {
-        List<Entry> found = new ArrayList<>();
+        // The one folder the caller actually chose, queried on this thread so
+        // that a lost grant is still this method's IOException to throw.
+        List<Entry> top = folder(resolver, folder);
 
-        for (Entry entry : folder(resolver, folder)) {
-            if (entry.kind == Entry.Kind.FOLDER) {
-                descend(resolver, entry.uri, found, 1);
-            } else {
-                found.add(entry);
-            }
+        List<Entry> found = Collections.synchronizedList(new ArrayList<>());
+        List<Uri> subfolders = new ArrayList<>();
+
+        for (Entry entry : top) {
+            if (entry.kind == Entry.Kind.FOLDER) subfolders.add(entry.uri);
+            else found.add(entry);
         }
+
+        if (!subfolders.isEmpty()) walkInParallel(resolver, subfolders, found);
 
         return found;
     }
 
     /**
-     * One level of {@link #everythingUnder}'s walk below the folder the
-     * caller actually chose. Flattening queries far more folders in one
-     * operation than a single-level listing ever does, so the odds of one
-     * being unreadable - a permission that changed underneath, a removed SD
-     * card, anything content-provider shaped - are materially higher; losing
-     * the whole flattened list to it would read exactly like "nothing matches
-     * this filter", the one kind of wrong answer this app has shipped twice
-     * before because an empty result and a broken one looked identical. So
-     * this catches and logs instead, the same call {@link
-     * dev.ldlab.zedex.screen.StartPanel#collectRoms} already makes for the
-     * same reason, and carries on with whatever else the walk still has.
+     * How many folders are queried at once.
+     *
+     * This walk is not doing arithmetic - it is asking another process a
+     * question per folder and waiting for the answer, so the thread spends
+     * nearly all its time blocked on a binder round trip and more threads
+     * than cores is the right shape. Measured serially at 1.4 seconds for 259
+     * files on the collection this was built against, which was by a wide
+     * margin the slowest thing the library screen did.
+     *
+     * Eight rather than more: a documents provider is a process too, and
+     * queueing forty concurrent queries at it buys nothing once its own
+     * threads are busy.
      */
-    private static void descend(ContentResolver resolver, Uri folder, List<Entry> found,
-                                 int depth) {
-        if (depth > MAX_FLATTEN_DEPTH) return;
+    private static final int WALK_THREADS = 8;
+
+    /**
+     * Queries the folders below the chosen one, several at a time.
+     *
+     * Each folder's own subfolders are submitted as they are discovered, so
+     * the pool stays fed rather than finishing one level before starting the
+     * next. {@code outstanding} counts tasks that have been submitted and not
+     * finished; it is incremented before a task is submitted and decremented
+     * in its finally, so it can only reach zero once nothing is left to
+     * submit - which is what tells this method the walk is done.
+     *
+     * The order of {@code found} is whatever the threads happened to produce.
+     * Nothing downstream depends on it: the list screen sorts, and the filter
+     * sheet counts.
+     */
+    private static void walkInParallel(ContentResolver resolver, List<Uri> subfolders,
+                                       List<Entry> found) {
+        ExecutorService pool = Executors.newFixedThreadPool(WALK_THREADS);
+        AtomicInteger outstanding = new AtomicInteger();
+        CountDownLatch done = new CountDownLatch(1);
 
         try {
-            for (Entry entry : folder(resolver, folder)) {
-                if (entry.kind == Entry.Kind.FOLDER) {
-                    descend(resolver, entry.uri, found, depth + 1);
-                } else {
-                    found.add(entry);
-                }
+            for (Uri subfolder : subfolders) {
+                submitWalk(pool, resolver, subfolder, 1, found, outstanding, done);
             }
-        } catch (IOException e) {
-            Log.w(TAG, "cannot list " + folder + " while flattening", e);
+
+            // Two minutes is not a budget, it is a backstop: a provider that
+            // never answers must not leave this thread parked for ever.
+            // MAX_FLATTEN_DEPTH already bounds a pathological tree.
+            done.await(2, TimeUnit.MINUTES);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } finally {
+            pool.shutdownNow();
         }
     }
+
+    private static void submitWalk(ExecutorService pool, ContentResolver resolver,
+                                   Uri folder, int depth, List<Entry> found,
+                                   AtomicInteger outstanding, CountDownLatch done) {
+        if (depth > MAX_FLATTEN_DEPTH) return;
+
+        // Before the submit, not inside the task: a child counted only once
+        // its task started could let the count reach zero while that child
+        // was still queued, and the walk would finish early.
+        outstanding.incrementAndGet();
+
+        try {
+            pool.execute(() -> {
+                try {
+                    for (Entry entry : folder(resolver, folder)) {
+                        if (entry.kind == Entry.Kind.FOLDER) {
+                            submitWalk(pool, resolver, entry.uri, depth + 1,
+                                       found, outstanding, done);
+                        } else {
+                            found.add(entry);
+                        }
+                    }
+                } catch (IOException e) {
+                    // One unreadable subfolder does not lose the rest of the
+                    // walk. Flattening queries far more folders at once than a
+                    // single-level listing does, so the odds of one being
+                    // unreadable - a permission changed underneath, a removed
+                    // card - are materially higher, and losing everything to
+                    // it would read exactly like "nothing matches this
+                    // filter": the one kind of wrong answer this app has
+                    // shipped twice before, because an empty result and a
+                    // broken one look identical.
+                    Log.w(TAG, "cannot list " + folder + " while flattening", e);
+                } finally {
+                    if (outstanding.decrementAndGet() == 0) done.countDown();
+                }
+            });
+        } catch (java.util.concurrent.RejectedExecutionException e) {
+            // The pool is going away - shutdownNow from the backstop above.
+            if (outstanding.decrementAndGet() == 0) done.countDown();
+        }
+    }
+
 
     /**
      * The supported entries inside a {@code .zip}, A-Z case-insensitively.
