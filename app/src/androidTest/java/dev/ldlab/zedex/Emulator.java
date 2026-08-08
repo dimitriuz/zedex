@@ -126,7 +126,11 @@ final class Emulator {
         // library has tests of its own.
         Intent intent = new Intent(context, EmulatorActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-        context.startActivity(intent);
+
+        // On the display this test can see - see Screen. Left to itself the
+        // picture ends up on a bench's second display and borderColour() reads
+        // the other screen's launcher: white, where the test wanted a border.
+        context.startActivity(intent, Screen.here());
 
         device.wait(Until.hasObject(By.pkg(pkg).depth(0)), BOOT);
 
@@ -142,6 +146,8 @@ final class Emulator {
 
         assertNotNull("the keyboard never appeared",
                       device.wait(Until.findObject(By.desc("ENTER")), BOOT));
+
+        Screen.assertHere();
 
         // A dialog an earlier test left open would swallow the first taps.
         for (int i = 0; i < 4 && tapIfPresent("Cancel"); i++) {

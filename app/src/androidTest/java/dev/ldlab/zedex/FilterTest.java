@@ -49,6 +49,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.IntPredicate;
 import java.util.regex.Pattern;
 
 /**
@@ -92,6 +93,9 @@ public class FilterTest {
     private static final long GLANCE = 1_000;
 
     private static final long SETTLE = 400;
+
+    /** How often awaitRowCount asks the adapter again. */
+    private static final long POLL = 100;
 
     /** Scoped rather than a plain {@code scrollable(true)}: the pane sits
      *  right beside Browse's own list in landscape and has scrollable
@@ -286,7 +290,7 @@ public class FilterTest {
         selectGenre(commonestGenre);
         dismissFilterSheet();
 
-        int filteredCount = rowCount();
+        int filteredCount = awaitRowCount(count -> count != rootCount);
         assertNotEquals("choosing " + commonestGenre
                          + " did not change how many rows Browse shows",
                          rootCount, filteredCount);
@@ -322,7 +326,7 @@ public class FilterTest {
         // 4. Clearing puts it back.
         tapClearChip();
 
-        int clearedCount = rowCount();
+        int clearedCount = awaitRowCount(count -> count == rootCount);
         assertEquals("clearing the filter did not restore the row count",
                      rootCount, clearedCount);
         assertNull("the clear chip is still showing after being cleared",
@@ -388,7 +392,14 @@ public class FilterTest {
         Intent intent = new Intent(context, LibraryActivity.class);
         intent.putExtra(LibraryActivity.EXTRA_FROM_MENU, true);
         intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_NEW_TASK);
-        context.startActivity(intent);
+
+        // On the display this test can see - see Screen. Run on its own the
+        // library came up here anyway; run after a class that had left another
+        // display focused it did not, and then every tap below landed on that
+        // display's launcher while the accessibility tree went on answering
+        // about this one. The filter changed no rows, and said so as though
+        // filtering were broken.
+        context.startActivity(intent, Screen.here());
 
         // The Options button is up in every tab, not only Browse's own - see
         // OptionsDialog.Callbacks.filteringAllowed - but Browse is where this
@@ -397,6 +408,8 @@ public class FilterTest {
         // loaded yet.
         assertNotNull("the library screen never came up", device.wait(
                 Until.findObject(By.desc(context.getString(R.string.library_options))), FIND));
+
+        Screen.assertHere();
     }
 
     /**
@@ -528,6 +541,32 @@ public class FilterTest {
      * around a screen accessibility cannot answer for and asks {@code
      * FuseNative} directly instead.
      */
+    /**
+     * The adapter's row count, once it says something the caller is willing
+     * to believe - or the last thing it said, when the wait runs out, so the
+     * caller's own assertion is what reports the failure.
+     *
+     * A filter does not land when the sheet closes. It runs
+     * {@code LibraryActivity.load}, whose walk of the whole content tree is
+     * a recursive query per folder through the documents provider, off the
+     * UI thread; only when that comes back does the adapter change. Sampling
+     * the count after a fixed sleep asked how long that takes, and the answer
+     * depends on the tree, on the provider's caches, and on what else the
+     * device has been doing: this class passed on its own and failed in a
+     * suite behind three emulator classes, reading the pre-filter count and
+     * reporting it as a filter that changed nothing.
+     */
+    private int awaitRowCount(IntPredicate settled) {
+        long deadline = SystemClock.uptimeMillis() + FIND;
+        int count = rowCount();
+
+        while (!settled.test(count) && SystemClock.uptimeMillis() < deadline) {
+            SystemClock.sleep(POLL);
+            count = rowCount();
+        }
+        return count;
+    }
+
     private int rowCount() {
         // Both the activity registry and the adapter it hands back belong to
         // the main thread - ActivityLifecycleMonitorImpl refuses to answer
