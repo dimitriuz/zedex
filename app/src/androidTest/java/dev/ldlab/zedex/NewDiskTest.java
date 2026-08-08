@@ -12,6 +12,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import android.os.SystemClock;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -25,8 +27,14 @@ import java.nio.file.Files;
  * new disk from {@code disk_new()} has geometry but no filesystem, so saving
  * it before the machine has formatted it wrote a silent zero byte file.
  *
- * Needs a Scorpion — its ROMs are not redistributable, so the test skips
- * rather than fails when they are not in the ROM folder.
+ * Needs a machine with the Beta 128 interface, which is where TR-DOS lives.
+ * A Pentagon 128K, rather than the Scorpion this used to ask for: both have
+ * it, but the Pentagon's ROMs are the ordinary 128K pair beside trdos.rom,
+ * and it sits high enough in the machine list to be on screen without
+ * scrolling — the Scorpion is last but one, and reaching it depended on a
+ * scroll that searched for a name it does not have ("Scorpion" against
+ * "Scorpion ZS 256"). The test skipped or ran depending on where that scroll
+ * left the list.
  */
 @RunWith(AndroidJUnit4.class)
 public class NewDiskTest {
@@ -43,6 +51,11 @@ public class NewDiskTest {
     private static final String DISK_LABEL = "test";
     private static final String FILE_NAME = "hi";
     private static final String SAVED_AS = "uitest";
+
+    /** What Fuse loads for a Pentagon 128K: settings.dat's own
+     *  rom_pentagon_0 and rom_pentagon_2. The second is the one that matters
+     *  here — trdos.rom is the Beta interface, and so TR-DOS itself. */
+    private static final String[] PENTAGON_ROMS = { "128p-0.rom", "trdos.rom" };
 
     /** Formatting eighty tracks takes the machine a while. */
     private static final long FORMATTING = 120 * Emulator.SECOND;
@@ -64,7 +77,7 @@ public class NewDiskTest {
 
     @Test
     public void formatsANewDiskAndSavesWhatTheMachineWroteOnIt() throws IOException {
-        selectScorpion();
+        selectPentagon();
 
         // A drive that was empty, given a disk that does not exist anywhere.
         emulator.menu("Media", "Beta Disk A:", "New disk");
@@ -74,7 +87,7 @@ public class NewDiskTest {
 
         emulator.menu("Media");
         assertTrue("the drive should hold a blank disk",
-                   emulator.isShowing("Blank disk"));
+                   emulator.isInMenu("Blank disk"));
         emulator.closeMenu();
 
         bootTo48Basic();
@@ -97,22 +110,44 @@ public class NewDiskTest {
 
     /**
      * The Beta 128 interface, and so TR-DOS, comes with the machine rather
-     * than being a setting; a Scorpion has it.
+     * than being a setting; a Pentagon has it.
      */
-    private void selectScorpion() {
-        emulator.menu("Machine", "Change machine", "Scorpion");
-        emulator.idle(3 * Emulator.SECOND);
+    private void selectPentagon() {
+        // Whether to run at all is decided by the ROMs on disk, not by what
+        // the screen says a moment later. Those two questions were one before,
+        // and the wrong one answered: a machine that had not finished
+        // changing yet read as ROMs that were not there, and the test
+        // skipped - silently, in twenty seconds, having formatted nothing and
+        // reported OK. It skipped and ran alternately on the same code, which
+        // is the worst of both: nothing to notice, and nothing to trust.
+        //
+        // A file either exists or it does not, and no timing changes that.
+        for (String rom : PENTAGON_ROMS) {
+            assumeTrue("no " + rom + " in " + emulator.romFolder(),
+                       new File(emulator.romFolder(), rom).exists());
+        }
 
-        emulator.menu("Media");
-        boolean beta = emulator.isShowing("Beta Disk A:");
-        emulator.closeMenu();
+        emulator.menu("Machine", "Change machine", "Pentagon 128K");
 
-        assumeTrue("the Scorpion ROMs are missing, so it fell back to 48K", beta);
+        // So this is an assertion now. Given the ROMs, a machine that does not
+        // come up with its Beta interface is a bug, and the one thing a skip
+        // must never quietly cover.
+        boolean beta = false;
+        long deadline = SystemClock.uptimeMillis() + 20 * Emulator.SECOND;
+        while (!beta && SystemClock.uptimeMillis() < deadline) {
+            emulator.idle(Emulator.SECOND);
+            emulator.menu("Media");
+            beta = emulator.isInMenu("Beta Disk A:");
+            emulator.closeMenu();
+        }
+
+        assertTrue("the Pentagon's Beta interface never appeared, though its "
+                   + "ROMs are in " + emulator.romFolder(), beta);
     }
 
     /**
-     * The Scorpion's boot menu, fourth entry down. 48 BASIC because the
-     * tokens the disk commands need are only reachable there.
+     * The 128 boot menu, fourth entry down. 48 BASIC because the tokens the
+     * disk commands need are only reachable there.
      */
     private void bootTo48Basic() {
         emulator.menu("Machine", "Reset", "Reset");
@@ -133,7 +168,7 @@ public class NewDiskTest {
      * autoloading is Fuse typing LOAD "" through its phantom typist at a
      * moment of its own choosing. That is fine on a machine sitting at a
      * BASIC prompt and not worth the risk on one that has just been walked
-     * through a Scorpion's boot menu. Eight keys is not the slow part of this
+     * through the 128 boot menu. Eight keys is not the slow part of this
      * test; formatting eighty tracks is.
      */
     private void enterAProgram() {

@@ -233,6 +233,23 @@ final class Emulator {
     }
 
     /**
+     * Whether a menu offers this, scrolling the sheet to look - which is what
+     * {@link #tap} already does through {@code find}, and what asking about a
+     * sheet has to do to mean anything.
+     *
+     * {@link #isShowing} asks only about the pixels currently up. That is the
+     * right question for the overlay - JoystickTest asserts the fire button is
+     * *not* there - and the wrong one for a list taller than the window: the
+     * Media sheet's later rows sit below the fold on a tall phone and above it
+     * on a wide one, so the same menu answered differently depending on the
+     * shape of the screen. NewDiskTest read that as a Scorpion whose ROMs were
+     * missing and skipped itself, silently, in twenty seconds.
+     */
+    boolean isInMenu(String text) {
+        return find(text) != null;
+    }
+
+    /**
      * A clickable match wins: a confirmation dialog whose message repeats the
      * word on its button would otherwise be tapped in the middle of the
      * sentence. List rows in an AlertDialog are not clickable themselves, so
@@ -256,11 +273,22 @@ final class Emulator {
         return device.wait(Until.findObject(By.textContains(text)), FIND);
     }
 
-    /** Long machine lists do not fit on one screen. */
+    /**
+     * Long machine lists do not fit on one screen.
+     *
+     * By a contains match, like every other lookup in {@link #find} - and
+     * unlike {@code scrollTextIntoView}, which matches the whole label
+     * exactly. That mattered as soon as the app was pinned to a tall phone
+     * rather than a wide bench display: a test asks for "Scorpion" and the
+     * machine is called "Scorpion ZS 256", so the scroll searched the list to
+     * the end, found nothing, and left it wherever it stopped. Whether the row
+     * was then on screen for find's own next look decided the test - it passed
+     * and skipped alternately on identical code.
+     */
     private void scrollTo(String text) {
         try {
             UiScrollable list = new UiScrollable(new UiSelector().scrollable(true));
-            if (list.exists()) list.scrollTextIntoView(text);
+            if (list.exists()) list.scrollIntoView(new UiSelector().textContains(text));
         } catch (Exception e) {
             // Not scrollable, or not there at all; the caller reports it.
         }
@@ -282,6 +310,34 @@ final class Emulator {
         assertNotNull("no key called " + name, target);
         target.click();
         SystemClock.sleep(AFTER_KEY);
+    }
+
+    /**
+     * Presses whichever of these keys this keyboard actually has.
+     *
+     * The plates do not all name the same key the same way, because the real
+     * machines did not: the 48K's rubber plate carries one wide key labelled
+     * BREAK SPACE, and the 128K's has SPACE at the bottom with BREAK up on its
+     * own. Neither is more correct, and a test that spells out one of them is
+     * really asking for a skin - which it never set, so it gets the default,
+     * which is the 128K slim. That is how a space, of all things, failed with
+     * "no key called BREAK SPACE".
+     *
+     * The same thing {@code scripts/ui-type.py} does, and for the same reason:
+     * ask the keyboard on screen what it calls the key, rather than assuming
+     * which keyboard is on screen.
+     */
+    private void keyByAnyOfItsNames(String... names) {
+        for (String name : names) {
+            UiObject2 target = device.wait(Until.findObject(By.desc(name)), GLANCE);
+            if (target != null) {
+                target.click();
+                SystemClock.sleep(AFTER_KEY);
+                return;
+            }
+        }
+        fail("this keyboard has no key called any of "
+             + java.util.Arrays.toString(names));
     }
 
     /**
@@ -330,7 +386,7 @@ final class Emulator {
     void type(String text) {
         for (char c : text.toCharArray()) {
             if (c == ' ') {
-                key("BREAK SPACE");
+                keyByAnyOfItsNames("BREAK SPACE", "SPACE");
                 continue;
             }
 
