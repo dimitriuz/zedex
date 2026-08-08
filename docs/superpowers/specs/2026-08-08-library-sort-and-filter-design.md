@@ -63,23 +63,30 @@ That is now one **Options** button, opening the same dialog for touch and for a
 pad:
 
 ```
-View   ▸        List · Grid
-Sort   ▸        Name · Size · Released · Format · Rating, and the direction
-Filter ▸        Format · Genre · Rating · Developer · Publisher
+View · Grid                     <- a row, not a page: activating it flips
+Sort   ▸   Rating, highest first
+Filter ▸   2 fields
 ```
 
-Each row opens a page of its own and says what it is currently set to — `Sort ▸
-Rating, highest first` — so checking without changing is one tap. Filter says
-how many fields are set, or nothing when none are. Back goes up a page, and
-dismisses from the top; that is the shape the emulator's ☰ sheet already uses,
-and the rule CLAUDE.md records for it: a row that was a dialog is a page now,
-and it commits by its own name rather than by an OK button.
+**Sort and Filter are pages.** Each says what it is currently set to, so
+checking without changing is one tap, and Filter says how many fields are set
+or nothing when none are. Back goes up a page and dismisses from the top —
+the shape the emulator's ☰ sheet already uses, and the rule CLAUDE.md records
+for it: a row that was a dialog is a page now, and it commits by its own name
+rather than by an OK button.
 
-**What this costs, honestly.** Flipping between list and grid was one tap and
-becomes three. That is the price of not having a toolbar that grows a button
-per option, and of the pad and the finger reaching the same thing — a filter
-that only touch could open, or a view toggle only a pad could not reach, is the
-sort of split that ends with two implementations disagreeing.
+**View is not a page.** It is a single row showing the current mode, and
+activating it toggles. Flipping between list and grid is a frequent, instantly
+reversible flick rather than a considered choice; behind a page it would cost
+three presses to do what used to cost one. Sort and Filter earn their pages by
+having several values apiece and by being decisions somebody makes and then
+lives with.
+
+**What this costs, honestly.** The view toggle goes from one tap to two. That
+is the price of a toolbar that does not grow a button per option, and of the
+pad and the finger reaching the same thing — a filter only touch could open, or
+a view toggle only a pad could not reach, is the sort of split that ends with
+two implementations disagreeing.
 
 **What it buys** is that there is one widget to build, one to test, and one
 place where "what is the library showing" is answered. The earlier design had

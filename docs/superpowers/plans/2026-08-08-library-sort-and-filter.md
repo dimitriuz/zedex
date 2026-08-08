@@ -1576,10 +1576,10 @@ python3 scripts/check-strings.py
 python3 scripts/check-prefs.py
 ```
 
-Then on the emulator: one button where three were; it opens the three-page
-menu; View still flips the list and grid; Sort still sorts; Filter still
-filters; and the toolbar still looks right with the breadcrumb and the search
-box beside it.
+Then on the emulator: one button where three were; it opens the menu; the View
+row flips between list and grid in place, without opening a page; Sort still
+sorts; Filter still filters; and the toolbar still looks right with the
+breadcrumb and the search box beside it.
 
 - [ ] **Step 6: Commit**
 
