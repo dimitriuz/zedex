@@ -182,6 +182,10 @@ public final class OptionsDialog {
     private TextView viewRow;
 
     private Dialog dialog;
+
+    /** The dialog's own corner, dp - the same shape the quick bar's buttons
+     *  and the first-run panel's bands already use. */
+    private static final int CORNER_DP = 12;
     private GamepadCursor cursor;
 
     /** Which of {@link #rows} the pad's own cursor is on - not necessarily
@@ -489,8 +493,21 @@ public final class OptionsDialog {
 
         LinearLayout column = new LinearLayout(activity);
         column.setOrientation(LinearLayout.VERTICAL);
-        column.setBackgroundColor(Palette.BACKING);
-        column.setPadding(pixels(4), pixels(4), pixels(4), pixels(4));
+
+        // The dialog itself, drawn by this view rather than by the platform's
+        // dialog background. That one is a rounded panel with a minimum width
+        // of its own, and this column is narrower than that minimum - so what
+        // showed was a small dark square sitting inside a much larger pale
+        // rounded box, empty to the right of the rows and below them. The
+        // window is transparent now and this is the only thing drawn, so the
+        // dialog is exactly the size of what is in it.
+        android.graphics.drawable.GradientDrawable panel =
+                new android.graphics.drawable.GradientDrawable();
+        panel.setColor(Palette.BACKING);
+        panel.setCornerRadius(pixels(CORNER_DP));
+        column.setBackground(panel);
+
+        column.setPadding(pixels(8), pixels(8), pixels(8), pixels(8));
 
         switch (page) {
             case SORT:
@@ -536,8 +553,27 @@ public final class OptionsDialog {
                 // it to FILTER.
                 filterRequestToken++;
             });
+            // Before setContentView, both of them: requestFeature throws
+            // once a window has content, and the background has to be in
+            // place before the decor is measured. Nothing of the platform's
+            // own is wanted here - no title strip above the first row, and no
+            // rounded panel behind a column that does not fill it - while the
+            // dim behind stays, which is what says this is modal.
+            android.view.Window window = dialog.getWindow();
+            if (window != null) {
+                window.requestFeature(android.view.Window.FEATURE_NO_TITLE);
+                window.setBackgroundDrawable(
+                        new android.graphics.drawable.ColorDrawable(0x00000000));
+            }
+
             dialog.setContentView(column, new ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+            if (window != null) {
+                window.setLayout(ViewGroup.LayoutParams.WRAP_CONTENT,
+                                 ViewGroup.LayoutParams.WRAP_CONTENT);
+            }
+
             dialog.show();
         } else {
             dialog.setContentView(column, new ViewGroup.LayoutParams(

@@ -597,8 +597,27 @@ public final class Gallery extends LinearLayout {
     public void showPage(int index) {
         if (index < 0 || index >= adapter.realCount()) return;
 
-        if (Math.abs(index - currentPage()) <= 1) recycler.smoothScrollToPosition(index);
-        else recycler.scrollToPosition(index);
+        if (Math.abs(index - currentPage()) <= 1) {
+            // A scroll, so SCROLL_STATE_IDLE arrives and settles it.
+            recycler.smoothScrollToPosition(index);
+            return;
+        }
+
+        // A jump is a layout change, not a scroll: no DRAGGING, no SETTLING,
+        // no IDLE - so nothing dispatches onScrollStateChanged and the settle
+        // has to be done here. Without it currentIndex kept the page the
+        // gallery was on before, and prepareVideo's own listener - which only
+        // starts a video whose holder is the current page - therefore never
+        // started this one. The pane autoswitches from the first picture to
+        // the video, which is four or five pages on almost every game, so it
+        // always took this branch and always showed a black rectangle.
+        //
+        // setItems does exactly this after its own scrollToPosition, and
+        // settleOn's own comment says it is the one place a video is started,
+        // however the page was reached. This branch was the one way that did
+        // not go through it.
+        recycler.scrollToPosition(index);
+        settleOn(index);
     }
 
     /**
