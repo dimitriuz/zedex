@@ -54,8 +54,10 @@ import androidx.recyclerview.widget.RecyclerView;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * The screen the app can open on: the content folder, browsable, with folders
@@ -2205,22 +2207,31 @@ public final class LibraryActivity extends Activity {
         List<Entry> shown = new ArrayList<>();
         String needle = query.toLowerCase(Locale.ROOT);
 
+        // Resolved at most once per entry for this whole call, not once per
+        // comparison - see cachedMeta's own comment for why that matters.
+        Map<String, Meta> metaCache = new HashMap<>();
+
         for (Entry entry : loaded) {
             if (!needle.isEmpty()
                     && !entry.name.toLowerCase(Locale.ROOT).contains(needle)) {
                 continue;
             }
 
-            // Folders are not filtered - they are how you move, not what you
-            // are looking for - and a filtered list is flat and has none.
-            if (entry.kind != Entry.Kind.FOLDER && !filters.matches(entry, metaOf(entry))) {
+            // Filtering narrows Browse only - Favourites and Recent are
+            // already an answer to a question of their own, and a filter set
+            // in Browse and left in place must not narrow them too. See the
+            // design spec, "Filtering applies to Browse only". Folders are
+            // never filtered either way - they are how you move, not what
+            // you are looking for.
+            if (tab == Tab.BROWSE && entry.kind != Entry.Kind.FOLDER
+                    && !filters.matches(entry, cachedMeta(entry, metaCache))) {
                 continue;
             }
 
             shown.add(entry);
         }
 
-        sortEntries(shown);
+        sortEntries(shown, entry -> cachedMeta(entry, metaCache));
         adapter.setEntries(shown);
 
         // Right here, and nowhere later: the adapter has this load's rows
@@ -2308,9 +2319,9 @@ public final class LibraryActivity extends Activity {
      * entirely while {@link #filtering()}: a flattened list has no folders in
      * it to hold apart from the rest.
      */
-    private void sortEntries(List<Entry> list) {
+    private void sortEntries(List<Entry> list, Sorting.Lookup lookup) {
         if (filtering()) {
-            Collections.sort(list, Sorting.comparator(sort, sortDescending, this::metaOf));
+            Collections.sort(list, Sorting.comparator(sort, sortDescending, lookup));
             return;
         }
 
@@ -2322,11 +2333,37 @@ public final class LibraryActivity extends Activity {
         }
 
         folders.sort((a, b) -> a.name.compareToIgnoreCase(b.name));
-        Collections.sort(rest, Sorting.comparator(sort, sortDescending, this::metaOf));
+        Collections.sort(rest, Sorting.comparator(sort, sortDescending, lookup));
 
         list.clear();
         list.addAll(folders);
         list.addAll(rest);
+    }
+
+    /**
+     * {@link #metaOf}, resolved at most once per entry for one call to
+     * {@link #applyFilterSort} rather than once per ask.
+     *
+     * {@link Sorting#comparator} alone asks a field's value twice per side of
+     * a pairwise comparison - once in {@code has}, once in {@code
+     * compareValues} - and {@code Collections.sort} calls the comparator
+     * O(n log n) times over the whole list; the filter pass before it asks
+     * once more per entry on top of that. Each ask used to mean a fresh
+     * {@link Metadata#forPath}, which is {@code synchronized} and stats the
+     * store file on every call even though the parsed XML behind it is
+     * cached - exactly the one-parse-not-one-per-row cost {@link Metadata}'s
+     * own class doc promises, broken by asking on every comparison instead of
+     * once per row. A miss is cached too, not just a hit: most entries have
+     * no metadata at all, and a null answer is exactly as expensive to ask
+     * for again as a real one - skipping the cache for it would have kept
+     * the greater part of the cost this exists to remove.
+     */
+    private Meta cachedMeta(Entry entry, Map<String, Meta> cache) {
+        String key = entry.key();
+        if (!cache.containsKey(key)) {
+            cache.put(key, metaOf(entry));
+        }
+        return cache.get(key);
     }
 
     /**
