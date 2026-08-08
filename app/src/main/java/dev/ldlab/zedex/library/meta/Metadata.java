@@ -12,6 +12,8 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
+import org.xmlpull.v1.XmlPullParser;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -564,35 +566,56 @@ public final class Metadata {
         }
     }
 
+    /**
+     * Reads the store, streaming.
+     *
+     * A pull parser rather than a DOM. The DOM built a tree of every element
+     * and attribute in the file and then threw all of it away to keep ten
+     * short strings per game: 776 KB of XML is on the order of ten megabytes
+     * of transient objects, and it scales with the file - a five megabyte
+     * gamelist would be sixty to ninety, which is an OutOfMemoryError while
+     * linking rather than a slow read. This allocates the strings it keeps
+     * and little else.
+     *
+     * The hardening {@code Xml.builder} exists for is not lost with it. That
+     * class refuses external entities because a DocumentBuilder resolves them
+     * by default; a pull parser does not process a doctype at all unless
+     * FEATURE_PROCESS_DOCDECL is turned on, and it is off by default and not
+     * turned on here. Same guarantee, from the other direction.
+     */
     private static Store load(File file, long mtime) {
         if (mtime == 0) return EMPTY;
 
-        try (InputStream in = new FileInputStream(file)) {
-            DocumentBuilder builder = Xml.builder();
-            Document document = builder.parse(in);
+        try (InputStream in = new java.io.BufferedInputStream(new FileInputStream(file))) {
+            XmlPullParser parser = android.util.Xml.newPullParser();
+            parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false);
+            parser.setInput(in, null);
 
-            if (!ROOT.equals(document.getDocumentElement().getNodeName())) {
-                Log.w(TAG, file + " is not a " + ROOT + " file");
-                return EMPTY;
-            }
-
-            long linkedAt = attribute(document.getDocumentElement(), LINKED);
             Map<String, Meta> games = new HashMap<>();
+            long linkedAt = 0;
+            boolean sawRoot = false;
 
-            NodeList nodes = document.getDocumentElement().getChildNodes();
-            for (int i = 0; i < nodes.getLength(); i++) {
-                Node node = nodes.item(i);
-                if (!(node instanceof Element) || !GAME.equals(node.getNodeName())) continue;
+            for (int event = parser.getEventType();
+                 event != XmlPullParser.END_DOCUMENT;
+                 event = parser.next()) {
 
-                Element element = (Element) node;
-                String path = text(element, "path");
-                if (path == null || path.isEmpty()) continue;
+                if (event != XmlPullParser.START_TAG) continue;
 
-                games.put(path, new Meta(path, text(element, "name"), text(element, "desc"),
-                        text(element, "developer"), text(element, "publisher"),
-                        text(element, "genre"), text(element, "releasedate"),
-                        text(element, "players"), text(element, "rating"),
-                        text(element, SOURCE)));
+                if (!sawRoot) {
+                    if (!ROOT.equals(parser.getName())) {
+                        Log.w(TAG, file + " is not a " + ROOT + " file");
+                        return EMPTY;
+                    }
+
+                    sawRoot = true;
+                    linkedAt = number(parser.getAttributeValue(null, LINKED));
+                    continue;
+                }
+
+                if (!GAME.equals(parser.getName())) continue;
+
+                Meta meta = readGame(parser);
+                if (meta != null) games.put(meta.path, meta);
             }
 
             return new Store(mtime, linkedAt, games);
@@ -607,6 +630,63 @@ public final class Metadata {
                        + " Linking again rewrites it; see Metadata.xmlSafe for"
                        + " the character that used to cause this.", e);
             return EMPTY;
+        }
+    }
+
+    /**
+     * One {@code <game>}, from its start tag to its end tag.
+     *
+     * Null when it has no path, which is what a game is identified by - the
+     * same entry the DOM version skipped. Unknown children are read and
+     * dropped rather than refused, so a gamelist carrying fields this app
+     * does not know about still loads.
+     */
+    private static Meta readGame(XmlPullParser parser) throws Exception {
+        int depth = parser.getDepth();
+
+        String path = null, name = null, desc = null, developer = null;
+        String publisher = null, genre = null, released = null;
+        String players = null, rating = null, source = null;
+
+        while (parser.next() != XmlPullParser.END_DOCUMENT) {
+            int event = parser.getEventType();
+
+            if (event == XmlPullParser.END_TAG && parser.getDepth() == depth) break;
+            if (event != XmlPullParser.START_TAG) continue;
+
+            String tag = parser.getName();
+            String value = parser.nextText().trim();
+
+            switch (tag) {
+                case "path":        path = value;      break;
+                case "name":        name = value;      break;
+                case "desc":        desc = value;      break;
+                case "developer":   developer = value; break;
+                case "publisher":   publisher = value; break;
+                case "genre":       genre = value;     break;
+                case "releasedate": released = value;  break;
+                case "players":     players = value;   break;
+                case "rating":      rating = value;    break;
+                default:
+                    if (SOURCE.equals(tag)) source = value;
+                    break;
+            }
+        }
+
+        if (path == null || path.isEmpty()) return null;
+
+        return new Meta(path, name, desc, developer, publisher,
+                        genre, released, players, rating, source);
+    }
+
+    /** The {@code linked} attribute, or 0 for anything unreadable. */
+    private static long number(String value) {
+        if (value == null || value.isEmpty()) return 0;
+
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException e) {
+            return 0;
         }
     }
 
