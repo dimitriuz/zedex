@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    What a backup and a device-to-device transfer may take, and what they
+    may not.
+
+    Without this file everything in filesDir and shared_prefs goes, which is
+    both more than is wanted and less useful than it looks. Three kinds of
+    thing are kept out:
+
+      * a crash report. files/crash.txt is a stack trace and the whole of
+        Diagnostics.report - the data folder's path, the device, the
+        installer, every setting. It is written to be read once and sent by
+        hand if the user chooses to; a backup is not that, and PRIVACY.md
+        says the app gathers nothing in the background.
+
+      * the ROM set. files/roms holds twenty-nine files the app fetched or
+        unpacked, restored just as easily by asking again, and not obviously
+        ours to copy into somebody's cloud account.
+
+      * the two tree grants and the card path. contentTree and esdeTree are
+        content:// URIs whose *grants* do not travel - restoring the string
+        leaves a folder the app is not allowed to open. card is an absolute
+        path that will not exist on the other device. setupDone goes with
+        them: restored true onto a device that has never chosen a data
+        folder, the first-run panel never appears, nothing is granted, and
+        the library is unreachable with nothing on screen to explain why -
+        which is the failure this file mostly exists to prevent.
+
+    Everything else is worth carrying: save states, key profiles, pokes,
+    recents and the rest of the settings.
+
+    Both sections say the same thing. cloud-backup is Google's own backup;
+    device-transfer is a phone-to-phone move, which is allowed the same set
+    for the same reasons - a grant does not survive either one.
+-->
+<data-extraction-rules>
+
+    <cloud-backup>
+        <exclude domain="file" path="crash.txt" />
+        <exclude domain="file" path="roms" />
+
+        <exclude domain="sharedpref" path="fuse.xml" key="contentTree" />
+        <exclude domain="sharedpref" path="fuse.xml" key="esdeTree" />
+        <exclude domain="sharedpref" path="fuse.xml" key="esdeMediaTree" />
+        <exclude domain="sharedpref" path="fuse.xml" key="card" />
+        <exclude domain="sharedpref" path="fuse.xml" key="setupDone" />
+    </cloud-backup>
+
+    <device-transfer>
+        <exclude domain="file" path="crash.txt" />
+        <exclude domain="file" path="roms" />
+
+        <exclude domain="sharedpref" path="fuse.xml" key="contentTree" />
+        <exclude domain="sharedpref" path="fuse.xml" key="esdeTree" />
+        <exclude domain="sharedpref" path="fuse.xml" key="esdeMediaTree" />
+        <exclude domain="sharedpref" path="fuse.xml" key="card" />
+        <exclude domain="sharedpref" path="fuse.xml" key="setupDone" />
+    </device-transfer>
+
+</data-extraction-rules>

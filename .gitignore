@@ -26,3 +26,6 @@ __pycache__/
 # they do not ship, so there is nothing to carry.
 /demo/tstest.tap
 /demo/turbotest.tap
+
+# Local code-review findings: working notes, not part of the project.
+/review/

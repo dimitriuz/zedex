@@ -188,8 +188,8 @@ public final class StartPanel {
             }
 
             if (tree != null && request == REQUEST_CONTENT_TREE) {
-                activity.getContentResolver().takePersistableUriPermission(
-                        tree, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                Storage.keepAccessTo(activity, tree,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION);
                 activity.getSharedPreferences(SettingsActivity.PREFS,
                                               Activity.MODE_PRIVATE)
                         .edit().putString(Storage.KEY_CONTENT_TREE, tree.toString())

@@ -47,6 +47,35 @@ public final class JoystickView extends View {
     private static final int EDGE = 0x88ededf2;
     private static final int MARK = 0x99ededf2;
 
+    /**
+     * The same three, for a control with nothing behind it but the picture.
+     *
+     * Sitting in a black bar, the translucent set above reads at about 5:1 and
+     * is fine. Floating over the machine's own screen it does not read at all:
+     * a fifteen-per-cent white face over white paper - the BASIC prompt, and
+     * every 128K menu - leaves the ring at 1.09:1 against what it is drawn on,
+     * and the whole control is then faded again to {@code FLOATING_ALPHA}, which
+     * takes it to 1.04:1. Over a cyan border it is 1.03:1 at full opacity.
+     * WCAG 1.4.11 asks 3:1 for the boundary of a control. This is not low
+     * contrast; it is a control that is not drawn.
+     *
+     * Opacity is the fix rather than more alpha, and the arithmetic says why.
+     * The view's own alpha multiplies the face and the ring alike, so both are
+     * pulled towards whatever is behind them and their difference shrinks with
+     * it - a darker translucent scrim cannot win, because the scrim fades too.
+     * An opaque face does not: it contributes no picture of its own, so the
+     * ring's contrast is against a known colour and only the fade is left to
+     * survive. At {@code FLOATING_ALPHA} that is 3.7:1 over white paper and
+     * 3.8:1 over a cyan border, computed the way the renderer composites.
+     *
+     * The control still fades as a whole, so the picture is no more hidden than
+     * it was; what changed is that the ring no longer borrows the game's
+     * luminance for its own.
+     */
+    private static final int FACE_OVER_PICTURE = 0xff14151a;
+    private static final int EDGE_OVER_PICTURE = 0xffededf2;
+    private static final int MARK_OVER_PICTURE = 0xffededf2;
+
     /** The keyboard's press colour, so a pressed control reads the same way. */
     private static final int PRESSED = 0xcc00b0c8;
 
@@ -82,25 +111,63 @@ public final class JoystickView extends View {
      * fifteen per cent white, which over a picture read as a hole rather than a
      * control. They borrow this instead, so there is one place the palette is
      * written down and one look for anything round and translucent.
+     *
+     * {@code overPicture} picks between the same two palettes the pad uses, and
+     * for the same reason: these buttons sit beside it and share whatever it is
+     * sitting on.
      */
-    public static android.graphics.drawable.Drawable disc(float density) {
+    public static android.graphics.drawable.Drawable disc(float density,
+                                                          boolean overPicture) {
         android.graphics.drawable.GradientDrawable shape =
                 new android.graphics.drawable.GradientDrawable();
 
         shape.setShape(android.graphics.drawable.GradientDrawable.OVAL);
-        shape.setColor(FACE);
+        shape.setColor(overPicture ? FACE_OVER_PICTURE : FACE);
         shape.setStroke(Math.round(Math.max(1.5f, 22f * density * EDGE_OF_RADIUS)),
-                        EDGE);
+                        overPicture ? EDGE_OVER_PICTURE : EDGE);
 
         return shape;
     }
 
     /** The colour a legend or an arrow is drawn in, for the same reason. */
-    public static int markColour() {
-        return MARK;
+    public static int markColour(boolean overPicture) {
+        return overPicture ? MARK_OVER_PICTURE : MARK;
+    }
+
+    /**
+     * Says whether the picture is behind this control rather than a black bar,
+     * which decides which of the two palettes it draws in.
+     *
+     * Called by {@link EmulatorLayout} as it places the controls, because the
+     * arrangement is the only thing that knows - see its branch 3, where the
+     * pad has to float because the bars are too narrow to hold it.
+     */
+    public void setOverPicture(boolean overPicture) {
+        int wanted = overPicture ? FACE_OVER_PICTURE : FACE;
+        if (wanted == faceInk) return;
+
+        faceInk = wanted;
+        edgeInk = overPicture ? EDGE_OVER_PICTURE : EDGE;
+        markInk = overPicture ? MARK_OVER_PICTURE : MARK;
+
+        face.setColor(faceInk);
+        edge.setColor(edgeInk);
+        mark.setColor(markInk);
+        legend.setColor(markInk);
+
+        invalidate();
     }
 
     private final float density;
+
+    /**
+     * Which of the two palettes above is in use. Set by the layout, which is
+     * the only thing that knows whether this control ended up over a black bar
+     * or over the picture - see EmulatorLayout.placeJoystick.
+     */
+    private int faceInk = FACE;
+    private int edgeInk = EDGE;
+    private int markInk = MARK;
 
     private final Paint face = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint edge = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -136,17 +203,17 @@ public final class JoystickView extends View {
         this.slot = slot;
         this.density = getResources().getDisplayMetrics().density;
 
-        face.setColor(FACE);
+        face.setColor(faceInk);
         face.setStyle(Paint.Style.FILL);
 
-        edge.setColor(EDGE);
+        edge.setColor(edgeInk);
         edge.setStyle(Paint.Style.STROKE);
         // The width follows the radius; see onSizeChanged.
 
-        mark.setColor(MARK);
+        mark.setColor(markInk);
         mark.setStyle(Paint.Style.FILL);
 
-        legend.setColor(MARK);
+        legend.setColor(markInk);
         legend.setTextAlign(Paint.Align.CENTER);
         legend.setFakeBoldText(true);
     }
@@ -201,9 +268,9 @@ public final class JoystickView extends View {
         drawWay(canvas, FuseNative.JOYSTICK_RIGHT, 1, 0);
 
         // The knob, wherever the finger last put it.
-        mark.setColor(knobX != 0 || knobY != 0 ? PRESSED : MARK);
+        mark.setColor(knobX != 0 || knobY != 0 ? PRESSED : markInk);
         canvas.drawCircle(centreX + knobX, centreY + knobY, radius * KNOB, mark);
-        mark.setColor(MARK);
+        mark.setColor(markInk);
     }
 
     /**
@@ -213,10 +280,10 @@ public final class JoystickView extends View {
      * times the width of M.
      */
     private void drawRound(Canvas canvas, String text, String under, boolean down) {
-        face.setColor(down ? PRESSED : FACE);
+        face.setColor(down ? PRESSED : faceInk);
         canvas.drawCircle(centreX, centreY, radius, face);
         canvas.drawCircle(centreX, centreY, radius, edge);
-        face.setColor(FACE);
+        face.setColor(faceInk);
 
         float size = radius * (part == Part.KEY ? 0.62f : 0.42f);
         float room = radius * 1.6f;
@@ -224,10 +291,10 @@ public final class JoystickView extends View {
         // Two lines are drawn either side of the middle rather than one in it.
         float offset = under == null ? 0f : radius * 0.2f;
 
-        glyph(canvas, text, centreX, centreY - offset, size, room, MARK);
+        glyph(canvas, text, centreX, centreY - offset, size, room, markInk);
         if (under != null) {
             glyph(canvas, under, centreX, centreY + radius * 0.62f,
-                  size * 0.78f, room, MARK);
+                  size * 0.78f, room, markInk);
         }
     }
 
@@ -248,7 +315,7 @@ public final class JoystickView extends View {
         Paint.FontMetrics metrics = legend.getFontMetrics();
         canvas.drawText(text, x, y - (metrics.ascent + metrics.descent) / 2f, legend);
 
-        legend.setColor(MARK);
+        legend.setColor(markInk);
     }
 
     /**
@@ -268,7 +335,7 @@ public final class JoystickView extends View {
 
         glyph(canvas, ControlProfiles.label(Controls.key(button)),
               centreX + dx * radius * 0.66f, centreY + dy * radius * 0.66f,
-              radius * 0.34f, radius * 0.62f, held[button] ? PRESSED : MARK);
+              radius * 0.34f, radius * 0.62f, held[button] ? PRESSED : markInk);
     }
 
     /** A triangle pointing the way, at the rim, lit while that way is held. */
@@ -286,9 +353,9 @@ public final class JoystickView extends View {
         arrow.lineTo(centreX + dx * back - px * half, centreY + dy * back - py * half);
         arrow.close();
 
-        mark.setColor(held[button] ? PRESSED : MARK);
+        mark.setColor(held[button] ? PRESSED : markInk);
         canvas.drawPath(arrow, mark);
-        mark.setColor(MARK);
+        mark.setColor(markInk);
     }
 
     // --- presses ----------------------------------------------------------

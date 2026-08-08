@@ -11,6 +11,7 @@ import dev.ldlab.zedex.machine.Border;
 import dev.ldlab.zedex.machine.Filter;
 import dev.ldlab.zedex.machine.Machine;
 import dev.ldlab.zedex.media.Media;
+import dev.ldlab.zedex.media.Recorder;
 import dev.ldlab.zedex.menu.Capture;
 import dev.ldlab.zedex.menu.ControlsUi;
 import dev.ldlab.zedex.menu.PokesUi;
@@ -43,6 +44,7 @@ import android.database.Cursor;
 import android.graphics.Color;
 import android.hardware.input.InputManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.provider.OpenableColumns;
 import android.util.Log;
@@ -315,6 +317,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         });
 
         getApplication().registerActivityLifecycleCallbacks(panels.lifecycle());
+        registerBackCallback();
         FuseNative.attach(this);
 
         // Before the folders are made, and before anything reads one: this
@@ -862,9 +865,12 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // The joystick's own face and legend colour, since this sits beside it:
         // its own shape made a solid dark disc among controls that are barely
         // there, which over a picture reads as a hole rather than a button.
-        button.setColorFilter(JoystickView.markColour());
+        // The in-a-bar palette to begin with; EmulatorLayout swaps both for the
+        // opaque set whenever the controls end up floating over the picture,
+        // where the translucent one cannot be seen at all.
+        button.setColorFilter(JoystickView.markColour(false));
         button.setBackground(JoystickView.disc(
-                getResources().getDisplayMetrics().density));
+                getResources().getDisplayMetrics().density, false));
 
         // Its own padding, equal on all four sides. An ImageButton takes its
         // from the style otherwise, and that one is not symmetrical: the glyph
@@ -1664,6 +1670,20 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     protected void onDestroy() {
         super.onDestroy();
         getApplication().unregisterActivityLifecycleCallbacks(panels.lifecycle());
+
+        if (backCallback != null) {
+            getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(backCallback);
+            backCallback = null;
+        }
+
+        // Recorder's listeners are statics, and a listener here holds this
+        // activity. The recording path lets go of its own once the encoder has
+        // it; a screenshot asked for and never answered - the machine paused
+        // between the ask and the next frame, or the surface went - has
+        // nothing else to clear it. This activity is normally
+        // process-lifetime, so it only shows when it is recreated, which a
+        // language change deliberately does.
+        Recorder.forgetPendingScreenshot();
     }
 
     /**
@@ -1773,29 +1793,78 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // machine does have.
         if (gamepad.key(event)) return true;
 
-        if (keyCode == KeyEvent.KEYCODE_BACK) {
-            // With the sheet open, back belongs to the sheet: up one page,
-            // and out of the sheet altogether from the top of it.
-            if (menu.back()) return true;
-
-            // Then fullscreen, which is the other thing back means "out of" -
-            // and the one that has taken the way out off the screen, since the
-            // bar it lives on has faded.
-            if (fullscreen()) {
-                showFullscreen(false);
-                return true;
-            }
-
-            // And otherwise the menu, rather than the desktop. A tap outside
-            // it or back again is the way out, so nothing is trapped; leaving
-            // is Quit, which asks about unsaved disks first. A machine is not
-            // a page to be backed out of - and a Spectrum put away by accident
-            // is a Spectrum whose RAM has gone.
-            menu.open();
+        // API 30 to 32 only. From 33 the manifest's
+        // enableOnBackInvokedCallback is honoured and back arrives at
+        // handleBack() through the dispatcher instead, never here.
+        if (keyCode == KeyEvent.KEYCODE_BACK
+                && Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            handleBack();
             return true;
         }
 
         return forwardKey(keyCode, true) || super.onKeyDown(keyCode, event);
+    }
+
+    /**
+     * Back, on API 33 and later, where {@code onKeyDown} no longer sees it.
+     *
+     * The manifest opts in with {@code enableOnBackInvokedCallback}, which
+     * matters more than it looks: at {@code targetSdk 36} that becomes the
+     * default whether or not it is asked for, and the {@code KEYCODE_BACK}
+     * branch in {@code onKeyDown} would simply stop being reached. Three
+     * behaviours would go at once, silently, on a bump of a number - the
+     * sheet's page-by-page back, leaving fullscreen, and back opening the menu
+     * instead of quitting, which is the only thing standing between a slip of
+     * the thumb and a Spectrum's RAM. Opting in now means the bump changes
+     * nothing, and the path is exercised on every device that has it rather
+     * than on the first one after the number moved.
+     *
+     * Registered for the life of the activity because {@link #handleBack}
+     * always consumes; there is no state in which this screen wants the system
+     * to take back away from it. That is also why nothing here enables and
+     * disables the callback as the sheet opens.
+     *
+     * API 30 to 32 have no dispatcher at all - {@code minSdk} is 30 - so
+     * {@code onKeyDown} remains the path there. The two are exclusive: below
+     * 33 nothing registers, and from 33 the key never arrives.
+     */
+    private android.window.OnBackInvokedCallback backCallback;
+
+    private void registerBackCallback() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return;
+
+        backCallback = this::handleBack;
+        getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, backCallback);
+    }
+
+    /**
+     * What back means here, whichever way it arrived.
+     *
+     * Always consumed, never passed on: there is no arrangement of this screen
+     * where back leaves the app. That is deliberate, and it is why the
+     * registration below is unconditional rather than being enabled and
+     * disabled as the sheet opens and closes.
+     */
+    private void handleBack() {
+        // With the sheet open, back belongs to the sheet: up one page,
+        // and out of the sheet altogether from the top of it.
+        if (menu.back()) return;
+
+        // Then fullscreen, which is the other thing back means "out of" -
+        // and the one that has taken the way out off the screen, since the
+        // bar it lives on has faded.
+        if (fullscreen()) {
+            showFullscreen(false);
+            return;
+        }
+
+        // And otherwise the menu, rather than the desktop. A tap outside
+        // it or back again is the way out, so nothing is trapped; leaving
+        // is Quit, which asks about unsaved disks first. A machine is not
+        // a page to be backed out of - and a Spectrum put away by accident
+        // is a Spectrum whose RAM has gone.
+        menu.open();
     }
 
     @Override

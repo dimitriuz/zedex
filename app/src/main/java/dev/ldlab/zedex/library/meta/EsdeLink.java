@@ -3,6 +3,7 @@ package dev.ldlab.zedex.library.meta;
 import dev.ldlab.zedex.frontend.EsDe;
 import dev.ldlab.zedex.screen.SettingsActivity;
 import dev.ldlab.zedex.storage.Storage;
+import dev.ldlab.zedex.storage.Xml;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.UriPermission;
@@ -26,7 +27,6 @@ import java.util.List;
 import java.util.Objects;
 
 import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 
 /**
  * Reading ES-DE: its gamelist, and where it keeps the media for one system.
@@ -343,7 +343,7 @@ public final class EsdeLink {
     }
 
     private static DocumentBuilder builder() throws Exception {
-        return DocumentBuilderFactory.newInstance().newDocumentBuilder();
+        return Xml.builder();
     }
 
     private static String text(Element parent, String name) {

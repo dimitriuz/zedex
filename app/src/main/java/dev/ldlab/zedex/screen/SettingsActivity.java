@@ -1088,9 +1088,9 @@ public class SettingsActivity extends AppCompatActivity
                 return;
             }
 
-            getActivity().getContentResolver().takePersistableUriPermission(
-                    tree, Intent.FLAG_GRANT_READ_URI_PERMISSION
-                          | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            Storage.keepAccessTo(getActivity(), tree,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
 
             getPreferenceManager().getSharedPreferences().edit()
                     .putString(EsDe.KEY_ESDE_TREE, tree.toString()).apply();
@@ -1278,8 +1278,8 @@ public class SettingsActivity extends AppCompatActivity
                 return;
             }
 
-            getActivity().getContentResolver().takePersistableUriPermission(
-                    tree, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            Storage.keepAccessTo(getActivity(), tree,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION);
 
             getPreferenceManager().getSharedPreferences().edit()
                     .putString(EsDe.KEY_ESDE_TREE, tree.toString()).apply();
@@ -1363,8 +1363,8 @@ public class SettingsActivity extends AppCompatActivity
             if (request == REQUEST_ESDE_MEDIA_TREE) {
                 // Read only: this folder is just resolved for pictures to
                 // draw, never written to.
-                getActivity().getContentResolver().takePersistableUriPermission(
-                        tree, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                Storage.keepAccessTo(getActivity(), tree,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION);
 
                 getPreferenceManager().getSharedPreferences().edit()
                         .putString(EsdeLink.KEY_MEDIA_TREE, tree.toString()).apply();
@@ -1375,8 +1375,8 @@ public class SettingsActivity extends AppCompatActivity
             if (request != REQUEST_CONTENT_TREE) return;
 
             // Without this the grant dies with the activity.
-            getActivity().getContentResolver().takePersistableUriPermission(
-                    tree, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            Storage.keepAccessTo(getActivity(), tree,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION);
 
             getPreferenceManager().getSharedPreferences().edit()
                     .putString(Storage.KEY_CONTENT_TREE, tree.toString()).apply();
@@ -1596,21 +1596,38 @@ public class SettingsActivity extends AppCompatActivity
                 return;
             }
 
+            // Every entry parsed before any of them is compared, because one
+            // that does not parse means this is not a numeric list at all and
+            // must not be snapped - "numeric entries only" in the doc above.
+            //
+            // The machine list is why, and it is not hypothetical: its values
+            // are Fuse's own ids, and they are mixed - 16, 48, 128, 2048 and
+            // 2068 parse, while 48_ntsc, plus2, plus3e, pentagon, scorpion, se
+            // and ts2068 do not. Skipping the ones that fail and snapping among
+            // the rest would answer a stored 2048 with 2068, silently changing
+            // which machine the user has, on the grounds that the numbers are
+            // close. They are ids. A review of this file read the abandon below
+            // as a bug and proposed exactly that; it is the opposite.
+            int[] candidates = new int[values.length];
+
+            for (int i = 0; i < values.length; i++) {
+                try {
+                    candidates[i] = Integer.parseInt(values[i].toString());
+                } catch (NumberFormatException e) {
+                    return;
+                }
+            }
+
             String nearest = null;
             int distance = Integer.MAX_VALUE;
 
-            for (CharSequence value : values) {
-                try {
-                    int candidate = Integer.parseInt(value.toString());
-                    // <= and not <: the entries ascend, so a value exactly
-                    // between two of them lands on the higher one, which is
-                    // where a default that has moved up will be.
-                    if (Math.abs(candidate - wanted) <= distance) {
-                        distance = Math.abs(candidate - wanted);
-                        nearest = value.toString();
-                    }
-                } catch (NumberFormatException e) {
-                    return;
+            for (int i = 0; i < values.length; i++) {
+                // <= and not <: the entries ascend, so a value exactly
+                // between two of them lands on the higher one, which is
+                // where a default that has moved up will be.
+                if (Math.abs(candidates[i] - wanted) <= distance) {
+                    distance = Math.abs(candidates[i] - wanted);
+                    nearest = values[i].toString();
                 }
             }
 

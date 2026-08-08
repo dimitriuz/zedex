@@ -107,8 +107,19 @@ public final class Media {
      */
     private final Map<String, Uri> origins = new ConcurrentHashMap<>();
 
-    /** The md5 of the last file staged, which is how its cheats are found. */
-    private byte[] hash;
+    /**
+     * The md5 of the last file staged, which is how its cheats are found.
+     *
+     * Volatile for the same reason {@link #origins} above is concurrent: it is
+     * written on the staging thread and read on the UI thread, when the Pokes
+     * page asks which game is loaded. Without it there is no happens-before
+     * edge between the two, and the page can be built from the *previous*
+     * game's md5 - which offers the previous game's cheats, and a poke writes
+     * straight into the running machine's memory. The other way it can go
+     * wrong is quieter: the interim null this is set to at the start of a
+     * staging reads as "no cheats known" for a game the database does have.
+     */
+    private volatile byte[] hash;
 
     /** Which drive a pending "load disk" belongs to. */
     private int pendingDrive = -1;

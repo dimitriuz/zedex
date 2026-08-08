@@ -474,6 +474,9 @@
     <string name="lamp_mouse">мышь</string>
     <string name="lamp_card">карта</string>
     <string name="lights_name">Индикаторы работы машины</string>
+    <string name="lamp_idle">бездействует</string>
+    <string name="lamp_reading">чтение</string>
+    <string name="lamp_writing">запись</string>
     <string name="settings_indicators">Индикаторы работы</string>
     <string name="settings_indicators_summary">Лампочки рядом с картинкой: лента, диски, карта, звук, клавиатура, джойстик и мышь</string>
     <string name="quick_joystick_show">Показать джойстик</string>

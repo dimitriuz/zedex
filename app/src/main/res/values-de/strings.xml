@@ -474,6 +474,9 @@
     <string name="lamp_mouse">Maus</string>
     <string name="lamp_card">Karte</string>
     <string name="lights_name">Kontrollleuchten der Maschine</string>
+    <string name="lamp_idle">inaktiv</string>
+    <string name="lamp_reading">liest</string>
+    <string name="lamp_writing">schreibt</string>
     <string name="settings_indicators">Kontrollleuchten</string>
     <string name="settings_indicators_summary">Lampen neben dem Bild für Kassette, Disketten, Karte, Ton, Tastatur, Joystick und Maus</string>
     <string name="quick_joystick_show">Joystick zeigen</string>

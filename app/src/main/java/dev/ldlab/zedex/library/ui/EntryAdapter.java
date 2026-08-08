@@ -227,7 +227,18 @@ public final class EntryAdapter extends RecyclerView.Adapter<EntryAdapter.Holder
         // replacing it. Reset for a row a recycled holder is about to become,
         // not only set for the one it is about to be.
         boolean selected = selectedKey != null && selectedKey.equals(entry.key());
-        holder.itemView.setBackgroundColor(selected ? SELECTED_BACKGROUND : 0x00000000);
+        // Selection.background rather than a colour: the wash alone was
+        // 1.37:1 against an untinted row, which is not a signal.
+        if (selected) {
+            holder.itemView.setBackground(Selection.background(
+                    holder.itemView.getResources().getDisplayMetrics().density));
+        } else {
+            holder.itemView.setBackground(null);
+        }
+
+        // TalkBack appends "selected" for free once the view says so, and
+        // nothing said so anywhere in this app before.
+        holder.itemView.setSelected(selected);
 
         holder.itemView.setOnClickListener(v -> callbacks.onOpen(entry));
         holder.itemView.setOnLongClickListener(v -> {

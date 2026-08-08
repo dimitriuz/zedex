@@ -253,7 +253,8 @@ public final class OptionsDialog {
         // row's text under it entirely, not merely clashing with it - see
         // Ripple.
         row.setBackgroundColor(0x00000000);
-        row.setForeground(Ripple.make());
+        row.setForeground(Ripple.make(
+                activity.getResources().getDisplayMetrics().density));
         row.setClickable(true);
         row.setFocusable(true);
 
@@ -314,7 +315,16 @@ public final class OptionsDialog {
         gridRow.setTextColor(grid ? ACTIVE : TEXT);
 
         for (int i = 0; i < rows.size(); i++) {
-            rows.get(i).setBackgroundColor(i == cursorRow ? CURSOR_BACKGROUND : 0x00000000);
+            boolean here = i == cursorRow;
+
+            if (here) {
+                rows.get(i).setBackground(Selection.background(
+                        rows.get(i).getResources().getDisplayMetrics().density));
+            } else {
+                rows.get(i).setBackground(null);
+            }
+
+            rows.get(i).setSelected(here);
         }
     }
 

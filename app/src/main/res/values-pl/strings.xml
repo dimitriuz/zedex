@@ -474,6 +474,9 @@
     <string name="lamp_mouse">mysz</string>
     <string name="lamp_card">karta</string>
     <string name="lights_name">Wskaźniki pracy maszyny</string>
+    <string name="lamp_idle">bezczynny</string>
+    <string name="lamp_reading">odczyt</string>
+    <string name="lamp_writing">zapis</string>
     <string name="settings_indicators">Wskaźniki pracy</string>
     <string name="settings_indicators_summary">Lampki obok obrazu dla taśmy, dysków, karty, dźwięku, klawiatury, joysticka i myszy</string>
     <string name="quick_joystick_show">Pokaż joystick</string>

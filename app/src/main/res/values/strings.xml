@@ -520,6 +520,9 @@
     <string name="lamp_mouse">mouse</string>
     <string name="lamp_card">card</string>
     <string name="lights_name">Machine activity indicators</string>
+    <string name="lamp_idle">idle</string>
+    <string name="lamp_reading">reading</string>
+    <string name="lamp_writing">writing</string>
     <string name="settings_indicators">Activity indicators</string>
     <string name="settings_indicators_summary">Lamps beside the picture for the tape, disks, the card, sound, the keyboard, the joystick and the mouse</string>
     <string name="quick_joystick_show">Show joystick</string>

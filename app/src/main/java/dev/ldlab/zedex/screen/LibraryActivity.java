@@ -13,6 +13,7 @@ import dev.ldlab.zedex.library.ui.GamepadCursor;
 import dev.ldlab.zedex.library.ui.Manuals;
 import dev.ldlab.zedex.library.ui.OptionsDialog;
 import dev.ldlab.zedex.library.ui.Ripple;
+import dev.ldlab.zedex.library.ui.Selection;
 import dev.ldlab.zedex.storage.Recents;
 import dev.ldlab.zedex.storage.Storage;
 import dev.ldlab.zedex.view.SafeArea;
@@ -662,11 +663,50 @@ public final class LibraryActivity extends Activity {
         if (isTopResumedActivity) libraryPanel.topFocusReturned();
     }
 
-    /** Browse's own way up, and the app's own way out from its root. */
+    /**
+     * Browse's own way up, and the app's own way out from its root.
+     *
+     * API 30 to 32 only. From 33 the manifest's enableOnBackInvokedCallback is
+     * honoured and back arrives at the dispatcher callback registered in
+     * {@link #onCreate} instead, never here.
+     */
     @Override
     public void onBackPressed() {
         if (popStack()) return;
         super.onBackPressed();
+    }
+
+    /**
+     * Back, on API 33 and later. See EmulatorActivity's own note for why the
+     * opt-in is worth making before {@code targetSdk} forces it.
+     *
+     * Registered and unregistered as the stack fills and empties, rather than
+     * held for the life of the activity the way the emulator's is: this screen
+     * *does* want the system to have back at the root, and only then. Handing
+     * it back is what lets the platform draw the predictive gesture for
+     * leaving the app, which it cannot do for a back that an app has claimed.
+     * {@link #pushRoot} and {@link #popStack} are the two places the answer
+     * changes, so both call {@link #syncBackCallback}.
+     */
+    private android.window.OnBackInvokedCallback backCallback;
+
+    private void syncBackCallback() {
+        if (android.os.Build.VERSION.SDK_INT
+                < android.os.Build.VERSION_CODES.TIRAMISU) {
+            return;
+        }
+
+        boolean wanted = canPopStack();
+
+        if (wanted && backCallback == null) {
+            backCallback = this::popStack;
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                    android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+                    backCallback);
+        } else if (!wanted && backCallback != null) {
+            getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(backCallback);
+            backCallback = null;
+        }
     }
 
     // --- gamepad ---------------------------------------------------------
@@ -888,8 +928,18 @@ public final class LibraryActivity extends Activity {
      * @return whether there was a level to pop. False at the root, or on
      *         either of the other two tabs, which have no stack to speak of.
      */
+    /**
+     * Whether back has somewhere to go here, which is the same question the up
+     * chevron answers - so the two are kept together at both the places that
+     * set its visibility, rather than this growing a list of mutation sites of
+     * its own to fall out of step with.
+     */
+    private boolean canPopStack() {
+        return tab == Tab.BROWSE && stack.size() > 1;
+    }
+
     private boolean popStack() {
-        if (tab != Tab.BROWSE || stack.size() <= 1) return false;
+        if (!canPopStack()) return false;
 
         stack.remove(stack.size() - 1);
         clearSelection();
@@ -1147,7 +1197,7 @@ public final class LibraryActivity extends Activity {
         // pressed and focused states answer to the device theme's own
         // accent rather than anything chosen here - see Ripple.
         button.setBackgroundColor(0x00000000);
-        button.setForeground(Ripple.make());
+        button.setForeground(Ripple.make(getResources().getDisplayMetrics().density));
         button.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
         button.setOnClickListener(v -> show(which));
         button.setLayoutParams(new LinearLayout.LayoutParams(
@@ -1162,7 +1212,21 @@ public final class LibraryActivity extends Activity {
             boolean active = candidate == tab;
 
             button.setColorFilter(active ? ACTIVE : MUTED);
-            button.setBackgroundColor(active ? TAB_ACTIVE_BACKGROUND : 0x00000000);
+
+            // Selection.background, not the bare wash: cyan at 20% over this
+            // screen's backing is 1.37:1 against an inactive tab beside it,
+            // which is not enough to tell anybody which tab they are on.
+            if (active) {
+                button.setBackground(Selection.background(
+                        getResources().getDisplayMetrics().density));
+            } else {
+                button.setBackground(null);
+            }
+
+            // And say it rather than only drawing it. TalkBack reads all three
+            // of these tabs identically otherwise - "Browse", "Favourites",
+            // "Recent", with nothing to say which one you are looking at.
+            button.setSelected(active);
         }
     }
 
@@ -1307,7 +1371,7 @@ public final class LibraryActivity extends Activity {
         button.setColorFilter(TEXT);
         button.setContentDescription(description);
         button.setBackgroundColor(0x00000000);
-        button.setForeground(Ripple.make());
+        button.setForeground(Ripple.make(getResources().getDisplayMetrics().density));
         button.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
         button.setLayoutParams(new LinearLayout.LayoutParams(
                 Math.round(44 * density), Math.round(44 * density)));
@@ -1542,7 +1606,7 @@ public final class LibraryActivity extends Activity {
         paneInfoButton = new ImageButton(this);
         paneInfoButton.setImageResource(R.drawable.ic_zoom);
         paneInfoButton.setColorFilter(MUTED);
-        paneInfoButton.setBackground(Ripple.make());
+        paneInfoButton.setBackground(Ripple.make(getResources().getDisplayMetrics().density));
         paneInfoButton.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
         paneInfoButton.setContentDescription(getString(R.string.library_info));
         paneInfoButton.setOnClickListener(v -> showGameInfo());
@@ -1559,7 +1623,7 @@ public final class LibraryActivity extends Activity {
         paneManualButton = new ImageButton(this);
         paneManualButton.setImageResource(R.drawable.ic_manual);
         paneManualButton.setColorFilter(MUTED);
-        paneManualButton.setBackground(Ripple.make());
+        paneManualButton.setBackground(Ripple.make(getResources().getDisplayMetrics().density));
         paneManualButton.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
         paneManualButton.setContentDescription(getString(R.string.library_manual));
         paneManualButton.setVisibility(View.GONE);
@@ -1878,6 +1942,7 @@ public final class LibraryActivity extends Activity {
         boolean browsing = tab == Tab.BROWSE;
         pathLabel.setVisibility(browsing ? View.VISIBLE : View.GONE);
         upButton.setVisibility(browsing && stack.size() > 1 ? View.VISIBLE : View.GONE);
+        syncBackCallback();
         clearSearch();
         clearSelection();
         dismissKeyboard();
@@ -1947,6 +2012,7 @@ public final class LibraryActivity extends Activity {
         Level level = stack.get(stack.size() - 1);
         pathLabel.setText(pathText());
         upButton.setVisibility(stack.size() > 1 ? View.VISIBLE : View.GONE);
+        syncBackCallback();
 
         new Thread(() -> {
             List<Entry> result = null;
@@ -2474,8 +2540,7 @@ public final class LibraryActivity extends Activity {
 
         // Without this the grant dies with this activity, exactly as
         // SettingsActivity's own picker takes care to avoid.
-        getContentResolver().takePersistableUriPermission(
-                tree, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        Storage.keepAccessTo(this, tree, Intent.FLAG_GRANT_READ_URI_PERMISSION);
 
         preferences.edit().putString(Storage.KEY_CONTENT_TREE, tree.toString()).apply();
 

@@ -59,12 +59,29 @@
         android:name="android.hardware.touchscreen"
         android:required="false" />
 
+    <!--
+        enableOnBackInvokedCallback is asked for rather than waited for. At
+        targetSdk 36 it becomes the default whether it is declared or not, and
+        the KEYCODE_BACK branch in EmulatorActivity.onKeyDown simply stops
+        being reached - so the sheet's page-by-page back, leaving fullscreen,
+        and back opening the menu instead of quitting would all go at once, on
+        a bump of a number, with nothing to say so. Both activities that claim
+        back register a dispatcher callback for API 33 and up; see
+        EmulatorActivity.registerBackCallback and
+        LibraryActivity.syncBackCallback, and onKeyDown/onBackPressed for the
+        30-to-32 path, which has no dispatcher to register with.
+
+        dataExtractionRules keeps a crash report, the ROM set and the tree
+        grants out of a backup; res/xml/backup_rules.xml says why for each.
+    -->
     <application
         android:label="@string/app_name"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:allowBackup="true"
+        android:dataExtractionRules="@xml/backup_rules"
         android:theme="@style/AppTheme"
+        android:enableOnBackInvokedCallback="true"
         android:hardwareAccelerated="true">
 
         <!-- The launcher now, in place of EmulatorActivity: it decides for

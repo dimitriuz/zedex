@@ -6,11 +6,15 @@ import android.content.Context;
 import android.content.res.Configuration;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
+import android.view.accessibility.AccessibilityNodeInfo;
+import android.view.accessibility.AccessibilityNodeProvider;
 
 /**
  * Seven lamps saying what the machine is busy with.
@@ -400,6 +404,129 @@ public final class ActivityLights extends View {
      */
     private void describe() {
         setContentDescription(getContext().getString(R.string.lights_name));
+    }
+
+    /**
+     * A node per lamp, so a screen reader can be told what each one says.
+     *
+     * The strings for these have existed, and been translated into eight
+     * languages, since the lamps were written - {@code lamp_tape},
+     * {@code lamp_disk} and the rest, under a comment in {@code strings.xml}
+     * promising that "a screen reader gets these". Nothing read them: the names
+     * went into {@link Lamp#name} and stopped there, and the only description
+     * this view had was the one word above for the whole strip. Sixty-three
+     * translated strings reaching nothing.
+     *
+     * This is not in tension with {@link #describe}'s reasoning, which is
+     * right and stands. That is about *events*: a contentDescription rewritten
+     * ten times a second is ten window-content-changed events a second and an
+     * accessibility tree that never settles, which is what once made the whole
+     * suite fail to find the ☰ button. A node provider is asked; it does not
+     * announce. Nothing here calls sendAccessibilityEvent or
+     * notifyViewAccessibilityStateChanged, so the tree is as quiet as it was -
+     * the state is simply current whenever somebody looks.
+     *
+     * It matters most in fullscreen, where {@link #diskOnly} leaves the disk
+     * lamp as the only thing on screen and the design's own answer to "is it
+     * safe to close this yet". Sighted, that is one small pill; without this it
+     * was nothing at all.
+     */
+    @Override
+    public AccessibilityNodeProvider getAccessibilityNodeProvider() {
+        if (provider == null) provider = new Lanterns();
+        return provider;
+    }
+
+    private Lanterns provider;
+
+    private final class Lanterns extends AccessibilityNodeProvider {
+
+        @Override
+        public AccessibilityNodeInfo createAccessibilityNodeInfo(int id) {
+            if (id == AccessibilityNodeProvider.HOST_VIEW_ID) {
+                AccessibilityNodeInfo host = AccessibilityNodeInfo.obtain(ActivityLights.this);
+                onInitializeAccessibilityNodeInfo(host);
+
+                for (int i = 0; i < lamps.length; i++) {
+                    if (shows(i)) host.addChild(ActivityLights.this, i);
+                }
+
+                return host;
+            }
+
+            if (id < 0 || id >= lamps.length || !shows(id)) return null;
+
+            Lamp lamp = lamps[id];
+            AccessibilityNodeInfo node =
+                    AccessibilityNodeInfo.obtain(ActivityLights.this, id);
+
+            node.setPackageName(getContext().getPackageName());
+            node.setClassName(ActivityLights.class.getName());
+            node.setParent(ActivityLights.this);
+            node.setContentDescription(getContext().getString(lamp.name));
+            node.setStateDescription(getContext().getString(stateOf(lamp)));
+
+            // Reachable by touch exploration, but not something to activate:
+            // a lamp reports, it does not do.
+            node.setFocusable(true);
+            node.setClickable(false);
+            node.setEnabled(true);
+            node.setVisibleToUser(true);
+
+            Rect bounds = new Rect();
+            boundsOf(id, bounds);
+            node.setBoundsInParent(bounds);
+
+            int[] offset = new int[2];
+            getLocationOnScreen(offset);
+            bounds.offset(offset[0], offset[1]);
+            node.setBoundsInScreen(bounds);
+
+            return node;
+        }
+
+        @Override
+        public boolean performAction(int id, int action, Bundle arguments) {
+            return false;   // nothing here is actionable
+        }
+    }
+
+    /** Which of {@code lamp_idle}, {@code lamp_reading}, {@code lamp_writing}. */
+    private int stateOf(Lamp lamp) {
+        if ((state & lamp.bit) == 0) return R.string.lamp_idle;
+
+        return (state & (lamp.bit << FuseNative.ACTIVITY_WRITING)) != 0
+                ? R.string.lamp_writing : R.string.lamp_reading;
+    }
+
+    /** Whether lamp {@code i} is on screen at all right now. */
+    private boolean shows(int i) {
+        if (i < 0 || i >= lamps.length) return false;
+        if (!diskOnly) return true;
+
+        // Fullscreen shows the disk lamp and only while it is busy; see onDraw.
+        return diskBusy() && lamps[i] == diskLamp();
+    }
+
+    /**
+     * The same arithmetic onDraw uses to place the pill, for one lamp.
+     *
+     * {@code lampSize()} and {@code horizontal()} rather than fields, because
+     * onDraw takes them from those too - two copies of the geometry that could
+     * disagree would put a screen reader's focus ring somewhere the lamp is not.
+     */
+    private void boundsOf(int i, Rect into) {
+        int one = lampSize();
+
+        if (diskOnly) {
+            into.set(0, 0, one, one);
+            return;
+        }
+
+        int start = i * (one + gap);
+
+        if (horizontal()) into.set(start, 0, start + one, one);
+        else into.set(0, start, one, start + one);
     }
 
     // --- polling ------------------------------------------------------------
