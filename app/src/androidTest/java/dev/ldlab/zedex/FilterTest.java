@@ -407,7 +407,16 @@ public class FilterTest {
     private void launchLibrary() {
         Intent intent = new Intent(context, LibraryActivity.class);
         intent.putExtra(LibraryActivity.EXTRA_FROM_MENU, true);
-        intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_NEW_TASK);
+        // CLEAR_TOP, not REORDER_TO_FRONT: the activity keeps which folder
+        // Browse is standing in, and the filter, in its own fields, so
+        // reusing the instance means starting wherever the last test left it.
+        // The first test here walks into a folder; the second then began
+        // inside it and failed looking for a game that had been filtered out
+        // of that subtree - but only in a suite, where a prior class had not
+        // already destroyed the instance. This activity is launchMode
+        // standard, so CLEAR_TOP recreates it, and a new instance is at the
+        // root with nothing filtered.
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
 
         // On the display this test can see - see Screen. Run on its own the
         // library came up here anyway; run after a class that had left another
