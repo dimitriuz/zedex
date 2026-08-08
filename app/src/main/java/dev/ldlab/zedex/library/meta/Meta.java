@@ -66,17 +66,31 @@ public final class Meta {
      * different things, and the row that shows this leaves the fact out
      * entirely rather than claiming a game scored nothing.
      */
-    public String stars() {
-        if (rating == null || rating.isEmpty()) return null;
+    /**
+     * The rating out of five as a number, or {@code -1} when there is none.
+     *
+     * Separate from {@link #stars}, which formats for a screen and is no use
+     * for a comparison - it is localised, so a decimal point is a comma in
+     * half the languages this app ships in.
+     */
+    public float ratingOutOfFive() {
+        if (rating == null || rating.isEmpty()) return -1f;
 
         try {
             float fraction = Float.parseFloat(rating.trim());
-            if (fraction < 0f || fraction > 1f) return null;
+            if (fraction < 0f || fraction > 1f) return -1f;
 
-            return String.format(java.util.Locale.getDefault(), "%.1f", fraction * 5f);
+            return fraction * 5f;
         } catch (NumberFormatException e) {
-            return null;
+            return -1f;
         }
+    }
+
+    public String stars() {
+        float out = ratingOutOfFive();
+        if (out < 0f) return null;
+
+        return String.format(java.util.Locale.getDefault(), "%.1f", out);
     }
 
     /**
