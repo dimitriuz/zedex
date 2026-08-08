@@ -74,6 +74,34 @@ public class RecentsTest {
         document = publish();
     }
 
+    /**
+     * Takes out a document of this name that an earlier run left behind.
+     *
+     * tearDown deletes it, and a run that is killed part way through never
+     * reaches tearDown - a suite stopped by hand, an install landing on top of
+     * it. MediaStore does not overwrite: asked for a name that is taken, it
+     * makes "uitest-recent (1).tap" instead, and the assertion that the recent
+     * was remembered under its own name then fails with what reads like a
+     * naming bug in the app. The world this test needs includes the absence of
+     * its own leftovers.
+     */
+    private void dropAnyLeftOver() {
+        String[] projection = { MediaStore.MediaColumns._ID };
+        String where = MediaStore.MediaColumns.DISPLAY_NAME + " = ?";
+
+        try (android.database.Cursor found = emulator.context().getContentResolver()
+                .query(MediaStore.Downloads.EXTERNAL_CONTENT_URI, projection,
+                       where, new String[] { NAME }, null)) {
+            if (found == null) return;
+
+            while (found.moveToNext()) {
+                Uri stale = android.content.ContentUris.withAppendedId(
+                        MediaStore.Downloads.EXTERNAL_CONTENT_URI, found.getLong(0));
+                emulator.context().getContentResolver().delete(stale, null, null);
+            }
+        }
+    }
+
     @After
     public void tearDown() {
         if (document != null) {
@@ -134,6 +162,8 @@ public class RecentsTest {
      */
     private Uri publish() throws IOException {
         Context context = emulator.context();
+
+        dropAnyLeftOver();
 
         ContentValues values = new ContentValues();
         values.put(MediaStore.MediaColumns.DISPLAY_NAME, NAME);
