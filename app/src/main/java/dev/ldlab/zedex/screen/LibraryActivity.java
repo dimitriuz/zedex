@@ -59,6 +59,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * The screen the app can open on: the content folder, browsable, with folders
@@ -347,6 +348,20 @@ public final class LibraryActivity extends Activity {
     private long lastLinkedAt = -1;
 
     private TextView pathLabel;
+
+    /**
+     * Where {@link #pathLabel} sits when a filter is on - the two share one
+     * slot in the toolbar, and {@link #updateFilterChips} is the one place
+     * that decides which of them shows: this row while {@link #filtering()},
+     * the breadcrumb otherwise. Built once, by {@link #buildToolbar}.
+     */
+    private LinearLayout filterChipRow;
+
+    /** "Genre  ·  4+" or whatever else is narrowed - the text half of {@link
+     *  #filterChipRow}, kept apart from the row itself so {@link
+     *  #updateFilterChips} can update it without rebuilding anything. */
+    private TextView filterChipLabel;
+
     private ImageButton upButton;
     private TextView emptyLabel;
     private View noFolderView;
@@ -1315,6 +1330,47 @@ public final class LibraryActivity extends Activity {
         row.addView(pathLabel, new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
+        // pathLabel's own slot, shared rather than a row of its own: a
+        // filter and "where you are" are never both true at once - Browse's
+        // stack is flattened while filtering() - so there is never a moment
+        // both would need the space. Starts gone; updateFilterChips is the
+        // only place that flips this, once there is a filter to say.
+        filterChipRow = new LinearLayout(this);
+        filterChipRow.setOrientation(LinearLayout.HORIZONTAL);
+        filterChipRow.setGravity(Gravity.CENTER_VERTICAL);
+        filterChipRow.setVisibility(View.GONE);
+
+        filterChipLabel = new TextView(this);
+        filterChipLabel.setTextColor(MUTED);
+        filterChipLabel.setTextSize(12);
+        filterChipLabel.setSingleLine();
+        filterChipLabel.setEllipsize(TextUtils.TruncateAt.END);
+        filterChipLabel.setPadding(pixels(4), 0, pixels(4), 0);
+        filterChipRow.addView(filterChipLabel, new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        // The clear affordance - a glyph, but never a bare one: CLAUDE.md's
+        // own warning about the activity lamps applies here just the same,
+        // and TalkBack reads an undescribed × as "multiplication sign"
+        // rather than as anything a person tapping it would expect to hear.
+        TextView filterChipClear = new TextView(this);
+        filterChipClear.setText("×");
+        filterChipClear.setTextColor(TEXT);
+        filterChipClear.setTextSize(18);
+        filterChipClear.setGravity(Gravity.CENTER);
+        filterChipClear.setContentDescription(getString(R.string.library_filter_clear));
+        filterChipClear.setBackground(Ripple.make(getResources().getDisplayMetrics().density));
+        filterChipClear.setPadding(pixels(10), pixels(6), pixels(10), pixels(6));
+        filterChipClear.setOnClickListener(v -> {
+            filters.clearAll();
+            onFiltersChanged();
+        });
+        filterChipRow.addView(filterChipClear, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        row.addView(filterChipRow, new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
         searchField = new EditText(this);
         searchField.setHint(R.string.library_search);
         searchField.setSingleLine();
@@ -2070,7 +2126,12 @@ public final class LibraryActivity extends Activity {
         paintTabs();
 
         boolean browsing = tab == Tab.BROWSE;
-        pathLabel.setVisibility(browsing ? View.VISIBLE : View.GONE);
+
+        // Leaving Browse with a filter still set must not leave the chips
+        // showing over a tab filtering() does not apply to - updateFilterChips
+        // reads the tab this just became, so it is what decides between the
+        // breadcrumb and the chips now, not a plain "browsing ? … : …" here.
+        updateFilterChips();
         upButton.setVisibility(browsing && stack.size() > 1 ? View.VISIBLE : View.GONE);
 
         // Filtering applies to Browse only - Favourites and Recent are
@@ -2399,11 +2460,17 @@ public final class LibraryActivity extends Activity {
         emptyLabel.setVisibility(empty ? View.VISIBLE : View.GONE);
 
         if (empty) {
-            // A search that matched nothing says so, whatever the tab -
-            // it is why the list is empty, and library_empty and its two
-            // siblings are all claims about the folder itself having
-            // nothing in it, which would be false here.
-            emptyLabel.setText(!query.isEmpty() ? R.string.library_empty_search
+            // filtering() first, ahead of the search text: a filter that has
+            // excluded everything is the one this app has shipped looking
+            // like a broken library twice already, and it must say so even
+            // when a search term is also narrowing things, since clearing
+            // the filter is the fix here and clearing the search box is not.
+            // library_empty and its other two siblings are all claims about
+            // the folder itself having nothing in it, which would be false
+            // whenever a search or a filter is why the list is empty rather
+            // than the folder.
+            emptyLabel.setText(filtering() ? R.string.library_empty_filtered
+                              : !query.isEmpty() ? R.string.library_empty_search
                               : tab == Tab.FAVORITES ? R.string.library_empty_favorites
                               : tab == Tab.RECENTS ? R.string.library_empty_recents
                               : R.string.library_empty);
@@ -2987,10 +3054,69 @@ public final class LibraryActivity extends Activity {
         load();
     }
 
-    /** Draws the row of chips naming what filters() is narrowed to. Empty
-     *  for now - the sheet and the chips themselves are Task 7. */
+    /**
+     * Draws the row of chips naming what {@link #filters} is narrowed to,
+     * in {@link #pathLabel}'s own slot - the two never both apply at once,
+     * since {@link #filtering()} is already "Browse, and something is set".
+     *
+     * Called from {@link #show} on every tab switch, since leaving Browse
+     * with a filter still set must not leave the chips showing over a tab
+     * they say nothing about, and from {@link #onFiltersChanged} whenever a
+     * field or the rating threshold actually changes - the two callers this
+     * screen has for "the filter or the tab just moved", and this is the one
+     * place that turns either into what the toolbar shows for it.
+     */
     private void updateFilterChips() {
-        // Task 7.
+        boolean showChips = filtering();
+
+        filterChipRow.setVisibility(showChips ? View.VISIBLE : View.GONE);
+        pathLabel.setVisibility(tab == Tab.BROWSE && !showChips ? View.VISIBLE : View.GONE);
+
+        if (!showChips) return;
+
+        String summary = filterChipText();
+        filterChipLabel.setText(summary);
+
+        // Named for a screen reader too, not only drawn - the same glance a
+        // sighted person gets from the row's own text has to reach TalkBack
+        // as more than "1 of 4 unlabelled views".
+        filterChipRow.setContentDescription(
+                getString(R.string.library_filter) + ": " + summary);
+    }
+
+    /**
+     * "Platform  ·  4+" - every active field's own chosen values, in the
+     * order {@link Filters.Field} declares them, then the rating threshold
+     * last since it is not one of that enum - see {@link Filters#minStars}.
+     * Never the field's own name: {@link OptionsDialog}'s menu row already
+     * has "Genre · Platform" for someone who wants to know which field is
+     * which, but a chip a person glances at while looking at the list wants
+     * to know what is chosen, not read a label first to find out.
+     */
+    private String filterChipText() {
+        List<String> parts = new ArrayList<>();
+
+        for (Filters.Field field : Filters.Field.values()) {
+            Set<String> chosen = filters.chosen(field);
+            if (!chosen.isEmpty()) parts.add(String.join(", ", chosen));
+        }
+
+        if (filters.minStars() > 0f) parts.add(ratingChipLabel(filters.minStars()));
+
+        return String.join("  ·  ", parts);
+    }
+
+    /** "3+" or "4.5+" - the same shape {@code OptionsDialog.ratingLabel}
+     *  draws its own rating rows with, duplicated rather than shared since
+     *  that method is private to a dialog with no reason to widen itself
+     *  for one caller outside it. {@code float}'s own {@code toString} is
+     *  exactly this for every threshold {@link Filters#setMinStars} is ever
+     *  called with from this screen - an integer or one decimal place,
+     *  never scientific notation or a trailing zero. */
+    private static String ratingChipLabel(float stars) {
+        String number = stars == Math.rint(stars)
+                ? String.valueOf((int) stars) : String.valueOf(stars);
+        return number + "+";
     }
 
     private int pixels(int dp) {
