@@ -3,10 +3,7 @@ package dev.ldlab.zedex.update;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
-import androidx.test.ext.junit.runners.AndroidJUnit4;
-
 import org.junit.Test;
-import org.junit.runner.RunWith;
 
 /**
  * How the app learns what the newest release is called.
@@ -19,8 +16,12 @@ import org.junit.runner.RunWith;
  *
  * The first string below is real — what curl returned from this project's own
  * releases page.
+ *
+ * On the JVM, where it belongs: it parses strings and touches no Android type.
+ * As instrumentation it cost an emulator, an install, and an uninstall that
+ * took the data folder and the storage permission with it — for four
+ * assertions that run in milliseconds.
  */
-@RunWith(AndroidJUnit4.class)
 public class UpdaterVersionTest {
 
     @Test

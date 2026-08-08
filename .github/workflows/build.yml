@@ -24,6 +24,18 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # First, and before the native build on purpose. Both take a fifth of a
+      # second between them and need neither Java nor a compiler, while the
+      # native build takes ninety seconds - so a format specifier that would
+      # throw a ClassCastException in front of a Polish reader, or a preference
+      # read with the wrong getter, fails the job before anything is built.
+      # check-prefs.py's own docstring has said "so it can go in a workflow"
+      # since it was written; this is that workflow.
+      - name: Check the strings and the preferences
+        run: |
+          python3 scripts/check-strings.py
+          python3 scripts/check-prefs.py
+
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -35,6 +47,22 @@ jobs:
 
       - name: Assemble
         run: ./gradlew --no-daemon assembleDebug
+
+      # Fifteen seconds, no device, no emulator. The instrumentation suite
+      # cannot run here - it needs an emulator and its waits are sleeps, so it
+      # is load-sensitive on a shared runner - but the JVM tier has no such
+      # excuse, and it covers the filtering and sorting logic the library is
+      # built on.
+      - name: Unit tests
+        run: ./gradlew --no-daemon testDebugUnitTest
+
+      - name: Keep the unit-test report when it fails
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: unit-test-report
+          path: app/build/reports/tests/testDebugUnitTest/
+          if-no-files-found: ignore
 
       # Cheap guard against the mistake CLAUDE.md warns about: an APK that
       # packages a stale or missing library. Both ABIs must be in there.
