@@ -126,16 +126,26 @@ androiddisplay_palette( void )
 void
 uidisplay_frame_end( void )
 {
-  const libspectrum_dword *palette = androiddisplay_palette();
-  libspectrum_dword *out = androiddisplay_rgba;
-  int x, y;
+  /* Asked first, and built only if the answer is yes. The expansion below is
+     one palette lookup per pixel - 76,800 of them at 320x240 - and a frame
+     the window is going to drop does not need any of them. Nothing is dropped
+     at ordinary speed, so this changes nothing there; it is fast-forward and
+     tape loading that stop expanding five frames in six. */
+  if( androidbridge_wants_frame() ) {
+    const libspectrum_dword *palette = androiddisplay_palette();
+    libspectrum_dword *out = androiddisplay_rgba;
+    int x, y;
 
-  for( y = 0; y < image_height; y++ ) {
-    const libspectrum_byte *in = androiddisplay_image[y];
-    for( x = 0; x < image_width; x++ ) *out++ = palette[ *in++ ];
+    for( y = 0; y < image_height; y++ ) {
+      const libspectrum_byte *in = androiddisplay_image[y];
+      for( x = 0; x < image_width; x++ ) *out++ = palette[ *in++ ];
+    }
+
+    androidbridge_present_now( androiddisplay_rgba, image_width, image_height );
   }
 
-  androidbridge_present( androiddisplay_rgba, image_width, image_height );
+  /* Whatever was decided above: the recorder reads the indices rather than
+     this buffer, and a recording is not something to drop frames from. */
   androidbridge_frame_ready( image_width, image_height );
 }
 
@@ -193,11 +203,16 @@ androiddisplay_write_thumbnail( const char *path )
   header[1] = height;
   fwrite( header, sizeof( header ), 1, file );
 
+  /* Expanded here from the indices rather than read out of the presented
+     buffer: that one is only refreshed for frames the window actually draws,
+     so during fast-forward it can be several frames old. Every other pixel of
+     every other row is 1/4 of the work anyway. */
   for( y = 0; y < height; y++ ) {
+    const libspectrum_dword *palette = androiddisplay_palette();
     libspectrum_dword row[ DISPLAY_SCREEN_WIDTH ];
 
     for( x = 0; x < width; x++ )
-      row[x] = androiddisplay_rgba[ ( y * 2 ) * image_width + x * 2 ];
+      row[x] = palette[ androiddisplay_image[ y * 2 ][ x * 2 ] ];
 
     fwrite( row, sizeof( libspectrum_dword ), width, file );
   }

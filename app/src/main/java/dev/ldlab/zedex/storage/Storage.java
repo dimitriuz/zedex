@@ -901,6 +901,34 @@ public final class Storage {
     }
 
     /** The folder the file picker should open in, or null for wherever it likes. */
+    /**
+     * What was built last, and what it was built from.
+     *
+     * One object rather than two fields, so a reader gets a matched pair or
+     * nothing: two would let a thread see the new string beside the old Uri.
+     * Keyed on the stored string, so choosing a different folder invalidates
+     * it without anybody having to remember to.
+     */
+    private static final class ContentFolder {
+        final String stored;
+        final Uri folder;
+
+        ContentFolder(String stored, Uri folder) {
+            this.stored = stored;
+            this.folder = folder;
+        }
+    }
+
+    private static final java.util.concurrent.atomic.AtomicReference<ContentFolder>
+            contentFolderCache = new java.util.concurrent.atomic.AtomicReference<>();
+
+    /**
+     * Cached because it is asked for per row, per bind, and the answer cannot
+     * change while the string it is derived from does not. Parsing a Uri and
+     * rebuilding a document Uri from its tree id is eight to twelve
+     * allocations and several string scans - small until a held pad direction
+     * asks for it a hundred and fifty times a second.
+     */
     public static Uri contentFolder(Context context) {
         SharedPreferences preferences =
                 context.getSharedPreferences(SettingsActivity.PREFS, Context.MODE_PRIVATE);
@@ -908,10 +936,16 @@ public final class Storage {
         String stored = preferences.getString(KEY_CONTENT_TREE, null);
         if (stored == null) return null;
 
+        ContentFolder cached = contentFolderCache.get();
+        if (cached != null && stored.equals(cached.stored)) return cached.folder;
+
         try {
             Uri tree = Uri.parse(stored);
-            return DocumentsContract.buildDocumentUriUsingTree(
+            Uri folder = DocumentsContract.buildDocumentUriUsingTree(
                     tree, DocumentsContract.getTreeDocumentId(tree));
+
+            contentFolderCache.set(new ContentFolder(stored, folder));
+            return folder;
         } catch (Exception e) {
             Log.w(TAG, "cannot use content folder " + stored, e);
             return null;

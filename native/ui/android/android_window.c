@@ -178,28 +178,59 @@ androidbridge_service_window( void )
   pthread_mutex_unlock( &window_mutex );
 }
 
+/* Whether this frame is worth drawing, asked *before* it has been built.
+ *
+ * Takes the slot as well as answering: worth_presenting() stamps the time it
+ * allows a frame through, so it cannot be asked twice about the same one. A
+ * caller that gets 1 here is expected to go on and call
+ * androidbridge_present_now().
+ *
+ * This exists so the display can skip the palette expansion for a frame that
+ * is only going to be dropped - 76,800 lookups at 320x240, and at 500% speed
+ * about five frames in six are dropped, which is nineteen million lookups a
+ * second written into a buffer nothing reads. It costs nothing at 100%, where
+ * nothing is dropped, so what it buys is exactly fast-forward and tape
+ * loading: the times somebody is waiting.
+ */
+int
+androidbridge_wants_frame( void )
+{
+  int wanted;
+
+  pthread_mutex_lock( &window_mutex );
+
+  /* Serviced whatever the answer: a surfaceDestroyed() already waiting must
+     not be held up by a frame this one decides to skip. */
+  service_window();
+  wanted = worth_presenting();
+
+  pthread_mutex_unlock( &window_mutex );
+
+  return wanted;
+}
+
+/* Draws it, having already decided. */
 void
-androidbridge_present( const void *pixels, int width, int height )
+androidbridge_present_now( const void *pixels, int width, int height )
 {
   pthread_mutex_lock( &window_mutex );
 
-  /* Before the frame-rate throttle below, not after: a present that decides
-     this frame is too soon still has to answer a surfaceDestroyed() that is
-     already waiting, or the handover is held up by as much as a frame for no
-     reason - and on the throttle's own early return, was not answered at all
-     until the next one got through. */
   service_window();
-
-  if( !worth_presenting() ) {
-    pthread_mutex_unlock( &window_mutex );
-    return;
-  }
-
   declare_frame_rate();
 
   androidgl_frame( window, window_generation, pixels, width, height );
 
   pthread_mutex_unlock( &window_mutex );
+}
+
+/* The throttle and the drawing together, for a caller that already has a
+   frame in hand - the paused loop, which re-presents the last one. */
+void
+androidbridge_present( const void *pixels, int width, int height )
+{
+  if( !androidbridge_wants_frame() ) return;
+
+  androidbridge_present_now( pixels, width, height );
 }
 
 JNIEXPORT void JNICALL

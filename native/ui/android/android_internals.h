@@ -111,6 +111,12 @@ void androidgl_end( void );
    Called from uidisplay_frame_end(). */
 void androidbridge_present( const void *pixels, int width, int height );
 
+/* Ask before building the frame, then draw it. Splitting the two is what lets
+   the palette expansion be skipped for a frame that would be dropped; see
+   androidbridge_wants_frame in android_window.c. */
+int androidbridge_wants_frame( void );
+void androidbridge_present_now( const void *pixels, int width, int height );
+
 /* Answer the window handshake without drawing - for a caller that has no
    frame, which is every iteration of the paused loop before Fuse has
    managed to initialise its display. */
