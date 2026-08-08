@@ -18,7 +18,24 @@
 - **Unknown values sort last in both directions**, and an unrated game is not a game rated zero.
 - **Build:** `env JAVA_HOME=/opt/android-studio/jbr ./gradlew --no-daemon assembleDebug`. Gradle only packages the prebuilt `.so`; no native change here, so no `build-native.sh` run is needed.
 - **Unit tests:** `env JAVA_HOME=/opt/android-studio/jbr ./gradlew --no-daemon testDebugUnitTest`.
-- **Instrumentation:** install with `adb install -r` and run `adb shell am instrument -w ...`; never `connectedAndroidTest`, which uninstalls the app and wipes its data. Set `secondScreen` to `false` first or the panel borrows the controls onto another display and the tests tap an empty screen.
+- **Do not run the full instrumentation suite per task.** No test in it drives
+  `LibraryActivity` — it is the emulator: joystick, pokes, states, tape,
+  capture, hotkeys. Eight minutes to say nothing about library code. Per task,
+  run `testDebugUnitTest` and `assembleDebug`; those cover the logic being
+  changed and catch a broken screen at compile time, in under a minute
+  together.
+- **Targeted instrumentation only, where it is relevant:** `DataFoldersTest`
+  and `MetadataXmlTest` if storage or the metadata store is touched, and the
+  new `FilterTest` from Task 7 once it exists. Run one class with
+  `-e class dev.ldlab.zedex.<Name>`.
+- **The full suite runs once**, at the final whole-branch review, to catch
+  anything the library work broke elsewhere.
+- **When you do run instrumentation:** install with `adb install -r` and use
+  `adb shell am instrument -w ...`; never `connectedAndroidTest`, which
+  uninstalls the app and wipes its data. Set `secondScreen` to `false` first or
+  the panel borrows the controls onto another display and the tests tap an
+  empty screen. Set `ANDROID_SERIAL=emulator-5554` — a physical phone may also
+  be attached, and it is not to be touched.
 - **Commit subjects** take a conventional prefix: `feat:`, `fix:`, `test:`, `refactor:`, `docs:`. The body explains *why*.
 
 ## File Structure
