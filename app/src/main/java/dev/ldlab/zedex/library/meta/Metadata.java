@@ -108,6 +108,16 @@ public final class Metadata {
         return store(context).games.size();
     }
 
+    /**
+     * Every game the store knows, for {@code Facets} to count.
+     *
+     * A copy rather than the live map: the caller walks this on a background
+     * thread, and the store can be replaced by a link while it does.
+     */
+    public static synchronized java.util.Collection<Meta> all(Context context) {
+        return new java.util.ArrayList<>(store(context).games.values());
+    }
+
     /** When {@link #replaceAll} last ran, epoch millis, or 0 if it never has. */
     public static synchronized long lastLinked(Context context) {
         return store(context).linkedAt;
