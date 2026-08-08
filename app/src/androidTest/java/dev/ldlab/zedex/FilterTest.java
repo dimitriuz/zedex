@@ -375,9 +375,17 @@ public class FilterTest {
                       device.wait(Until.findObject(
                               By.desc(context.getString(R.string.library_up))), FIND));
 
+        int inFolder = rowCount();
+
         openFilterSheet();
         selectGenre(commonestGenre);
         dismissFilterSheet();
+
+        // The same wait the other test needs, for the same reason: closing the
+        // sheet starts the walk, it does not finish it. Scrolling a list that
+        // is still the folder's own finds no game from anywhere else, which is
+        // precisely what this test would then report as the bug it looks for.
+        awaitRowCount(count -> count != inFolder);
 
         assertTrue("filtering from inside " + pathToOtherFolder + " did not reach \""
                    + nestedGameName + "\" - the walk is scoped to whichever folder is "
@@ -631,7 +639,18 @@ public class FilterTest {
         for (String className : BROWSE_LIST_CLASSES) {
             UiScrollable list = new UiScrollable(new UiSelector().className(className));
             if (!list.exists()) continue;
+
+            // From the top, and with room to reach the bottom. The default is
+            // thirty swipes from wherever the list happens to be sitting,
+            // which is an arbitrary bound on a list whose whole point is that
+            // filtering makes it longer: this is the flattened collection, and
+            // in grid mode a swipe covers a third of the rows a list-mode
+            // swipe does. A test that finds the row or not depending on how
+            // far down somebody left the list is not testing filtering.
+            list.setMaxSearchSwipes(80);
+
             try {
+                list.scrollToBeginning(20);
                 if (list.scrollTextIntoView(text)) return true;
             } catch (UiObjectNotFoundException e) {
                 // This one is not the list after all; try the next name.
