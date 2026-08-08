@@ -16,13 +16,11 @@
     <string name="poke_search">Hledat v databázi cheatů…</string>
     <string name="poke_search_hint">Název hry</string>
     <string name="poke_search_go">Hledat</string>
-    <string name="poke_search_found">%1$d her</string>
     <string name="poke_search_none">Nic s názvem „%1$s“</string>
     <string name="poke_from_search">Z databáze, pro %1$s. Nejdřív nahraj hru — poke je bajt v paměti a není co pokovat, dokud tam není.</string>
     <string name="poke_tipshop">Najít na The Tipshop…</string>
     <string name="poke_no_browser">Není čím to otevřít — chybí prohlížeč</string>
     <string name="poke_asks">Tento cheat se ptá na číslo — obvykle na počet životů. 0 až 255.</string>
-    <string name="poke_trainer_done">%1$s — %2$d poke</string>
     <string name="poke_partly">%1$s — %2$d poke, %3$d přeskočeno: potřebují stránku paměti, ke které se tahle aplikace nedostane</string>
     <string name="poke_quick">Pokovat jednou…</string>
     <string name="poke_add">Přidat poke…</string>
@@ -186,7 +184,6 @@
     <string name="roms_files_hint">Vybrat soubory ROM sám, nebo zip k rozbalení — jediná cesta do Souborů ke stažení, které Android jako složku nedá</string>
     <string name="roms_where">Získat ROMy</string>
     <string name="roms_where_hint">Stáhnout sadu z archive.org, asi 350 kB. Nic dalšího není potřeba</string>
-    <string name="roms_imported">Zkopírováno ROMů: %1$d</string>
     <string name="roms_downloading_message">Stahuje se sada z\n\n%1$s\n\nasi 350 kB. Počítač se spustí sám, až dojdou.</string>
     <string name="roms_download_did_not">Stahování se nepovedlo</string>
     <string name="roms_download_failed_message">%1$s\n\n%2$s\n\nZkus to znovu, nebo jedním ze dvou dalších způsobů níže.</string>
@@ -521,8 +518,6 @@
     <string name="settings_esde_link">Propojit s ES-DE</string>
     <string name="settings_esde_link_summary">Načte seznam her z ES-DE a zkopíruje, co našlo pro ty tvoje</string>
     <string name="settings_esde_linking">Propojování…</string>
-    <string name="settings_esde_link_done">Nalezeno her: %1$d, s grafikou: %2$d</string>
-    <string name="settings_esde_link_done_needs_media">Nalezeno her: %1$d — níže vyber složku médií ES-DE, aby se zobrazila jejich grafika</string>
     <string name="settings_esde_link_empty">ES-DE nemá pro tuto složku s obsahem uvedené žádné hry</string>
     <string name="settings_esde_link_failed">Seznam her ES-DE se nepodařilo přečíst</string>
     <string name="settings_esde_link_needs_esde">Nainstaluj ES-DE, aby ses s ním mohl propojit</string>
@@ -531,7 +526,6 @@
     <string name="settings_esde_folder_summary">Ukaž jednou složku ES-DE, aby z ní Zedex mohl číst hry</string>
     <string name="settings_esde_status">Poslední propojení</string>
     <string name="settings_esde_status_never">Zatím nepropojeno</string>
-    <string name="settings_esde_status_summary">Her: %1$d, propojeno %2$s</string>
     <string name="settings_esde_unlink">Zrušit propojení</string>
     <string name="settings_esde_unlink_summary">Zapomene jména a grafiku zkopírované z ES-DE</string>
     <string name="settings_esde_unlink_confirm_title">Zrušit propojení s ES-DE?</string>
@@ -596,4 +590,41 @@
     <string name="library_up">Nahoru</string>
     <string name="library_gallery_mute">Ztlumit</string>
     <string name="library_gallery_unmute">Zapnout zvuk</string>
+    <string name="skin_rubber">ZX Spectrum 48K</string>
+    <string name="skin_rubber_slim">ZX Spectrum 48K — úzká</string>
+    <string name="skin_plus">ZX Spectrum 128K</string>
+    <string name="skin_plus_slim">ZX Spectrum 128K — úzká</string>
+    <string name="skin_system">Klávesnice Androidu</string>
+    <string name="storage_internal">Vnitřní úložiště</string>
+    <string name="storage_documents">Dokumenty</string>
+    <string name="storage_sd_card">Karta SD</string>
+    <string name="storage_shared">Sdílené úložiště</string>
+    <string name="state_unnamed">Snímek</string>
+    <plurals name="poke_trainer_done">
+        <item quantity="one">%1$s \u2014 %2$d poke</item>
+        <item quantity="few">%1$s \u2014 %2$d poke</item>
+        <item quantity="many">%1$s \u2014 %2$d poke</item>
+        <item quantity="other">%1$s \u2014 %2$d poke\u016f</item>
+    </plurals>
+    <plurals name="roms_imported">
+        <item quantity="one">Zkopírován %1$d ROM</item>
+        <item quantity="few">Zkopírovány %1$d ROMy</item>
+        <item quantity="many">Zkopírováno %1$d ROMů</item>
+        <item quantity="other">Zkopírováno %1$d ROMů</item>
+    </plurals>
+    <plurals name="poke_search_found">
+        <item quantity="one">%1$d hra</item>
+        <item quantity="few">%1$d hry</item>
+        <item quantity="many">%1$d hry</item>
+        <item quantity="other">%1$d her</item>
+    </plurals>
+    <plurals name="settings_esde_status_summary">
+        <item quantity="other">Her: %1$d, propojeno %2$s</item>
+    </plurals>
+    <plurals name="settings_esde_link_done">
+        <item quantity="other">Nalezeno her: %1$d, s obrázky: %2$d</item>
+    </plurals>
+    <plurals name="settings_esde_link_done_needs_media">
+        <item quantity="other">Nalezeno her: %1$d — níže vyberte složku médií ES-DE, aby se zobrazily obrázky</item>
+    </plurals>
 </resources>

@@ -16,14 +16,12 @@
     <string name="poke_search">Cheat-Datenbank durchsuchen…</string>
     <string name="poke_search_hint">Spielname</string>
     <string name="poke_search_go">Suchen</string>
-    <string name="poke_search_found">%1$d Spiele</string>
     <string name="poke_search_none">Nichts mit dem Namen „%1$s“</string>
     <string name="poke_from_search">Aus der Datenbank, für %1$s. Lade das Spiel zuerst — ein Poke ist ein Byte im Speicher, und es gibt nichts zu poken, solange es nicht da ist.</string>
     <string name="poke_tipshop">Bei The Tipshop nachsehen…</string>
     <string name="poke_no_browser">Kein Browser, um das zu öffnen</string>
     <string name="poke_asks">Dieser Cheat fragt nach einer Zahl — meist nach der Anzahl der Leben. 0 bis 255.</string>
-    <string name="poke_trainer_done">%1$s — %2$d Poke(s)</string>
-    <string name="poke_partly">%1$s — %2$d Poke(s), %3$d übersprungen: sie brauchen eine Speicherbank, an die diese App nicht kommt</string>
+    <string name="poke_partly">%1$s — angewendet: %2$d, übersprungen: %3$d — sie brauchen eine Speicherbank, an die diese App nicht kommt</string>
     <string name="poke_quick">Einmal poken…</string>
     <string name="poke_add">Poke hinzufügen…</string>
     <string name="poke_stored">Gespeichert</string>
@@ -186,7 +184,6 @@
     <string name="roms_files_hint">Die ROM-Dateien selbst wählen, oder ein Zip zum Entpacken — der einzige Weg zu „Download“, das Android nicht als Ordner freigibt</string>
     <string name="roms_where">ROMs holen</string>
     <string name="roms_where_hint">Einen Satz von archive.org laden, etwa 350 kB. Sonst nichts zu tun</string>
-    <string name="roms_imported">%1$d ROM(s) kopiert</string>
     <string name="roms_downloading_message">Ein Satz wird geladen von\n\n%1$s\n\netwa 350 kB. Die Maschine startet von selbst, sobald sie da sind.</string>
     <string name="roms_download_did_not">Download fehlgeschlagen</string>
     <string name="roms_download_failed_message">%1$s\n\n%2$s\n\nVersuche es erneut, oder einen der beiden anderen Wege unten.</string>
@@ -521,8 +518,6 @@
     <string name="settings_esde_link">Mit ES-DE verknüpfen</string>
     <string name="settings_esde_link_summary">Liest ES-DEs Spieleliste und übernimmt, was sie für deine gefunden hat</string>
     <string name="settings_esde_linking">Verknüpfen…</string>
-    <string name="settings_esde_link_done">%1$d Spiel(e) gefunden, %2$d mit Artwork</string>
-    <string name="settings_esde_link_done_needs_media">%1$d Spiel(e) gefunden — wähle unten ES-DEs Medienordner, um ihr Artwork zu sehen</string>
     <string name="settings_esde_link_empty">ES-DE hat für diesen Inhaltsordner keine Spiele gelistet</string>
     <string name="settings_esde_link_failed">ES-DEs Spieleliste konnte nicht gelesen werden</string>
     <string name="settings_esde_link_needs_esde">Installiere ES-DE, um dich damit zu verknüpfen</string>
@@ -531,7 +526,6 @@
     <string name="settings_esde_folder_summary">Zeige ES-DEs Ordner einmal, damit Zedex seine Spiele lesen kann</string>
     <string name="settings_esde_status">Letzte Verknüpfung</string>
     <string name="settings_esde_status_never">Noch nicht verknüpft</string>
-    <string name="settings_esde_status_summary">%1$d Spiel(e), verknüpft %2$s</string>
     <string name="settings_esde_unlink">Verknüpfung aufheben</string>
     <string name="settings_esde_unlink_summary">Vergisst die Namen und das Artwork, die von ES-DE übernommen wurden</string>
     <string name="settings_esde_unlink_confirm_title">Verknüpfung mit ES-DE aufheben?</string>
@@ -594,4 +588,38 @@
     <string name="library_up">Nach oben</string>
     <string name="library_gallery_mute">Stummschalten</string>
     <string name="library_gallery_unmute">Ton einschalten</string>
+    <string name="skin_rubber">ZX Spectrum 48K</string>
+    <string name="skin_rubber_slim">ZX Spectrum 48K — schmal</string>
+    <string name="skin_plus">ZX Spectrum 128K</string>
+    <string name="skin_plus_slim">ZX Spectrum 128K — schmal</string>
+    <string name="skin_system">Android-Tastatur</string>
+    <string name="storage_internal">Interner Speicher</string>
+    <string name="storage_documents">Dokumente</string>
+    <string name="storage_sd_card">SD-Karte</string>
+    <string name="storage_shared">Gemeinsamer Speicher</string>
+    <string name="state_unnamed">Schnappschuss</string>
+    <plurals name="poke_trainer_done">
+        <item quantity="one">%1$s \u2014 %2$d Poke</item>
+        <item quantity="other">%1$s \u2014 %2$d Pokes</item>
+    </plurals>
+    <plurals name="roms_imported">
+        <item quantity="one">%1$d ROM kopiert</item>
+        <item quantity="other">%1$d ROMs kopiert</item>
+    </plurals>
+    <plurals name="poke_search_found">
+        <item quantity="one">%1$d Spiel</item>
+        <item quantity="other">%1$d Spiele</item>
+    </plurals>
+    <plurals name="settings_esde_status_summary">
+        <item quantity="one">%1$d Spiel, verknüpft %2$s</item>
+        <item quantity="other">%1$d Spiele, verknüpft %2$s</item>
+    </plurals>
+    <plurals name="settings_esde_link_done">
+        <item quantity="one">%1$d Spiel gefunden, %2$d mit Artwork</item>
+        <item quantity="other">%1$d Spiele gefunden, %2$d mit Artwork</item>
+    </plurals>
+    <plurals name="settings_esde_link_done_needs_media">
+        <item quantity="one">%1$d Spiel gefunden — unten den Medienordner von ES-DE wählen, um das Artwork zu sehen</item>
+        <item quantity="other">%1$d Spiele gefunden — unten den Medienordner von ES-DE wählen, um das Artwork zu sehen</item>
+    </plurals>
 </resources>

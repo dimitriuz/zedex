@@ -290,16 +290,19 @@ public final class Storage {
     }
 
     public static String label(Context context, File root) {
-        if (root.equals(context.getFilesDir())) return "Internal storage";
-        if (root.equals(documentsRoot(context))) return "Documents";
+        if (root.equals(context.getFilesDir()))
+            return context.getString(R.string.storage_internal);
+        if (root.equals(documentsRoot(context)))
+            return context.getString(R.string.storage_documents);
 
         try {
-            if (Environment.isExternalStorageRemovable(root)) return "SD card";
+            if (Environment.isExternalStorageRemovable(root))
+                return context.getString(R.string.storage_sd_card);
         } catch (IllegalArgumentException e) {
             // Not a real external volume; fall through.
         }
 
-        return "Shared storage";
+        return context.getString(R.string.storage_shared);
     }
 
     /** Where save states live, falling back if the chosen root has gone away. */

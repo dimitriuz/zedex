@@ -146,7 +146,7 @@ public final class ControlsUi {
     }
 
     public String keyboardSkinName() {
-        return keyboardSkin().title;
+        return text(keyboardSkin().title);
     }
 
     // --- the mouse -----------------------------------------------------------
@@ -473,7 +473,7 @@ public final class ControlsUi {
         sheet.addItem(text(shown ? R.string.control_hide : R.string.control_show),
                       shown ? R.drawable.ic_hide : R.drawable.ic_show,
                       () -> showKeyboard(!shown));
-        sheet.addSubmenu(text(R.string.keyboard_skin, keyboardSkin().title),
+        sheet.addSubmenu(text(R.string.keyboard_skin, text(keyboardSkin().title)),
                          text(R.string.keyboard_skin_title),
                          R.drawable.ic_picture, keyboardSkinPage());
 
@@ -503,7 +503,7 @@ public final class ControlsUi {
             int checked = 0;
 
             for (int i = 0; i < skins.length; i++) {
-                names[i] = skins[i].title;
+                names[i] = text(skins[i].title);
                 if (skins[i] == keyboardSkin()) checked = i;
             }
 
@@ -523,7 +523,7 @@ public final class ControlsUi {
                     // only shown for the window that has the focus, and while
                     // the sheet still had it the request was quietly dropped.
                     layout.post(this::applySystemKeyboard);
-                    host.note(R.string.keyboard_skin_set, skins[which].title);
+                    host.note(R.string.keyboard_skin_set, text(skins[which].title));
                 });
             }
         };

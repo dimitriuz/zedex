@@ -16,13 +16,11 @@
     <string name="poke_search">Cerca nel database dei trucchi…</string>
     <string name="poke_search_hint">Nome del gioco</string>
     <string name="poke_search_go">Cerca</string>
-    <string name="poke_search_found">%1$d giochi</string>
     <string name="poke_search_none">Niente che si chiami «%1$s»</string>
     <string name="poke_from_search">Dal database, per %1$s. Carica prima il gioco: un poke è un byte in memoria, e non c\'è niente da pokare finché non è lì.</string>
     <string name="poke_tipshop">Cercalo su The Tipshop…</string>
     <string name="poke_no_browser">Nessun browser per aprirlo</string>
     <string name="poke_asks">Questo trucco chiede un numero, di solito quante vite. Da 0 a 255.</string>
-    <string name="poke_trainer_done">%1$s — %2$d poke</string>
     <string name="poke_partly">%1$s — %2$d poke, %3$d saltati: richiedono un banco di memoria che questa app non raggiunge</string>
     <string name="poke_quick">Poka una volta…</string>
     <string name="poke_add">Aggiungi un poke…</string>
@@ -186,7 +184,6 @@
     <string name="roms_files_hint">Scegliere tu i file ROM, o uno zip da scompattare: l\'unico modo per arrivare a Download, che Android non concede come cartella</string>
     <string name="roms_where">Ottieni le ROM</string>
     <string name="roms_where_hint">Scaricare un set da archive.org, circa 350 kB. Nient\'altro da fare</string>
-    <string name="roms_imported">Copiate %1$d ROM</string>
     <string name="roms_downloading_message">Sto scaricando un set da\n\n%1$s\n\ncirca 350 kB. La macchina parte da sola quando arrivano.</string>
     <string name="roms_download_did_not">Scaricamento non riuscito</string>
     <string name="roms_download_failed_message">%1$s\n\n%2$s\n\nRiprova, o usa uno degli altri due modi qui sotto.</string>
@@ -521,8 +518,6 @@
     <string name="settings_esde_link">Collega a ES-DE</string>
     <string name="settings_esde_link_summary">Legge l\'elenco dei giochi di ES-DE e copia quello che ha trovato per i tuoi</string>
     <string name="settings_esde_linking">Collegamento…</string>
-    <string name="settings_esde_link_done">%1$d gioco/i trovato/i, %2$d con immagini</string>
-    <string name="settings_esde_link_done_needs_media">%1$d gioco/i trovato/i — scegli qui sotto la cartella multimediale di ES-DE per vedere le loro immagini</string>
     <string name="settings_esde_link_empty">ES-DE non ha giochi elencati per questa cartella dei contenuti</string>
     <string name="settings_esde_link_failed">Non si è potuto leggere l\'elenco dei giochi di ES-DE</string>
     <string name="settings_esde_link_needs_esde">Installa ES-DE per collegarti a esso</string>
@@ -531,7 +526,6 @@
     <string name="settings_esde_folder_summary">Mostra la cartella di ES-DE una volta, così Zedex può leggere i suoi giochi</string>
     <string name="settings_esde_status">Ultimo collegamento</string>
     <string name="settings_esde_status_never">Non ancora collegato</string>
-    <string name="settings_esde_status_summary">%1$d gioco/i, collegato %2$s</string>
     <string name="settings_esde_unlink">Scollega</string>
     <string name="settings_esde_unlink_summary">Dimentica i nomi e le immagini copiati da ES-DE</string>
     <string name="settings_esde_unlink_confirm_title">Scollegare da ES-DE?</string>
@@ -594,4 +588,38 @@
     <string name="library_up">Su</string>
     <string name="library_gallery_mute">Disattiva audio</string>
     <string name="library_gallery_unmute">Attiva audio</string>
+    <string name="skin_rubber">ZX Spectrum 48K</string>
+    <string name="skin_rubber_slim">ZX Spectrum 48K — stretta</string>
+    <string name="skin_plus">ZX Spectrum 128K</string>
+    <string name="skin_plus_slim">ZX Spectrum 128K — stretta</string>
+    <string name="skin_system">Tastiera Android</string>
+    <string name="storage_internal">Memoria interna</string>
+    <string name="storage_documents">Documenti</string>
+    <string name="storage_sd_card">Scheda SD</string>
+    <string name="storage_shared">Memoria condivisa</string>
+    <string name="state_unnamed">Istantanea</string>
+    <plurals name="poke_trainer_done">
+        <item quantity="one">%1$s \u2014 %2$d poke</item>
+        <item quantity="other">%1$s \u2014 %2$d poke</item>
+    </plurals>
+    <plurals name="roms_imported">
+        <item quantity="one">Copiata %1$d ROM</item>
+        <item quantity="other">Copiate %1$d ROM</item>
+    </plurals>
+    <plurals name="poke_search_found">
+        <item quantity="one">%1$d gioco</item>
+        <item quantity="other">%1$d giochi</item>
+    </plurals>
+    <plurals name="settings_esde_status_summary">
+        <item quantity="one">%1$d gioco, collegato %2$s</item>
+        <item quantity="other">%1$d giochi, collegato %2$s</item>
+    </plurals>
+    <plurals name="settings_esde_link_done">
+        <item quantity="one">%1$d gioco trovato, %2$d con immagini</item>
+        <item quantity="other">%1$d giochi trovati, %2$d con immagini</item>
+    </plurals>
+    <plurals name="settings_esde_link_done_needs_media">
+        <item quantity="one">%1$d gioco trovato — scegli sotto la cartella media di ES-DE per vedere le immagini</item>
+        <item quantity="other">%1$d giochi trovati — scegli sotto la cartella media di ES-DE per vedere le immagini</item>
+    </plurals>
 </resources>

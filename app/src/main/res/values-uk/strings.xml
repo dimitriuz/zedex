@@ -16,13 +16,11 @@
     <string name="poke_search">Пошук у базі читів…</string>
     <string name="poke_search_hint">Назва гри</string>
     <string name="poke_search_go">Шукати</string>
-    <string name="poke_search_found">Ігор: %1$d</string>
     <string name="poke_search_none">Нічого з назвою «%1$s»</string>
     <string name="poke_from_search">З бази, для %1$s. Спершу завантажте гру — POKE записує байт у пам’ять, а записувати нікуди, поки її там немає.</string>
     <string name="poke_tipshop">Подивитися на The Tipshop…</string>
     <string name="poke_no_browser">Немає браузера, щоб відкрити</string>
     <string name="poke_asks">Цей чит запитує число — зазвичай кількість життів. Від 0 до 255.</string>
-    <string name="poke_trainer_done">%1$s — записано байтів: %2$d</string>
     <string name="poke_partly">%1$s — записано байтів: %2$d, пропущено: %3$d — їм потрібен банк пам’яті, недоступний застосунку</string>
     <string name="poke_quick">Записати одноразово…</string>
     <string name="poke_add">Додати POKE…</string>
@@ -186,7 +184,6 @@
     <string name="roms_files_hint">Указати файли ROM самому або zip для розпакування — єдиний спосіб дістатися «Завантажень», які Android не віддає як теку</string>
     <string name="roms_where">Отримати ROM</string>
     <string name="roms_where_hint">Завантажити набір з archive.org, близько 350 кБ. Більше нічого робити не треба</string>
-    <string name="roms_imported">Скопійовано ROM: %1$d</string>
     <string name="roms_downloading_message">Завантажується набір з\n\n%1$s\n\nблизько 350 кБ. Машина запуститься сама, коли вони надійдуть.</string>
     <string name="roms_download_did_not">Завантаження не вдалося</string>
     <string name="roms_download_failed_message">%1$s\n\n%2$s\n\nСпробуйте знову або одним із двох інших способів нижче.</string>
@@ -521,8 +518,6 @@
     <string name="settings_esde_link">Пов’язати з ES-DE</string>
     <string name="settings_esde_link_summary">Читає список ігор ES-DE і копіює те, що знайшлося для ваших</string>
     <string name="settings_esde_linking">Пов’язування…</string>
-    <string name="settings_esde_link_done">Знайдено ігор: %1$d, із зображеннями: %2$d</string>
-    <string name="settings_esde_link_done_needs_media">Знайдено ігор: %1$d — виберіть нижче теку медіа ES-DE, щоб побачити їхні зображення</string>
     <string name="settings_esde_link_empty">У ES-DE немає ігор для цієї теки вмісту</string>
     <string name="settings_esde_link_failed">Не вдалося прочитати список ігор ES-DE</string>
     <string name="settings_esde_link_needs_esde">Встановіть ES-DE, щоб пов’язатися з ним</string>
@@ -531,7 +526,6 @@
     <string name="settings_esde_folder_summary">Покажіть теку ES-DE один раз, щоб Zedex міг читати її ігри</string>
     <string name="settings_esde_status">Останнє пов’язування</string>
     <string name="settings_esde_status_never">Ще не пов’язано</string>
-    <string name="settings_esde_status_summary">Ігор: %1$d, пов’язано %2$s</string>
     <string name="settings_esde_unlink">Розв’язати</string>
     <string name="settings_esde_unlink_summary">Забуває назви та зображення, скопійовані з ES-DE</string>
     <string name="settings_esde_unlink_confirm_title">Розв’язати з ES-DE?</string>
@@ -596,4 +590,41 @@
     <string name="library_up">Вгору</string>
     <string name="library_gallery_mute">Вимкнути звук</string>
     <string name="library_gallery_unmute">Увімкнути звук</string>
+    <string name="skin_rubber">ZX Spectrum 48K</string>
+    <string name="skin_rubber_slim">ZX Spectrum 48K — вузька</string>
+    <string name="skin_plus">ZX Spectrum 128K</string>
+    <string name="skin_plus_slim">ZX Spectrum 128K — вузька</string>
+    <string name="skin_system">Клавіатура Android</string>
+    <string name="storage_internal">Внутрішня пам’ять</string>
+    <string name="storage_documents">Документи</string>
+    <string name="storage_sd_card">SD-карта</string>
+    <string name="storage_shared">Спільне сховище</string>
+    <string name="state_unnamed">Знімок</string>
+    <plurals name="poke_trainer_done">
+        <item quantity="one">%1$s \u2014 %2$d поук</item>
+        <item quantity="few">%1$s \u2014 %2$d поуки</item>
+        <item quantity="many">%1$s \u2014 %2$d поуків</item>
+        <item quantity="other">%1$s \u2014 %2$d поуки</item>
+    </plurals>
+    <plurals name="roms_imported">
+        <item quantity="one">Скопійовано %1$d ПЗП</item>
+        <item quantity="few">Скопійовано %1$d ПЗП</item>
+        <item quantity="many">Скопійовано %1$d ПЗП</item>
+        <item quantity="other">Скопійовано %1$d ПЗП</item>
+    </plurals>
+    <plurals name="poke_search_found">
+        <item quantity="one">%1$d гра</item>
+        <item quantity="few">%1$d гри</item>
+        <item quantity="many">%1$d ігор</item>
+        <item quantity="other">%1$d гри</item>
+    </plurals>
+    <plurals name="settings_esde_status_summary">
+        <item quantity="other">Ігор: %1$d, пов’язано %2$s</item>
+    </plurals>
+    <plurals name="settings_esde_link_done">
+        <item quantity="other">Знайдено ігор: %1$d, з обкладинками: %2$d</item>
+    </plurals>
+    <plurals name="settings_esde_link_done_needs_media">
+        <item quantity="other">Знайдено ігор: %1$d — виберіть нижче теку медіа ES-DE, щоб побачити обкладинки</item>
+    </plurals>
 </resources>

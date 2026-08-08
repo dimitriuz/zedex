@@ -233,7 +233,7 @@ public final class StatesActivity extends Activity {
                 .setView(input)
                 .setPositiveButton(android.R.string.ok, (dialog, which) -> {
                     String name = Storage.sanitise(input.getText().toString());
-                    if (name.isEmpty()) name = "Snapshot";
+                    if (name.isEmpty()) name = getString(R.string.state_unnamed);
                     save(name);
                 })
                 .setNegativeButton(android.R.string.cancel, null)

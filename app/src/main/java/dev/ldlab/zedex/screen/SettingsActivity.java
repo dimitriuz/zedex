@@ -602,6 +602,14 @@ public class SettingsActivity extends AppCompatActivity
         label.setText(tab.label);
         label.setTextSize(11);
         label.setSingleLine();
+
+        // With no ellipsize, setSingleLine turns on horizontal scrolling
+        // instead, so a label too wide for its cell is cut through the middle
+        // of a glyph at both ends with nothing to say it was. A seventh of a
+        // 360dp window is 51dp - about nine characters - which Bibliothek,
+        // Bibliotheque, Biblioteka and Управление all exceed, and at 200% font
+        // scale every label does, English included.
+        label.setEllipsize(android.text.TextUtils.TruncateAt.END);
         label.setGravity(Gravity.CENTER);
 
         holder.setOrientation(LinearLayout.VERTICAL);
@@ -1206,11 +1214,13 @@ public class SettingsActivity extends AppCompatActivity
                         Toast.LENGTH_LONG).show();
             } else if (artwork == 0 && EsdeLink.needsMediaFolder(getActivity())) {
                 Toast.makeText(getActivity(),
-                        getString(R.string.settings_esde_link_done_needs_media, found.size()),
+                        counted(R.plurals.settings_esde_link_done_needs_media,
+                                found.size(), found.size()),
                         Toast.LENGTH_LONG).show();
             } else {
                 Toast.makeText(getActivity(),
-                        getString(R.string.settings_esde_link_done, found.size(), artwork),
+                        counted(R.plurals.settings_esde_link_done,
+                                found.size(), found.size(), artwork),
                         Toast.LENGTH_LONG).show();
             }
 
@@ -1439,7 +1449,7 @@ public class SettingsActivity extends AppCompatActivity
                 String[] values = new String[all.length];
 
                 for (int i = 0; i < all.length; i++) {
-                    names[i] = all[i].title;
+                    names[i] = getString(all[i].title);
                     values[i] = all[i].value;
                 }
 
@@ -1865,6 +1875,17 @@ public class SettingsActivity extends AppCompatActivity
                                          now.getAbsolutePath()).apply();
         }
 
+        /**
+         * A counted string, in whichever form the language wants for that
+         * number. The count goes in twice: once to choose the form, once as
+         * the argument that fills the %d - separate ideas, since the form
+         * follows the last digit in Russian while the number printed is the
+         * whole count.
+         */
+        private String counted(int plural, int count, Object... arguments) {
+            return getResources().getQuantityString(plural, count, arguments);
+        }
+
         /** ListPreference stores numbers as strings. */
         public static int number(android.content.SharedPreferences preferences,
                           String key, int fallback) {
@@ -2020,7 +2041,8 @@ public class SettingsActivity extends AppCompatActivity
 
                 esdeStatus.setSummary(when == 0
                         ? getString(R.string.settings_esde_status_never)
-                        : getString(R.string.settings_esde_status_summary,
+                        : counted(R.plurals.settings_esde_status_summary,
+                                Metadata.count(getActivity()),
                                 Metadata.count(getActivity()),
                                 DateFormat.getDateTimeInstance(
                                         DateFormat.SHORT, DateFormat.SHORT)

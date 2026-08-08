@@ -1191,7 +1191,8 @@ public final class StartPanel {
         List<String> missing = Storage.missingRoms(activity);
 
         activity.runOnUiThread(() -> {
-            Toast.makeText(activity, activity.getString(R.string.roms_imported, copied),
+            Toast.makeText(activity, activity.getResources().getQuantityString(
+                                   R.plurals.roms_imported, copied, copied),
                     Toast.LENGTH_SHORT).show();
 
             if (missing.isEmpty()) runNow();

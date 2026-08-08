@@ -21,7 +21,6 @@
     <string name="poke_search_hint">Game name</string>
     <string name="poke_search_go">Search</string>
     <!-- %1$d is how many games matched. -->
-    <string name="poke_search_found">%1$d games</string>
     <!-- %1$s is what was searched for. -->
     <string name="poke_search_none">Nothing called \u201c%1$s\u201d</string>
     <!-- %1$s is the game whose cheats are listed. -->
@@ -30,9 +29,8 @@
     <string name="poke_no_browser">No browser to open it with</string>
     <string name="poke_asks">This one asks for a number \u2014 how many lives, usually. 0 to 255.</string>
     <!-- %1$s is the cheat's name, %2$d how many bytes it wrote. -->
-    <string name="poke_trainer_done">%1$s \u2014 %2$d poke(s)</string>
     <!-- %3$d is how many needed a RAM bank this app cannot reach. -->
-    <string name="poke_partly">%1$s \u2014 %2$d poke(s), %3$d skipped: they need a RAM bank</string>
+    <string name="poke_partly">%1$s \u2014 applied %2$d, skipped %3$d: they need a RAM bank</string>
     <string name="poke_quick">Poke once\u2026</string>
     <string name="poke_add">Add a poke\u2026</string>
     <string name="poke_stored">Stored</string>
@@ -208,7 +206,6 @@
     <string name="roms_files_hint">Pick the ROM files yourself, or a zip to unpack \u2014 the only way to reach Download, which Android will not grant as a folder</string>
     <string name="roms_where">Get ROMs</string>
     <string name="roms_where_hint">Download a set from archive.org, about 350 kB. Nothing else to do</string>
-    <string name="roms_imported">Copied %1$d ROM(s)</string>
     <string name="roms_downloading_message">Fetching a set from\n\n%1$s\n\nabout 350 kB. The machine starts by itself when they arrive.</string>
     <string name="roms_download_did_not">Download failed</string>
     <string name="roms_download_failed_message">%1$s\n\n%2$s\n\nTry again, or one of the other two ways below.</string>
@@ -583,11 +580,9 @@
     <string name="settings_esde_link_summary">Read ES-DE’s list of games and copy what it found for yours</string>
     <string name="settings_esde_linking">Linking…</string>
     <!-- %1$d is how many games were found, %2$d how many of them have artwork. -->
-    <string name="settings_esde_link_done">%1$d game(s) found, %2$d with artwork</string>
     <!-- %1$d is how many games were found; none of them can show artwork yet
          because EsdeLink.needsMediaFolder said so - the row below asks for
          the folder that would fix it. -->
-    <string name="settings_esde_link_done_needs_media">%1$d game(s) found — pick ES-DE’s media folder below to see their artwork</string>
     <string name="settings_esde_link_empty">ES-DE has no games listed for this content folder</string>
     <string name="settings_esde_link_failed">Could not read ES-DE’s list of games</string>
     <string name="settings_esde_link_needs_esde">Install ES-DE to link to it</string>
@@ -597,7 +592,6 @@
     <string name="settings_esde_status">Last link</string>
     <string name="settings_esde_status_never">Not linked yet</string>
     <!-- %1$d is how many games are linked, %2$s when the link last ran. -->
-    <string name="settings_esde_status_summary">%1$d game(s), linked %2$s</string>
     <string name="settings_esde_unlink">Unlink</string>
     <string name="settings_esde_unlink_summary">Forget the names and artwork copied from ES-DE</string>
     <string name="settings_esde_unlink_confirm_title">Unlink from ES-DE?</string>
@@ -704,4 +698,38 @@
     <string name="library_gallery_mute">Mute</string>
     <string name="library_gallery_unmute">Unmute</string>
 
+    <string name="skin_rubber">ZX Spectrum 48K</string>
+    <string name="skin_rubber_slim">ZX Spectrum 48K — slim</string>
+    <string name="skin_plus">ZX Spectrum 128K</string>
+    <string name="skin_plus_slim">ZX Spectrum 128K — slim</string>
+    <string name="skin_system">Android keyboard</string>
+    <string name="storage_internal">Internal storage</string>
+    <string name="storage_documents">Documents</string>
+    <string name="storage_sd_card">SD card</string>
+    <string name="storage_shared">Shared storage</string>
+    <string name="state_unnamed">Snapshot</string>
+    <plurals name="poke_trainer_done">
+        <item quantity="one">%1$s \u2014 %2$d poke</item>
+        <item quantity="other">%1$s \u2014 %2$d pokes</item>
+    </plurals>
+    <plurals name="roms_imported">
+        <item quantity="one">Copied %1$d ROM</item>
+        <item quantity="other">Copied %1$d ROMs</item>
+    </plurals>
+    <plurals name="poke_search_found">
+        <item quantity="one">%1$d game</item>
+        <item quantity="other">%1$d games</item>
+    </plurals>
+    <plurals name="settings_esde_status_summary">
+        <item quantity="one">%1$d game, linked %2$s</item>
+        <item quantity="other">%1$d games, linked %2$s</item>
+    </plurals>
+    <plurals name="settings_esde_link_done">
+        <item quantity="one">%1$d game found, %2$d with artwork</item>
+        <item quantity="other">%1$d games found, %2$d with artwork</item>
+    </plurals>
+    <plurals name="settings_esde_link_done_needs_media">
+        <item quantity="one">%1$d game found — pick ES-DE’s media folder below to see its artwork</item>
+        <item quantity="other">%1$d games found — pick ES-DE’s media folder below to see their artwork</item>
+    </plurals>
 </resources>

@@ -36,6 +36,10 @@ public final class PokesUi {
         /** Says an action happened; Fuse itself is silent about most of them. */
         void note(int message, Object... arguments);
 
+        /** The same, for a string that is already formatted - which a plural
+         *  has to be, since choosing the form is what resolves it. */
+        void noteText(String message);
+
         /** The sheet, which every page here is part of. */
         MenuDrawer sheet();
 
@@ -200,7 +204,8 @@ public final class PokesUi {
         if (skipped > 0) {
             host.note(R.string.poke_partly, trainer.name, done, skipped);
         } else {
-            host.note(R.string.poke_trainer_done, trainer.name, done);
+            host.noteText(counted(R.plurals.poke_trainer_done, done,
+                                  trainer.name, done));
         }
     }
 
@@ -227,7 +232,8 @@ public final class PokesUi {
             return;
         }
 
-        host.sheet().go(text(R.string.poke_search_found, games.size()), page -> {
+        host.sheet().go(counted(R.plurals.poke_search_found, games.size(),
+                                games.size()), page -> {
             for (PokeDatabase.Game game : games) {
                 page.addItem(game.name, R.drawable.ic_poke, () -> showGame(game));
             }
@@ -365,5 +371,17 @@ public final class PokesUi {
 
     private String text(int message, Object... arguments) {
         return activity.getString(message, arguments);
+    }
+
+    /**
+     * A counted string, in whichever form the language wants for that number.
+     *
+     * {@code count} is passed twice on purpose: once to choose the form, and
+     * again as the argument that fills the %d in it. They are separate ideas -
+     * Russian picks its form from the last digit, and the number printed is
+     * still the whole count.
+     */
+    private String counted(int plural, int count, Object... arguments) {
+        return activity.getResources().getQuantityString(plural, count, arguments);
     }
 }

@@ -87,10 +87,19 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     @Override
     protected void attachBaseContext(android.content.Context base) {
         super.attachBaseContext(Language.wrap(base));
-        language = Language.tag(base);
+        language = Language.effectiveTag(this);
     }
 
-    /** What {@link #attachBaseContext} built this screen with. */
+    /**
+     * What language {@link #attachBaseContext} built this screen with.
+     *
+     * The effective one, not the preference. The preference is empty whenever
+     * the phone's own language is being followed, so comparing it saw no
+     * change when the phone's language was what changed - and this screen is
+     * not recreated for a locale either, since configChanges lists it. Every
+     * other screen picked the new language up and this one kept the old words
+     * until the process died.
+     */
     private String language = "";
 
     private static final String TAG = "Zedex";
@@ -234,6 +243,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             @Override
             public void note(int message, Object... arguments) {
                 EmulatorActivity.this.note(message, arguments);
+            }
+
+            @Override
+            public void noteText(String message) {
+                EmulatorActivity.this.noteText(message);
             }
 
             @Override
@@ -703,7 +717,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // - see android:configChanges in the manifest - and its menus and
         // buttons were built with the words of the language that was chosen
         // when it opened, so the only way to change them is to build it again.
-        if (!language.equals(Language.tag(this))) {
+        if (!language.equals(Language.effectiveTag(this))) {
             recreate();
             return;
         }
@@ -1606,8 +1620,14 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
     /** Says an action happened. Fuse itself is silent about most of them. */
     private void note(int message, Object... arguments) {
-        runOnUiThread(() -> Toast.makeText(this, getString(message, arguments),
-                                           Toast.LENGTH_SHORT).show());
+        noteText(getString(message, arguments));
+    }
+
+    /** For a string that has already been formatted - a plural, which cannot
+     *  be handed over as a resource id because choosing its form is what
+     *  resolves it. */
+    private void noteText(String message) {
+        runOnUiThread(() -> Toast.makeText(this, message, Toast.LENGTH_SHORT).show());
     }
 
     /**

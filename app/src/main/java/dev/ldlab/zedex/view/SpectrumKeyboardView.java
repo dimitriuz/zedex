@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.view;
 
+import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.FuseNative;
 import dev.ldlab.zedex.screen.SettingsActivity;
 import android.content.Context;
@@ -59,10 +60,10 @@ public class SpectrumKeyboardView extends View {
      * short enough to leave the picture some room.
      */
     public enum Skin {
-        RUBBER("rubber", "ZX Spectrum 48K", RubberPlate.ASPECT),
-        RUBBER_SLIM("rubber-slim", "ZX Spectrum 48K — slim", RubberPlate.SLIM_ASPECT),
-        PLUS("plus", "ZX Spectrum 128K", PlusPlate.ASPECT),
-        PLUS_SLIM("plus-slim", "ZX Spectrum 128K — slim", PlusPlate.SLIM_ASPECT),
+        RUBBER("rubber", R.string.skin_rubber, RubberPlate.ASPECT),
+        RUBBER_SLIM("rubber-slim", R.string.skin_rubber_slim, RubberPlate.SLIM_ASPECT),
+        PLUS("plus", R.string.skin_plus, PlusPlate.ASPECT),
+        PLUS_SLIM("plus-slim", R.string.skin_plus_slim, PlusPlate.SLIM_ASPECT),
 
         /**
          * Not a keyboard of ours at all: the device's own input method types
@@ -70,13 +71,19 @@ public class SpectrumKeyboardView extends View {
          * is the same choice - which keyboard you use - and it has no key table
          * because it has no keys of its own.
          */
-        SYSTEM("system", "Android keyboard", RubberPlate.ASPECT);
+        SYSTEM("system", R.string.skin_system, RubberPlate.ASPECT);
 
         public final String value;             /* as stored in the preferences */
-        public final String title;
+
+        /** What this skin is called, for a list or a summary. A resource and
+         *  not a literal: "slim" and "Android keyboard" are this app's own
+         *  words rather than Fuse's, so they are nine files like any other
+         *  string - and a literal here is one check-strings.py can never
+         *  see, because it never reaches strings.xml. */
+        public final int title;
         final float aspect;             /* before a plate has been built */
 
-        Skin(String value, String title, float aspect) {
+        Skin(String value, int title, float aspect) {
             this.value = value;
             this.title = title;
             this.aspect = aspect;
