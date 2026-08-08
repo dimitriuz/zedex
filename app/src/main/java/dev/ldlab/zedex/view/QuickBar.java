@@ -280,7 +280,7 @@ public final class QuickBar extends LinearLayout implements Rows {
      * two side by side in a container, for the same reason the sheet's rows
      * are: it keeps the words and the click on one accessibility node.
      */
-    public void addToRow(int drawable, String name, Runnable action) {
+    private void addToRow(int drawable, String name, Runnable action) {
         TextView row = new TextView(getContext());
         float density = getResources().getDisplayMetrics().density;
         int pad = Math.round(LIST_PAD_DP * density);
@@ -390,7 +390,7 @@ public final class QuickBar extends LinearLayout implements Rows {
      * A line across the list, for the group that holds two kinds of thing:
      * what can be done, and then what can be opened.
      */
-    public void addToRowRule() {
+    private void addToRowRule() {
         View rule = new View(getContext());
         float density = getResources().getDisplayMetrics().density;
 

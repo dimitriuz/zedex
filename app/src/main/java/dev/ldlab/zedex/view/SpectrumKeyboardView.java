@@ -153,7 +153,14 @@ public class SpectrumKeyboardView extends View {
                            Math.round(box.right), Math.round(box.bottom));
             this.keycode = keycode;
             this.modifier = modifier;
-            this.name = name != null ? name : nameOf( keycode );
+            // Required rather than defaulted. Every Face passes one, and the
+            // fallback that used to be here derived a name from the keycode
+            // through keyCodeToString - which answers a bare number for
+            // anything it does not know, and the substring that stripped
+            // "KEYCODE_" off that threw. An unreachable branch that would
+            // crash if reached is worse than saying what is required.
+            this.name = java.util.Objects.requireNonNull(
+                    name, "a key needs a name the Spectrum would recognise");
 
             // A shift that is part of a combination is not a shift being
             // pressed: EXTEND MODE is CAPS SHIFT and SYMBOL SHIFT together,
@@ -161,19 +168,6 @@ public class SpectrumKeyboardView extends View {
             this.canLatch = modifier == 0
                          && ( keycode == KeyEvent.KEYCODE_SHIFT_LEFT
                            || keycode == KeyEvent.KEYCODE_CTRL_LEFT );
-        }
-
-        /** What the key is called on the Spectrum, not what Android calls it. */
-        private static String nameOf(int keycode) {
-            switch (keycode) {
-                case KeyEvent.KEYCODE_ENTER: return "ENTER";
-                case KeyEvent.KEYCODE_SPACE: return "BREAK SPACE";
-                case KeyEvent.KEYCODE_SHIFT_LEFT: return "CAPS SHIFT";
-                case KeyEvent.KEYCODE_CTRL_LEFT: return "SYMBOL SHIFT";
-                default:
-                    return KeyEvent.keyCodeToString(keycode)
-                            .substring("KEYCODE_".length());
-            }
         }
     }
 

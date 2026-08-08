@@ -2085,7 +2085,7 @@ public final class LibraryActivity extends Activity {
         StringBuilder line = new StringBuilder();
         appendFact(line, meta.developer);
         appendFact(line, meta.publisher);
-        appendFact(line, yearOf(meta.released));
+        appendFact(line, meta.year());
 
         // Genre and the rating too, the same as the details screen has always
         // shown - the pane had room for them and was showing three facts where
@@ -2115,23 +2115,6 @@ public final class LibraryActivity extends Activity {
         if (fact == null || fact.isEmpty()) return;
         if (line.length() > 0) line.append(" · ");
         line.append(fact);
-    }
-
-    /**
-     * ES-DE writes a release date as {@code "20201218T000000"} - the year
-     * alone, the first four digits, is the only part of that worth showing
-     * here, and a value that does not start with four digits is not
-     * something to guess the rest of; nothing is shown for it rather than a
-     * wrong or half-parsed date.
-     */
-    private static String yearOf(String released) {
-        if (released == null || released.length() < 4) return null;
-
-        String year = released.substring(0, 4);
-        for (int i = 0; i < 4; i++) {
-            if (!Character.isDigit(year.charAt(i))) return null;
-        }
-        return year;
     }
 
     /**

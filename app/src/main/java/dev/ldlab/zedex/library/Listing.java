@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.library;
 
+import dev.ldlab.zedex.storage.Storage;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.database.Cursor;
@@ -214,7 +215,7 @@ public final class Listing {
                     if (entry.isDirectory()) continue;
 
                     String path = entry.getName();
-                    String name = path.substring(path.lastIndexOf('/') + 1);
+                    String name = Storage.filename(path);
 
                     if (Types.archive(name) || !Types.supported(name)) continue;
 
@@ -259,7 +260,7 @@ public final class Listing {
             throw new IOException("cannot make " + folder);
         }
 
-        String name = entry.inside.substring(entry.inside.lastIndexOf('/') + 1);
+        String name = Storage.filename(entry.inside);
         File target = new File(folder,
                 Integer.toHexString(entry.key().hashCode()) + "-" + name);
 

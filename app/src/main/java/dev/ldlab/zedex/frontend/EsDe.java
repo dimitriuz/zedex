@@ -191,11 +191,6 @@ public final class EsDe {
         return folder.isDirectory() ? folder : null;
     }
 
-    /** Whether ES-DE is there and its folder can be written to. */
-    public static boolean canInstall(Context context) {
-        return installed(context) != null && folder() != null;
-    }
-
     /**
      * Writes both entries, leaving anything else in those files alone.
      *

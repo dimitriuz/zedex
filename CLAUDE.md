@@ -166,7 +166,7 @@ Both address things by name, never by coordinate. ☰ has **pages**, so a path i
 
 ## Where things live
 
-`FuseNative` and `EmulatorActivity` stay in `dev.ldlab.zedex` and cannot move: the native side exports 72 `Java_dev_ldlab_zedex_FuseNative_*` symbols — 57 in `android_bridge.c`, 13 in `android_state.c`, 2 in `android_window.c` — and does a `FindClass` on that path, and the activity is addressed as `dev.ldlab.zedex/.EmulatorActivity` by `am start` in the scripts and docs. Everything else is in a layer — `machine`, `input`, `storage`, `cheats`, `media`, `view`, `menu`, `screen`; see *How the code is laid out* in `docs/INTERNALS.md`. Adding an activity means the manifest gets `.screen.Name`.
+`FuseNative` and `EmulatorActivity` stay in `dev.ldlab.zedex` and cannot move: the native side exports 71 `Java_dev_ldlab_zedex_FuseNative_*` symbols — 57 in `android_bridge.c`, 12 in `android_state.c`, 2 in `android_window.c` — and does a `FindClass` on that path, and the activity is addressed as `dev.ldlab.zedex/.EmulatorActivity` by `am start` in the scripts and docs. Everything else is in a layer — `machine`, `input`, `storage`, `cheats`, `media`, `view`, `menu`, `screen`; see *How the code is laid out* in `docs/INTERNALS.md`. Adding an activity means the manifest gets `.screen.Name`.
 
 A member another layer needs has to be `public`; package-private stops at the boundary.
 

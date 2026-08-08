@@ -102,8 +102,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      */
     private String language = "";
 
-    private static final String TAG = "Zedex";
-
     private static final String PREFS = SettingsActivity.PREFS;
 
     /**
@@ -687,7 +685,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      *  forever when it never does - see {@code GameInfoView.showEntry}. The
      *  path already carries it, as the segment after its last slash. */
     private static String filenameOf(String relativePath) {
-        return relativePath.substring(relativePath.lastIndexOf('/') + 1);
+        return dev.ldlab.zedex.storage.Storage.filename(relativePath);
     }
 
     /**

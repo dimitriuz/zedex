@@ -402,31 +402,6 @@ Java_dev_ldlab_zedex_FuseNative_tapePlaying( JNIEnv *env, jclass class )
   return playing;
 }
 
-JNIEXPORT jobjectArray JNICALL
-Java_dev_ldlab_zedex_FuseNative_driveNames( JNIEnv *env, jclass class )
-{
-  jobjectArray result;
-  char **values;
-  int i, count;
-
-  pthread_mutex_lock( &machine_mutex );
-
-  count = drive_list_count;
-  values = count ? calloc( count, sizeof( char* ) ) : NULL;
-
-  for( i = 0; values && i < count; i++ )
-    values[i] = strdup( drive_list[i].name );
-
-  pthread_mutex_unlock( &machine_mutex );
-
-  if( count && !values ) return NULL;
-
-  result = strings_from( env, values, count );
-  free_strings( values, count );
-
-  return result;
-}
-
 /* Controller in the high byte, drive in the low one. */
 JNIEXPORT jintArray JNICALL
 Java_dev_ldlab_zedex_FuseNative_driveIds( JNIEnv *env, jclass class )

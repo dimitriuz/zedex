@@ -58,7 +58,6 @@ public final class StatesActivity extends Activity {
     public static final String EXTRA_SAVING = "saving";
 
     private static final int BACKING = 0xff14151a;
-    private static final int TEXT = 0xffededf2;
 
     /** A cell wide enough for a readable 4:3 picture, in dp. */
     private static final int CELL_DP = 190;

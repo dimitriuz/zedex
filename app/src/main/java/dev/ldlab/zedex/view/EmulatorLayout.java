@@ -367,10 +367,6 @@ public final class EmulatorLayout extends ViewGroup {
         requestLayout();
     }
 
-    public boolean lentAway() {
-        return lent;
-    }
-
     /**
      * What the second screen borrows.
      *
@@ -517,15 +513,20 @@ public final class EmulatorLayout extends ViewGroup {
     /**
      * Whether this window is one the overlay is for.
      *
-     * Fullscreen, either way up, and nowhere else: fullscreen is the one layout
-     * with no keyboard in it, so it is the one that needs another way to reach
-     * a key. Everywhere else there is a real keyboard a tap away, and a second
-     * one would be two answers to the same question.
+     * Wherever there is no drawn keyboard to reach a key with, which is more
+     * than fullscreen: the plate is also absent when it has been put away,
+     * when the skin is Android's own, and while the window is lent to a second
+     * screen. This used to say "fullscreen, either way up, and nowhere else",
+     * which read as a rule and was not one - keyboardHere() answers all four
+     * cases and the overlay is offered in every one of them.
+     *
+     * Not while the phone's own keyboard is up, though: that is a keyboard,
+     * and two on screen at once is two answers to the same question.
      *
      * Where it goes differs, and follows from what the window has spare. See
      * {@link #placeOverlay}.
      */
-    public boolean overlayAvailable() {
+    private boolean overlayAvailable() {
         return !keyboardHere() && !lent && imeInset == 0;
     }
 
@@ -547,7 +548,7 @@ public final class EmulatorLayout extends ViewGroup {
                 && (keyboard == null || keyboard.skin().drawn());
     }
 
-    public boolean overlayShown() {
+    private boolean overlayShown() {
         return overlayShown && overlayAvailable();
     }
 
@@ -579,20 +580,6 @@ public final class EmulatorLayout extends ViewGroup {
         }
     }
 
-    /**
-     * The overlay keyboard, and the one button that shows and hides it.
-     *
-     * Sideways it lies over the foot of the picture, see-through, because a
-     * landscape window is all picture and there is nowhere else for it. Upright
-     * there is: a 4:3 picture in a tall window leaves black below it, so the
-     * keyboard goes in the black and covers nothing, and needs no transparency
-     * to be seen through because there is nothing behind it.
-     *
-     * Both buttons take the same box, above the pad, because only ever one of
-     * them is on screen: the thing that shows the keyboard and the thing that
-     * puts it away are the same control, and moving it to the far end while it
-     * is open makes it a different one.
-     */
     /**
      * The right edge of whatever control is on the left of the window, or zero.
      *
@@ -634,6 +621,20 @@ public final class EmulatorLayout extends ViewGroup {
         return boxes;
     }
 
+    /**
+     * The overlay keyboard, and the one button that shows and hides it.
+     *
+     * Sideways it lies over the foot of the picture, see-through, because a
+     * landscape window is all picture and there is nowhere else for it. Upright
+     * there is: a 4:3 picture in a tall window leaves black below it, so the
+     * keyboard goes in the black and covers nothing, and needs no transparency
+     * to be seen through because there is nothing behind it.
+     *
+     * Both buttons take the same box, above the pad, because only ever one of
+     * them is on screen: the thing that shows the keyboard and the thing that
+     * puts it away are the same control, and moving it to the far end while it
+     * is open makes it a different one.
+     */
     private void placeOverlay(int width, int height) {
         overlayBox.setEmpty();
         overlayOpenBox.setEmpty();

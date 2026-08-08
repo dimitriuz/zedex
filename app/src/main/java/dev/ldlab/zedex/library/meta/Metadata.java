@@ -363,10 +363,8 @@ public final class Metadata {
     }
 
     private static String filename(String path) {
-        int slash = path.lastIndexOf('/');
-        return slash < 0 ? path : path.substring(slash + 1);
+        return dev.ldlab.zedex.storage.Storage.filename(path);
     }
-
     private static File file(Context context) {
         // Storage.libraryDirectory, not a path built here from a FOLDER of our
         // own: this folder has to be in the list Storage moves when the data

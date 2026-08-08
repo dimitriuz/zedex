@@ -228,10 +228,9 @@ public final class FuseNative {
     /** 0 is the left button, 1 the right. */
     public static native void mouseButton(int which, boolean down);
 
-    /** Names of the drives that currently have a disk in them. */
-    public static native String[] driveNames();
 
-    /** Ids for {@link #driveNames}: controller in the high byte, drive in the low. */
+    /** Ids for the drives {@link #driveDetails} describes: controller in the
+  * high byte, drive in the low. */
     public static native int[] driveIds();
 
     /** Writes a drive's disk; the extension picks the format. */
