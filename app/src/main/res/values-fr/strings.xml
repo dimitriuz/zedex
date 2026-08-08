@@ -191,6 +191,7 @@
     <string name="roms_download_did_not">Le téléchargement a échoué</string>
     <string name="roms_download_failed_message">%1$s\n\n%2$s\n\nRéessayez, ou passez par l\'un des deux autres moyens ci-dessous.</string>
     <string name="roms_download_empty">Rien dans le fichier téléchargé ne ressemblait à une ROM.</string>
+    <string name="roms_unpack_failed">La décompression s’est arrêtée après %1$d des fichiers ROM.\n\n%2$s</string>
     <string name="roms_missing">Certaines ROM manquent</string>
     <string name="roms_missing_message">Les ROM de %1$d machines ne sont pas dans le dossier :\n\n%2$s\n\nLes machines qui en ont besoin ne démarreront pas. Toutes les autres, oui.</string>
     <string name="roms_missing_more">, et %1$d de plus</string>

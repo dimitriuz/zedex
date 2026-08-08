@@ -191,6 +191,7 @@
     <string name="roms_download_did_not">Scaricamento non riuscito</string>
     <string name="roms_download_failed_message">%1$s\n\n%2$s\n\nRiprova, o usa uno degli altri due modi qui sotto.</string>
     <string name="roms_download_empty">Niente nel file scaricato somigliava a una ROM.</string>
+    <string name="roms_unpack_failed">L’estrazione si è fermata dopo %1$d file ROM.\n\n%2$s</string>
     <string name="roms_missing">Mancano alcune ROM</string>
     <string name="roms_missing_message">Le ROM di %1$d macchine non sono nella cartella:\n\n%2$s\n\nLe macchine che le richiedono non partiranno. Tutte le altre sì.</string>
     <string name="roms_missing_more">, e altre %1$d</string>

@@ -191,6 +191,7 @@
     <string name="roms_download_did_not">Загрузка не удалась</string>
     <string name="roms_download_failed_message">%1$s\n\n%2$s\n\nПопробуйте снова или одним из двух других способов ниже.</string>
     <string name="roms_download_empty">В загруженном файле не нашлось ничего похожего на ROM.</string>
+    <string name="roms_unpack_failed">Распаковка остановилась после %1$d файлов ПЗУ.\n\n%2$s</string>
     <string name="roms_missing">Некоторых ROM не хватает</string>
     <string name="roms_missing_message">ROM для %1$d машин нет в папке:\n\n%2$s\n\nЭти машины не запустятся. Все остальные — запустятся.</string>
     <string name="roms_missing_more">, и ещё %1$d</string>

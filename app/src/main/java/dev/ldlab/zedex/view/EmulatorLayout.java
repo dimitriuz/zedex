@@ -490,6 +490,26 @@ public final class EmulatorLayout extends ViewGroup {
     /** See-through enough to play through, solid enough to aim at. */
     private static final float OVERLAY_ALPHA = 0.82f;
 
+    /**
+     * How much of the plate upright yielding may cost before it stops being
+     * worth doing.
+     *
+     * There was no floor at all: the pad is admitted whenever its band is
+     * 108dp, and the keys then took whatever was left under it - which works
+     * out at about four device-independent pixels on the wrong geometry. A
+     * keyboard that thin is not a keyboard, and its close button goes just
+     * above it, so it lands within a few dp of the bottom edge and possibly
+     * under the gesture inset: no keys, and no way to put them away either.
+     *
+     * Below this, the keys keep their full height and cover the controls
+     * instead. That is the right way round - while the keys are up, typing is
+     * what is being done, and the joystick underneath is not - and it is what
+     * the landscape branch already does by moving aside rather than shrinking.
+     * CLAUDE.md records the same mistake once before, when clamping the height
+     * cut a full 128K plate to 295px against the real 454.
+     */
+    private static final float OVERLAY_LEAST = 0.6f;
+
     /** How big the two buttons are, and how far off the things they sit by. */
     private static final int OVERLAY_BUTTON = 44;
     private static final int OVERLAY_GAP = 8;
@@ -655,10 +675,16 @@ public final class EmulatorLayout extends ViewGroup {
                                 Math.round(height * OVERLAY_TALL));
 
             // Upright the controls are under the picture, squarely in the way,
-            // and there is nowhere sideways to go: the height is what yields.
+            // and there is nowhere sideways to go: the height is what yields -
+            // but only down to OVERLAY_LEAST of the plate. Under that it keeps
+            // its height and covers them.
             if (!landscapeNow) {
                 int floor = Math.max(padBox.bottom, fireBox.bottom);
-                if (floor > 0) tall = Math.min(tall, height - floor - gap);
+                int room = height - floor - gap;
+
+                if (floor > 0 && room >= Math.round(tall * OVERLAY_LEAST)) {
+                    tall = Math.min(tall, room);
+                }
             }
 
             overlayBox.set(left, height - tall, right, height);

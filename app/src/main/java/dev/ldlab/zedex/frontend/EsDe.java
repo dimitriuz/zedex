@@ -300,8 +300,33 @@ public final class EsDe {
         }
     }
 
+    /**
+     * Both entries, the rule first.
+     *
+     * That order is the safe one and worth keeping: the system entry's command
+     * is written in terms of %EMULATOR_ZEDEX%, which the find rule is what
+     * defines, so a rule with no system is an emulator nothing refers to -
+     * inert, and repaired by the next run - while a system with no rule is an
+     * entry ES-DE cannot launch, in place of the bundled one it replaced.
+     *
+     * There is no way to write two files as one action here: the second is a
+     * separate document, and through a SAF tree there is not even a rename to
+     * build one out of. So the halfway state is possible, and what this can do
+     * is say so - the caller only learns true or false, and "it failed" while
+     * half of it is on disk is the sort of thing that gets debugged twice.
+     */
     private static boolean write(Context context, Place place) {
-        return findRule(context, place) && system(context, place);
+        if (!findRule(context, place)) return false;
+
+        if (!system(context, place)) {
+            Log.w(TAG, "the find rule was written but the system entry was"
+                       + " not - ES-DE has an emulator definition nothing"
+                       + " refers to, which is inert; running this again"
+                       + " repairs it");
+            return false;
+        }
+
+        return true;
     }
 
     /** {@code <emulator name="ZEDEX">} and the package to start. */

@@ -191,6 +191,7 @@
     <string name="roms_download_did_not">Stahování se nepovedlo</string>
     <string name="roms_download_failed_message">%1$s\n\n%2$s\n\nZkus to znovu, nebo jedním ze dvou dalších způsobů níže.</string>
     <string name="roms_download_empty">Nic ve staženém souboru nevypadalo jako ROM.</string>
+    <string name="roms_unpack_failed">Rozbalování se zastavilo po %1$d souborech ROM.\n\n%2$s</string>
     <string name="roms_missing">Některé ROMy chybí</string>
     <string name="roms_missing_message">ROMy pro %1$d počítačů ve složce nejsou:\n\n%2$s\n\nPočítače, které je potřebují, se nespustí. Všechny ostatní ano.</string>
     <string name="roms_missing_more">, a další %1$d</string>

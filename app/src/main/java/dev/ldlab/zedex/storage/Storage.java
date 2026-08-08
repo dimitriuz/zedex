@@ -73,7 +73,9 @@ public final class Storage {
     private static final String ROMS = "roms";
     private static final String TAPES = "tapes";
     private static final String DISKS = "disks";
-    private static final String CARDS = "cards";
+    /** Public because a data-folder move has to find the card again by
+     *  name; see SettingsActivity.repointCard. */
+    public static final String CARDS = "cards";
 
     /** The scraped metadata store's folder; see {@code library/meta/Metadata}. */
     private static final String LIBRARY = "library";

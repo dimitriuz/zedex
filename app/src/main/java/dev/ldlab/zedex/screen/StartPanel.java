@@ -927,21 +927,36 @@ public final class StartPanel {
             if (connection != null) connection.disconnect();
         }
 
-        int copied = 0;
+        // The count is kept outside the try, so a failure part way through
+        // still knows how far it got. It used to be the return value, which
+        // an exception never delivers: twenty ROMs could be on disk and the
+        // user was told the archive held none - blaming archive.org for a
+        // full disk, and retrying the download instead of freeing space. The
+        // real cause was in logcat and nowhere else.
+        int[] copied = { 0 };
+        IOException failure = null;
+
         try (InputStream in = new FileInputStream(zip)) {
-            copied = unpackRoms(in, directory);
+            unpackRoms(in, directory, copied);
         } catch (IOException e) {
+            failure = e;
             Log.e(TAG, "cannot unpack the downloaded set", e);
         }
         zip.delete();
 
-        if (copied == 0) {
+        if (failure != null) {
+            failed(activity.getString(R.string.roms_unpack_failed, copied[0],
+                                      reason(failure)));
+            return;
+        }
+
+        if (copied[0] == 0) {
             Log.w(TAG, "nothing in the downloaded zip looked like a ROM");
             failed(activity.getString(R.string.roms_download_empty));
             return;
         }
 
-        reportRoms(copied);
+        reportRoms(copied[0]);
     }
 
     /**
@@ -967,18 +982,34 @@ public final class StartPanel {
 
     /** A zip of ROMs, as archive.org hands them out, opened from a document. */
     private int unpackRoms(Uri source, File directory) {
+        int[] copied = { 0 };
+
         try (InputStream in = activity.getContentResolver().openInputStream(source)) {
             if (in == null) return 0;
-            return unpackRoms(in, directory);
+            unpackRoms(in, directory, copied);
         } catch (IOException | SecurityException e) {
+            // Whatever landed before this stays: the caller reports the count,
+            // and a half-unpacked set is still worth more than none.
             Log.e(TAG, "cannot unpack " + source, e);
-            return 0;
         }
+
+        return copied[0];
     }
 
-    /** Takes the ROMs out of a zip and ignores everything else in it. */
-    private int unpackRoms(InputStream source, File directory) throws IOException {
-        int copied = 0;
+    /** What to put in front of a person when an exception is all there is. */
+    private static String reason(Throwable e) {
+        String message = e.getMessage();
+        return message != null && !message.isEmpty() ? message : e.toString();
+    }
+
+    /**
+     * Takes the ROMs out of a zip and ignores everything else in it.
+     *
+     * {@code copied[0]} counts as it goes rather than being returned, so a
+     * caller that catches out of here still knows how many arrived.
+     */
+    private int unpackRoms(InputStream source, File directory, int[] copied)
+            throws IOException {
 
         try (ZipInputStream zip = new ZipInputStream(new BufferedInputStream(source))) {
             ZipEntry entry;
@@ -996,11 +1027,11 @@ public final class StartPanel {
                     int read;
                     while ((read = zip.read(buffer)) != -1) out.write(buffer, 0, read);
                 }
-                copied++;
+                copied[0]++;
             }
         }
 
-        return copied;
+        return copied[0];
     }
 
     /**

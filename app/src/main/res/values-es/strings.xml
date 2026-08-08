@@ -191,6 +191,7 @@
     <string name="roms_download_did_not">La descarga falló</string>
     <string name="roms_download_failed_message">%1$s\n\n%2$s\n\nInténtalo otra vez, o por una de las otras dos vías de abajo.</string>
     <string name="roms_download_empty">Nada en el archivo descargado parecía una ROM.</string>
+    <string name="roms_unpack_failed">La extracción se detuvo tras %1$d de los archivos ROM.\n\n%2$s</string>
     <string name="roms_missing">Faltan algunas ROM</string>
     <string name="roms_missing_message">Las ROM de %1$d máquinas no están en la carpeta:\n\n%2$s\n\nLas máquinas que las necesitan no arrancarán. Todas las demás sí.</string>
     <string name="roms_missing_more">, y %1$d más</string>

@@ -69,8 +69,31 @@ public final class Recorder {
     private static long lastFrameAt;
     private static long minimumInterval;
 
-    private static volatile File screenshotTarget;
-    private static volatile Listener screenshotListener;
+    /**
+     * Where the next screenshot goes and who to tell, as one thing.
+     *
+     * Two volatile fields were two: volatile gives visibility, not atomicity,
+     * and the pair was read and cleared in four separate steps. Ask twice
+     * inside one frame - a double tap is well under twenty milliseconds - and
+     * a second request landing between the emulation thread's read and its
+     * clear was erased before it was ever seen: no file, and its listener
+     * never fired, so anything waiting on that listener waited for ever. A
+     * narrower interleaving paired one request's file with the other's
+     * listener. getAndSet takes both, or neither.
+     */
+    private static final java.util.concurrent.atomic.AtomicReference<Shot>
+            pendingShot = new java.util.concurrent.atomic.AtomicReference<>();
+
+    /** A screenshot that has been asked for and not yet taken. */
+    private static final class Shot {
+        final File file;
+        final Listener whenDone;
+
+        Shot(File file, Listener whenDone) {
+            this.file = file;
+            this.whenDone = whenDone;
+        }
+    }
 
     // --- the encoding thread ---------------------------------------------
 
@@ -197,18 +220,14 @@ public final class Recorder {
 
     /** The frame a screenshot was asked for. */
     public static void screenshot(int width, int height) {
-        File file = screenshotTarget;
-        Listener whenDone = screenshotListener;
-
-        screenshotTarget = null;
-        screenshotListener = null;
-
-        if (file == null) return;
+        Shot shot = pendingShot.getAndSet(null);
+        if (shot == null) return;
 
         Frame frame = new Frame();
         read(frame, width, height, System.nanoTime());
 
-        new Thread(() -> writePng(frame, file, whenDone), "fuse-screenshot").start();
+        new Thread(() -> writePng(frame, shot.file, shot.whenDone),
+                   "fuse-screenshot").start();
     }
 
     /** Copies the frame out while the emulation thread is held in the callback. */
@@ -236,8 +255,7 @@ public final class Recorder {
 
     /** Asks for the next frame to be written as a PNG. */
     public static void screenshotTo(File file, Listener whenDone) {
-        screenshotTarget = file;
-        screenshotListener = whenDone;
+        pendingShot.set(new Shot(file, whenDone));
         FuseNative.captureScreenshot();
     }
 
@@ -253,8 +271,7 @@ public final class Recorder {
      * asked for it.
      */
     public static void forgetPendingScreenshot() {
-        screenshotTarget = null;
-        screenshotListener = null;
+        pendingShot.set(null);
     }
 
     // --- encoding ---------------------------------------------------------

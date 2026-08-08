@@ -213,6 +213,7 @@
     <string name="roms_download_did_not">Download failed</string>
     <string name="roms_download_failed_message">%1$s\n\n%2$s\n\nTry again, or one of the other two ways below.</string>
     <string name="roms_download_empty">Nothing in the downloaded file looked like a ROM.</string>
+    <string name="roms_unpack_failed">Unpacking stopped after %1$d of the ROM files.\n\n%2$s</string>
     <string name="roms_missing">Some ROMs are missing</string>
     <string name="roms_missing_message">%1$d of the machines\' ROMs are not in the folder:\n\n%2$s\n\nThe machines that need them will not start. Everything else will.</string>
     <string name="roms_missing_more">, and %1$d more</string>

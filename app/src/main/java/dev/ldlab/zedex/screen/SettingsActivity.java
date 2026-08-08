@@ -1565,6 +1565,45 @@ public class SettingsActivity extends AppCompatActivity
          * Numeric entries only. A machine id is not nearer or further from
          * another one.
          */
+        /**
+         * Pushes every setting on this screen into Fuse, one at a time.
+         *
+         * For the null key, which since API 30 is how Editor.clear() announces
+         * itself: everything changed at once, and the switch in apply() takes
+         * one key. The keys come from the preference hierarchy rather than a
+         * list written out here, because a second list is a second thing to
+         * forget - this one is the same set the screen was built from, so a
+         * row added to the XML is covered without anybody remembering to.
+         *
+         * Only this screen's own. A clear() while another page is open leaves
+         * that page's settings to whichever fragment is resumed next, which is
+         * the same fragment that would have applied them anyway.
+         */
+        private void applyAll(android.content.SharedPreferences preferences) {
+            PreferenceGroup screen = getPreferenceScreen();
+            if (screen == null) return;
+
+            for (int i = 0; i < screen.getPreferenceCount(); i++) {
+                Preference group = screen.getPreference(i);
+
+                if (!(group instanceof PreferenceGroup)) {
+                    applyOne(preferences, group);
+                    continue;
+                }
+
+                PreferenceGroup category = (PreferenceGroup) group;
+                for (int j = 0; j < category.getPreferenceCount(); j++) {
+                    applyOne(preferences, category.getPreference(j));
+                }
+            }
+        }
+
+        private void applyOne(android.content.SharedPreferences preferences,
+                              Preference preference) {
+            String key = preference.getKey();
+            if (key != null) apply(preferences, key);
+        }
+
         private void snapToEntries() {
             for (int i = 0; i < getPreferenceScreen().getPreferenceCount(); i++) {
                 Preference group = getPreferenceScreen().getPreference(i);
@@ -1666,6 +1705,18 @@ public class SettingsActivity extends AppCompatActivity
         @Override
         public void onSharedPreferenceChanged(
                 android.content.SharedPreferences preferences, String key) {
+            // Since API 30 a null key means Editor.clear() - everything at
+            // once, not one setting. Nothing calls clear() today, so this has
+            // never fired; it is the switch below that would throw, and a
+            // "reset all settings" row is exactly the sort of thing that gets
+            // added without anyone thinking about this method. Re-reading the
+            // lot is the honest response to being told the lot changed.
+            if (key == null) {
+                applyAll(preferences);
+                updateSummaries();
+                return;
+            }
+
             // A language is not pushed anywhere: it is what the screens were
             // built with, so the open one is built again. Nothing below would
             // change a word of what is already on the display.
@@ -1770,6 +1821,13 @@ public class SettingsActivity extends AppCompatActivity
             Storage.move(getActivity(), new File(previous, "recordings"),
                          Storage.capturesDirectory(getActivity()));
 
+            // The card is remembered by absolute path, so moving the file
+            // out from under that setting loses it: Machine.applyDivmmc checks
+            // isFile() and quietly inserts nothing, which reads as every save
+            // on the card having disappeared. The image itself is safe in the
+            // new folder - it is the pointer to it that has to move too.
+            repointCard(previous);
+
             // chdir is process wide and immediate, so the running emulator
             // finds ROMs in the new place too - no restart needed.
             FuseNative.setWorkingDirectory(
@@ -1777,6 +1835,34 @@ public class SettingsActivity extends AppCompatActivity
 
             Toast.makeText(getActivity(), R.string.settings_states_moved,
                     Toast.LENGTH_SHORT).show();
+        }
+
+        /**
+         * Follows the inserted card to wherever its folder has just gone.
+         *
+         * Only when the stored path was inside the folder that moved: a card
+         * the user opened from somewhere else entirely is still where it was,
+         * and rewriting that would point the setting at a file that does not
+         * exist. Checked against the file rather than assumed, so a move that
+         * did not carry this one leaves the old path alone to be reported
+         * rather than silently replaced with another wrong one.
+         */
+        private void repointCard(File previous) {
+            android.content.SharedPreferences preferences =
+                    getPreferenceManager().getSharedPreferences();
+            String card = preferences.getString(Media.PREF_CARD, null);
+            if (card == null) return;
+
+            File was = new File(card);
+            File from = new File(previous, Storage.CARDS);
+            if (!was.getParentFile().equals(from)) return;
+
+            File now = new File(Storage.cardsDirectory(getActivity()),
+                                was.getName());
+            if (!now.isFile()) return;
+
+            preferences.edit().putString(Media.PREF_CARD,
+                                         now.getAbsolutePath()).apply();
         }
 
         /** ListPreference stores numbers as strings. */

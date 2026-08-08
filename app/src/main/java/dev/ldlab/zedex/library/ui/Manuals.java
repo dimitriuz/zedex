@@ -164,9 +164,37 @@ public final class Manuals {
      * viewer at all".
      */
     private static void grantToResolvers(Context context, Intent intent, Uri uri) {
+        releaseLastGrant(context);
+
         for (ResolveInfo info : context.getPackageManager().queryIntentActivities(intent, 0)) {
             context.grantUriPermission(info.activityInfo.packageName, uri,
                     Intent.FLAG_GRANT_READ_URI_PERMISSION);
         }
+
+        granted = uri;
+    }
+
+    /** The manual whose grant is still out, or null. */
+    private static Uri granted;
+
+    /**
+     * Takes back the grant on the manual opened before this one.
+     *
+     * The grant goes to every activity that answered the query, not only the
+     * one the user picked, and nothing took it back - so an app that registers
+     * for application/pdf accumulated a standing read on every manual ever
+     * opened, for the life of the process.
+     *
+     * Released on the way in to the next one rather than on the way out of
+     * this one, because there is no way out to hook: the viewer is another
+     * app's activity and it never says when it is finished. One manual's worth
+     * of grant is what a person actually has open, and the one being opened
+     * now is the one that must keep working.
+     */
+    private static void releaseLastGrant(Context context) {
+        if (granted == null) return;
+
+        context.revokeUriPermission(granted, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        granted = null;
     }
 }

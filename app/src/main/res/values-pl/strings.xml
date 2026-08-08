@@ -191,6 +191,7 @@
     <string name="roms_download_did_not">Pobieranie się nie udało</string>
     <string name="roms_download_failed_message">%1$s\n\n%2$s\n\nSpróbuj ponownie albo jednym z dwóch pozostałych sposobów poniżej.</string>
     <string name="roms_download_empty">Nic w pobranym pliku nie wyglądało na ROM.</string>
+    <string name="roms_unpack_failed">Rozpakowywanie zatrzymało się po %1$d plikach ROM.\n\n%2$s</string>
     <string name="roms_missing">Brakuje części ROM-ów</string>
     <string name="roms_missing_message">ROM-ów do %1$d maszyn nie ma w folderze:\n\n%2$s\n\nMaszyny, które ich potrzebują, nie wystartują. Wszystkie pozostałe — tak.</string>
     <string name="roms_missing_more">, i jeszcze %1$d</string>

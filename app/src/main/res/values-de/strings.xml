@@ -191,6 +191,7 @@
     <string name="roms_download_did_not">Download fehlgeschlagen</string>
     <string name="roms_download_failed_message">%1$s\n\n%2$s\n\nVersuche es erneut, oder einen der beiden anderen Wege unten.</string>
     <string name="roms_download_empty">In der geladenen Datei sah nichts wie ein ROM aus.</string>
+    <string name="roms_unpack_failed">Das Entpacken endete nach %1$d der ROM-Dateien.\n\n%2$s</string>
     <string name="roms_missing">Einige ROMs fehlen</string>
     <string name="roms_missing_message">Die ROMs für %1$d Maschinen liegen nicht im Ordner:\n\n%2$s\n\nDie Maschinen, die sie brauchen, starten nicht. Alle anderen schon.</string>
     <string name="roms_missing_more">, und %1$d weitere</string>

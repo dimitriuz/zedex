@@ -191,6 +191,7 @@
     <string name="roms_download_did_not">Завантаження не вдалося</string>
     <string name="roms_download_failed_message">%1$s\n\n%2$s\n\nСпробуйте знову або одним із двох інших способів нижче.</string>
     <string name="roms_download_empty">У завантаженому файлі не знайшлося нічого схожого на ROM.</string>
+    <string name="roms_unpack_failed">Розпакування зупинилося після %1$d файлів ПЗП.\n\n%2$s</string>
     <string name="roms_missing">Деяких ROM бракує</string>
     <string name="roms_missing_message">ROM для %1$d машин немає в теці:\n\n%2$s\n\nЦі машини не запустяться. Усі інші — запустяться.</string>
     <string name="roms_missing_more">, і ще %1$d</string>
