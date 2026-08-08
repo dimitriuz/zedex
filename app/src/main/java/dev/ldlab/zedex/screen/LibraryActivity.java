@@ -3,6 +3,7 @@ package dev.ldlab.zedex.screen;
 import dev.ldlab.zedex.EmulatorActivity;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.library.Entry;
+import dev.ldlab.zedex.library.Facets;
 import dev.ldlab.zedex.library.Favorites;
 import dev.ldlab.zedex.library.Filters;
 import dev.ldlab.zedex.library.Listing;
@@ -352,6 +353,7 @@ public final class LibraryActivity extends Activity {
     private ProgressBar spinner;
     private EditText searchField;
     private ImageButton sortButton;
+    private ImageButton filterButton;
     private ImageButton viewToggle;
     private final List<View> tabViews = new ArrayList<>();
 
@@ -534,13 +536,12 @@ public final class LibraryActivity extends Activity {
         optionsDialog = new OptionsDialog(this, new OptionsDialog.Callbacks() {
             @Override
             public void onSortField(int index) {
-                // OptionsDialog still only builds three rows, labelled name,
-                // date and size, and index is one of those three - so until
-                // it is rebuilt to offer all of Sorting.FIELDS (Task 5-7),
-                // its "date" row resolves to Sorting.FIELDS[1] (size) and its
-                // "size" row to Sorting.FIELDS[2] (released), both mislabelled
-                // rather than missing. Left as-is here since fixing the
-                // labels means touching OptionsDialog, which is that task's.
+                // OptionsDialog still only builds three rows - name, size and
+                // released, correctly labelled now that library_sort_date is
+                // gone - rather than all five of Sorting.FIELDS; format and
+                // rating reach the dialog once Task 6 wraps View, Sort and
+                // Filter into a menu of their own. index is always one of
+                // these three meanwhile.
                 chooseSortField(Sorting.FIELDS[index]);
                 optionsDialog.refresh(sortFieldIndex(sort), sortDescending, grid);
             }
@@ -549,6 +550,11 @@ public final class LibraryActivity extends Activity {
             public void onViewMode(boolean wantGrid) {
                 applyViewMode(wantGrid);
                 optionsDialog.refresh(sortFieldIndex(sort), sortDescending, grid);
+            }
+
+            @Override
+            public void onFiltersChanged() {
+                LibraryActivity.this.onFiltersChanged();
             }
         });
 
@@ -1326,6 +1332,27 @@ public final class LibraryActivity extends Activity {
         row.addView(sortButton);
         updateSortButton();
 
+        // Touch's only door into the filter sheet: OptionsDialog is what a
+        // gamepad reaches through Select, and touch never sees that dialog at
+        // all - a filter reachable only from there would be reachable only
+        // with a controller. Hidden outside Browse; see show(Tab).
+        filterButton = toolbarButton(R.drawable.ic_filter, getString(R.string.library_filter));
+        filterButton.setOnClickListener(v -> new Thread(() -> {
+            // Off the UI thread: this walks the whole store, which is 800
+            // games on the collection it was built against, and the whole
+            // content folder besides, for the formats - see
+            // everythingForFacets.
+            Map<Filters.Field, List<Facets.Value>> values =
+                    Facets.of(Metadata.all(this));
+            List<Facets.Value> formats = Facets.formatsOf(everythingForFacets());
+
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                optionsDialog.showFilters(filters, values, formats);
+            });
+        }).start());
+        row.addView(filterButton);
+
         // Named for what it would do rather than what it is, like the bar's
         // own fullscreen button: it shows the shape you would switch to, not
         // the one you are looking at.
@@ -2048,6 +2075,13 @@ public final class LibraryActivity extends Activity {
         boolean browsing = tab == Tab.BROWSE;
         pathLabel.setVisibility(browsing ? View.VISIBLE : View.GONE);
         upButton.setVisibility(browsing && stack.size() > 1 ? View.VISIBLE : View.GONE);
+
+        // Filtering applies to Browse only - Favourites and Recent are
+        // already answers to a question of their own, and offering a button
+        // that would narrow neither is worse than not offering one; see the
+        // design spec, "Filtering applies to Browse only".
+        filterButton.setVisibility(tab == Tab.BROWSE ? View.VISIBLE : View.GONE);
+
         syncBackCallback();
         clearSearch();
         clearSelection();
@@ -2146,6 +2180,30 @@ public final class LibraryActivity extends Activity {
             IOException finalFailure = failure;
             runOnUiThread(() -> finishLoad(token, finalResult, finalFailure));
         }).start();
+    }
+
+    /**
+     * Every file under the content folder, root down, for {@link
+     * Facets#formatsOf} - not whatever is currently loaded, which may be one
+     * archive or a single folder, since a filter narrows the whole
+     * collection, not the level Browse happens to be standing in. Called off
+     * the UI thread already, from the filter button's own click handler, so
+     * the walk itself costs nothing this method needs to worry about.
+     *
+     * Empty on any failure or with no content folder granted at all: a stale
+     * grant or a folder gone missing should leave the filter sheet with
+     * nothing to offer for Format, never a crash on top of the tap that
+     * opened it.
+     */
+    private List<Entry> everythingForFacets() {
+        if (stack.isEmpty()) return Collections.emptyList();
+
+        try {
+            return Listing.everythingUnder(getContentResolver(), stack.get(0).uri);
+        } catch (IOException e) {
+            Log.w(TAG, "cannot walk the content folder for facets", e);
+            return Collections.emptyList();
+        }
     }
 
     private List<Entry> recentsAsEntries() {

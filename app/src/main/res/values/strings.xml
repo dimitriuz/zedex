@@ -628,8 +628,21 @@
     <string name="library_search">Search</string>
     <string name="library_sort">Sort</string>
     <string name="library_sort_name">Name</string>
-    <string name="library_sort_date">Date</string>
     <string name="library_sort_size">Size</string>
+    <string name="library_filter">Filter</string>
+    <string name="library_filter_none">No filter</string>
+    <string name="library_filter_format">Format</string>
+    <string name="library_filter_genre">Genre</string>
+    <string name="library_filter_rating">Rating</string>
+    <string name="library_filter_developer">Developer</string>
+    <string name="library_filter_publisher">Publisher</string>
+    <string name="library_filter_clear">Clear all</string>
+    <string name="library_filter_any_rating">Any rating</string>
+    <string name="library_sort_released">Released</string>
+    <string name="library_sort_format">Format</string>
+    <string name="library_sort_rating">Rating</string>
+    <string name="library_view">View</string>
+    <string name="library_empty_filtered">Nothing matches this filter</string>
     <string name="library_view_list">List</string>
     <string name="library_view_grid">Grid</string>
     <!-- The title of the modal dialog Select or the right stick's click

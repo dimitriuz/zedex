@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 24dp outline, 1.8 stroke, tinted by the row that draws it. A funnel: wide
+     at the top, narrowing to a short stem - the shape every filter icon uses,
+     matching ic_sort and ic_grid beside it in stroke weight and colour. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:pathData="M4,5 L20,5 L13.5,13 L13.5,19 L10.5,19 L10.5,13 Z"
+        android:strokeColor="#ffffff" android:strokeWidth="1.8"
+        android:strokeLineCap="round" android:strokeLineJoin="round"
+        android:fillColor="#00000000"/>
+</vector>
