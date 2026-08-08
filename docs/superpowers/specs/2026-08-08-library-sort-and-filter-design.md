@@ -51,32 +51,16 @@ Filters combine **AND across fields, OR within a field** — `Format ∈ {tap, t
 AND `Genre ∈ {Platform}`. That is the combination people actually want and the
 only one worth the ambiguity of explaining.
 
-## Two ways in, and they are not the same widget
+## One way in
 
-This screen has two separate paths to its options, and it is easy to mistake one
-for both — this design did, at first, and would have shipped a filter no
-touch user could reach.
+The toolbar had a button each for sort, for the list/grid view, and — after the
+first cut of this design — one for filter as well. Three buttons, two of which
+opened different widgets: an Android `PopupMenu` for sort, a direct toggle for
+the view, and a sheet for the filter. A gamepad reached none of them, and had
+`OptionsDialog` instead, which held sort and view but no filter.
 
-**Touch** uses the toolbar. The sort button opens an Android `PopupMenu` of the
-sort fields; the list/grid button flips the view directly without opening
-anything. Neither of them is `OptionsDialog`.
-
-**A gamepad** has no pointer to put on a toolbar button, so `GamepadCursor`'s
-`options()` opens `OptionsDialog` instead — one column holding the sort fields
-*and* List/Grid. That dialog is reachable no other way.
-
-So both paths need everything, and neither is the other's fallback.
-
-### Touch: a Filter button in the toolbar
-
-Beside the sort button, opening the filter sheet directly. The sort popup gains
-the three new fields; the view button is untouched.
-
-### Gamepad: the dialog becomes three pages
-
-One flat column of sort fields and List/Grid is already unlabelled; five filter
-fields on top would make it a dozen rows with nothing saying which group a row
-belongs to. It becomes a menu of three, each opening a page:
+That is now one **Options** button, opening the same dialog for touch and for a
+pad:
 
 ```
 View   ▸        List · Grid
@@ -84,20 +68,24 @@ Sort   ▸        Name · Size · Released · Format · Rating, and the directio
 Filter ▸        Format · Genre · Rating · Developer · Publisher
 ```
 
-Each page has a way back, and Filter's rows open one level deeper into a value
-list. That is the shape the emulator's ☰ sheet already uses, and CLAUDE.md
-records the rule it follows: a row that was a dialog is a page now, and it
-commits by its own name rather than by an OK button.
+Each row opens a page of its own and says what it is currently set to — `Sort ▸
+Rating, highest first` — so checking without changing is one tap. Filter says
+how many fields are set, or nothing when none are. Back goes up a page, and
+dismisses from the top; that is the shape the emulator's ☰ sheet already uses,
+and the rule CLAUDE.md records for it: a row that was a dialog is a page now,
+and it commits by its own name rather than by an OK button.
 
-Each of the three says what it is currently set to on its own row — `Sort ▸
-Rating, highest first` — so checking without changing costs one tap. Filter says
-how many fields are set, or nothing when none are.
+**What this costs, honestly.** Flipping between list and grid was one tap and
+becomes three. That is the price of not having a toolbar that grows a button
+per option, and of the pad and the finger reaching the same thing — a filter
+that only touch could open, or a view toggle only a pad could not reach, is the
+sort of split that ends with two implementations disagreeing.
 
-### One state behind both
-
-Both drive the same `Filters` object and the same preferences, the way the
-sort field already answers to the popup and the dialog alike. A filter set by
-gamepad is showing when you put the pad down, and the chips clear it either way.
+**What it buys** is that there is one widget to build, one to test, and one
+place where "what is the library showing" is answered. The earlier design had
+the filter sheet and the dialog's filter page as one widget entered at two
+points precisely to avoid that drift; with one entry point the problem does not
+arise.
 
 ## Behaviour
 
