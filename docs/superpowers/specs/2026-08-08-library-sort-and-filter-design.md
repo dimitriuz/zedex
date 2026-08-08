@@ -28,8 +28,9 @@ worth playing" means knowing which they are already.
 existed, and it is the one nobody asked for. See *Migration* — the preference
 may still say `date`.
 
-**Filtering** is new: five fields, reached from the options popup — see *The
-options popup becomes three pages* below.
+**Filtering** is new: five fields, reached from a `Filter` button in the toolbar
+by touch and from the options dialog by gamepad — see *Two ways in, and they
+are not the same widget* below.
 
 | Field | Shape | Distinct values in the reference collection |
 |---|---|---|
@@ -50,13 +51,32 @@ Filters combine **AND across fields, OR within a field** — `Format ∈ {tap, t
 AND `Genre ∈ {Platform}`. That is the combination people actually want and the
 only one worth the ambiguity of explaining.
 
-## The options popup becomes three pages
+## Two ways in, and they are not the same widget
 
-The popup behind the toolbar's sort button is one flat column today: the sort
-fields, then List and Grid, with nothing saying which group a row belongs to.
-Adding five filter fields to that would make a list of a dozen unlabelled rows.
+This screen has two separate paths to its options, and it is easy to mistake one
+for both — this design did, at first, and would have shipped a filter no
+touch user could reach.
 
-It becomes a menu of three, each opening a page of its own:
+**Touch** uses the toolbar. The sort button opens an Android `PopupMenu` of the
+sort fields; the list/grid button flips the view directly without opening
+anything. Neither of them is `OptionsDialog`.
+
+**A gamepad** has no pointer to put on a toolbar button, so `GamepadCursor`'s
+`options()` opens `OptionsDialog` instead — one column holding the sort fields
+*and* List/Grid. That dialog is reachable no other way.
+
+So both paths need everything, and neither is the other's fallback.
+
+### Touch: a Filter button in the toolbar
+
+Beside the sort button, opening the filter sheet directly. The sort popup gains
+the three new fields; the view button is untouched.
+
+### Gamepad: the dialog becomes three pages
+
+One flat column of sort fields and List/Grid is already unlabelled; five filter
+fields on top would make it a dozen rows with nothing saying which group a row
+belongs to. It becomes a menu of three, each opening a page:
 
 ```
 View   ▸        List · Grid
@@ -64,18 +84,20 @@ Sort   ▸        Name · Size · Released · Format · Rating, and the directio
 Filter ▸        Format · Genre · Rating · Developer · Publisher
 ```
 
-Each page has a way back to the three, and Filter's own rows open one level
-deeper into a value list. That is the same shape the emulator's ☰ sheet already
-uses, and CLAUDE.md records the rule it follows: a row that was a dialog is a
-page now, and it commits by its own name rather than by an OK button.
+Each page has a way back, and Filter's rows open one level deeper into a value
+list. That is the shape the emulator's ☰ sheet already uses, and CLAUDE.md
+records the rule it follows: a row that was a dialog is a page now, and it
+commits by its own name rather than by an OK button.
 
 Each of the three says what it is currently set to on its own row — `Sort ▸
-Rating, highest first` — so the common case of checking without changing costs
-one tap rather than two. Filter says how many fields are set, or nothing when
-none are.
+Rating, highest first` — so checking without changing costs one tap. Filter says
+how many fields are set, or nothing when none are.
 
-The toolbar's existing buttons are unchanged: search, the popup, and the
-list/grid toggle that already flips the view directly without opening anything.
+### One state behind both
+
+Both drive the same `Filters` object and the same preferences, the way the
+sort field already answers to the popup and the dialog alike. A filter set by
+gamepad is showing when you put the pad down, and the chips clear it either way.
 
 ## Behaviour
 
@@ -122,11 +144,16 @@ spread through the listing code.
 distinct values and counts per field. One walk, off the UI thread, feeding every
 list in the filter sheet.
 
-**`library/ui/OptionsDialog`** grows the three pages and the way back between
-them. It already builds a column of choosable rows and already knows how to
-show which one is current; what it does not have is a notion of depth, and that
+**`library/ui/OptionsDialog`** — the gamepad path — grows the three pages and
+the way back between them. It already builds a column of choosable rows and
+already shows which one is current; what it has no notion of is depth, and that
 is what this adds. The filter value lists are the same row-building code one
 level further in, not a second widget.
+
+**The filter sheet the toolbar button opens** is that same row-building code
+again, entered at the Filter page rather than at the top. One widget, two
+starting points - not a second implementation of a value list that could drift
+from the first.
 
 **`screen/LibraryActivity`** gains a `Filters` field, a call to it where the
 listing is assembled, and the chip row. It does not gain the matching logic. The
@@ -155,9 +182,11 @@ Worth pinning:
 - a filter matching nothing returns empty rather than everything
 
 Device-level checks stay in the instrumentation suite: that the chips appear,
-that clearing restores the folder you were in, that each of the three pages
-opens and goes back, and that an unrecognised stored sort field does not leave a
-blank row.
+that clearing restores the folder you were in, that each of the dialog's three
+pages opens and goes back, and that an unrecognised stored sort field does not
+leave a blank row. The one worth writing deliberately is that both ways in reach
+the same state — a filter set through the toolbar shows as set in the gamepad
+dialog, and the reverse.
 
 ## An unrecognised stored sort
 
@@ -189,10 +218,14 @@ finding one.
 **File date removed rather than renamed.** Renaming it to "File date" would have
 kept a sort nobody asked for and cost nine translations to relabel.
 
-**Three pages rather than one longer list.** Sort and view already share an
-unlabelled column; five filter fields would have made it a dozen rows with no
-grouping. Pages also give each group somewhere to say what it is currently set
-to.
+**Three pages rather than one longer list**, in the gamepad dialog. Sort and
+view already share an unlabelled column; five filter fields would have made it a
+dozen rows with no grouping. Pages also give each group somewhere to say what it
+is currently set to.
+
+**A toolbar button rather than pages for touch too.** Touch never opens that
+dialog, so putting Filter only there would have hidden the feature from everyone
+without a controller. A button is also one tap where a page is two.
 
 ## Not in this change
 
