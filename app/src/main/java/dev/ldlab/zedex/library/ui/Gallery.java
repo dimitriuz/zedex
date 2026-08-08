@@ -530,14 +530,38 @@ public final class Gallery extends LinearLayout {
             handler.post(() -> {
                 if (token != loadToken) return; // a newer load answered first, or this one moved on
                 setItems(result, startIndex);
+                tellContent();
             });
         });
+    }
+
+    /**
+     * Told how many items the gallery ended up with, whenever that changes -
+     * a load answering, or a {@link #clear}. Both are the same question to a
+     * host that has to decide how much room to give this: a game with no
+     * artwork at all should not be handed the same space as one with seven
+     * screenshots, and only the gallery knows which it is, asynchronously.
+     */
+    public interface OnContent {
+        void onContent(int count);
+    }
+
+    private OnContent onContent;
+
+    public void setOnContent(OnContent listener) {
+        onContent = listener;
+        if (listener != null) listener.onContent(adapter.realCount());
+    }
+
+    private void tellContent() {
+        if (onContent != null) onContent.onContent(adapter.realCount());
     }
 
     /** Nothing selected: empties the gallery without asking anything of it. */
     public void clear() {
         loadToken++; // drops whatever a previous load might still be resolving
         setItems(Collections.emptyList(), 0);
+        tellContent();
     }
 
     /** The video's own page, or {@code -1} when this selection has none -
@@ -548,17 +572,32 @@ public final class Gallery extends LinearLayout {
     }
 
     /**
-     * Moves the pager to {@code index}, smoothly - a swipe a host asked for
-     * on its own behalf, never a drag, so {@link #setOnUserSwipe}'s own
-     * listener is not told about it; see {@code PagerSnapHelper} and {@link
+     * Moves the pager to {@code index} - a move a host asked for on its own
+     * behalf, never a drag, so {@link #setOnUserSwipe}'s own listener is not
+     * told about it; see {@code PagerSnapHelper} and {@link
      * RecyclerView#SCROLL_STATE_DRAGGING} for why only a real drag reaches
      * that one. {@code index} is real, the same number {@link #videoIndex}
      * answers with - every position in this class is, now that {@link
      * GalleryAdapter#getItemCount} is too; see the class comment.
+     *
+     * A neighbour is scrolled to, anything further is jumped to.
+     *
+     * This used to smooth-scroll whatever the distance, and the one thing that
+     * calls it is the three-second wait that carries a person to the video -
+     * which on a scraped game is page seven or eight of screenshots. So the
+     * pane, having sat still for three seconds, would suddenly riffle through
+     * every screenshot in turn on its way there. What that reads as is not
+     * "here is the video" but the gallery running away on its own, and it
+     * costs a decode for each page it passes through besides.
+     *
+     * One page apart is a different thing - that is the motion saying which
+     * way it went - so that one keeps the animation.
      */
     public void showPage(int index) {
         if (index < 0 || index >= adapter.realCount()) return;
-        recycler.smoothScrollToPosition(index);
+
+        if (Math.abs(index - currentPage()) <= 1) recycler.smoothScrollToPosition(index);
+        else recycler.scrollToPosition(index);
     }
 
     /**

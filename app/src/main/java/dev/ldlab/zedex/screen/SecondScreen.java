@@ -342,9 +342,8 @@ public final class SecondScreen extends Presentation {
     /**
      * Shows whichever side {@link #hasControls}, {@link #infoPath} and
      * {@link #preferredMode} say should be showing, and the switch with it -
-     * named for the mode tapping it would go <em>to</em>, the same rule
-     * {@code LibraryActivity.updateViewToggle} follows for its own view
-     * button, rather than the one already on screen.
+     * named for the mode tapping it would go <em>to</em>, rather than the one
+     * already on screen.
      *
      * The one place a video on the info side is stopped for having lost the
      * screen to the controls - the fourth of the moments CLAUDE.md lists a

@@ -5,6 +5,7 @@ import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
 import android.provider.DocumentsContract;
+import android.util.Log;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -26,6 +27,8 @@ import java.util.zip.ZipInputStream;
  * hand-rolled listing worth writing.
  */
 public final class Listing {
+
+    private static final String TAG = "Zedex";
 
     /** Everything {@link #folder} needs, in one cursor. */
     private static final String[] PROJECTION = {
@@ -112,6 +115,84 @@ public final class Listing {
         });
 
         return entries;
+    }
+
+    /** How far {@link #everythingUnder} follows a folder into its own
+     *  subfolders - see that method's own comment for why this is a cap
+     *  rather than a limit worth raising. */
+    private static final int MAX_FLATTEN_DEPTH = 8;
+
+    /**
+     * Every file reachable under {@code folder}, at any depth, for a filter
+     * that is a question about the whole collection rather than about
+     * whichever level Browse happens to be showing. Folders are excluded
+     * from the result - a flat list is a list of games, and there is no
+     * moving in one - but are still walked into, to whatever it holds.
+     *
+     * A {@code .zip} inside the tree is kept as itself, an {@link
+     * Entry.Kind#ARCHIVE}, and never opened here: {@link #archive} reads a
+     * whole zip's central directory to list it, and doing that for every
+     * archive in a collection of hundreds while merely flattening a folder
+     * view would cost minutes and a great deal of memory for a question
+     * nobody asked. A game inside a zip is still reachable by walking into
+     * the zip by hand; it is simply not part of a filtered listing.
+     *
+     * The walk stops descending past {@link #MAX_FLATTEN_DEPTH} levels below
+     * {@code folder} rather than throwing - well beyond any real collection,
+     * and there only so a pathological tree (a symlink loop a content
+     * provider chases literally, say) cannot hang the screen.
+     *
+     * A subfolder below {@code folder} that cannot be read - see {@link
+     * #descend} - is logged and skipped rather than losing everything
+     * already found; only {@code folder} itself, the one folder the caller
+     * actually chose, fails this method outright.
+     *
+     * @throws IOException if {@code folder} itself cannot be queried - a lost
+     *                      grant, most likely, and the caller's to explain.
+     */
+    public static List<Entry> everythingUnder(ContentResolver resolver, Uri folder)
+            throws IOException {
+        List<Entry> found = new ArrayList<>();
+
+        for (Entry entry : folder(resolver, folder)) {
+            if (entry.kind == Entry.Kind.FOLDER) {
+                descend(resolver, entry.uri, found, 1);
+            } else {
+                found.add(entry);
+            }
+        }
+
+        return found;
+    }
+
+    /**
+     * One level of {@link #everythingUnder}'s walk below the folder the
+     * caller actually chose. Flattening queries far more folders in one
+     * operation than a single-level listing ever does, so the odds of one
+     * being unreadable - a permission that changed underneath, a removed SD
+     * card, anything content-provider shaped - are materially higher; losing
+     * the whole flattened list to it would read exactly like "nothing matches
+     * this filter", the one kind of wrong answer this app has shipped twice
+     * before because an empty result and a broken one looked identical. So
+     * this catches and logs instead, the same call {@link
+     * dev.ldlab.zedex.screen.StartPanel#collectRoms} already makes for the
+     * same reason, and carries on with whatever else the walk still has.
+     */
+    private static void descend(ContentResolver resolver, Uri folder, List<Entry> found,
+                                 int depth) {
+        if (depth > MAX_FLATTEN_DEPTH) return;
+
+        try {
+            for (Entry entry : folder(resolver, folder)) {
+                if (entry.kind == Entry.Kind.FOLDER) {
+                    descend(resolver, entry.uri, found, depth + 1);
+                } else {
+                    found.add(entry);
+                }
+            }
+        } catch (IOException e) {
+            Log.w(TAG, "cannot list " + folder + " while flattening", e);
+        }
     }
 
     /**

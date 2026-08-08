@@ -308,6 +308,15 @@ dependencies {
      */
     implementation 'androidx.recyclerview:recyclerview:1.0.0'
 
+    /*
+     * The JVM tier. Everything in library/ that decides something - what a
+     * filter matches, how a field sorts, which values exist - is plain Java
+     * with no Android types, so it can be tested here in seconds rather than
+     * on a device in minutes. See docs/superpowers/specs for why that
+     * boundary was drawn where it was.
+     */
+    testImplementation 'junit:junit:4.13.2'
+
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test:runner:1.5.2'
     androidTestImplementation 'androidx.test.uiautomator:uiautomator:2.3.0'

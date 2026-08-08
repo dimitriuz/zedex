@@ -210,12 +210,16 @@ Start in the library*, which needs a content folder to browse. ☰ goes between
 the two either way.
 
 - The content folder as a list or a grid; zip archives open like folders
-- Favourites and Recent beside Browse; search, and sort by name, date or size
+- Favourites and Recent beside Browse; search, sort by name, size, release
+  date, format or rating
+- Filter by format, genre, rating, developer or publisher — narrows the whole
+  collection, not just the folder you're browsing; from the toolbar's
+  **Options** button or the pad's Select
 - Names, descriptions, artwork and manuals from an ES-DE scrape — see below
 - A page per game: every picture ES-DE has for it, the video, and the manual
 - A controller drives all of it: the stick moves, **A** plays, **B** goes up,
   **Y** favourites, **L1/R1** change tab, **L2/R2** page, **X** searches and
-  **Select** opens sort and view
+  **Select** opens View, Sort and Filter
 
 
 ## Getting around

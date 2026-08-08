@@ -1749,14 +1749,22 @@ public class SettingsActivity extends AppCompatActivity
         private void moveData(File previous) {
             Storage.createFolders(getActivity());
 
-            Storage.move(getActivity(), new File(previous, "states"),
-                         Storage.statesDirectory(getActivity()));
-            Storage.move(getActivity(), new File(previous, "roms"),
-                         Storage.romsDirectory(getActivity()));
-            Storage.move(getActivity(), new File(previous, "tapes"),
-                         Storage.tapesDirectory(getActivity()));
-            Storage.move(getActivity(), new File(previous, "disks"),
-                         Storage.disksDirectory(getActivity()));
+            // One list, from Storage, rather than a fourth copy of it here.
+            // This one used to be written out by hand and was missing two of
+            // them: cards, which orphans a DivMMC image and every game save on
+            // it, and library, which is the scraped metadata store - and losing
+            // that reads as "never linked" rather than as an error, because a
+            // missing store is an empty store. See Storage.dataFolders.
+            String[] folders = Storage.dataFolderNames();
+            File[] destinations = Storage.dataFolders(getActivity());
+
+            for (int i = 0; i < folders.length; i++) {
+                Storage.move(getActivity(), new File(previous, folders[i]),
+                             destinations[i]);
+            }
+
+            // Captures are not in that list: they go to Pictures/Zedex rather
+            // than into the data folder, so both of the old names move there.
             Storage.move(getActivity(), new File(previous, "screenshots"),
                          Storage.capturesDirectory(getActivity()));
             Storage.move(getActivity(), new File(previous, "recordings"),

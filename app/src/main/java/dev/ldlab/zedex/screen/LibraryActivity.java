@@ -3,8 +3,11 @@ package dev.ldlab.zedex.screen;
 import dev.ldlab.zedex.EmulatorActivity;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.library.Entry;
+import dev.ldlab.zedex.library.Facets;
 import dev.ldlab.zedex.library.Favorites;
+import dev.ldlab.zedex.library.Filters;
 import dev.ldlab.zedex.library.Listing;
+import dev.ldlab.zedex.library.Sorting;
 import dev.ldlab.zedex.library.meta.Meta;
 import dev.ldlab.zedex.library.meta.Metadata;
 import dev.ldlab.zedex.library.ui.EntryAdapter;
@@ -39,7 +42,6 @@ import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
-import android.widget.PopupMenu;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -51,9 +53,12 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * The screen the app can open on: the content folder, browsable, with folders
@@ -128,18 +133,8 @@ public final class LibraryActivity extends Activity {
     private static final String VIEW_LIST = "list";
     private static final String VIEW_GRID = "grid";
 
-    /** "name", "date" or "size"; read with getString always. */
+    /** One of {@link Sorting#FIELDS}; read with getString always. */
     private static final String KEY_SORT = "librarySort";
-    private static final String SORT_NAME = "name";
-    private static final String SORT_DATE = "date";
-    private static final String SORT_SIZE = "size";
-
-    /** {@link #SORT_NAME}, {@link #SORT_DATE} and {@link #SORT_SIZE}, in the
-     *  order {@link OptionsDialog} shows them - its rows speak by index
-     *  rather than by this class's own field names, so {@link
-     *  #sortFieldIndex} and this array are the only place the two are tied
-     *  together. */
-    private static final String[] SORT_FIELDS = { SORT_NAME, SORT_DATE, SORT_SIZE };
 
     /** Reverses whichever field {@link #KEY_SORT} names; read with
      *  getBoolean always. Ascending - name A-Z, oldest first, smallest first
@@ -240,10 +235,26 @@ public final class LibraryActivity extends Activity {
      */
     private boolean restoringPosition;
 
-    private String sort = SORT_NAME;
+    private String sort = Sorting.NAME;
     private boolean sortDescending;
     private String query = "";
     private boolean grid;
+
+    /**
+     * What the library is currently narrowed to. Session-only and deliberately
+     * never written to preferences - see the design spec: a filter is a
+     * question being asked now, not a preference, and a forgotten one is how a
+     * library looks broken. And lost on a rotation, like the tab and the
+     * folder: this activity declares no configChanges, so a rotation
+     * recreates it and onCreate rebuilds this field from nothing - the same
+     * as it always did for those two, and not worth special-casing here.
+     */
+    private final Filters filters = new Filters();
+
+    /** Whether anything is narrowed, which is also whether the list is flat. */
+    private boolean filtering() {
+        return !filters.isEmpty() && tab == Tab.BROWSE;
+    }
 
     /** What the last load produced, before the search box narrows it down -
      *  kept so that typing does not mean asking the folder again. */
@@ -325,10 +336,10 @@ public final class LibraryActivity extends Activity {
      */
     private static final int GRID_COLUMN_DP = 85;
 
-    /** Select or the right stick's own click: the sort field, its direction
-     *  and list-or-grid, all in one modal dialog a pad can actually use - see
-     *  {@link OptionsDialog}. The toolbar's own sort popup and view button
-     *  are untouched and stay the discoverable path for a finger. */
+    /** The sort field, its direction, list-or-grid and the filter sheet, all
+     *  in one modal dialog - reached by Select or the right stick's own
+     *  click, and by the toolbar's own Options button too;
+     *  see {@link OptionsDialog}. */
     private OptionsDialog optionsDialog;
 
     /** {@code Metadata.lastLinked}'s answer as of the last time it was
@@ -339,13 +350,32 @@ public final class LibraryActivity extends Activity {
     private long lastLinkedAt = -1;
 
     private TextView pathLabel;
+
+    /**
+     * Where {@link #pathLabel} sits when a filter is on - the two share one
+     * slot in the toolbar, and {@link #updateFilterChips} is the one place
+     * that decides which of them shows: this row while {@link #filtering()},
+     * the breadcrumb otherwise. Built once, by {@link #buildToolbar}.
+     */
+    private LinearLayout filterChipRow;
+
+    /** "Genre  ·  4+" or whatever else is narrowed - the text half of {@link
+     *  #filterChipRow}, kept apart from the row itself so {@link
+     *  #updateFilterChips} can update it without rebuilding anything. */
+    private TextView filterChipLabel;
+
     private ImageButton upButton;
     private TextView emptyLabel;
     private View noFolderView;
     private ProgressBar spinner;
     private EditText searchField;
-    private ImageButton sortButton;
-    private ImageButton viewToggle;
+
+    /** The one toolbar button left now that the old sort,
+     *  filter and view buttons have been folded into it - opens {@link
+     *  #optionsDialog}, the same dialog a pad already reached through
+     *  Select; see {@link #buildToolbar} and {@code OptionsDialog}'s own
+     *  class comment on why one door beats two that could drift apart. */
+    private ImageButton optionsButton;
     private final List<View> tabViews = new ArrayList<>();
 
     // The pane: always present - see docs/LIBRARY.md and the second pull
@@ -359,6 +389,11 @@ public final class LibraryActivity extends Activity {
      *  divider beside it, {@link #paneDivider}. Set once, by {@link
      *  #buildPane}. */
     private View paneRoot;
+
+    /** The box the artwork sits in, when there is a landscape pane whose
+     *  height follows whether there is any - see buildPane's own listener.
+     *  Null in portrait, where the split is by width and by weight. */
+    private View paneCover;
     private View paneDivider;
 
     /**
@@ -483,7 +518,7 @@ public final class LibraryActivity extends Activity {
         // switcher reads it from here, not from the bar.
         setTitle(R.string.library_title);
 
-        sort = preferences.getString(KEY_SORT, SORT_NAME);
+        sort = Sorting.fieldOrDefault(preferences.getString(KEY_SORT, Sorting.NAME));
         sortDescending = preferences.getBoolean(KEY_SORT_DESC, false);
         grid = VIEW_GRID.equals(preferences.getString(KEY_VIEW, VIEW_LIST));
 
@@ -519,10 +554,13 @@ public final class LibraryActivity extends Activity {
         padNav = buildPadNav();
         padCursor = new GamepadCursor(padNav);
 
-        optionsDialog = new OptionsDialog(this, new OptionsDialog.Callbacks() {
+        optionsDialog = new OptionsDialog(this, filters, new OptionsDialog.Callbacks() {
             @Override
             public void onSortField(int index) {
-                chooseSortField(SORT_FIELDS[index]);
+                // OptionsDialog's own SORT page now offers all five of
+                // Sorting.FIELDS, one page level under the menu above it -
+                // index is whichever of the five was chosen.
+                chooseSortField(Sorting.FIELDS[index]);
                 optionsDialog.refresh(sortFieldIndex(sort), sortDescending, grid);
             }
 
@@ -530,6 +568,30 @@ public final class LibraryActivity extends Activity {
             public void onViewMode(boolean wantGrid) {
                 applyViewMode(wantGrid);
                 optionsDialog.refresh(sortFieldIndex(sort), sortDescending, grid);
+            }
+
+            @Override
+            public void onFiltersChanged() {
+                LibraryActivity.this.onFiltersChanged();
+            }
+
+            @Override
+            public void openFilters(int requestToken) {
+                // requestToken travels through untouched - it means nothing
+                // to this screen, only to the dialog that minted it and will
+                // compare it again once this thread's walk is done; see
+                // openFilterSheet and enterFiltersFromMenu's own comments.
+                openFilterSheet(requestToken);
+            }
+
+            @Override
+            public boolean filteringAllowed() {
+                // Not filtering() itself, which also asks whether anything
+                // is actually set - this asks the narrower question of
+                // whether the current tab could ever answer to one at all.
+                // Favourites and Recent never can - see show(Tab) - so
+                // MENU's own Filter row has nothing to offer there.
+                return tab == Tab.BROWSE;
             }
         });
 
@@ -716,8 +778,9 @@ public final class LibraryActivity extends Activity {
      * does: {@link #select} is the same one {@link EntryAdapter.Callbacks}
      * calls, {@link #popStack} is the same one Back and the chevron share,
      * {@link #toggleFavorite} is the same one a long press performs, and
-     * {@link #chooseSortField} and {@link #applyViewMode} are what the
-     * toolbar's own sort popup and view button already call. Built once, by
+     * {@link #chooseSortField} and {@link #applyViewMode} are what {@link
+     * OptionsDialog}'s own callbacks already call, the same dialog Select
+     * opens here and the toolbar's own Options button opens too. Built once, by
      * {@link #buildPadNav}, and handed to {@link GamepadCursor}, which is the
      * one place that turns a stick, a hat, a D-pad and six buttons into calls
      * to these eight - the one place, still, once the search field or the
@@ -1241,14 +1304,16 @@ public final class LibraryActivity extends Activity {
     }
 
     /**
-     * The breadcrumb, search, sort and the list/grid switch - the only row
-     * above the list now that the tabs moved into the rail: the chevron and
-     * the path on the left, search taking whatever room the path does not
-     * want, sort and view on the right, and the full width of the column to
-     * spread across, tabs no longer sharing it in either orientation.
+     * The breadcrumb, search and the Options button - the only row above the
+     * list now that the tabs moved into the rail: the chevron and the path
+     * on the left, search taking whatever room the path does not want, and
+     * Options on the right, spanning the full width of the column, tabs no
+     * longer sharing it in either orientation. One button rather than the
+     * sort, filter and view buttons this used to carry - see {@link
+     * #optionsButton}'s own comment.
      *
      * The way back to the machine lives in the rail instead, not here - see
-     * {@link #buildRail}, since it is navigation and none of these four is.
+     * {@link #buildRail}, since it is navigation and none of these is.
      */
     private View buildToolbar() {
         LinearLayout row = new LinearLayout(this);
@@ -1280,6 +1345,47 @@ public final class LibraryActivity extends Activity {
         row.addView(pathLabel, new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
+        // pathLabel's own slot, shared rather than a row of its own: a
+        // filter and "where you are" are never both true at once - Browse's
+        // stack is flattened while filtering() - so there is never a moment
+        // both would need the space. Starts gone; updateFilterChips is the
+        // only place that flips this, once there is a filter to say.
+        filterChipRow = new LinearLayout(this);
+        filterChipRow.setOrientation(LinearLayout.HORIZONTAL);
+        filterChipRow.setGravity(Gravity.CENTER_VERTICAL);
+        filterChipRow.setVisibility(View.GONE);
+
+        filterChipLabel = new TextView(this);
+        filterChipLabel.setTextColor(MUTED);
+        filterChipLabel.setTextSize(12);
+        filterChipLabel.setSingleLine();
+        filterChipLabel.setEllipsize(TextUtils.TruncateAt.END);
+        filterChipLabel.setPadding(pixels(4), 0, pixels(4), 0);
+        filterChipRow.addView(filterChipLabel, new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        // The clear affordance - a glyph, but never a bare one: CLAUDE.md's
+        // own warning about the activity lamps applies here just the same,
+        // and TalkBack reads an undescribed × as "multiplication sign"
+        // rather than as anything a person tapping it would expect to hear.
+        TextView filterChipClear = new TextView(this);
+        filterChipClear.setText("×");
+        filterChipClear.setTextColor(TEXT);
+        filterChipClear.setTextSize(18);
+        filterChipClear.setGravity(Gravity.CENTER);
+        filterChipClear.setContentDescription(getString(R.string.library_filter_clear));
+        filterChipClear.setBackground(Ripple.make(getResources().getDisplayMetrics().density));
+        filterChipClear.setPadding(pixels(10), pixels(6), pixels(10), pixels(6));
+        filterChipClear.setOnClickListener(v -> {
+            filters.clearAll();
+            onFiltersChanged();
+        });
+        filterChipRow.addView(filterChipClear, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        row.addView(filterChipRow, new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
         searchField = new EditText(this);
         searchField.setHint(R.string.library_search);
         searchField.setSingleLine();
@@ -1302,20 +1408,20 @@ public final class LibraryActivity extends Activity {
         row.addView(searchField, new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
-        sortButton = toolbarButton(R.drawable.ic_sort, getString(R.string.library_sort));
-        sortButton.setOnClickListener(this::showSortMenu);
-        row.addView(sortButton);
-        updateSortButton();
-
-        // Named for what it would do rather than what it is, like the bar's
-        // own fullscreen button: it shows the shape you would switch to, not
-        // the one you are looking at.
-        viewToggle = toolbarButton(R.drawable.ic_grid,
-                getString(R.string.library_view_grid));
-        viewToggle.setOnClickListener(v -> toggleView());
-        row.addView(viewToggle);
-
-        updateViewToggle();
+        // One button rather than the three this replaced - see CLAUDE.md's
+        // own "one way in rather than two that could drift apart": touch
+        // used to reach View, Sort and Filter through three separate
+        // buttons, one of which (Filter) had no pad equivalent at all, while
+        // a pad reached all three through OptionsDialog's own menu. This
+        // opens exactly the dialog the pad's Select already does, so there
+        // is one answer to what any of View, Sort or Filter does regardless
+        // of how it was reached. The dialog resolves its own filter values;
+        // nothing needs pre-loading here the way the old Filter button had
+        // to walk the store before showFilters could open.
+        optionsButton = toolbarButton(R.drawable.ic_options, getString(R.string.library_options));
+        optionsButton.setOnClickListener(v ->
+                optionsDialog.show(sortFieldIndex(sort), sortDescending, grid));
+        row.addView(optionsButton);
 
         return row;
     }
@@ -1435,6 +1541,51 @@ public final class LibraryActivity extends Activity {
      * description is what yields to a short pane and {@link
      * #paneActionButton} is always laid out, never squeezed out of it.
      */
+    /**
+     * How tall the picture is in a side pane, which is a share of the window
+     * rather than the 160dp it used to be always.
+     *
+     * A fixed height is right on a phone and wrong on a tablet, and it was the
+     * tablet that showed it: the pane is as tall as the window, a description
+     * takes what it needs and no more, and the rest was simply empty - a small
+     * picture at the top of a column of nothing. The one place a person looks
+     * *at* the artwork rather than past it had the least of it.
+     *
+     * A share of the height, since that is what differs: about two fifths, so
+     * the picture leads and the text still has the greater part. Floored at the
+     * old 160dp so no window gets less than it had, and capped so a very tall
+     * one does not turn the pane into a poster with a caption. On a phone in
+     * landscape - around 400dp of height - two fifths lands within a few dp of
+     * 160 anyway, so this changes nothing there, which is the point.
+     *
+     * Read from the display at build time rather than measured: this runs in
+     * onCreate, the activity is recreated on rotation, and a listener that
+     * resized a child after layout would be the thing CLAUDE.md warns about
+     * doing to a RecyclerView, which is what the gallery inside this box is.
+     */
+    private int coverHeight() {
+        int windowHeight = getResources().getDisplayMetrics().heightPixels;
+
+        int wanted = Math.round(windowHeight * 0.42f);
+        return Math.max(pixels(160), Math.min(wanted, pixels(320)));
+    }
+
+    /**
+     * What the pane's picture is decoded to.
+     *
+     * At least the old 240dp, and never less than the box it has to fill: a
+     * picture decoded to 240 and stretched into a 320dp box is a soft one, so
+     * enlarging the box without this would have traded empty space for blur.
+     *
+     * One method rather than the constant in two places, because {@code
+     * Scraped}'s cache is keyed by the path *and* the size asked for - two
+     * callers asking for different numbers would decode the same picture
+     * twice and keep both.
+     */
+    private int paneTargetPx() {
+        return Math.max(pixels(PANE_TARGET_DP), coverHeight());
+    }
+
     private View buildPane(boolean landscape) {
         FrameLayout frame = new FrameLayout(this);
 
@@ -1462,11 +1613,32 @@ public final class LibraryActivity extends Activity {
         // See Gallery's own comment on exactly this, and on why FIT_CENTER
         // rather than CENTER_INSIDE is what fits it now.
         paneGallery = new Gallery(this);
-        paneGallery.setPictureTargetPx(pixels(PANE_TARGET_DP));
+        paneGallery.setPictureTargetPx(paneTargetPx());
         paneGallery.setOnPageTapped(this::openViewerFromPane);
         paneGallery.setOnUserSwipe(() -> paneUserSwiped = true);
+
+        // How tall the box is depends on whether there is anything in it, and
+        // only the gallery knows - it resolves another app's content provider
+        // off this thread. A game ES-DE has never scraped would otherwise be
+        // handed the same room as one with seven screenshots, which on a
+        // tablet is a large empty rectangle where the artwork would be. It
+        // keeps the height it always had in that case; the extra is for
+        // pictures, and there are none.
+        paneGallery.setOnContent(count -> {
+            if (paneCover == null) return;
+
+            int wanted = count > 0 ? coverHeight() : pixels(160);
+            if (paneCover.getLayoutParams().height == wanted) return;
+
+            paneCover.getLayoutParams().height = wanted;
+            paneCover.requestLayout();
+        });
         coverBox.addView(paneGallery, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+
+        // Only the landscape pane resizes it; portrait splits the width by
+        // weight and has no fixed height to change - see below.
+        paneCover = landscape ? coverBox : null;
 
         LinearLayout details = new LinearLayout(this);
         details.setPadding(pixels(16), pixels(16), pixels(16), pixels(16));
@@ -1474,7 +1646,7 @@ public final class LibraryActivity extends Activity {
         if (landscape) {
             details.setOrientation(LinearLayout.VERTICAL);
             details.addView(coverBox, new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, pixels(160)));
+                    LinearLayout.LayoutParams.MATCH_PARENT, coverHeight()));
             addPaneDetailViews(details);
         } else {
             details.setOrientation(LinearLayout.HORIZONTAL);
@@ -1776,7 +1948,7 @@ public final class LibraryActivity extends Activity {
         // ask the store for; the picture Scraped#load also decodes here is
         // never assigned anywhere, kept only because this is the same
         // resolve every row's own thumbnail shares the cache of.
-        adapter.scraped().load(this, relativePath, pixels(PANE_TARGET_DP), (meta, picture) -> {
+        adapter.scraped().load(this, relativePath, paneTargetPx(), (meta, picture) -> {
             if (token != paneToken) return; // the selection moved on
             applyPaneMeta(meta);
         });
@@ -1891,7 +2063,28 @@ public final class LibraryActivity extends Activity {
         appendFact(line, meta.publisher);
         appendFact(line, yearOf(meta.released));
 
+        // Genre and the rating too, the same as the details screen has always
+        // shown - the pane had room for them and was showing three facts where
+        // GameInfoView showed five.
+        appendFact(line, meta.genre);
+        appendFact(line, outOfFive(meta));
+
         return line.length() > 0 ? line.toString() : null;
+    }
+
+    /**
+     * The scraped rating as {@code 4.5/5}, or null when there is none.
+     *
+     * Written out rather than drawn as stars: a row of glyphs is read aloud
+     * by a screen reader as "black star black star black star", and this line
+     * is plain text that goes straight into a contentDescription. The bare
+     * fraction ES-DE stores - 0.9 - would mean nothing here, so {@link
+     * Meta#stars} scales it; the "/5" is what makes 4.5 a rating rather than
+     * a number, and it needs no translating.
+     */
+    private static String outOfFive(Meta meta) {
+        String stars = meta.stars();
+        return stars == null ? null : stars + "/5";
     }
 
     private static void appendFact(StringBuilder line, String fact) {
@@ -1940,8 +2133,14 @@ public final class LibraryActivity extends Activity {
         paintTabs();
 
         boolean browsing = tab == Tab.BROWSE;
-        pathLabel.setVisibility(browsing ? View.VISIBLE : View.GONE);
+
+        // Leaving Browse with a filter still set must not leave the chips
+        // showing over a tab filtering() does not apply to - updateFilterChips
+        // reads the tab this just became, so it is what decides between the
+        // breadcrumb and the chips now, not a plain "browsing ? … : …" here.
+        updateFilterChips();
         upButton.setVisibility(browsing && stack.size() > 1 ? View.VISIBLE : View.GONE);
+
         syncBackCallback();
         clearSearch();
         clearSelection();
@@ -2011,17 +2210,41 @@ public final class LibraryActivity extends Activity {
 
         Level level = stack.get(stack.size() - 1);
         pathLabel.setText(pathText());
-        upButton.setVisibility(stack.size() > 1 ? View.VISIBLE : View.GONE);
+
+        // A flat list is not a folder - the breadcrumb is replaced by the
+        // filter's own chips while filtering(), so nothing on screen says
+        // where Up would even go - see updateFilterChips. Hidden here, not
+        // only there: this is what runs on every reload, including the one
+        // onFiltersChanged triggers, and show()'s own assignment of this
+        // same field is always overwritten by this method a few lines later
+        // anyway.
+        upButton.setVisibility(!filtering() && stack.size() > 1 ? View.VISIBLE : View.GONE);
         syncBackCallback();
+
+        // A filter asks a question about the whole collection, not about
+        // whichever folder is currently on screen, so it walks the tree from
+        // the root down rather than from level, the folder actually on
+        // screen - see filtering() and Listing.everythingUnder, and
+        // everythingForFacets below, which answers the same question for the
+        // filter sheet's own value lists and counts and would otherwise
+        // disagree with what this flattens from: offering "z80  47" while
+        // standing in a folder of .tap files and then showing nothing once
+        // it is chosen. Not while level.archive: an archive's own listing is
+        // already flat, and everythingUnder's walk is written in terms of
+        // folder documents, not zip entries.
+        boolean flatten = filtering() && !level.archive;
+        Uri flattenFrom = stack.get(0).uri;
 
         new Thread(() -> {
             List<Entry> result = null;
             IOException failure = null;
 
             try {
-                result = level.archive
-                        ? Listing.archive(getContentResolver(), level.uri)
-                        : Listing.folder(getContentResolver(), level.uri);
+                result = flatten
+                        ? Listing.everythingUnder(getContentResolver(), flattenFrom)
+                        : level.archive
+                                ? Listing.archive(getContentResolver(), level.uri)
+                                : Listing.folder(getContentResolver(), level.uri);
             } catch (IOException e) {
                 failure = e;
             }
@@ -2030,6 +2253,60 @@ public final class LibraryActivity extends Activity {
             IOException finalFailure = failure;
             runOnUiThread(() -> finishLoad(token, finalResult, finalFailure));
         }).start();
+    }
+
+    /**
+     * Off the UI thread, walks the whole store for the values a field can be
+     * narrowed to, then hands them to {@link OptionsDialog}'s own menu row -
+     * the only way into the filter sheet now that the toolbar's own Filter
+     * button is gone, which used to do this same walk for its own separate
+     * door in.
+     *
+     * @param requestToken meaningless to this screen, only to the dialog
+     *                     that minted it - handed straight back to {@code
+     *                     enterFiltersFromMenu} so it can tell a request
+     *                     nobody still wants from one still on offer; see
+     *                     that method's own comment.
+     */
+    private void openFilterSheet(int requestToken) {
+        new Thread(() -> {
+            // Off the UI thread: this walks the whole store, which is 800
+            // games on the collection it was built against, and the whole
+            // content folder besides, for the formats - see
+            // everythingForFacets.
+            Map<Filters.Field, List<Facets.Value>> values =
+                    Facets.of(Metadata.all(this));
+            List<Facets.Value> formats = Facets.formatsOf(everythingForFacets());
+
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                optionsDialog.enterFiltersFromMenu(requestToken, values, formats);
+            });
+        }).start();
+    }
+
+    /**
+     * Every file under the content folder, root down, for {@link
+     * Facets#formatsOf} - not whatever is currently loaded, which may be one
+     * archive or a single folder, since a filter narrows the whole
+     * collection, not the level Browse happens to be standing in. Called off
+     * the UI thread already, from {@link #openFilterSheet}, so the walk
+     * itself costs nothing this method needs to worry about.
+     *
+     * Empty on any failure or with no content folder granted at all: a stale
+     * grant or a folder gone missing should leave the filter sheet with
+     * nothing to offer for Format, never a crash on top of the tap that
+     * opened it.
+     */
+    private List<Entry> everythingForFacets() {
+        if (stack.isEmpty()) return Collections.emptyList();
+
+        try {
+            return Listing.everythingUnder(getContentResolver(), stack.get(0).uri);
+        } catch (IOException e) {
+            Log.w(TAG, "cannot walk the content folder for facets", e);
+            return Collections.emptyList();
+        }
     }
 
     private List<Entry> recentsAsEntries() {
@@ -2091,13 +2368,39 @@ public final class LibraryActivity extends Activity {
         List<Entry> shown = new ArrayList<>();
         String needle = query.toLowerCase(Locale.ROOT);
 
+        // Resolved at most once per entry for this whole call, not once per
+        // comparison - see cachedMeta's own comment for why that matters.
+        Map<String, Meta> metaCache = new HashMap<>();
+
         for (Entry entry : loaded) {
-            if (needle.isEmpty() || entry.name.toLowerCase(Locale.ROOT).contains(needle)) {
-                shown.add(entry);
+            if (!needle.isEmpty()
+                    && !entry.name.toLowerCase(Locale.ROOT).contains(needle)) {
+                continue;
             }
+
+            // filtering(), not tab == Tab.BROWSE: that plain tab check is
+            // true on every keystroke in the search box even with nothing
+            // set, which ran cachedMeta - Storage.contentFolder plus
+            // Metadata.forPath, two stats of the gamelist file - for every
+            // non-folder row on every call for no reason at all.
+            // filtering() already implies Browse and short-circuits the
+            // moment nothing is set - see that method - which removes the
+            // whole cost from the unfiltered path without changing what is
+            // shown: Favourites and Recent are already an answer to a
+            // question of their own, and a filter set in Browse and left in
+            // place must not narrow them too. See the design spec,
+            // "Filtering applies to Browse only". Folders are never filtered
+            // either way - they are how you move, not what you are looking
+            // for.
+            if (filtering() && entry.kind != Entry.Kind.FOLDER
+                    && !filters.matches(entry, cachedMeta(entry, metaCache))) {
+                continue;
+            }
+
+            shown.add(entry);
         }
 
-        sortEntries(shown);
+        sortEntries(shown, entry -> cachedMeta(entry, metaCache));
         adapter.setEntries(shown);
 
         // Right here, and nowhere later: the adapter has this load's rows
@@ -2166,11 +2469,17 @@ public final class LibraryActivity extends Activity {
         emptyLabel.setVisibility(empty ? View.VISIBLE : View.GONE);
 
         if (empty) {
-            // A search that matched nothing says so, whatever the tab -
-            // it is why the list is empty, and library_empty and its two
-            // siblings are all claims about the folder itself having
-            // nothing in it, which would be false here.
-            emptyLabel.setText(!query.isEmpty() ? R.string.library_empty_search
+            // filtering() first, ahead of the search text: a filter that has
+            // excluded everything is the one this app has shipped looking
+            // like a broken library twice already, and it must say so even
+            // when a search term is also narrowing things, since clearing
+            // the filter is the fix here and clearing the search box is not.
+            // library_empty and its other two siblings are all claims about
+            // the folder itself having nothing in it, which would be false
+            // whenever a search or a filter is why the list is empty rather
+            // than the folder.
+            emptyLabel.setText(filtering() ? R.string.library_empty_filtered
+                              : !query.isEmpty() ? R.string.library_empty_search
                               : tab == Tab.FAVORITES ? R.string.library_empty_favorites
                               : tab == Tab.RECENTS ? R.string.library_empty_recents
                               : R.string.library_empty);
@@ -2180,10 +2489,17 @@ public final class LibraryActivity extends Activity {
     /**
      * Folders stay first and alphabetical whatever the sort says - the same
      * rule {@link Listing#folder} itself sorts by - since they are what Browse
-     * is walked through rather than a game to weigh by size or date. A no-op
-     * split for Favourites and Recents, which are never folders.
+     * is walked through rather than a game to weigh by size or rating. A no-op
+     * split for Favourites and Recents, which are never folders, and skipped
+     * entirely while {@link #filtering()}: a flattened list has no folders in
+     * it to hold apart from the rest.
      */
-    private void sortEntries(List<Entry> list) {
+    private void sortEntries(List<Entry> list, Sorting.Lookup lookup) {
+        if (filtering()) {
+            Collections.sort(list, Sorting.comparator(sort, sortDescending, lookup));
+            return;
+        }
+
         List<Entry> folders = new ArrayList<>();
         List<Entry> rest = new ArrayList<>();
 
@@ -2192,7 +2508,7 @@ public final class LibraryActivity extends Activity {
         }
 
         folders.sort((a, b) -> a.name.compareToIgnoreCase(b.name));
-        rest.sort(comparatorFor(sort, sortDescending));
+        Collections.sort(rest, Sorting.comparator(sort, sortDescending, lookup));
 
         list.clear();
         list.addAll(folders);
@@ -2200,21 +2516,42 @@ public final class LibraryActivity extends Activity {
     }
 
     /**
-     * Ascending unless {@code descending} says otherwise - name A-Z, oldest
-     * first, smallest first - which is the one direction every field had
-     * before there was a choice about it for name, and the plainer of the two
-     * to default to for date and size as well.
+     * {@link #metaOf}, resolved at most once per entry for one call to
+     * {@link #applyFilterSort} rather than once per ask.
+     *
+     * {@link Sorting#comparator} alone asks a field's value twice per side of
+     * a pairwise comparison - once in {@code has}, once in {@code
+     * compareValues} - and {@code Collections.sort} calls the comparator
+     * O(n log n) times over the whole list; the filter pass before it asks
+     * once more per entry on top of that. Each ask used to mean a fresh
+     * {@link Metadata#forPath}, which is {@code synchronized} and stats the
+     * store file on every call even though the parsed XML behind it is
+     * cached - exactly the one-parse-not-one-per-row cost {@link Metadata}'s
+     * own class doc promises, broken by asking on every comparison instead of
+     * once per row. A miss is cached too, not just a hit: most entries have
+     * no metadata at all, and a null answer is exactly as expensive to ask
+     * for again as a real one - skipping the cache for it would have kept
+     * the greater part of the cost this exists to remove.
      */
-    private Comparator<Entry> comparatorFor(String key, boolean descending) {
-        Comparator<Entry> ascending;
-
-        switch (key) {
-            case SORT_DATE: ascending = Comparator.comparingLong(e -> e.modified); break;
-            case SORT_SIZE: ascending = Comparator.comparingLong(e -> e.size); break;
-            default: ascending = (a, b) -> a.name.compareToIgnoreCase(b.name);
+    private Meta cachedMeta(Entry entry, Map<String, Meta> cache) {
+        String key = entry.key();
+        if (!cache.containsKey(key)) {
+            cache.put(key, metaOf(entry));
         }
+        return cache.get(key);
+    }
 
-        return descending ? ascending.reversed() : ascending;
+    /**
+     * The store's entry for a row, or null.
+     *
+     * Folders and archive members have no path in the store, so they never
+     * have metadata; asking anyway would cost a URI round trip per row.
+     */
+    private Meta metaOf(Entry entry) {
+        if (entry.kind == Entry.Kind.FOLDER || entry.inside != null) return null;
+
+        String relativePath = Metadata.relativePath(this, entry.uri);
+        return relativePath == null ? null : Metadata.forPath(this, relativePath);
     }
 
     /** The row named by {@code key} in {@code list}, or null if it is not
@@ -2464,7 +2801,32 @@ public final class LibraryActivity extends Activity {
             }
         }
 
-        startActivity(intent);
+        try {
+            startActivity(intent);
+        } catch (SecurityException e) {
+            // The grant on this document is gone, and startActivity is where
+            // that shows: handing a content:// URI to another activity makes
+            // the system pass the grant along with it, and it throws rather
+            // than returning anything once we no longer hold one. This crashed
+            // the app outright on a phone, from Recent - "UID 10594 does not
+            // have permission to content://...".
+            //
+            // A persisted grant is not forever. The document can be moved or
+            // deleted, the provider can be replaced, a volume can come back
+            // with different ids, and there is a cap on how many an app may
+            // hold at once. Recent is where it lands, because that is the one
+            // list built to outlive the picker that filled it.
+            Log.w(TAG, "no permission left for " + entry.uri, e);
+
+            Toast.makeText(this, R.string.open_failed, Toast.LENGTH_LONG).show();
+
+            // And take the row away rather than leaving something that can
+            // only fail again. forget() matches on the archive entry as well,
+            // so a sibling of the same zip that still opens is left alone.
+            Recents.forget(getContentResolver(), preferences, entry.uri, entry.inside);
+
+            if (tab == Tab.RECENTS) load();
+        }
     }
 
     /**
@@ -2560,28 +2922,18 @@ public final class LibraryActivity extends Activity {
         upButton.setVisibility(View.GONE);
     }
 
-    private void updateViewToggle() {
-        viewToggle.setImageResource(grid ? R.drawable.ic_list : R.drawable.ic_grid);
-        viewToggle.setContentDescription(getString(grid ? R.string.library_view_list
-                                                        : R.string.library_view_grid));
-    }
-
-    private void toggleView() {
-        applyViewMode(!grid);
-    }
-
     /**
-     * The whole of what choosing list or grid does, whichever asked -
-     * {@link #toggleView} flips to the other one; {@link OptionsDialog}'s own
-     * callback names the one it wants, since a dialog with both written out
-     * has no "other one" to flip to. One method either way, so the two never
-     * drift apart on what actually changing the view involves.
+     * The whole of what choosing list or grid does - called only from {@link
+     * OptionsDialog}'s own {@code onViewMode} callback now that the
+     * toolbar's own view toggle is gone, which used to flip to whichever
+     * mode was not currently showing; the dialog's own View row names the
+     * one it wants instead, since a menu row with both written out has no
+     * "other one" to flip to.
      */
     private void applyViewMode(boolean wantGrid) {
         grid = wantGrid;
         preferences.edit().putString(KEY_VIEW, grid ? VIEW_GRID : VIEW_LIST).apply();
 
-        updateViewToggle();
         recycler.setLayoutManager(grid ? new GridLayoutManager(this, gridSpanCount)
                                        : new LinearLayoutManager(this));
         adapter.setGrid(grid);
@@ -2633,28 +2985,14 @@ public final class LibraryActivity extends Activity {
         }
     }
 
-    private void showSortMenu(View anchor) {
-        PopupMenu menu = new PopupMenu(this, anchor);
-        menu.getMenu().add(0, 0, 0, R.string.library_sort_name);
-        menu.getMenu().add(0, 1, 1, R.string.library_sort_date);
-        menu.getMenu().add(0, 2, 2, R.string.library_sort_size);
-
-        menu.setOnMenuItemClickListener(item -> {
-            chooseSortField(item.getItemId() == 1 ? SORT_DATE
-                           : item.getItemId() == 2 ? SORT_SIZE : SORT_NAME);
-            return true;
-        });
-
-        menu.show();
-    }
-
     /**
      * Picking the field already showing reverses it; picking a different one
      * switches to it and keeps whichever direction was showing - the one
      * thing already in view before the menu opened, and so the one thing
-     * neither choice should reset without being asked to. Shared by the
-     * toolbar's own popup and {@link OptionsDialog}'s callback, so there is
-     * one answer to what choosing a field does regardless of which asked.
+     * neither choice should reset without being asked to. Called only from
+     * {@link OptionsDialog}'s own {@code onSortField} callback now that the
+     * toolbar's own sort popup is gone, which used to share this method with
+     * it so the two could never answer differently to the same choice.
      */
     private void chooseSortField(String field) {
         if (field.equals(sort)) {
@@ -2668,28 +3006,76 @@ public final class LibraryActivity extends Activity {
                 .putBoolean(KEY_SORT_DESC, sortDescending)
                 .apply();
 
-        updateSortButton();
         applyFilterSort();
     }
 
-    /** {@code field}'s position in {@link #SORT_FIELDS} - what {@link
+    /** {@code field}'s position in {@link Sorting#FIELDS} - what {@link
      *  OptionsDialog} indexes its own rows by. */
     private int sortFieldIndex(String field) {
-        for (int i = 0; i < SORT_FIELDS.length; i++) {
-            if (SORT_FIELDS[i].equals(field)) return i;
+        for (int i = 0; i < Sorting.FIELDS.length; i++) {
+            if (Sorting.FIELDS[i].equals(field)) return i;
         }
         return 0;
     }
 
+    /** The one way in now, the toolbar's own Options button and the pad's
+     *  Select alike, both landing on {@link OptionsDialog} - called whenever
+     *  the filter has changed, since both share one {@link #filters}. */
+    private void onFiltersChanged() {
+        updateFilterChips();
+        load();
+    }
+
     /**
-     * Turns the sort icon over for descending, so which way the list runs is
-     * something to see rather than something to remember having chosen - the
-     * bars already read as a wedge narrowing one way, and turning it upside
-     * down says the opposite without a second drawable to keep in step with
-     * the first.
+     * Draws the row of chips naming what {@link #filters} is narrowed to,
+     * in {@link #pathLabel}'s own slot - the two never both apply at once,
+     * since {@link #filtering()} is already "Browse, and something is set".
+     *
+     * Called from {@link #show} on every tab switch, since leaving Browse
+     * with a filter still set must not leave the chips showing over a tab
+     * they say nothing about, and from {@link #onFiltersChanged} whenever a
+     * field or the rating threshold actually changes - the two callers this
+     * screen has for "the filter or the tab just moved", and this is the one
+     * place that turns either into what the toolbar shows for it.
      */
-    private void updateSortButton() {
-        sortButton.setRotation(sortDescending ? 180f : 0f);
+    private void updateFilterChips() {
+        boolean showChips = filtering();
+
+        filterChipRow.setVisibility(showChips ? View.VISIBLE : View.GONE);
+        pathLabel.setVisibility(tab == Tab.BROWSE && !showChips ? View.VISIBLE : View.GONE);
+
+        if (!showChips) return;
+
+        String summary = filterChipText();
+        filterChipLabel.setText(summary);
+
+        // Named for a screen reader too, not only drawn - the same glance a
+        // sighted person gets from the row's own text has to reach TalkBack
+        // as more than "1 of 4 unlabelled views".
+        filterChipRow.setContentDescription(
+                getString(R.string.library_filter) + ": " + summary);
+    }
+
+    /**
+     * "Platform  ·  4+" - every active field's own chosen values, in the
+     * order {@link Filters.Field} declares them, then the rating threshold
+     * last since it is not one of that enum - see {@link Filters#minStars}.
+     * Never the field's own name: {@link OptionsDialog}'s menu row already
+     * has "Genre · Platform" for someone who wants to know which field is
+     * which, but a chip a person glances at while looking at the list wants
+     * to know what is chosen, not read a label first to find out.
+     */
+    private String filterChipText() {
+        List<String> parts = new ArrayList<>();
+
+        for (Filters.Field field : Filters.Field.values()) {
+            Set<String> chosen = filters.chosen(field);
+            if (!chosen.isEmpty()) parts.add(String.join(", ", chosen));
+        }
+
+        if (filters.minStars() > 0f) parts.add(Filters.ratingLabel(filters.minStars()));
+
+        return String.join("  ·  ", parts);
     }
 
     private int pixels(int dp) {

@@ -74,6 +74,9 @@ public final class Storage {
     private static final String TAPES = "tapes";
     private static final String DISKS = "disks";
     private static final String CARDS = "cards";
+
+    /** The scraped metadata store's folder; see {@code library/meta/Metadata}. */
+    private static final String LIBRARY = "library";
     private static final String SHOTS = "screenshots";
     private static final String FILMS = "recordings";
 
@@ -570,6 +573,23 @@ public final class Storage {
         if (chosen != null) {
             File root = new File(chosen);
             if (root.isDirectory()) return root;
+
+            // Falling back, having been told otherwise - and this is worth a
+            // line in the log every time, because the app carries on as though
+            // nothing happened while every path it hands out has changed
+            // underneath whatever wrote the last one.
+            //
+            // isDirectory() is not only "was it deleted": a folder in shared
+            // storage answers false while All files access is not held, so this
+            // fires on a permission that has been revoked, and on any moment
+            // early enough that one has not been granted yet. Whatever is
+            // written in that window goes to the default root and is invisible
+            // afterwards - which is how a linked library came to report itself
+            // as never linked, with its gamelist.xml sitting in the folder the
+            // app used to think was its own.
+            Log.w(TAG, "data folder " + chosen + " is not readable; using "
+                       + defaultRoot(context) + " instead. Anything written now"
+                       + " will not be found once it is readable again.");
         }
 
         return defaultRoot(context);
@@ -730,13 +750,46 @@ public final class Storage {
         return new File(root(context), SHOTS);
     }
 
+    /** Where the scraped metadata store lives, inside the data folder. */
+    public static File libraryDirectory(Context context) {
+        return new File(root(context), LIBRARY);
+    }
+
+    /**
+     * Every folder that belongs to the data folder, in one place.
+     *
+     * There were three hand-kept copies of this list - createFolders,
+     * hideFromGallery and SettingsActivity's moveData - and they disagreed.
+     * moveData was missing cards, which orphans a DivMMC image and the game
+     * saves on it, and all three were missing library, which is where the
+     * scraped metadata store goes.
+     *
+     * That last one is worth the sentence it costs. Changing the data folder
+     * left gamelist.xml behind, and Metadata reads a missing file as an *empty*
+     * store rather than an error - so the app answered "no games known" and
+     * "never linked" while artwork, which comes from ES-DE's media folder and
+     * not from the store, went on working. The link looked like it had
+     * succeeded and quietly had nothing behind it.
+     *
+     * Captures are deliberately not here: they go to Pictures/Zedex, not into
+     * the data folder. See {@link #capturesDirectory}.
+     */
+    public static File[] dataFolders(Context context) {
+        return new File[] {
+            statesDirectory(context), romsDirectory(context),
+            tapesDirectory(context), disksDirectory(context),
+            cardsDirectory(context), libraryDirectory(context),
+        };
+    }
+
+    /** The names of those folders, for moving a data folder somewhere else. */
+    public static String[] dataFolderNames() {
+        return new String[] { STATES, ROMS, TAPES, DISKS, CARDS, LIBRARY };
+    }
+
     /** The folders exist from the first run, empty if need be. */
     public static void createFolders(Context context) {
-        statesDirectory(context).mkdirs();
-        romsDirectory(context).mkdirs();
-        tapesDirectory(context).mkdirs();
-        disksDirectory(context).mkdirs();
-        cardsDirectory(context).mkdirs();
+        for (File folder : dataFolders(context)) folder.mkdirs();
 
         // Not the captures. Those are in the gallery's own collections now, and
         // an empty Zedex folder in somebody's Pictures before they have taken a
@@ -764,13 +817,7 @@ public final class Storage {
      * {@link #capturesDirectory}.
      */
     private static void hideFromGallery(Context context) {
-        File[] ours = {
-            statesDirectory(context), romsDirectory(context),
-            tapesDirectory(context), disksDirectory(context),
-            cardsDirectory(context),
-        };
-
-        for (File folder : ours) {
+        for (File folder : dataFolders(context)) {
             File marker = new File(folder, NOMEDIA);
             if (!folder.isDirectory() || marker.exists()) continue;
 

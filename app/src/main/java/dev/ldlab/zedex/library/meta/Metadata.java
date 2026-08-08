@@ -62,7 +62,6 @@ import javax.xml.transform.stream.StreamResult;
 public final class Metadata {
 
     private static final String TAG = "Zedex";
-    private static final String FOLDER = "library";
     private static final String FILE = "gamelist.xml";
     private static final String ROOT = "gameList";
     private static final String GAME = "game";
@@ -107,6 +106,16 @@ public final class Metadata {
     /** How many games the store holds. */
     public static synchronized int count(Context context) {
         return store(context).games.size();
+    }
+
+    /**
+     * Every game the store knows, for {@code Facets} to count.
+     *
+     * A copy rather than the live map: the caller walks this on a background
+     * thread, and the store can be replaced by a link while it does.
+     */
+    public static synchronized java.util.Collection<Meta> all(Context context) {
+        return new java.util.ArrayList<>(store(context).games.values());
     }
 
     /** When {@link #replaceAll} last ran, epoch millis, or 0 if it never has. */
@@ -359,7 +368,12 @@ public final class Metadata {
     }
 
     private static File file(Context context) {
-        return new File(new File(Storage.root(context), FOLDER), FILE);
+        // Storage.libraryDirectory, not a path built here from a FOLDER of our
+        // own: this folder has to be in the list Storage moves when the data
+        // folder changes, and while it was not, changing that folder left the
+        // store behind - silently, because a missing store reads as an empty
+        // one and the app then says it has never been linked.
+        return new File(Storage.libraryDirectory(context), FILE);
     }
 
     private static Document build(long linkedAt, List<Meta> games) throws Exception {
@@ -382,6 +396,7 @@ public final class Metadata {
             append(document, element, "genre", game.genre);
             append(document, element, "releasedate", game.released);
             append(document, element, "players", game.players);
+            append(document, element, "rating", game.rating);
             append(document, element, SOURCE, game.source);
             root.appendChild(element);
         }
@@ -392,9 +407,59 @@ public final class Metadata {
     /** Only when there is something to say - an empty file is omitted, ES-DE's own way. */
     private static void append(Document document, Element parent, String name, String text) {
         if (text == null || text.isEmpty()) return;
+
+        String usable = xmlSafe(text);
+        if (usable.isEmpty()) return;
+
         Element element = document.createElement(name);
-        element.setTextContent(text);
+        element.setTextContent(usable);
         parent.appendChild(element);
+    }
+
+    /**
+     * Text with the characters XML cannot carry taken out of it.
+     *
+     * This is not defensive tidying; it is a file this app wrote and then could
+     * not read. One scraped description ended in U+0001 - "Selection between
+     * right-hand and left-hand drive." and then a stray control byte, from
+     * whatever scraper filled ES-DE's own gamelist. The DOM took it without
+     * complaint and the Transformer wrote it out as {@code &#1;}, which is not
+     * well-formed XML 1.0 at all: no parser will read that reference back.
+     *
+     * So the next {@link #load} threw, the catch turned it into {@link #EMPTY},
+     * and 803 games' worth of metadata vanished behind an app that said, in the
+     * same tone it uses when it is true, that the library had never been
+     * linked. Artwork went on working - it comes from ES-DE's media folder and
+     * never touches this file - so the link looked like it had worked. One byte
+     * out of 762 kilobytes.
+     *
+     * The permitted set is the one from the XML 1.0 specification: tab,
+     * newline, carriage return, and everything from {@code #x20} up, less the
+     * two non-characters at the end of the BMP. Surrogate pairs are left alone
+     * - a Java char in the surrogate range is half of an astral character, and
+     * dropping one of the pair would corrupt what it is trying to protect.
+     */
+    static String xmlSafe(String text) {
+        StringBuilder kept = null;
+
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+
+            boolean allowed = c == '\t' || c == '\n' || c == '\r'
+                    || (c >= 0x20 && c <= 0xD7FF)
+                    || (c >= 0xE000 && c <= 0xFFFD)
+                    || Character.isSurrogate(c);
+
+            if (allowed) {
+                if (kept != null) kept.append(c);
+                continue;
+            }
+
+            // The first one that has to go: copy what came before it.
+            if (kept == null) kept = new StringBuilder(text.length()).append(text, 0, i);
+        }
+
+        return kept == null ? text : kept.toString();
     }
 
     private static void write(Document document, OutputStream out) throws Exception {
@@ -446,12 +511,21 @@ public final class Metadata {
                 games.put(path, new Meta(path, text(element, "name"), text(element, "desc"),
                         text(element, "developer"), text(element, "publisher"),
                         text(element, "genre"), text(element, "releasedate"),
-                        text(element, "players"), text(element, SOURCE)));
+                        text(element, "players"), text(element, "rating"),
+                        text(element, SOURCE)));
             }
 
             return new Store(mtime, linkedAt, games);
         } catch (Exception e) {
-            Log.w(TAG, "cannot read " + file, e);
+            // Loud, and specific about the consequence: what is returned
+            // below is indistinguishable from an empty store, so every screen
+            // goes on to say the library has never been linked. A file that
+            // exists and will not parse is a different thing from no file at
+            // all, and here is the only place that difference is visible.
+            Log.e(TAG, "cannot read " + file + " - it exists but will not parse,"
+                       + " so the library will report itself as never linked."
+                       + " Linking again rewrites it; see Metadata.xmlSafe for"
+                       + " the character that used to cause this.", e);
             return EMPTY;
         }
     }

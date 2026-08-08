@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Checks every translation against the English it translates.
 
-Three things go wrong with a translated strings.xml, and none of them is a build
+Four things go wrong with a translated strings.xml, and none of them is a build
 error - the app compiles and then misbehaves in a language nobody on this side of
 the screen reads:
 
@@ -16,6 +16,8 @@ the screen reads:
     another is a crash at the moment that string is shown - String.format sees an
     Integer where it wants a String - and no test that runs in English will ever
     see it. This is the reason the script exists.
+  * a <plurals> whose forms are wrong for the language, or that one language
+    writes as a <string>. See plurals() for what can be checked and what cannot.
 
 Run it after touching any strings.xml:
 
@@ -46,6 +48,11 @@ def specifiers(text: str) -> set:
     return found
 
 
+# Android's six, from CLDR. A quantity outside this set is dropped silently at
+# build time, so the form is simply never shown.
+QUANTITIES = {"zero", "one", "two", "few", "many", "other"}
+
+
 def strings(path: pathlib.Path) -> dict:
     if not path.exists():
         return {}
@@ -61,6 +68,28 @@ def strings(path: pathlib.Path) -> dict:
     return out
 
 
+def plurals(path: pathlib.Path) -> dict:
+    """name -> {quantity: text}, for every <plurals> in the file.
+
+    A plural cannot be checked the way a string-array is - form for form against
+    English - because which forms a language *has* is a property of the language:
+    English distinguishes one from other and nothing else, Russian and Polish
+    need few and many as well, and Czech uses many only for fractions. A Russian
+    translation with four forms where English has two is correct, not a mismatch,
+    so this returns the forms and lets the caller compare what is comparable.
+    """
+    if not path.exists():
+        return {}
+
+    return {
+        element.get("name"): {
+            item.get("quantity"): "".join(item.itertext()) for item in element
+        }
+        for element in ElementTree.parse(path).getroot()
+        if element.tag == "plurals"
+    }
+
+
 def base() -> dict:
     out = {}
     for file in ("strings.xml", "arrays.xml"):
@@ -69,8 +98,39 @@ def base() -> dict:
     return out
 
 
+def base_plurals() -> dict:
+    out = {}
+    for file in ("strings.xml", "arrays.xml"):
+        out.update(plurals(RES / "values" / file))
+    return out
+
+
+def demanded(forms: dict) -> set:
+    """What every form of a plural must hand String.format.
+
+    All of English's forms take the same arguments - "%1$d field" and "%1$d
+    fields" - so one set describes the plural, and each translated form is
+    checked against it whatever quantity it carries.
+    """
+    return set().union(*(specifiers(text) for text in forms.values()))
+
+
 def main() -> int:
     english = base()
+    english_plurals = base_plurals()
+
+    # A plural whose own forms disagree makes the per-language check below
+    # meaningless, so English is checked against itself first.
+    for name, forms in sorted(english_plurals.items()):
+        found = {frozenset(specifiers(text)) for text in forms.values()}
+        if len(found) > 1:
+            print(f"error: values/: {name}: its own forms take different "
+                  f"arguments: {[sorted(f) for f in found]}", file=sys.stderr)
+            return 1
+        if "other" not in forms:
+            print(f"error: values/: {name}: no other form, which is the one "
+                  f"Android falls back to", file=sys.stderr)
+            return 1
 
     # What no translation should carry, and why each one:
     #   translatable="false" - said so;
@@ -111,30 +171,67 @@ def main() -> int:
 
     for locale in locales:
         theirs = {}
+        theirs_plurals = {}
         for file in ("strings.xml", "arrays.xml"):
             theirs.update(strings(RES / f"values-{locale}" / file))
+            theirs_plurals.update(plurals(RES / f"values-{locale}" / file))
 
-        unknown = sorted(set(theirs) - set(english))
-        missing = sorted(name for name in set(english) - set(theirs)
-                         if name not in untranslatable)
+        unknown = sorted((set(theirs) - set(english)) - set(english_plurals))
+        unknown += sorted((set(theirs_plurals) - set(english_plurals))
+                          - set(english))
+        missing = sorted(
+            name for name in (set(english) | set(english_plurals))
+                           - (set(theirs) | set(theirs_plurals))
+            if name not in untranslatable)
 
+        # (name, what they demand, what English demands) - one list for strings
+        # and for plural forms alike, so both are counted and reported once.
         mismatched = []
         for name, text in sorted(theirs.items()):
             if name not in english:
                 continue
             theirs_specifiers = specifiers(text)
             if theirs_specifiers != specifiers(english[name]):
-                mismatched.append((name, theirs_specifiers))
+                mismatched.append(
+                    (name, theirs_specifiers, specifiers(english[name])))
+
+        # getQuantityString on a <string> throws, and getString on a <plurals>
+        # does not resolve, so which element a name is written as has to agree
+        # across languages - it is the call site's contract, not a preference.
+        for name in sorted(set(theirs) & set(english_plurals)):
+            wrong.append((locale, name,
+                          "a string here and a plural in values/"))
+        for name in sorted(set(theirs_plurals) & set(english)):
+            wrong.append((locale, name,
+                          "a plural here and a string in values/"))
+
+        for name in sorted(set(theirs_plurals) & set(english_plurals)):
+            forms = theirs_plurals[name]
+            for quantity in sorted(set(forms) - QUANTITIES):
+                wrong.append((locale, name,
+                              f"{quantity!r} is not one of Android's "
+                              f"quantities, so that form is never shown"))
+            if "other" not in forms:
+                wrong.append((locale, name, "no other form, which is the one "
+                                            "Android falls back to"))
+            wanted = demanded(english_plurals[name])
+            for quantity, text in sorted(forms.items()):
+                found = specifiers(text)
+                if found != wanted:
+                    mismatched.append((f"{name}[{quantity}]", found, wanted))
 
         for name in unknown:
             wrong.append((locale, name, "not a string this app has"))
-        for name, found in mismatched:
+        for name, found, wanted in mismatched:
             wrong.append((locale, name,
                           f"format is {sorted(found)} where English has "
-                          f"{sorted(specifiers(english[name]))}"))
+                          f"{sorted(wanted)}"))
 
-        print(f"{locale:<10} {len(theirs):>12} {len(missing):>9} "
-              f"{len(unknown):>9} {len(mismatched):>11}")
+        # A plural counts once however many forms the language needs, so the
+        # column stays comparable: Russian's four forms are not more translated
+        # than German's two.
+        print(f"{locale:<10} {len(theirs) + len(theirs_plurals):>12} "
+              f"{len(missing):>9} {len(unknown):>9} {len(mismatched):>11}")
 
     print()
 
