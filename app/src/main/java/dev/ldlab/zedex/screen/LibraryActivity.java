@@ -478,6 +478,19 @@ public final class LibraryActivity extends Activity {
      *  scheduled with. */
     private final Object paneVideoToken = new Object();
 
+    /**
+     * True once onCreate has decided this screen should not be here and handed
+     * over to the machine.
+     *
+     * Everything below the early return is unbuilt at that point - the panel,
+     * the adapter - and onResume and onStop both dereference them. Nothing
+     * crashes today because ActivityThread does not deliver onStart or
+     * onResume to an activity that finished inside onCreate, which is a
+     * detail of the framework rather than anything this class arranges. The
+     * flag makes it something the code says.
+     */
+    private boolean handedOver;
+
     /** How long the cursor has to rest on a row before its video starts -
      *  long enough that walking through a list does not start a dozen of
      *  them, short enough to feel like an answer to stopping; see
@@ -509,6 +522,7 @@ public final class LibraryActivity extends Activity {
         if (!fromMenu && !SettingsActivity.startsInLibrary(this, preferences)) {
             startActivity(new Intent(this, EmulatorActivity.class));
             finish();
+            handedOver = true;
             return;
         }
 
@@ -625,6 +639,11 @@ public final class LibraryActivity extends Activity {
 
     @Override
     protected void onResume() {
+        if (handedOver) {
+            super.onResume();
+            return;
+        }
+
         super.onResume();
 
         // Cheap - a file stat behind Metadata's own cache - and the one
@@ -704,6 +723,11 @@ public final class LibraryActivity extends Activity {
      */
     @Override
     protected void onStop() {
+        if (handedOver) {
+            super.onStop();
+            return;
+        }
+
         super.onStop();
         libraryPanel.close();
     }

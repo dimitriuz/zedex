@@ -1,6 +1,7 @@
 package dev.ldlab.zedex;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 
 import android.app.Activity;
 import android.app.ActivityOptions;
@@ -66,10 +67,23 @@ final class Screen {
             }
         });
 
-        // Only when it could be established. A resumed activity this could not
-        // see is a question about the harness, and failing on it would trade a
-        // clear diagnosis for a new flake.
-        if (where[0] == Display.INVALID_DISPLAY) return;
+        // Nothing of ours is resumed, which the registry can only mean one
+        // way: something else is in front. A file picker left behind by
+        // driving the device by hand is the usual one - it survives a
+        // force-stop of the app, because it belongs to another package, and
+        // the next launch comes up behind it.
+        //
+        // Worth failing here and saying so. Left to itself it surfaces much
+        // later as a key that is not on the keyboard, and CLAUDE.md's own
+        // advice - check what is in front before believing a measurement -
+        // is only useful to somebody who already suspects it.
+        assertNotEquals("nothing of this app is resumed, so something else is"
+                        + " in front of it - a file picker left over from"
+                        + " driving the device by hand survives am force-stop,"
+                        + " since it belongs to another package. Clear it with"
+                        + ": adb shell am force-stop"
+                        + " com.google.android.documentsui",
+                        Display.INVALID_DISPLAY, where[0]);
 
         assertEquals("the app came up on display " + where[0] + ", and the "
                      + "screenshots and taps this test makes go to display "

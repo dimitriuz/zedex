@@ -10,6 +10,7 @@
 
 #include <android/log.h>
 #include <android/native_window.h>
+#include <jni.h>
 
 #include <libspectrum.h>
 
@@ -22,6 +23,24 @@
    recovered from - a level logcat can filter on and a bug report keeps. */
 #define android_loge( ... ) \
   __android_log_print( ANDROID_LOG_ERROR, ANDROID_LOG_TAG, __VA_ARGS__ )
+
+/* --- text (android_text.c) -------------------------------------------- */
+
+/* Modified UTF-8 to real UTF-8 and back, both malloc'd; free them. No JNI in
+   these two, which is what lets native/tests/text_test.c run them on the
+   host - see android_utf8.c. */
+char *androidtext_decode( const char *modified );
+char *androidtext_encode( const char *utf8 );
+
+/* A Java string as real UTF-8, malloc'd; free it. NULL if the string was
+   null or there was no memory. Not GetStringUTFChars, which gives modified
+   UTF-8 - see android_text.c for what that costs a filename with an emoji
+   in it. */
+char *androidtext_from_java( JNIEnv *env, jstring text );
+
+/* Real UTF-8 as a Java string. Not NewStringUTF, which expects modified
+   UTF-8 and silently mangles anything above the BMP. */
+jstring androidtext_to_java( JNIEnv *env, const char *utf8 );
 
 /* --- display (android_display.c) ------------------------------------- */
 

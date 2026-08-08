@@ -287,7 +287,7 @@ strings_from( JNIEnv *env, char **values, int count )
 
     if( !values[i] ) continue;
 
-    value = (*env)->NewStringUTF( env, values[i] );
+    value = androidtext_to_java( env, values[i] );
     if( !value ) continue;          /* out of memory: leave the hole */
 
     (*env)->SetObjectArrayElement( env, result, i, value );
@@ -492,7 +492,7 @@ Java_dev_ldlab_zedex_FuseNative_cardName( JNIEnv *env, jclass class )
   jstring name;
 
   pthread_mutex_lock( &machine_mutex );
-  name = (*env)->NewStringUTF( env, card_file );
+  name = androidtext_to_java( env, card_file );
   pthread_mutex_unlock( &machine_mutex );
 
   return name;
