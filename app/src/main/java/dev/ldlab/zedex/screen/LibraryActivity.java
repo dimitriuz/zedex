@@ -162,6 +162,11 @@ public final class LibraryActivity extends ZedexActivity {
      *  use, never on its own. */
     private static final int RAIL_SIZE_DP = 56;
 
+    /** What a touch target is asked to be, for the controls on this screen
+     *  that are not the rail. The rail is 56 and always was; the toolbar's own
+     *  buttons were 44 until it was measured. */
+    private static final int TOUCH_TARGET_DP = 48;
+
     private static final int[] TAB_LABELS = {
         R.string.library_tab_browse, R.string.library_tab_favorites,
         R.string.library_tab_recents,
@@ -1486,8 +1491,13 @@ public final class LibraryActivity extends ZedexActivity {
         button.setBackgroundColor(0x00000000);
         button.setForeground(Ripple.make(getResources().getDisplayMetrics().density));
         button.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
+        // 48dp, which is what a touch target is asked to be - see the rail's
+        // own note beside RAIL_SIZE_DP, which has always been 56. This was 44
+        // for no reason but that it looked right; the toolbar is one row with
+        // two buttons in it and had the four dp to spare all along.
         button.setLayoutParams(new LinearLayout.LayoutParams(
-                Math.round(44 * density), Math.round(44 * density)));
+                Math.round(TOUCH_TARGET_DP * density),
+                Math.round(TOUCH_TARGET_DP * density)));
 
         return button;
     }

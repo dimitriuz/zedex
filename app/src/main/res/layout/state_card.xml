@@ -66,6 +66,15 @@
                 android:textColor="#8b8b99" />
         </LinearLayout>
 
+        <!--
+            40dp, not the 48 a touch target is asked to be, and measured
+            rather than assumed. Two 48dp buttons leave about 92dp of a
+            200dp card for the name, and at that width "Snapshot 2" renders
+            as "Snapshot…" - two states in a row both reading the same thing,
+            which is a worse answer than a small button. The card cannot
+            spare the width; a 48dp target here needs the grid re-thought,
+            not a number changed. See review/FINDINGS.md, 5.5.
+        -->
         <ImageButton
             android:id="@+id/rename"
             android:layout_width="40dp"

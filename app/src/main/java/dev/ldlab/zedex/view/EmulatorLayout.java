@@ -540,8 +540,15 @@ public final class EmulatorLayout extends ViewGroup {
      */
     private static final float OVERLAY_LEAST = 0.6f;
 
-    /** How big the two buttons are, and how far off the things they sit by. */
-    private static final int OVERLAY_BUTTON = 44;
+    /**
+     * How big the two buttons are, and how far off the things they sit by.
+     *
+     * 48, which is what a touch target is asked to be. It was 44, and unlike
+     * the quick bar beside it - nine icons at 48dp is 432dp against a 411dp
+     * phone, so that one cannot simply be raised - these two are alone in
+     * their corners with nothing to crowd.
+     */
+    private static final int OVERLAY_BUTTON = 48;
     private static final int OVERLAY_GAP = 8;
 
     /**
