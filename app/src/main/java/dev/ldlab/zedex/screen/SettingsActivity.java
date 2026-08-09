@@ -753,25 +753,44 @@ public class SettingsActivity extends AppCompatActivity
          * wanted and carrying on in {@link #onResume}.
          */
         private void addToEsDe() {
-            // The quick way, for a build that already holds All files access:
-            // ES-DE's folder is where its own documentation says it is and
-            // ordinary file writes reach it.
-            if (Storage.canUseAnyFolder() && EsDe.folder() != null) {
-                report(EsDe.install(getActivity()));
-                return;
-            }
+            Activity activity = getActivity();
+            if (activity == null || esdeWriting) return;
 
-            // Otherwise a folder the user granted once. Trying it first means
-            // the picker only ever appears again if the grant was lost.
             String kept = getPreferenceManager().getSharedPreferences()
                     .getString(EsDe.KEY_ESDE_TREE, null);
 
-            if (kept != null && EsDe.install(getActivity(), Uri.parse(kept))) {
-                report(true);
-                return;
-            }
+            esdeWork(activity, "esde-add", context -> {
+                // The quick way, for a build that already holds All files
+                // access: ES-DE's folder is where its own documentation says
+                // it is and ordinary file writes reach it.
+                if (Storage.canUseAnyFolder() && EsDe.folder() != null) {
+                    return EsDe.install(context) ? Written.YES : Written.NO;
+                }
 
-            new AlertDialog.Builder(getActivity(),
+                // Otherwise a folder the user granted once. Trying it first
+                // means the picker only ever appears again if the grant was
+                // lost.
+                if (kept != null && EsDe.install(context, Uri.parse(kept))) {
+                    return Written.YES;
+                }
+
+                return Written.ASK;
+            });
+        }
+
+        /**
+         * Answers the picker dialog {@link #addToEsDe} used to put up inline.
+         *
+         * The decision that leads here - is All files access enough, is there
+         * a kept grant, did writing through it work - is two SAF queries and
+         * two XML round trips, so it happens on the worker and only the dialog
+         * comes back.
+         */
+        private void askForEsDeFolder() {
+            Activity activity = getActivity();
+            if (activity == null) return;
+
+            new AlertDialog.Builder(activity,
                     android.R.style.Theme_DeviceDefault_Dialog_Alert)
                     .setMessage(R.string.esde_pick)
                     .setPositiveButton(R.string.settings_choose_folder,
@@ -795,6 +814,81 @@ public class SettingsActivity extends AppCompatActivity
                 Toast.makeText(getActivity(), R.string.open_failed,
                         Toast.LENGTH_LONG).show();
             }
+        }
+
+        /**
+         * How a write into ES-DE's folder turned out.
+         *
+         * More than a boolean because there is genuinely more than a boolean
+         * to say, and each of the three that are not "it worked" or "it did
+         * not" ends somewhere different: a folder that is not ES-DE's gets its
+         * own wording - see {@code useEsDeFolder} on why writing into one
+         * anyway looks exactly like success - "nowhere to write yet" ends in
+         * the picker, and the read-only grant ends in a link rather than in
+         * any Toast at all.
+         */
+        private enum Written { YES, NO, NOT_ESDE, ASK, LINK }
+
+        /** What the worker below is handed, so the lambda cannot reach for a
+         *  fragment that may be gone by the time it runs. */
+        private interface EsdeTask {
+            Written run(Context context);
+        }
+
+        /**
+         * Whether one of the ES-DE writes is still going, so a second tap
+         * cannot start another. Two of these at once would interleave two
+         * serialisations of the same two XML files, which was possible before
+         * only because they were fast enough on the main thread that nobody
+         * managed it.
+         */
+        private boolean esdeWriting;
+
+        /**
+         * Runs an ES-DE write off the UI thread and reports it back on.
+         *
+         * Every one of these is SAF queries plus two XML parses and two
+         * serialisations against another app's folder - see {@code EsDe} -
+         * which is not work to do while the screen is waiting on it. The same
+         * shape as {@link #runEsdeLink}, which has always done this correctly
+         * for the read side.
+         */
+        private void esdeWork(Activity activity, String name, EsdeTask task) {
+            esdeWriting = true;
+            Context context = activity.getApplicationContext();
+
+            Work.alone(name, () -> {
+                Written written = task.run(context);
+                activity.runOnUiThread(() -> finishEsdeWork(written));
+            });
+        }
+
+        private void finishEsdeWork(Written written) {
+            esdeWriting = false;
+
+            if (getActivity() == null) return;
+
+            if (written == Written.ASK) {
+                askForEsDeFolder();
+                return;
+            }
+
+            if (written == Written.NOT_ESDE) {
+                Toast.makeText(getActivity(), R.string.esde_not_esde,
+                        Toast.LENGTH_LONG).show();
+                return;
+            }
+
+            if (written == Written.LINK) {
+                // The grant was the whole point of the row, so the link it
+                // was blocking runs at once - see grantEsdeFolder.
+                updateSummaries();
+                runEsdeLink();
+                return;
+            }
+
+            updateSummaries();
+            report(written == Written.YES);
         }
 
         private void report(boolean written) {
@@ -886,20 +980,28 @@ public class SettingsActivity extends AppCompatActivity
          * worked. The grant is kept so this happens once.
          */
         private void useEsDeFolder(Uri tree) {
-            if (!EsDe.looksLikeEsDe(getActivity(), tree)) {
-                Toast.makeText(getActivity(), R.string.esde_not_esde,
-                        Toast.LENGTH_LONG).show();
-                return;
-            }
+            Activity activity = getActivity();
+            if (activity == null || esdeWriting) return;
 
-            Storage.keepAccessTo(getActivity(), tree,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION
-                    | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            SharedPreferences preferences =
+                    getPreferenceManager().getSharedPreferences();
 
-            getPreferenceManager().getSharedPreferences().edit()
-                    .putString(EsDe.KEY_ESDE_TREE, tree.toString()).apply();
+            // Check, grant and write in one task rather than hopping back for
+            // the grant in the middle: takePersistableUriPermission is a
+            // resolver call and wants no particular thread, and keeping the
+            // three together is what makes their order obvious - the grant has
+            // to be held before the write goes through the tree.
+            esdeWork(activity, "esde-folder", context -> {
+                if (!EsDe.looksLikeEsDe(context, tree)) return Written.NOT_ESDE;
 
-            report(EsDe.install(getActivity(), tree));
+                Storage.keepAccessTo(context, tree,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+
+                preferences.edit().putString(EsDe.KEY_ESDE_TREE, tree.toString()).apply();
+
+                return EsDe.install(context, tree) ? Written.YES : Written.NO;
+            });
         }
 
         /**
@@ -1078,20 +1180,25 @@ public class SettingsActivity extends AppCompatActivity
          * whole reason the row was there.
          */
         private void grantEsdeFolder(Uri tree) {
-            if (!EsDe.looksLikeEsDe(getActivity(), tree)) {
-                Toast.makeText(getActivity(), R.string.esde_not_esde,
-                        Toast.LENGTH_LONG).show();
-                return;
-            }
+            Activity activity = getActivity();
+            if (activity == null || esdeWriting) return;
 
-            Storage.keepAccessTo(getActivity(), tree,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            SharedPreferences preferences =
+                    getPreferenceManager().getSharedPreferences();
 
-            getPreferenceManager().getSharedPreferences().edit()
-                    .putString(EsDe.KEY_ESDE_TREE, tree.toString()).apply();
+            // looksLikeEsDe is the SAF walk here too, so it goes to the worker
+            // like the other two. Nothing is written into ES-DE's folder on
+            // this path - the grant is read only - so the answer is only ever
+            // "not ES-DE" or "carry on", and carrying on means the link, which
+            // has always run on a thread of its own.
+            esdeWork(activity, "esde-grant", context -> {
+                if (!EsDe.looksLikeEsDe(context, tree)) return Written.NOT_ESDE;
 
-            updateSummaries();
-            runEsdeLink();
+                Storage.keepAccessTo(context, tree, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                preferences.edit().putString(EsDe.KEY_ESDE_TREE, tree.toString()).apply();
+
+                return Written.LINK;
+            });
         }
 
         /**
