@@ -522,12 +522,25 @@ public final class LibraryActivity extends Activity {
         // is the launcher and so asks first.
         SettingsActivity.migrateIfNeeded(this, preferences);
 
+
+
         if (!fromMenu && !SettingsActivity.startsInLibrary(preferences)) {
             startActivity(new Intent(this, EmulatorActivity.class));
             finish();
             handedOver = true;
             return;
         }
+
+        // The scraped store, read once and kept, off this thread: 776 KB of
+        // XML for eight hundred games is not something to parse while the
+        // first list is being laid out, and every lookup after is a map read.
+        // Below the hand-over above on purpose - a start that goes straight
+        // to the machine has no use for it.
+        //
+        // The list is rebound when it lands: rows bound before it arrives
+        // show their filenames, because Metadata answers empty rather than
+        // blocking the thread drawing them. See Metadata.store.
+        loadMetadataInBackground();
 
         // The manifest label is resolved in the phone's language rather than
         // this screen's, so the title is set here; see Language. Still set
@@ -656,6 +669,18 @@ public final class LibraryActivity extends Activity {
         // needed to lose. A mismatch means every cached name and picture may
         // now be answering a question that has a different answer - see
         // EntryAdapter.clearScraped.
+        // The one place the store is re-read: back to the front is when a
+        // link, an unlink or a hand edit can have happened since it was last
+        // looked at. Everywhere else reads what is already in memory.
+        Metadata.refresh(this);
+
+        // Back to the front is where a link, an unlink or a hand edit can
+        // have happened since this screen last looked - and where a file may
+        // have been added from another app, so the walk is dropped with it.
+        // Both off the main thread, because re-reading the store may parse.
+        forgetFlattened();
+        loadMetadataInBackground();
+
         long linkedAt = Metadata.lastLinked(this);
         if (linkedAt != lastLinkedAt) {
             lastLinkedAt = linkedAt;
@@ -2251,7 +2276,7 @@ public final class LibraryActivity extends Activity {
 
             try {
                 result = flatten
-                        ? Listing.everythingUnder(getContentResolver(), flattenFrom)
+                        ? everythingUnderCached(flattenFrom)
                         : level.archive
                                 ? Listing.archive(getContentResolver(), level.uri)
                                 : Listing.folder(getContentResolver(), level.uri);
@@ -2280,13 +2305,14 @@ public final class LibraryActivity extends Activity {
      */
     private void openFilterSheet(int requestToken) {
         new Thread(() -> {
-            // Off the UI thread: this walks the whole store, which is 800
-            // games on the collection it was built against, and the whole
-            // content folder besides, for the formats - see
+            // Off the UI thread: the store may still be being read, and the
+            // content folder is walked for the formats - see
             // everythingForFacets.
-            Map<Filters.Field, List<Facets.Value>> values =
-                    Facets.of(Metadata.all(this));
+            Metadata.ensureLoaded(getApplicationContext());
+
+            Map<Filters.Field, List<Facets.Value>> values = cachedFacets();
             List<Facets.Value> formats = Facets.formatsOf(everythingForFacets());
+
 
             runOnUiThread(() -> {
                 if (isFinishing() || isDestroyed()) return;
@@ -2307,12 +2333,56 @@ public final class LibraryActivity extends Activity {
      * grant or a folder gone missing should leave the filter sheet with
      * nothing to offer for Format, never a crash on top of the tap that
      * opened it.
+     *
+     * The same walk the filtered list uses, and deliberately the same cache:
+     * these two ask one question - what is under the content folder - and
+     * they used to answer it with a walk each, so opening the filter sheet
+     * paid a second or more before it could offer a value list, and choosing
+     * a value paid it again. Sharing it means the tree is walked once per
+     * visit to this screen however many times either of them asks - and
+     * their agreeing matters for its own sake, since the sheet's counts and
+     * the list's contents are then the same set, so a value offered as
+     * "z80 47" cannot yield an empty list.
      */
+    /** {@link #cachedFacets}'s answer, and the store it was counted from. */
+    private Object facetsVersion;
+    private Map<Filters.Field, List<Facets.Value>> facets;
+
+    /**
+     * The values each field offers, and how many games carry each - counted
+     * once per version of the store rather than once per opening of the
+     * sheet.
+     *
+     * It is a full pass over every game, splitting genres on commas and
+     * counting developers and publishers, and it cannot answer differently
+     * until the store itself changes. Metadata.version is that store's own
+     * identity, so one reference comparison says whether this is still true.
+     *
+     * Called from a background thread only, which is why plain fields are
+     * enough: openFilterSheet is the one caller and it is always on its own
+     * thread. A second opening while the first is still counting recounts,
+     * which costs one wasted pass and no correctness.
+     */
+    private Map<Filters.Field, List<Facets.Value>> cachedFacets() {
+        Object version = Metadata.version(getApplicationContext());
+
+        Map<Filters.Field, List<Facets.Value>> known = facets;
+        if (known != null && version == facetsVersion) return known;
+
+        Map<Filters.Field, List<Facets.Value>> counted =
+                Facets.of(Metadata.all(getApplicationContext()));
+
+        facetsVersion = version;
+        facets = counted;
+
+        return counted;
+    }
+
     private List<Entry> everythingForFacets() {
         if (stack.isEmpty()) return Collections.emptyList();
 
         try {
-            return Listing.everythingUnder(getContentResolver(), stack.get(0).uri);
+            return everythingUnderCached(stack.get(0).uri);
         } catch (IOException e) {
             Log.w(TAG, "cannot walk the content folder for facets", e);
             return Collections.emptyList();
@@ -2372,6 +2442,107 @@ public final class LibraryActivity extends Activity {
 
     /** The search box and the sort order, applied to what was last loaded -
      *  neither one is worth asking the folder again for. */
+    /**
+     * The flattened collection and the folder it was walked from, as one
+     * thing.
+     *
+     * One object rather than two fields because two readers are on different
+     * threads - the listing load and the filter sheet's own facets - while
+     * onResume clears it on the main thread. A pair read separately can be
+     * half of one answer and half of another; this way a reader gets a whole
+     * one or nothing.
+     */
+    private static final class Flattened {
+        final Uri from;
+        final List<Entry> files;
+        final int generation;
+
+        Flattened(Uri from, List<Entry> files, int generation) {
+            this.from = from;
+            this.files = files;
+            this.generation = generation;
+        }
+    }
+
+    private final java.util.concurrent.atomic.AtomicReference<Flattened> flattened =
+            new java.util.concurrent.atomic.AtomicReference<>();
+
+    /**
+     * Bumped whenever the walk is dropped, so an answer that was already in
+     * flight when that happened is discarded rather than published.
+     *
+     * Without it a walk begun before onResume cleared the cache would set its
+     * own pre-clear result afterwards, and a game added from another app
+     * would be missing from every filtered list until a further resume - the
+     * one thing dropping the cache on resume exists to prevent.
+     */
+    private final java.util.concurrent.atomic.AtomicInteger walkGeneration =
+            new java.util.concurrent.atomic.AtomicInteger();
+
+    /**
+     * Every file under the content folder, walked once.
+     *
+     * That walk is a query per folder through the documents provider, and it
+     * is the slowest thing this screen does by a wide margin: measured at
+     * 1.3 seconds for 259 files on the collection this was built against,
+     * against 66 milliseconds for the filtering and sorting that follows it.
+     * It ran again for every filter touched - choosing four genres in a row
+     * walked the tree four times - and the answer cannot have changed in
+     * between, because nothing this screen does writes to the collection.
+     *
+     * So it is kept, keyed on the folder it was walked from, and thrown away
+     * when that folder changes or the screen goes away. A file added from
+     * another app while the library is open will not appear until the walk is
+     * asked for again - which onResume's reload already does, and which is
+     * the same bargain the store itself makes.
+     */
+    private List<Entry> everythingUnderCached(Uri from) throws IOException {
+        Flattened known = flattened.get();
+        if (known != null && from.equals(known.from)) return known.files;
+
+        int began = walkGeneration.get();
+        List<Entry> found = Collections.unmodifiableList(
+                Listing.everythingUnder(getContentResolver(), from));
+
+        // Published only if nothing dropped the cache while this ran. The
+        // caller still gets what it walked - it asked, and this is a true
+        // answer about the folder as it was a moment ago - but it is not left
+        // behind for the next reader.
+        flattened.compareAndSet(known, new Flattened(from, found, began));
+        if (walkGeneration.get() != began) flattened.set(null);
+
+        return found;
+    }
+
+    /** Forgets the walk, so the next filter reads the folder again. */
+    /**
+     * Reads the store off the main thread and rebinds the list once it is
+     * there.
+     *
+     * Both halves matter. Metadata.refresh may parse, so it cannot be called
+     * from onCreate or onResume directly - doing that was what made the
+     * preload pointless, since the UI thread simply did the parse itself a
+     * moment after starting the thread meant to do it. And a list bound
+     * before the store arrives shows filenames, so it has to be told when
+     * that changes.
+     */
+    private void loadMetadataInBackground() {
+        new Thread(() -> {
+            Metadata.refresh(getApplicationContext());
+
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed() || adapter == null) return;
+                adapter.notifyDataSetChanged();
+                updatePane();
+            });
+        }, "zedex-metadata").start();
+    }
+
+    private void forgetFlattened() {
+        walkGeneration.incrementAndGet();
+        flattened.set(null);
+    }
+
     private void applyFilterSort() {
         noFolderView.setVisibility(View.GONE);
 
@@ -2391,8 +2562,8 @@ public final class LibraryActivity extends Activity {
             // filtering(), not tab == Tab.BROWSE: that plain tab check is
             // true on every keystroke in the search box even with nothing
             // set, which ran cachedMeta - Storage.contentFolder plus
-            // Metadata.forPath, two stats of the gamelist file - for every
-            // non-folder row on every call for no reason at all.
+            // Metadata.forPath - for every non-folder row on every call for
+            // no reason at all.
             // filtering() already implies Browse and short-circuits the
             // moment nothing is set - see that method - which removes the
             // whole cost from the unfiltered path without changing what is
@@ -2533,12 +2704,12 @@ public final class LibraryActivity extends Activity {
      * a pairwise comparison - once in {@code has}, once in {@code
      * compareValues} - and {@code Collections.sort} calls the comparator
      * O(n log n) times over the whole list; the filter pass before it asks
-     * once more per entry on top of that. Each ask used to mean a fresh
-     * {@link Metadata#forPath}, which is {@code synchronized} and stats the
-     * store file on every call even though the parsed XML behind it is
-     * cached - exactly the one-parse-not-one-per-row cost {@link Metadata}'s
-     * own class doc promises, broken by asking on every comparison instead of
-     * once per row. A miss is cached too, not just a hit: most entries have
+     * once more per entry on top of that. Each ask means a {@link
+     * Metadata#forPath} and, before it, a {@code Storage.contentFolder} and
+     * the relative-path derivation - cheap each, and not free O(n log n)
+     * times. It was far worse than cheap until recently: forPath took a lock
+     * and stat'd the store file on every call, at 53 microseconds a time.
+     * A miss is cached too, not just a hit: most entries have
      * no metadata at all, and a null answer is exactly as expensive to ask
      * for again as a real one - skipping the cache for it would have kept
      * the greater part of the cost this exists to remove.

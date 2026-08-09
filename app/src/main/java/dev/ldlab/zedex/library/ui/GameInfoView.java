@@ -347,6 +347,11 @@ public final class GameInfoView extends LinearLayout {
         Context app = getContext().getApplicationContext();
 
         new Thread(() -> {
+            // See GameInfoActivity.load: forPath never parses, so a caller
+            // that cannot show anything useful without the store says so and
+            // waits, on its own thread.
+            Metadata.ensureLoaded(app);
+
             Meta meta = Metadata.forPath(app, relativePath);
             handler.post(() -> {
                 if (mine != token) return; // this game was left before the store answered

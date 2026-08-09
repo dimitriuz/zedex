@@ -1726,6 +1726,24 @@ public class SettingsActivity extends AppCompatActivity
             getPreferenceManager().getSharedPreferences()
                     .registerOnSharedPreferenceChangeListener(this);
 
+            // The ES-DE rows read how many games are known and when they were
+            // linked, and Metadata answers from memory without ever parsing -
+            // so a Settings screen opened without the library having run
+            // would read an empty store and say "never linked" about a
+            // library that is linked. Read it off-thread and say so again
+            // when it lands.
+            Context app = getActivity().getApplicationContext();
+            new Thread(() -> {
+                Metadata.ensureLoaded(app);
+
+                Activity activity = getActivity();
+                if (activity == null) return;
+
+                activity.runOnUiThread(() -> {
+                    if (isAdded()) updateSummaries();
+                });
+            }, "zedex-metadata-settings").start();
+
             // Back from the All files access page. Only a folder the user went
             // there for, and only once it is actually allowed; still refused
             // keeps it, since they may be on their way to allow it.
