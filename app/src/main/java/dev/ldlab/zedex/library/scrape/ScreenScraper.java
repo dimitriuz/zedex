@@ -532,17 +532,18 @@ public final class ScreenScraper implements Provider {
 
         List<Medium> found = new ArrayList<>();
 
-        if (wanted.pictures) {
-            for (Map.Entry<String, String[]> folder : MEDIA_FOLDERS.entrySet()) {
-                Medium one = firstOf(all, folder.getKey(), folder.getValue());
-                if (one != null) found.add(one);
-            }
+        for (Map.Entry<String, String[]> folder : MEDIA_FOLDERS.entrySet()) {
+            if (!wanted.wants(folder.getKey())) continue;
+
+            Medium one = firstOf(all, folder.getKey(), folder.getValue());
+            if (one != null) found.add(one);
         }
-        if (wanted.video) {
+
+        if (wanted.wants(VIDEO_FOLDER)) {
             Medium one = firstOf(all, VIDEO_FOLDER, VIDEO_TYPES);
             if (one != null) found.add(one);
         }
-        if (wanted.manual) {
+        if (wanted.wants(MANUAL_FOLDER)) {
             Medium one = firstOf(all, MANUAL_FOLDER, MANUAL_TYPES);
             if (one != null) found.add(one);
         }

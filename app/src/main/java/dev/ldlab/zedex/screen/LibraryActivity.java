@@ -15,6 +15,7 @@ import dev.ldlab.zedex.library.Sorting;
 import dev.ldlab.zedex.library.meta.Artwork;
 import dev.ldlab.zedex.library.meta.Meta;
 import dev.ldlab.zedex.library.meta.Metadata;
+import dev.ldlab.zedex.library.scrape.Scrapers;
 import dev.ldlab.zedex.library.ui.DetailPane;
 import dev.ldlab.zedex.library.ui.EntryAdapter;
 import dev.ldlab.zedex.library.ui.Gallery;
@@ -539,6 +540,16 @@ public final class LibraryActivity extends ZedexActivity {
             @Override
             public void editMetadata() {
                 if (selected != null) editMetadataFor(selected);
+            }
+
+            @Override
+            public boolean scrapingAllowed() {
+                return Scrapers.any(LibraryActivity.this);
+            }
+
+            @Override
+            public void scrapeSelected() {
+                if (selected != null) new ScrapeOneGame(LibraryActivity.this).scrape(selected);
             }
 
             @Override
@@ -1630,6 +1641,21 @@ public final class LibraryActivity extends ZedexActivity {
      * passing a parsed {@link Meta} through an Intent would be a second copy
      * able to go stale.
      */
+    /**
+     * Something changed one game's metadata while this screen stayed up.
+     *
+     * The editor is a screen of its own, so coming back from it runs onResume
+     * and everything is re-read there - but a scrape happens in front of this
+     * one, and without this the row keeps the name it had until something
+     * unrelated clears the cache. Same two steps onResume takes.
+     */
+    void metadataChanged() {
+        Metadata.refresh(this);
+        adapter.clearScraped();
+        adapter.notifyDataSetChanged();
+        updatePane();
+    }
+
     private void editMetadataFor(Entry entry) {
         if (entry.isContainer() || entry.inside != null) return;
 

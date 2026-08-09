@@ -132,6 +132,20 @@ public final class OptionsDialog {
          *  it would be reached by dismissing something the person did not put
          *  there. */
         void editMetadata();
+
+        /**
+         * Whether anything can be scraped from at all.
+         *
+         * A build with no provider credentials cannot, which is the ordinary
+         * state of a source download - see {@code Scrapers}. Its own question
+         * again rather than folded into {@link #editingAllowed}: editing by
+         * hand needs a selected game and nothing else, and scraping needs a
+         * selected game <em>and</em> somewhere to ask.
+         */
+        boolean scrapingAllowed();
+
+        /** MENU's own Scrape row was chosen. */
+        void scrapeSelected();
     }
 
     // Matches LibraryActivity's own palette - duplicated rather than shared,
@@ -687,6 +701,16 @@ public final class OptionsDialog {
             addRow(column, activity.getString(R.string.edit_metadata_menu), () -> {
                 dismiss();
                 callbacks.editMetadata();
+            });
+        }
+
+        // Beside it, and on the same selected-game condition plus somewhere to
+        // ask: the two are the same subject from opposite ends - correcting a
+        // game by hand, and fetching what somebody else already wrote down.
+        if (callbacks.editingAllowed() && callbacks.scrapingAllowed()) {
+            addRow(column, activity.getString(R.string.scrape_menu), () -> {
+                dismiss();
+                callbacks.scrapeSelected();
             });
         }
     }

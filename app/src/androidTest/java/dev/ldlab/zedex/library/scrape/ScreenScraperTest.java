@@ -341,7 +341,8 @@ public class ScreenScraperTest {
         ScreenScraper scraper = scraperOn(http);
 
         Candidate one = scraper.search(new AGame("d41d8cd98f00b204e9800998ecf8427e")).get(0);
-        return scraper.fetch(one, new Provider.Wanted(true, true, true));
+        return scraper.fetch(one, Provider.Wanted.of("covers", "backcovers", "physicalmedia", "miximages",
+                                   "screenshots", "titlescreens", "videos", "manuals"));
     }
 
     /** The facts, in the shape the store keeps them. */
@@ -470,7 +471,7 @@ public class ScreenScraperTest {
         Candidate one = scraper.search(new AGame("x")).get(0);
 
         List<Medium> justTheVideo =
-                scraper.fetch(one, new Provider.Wanted(false, true, false)).media;
+                scraper.fetch(one, Provider.Wanted.of("videos")).media;
 
         assertEquals(1, justTheVideo.size());
         assertEquals("videos", justTheVideo.get(0).folder);
@@ -503,7 +504,8 @@ public class ScreenScraperTest {
         ScreenScraper scraper = scraperOn(http);
 
         Candidate one = scraper.search(new AGame("x")).get(0);
-        Provider.Scraped got = scraper.fetch(one, new Provider.Wanted(true, true, true));
+        Provider.Scraped got = scraper.fetch(one, Provider.Wanted.of("covers", "backcovers", "physicalmedia", "miximages",
+                                   "screenshots", "titlescreens", "videos", "manuals"));
 
         assertTrue(got.media.isEmpty());
         assertEquals("Bare", got.meta.name);

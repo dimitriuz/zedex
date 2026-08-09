@@ -71,7 +71,7 @@ public class LiveScreenScraperTest {
         Log.w(TAG, "LIVE candidate " + one.describe());
         assertNotNull(one.name);
 
-        Provider.Scraped got = scraper.fetch(one, new Provider.Wanted(true, true, true));
+        Provider.Scraped got = scraper.fetch(one, Provider.Wanted.usual());
         Log.w(TAG, "LIVE meta name=" + got.meta.name
                    + " dev=" + got.meta.developer
                    + " pub=" + got.meta.publisher

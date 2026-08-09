@@ -655,4 +655,15 @@
     <string name="edit_metadata_forget">Zapomnij moje zmiany</string>
     <string name="edit_metadata_forget_confirm">Ta gra nie będzie mieć żadnych metadanych, dopóki nie połączysz ponownie z ES-DE, które przywróci to, co wie.</string>
     <string name="edit_metadata_forgotten">Zmiany zapomniane</string>
+    <string name="scrape_menu">Pobierz dane…</string>
+    <string name="scrape_working">Wyszukiwanie…</string>
+    <string name="scrape_choose">Która to gra?</string>
+    <string name="scrape_nothing">Nic nie znaleziono dla tej gry</string>
+    <string name="scrape_done">Pobrano</string>
+    <string name="scrape_done_media">Pobrano, obrazów: %1$d</string>
+    <string name="scrape_overwrite">Dane tej gry zostały zmienione ręcznie. Pobranie je zastąpi.</string>
+    <string name="scrape_failed_quota">Na dziś nie ma już zapytań</string>
+    <string name="scrape_failed_login">Odrzucono logowanie do usługi</string>
+    <string name="scrape_failed_network">Nie udało się połączyć z usługą</string>
+    <string name="scrape_failed_closed">Usługa jest zamknięta dla tego konta</string>
 </resources>

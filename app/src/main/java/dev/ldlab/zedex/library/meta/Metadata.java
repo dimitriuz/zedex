@@ -168,12 +168,13 @@ public final class Metadata {
     public static synchronized void replaceScraped(Context context, List<Meta> games) {
         List<Meta> keeping = new ArrayList<>(games);
 
-        // Every row somebody edited by hand survives the link, and wins over a
-        // scraped row for the same game - see Meta.USER, which is the whole of
-        // the ownership rule. Added after the scraped ones so the map below
-        // takes them last.
+        // Every row ES-DE does not own survives the link and wins over a
+        // scraped row for the same game - a hand edit, and anything this app
+        // fetched from a provider of its own. Added after the scraped ones so
+        // the map below takes them last. See Meta#isEsde, and why "not ES-DE's"
+        // rather than "hand edited" is the rule that generalises.
         for (Meta mine : store(context).games.values()) {
-            if (mine.isMine()) keeping.add(mine);
+            if (!mine.isEsde()) keeping.add(mine);
         }
 
         write(context, keeping);

@@ -760,4 +760,15 @@
     <string name="edit_metadata_forget">Forget my edits</string>
     <string name="edit_metadata_forget_confirm">This game will have no metadata at all until ES-DE is linked again, which will bring back whatever it knows.</string>
     <string name="edit_metadata_forgotten">Edits forgotten</string>
+    <string name="scrape_menu">Scrape this game…</string>
+    <string name="scrape_working">Looking it up…</string>
+    <string name="scrape_choose">Which game is this?</string>
+    <string name="scrape_nothing">Nothing found for this one</string>
+    <string name="scrape_done">Scraped</string>
+    <string name="scrape_done_media">Scraped, with %1$d picture(s)</string>
+    <string name="scrape_overwrite">You edited this game\'s details by hand. Scraping will replace them.</string>
+    <string name="scrape_failed_quota">No requests left today</string>
+    <string name="scrape_failed_login">The scraper\'s login was refused</string>
+    <string name="scrape_failed_network">Could not reach the scraper</string>
+    <string name="scrape_failed_closed">The scraper is closed to this account</string>
 </resources>

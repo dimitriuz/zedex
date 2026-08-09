@@ -655,4 +655,15 @@
     <string name="edit_metadata_forget">Забыть мои правки</string>
     <string name="edit_metadata_forget_confirm">У этой игры не останется метаданных, пока вы снова не свяжете ES-DE — оно вернёт то, что знает.</string>
     <string name="edit_metadata_forgotten">Правки забыты</string>
+    <string name="scrape_menu">Загрузить данные…</string>
+    <string name="scrape_working">Идёт поиск…</string>
+    <string name="scrape_choose">Что это за игра?</string>
+    <string name="scrape_nothing">Ничего не найдено для этой игры</string>
+    <string name="scrape_done">Загружено</string>
+    <string name="scrape_done_media">Загружено, изображений: %1$d</string>
+    <string name="scrape_overwrite">Данные этой игры вы правили вручную. Загрузка их заменит.</string>
+    <string name="scrape_failed_quota">На сегодня запросы закончились</string>
+    <string name="scrape_failed_login">Служба отклонила вход</string>
+    <string name="scrape_failed_network">Не удалось связаться со службой</string>
+    <string name="scrape_failed_closed">Служба закрыта для этой учётной записи</string>
 </resources>

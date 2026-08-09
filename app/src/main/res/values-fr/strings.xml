@@ -650,4 +650,15 @@
     <string name="edit_metadata_forget">Oublier mes modifications</string>
     <string name="edit_metadata_forget_confirm">Ce jeu n’aura plus aucune métadonnée jusqu’à une nouvelle liaison avec ES-DE, qui rendra ce qu’il en sait.</string>
     <string name="edit_metadata_forgotten">Modifications oubliées</string>
+    <string name="scrape_menu">Récupérer les données…</string>
+    <string name="scrape_working">Recherche…</string>
+    <string name="scrape_choose">Quel jeu est-ce ?</string>
+    <string name="scrape_nothing">Rien trouvé pour ce jeu</string>
+    <string name="scrape_done">Données récupérées</string>
+    <string name="scrape_done_media">Données récupérées, %1$d image(s)</string>
+    <string name="scrape_overwrite">Vous avez modifié les données de ce jeu à la main. La récupération les remplacera.</string>
+    <string name="scrape_failed_quota">Plus aucune requête disponible aujourd’hui</string>
+    <string name="scrape_failed_login">La connexion au service a été refusée</string>
+    <string name="scrape_failed_network">Service injoignable</string>
+    <string name="scrape_failed_closed">Le service est fermé à ce compte</string>
 </resources>

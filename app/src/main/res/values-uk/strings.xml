@@ -655,4 +655,15 @@
     <string name="edit_metadata_forget">Забути мої правки</string>
     <string name="edit_metadata_forget_confirm">Ця гра залишиться без метаданих, доки ви знову не зв’яжете ES-DE — воно поверне те, що знає.</string>
     <string name="edit_metadata_forgotten">Правки забуто</string>
+    <string name="scrape_menu">Завантажити дані…</string>
+    <string name="scrape_working">Триває пошук…</string>
+    <string name="scrape_choose">Що це за гра?</string>
+    <string name="scrape_nothing">Нічого не знайдено для цієї гри</string>
+    <string name="scrape_done">Завантажено</string>
+    <string name="scrape_done_media">Завантажено, зображень: %1$d</string>
+    <string name="scrape_overwrite">Дані цієї гри ви редагували вручну. Завантаження їх замінить.</string>
+    <string name="scrape_failed_quota">На сьогодні запити вичерпано</string>
+    <string name="scrape_failed_login">Служба відхилила вхід</string>
+    <string name="scrape_failed_network">Не вдалося зв’язатися зі службою</string>
+    <string name="scrape_failed_closed">Служба закрита для цього облікового запису</string>
 </resources>

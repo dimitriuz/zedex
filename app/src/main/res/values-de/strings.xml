@@ -650,4 +650,15 @@
     <string name="edit_metadata_forget">Meine Änderungen verwerfen</string>
     <string name="edit_metadata_forget_confirm">Dieses Spiel hat gar keine Metadaten mehr, bis ES-DE erneut verknüpft wird und zurückbringt, was es weiß.</string>
     <string name="edit_metadata_forgotten">Änderungen verworfen</string>
+    <string name="scrape_menu">Daten abrufen…</string>
+    <string name="scrape_working">Wird gesucht…</string>
+    <string name="scrape_choose">Welches Spiel ist das?</string>
+    <string name="scrape_nothing">Dazu wurde nichts gefunden</string>
+    <string name="scrape_done">Abgerufen</string>
+    <string name="scrape_done_media">Abgerufen, %1$d Bild(er)</string>
+    <string name="scrape_overwrite">Die Angaben zu diesem Spiel wurden von Hand bearbeitet. Ein Abruf ersetzt sie.</string>
+    <string name="scrape_failed_quota">Heute sind keine Anfragen mehr übrig</string>
+    <string name="scrape_failed_login">Die Anmeldung wurde abgelehnt</string>
+    <string name="scrape_failed_network">Der Dienst war nicht erreichbar</string>
+    <string name="scrape_failed_closed">Der Dienst ist für dieses Konto geschlossen</string>
 </resources>

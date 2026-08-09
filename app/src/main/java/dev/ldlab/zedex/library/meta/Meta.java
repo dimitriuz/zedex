@@ -59,9 +59,23 @@ public final class Meta {
      */
     public static final String USER = "user";
 
-    /** Whether a link must leave this one alone. */
+    /** Whether somebody typed this one in by hand. */
     public boolean isMine() {
         return USER.equals(source);
+    }
+
+    /**
+     * Whether an ES-DE link owns this row and may replace it.
+     *
+     * The rule is "a link replaces only what ES-DE brought over", not "a link
+     * keeps hand edits" - those were the same thing until this app could
+     * scrape for itself, and then they were not: a row fetched from
+     * ScreenScraper carries that provider's name, is nobody's hand edit, and
+     * must survive a link every bit as much as one that was typed. See {@code
+     * Metadata#replaceScraped}.
+     */
+    public boolean isEsde() {
+        return source == null || ESDE.equals(source);
     }
 
     /**

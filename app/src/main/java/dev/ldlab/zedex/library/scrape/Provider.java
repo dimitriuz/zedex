@@ -106,25 +106,63 @@ public interface Provider {
         String md5();
     }
 
-    /** Which media a fetch should resolve. */
+    /**
+     * Which media a fetch should resolve, by folder.
+     *
+     * Folder names rather than a handful of booleans, because that is the
+     * question actually being asked and because the arithmetic matters: every
+     * medium is a separate request against the day's allowance - a cover is a
+     * {@code mediaJeu.php} call exactly like a search is - so a game with
+     * everything selected costs nine or ten, and eight hundred of those is
+     * more than a day. Naming folders lets the default be the three this app
+     * actually draws and lets part five hand a person's own choice straight
+     * through.
+     *
+     * The names are ES-DE's, which is what this app's media folder mirrors -
+     * see {@code Artwork}. Translating a provider's own vocabulary into them
+     * is the provider's job.
+     */
     final class Wanted {
-        public final boolean pictures;
-        public final boolean video;
-        public final boolean manual;
 
-        public Wanted(boolean pictures, boolean video, boolean manual) {
-            this.pictures = pictures;
-            this.video = video;
-            this.manual = manual;
+        /**
+         * What a scrape takes unless told otherwise: the cover every row and
+         * tile draws, and the two the pane's gallery is worth opening for.
+         *
+         * Four requests a game including the search, which leaves room to
+         * scrape a whole collection twice over. Video is twenty megabytes and
+         * a manual is rarely looked at; both are opt-in.
+         */
+        public static Wanted usual() {
+            return of("covers", "screenshots", "titlescreens");
         }
 
-        /** Metadata only. */
+        private final java.util.Set<String> folders;
+
+        private Wanted(java.util.Set<String> folders) {
+            this.folders = folders;
+        }
+
+        public static Wanted of(String... folders) {
+            return new Wanted(new java.util.LinkedHashSet<>(java.util.Arrays.asList(folders)));
+        }
+
+        /** Metadata only, which is a real thing to want and the cheapest
+         *  possible scrape. */
         public static Wanted nothing() {
-            return new Wanted(false, false, false);
+            return new Wanted(java.util.Collections.emptySet());
+        }
+
+        public boolean wants(String folder) {
+            return folders.contains(folder);
         }
 
         public boolean any() {
-            return pictures || video || manual;
+            return !folders.isEmpty();
+        }
+
+        /** How many requests this will cost per game, media only. */
+        public int requests() {
+            return folders.size();
         }
     }
 
