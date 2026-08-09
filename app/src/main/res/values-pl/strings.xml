@@ -342,6 +342,8 @@
     <string name="settings_library_summary">Otwierać aplikację przy grach zamiast przy maszynie. Wymaga folderu z grami.</string>
     <string name="settings_library_needs_folder">Najpierw wybierz folder z grami.</string>
     <string name="settings_states_moved">Stany przeniesione</string>
+    <string name="settings_states_moving">Przenoszenie…</string>
+    <string name="settings_states_move_partial">Niektórych plików nie udało się przenieść i pozostały w starym folderze</string>
 
     <string name="settings_states">Zapisane stany</string>
     <string name="settings_snapshot_format">Format stanu</string>

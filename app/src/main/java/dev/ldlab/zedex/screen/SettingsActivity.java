@@ -34,6 +34,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.hardware.display.DisplayManager;
 import android.graphics.Rect;
 import android.net.Uri;
@@ -868,8 +869,13 @@ public class SettingsActivity extends AppCompatActivity
             // Not left to the preference listener: choosing through the
             // picker means this activity was paused, and onPause unregisters
             // it, so the change would arrive with nobody listening.
-            moveData(previous);
+            //
+            // Before moveData rather than after, now that moveData answers
+            // later than it returns: it puts the folder row into "Moving…",
+            // and this call would otherwise wipe that a line later. Its own
+            // finish calls this again once the files are actually there.
             updateSummaries();
+            moveData(previous);
         }
 
         /**
@@ -1597,9 +1603,73 @@ public class SettingsActivity extends AppCompatActivity
             }
         }
 
-        /** Takes the files along, from wherever they were. */
+        /**
+         * Whether {@link #moveData} is still running, so {@link
+         * #updateSummaries} leaves the folder row's "Moving…" state alone
+         * instead of resetting it to the path on every unrelated preference
+         * change - the same reasoning, and the same shape, as {@link
+         * #esdeLinking} beside it.
+         */
+        private boolean movingData;
+
+        /**
+         * Takes the files along, from wherever they were - on a worker, since
+         * how long it takes is not bounded by anything this screen knows.
+         *
+         * {@code renameTo} is instant within a volume, so the ordinary case
+         * always was fast and this looked harmless for a long time. Across a
+         * volume it is a byte copy of every file, captures included, and
+         * putting the data folder on an SD card is the main reason anyone
+         * changes it - so the one case the setting exists for is the one that
+         * froze the screen. See {@link Storage#move}.
+         *
+         * The preference has already been written by {@link #useFolder} at
+         * this point, deliberately, which leaves a window where the app names
+         * a folder the files have not reached yet. Disabling the row is what
+         * keeps that from getting worse: a second folder change starting on
+         * top of this one would move a subset twice, from two different
+         * places. The window itself is the price of not inverting an ordering
+         * that exists for its own reason - see {@code useFolder}'s comment.
+         */
         private void moveData(File previous) {
-            Storage.createFolders(getActivity());
+            Activity activity = getActivity();
+            if (activity == null) return;
+
+            movingData = true;
+
+            Preference row = findPreference(Storage.KEY_STATES_ROOT);
+            if (row != null) {
+                row.setEnabled(false);
+                row.setSummary(R.string.settings_states_moving);
+            }
+
+            // Both captured here rather than reached for on the worker: this
+            // fragment can be gone by the time the copy finishes, and
+            // getActivity() and getPreferenceManager() both answer null then.
+            // SharedPreferences is thread safe, and the application context
+            // serves everything Storage asks a Context for.
+            Context context = activity.getApplicationContext();
+            SharedPreferences preferences =
+                    getPreferenceManager().getSharedPreferences();
+
+            Work.alone("data-move", () -> {
+                boolean whole = moveEverything(context, preferences, previous);
+                activity.runOnUiThread(() -> finishDataMove(context, whole));
+            });
+        }
+
+        /**
+         * The move itself, and nothing that touches a view - every line of
+         * this runs on {@code Work.alone}'s own thread.
+         *
+         * @return whether all of it arrived. {@code &=} rather than {@code &&}
+         *         throughout, since every folder must be attempted whatever an
+         *         earlier one answered - short-circuiting here would stop the
+         *         move at the first failure and leave the rest behind.
+         */
+        private static boolean moveEverything(Context context, SharedPreferences preferences,
+                                              File previous) {
+            Storage.createFolders(context);
 
             // One list, from Storage, rather than a fourth copy of it here.
             // This one used to be written out by hand and was missing two of
@@ -1608,34 +1678,67 @@ public class SettingsActivity extends AppCompatActivity
             // that reads as "never linked" rather than as an error, because a
             // missing store is an empty store. See Storage.dataFolders.
             String[] folders = Storage.dataFolderNames();
-            File[] destinations = Storage.dataFolders(getActivity());
+            File[] destinations = Storage.dataFolders(context);
+
+            boolean whole = true;
 
             for (int i = 0; i < folders.length; i++) {
-                Storage.move(getActivity(), new File(previous, folders[i]),
-                             destinations[i]);
+                whole &= Storage.move(context, new File(previous, folders[i]),
+                                      destinations[i]);
             }
 
             // Captures are not in that list: they go to Pictures/Zedex rather
             // than into the data folder, so both of the old names move there.
-            Storage.move(getActivity(), new File(previous, "screenshots"),
-                         Storage.capturesDirectory(getActivity()));
-            Storage.move(getActivity(), new File(previous, "recordings"),
-                         Storage.capturesDirectory(getActivity()));
+            whole &= Storage.move(context, new File(previous, "screenshots"),
+                                  Storage.capturesDirectory(context));
+            whole &= Storage.move(context, new File(previous, "recordings"),
+                                  Storage.capturesDirectory(context));
 
             // The card is remembered by absolute path, so moving the file
             // out from under that setting loses it: Machine.applyDivmmc checks
             // isFile() and quietly inserts nothing, which reads as every save
             // on the card having disappeared. The image itself is safe in the
             // new folder - it is the pointer to it that has to move too.
-            repointCard(previous);
+            repointCard(context, preferences, previous);
+
+            return whole;
+        }
+
+        /**
+         * Back on the main thread once the files are there.
+         *
+         * The chdir happens whether or not this screen is still up, and before
+         * the check that it is: somebody who changed the folder and walked
+         * straight back to the machine still has an emulator that has to find
+         * its ROMs. Everything below that line is only worth doing to a screen
+         * somebody can see.
+         */
+        private void finishDataMove(Context context, boolean whole) {
+            movingData = false;
 
             // chdir is process wide and immediate, so the running emulator
-            // finds ROMs in the new place too - no restart needed.
+            // finds ROMs in the new place too - no restart needed. Still on
+            // the main thread, which is where it has always been, and now
+            // also not until the files have actually arrived.
             FuseNative.setWorkingDirectory(
-                    Storage.romsDirectory(getActivity()).getAbsolutePath());
+                    Storage.romsDirectory(context).getAbsolutePath());
 
-            Toast.makeText(getActivity(), R.string.settings_states_moved,
-                    Toast.LENGTH_SHORT).show();
+            Activity activity = getActivity();
+            if (activity == null) return;
+
+            Preference row = findPreference(Storage.KEY_STATES_ROOT);
+            if (row != null) row.setEnabled(true);
+
+            updateSummaries();
+
+            // Which of the two actually happened. This said "moved" either
+            // way, including for a move that gave up on half the files and
+            // logged it where nobody would look - and a move nobody watched
+            // happen is exactly the one that needs telling.
+            Toast.makeText(activity,
+                    whole ? R.string.settings_states_moved
+                          : R.string.settings_states_move_partial,
+                    Toast.LENGTH_LONG).show();
         }
 
         /**
@@ -1648,9 +1751,8 @@ public class SettingsActivity extends AppCompatActivity
          * did not carry this one leaves the old path alone to be reported
          * rather than silently replaced with another wrong one.
          */
-        private void repointCard(File previous) {
-            android.content.SharedPreferences preferences =
-                    getPreferenceManager().getSharedPreferences();
+        private static void repointCard(Context context, SharedPreferences preferences,
+                                        File previous) {
             String card = preferences.getString(Media.PREF_CARD, null);
             if (card == null) return;
 
@@ -1658,8 +1760,7 @@ public class SettingsActivity extends AppCompatActivity
             File from = new File(previous, Storage.CARDS);
             if (!was.getParentFile().equals(from)) return;
 
-            File now = new File(Storage.cardsDirectory(getActivity()),
-                                was.getName());
+            File now = new File(Storage.cardsDirectory(context), was.getName());
             if (!now.isFile()) return;
 
             preferences.edit().putString(Media.PREF_CARD,
@@ -1753,8 +1854,12 @@ public class SettingsActivity extends AppCompatActivity
                 profile.setSummary(ControlProfiles.current(settings).name);
             }
 
+            // Not while a move is in flight - see movingData. This runs after
+            // every preference change, so without the guard the row goes back
+            // to naming a folder the files have not reached yet, which is
+            // exactly the thing "Moving…" is there to say is not true yet.
             Preference folder = findPreference(Storage.KEY_STATES_ROOT);
-            if (folder != null) {
+            if (folder != null && !movingData) {
                 folder.setSummary(Storage.root(getActivity()).getAbsolutePath());
             }
 

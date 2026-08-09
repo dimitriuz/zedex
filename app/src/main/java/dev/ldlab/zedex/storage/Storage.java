@@ -827,26 +827,48 @@ public final class Storage {
     }
 
     /**
-     * Moves a folder's contents. Small files, and only when the data folder
-     * changes, so this is done in place rather than in the background.
+     * Moves a folder's contents, and says whether all of it arrived.
+     *
+     * This said "small files, and only when the data folder changes, so this
+     * is done in place rather than in the background", and both halves of
+     * that were wrong. The captures move through here too - MP4s and GIFs,
+     * not small - and while {@code renameTo} is instant, it only works
+     * <em>within</em> a volume; the whole point of changing the data folder is
+     * usually to put it on an SD card, and across a volume boundary every one
+     * of those files goes through {@link #copy} a 64 KB block at a time. It is
+     * called from a worker now - see {@code SettingsActivity.moveData}.
+     *
+     * Not atomic, and cannot be made so across volumes: a file that will not
+     * move is logged and the rest carry on, which leaves the folder split. The
+     * boolean is so the caller can say that happened rather than reporting
+     * success either way, which is what it used to do.
      */
-    public static void move(Context context, File from, File to) {
+    public static boolean move(Context context, File from, File to) {
         File[] files = from.listFiles();
-        if (files == null || files.length == 0) return;
+
+        // Null for a folder that is not there, which is the ordinary case for
+        // most of the ones a data-folder change walks: nothing failed, there
+        // was simply nothing in it.
+        if (files == null || files.length == 0) return true;
 
         if (!to.isDirectory() && !to.mkdirs()) {
             Log.w(TAG, "cannot create " + to);
-            return;
+            return false;
         }
+
+        boolean whole = true;
 
         for (File file : files) {
             File target = new File(to, file.getName());
             if (!file.renameTo(target) && !copy(file, target)) {
                 Log.w(TAG, "cannot move " + file + " to " + target);
+                whole = false;
                 continue;
             }
             file.delete();
         }
+
+        return whole;
     }
 
     /** renameTo does not work across volumes. */

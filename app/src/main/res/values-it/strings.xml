@@ -342,6 +342,8 @@
     <string name="settings_library_summary">Aprire l\'app sui tuoi giochi invece che sulla macchina. Serve una cartella dei giochi.</string>
     <string name="settings_library_needs_folder">Scegli prima una cartella dei giochi.</string>
     <string name="settings_states_moved">Salvataggi spostati</string>
+    <string name="settings_states_moving">Spostamento…</string>
+    <string name="settings_states_move_partial">Alcuni file non sono stati spostati e sono ancora nella cartella precedente</string>
 
     <string name="settings_states">Salvataggi</string>
     <string name="settings_snapshot_format">Formato dei salvataggi</string>

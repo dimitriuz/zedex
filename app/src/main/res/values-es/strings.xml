@@ -342,6 +342,8 @@
     <string name="settings_library_summary">Abrir la app en tus juegos en vez de en la máquina. Necesita una carpeta de juegos.</string>
     <string name="settings_library_needs_folder">Elige primero una carpeta de juegos.</string>
     <string name="settings_states_moved">Partidas movidas</string>
+    <string name="settings_states_moving">Moviendo…</string>
+    <string name="settings_states_move_partial">Algunos archivos no se pudieron mover y siguen en la carpeta anterior</string>
 
     <string name="settings_states">Partidas guardadas</string>
     <string name="settings_snapshot_format">Formato de las partidas</string>
