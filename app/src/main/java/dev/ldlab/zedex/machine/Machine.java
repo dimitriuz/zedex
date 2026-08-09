@@ -6,7 +6,6 @@ import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.input.Controls;
 import dev.ldlab.zedex.media.Media;
 import dev.ldlab.zedex.media.Recorder;
-import dev.ldlab.zedex.screen.SettingsActivity;
 import dev.ldlab.zedex.storage.Storage;
 import dev.ldlab.zedex.view.MenuDrawer;
 import android.app.Activity;
@@ -195,8 +194,8 @@ public final class Machine {
 
         // Not Fuse's settings, so they cannot ride in on its command line: the
         // renderer has to be told.
-        SettingsActivity.applyFilter(preferences);
-        SettingsActivity.applyScale(activity, preferences);
+        FuseSettings.applyFilter(preferences);
+        Picture.applyScale(activity, preferences);
         startDivmmc();
     }
 
@@ -211,33 +210,12 @@ public final class Machine {
 
         // Three of Fuse's settings in three combinations; see
         // OPTION_LOADER_ACCELERATION in android_bridge.c for why these three.
-        int loader = SettingsActivity.loaderLevel(preferences);
+        // Every setting Fuse takes as an argument, from the one list that
+        // also says how each is pushed into a Fuse already running - so the
+        // command line and the live push can no longer disagree about which
+        // settings exist. See FuseSettings.
+        FuseSettings.appendArguments(preferences, arguments);
 
-        arguments.add(loader > 0 ? "--traps" : "--no-traps");
-        arguments.add(loader > 0 ? "--fastload" : "--no-fastload");
-        arguments.add(loader > 1 ? "--accelerate-loader" : "--no-accelerate-loader");
-
-        flag(arguments, Prefs.KEY_DETECT_LOADER, true, "detect-loader");
-        flag(arguments, Prefs.KEY_TAPE_SOUND, true, "loading-sound");
-        flag(arguments, Prefs.KEY_AUTOLOAD, true, "auto-load");
-        flag(arguments, Prefs.KEY_ISSUE2, false, "issue2");
-        flag(arguments, Prefs.KEY_BW_TV, false, "bw-tv");
-        flag(arguments, Prefs.KEY_SOUND, true, "sound");
-        flag(arguments, Prefs.KEY_TURBOSOUND, true, "turbosound");
-        flag(arguments, Prefs.KEY_TURBO, false, "turbo");
-
-        value(arguments, Prefs.KEY_SPEED, 100, "speed");
-        value(arguments, Prefs.KEY_AY_VOLUME, 100, "volume-ay");
-
-        // Fuse's own word for it, passed straight through; see AY_STEREO.
-        arguments.add("--separation");
-        arguments.add(SettingsActivity.ayStereoName(preferences));
-        value(arguments, Prefs.KEY_BEEPER_VOLUME, 100, "volume-beeper");
-
-        // The on-screen joystick is Fuse's joystick 1. Kempston is a type and
-        // also a piece of hardware, and the port is only decoded when the
-        // interface is there, so the two go together - see OPTION_JOYSTICK_TYPE
-        // in android_bridge.c, which does the same when it is changed later.
         int joystick = host.joystickType();
         if (joystick == Controls.JOYSTICK_KEYBOARD) joystick = Controls.JOYSTICK_NONE;
 
