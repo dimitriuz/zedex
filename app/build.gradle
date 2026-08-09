@@ -365,6 +365,22 @@ dependencies {
      */
     testImplementation 'junit:junit:4.13.2'
 
+    /*
+     * A real org.json on the unit-test classpath.
+     *
+     * The stub android.jar has org.json in it, and with returnDefaultValues
+     * every method of it answers null or zero without complaining - so a JSON
+     * round-trip test would pass having serialised nothing and parsed nothing.
+     * That is worse than no test. This shadows the stub with the same
+     * implementation Android actually ships, so the round trip is a real one.
+     *
+     * It buys Pokes, and only Pokes. Hotkeys keeps its bindings in an
+     * android.util.SparseArray and ControlProfiles reaches FuseNative, so
+     * neither is one dependency away from the JVM - they want a seam first,
+     * the way EsDe.Place and Sorting.Lookup already are.
+     */
+    testImplementation 'org.json:json:20231013'
+
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test:runner:1.5.2'
     androidTestImplementation 'androidx.test.uiautomator:uiautomator:2.3.0'
