@@ -1,7 +1,7 @@
 package dev.ldlab.zedex.input;
 
+import dev.ldlab.zedex.storage.Prefs;
 import dev.ldlab.zedex.FuseNative;
-import dev.ldlab.zedex.screen.SettingsActivity;
 import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Looper;
@@ -113,8 +113,8 @@ public final class Mouse {
     }
 
     public static void apply(SharedPreferences preferences) {
-        setSensitivity(SettingsActivity.SettingsFragment.number(
-                preferences, SettingsActivity.KEY_MOUSE_SENSITIVITY, 100));
+        setSensitivity(Prefs.number(
+                preferences, Prefs.KEY_MOUSE_SENSITIVITY, 100));
     }
 
     /** A finger dragging across the picture, in device pixels. */

@@ -1,7 +1,7 @@
 package dev.ldlab.zedex.machine;
 
+import dev.ldlab.zedex.storage.Prefs;
 import dev.ldlab.zedex.R;
-import dev.ldlab.zedex.screen.SettingsActivity;
 import android.content.SharedPreferences;
 
 /**
@@ -60,7 +60,7 @@ public enum Border {
     }
 
     public static Border of(SharedPreferences preferences) {
-        return of(preferences.getString(SettingsActivity.KEY_BORDER, null));
+        return of(preferences.getString(Prefs.KEY_BORDER, null));
     }
 
     /** The stored value, or {@link #FULL} for anything unrecognised. */

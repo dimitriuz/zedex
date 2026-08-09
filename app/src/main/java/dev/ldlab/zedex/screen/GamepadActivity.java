@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.screen;
 
+import dev.ldlab.zedex.storage.Prefs;
 import dev.ldlab.zedex.view.Palette;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.view.SafeArea;
@@ -68,7 +69,7 @@ public final class GamepadActivity extends Activity {
         // this screen's, so the title is set here; see Language.
         setTitle(R.string.gamepad_activity);
 
-        preferences = getSharedPreferences(SettingsActivity.PREFS, MODE_PRIVATE);
+        preferences = getSharedPreferences(Prefs.PREFS, MODE_PRIVATE);
         setContentView(build());
 
         // Nothing of ours under the status bar or the camera; see SafeArea.

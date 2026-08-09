@@ -1,5 +1,6 @@
 package dev.ldlab.zedex;
 
+import dev.ldlab.zedex.storage.Prefs;
 import dev.ldlab.zedex.cheats.Pokes;
 import dev.ldlab.zedex.screen.SettingsActivity;
 
@@ -204,7 +205,7 @@ public class PokesTest {
 
     private SharedPreferences preferences() {
         return emulator.context().getSharedPreferences(
-                SettingsActivity.PREFS, Context.MODE_PRIVATE);
+                Prefs.PREFS, Context.MODE_PRIVATE);
     }
 
     private void forgetStoredPokes() {

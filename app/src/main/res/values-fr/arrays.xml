@@ -21,11 +21,6 @@
         <item>ABC — A à gauche, B au centre, C à droite</item>
     </string-array>
 
-    <string-array name="video_names">
-        <item>RGB — direct depuis la machine</item>
-        <item>Composite — la couleur bave sur les côtés</item>
-        <item>RF — par la prise d\'antenne</item>
-    </string-array>
 
     <string-array name="tape_format_names">
         <item>TAP — plus petit, le plus courant</item>
@@ -44,9 +39,4 @@
         <item>Aucune — l\'image seule, 256×192</item>
     </string-array>
 
-    <string-array name="video_short_names">
-        <item>RGB</item>
-        <item>Composite</item>
-        <item>RF</item>
-    </string-array>
 </resources>

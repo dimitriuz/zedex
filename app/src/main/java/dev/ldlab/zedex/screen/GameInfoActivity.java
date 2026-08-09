@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.screen;
 
+import dev.ldlab.zedex.work.Work;
 import dev.ldlab.zedex.view.Palette;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.library.meta.Artwork;
@@ -218,7 +219,7 @@ public final class GameInfoActivity extends Activity {
      * applied if this screen is still here to receive it.
      */
     private void loadManualButton(String path) {
-        new Thread(() -> {
+        Work.run("manual", () -> {
             Uri manual;
             try {
                 manual = Artwork.manual(this, path);
@@ -234,7 +235,7 @@ public final class GameInfoActivity extends Activity {
                 manualButton.setVisibility(View.VISIBLE);
                 manualButton.setOnClickListener(v -> Manuals.open(this, result));
             });
-        }).start();
+        });
     }
 
     private View words(String name) {
@@ -285,7 +286,7 @@ public final class GameInfoActivity extends Activity {
      * same post-and-check a screen that has gone away is guarded by.
      */
     private void load(String path) {
-        new Thread(() -> {
+        Work.run("game-info", () -> {
             // Asked for, and waited for: forPath answers from memory and
             // never parses, so a screen opened before the store has been read
             // - straight from ES-DE, most often - would otherwise show a game
@@ -299,7 +300,7 @@ public final class GameInfoActivity extends Activity {
                 if (isFinishing() || isDestroyed()) return;
                 show(meta);
             });
-        }).start();
+        });
     }
 
     private void show(Meta meta) {

@@ -1,5 +1,6 @@
 package dev.ldlab.zedex;
 
+import dev.ldlab.zedex.storage.Prefs;
 import dev.ldlab.zedex.library.Entry;
 import dev.ldlab.zedex.library.Facets;
 import dev.ldlab.zedex.library.Filters;
@@ -162,7 +163,7 @@ public class FilterTest {
     public void setUp() throws IOException {
         context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         SharedPreferences preferences =
-                context.getSharedPreferences(SettingsActivity.PREFS, Context.MODE_PRIVATE);
+                context.getSharedPreferences(Prefs.PREFS, Context.MODE_PRIVATE);
 
         // Asked for before it is asked about. Metadata answers from memory
         // and never parses on demand, so a caller that has not waited for it

@@ -736,4 +736,10 @@
     <string name="gallery_video">Video %1$d of %2$d</string>
     <string name="settings_keep_bar">Keep the quick bar on screen</string>
     <string name="settings_keep_bar_summary">It fades after three seconds otherwise. Always on with a screen reader.</string>
+    <string name="video_rgb">RGB — straight from the machine</string>
+    <string name="video_composite">Composite — colour bleeds sideways</string>
+    <string name="video_rf">RF — through the aerial socket</string>
+    <string name="video_rgb_short">RGB</string>
+    <string name="video_composite_short">Composite</string>
+    <string name="video_rf_short">RF</string>
 </resources>

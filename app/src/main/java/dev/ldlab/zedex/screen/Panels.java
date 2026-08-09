@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.screen;
 
+import dev.ldlab.zedex.storage.Prefs;
 import dev.ldlab.zedex.view.EmulatorLayout;
 import android.app.Activity;
 import android.app.ActivityOptions;
@@ -145,7 +146,7 @@ public final class Panels {
      */
     public void apply() {
         boolean wanted = preferences.getBoolean(
-                SettingsActivity.KEY_SECOND_SCREEN, false);
+                Prefs.KEY_SECOND_SCREEN, false);
 
         // A panel that is up stays up unless it is not wanted any more or the
         // display it is on has really gone. Nothing else is a reason; see the

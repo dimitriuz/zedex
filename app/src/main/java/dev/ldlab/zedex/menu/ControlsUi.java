@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.menu;
 
+import dev.ldlab.zedex.storage.Prefs;
 import dev.ldlab.zedex.FuseNative;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.input.ControlProfiles;
@@ -9,7 +10,6 @@ import dev.ldlab.zedex.input.Hotkeys;
 import dev.ldlab.zedex.input.Mouse;
 import dev.ldlab.zedex.screen.GamepadActivity;
 import dev.ldlab.zedex.screen.ProfileActivity;
-import dev.ldlab.zedex.screen.SettingsActivity;
 import dev.ldlab.zedex.view.EmulatorLayout;
 import dev.ldlab.zedex.view.MenuDrawer;
 import dev.ldlab.zedex.view.SpectrumKeyboardView;
@@ -104,7 +104,7 @@ public final class ControlsUi {
 
     public void applyMouse() {
         Mouse.apply(preferences);
-        Mouse.setEnabled(preferences.getBoolean(SettingsActivity.KEY_MOUSE, false));
+        Mouse.setEnabled(preferences.getBoolean(Prefs.KEY_MOUSE, false));
     }
 
     /** A controller appearing or going away, and whatever it is bound to. */
@@ -142,7 +142,7 @@ public final class ControlsUi {
 
     public SpectrumKeyboardView.Skin keyboardSkin() {
         return SpectrumKeyboardView.Skin.of(
-                preferences.getString(SettingsActivity.KEY_KEYBOARD_SKIN, null));
+                preferences.getString(Prefs.KEY_KEYBOARD_SKIN, null));
     }
 
     public String keyboardSkinName() {
@@ -152,7 +152,7 @@ public final class ControlsUi {
     // --- the mouse -----------------------------------------------------------
 
     public boolean mouseOn() {
-        return preferences.getBoolean(SettingsActivity.KEY_MOUSE, false);
+        return preferences.getBoolean(Prefs.KEY_MOUSE, false);
     }
 
     /** The mouse page, so the bar's row opens the same one the sheet does. */
@@ -198,19 +198,19 @@ public final class ControlsUi {
 
     public void showJoystick(boolean shown) {
         layout.setJoystickVisible(shown);
-        preferences.edit().putBoolean(SettingsActivity.KEY_JOYSTICK, shown).apply();
+        preferences.edit().putBoolean(Prefs.KEY_JOYSTICK, shown).apply();
 
         host.note(shown ? R.string.joystick_shown : R.string.joystick_hidden);
     }
 
     /** Whether the on-screen pad steps aside for a real controller. */
     private boolean autoHide() {
-        return preferences.getBoolean(SettingsActivity.KEY_JOYSTICK_AUTO_HIDE, true);
+        return preferences.getBoolean(Prefs.KEY_JOYSTICK_AUTO_HIDE, true);
     }
 
     private void setAutoHide(boolean on) {
         preferences.edit()
-                .putBoolean(SettingsActivity.KEY_JOYSTICK_AUTO_HIDE, on).apply();
+                .putBoolean(Prefs.KEY_JOYSTICK_AUTO_HIDE, on).apply();
 
         applyGamepad();
         host.note(on ? R.string.joystick_auto_hide_on
@@ -258,7 +258,7 @@ public final class ControlsUi {
                             ? Controls.JOYSTICK_KEYBOARD : which;
 
                     preferences.edit()
-                            .putInt(SettingsActivity.KEY_JOYSTICK_TYPE, chosen)
+                            .putInt(Prefs.KEY_JOYSTICK_TYPE, chosen)
                             .apply();
                     setJoystickType(chosen);
                     host.note(R.string.joystick_type_set, names[which]);
@@ -276,7 +276,7 @@ public final class ControlsUi {
 
     /** The stored type, or Kempston; never an index Fuse would not recognise. */
     public int joystickType() {
-        int stored = preferences.getInt(SettingsActivity.KEY_JOYSTICK_TYPE,
+        int stored = preferences.getInt(Prefs.KEY_JOYSTICK_TYPE,
                                         Controls.JOYSTICK_KEMPSTON);
         int count = FuseNative.joystickTypeNames().length;
 
@@ -307,7 +307,7 @@ public final class ControlsUi {
         int chosen = next == count ? Controls.JOYSTICK_KEYBOARD : next;
 
         preferences.edit()
-                .putInt(SettingsActivity.KEY_JOYSTICK_TYPE, chosen).apply();
+                .putInt(Prefs.KEY_JOYSTICK_TYPE, chosen).apply();
         setJoystickType(chosen);
 
         host.note(R.string.joystick_type_set, joystickTypeName());
@@ -514,7 +514,7 @@ public final class ControlsUi {
 
                 page.addChoice(names[which], which == chosen, () -> {
                     preferences.edit()
-                            .putString(SettingsActivity.KEY_KEYBOARD_SKIN,
+                            .putString(Prefs.KEY_KEYBOARD_SKIN,
                                        skins[which].value)
                             .apply();
                     layout.setKeyboardSkin(skins[which]);
@@ -532,7 +532,7 @@ public final class ControlsUi {
     public void showKeyboard(boolean shown) {
         layout.setKeyboardVisible(shown);
         applySystemKeyboard();
-        preferences.edit().putBoolean(SettingsActivity.KEY_KEYBOARD, shown).apply();
+        preferences.edit().putBoolean(Prefs.KEY_KEYBOARD, shown).apply();
 
         host.note(shown ? R.string.keyboard_shown : R.string.keyboard_hidden);
     }
@@ -556,12 +556,12 @@ public final class ControlsUi {
     }
 
     private int sensitivity() {
-        return SettingsActivity.SettingsFragment.number(
-                preferences, SettingsActivity.KEY_MOUSE_SENSITIVITY, 100);
+        return Prefs.number(
+                preferences, Prefs.KEY_MOUSE_SENSITIVITY, 100);
     }
 
     private void showMouse(boolean on) {
-        preferences.edit().putBoolean(SettingsActivity.KEY_MOUSE, on).apply();
+        preferences.edit().putBoolean(Prefs.KEY_MOUSE, on).apply();
         Mouse.setEnabled(on);
 
         host.note(on ? R.string.mouse_on_done : R.string.mouse_off_done);
@@ -587,7 +587,7 @@ public final class ControlsUi {
 
                 page.addChoice(names[i], which == chosen, () -> {
                     preferences.edit()
-                            .putString(SettingsActivity.KEY_MOUSE_SENSITIVITY,
+                            .putString(Prefs.KEY_MOUSE_SENSITIVITY,
                                        values[which])
                             .apply();
                     Mouse.apply(preferences);

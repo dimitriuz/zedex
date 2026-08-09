@@ -70,16 +70,6 @@
         <item>both</item>
     </string-array>
 
-    <string-array name="video_names">
-        <item>RGB — straight from the machine</item>
-        <item>Composite — colour bleeds sideways</item>
-        <item>RF — through the aerial socket</item>
-    </string-array>
-    <string-array name="video_values">
-        <item>0</item>
-        <item>1</item>
-        <item>2</item>
-    </string-array>
 
     <!-- Shared by every filter strength. Fine enough to tune by, coarse
          enough to pick from a list. -->
@@ -134,13 +124,6 @@
         <item>Full — every pixel the machine draws</item>
         <item>Slim — a quarter of the border</item>
         <item>None — the picture only, 256×192</item>
-    </string-array>
-    <!-- The same three signals as video_names, in the words a quick bar row
-         has room for. -->
-    <string-array name="video_short_names">
-        <item>RGB</item>
-        <item>Composite</item>
-        <item>RF</item>
     </string-array>
     <string-array name="border_values">
         <item>full</item>

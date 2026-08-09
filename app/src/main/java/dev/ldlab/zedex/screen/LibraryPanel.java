@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.screen;
 
+import dev.ldlab.zedex.storage.Prefs;
 import android.app.Activity;
 import android.content.SharedPreferences;
 import android.hardware.display.DisplayManager;
@@ -99,7 +100,7 @@ final class LibraryPanel {
      */
     void apply() {
         boolean wanted = preferences.getBoolean(
-                SettingsActivity.KEY_SECOND_SCREEN, false);
+                Prefs.KEY_SECOND_SCREEN, false);
 
         if (panel != null) {
             Display showing = panel.getDisplay();

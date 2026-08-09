@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.screen;
 
+import dev.ldlab.zedex.storage.Prefs;
 import dev.ldlab.zedex.view.Palette;
 import dev.ldlab.zedex.EmulatorActivity;
 import dev.ldlab.zedex.FuseNative;
@@ -79,7 +80,7 @@ public final class StatesActivity extends Activity {
     protected void onCreate(Bundle state) {
         super.onCreate(state);
 
-        preferences = getSharedPreferences(SettingsActivity.PREFS, MODE_PRIVATE);
+        preferences = getSharedPreferences(Prefs.PREFS, MODE_PRIVATE);
         saving = getIntent().getBooleanExtra(EXTRA_SAVING, false);
 
         setTitle(saving ? R.string.menu_save_state : R.string.menu_load_state);

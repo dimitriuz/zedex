@@ -1,7 +1,7 @@
 package dev.ldlab.zedex.library.meta;
 
+import dev.ldlab.zedex.storage.Prefs;
 import dev.ldlab.zedex.frontend.EsDe;
-import dev.ldlab.zedex.screen.SettingsActivity;
 import dev.ldlab.zedex.storage.Storage;
 import dev.ldlab.zedex.storage.Xml;
 import android.content.Context;
@@ -168,7 +168,7 @@ public final class EsdeLink {
      */
     private static void resolve(Context context) {
         SharedPreferences preferences = context.getSharedPreferences(
-                SettingsActivity.PREFS, Context.MODE_PRIVATE);
+                Prefs.PREFS, Context.MODE_PRIVATE);
         String tree = preferences.getString(EsDe.KEY_ESDE_TREE, null);
         String mediaTree = preferences.getString(KEY_MEDIA_TREE, null);
 

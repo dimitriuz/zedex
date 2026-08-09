@@ -1,7 +1,7 @@
 package dev.ldlab.zedex.frontend;
 
+import dev.ldlab.zedex.storage.Prefs;
 import dev.ldlab.zedex.library.Types;
-import dev.ldlab.zedex.screen.SettingsActivity;
 import dev.ldlab.zedex.storage.Storage;
 import dev.ldlab.zedex.storage.Xml;
 import android.content.ContentResolver;
@@ -283,7 +283,7 @@ public final class EsDe {
             if (folder != null) return new PathReach(folder);
         }
 
-        String stored = context.getSharedPreferences(SettingsActivity.PREFS, Context.MODE_PRIVATE)
+        String stored = context.getSharedPreferences(Prefs.PREFS, Context.MODE_PRIVATE)
                 .getString(KEY_ESDE_TREE, null);
         if (stored == null) return null;
 

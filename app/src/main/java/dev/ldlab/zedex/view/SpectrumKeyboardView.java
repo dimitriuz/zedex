@@ -1,8 +1,8 @@
 package dev.ldlab.zedex.view;
 
+import dev.ldlab.zedex.storage.Prefs;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.FuseNative;
-import dev.ldlab.zedex.screen.SettingsActivity;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -210,9 +210,9 @@ public class SpectrumKeyboardView extends View {
 
         // Read here rather than pushed in, so that every keyboard in the app
         // is the same one: the emulator's, and the profile editor's.
-        setSkin(Skin.of(context.getSharedPreferences(SettingsActivity.PREFS,
+        setSkin(Skin.of(context.getSharedPreferences(Prefs.PREFS,
                                                      Context.MODE_PRIVATE)
-                        .getString(SettingsActivity.KEY_KEYBOARD_SKIN, null)));
+                        .getString(Prefs.KEY_KEYBOARD_SKIN, null)));
 
         setBackgroundColor(0xff1b1b1b);
     }

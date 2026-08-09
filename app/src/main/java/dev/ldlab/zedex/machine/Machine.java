@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.machine;
 
+import dev.ldlab.zedex.storage.Prefs;
 import dev.ldlab.zedex.FuseNative;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.input.Controls;
@@ -59,7 +60,7 @@ public final class Machine {
     private static final String LIB_DIR = DATA_DIR + "/ui/widget";
     private static final String PROGRAM = DATA_DIR + "/fuse";
 
-    public static final String PREF_MACHINE = SettingsActivity.KEY_MACHINE;
+    public static final String PREF_MACHINE = Prefs.KEY_MACHINE;
     private static final String DEFAULT_MACHINE = "128";
 
     /**
@@ -216,22 +217,22 @@ public final class Machine {
         arguments.add(loader > 0 ? "--fastload" : "--no-fastload");
         arguments.add(loader > 1 ? "--accelerate-loader" : "--no-accelerate-loader");
 
-        flag(arguments, SettingsActivity.KEY_DETECT_LOADER, true, "detect-loader");
-        flag(arguments, SettingsActivity.KEY_TAPE_SOUND, true, "loading-sound");
-        flag(arguments, SettingsActivity.KEY_AUTOLOAD, true, "auto-load");
-        flag(arguments, SettingsActivity.KEY_ISSUE2, false, "issue2");
-        flag(arguments, SettingsActivity.KEY_BW_TV, false, "bw-tv");
-        flag(arguments, SettingsActivity.KEY_SOUND, true, "sound");
-        flag(arguments, SettingsActivity.KEY_TURBOSOUND, true, "turbosound");
-        flag(arguments, SettingsActivity.KEY_TURBO, false, "turbo");
+        flag(arguments, Prefs.KEY_DETECT_LOADER, true, "detect-loader");
+        flag(arguments, Prefs.KEY_TAPE_SOUND, true, "loading-sound");
+        flag(arguments, Prefs.KEY_AUTOLOAD, true, "auto-load");
+        flag(arguments, Prefs.KEY_ISSUE2, false, "issue2");
+        flag(arguments, Prefs.KEY_BW_TV, false, "bw-tv");
+        flag(arguments, Prefs.KEY_SOUND, true, "sound");
+        flag(arguments, Prefs.KEY_TURBOSOUND, true, "turbosound");
+        flag(arguments, Prefs.KEY_TURBO, false, "turbo");
 
-        value(arguments, SettingsActivity.KEY_SPEED, 100, "speed");
-        value(arguments, SettingsActivity.KEY_AY_VOLUME, 100, "volume-ay");
+        value(arguments, Prefs.KEY_SPEED, 100, "speed");
+        value(arguments, Prefs.KEY_AY_VOLUME, 100, "volume-ay");
 
         // Fuse's own word for it, passed straight through; see AY_STEREO.
         arguments.add("--separation");
         arguments.add(SettingsActivity.ayStereoName(preferences));
-        value(arguments, SettingsActivity.KEY_BEEPER_VOLUME, 100, "volume-beeper");
+        value(arguments, Prefs.KEY_BEEPER_VOLUME, 100, "volume-beeper");
 
         // The on-screen joystick is Fuse's joystick 1. Kempston is a type and
         // also a piece of hardware, and the port is only decoded when the
@@ -297,7 +298,7 @@ public final class Machine {
 
         FuseNative.loadDivmmcFirmware(firmware.getAbsolutePath());
 
-        if (!preferences.getBoolean(SettingsActivity.KEY_DIVMMC, false)) return;
+        if (!preferences.getBoolean(Prefs.KEY_DIVMMC, false)) return;
 
         FuseNative.setDivmmc(true);
 
@@ -424,7 +425,7 @@ public final class Machine {
     public void stepSpeed(int direction) {
         String[] values = activity.getResources()
                 .getStringArray(R.array.speed_values);
-        String current = preferences.getString(SettingsActivity.KEY_SPEED, "100");
+        String current = preferences.getString(Prefs.KEY_SPEED, "100");
 
         int at = 0;
         for (int i = 0; i < values.length; i++) {
@@ -435,15 +436,15 @@ public final class Machine {
         if (next == at) return;
 
         preferences.edit()
-                .putString(SettingsActivity.KEY_SPEED, values[next]).apply();
+                .putString(Prefs.KEY_SPEED, values[next]).apply();
         FuseNative.setSpeed(Integer.parseInt(values[next]));
 
         host.note(R.string.hotkey_speed, values[next]);
     }
 
     private int speed() {
-        return SettingsActivity.SettingsFragment.number(
-                preferences, SettingsActivity.KEY_SPEED, 100);
+        return Prefs.number(
+                preferences, Prefs.KEY_SPEED, 100);
     }
 
     // --- ending it -----------------------------------------------------------

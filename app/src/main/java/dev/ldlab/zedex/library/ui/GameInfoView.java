@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.library.ui;
 
+import dev.ldlab.zedex.work.Work;
 import dev.ldlab.zedex.view.Palette;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.library.meta.Artwork;
@@ -346,7 +347,7 @@ public final class GameInfoView extends LinearLayout {
 
         Context app = getContext().getApplicationContext();
 
-        new Thread(() -> {
+        Work.run("pane-info", () -> {
             // See GameInfoActivity.load: forPath never parses, so a caller
             // that cannot show anything useful without the store says so and
             // waits, on its own thread.
@@ -357,9 +358,9 @@ public final class GameInfoView extends LinearLayout {
                 if (mine != token) return; // this game was left before the store answered
                 show(meta);
             });
-        }).start();
+        });
 
-        new Thread(() -> {
+        Work.run("pane-manual", () -> {
             Uri manual;
             try {
                 manual = Artwork.manual(app, relativePath);
@@ -382,7 +383,7 @@ public final class GameInfoView extends LinearLayout {
                 manualButton.setOnClickListener(
                         v -> Manuals.open(getContext(), result, getDisplay(), onManualOpened));
             });
-        }).start();
+        });
     }
 
     /** Nothing to show - clears every field and empties the gallery. */

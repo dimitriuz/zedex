@@ -631,4 +631,10 @@
     <string name="gallery_video">Wideo %1$d z %2$d</string>
     <string name="settings_keep_bar">Nie ukrywaj paska szybkiego dostępu</string>
     <string name="settings_keep_bar_summary">Inaczej znika po trzech sekundach. Z czytnikiem ekranu zawsze widoczny.</string>
+    <string name="video_rgb">RGB — wprost z maszyny</string>
+    <string name="video_composite">Composite — kolor rozlewa się na boki</string>
+    <string name="video_rf">RF — przez gniazdo antenowe</string>
+    <string name="video_rgb_short">RGB</string>
+    <string name="video_composite_short">Composite</string>
+    <string name="video_rf_short">RF</string>
 </resources>

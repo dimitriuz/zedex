@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.update;
 
+import dev.ldlab.zedex.work.Work;
 import dev.ldlab.zedex.R;
 
 import android.Manifest;
@@ -181,7 +182,7 @@ public final class Updater {
         if (!available(activity)) return;
         if (!preferences.getBoolean(KEY_CHECK, true)) return;
 
-        new Thread(() -> {
+        Work.run("update-check", () -> {
             // Counted first, so the figure is "app started with the check on"
             // rather than "app found an update", which would only ever count the
             // people who are behind.
@@ -202,7 +203,7 @@ public final class Updater {
             activity.runOnUiThread(() -> {
                 if (!activity.isFinishing()) offer(activity, latest);
             });
-        }, "zedex-update").start();
+        });
     }
 
     // --- asking ---------------------------------------------------------------
@@ -388,7 +389,7 @@ public final class Updater {
                 .create();
         progress.show();
 
-        new Thread(() -> {
+        Work.alone("update-download", () -> {
             File apk = new File(activity.getCacheDir(), DOWNLOAD);
             String failure = fetch(release, apk, percent ->
                     activity.runOnUiThread(() -> bar.setProgress(percent)));
@@ -418,7 +419,7 @@ public final class Updater {
 
                 install(activity, apk);
             });
-        }, "zedex-download").start();
+        });
     }
 
     /**

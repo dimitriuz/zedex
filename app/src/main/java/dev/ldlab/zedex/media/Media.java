@@ -1,12 +1,13 @@
 package dev.ldlab.zedex.media;
 
+import dev.ldlab.zedex.storage.Prefs;
+import dev.ldlab.zedex.work.Work;
 import dev.ldlab.zedex.EmulatorActivity;
 import dev.ldlab.zedex.FuseNative;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.cheats.PokeDatabase;
 import dev.ldlab.zedex.library.Entry;
 import dev.ldlab.zedex.library.Listing;
-import dev.ldlab.zedex.screen.SettingsActivity;
 import dev.ldlab.zedex.storage.CardImage;
 import dev.ldlab.zedex.storage.Recents;
 import dev.ldlab.zedex.storage.States;
@@ -220,21 +221,21 @@ public final class Media {
             pendingDrive = -1;
 
             if (drive >= 0) {
-                new Thread(() -> {
+                Work.run("stage-drive", () -> {
                     File staged = stage(uri);
                     if (staged == null) return;
 
                     FuseNative.insertDisk(drive >> 8, drive & 0xff,
                                           staged.getAbsolutePath());
                     host.note(R.string.disk_inserted, staged.getName());
-                }).start();
+                });
             }
         } else if (request == REQUEST_LOAD_CARD) {
             // Off the UI thread: a card image is tens of megabytes and it is
             // copied whole.
-            new Thread(() -> insertCard(uri)).start();
+            Work.run("insert-card", () -> insertCard(uri));
         } else {
-            new Thread(() -> stageAndOpen(uri)).start();
+            Work.run("stage", () -> stageAndOpen(uri));
         }
 
         return true;
@@ -621,7 +622,7 @@ public final class Media {
      */
     private File tapeFile(String name) {
         String lower = name.toLowerCase(Locale.ROOT);
-        String wanted = preferences.getString(SettingsActivity.KEY_TAPE_FORMAT, "tap");
+        String wanted = preferences.getString(Prefs.KEY_TAPE_FORMAT, "tap");
         String file = lower.endsWith(".tap") || lower.endsWith(".tzx")
                 ? name : name + "." + wanted;
 
@@ -780,7 +781,7 @@ public final class Media {
         temp.delete();
         FuseNative.writeDisk(id >> 8, id & 0xff, temp.getAbsolutePath());
 
-        new Thread(() -> {
+        Work.run("write-disk", () -> {
             if (!waitForWrite(temp)) {
                 // Fuse has already said why, through an error box of its own.
                 host.note(R.string.disk_save_over_failed, disk);
@@ -805,7 +806,7 @@ public final class Media {
             }
 
             host.note(R.string.tape_saved, disk);
-        }).start();
+        });
     }
 
     /**

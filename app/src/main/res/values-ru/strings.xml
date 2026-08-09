@@ -631,4 +631,10 @@
     <string name="gallery_video">Видео %1$d из %2$d</string>
     <string name="settings_keep_bar">Не скрывать быструю панель</string>
     <string name="settings_keep_bar_summary">Иначе исчезает через три секунды. С экранным диктором — всегда.</string>
+    <string name="video_rgb">RGB — прямо из машины</string>
+    <string name="video_composite">Composite — цвет растекается по горизонтали</string>
+    <string name="video_rf">RF — через антенный вход</string>
+    <string name="video_rgb_short">RGB</string>
+    <string name="video_composite_short">Composite</string>
+    <string name="video_rf_short">RF</string>
 </resources>

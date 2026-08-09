@@ -1,5 +1,7 @@
 package dev.ldlab.zedex.screen;
 
+import dev.ldlab.zedex.storage.Prefs;
+import dev.ldlab.zedex.work.Work;
 import dev.ldlab.zedex.view.Palette;
 import dev.ldlab.zedex.EmulatorActivity;
 import dev.ldlab.zedex.R;
@@ -191,7 +193,7 @@ public final class StartPanel {
             if (tree != null && request == REQUEST_CONTENT_TREE) {
                 Storage.keepAccessTo(activity, tree,
                         Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                activity.getSharedPreferences(SettingsActivity.PREFS,
+                activity.getSharedPreferences(Prefs.PREFS,
                                               Activity.MODE_PRIVATE)
                         .edit().putString(Storage.KEY_CONTENT_TREE, tree.toString())
                         .apply();
@@ -211,7 +213,7 @@ public final class StartPanel {
             Uri tree = data.getData();
             if (tree != null) {
                 toast(R.string.roms_searching);
-                new Thread(() -> copyRomsFromTree(tree)).start();
+                Work.alone("roms-copy", () -> copyRomsFromTree(tree));
             }
             return true;
         }
@@ -226,7 +228,7 @@ public final class StartPanel {
             sources.add(data.getData());
         }
 
-        if (!sources.isEmpty()) new Thread(() -> copyRoms(sources)).start();
+        if (!sources.isEmpty()) Work.alone("roms-import", () -> copyRoms(sources));
         return true;
     }
 
@@ -561,7 +563,7 @@ public final class StartPanel {
      */
     public static boolean setupNeeded(Activity activity) {
         SharedPreferences preferences = activity.getSharedPreferences(
-                SettingsActivity.PREFS, Activity.MODE_PRIVATE);
+                Prefs.PREFS, Activity.MODE_PRIVATE);
 
         if (preferences.getBoolean(Storage.KEY_SETUP_DONE, false)) return false;
 
@@ -621,7 +623,7 @@ public final class StartPanel {
                 Storage.root(activity).getAbsolutePath()));
 
         String content = Storage.describe(
-                activity.getSharedPreferences(SettingsActivity.PREFS,
+                activity.getSharedPreferences(Prefs.PREFS,
                                               Activity.MODE_PRIVATE)
                         .getString(Storage.KEY_CONTENT_TREE, null));
 
@@ -727,7 +729,7 @@ public final class StartPanel {
             return;
         }
 
-        activity.getSharedPreferences(SettingsActivity.PREFS, Activity.MODE_PRIVATE)
+        activity.getSharedPreferences(Prefs.PREFS, Activity.MODE_PRIVATE)
                 .edit()
                 .putString(Storage.KEY_STATES_ROOT, folder.getAbsolutePath())
                 .apply();
@@ -756,7 +758,7 @@ public final class StartPanel {
      */
     private void finishSetup() {
         asking = false;
-        activity.getSharedPreferences(SettingsActivity.PREFS, Activity.MODE_PRIVATE)
+        activity.getSharedPreferences(Prefs.PREFS, Activity.MODE_PRIVATE)
                 .edit().putBoolean(Storage.KEY_SETUP_DONE, true).apply();
 
         // Whatever the folder rows ended up saying, written down as the answer.
@@ -881,7 +883,7 @@ public final class StartPanel {
                 .setMessage(R.string.roms_download_warning)
                 .setPositiveButton(R.string.roms_download, (dialog, which) -> {
                     toast(R.string.roms_downloading);
-                    new Thread(this::downloadRoms).start();
+                    Work.alone("roms-download", this::downloadRoms);
                 })
                 .setNeutralButton(R.string.roms_open_page, (dialog, which) -> openRomsPage())
                 .setNegativeButton(android.R.string.cancel, null)
