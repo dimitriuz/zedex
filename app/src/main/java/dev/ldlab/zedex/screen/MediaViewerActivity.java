@@ -31,7 +31,7 @@ import android.widget.ImageButton;
  * carried through an Intent could go stale between being built and being
  * shown.
  */
-public final class MediaViewerActivity extends Activity {
+public final class MediaViewerActivity extends ZedexActivity {
 
     /** The game's path relative to the content tree - {@link
      *  dev.ldlab.zedex.library.meta.Metadata#relativePath}. */
@@ -44,11 +44,6 @@ public final class MediaViewerActivity extends Activity {
     private Gallery gallery;
     private ImageButton soundButton;
 
-    /** Every screen speaks the chosen language; see {@link Language}. */
-    @Override
-    protected void attachBaseContext(Context base) {
-        super.attachBaseContext(Language.wrap(base));
-    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -65,7 +60,7 @@ public final class MediaViewerActivity extends Activity {
         int index = getIntent().getIntExtra(EXTRA_INDEX, 0);
 
         setContentView(page());
-        SafeArea.fit(findViewById(android.R.id.content));
+        fitToSafeArea();
 
         if (path != null) gallery.load(path, index);
     }

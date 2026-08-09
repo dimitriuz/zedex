@@ -11,6 +11,7 @@ import dev.ldlab.zedex.library.Favorites;
 import dev.ldlab.zedex.library.Filters;
 import dev.ldlab.zedex.library.Listing;
 import dev.ldlab.zedex.library.Sorting;
+import dev.ldlab.zedex.library.meta.Artwork;
 import dev.ldlab.zedex.library.meta.Meta;
 import dev.ldlab.zedex.library.meta.Metadata;
 import dev.ldlab.zedex.library.ui.EntryAdapter;
@@ -84,13 +85,8 @@ import java.util.Set;
  * That is the one requirement a folder of a few thousand tapes puts on this
  * screen, and the reason it exists at all.
  */
-public final class LibraryActivity extends Activity {
+public final class LibraryActivity extends ZedexActivity {
 
-    /** Every screen speaks the chosen language; see {@link Language}. */
-    @Override
-    protected void attachBaseContext(android.content.Context base) {
-        super.attachBaseContext(Language.wrap(base));
-    }
 
     private static final String TAG = "Zedex";
 
@@ -216,7 +212,6 @@ public final class LibraryActivity extends Activity {
         }
     }
 
-    private SharedPreferences preferences;
     private Tab tab = Tab.BROWSE;
 
     /**
@@ -508,7 +503,6 @@ public final class LibraryActivity extends Activity {
     protected void onCreate(Bundle state) {
         super.onCreate(state);
 
-        preferences = getSharedPreferences(Prefs.PREFS, MODE_PRIVATE);
 
         // The one decision this screen makes before drawing anything: whether
         // it should be here at all - and only the launcher path asks it. Off,
@@ -581,7 +575,7 @@ public final class LibraryActivity extends Activity {
         if (getActionBar() != null) getActionBar().hide();
 
         // Nothing of ours under the status bar or the camera; see SafeArea.
-        SafeArea.fit(findViewById(android.R.id.content));
+        fitToSafeArea();
 
         padNav = buildPadNav();
         padCursor = new GamepadCursor(padNav);
@@ -751,6 +745,31 @@ public final class LibraryActivity extends Activity {
      * emulator's own panel wants the same display; see {@link
      * LibraryPanel}'s class comment.
      */
+    /**
+     * Lets go of what only this screen wanted.
+     *
+     * onDestroy rather than onStop: opening a game stops this activity and it
+     * comes back to the same collection a moment later, so dropping the
+     * resolved artwork there would mean asking the documents provider for all
+     * of it again on the way back. Going away for good is a different thing.
+     *
+     * Artwork's caches are static - they have to be, since the pane, the rows
+     * and the details screen all share them - so nothing else would ever
+     * release them. Metadata's store is deliberately left: it is one map,
+     * cheap to hold and expensive to parse, and the next screen to open wants
+     * exactly it.
+     */
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+
+        if (!handedOver) {
+            forgetFlattened();
+            Artwork.forget();
+            Gallery.forgetPictures();
+        }
+    }
+
     @Override
     protected void onStop() {
         if (handedOver) {

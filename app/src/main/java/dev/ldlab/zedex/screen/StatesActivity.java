@@ -48,13 +48,8 @@ import java.util.List;
  * emulation thread through {@link FuseNative} like every other command, so
  * nothing has to be handed back to the emulator's activity first.
  */
-public final class StatesActivity extends Activity {
+public final class StatesActivity extends ZedexActivity {
 
-    /** Every screen speaks the chosen language; see {@link Language}. */
-    @Override
-    protected void attachBaseContext(android.content.Context base) {
-        super.attachBaseContext(Language.wrap(base));
-    }
 
     /** True to save over what is here, false to load one of them. */
     public static final String EXTRA_SAVING = "saving";
@@ -63,7 +58,6 @@ public final class StatesActivity extends Activity {
     /** A cell wide enough for a readable 4:3 picture, in dp. */
     private static final int CELL_DP = 190;
 
-    private SharedPreferences preferences;
     private boolean saving;
 
     private GridView grid;
@@ -80,14 +74,13 @@ public final class StatesActivity extends Activity {
     protected void onCreate(Bundle state) {
         super.onCreate(state);
 
-        preferences = getSharedPreferences(Prefs.PREFS, MODE_PRIVATE);
         saving = getIntent().getBooleanExtra(EXTRA_SAVING, false);
 
         setTitle(saving ? R.string.menu_save_state : R.string.menu_load_state);
         setContentView(page());
 
         // Nothing of ours under the status bar or the camera; see SafeArea.
-        SafeArea.fit(findViewById(android.R.id.content));
+        fitToSafeArea();
 
         // The platform's own bar carries the title and the way back, so there
         // is no heading of ours underneath it saying the same thing again.

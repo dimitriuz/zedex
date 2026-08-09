@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.library.meta;
 
+import android.util.LruCache;
 import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
@@ -65,13 +66,30 @@ public final class Artwork {
     /** A cached miss, so the map can tell "not looked up" from "looked up, nothing there". */
     private static final Uri MISS = Uri.EMPTY;
 
-    private static final Map<String, Uri> pictureCache = new HashMap<>();
-    private static final Map<String, Uri> videoCache = new HashMap<>();
-    private static final Map<String, Uri> manualCache = new HashMap<>();
+    /**
+     * How many answers each cache keeps.
+     *
+     * These were unbounded maps, cleared only when the ES-DE media root
+     * changed - so browsing a few thousand games accumulated four entries
+     * each for the life of the process, and leaving the library released
+     * none of it. What is being kept is small (a path and a document Uri),
+     * but "small and for ever" is still a leak with a slow fuse.
+     *
+     * Five hundred is far more than fits on a screen and about the size of a
+     * folder somebody actually scrolls through, so an eviction means going
+     * back past five hundred games - at which point one more provider query
+     * is the cheaper of the two costs.
+     */
+    private static final int CACHE_ENTRIES = 500;
+
+    private static final LruCache<String, Uri> pictureCache = new LruCache<>(CACHE_ENTRIES);
+    private static final LruCache<String, Uri> videoCache = new LruCache<>(CACHE_ENTRIES);
+    private static final LruCache<String, Uri> manualCache = new LruCache<>(CACHE_ENTRIES);
 
     /** {@link #pictures}, which asks for all four folders where the two
      *  above stop at the first answer. */
-    private static final Map<String, List<Uri>> galleryCache = new HashMap<>();
+    private static final LruCache<String, List<Uri>> galleryCache =
+            new LruCache<>(CACHE_ENTRIES);
 
     /** The media root the two caches above were built against. */
     private static String cachedForRoot;
@@ -184,14 +202,27 @@ public final class Artwork {
         String key = root == null ? null : root.toString();
 
         if (!java.util.Objects.equals(key, cachedForRoot)) {
-            pictureCache.clear();
-            videoCache.clear();
-            manualCache.clear();
-            galleryCache.clear();
+            forget();
             cachedForRoot = key;
         }
 
         return root;
+    }
+
+    /**
+     * Drops everything remembered.
+     *
+     * Called when the media root changes, because none of it can still be
+     * true, and by the library screen when it goes away, because that is when
+     * this stops being a working set and becomes something held for nobody -
+     * these are static, so without this they outlive every screen that wanted
+     * them.
+     */
+    public static synchronized void forget() {
+        pictureCache.evictAll();
+        videoCache.evictAll();
+        manualCache.evictAll();
+        galleryCache.evictAll();
     }
 
     /** ES-DE's path, without the ROM's own extension and without the leading {@code ./}. */
