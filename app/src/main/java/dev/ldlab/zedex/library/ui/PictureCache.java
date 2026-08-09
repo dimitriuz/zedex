@@ -68,6 +68,20 @@ final class PictureCache {
     private PictureCache() {
     }
 
+    /**
+     * Drops every decoded picture.
+     *
+     * These are bounded already - an eighth of the heap and a thirty-second
+     * of it - so this is not about a leak but about when the budget is worth
+     * spending. Held after the library has gone away it is tens of megabytes
+     * for a screen nobody is looking at, and the emulator, which is what is
+     * usually in front of it, would rather have the memory.
+     */
+    static void forget() {
+        exact.evictAll();
+        latest.evictAll();
+    }
+
     private static String key(Uri picture, int targetPx) {
         return picture.toString() + '@' + targetPx;
     }

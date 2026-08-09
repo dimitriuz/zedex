@@ -11,6 +11,7 @@ import dev.ldlab.zedex.library.Favorites;
 import dev.ldlab.zedex.library.Filters;
 import dev.ldlab.zedex.library.Listing;
 import dev.ldlab.zedex.library.Sorting;
+import dev.ldlab.zedex.library.meta.Artwork;
 import dev.ldlab.zedex.library.meta.Meta;
 import dev.ldlab.zedex.library.meta.Metadata;
 import dev.ldlab.zedex.library.ui.EntryAdapter;
@@ -751,6 +752,31 @@ public final class LibraryActivity extends Activity {
      * emulator's own panel wants the same display; see {@link
      * LibraryPanel}'s class comment.
      */
+    /**
+     * Lets go of what only this screen wanted.
+     *
+     * onDestroy rather than onStop: opening a game stops this activity and it
+     * comes back to the same collection a moment later, so dropping the
+     * resolved artwork there would mean asking the documents provider for all
+     * of it again on the way back. Going away for good is a different thing.
+     *
+     * Artwork's caches are static - they have to be, since the pane, the rows
+     * and the details screen all share them - so nothing else would ever
+     * release them. Metadata's store is deliberately left: it is one map,
+     * cheap to hold and expensive to parse, and the next screen to open wants
+     * exactly it.
+     */
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+
+        if (!handedOver) {
+            forgetFlattened();
+            Artwork.forget();
+            Gallery.forgetPictures();
+        }
+    }
+
     @Override
     protected void onStop() {
         if (handedOver) {

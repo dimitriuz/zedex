@@ -1024,6 +1024,12 @@ public final class Gallery extends LinearLayout {
         }
     }
 
+    /** Lets the decoded pictures go; see PictureCache.forget. Static
+     *  because the cache is - every gallery in the app shares it. */
+    public static void forgetPictures() {
+        PictureCache.forget();
+    }
+
     private int pixels(int dp) {
         return Math.round(dp * getResources().getDisplayMetrics().density);
     }
