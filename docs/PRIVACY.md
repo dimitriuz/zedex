@@ -1,6 +1,6 @@
 # Privacy policy
 
-**Zedex** · 4 August 2026
+**Zedex** · 9 August 2026
 
 **Zedex collects no personal data.** No account, no analytics, no advertising, no
 crash reporting, and no server belonging to the developer.
@@ -12,6 +12,10 @@ On your device, and nowhere else:
 - Settings — machine, keyboard, filters, controls
 - Your files — ROMs, save states, tapes, disks, screenshots, recordings
 - The names of the last ten files you opened
+- Your ScreenScraper username and password, if you chose to enter one —
+  kept on the device and deliberately left out of Android's backup and
+  device transfer, so a password of yours is never copied into a cloud
+  account
 
 The default folder is `/storage/emulated/0/Documents/Zedex`. Screenshots and
 recordings go to `Pictures/Zedex`, so your gallery shows them; save-state
@@ -21,7 +25,7 @@ Uninstalling removes the settings. Your folder stays.
 
 ## When Zedex uses the internet
 
-Three times, and never otherwise.
+Four times, and never otherwise. Three of them only if you ask.
 
 **1. Checking for a new version** — the version from GitHub only, at startup. It
 asks two things: which release is newest, and the small checksum file published
@@ -45,6 +49,28 @@ GitHub and is passed to Android's installer, which asks you before installing.
 
 **3. Downloading system ROMs** — only if you tap that button. One file, from
 `archive.org`.
+
+**4. Looking up a game's details and artwork** — only if you ask for it, from
+*Scrape this game…* or *Scrape many games…* in the library. Nothing is
+scraped in the background and nothing is scraped automatically.
+
+The service is `screenscraper.fr`, run in France by its own community, and
+its privacy policy applies to what it receives. What Zedex sends, per game:
+
+- the file's name, and its MD5 checksum — the checksum is how a game is
+  recognised exactly rather than guessed at from its name;
+- an identifier for the app itself, which the service issues so it can tell
+  one program from another;
+- your own ScreenScraper username and password, **only if you have entered
+  them** in *Settings › Library*. They are optional; without them the app
+  uses a shared allowance.
+
+The checksum is of the game file, not of anything about you, and no
+identifier for your device, your installation or you is sent or exists.
+screenscraper.fr sees your IP address, as any website does.
+
+What comes back — names, descriptions, cover art, screenshots, videos and
+manuals — is written into your own folder and nowhere else.
 
 **The version from Google Play does neither 1 nor 2.** It cannot install updates;
 Play updates it instead.
@@ -73,6 +99,9 @@ Tapping one opens your browser, and that site's privacy policy applies:
 | The Internet Archive | nothing but the request |
 | The Tipshop cheat search | the name of the program you have loaded |
 | github.com/dimitriuz/zedex | nothing but the request |
+
+Zedex itself talks to `screenscraper.fr`, and only when you ask it to — see
+*When Zedex uses the internet* above.
 
 ## Permissions
 

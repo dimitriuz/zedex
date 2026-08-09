@@ -490,4 +490,63 @@ public class MetadataStoreTest {
         assertEquals(1000, Metadata.count(context));
         assertEquals("Game 999", Metadata.forPath(context, "./game999.tap").name);
     }
+
+    // --- the control layout ------------------------------------------------------------
+
+    /**
+     * A scraped control layout survives being written and read back.
+     *
+     * Stored under an element of ours, since ES-DE has nothing that means it.
+     * Losing it on the round trip would be invisible until somebody tried to
+     * use it, which is a separate piece of work and a long way from here.
+     */
+    @Test
+    public void acontrolLayoutSurvivesTheRoundTrip() {
+        String layout = "# Manic Miner\n0:left = q ;; left\n0:a = v ;; jump";
+
+        Metadata.put(context, game("./a.tap", "A").withControls(layout));
+        Metadata.refresh(context);
+
+        assertEquals(layout, Metadata.forPath(context, "./a.tap").controls);
+    }
+
+    /** A game without one reads back with none, not an empty string. */
+    @Test
+    public void agameWithNoLayoutReadsBackWithNone() {
+        Metadata.replaceScraped(context, Collections.singletonList(game("./a.tap", "A")));
+        Metadata.refresh(context);
+
+        assertNull(Metadata.forPath(context, "./a.tap").controls);
+    }
+
+    /** Editing a field by hand keeps it - the editor does not show the layout,
+     *  so dropping it there would lose it silently on the first correction. */
+    @Test
+    public void editingAFieldByHandKeepsTheLayout() {
+        String layout = "0:left = q";
+
+        Metadata.put(context, game("./a.tap", "A").withControls(layout));
+        Metadata.refresh(context);
+
+        Meta edited = Metadata.forPath(context, "./a.tap").with(Meta.Field.NAME, "Renamed");
+        Metadata.put(context, edited);
+        Metadata.refresh(context);
+
+        assertEquals("Renamed", Metadata.forPath(context, "./a.tap").name);
+        assertEquals("the hand editor dropped the control layout",
+                     layout, Metadata.forPath(context, "./a.tap").controls);
+    }
+
+    /** Multi-line and full of punctuation, which is what it really is. */
+    @Test
+    public void arealisticLayoutSurvivesXmlEscaping() {
+        String layout = "# Manic Miner\n# v1.0 - 23/03/2025\n"
+                      + "0:start = ENTER ;; start game\n0:left = q ;; left\n"
+                      + "0:r1 = h ;; music on & off <loud>";
+
+        Metadata.put(context, game("./a.tap", "A").withControls(layout));
+        Metadata.refresh(context);
+
+        assertEquals(layout, Metadata.forPath(context, "./a.tap").controls);
+    }
 }

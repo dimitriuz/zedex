@@ -650,4 +650,91 @@
     <string name="edit_metadata_forget">Olvidar mis cambios</string>
     <string name="edit_metadata_forget_confirm">Este juego se quedará sin metadatos hasta que vuelvas a enlazar ES-DE, que devolverá lo que sepa.</string>
     <string name="edit_metadata_forgotten">Cambios olvidados</string>
+    <string name="scrape_menu">Obtener datos…</string>
+    <string name="scrape_working">Buscando…</string>
+    <string name="scrape_choose">¿Qué juego es este?</string>
+    <string name="scrape_nothing">No se encontró nada para este juego</string>
+    <string name="scrape_done">Datos obtenidos</string>
+    <string name="scrape_done_media">Datos obtenidos, %1$d imagen(es)</string>
+    <string name="scrape_overwrite">Editaste los datos de este juego a mano. Obtenerlos los reemplazará.</string>
+    <string name="scrape_failed_quota">No quedan consultas por hoy</string>
+    <string name="scrape_failed_login">Se rechazó el inicio de sesión</string>
+    <string name="scrape_failed_network">No se pudo conectar con el servicio</string>
+    <string name="scrape_failed_closed">El servicio está cerrado para esta cuenta</string>
+    <!-- Scraping a whole collection - ScrapeManyActivity. -->
+    <string name="scrape_many_menu">Obtener datos de varios juegos…</string>
+    <string name="scrape_many_title">Datos de varios juegos</string>
+    <string name="scrape_many_scope">Qué carpeta</string>
+    <string name="scrape_many_scope_here">Esta carpeta</string>
+    <string name="scrape_many_scope_named">Esta carpeta (%1$s)</string>
+    <string name="scrape_many_scope_below">Esta carpeta y todo lo que hay debajo</string>
+    <string name="scrape_many_scope_library">Toda la biblioteca</string>
+    <string name="scrape_many_only">Qué juegos</string>
+    <string name="scrape_many_only_unscraped">Aún sin datos</string>
+    <string name="scrape_many_only_no_picture">Juegos sin imagen</string>
+    <string name="scrape_many_only_everything">Todo, otra vez</string>
+    <string name="scrape_many_conflicts">Cuando coincide más de un juego</string>
+    <string name="scrape_many_conflicts_skip">Omitirlos</string>
+    <string name="scrape_many_conflicts_best">Tomar la mejor coincidencia — a veces el juego equivocado</string>
+    <string name="scrape_many_conflicts_ask">Preguntarme cada vez — durará lo que tardes</string>
+    <string name="scrape_many_counting">Contando…</string>
+    <string name="scrape_many_cannot_list">No se pudo leer esa carpeta</string>
+    <plurals name="scrape_many_estimate">
+        <item quantity="one">%1$d juego · unas %2$d peticiones</item>
+        <item quantity="other">%1$d juegos · unas %2$d peticiones</item>
+    </plurals>
+    <string name="scrape_many_quota">Hoy quedan %1$d peticiones</string>
+    <string name="scrape_many_start">Empezar</string>
+    <string name="scrape_many_close">Cerrar</string>
+    <string name="scrape_many_working">Empezando…</string>
+    <string name="scrape_many_stopping">Deteniendo…</string>
+    <string name="scrape_many_at">%1$d de %2$d — %3$s</string>
+    <string name="scrape_many_skip_one">Omitir este</string>
+    <string name="scrape_many_skip_rest">Omitir el resto</string>
+    <string name="scrape_many_cancelled">Detenido.</string>
+    <plurals name="scrape_many_scraped">
+        <item quantity="one">%1$d juego obtenido</item>
+        <item quantity="other">%1$d juegos obtenidos</item>
+    </plurals>
+    <plurals name="scrape_many_media">
+        <item quantity="one">%1$d archivo descargado</item>
+        <item quantity="other">%1$d archivos descargados</item>
+    </plurals>
+    <plurals name="scrape_many_ambiguous">
+        <item quantity="one">%1$d necesitaba elección</item>
+        <item quantity="other">%1$d necesitaban elección</item>
+    </plurals>
+    <plurals name="scrape_many_unknown">
+        <item quantity="one">%1$d no encontrado</item>
+        <item quantity="other">%1$d no encontrados</item>
+    </plurals>
+    <plurals name="scrape_many_yours">
+        <item quantity="one">%1$d intacto — lo editaste a mano</item>
+        <item quantity="other">%1$d intactos — los editaste a mano</item>
+    </plurals>
+    <plurals name="scrape_many_failed">
+        <item quantity="one">%1$d falló</item>
+        <item quantity="other">%1$d fallaron</item>
+    </plurals>
+    <string name="scrape_many_resume">Vuelve a ejecutarlo con «Aún sin datos» para continuar donde se detuvo.</string>
+    <!-- An optional ScreenScraper account of the user's own. -->
+    <string name="settings_group_scraper">Cuenta del scraper</string>
+    <string name="settings_scraper_user">Usuario de ScreenScraper</string>
+    <string name="settings_scraper_user_summary">Opcional. Tu propia cuenta tiene un límite diario mucho mayor que el que comparten todos los usuarios de esta app.</string>
+    <string name="settings_scraper_password">Contraseña de ScreenScraper</string>
+    <string name="settings_scraper_password_none">Sin definir</string>
+    <string name="settings_scraper_password_set">Definida</string>
+    <!-- What a scrape fetches; each one costs a request per game. -->
+    <string name="settings_scrape_media">Qué obtener</string>
+    <string name="scrape_media_none">Solo datos, sin imágenes</string>
+    <string name="scrape_media_summary">%1$d de %2$d · %3$d peticiones por juego</string>
+    <string name="scrape_media_covers">Carátula — en cada fila</string>
+    <string name="scrape_media_screenshots">Captura de pantalla</string>
+    <string name="scrape_media_titlescreens">Pantalla de título</string>
+    <string name="scrape_media_backcovers">Contraportada</string>
+    <string name="scrape_media_physicalmedia">Casete o disco</string>
+    <string name="scrape_media_miximages">Imagen combinada</string>
+    <string name="scrape_media_videos">Vídeo — alrededor de 1 MB cada uno</string>
+    <string name="scrape_media_manuals">Manual (PDF)</string>
+    <string name="scrape_many_fetching">Qué obtener</string>
 </resources>

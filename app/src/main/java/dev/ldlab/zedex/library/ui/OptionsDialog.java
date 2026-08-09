@@ -132,6 +132,40 @@ public final class OptionsDialog {
          *  it would be reached by dismissing something the person did not put
          *  there. */
         void editMetadata();
+
+        /**
+         * Whether anything can be scraped from at all.
+         *
+         * A build with no provider credentials cannot, which is the ordinary
+         * state of a source download - see {@code Scrapers}. Its own question
+         * again rather than folded into {@link #editingAllowed}: editing by
+         * hand needs a selected game and nothing else, and scraping needs a
+         * selected game <em>and</em> somewhere to ask.
+         */
+        boolean scrapingAllowed();
+
+        /** MENU's own Scrape row was chosen. */
+        void scrapeSelected();
+
+        /**
+         * Whether a run over many games can be offered.
+         *
+         * A third question rather than the other two combined, and it is a
+         * genuinely different one: scraping <em>this</em> game needs a
+         * selected game, and scraping many needs a folder to scope by
+         * instead. So this is true standing in Browse with nothing selected
+         * at all, and false on Favourites and Recent, which are answers to a
+         * question of their own with no folder behind them.
+         *
+         * Tempting to reuse {@link #filteringAllowed}, which happens to
+         * answer "is this Browse" today. CLAUDE.md's own rule about one
+         * predicate answering two questions is there because that exact
+         * shortcut has already cost this codebase a bug.
+         */
+        boolean sweepAllowed();
+
+        /** MENU's own "Scrape many games" row was chosen. */
+        void scrapeMany();
     }
 
     // Matches LibraryActivity's own palette - duplicated rather than shared,
@@ -687,6 +721,27 @@ public final class OptionsDialog {
             addRow(column, activity.getString(R.string.edit_metadata_menu), () -> {
                 dismiss();
                 callbacks.editMetadata();
+            });
+        }
+
+        // Beside it, and on the same selected-game condition plus somewhere to
+        // ask: the two are the same subject from opposite ends - correcting a
+        // game by hand, and fetching what somebody else already wrote down.
+        if (callbacks.editingAllowed() && callbacks.scrapingAllowed()) {
+            addRow(column, activity.getString(R.string.scrape_menu), () -> {
+                dismiss();
+                callbacks.scrapeSelected();
+            });
+        }
+
+        // And the same thing over a folder. Below the one-game row rather
+        // than above it: this is the rarer errand and the far more expensive
+        // one, and the row above is what somebody standing on a game came
+        // here for.
+        if (callbacks.scrapingAllowed() && callbacks.sweepAllowed()) {
+            addRow(column, activity.getString(R.string.scrape_many_menu), () -> {
+                dismiss();
+                callbacks.scrapeMany();
             });
         }
     }

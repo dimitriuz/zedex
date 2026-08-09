@@ -70,6 +70,16 @@ public final class Metadata {
     private static final String LINKED = "zedexLinked";
     private static final String SOURCE = "zedexSource";
 
+    /**
+     * The provider's own control layout for a game - see {@link Meta#controls}.
+     *
+     * Ours, like {@link #SOURCE}, and not one of ES-DE's elements: they have
+     * nothing that means this. Harmless in a file ES-DE never reads - this
+     * store is the app's own - and it keeps the file a gamelist that opens in
+     * an editor and still makes sense.
+     */
+    private static final String CONTROLS = "zedexControls";
+
     private static final class Store {
         final long mtime;
         final long linkedAt;
@@ -168,12 +178,13 @@ public final class Metadata {
     public static synchronized void replaceScraped(Context context, List<Meta> games) {
         List<Meta> keeping = new ArrayList<>(games);
 
-        // Every row somebody edited by hand survives the link, and wins over a
-        // scraped row for the same game - see Meta.USER, which is the whole of
-        // the ownership rule. Added after the scraped ones so the map below
-        // takes them last.
+        // Every row ES-DE does not own survives the link and wins over a
+        // scraped row for the same game - a hand edit, and anything this app
+        // fetched from a provider of its own. Added after the scraped ones so
+        // the map below takes them last. See Meta#isEsde, and why "not ES-DE's"
+        // rather than "hand edited" is the rule that generalises.
         for (Meta mine : store(context).games.values()) {
-            if (mine.isMine()) keeping.add(mine);
+            if (!mine.isEsde()) keeping.add(mine);
         }
 
         write(context, keeping);
@@ -497,6 +508,7 @@ public final class Metadata {
             append(document, element, "players", game.players);
             append(document, element, "rating", game.rating);
             append(document, element, SOURCE, game.source);
+            append(document, element, CONTROLS, game.controls);
             root.appendChild(element);
         }
 
@@ -731,7 +743,7 @@ public final class Metadata {
 
         String path = null, name = null, desc = null, developer = null;
         String publisher = null, genre = null, released = null;
-        String players = null, rating = null, source = null;
+        String players = null, rating = null, source = null, controls = null;
 
         while (parser.next() != XmlPullParser.END_DOCUMENT) {
             int event = parser.getEventType();
@@ -754,6 +766,7 @@ public final class Metadata {
                 case "rating":      rating = value;    break;
                 default:
                     if (SOURCE.equals(tag)) source = value;
+                    else if (CONTROLS.equals(tag)) controls = value;
                     break;
             }
         }
@@ -761,7 +774,8 @@ public final class Metadata {
         if (path == null || path.isEmpty()) return null;
 
         return new Meta(path, name, desc, developer, publisher,
-                        genre, released, players, rating, source);
+                        genre, released, players, rating, source)
+                .withControls(controls);
     }
 
     /** The {@code linked} attribute, or 0 for anything unreadable. */

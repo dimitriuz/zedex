@@ -15,6 +15,7 @@ import dev.ldlab.zedex.library.Sorting;
 import dev.ldlab.zedex.library.meta.Artwork;
 import dev.ldlab.zedex.library.meta.Meta;
 import dev.ldlab.zedex.library.meta.Metadata;
+import dev.ldlab.zedex.library.scrape.Scrapers;
 import dev.ldlab.zedex.library.ui.DetailPane;
 import dev.ldlab.zedex.library.ui.EntryAdapter;
 import dev.ldlab.zedex.library.ui.Gallery;
@@ -345,6 +346,26 @@ public final class LibraryActivity extends ZedexActivity {
      *  built adapter clears a cache that has nothing in it yet. */
     private long lastLinkedAt = -1;
 
+    /**
+     * Whether a screen that can rewrite the store was opened from here.
+     *
+     * {@code Metadata.lastLinked} moves for a link and nothing else, so the
+     * check below it in {@link #onResume} does not notice a hand edit or a
+     * scrape - and {@code Scraped} caches the name and the picture per row,
+     * so what comes back is the old one. In this activity {@link
+     * #metadataChanged} handles it; for a screen of its own there is nothing
+     * to call it.
+     *
+     * Latent before this: the hand editor has always had it, one row at a
+     * time and easy to miss. A run over a folder changes three hundred rows
+     * at once, which is the same bug at a size nobody could miss.
+     *
+     * A flag rather than clearing on every return, deliberately - coming back
+     * from a game must not throw away a cache it never needed to lose, which
+     * is the whole reason the link check below is a check and not a clear.
+     */
+    private boolean storeMayHaveChanged;
+
     private TextView pathLabel;
 
     /**
@@ -542,6 +563,39 @@ public final class LibraryActivity extends ZedexActivity {
             }
 
             @Override
+            public boolean scrapingAllowed() {
+                return Scrapers.any(LibraryActivity.this);
+            }
+
+            @Override
+            public void scrapeSelected() {
+                if (selected != null) new ScrapeOneGame(LibraryActivity.this).scrape(selected);
+            }
+
+            @Override
+            public boolean sweepAllowed() {
+                // Browse, and a folder rather than a zip: a run walks a
+                // document tree, and an archive is one document with no
+                // children SAF can enumerate. Nothing about the selection -
+                // this scopes by where you are standing, not by what is
+                // under the cursor.
+                return tab == Tab.BROWSE && !stack.isEmpty()
+                        && !stack.get(stack.size() - 1).archive;
+            }
+
+            @Override
+            public void scrapeMany() {
+                if (!sweepAllowed()) return;
+
+                Level here = stack.get(stack.size() - 1);
+
+                storeMayHaveChanged = true;
+                startActivity(new Intent(LibraryActivity.this, ScrapeManyActivity.class)
+                        .putExtra(ScrapeManyActivity.EXTRA_FOLDER, here.uri.toString())
+                        .putExtra(ScrapeManyActivity.EXTRA_FOLDER_NAME, here.name));
+            }
+
+            @Override
             public boolean filteringAllowed() {
                 // Not filtering() itself, which also asks whether anything
                 // is actually set - this asks the narrower question of
@@ -611,6 +665,12 @@ public final class LibraryActivity extends ZedexActivity {
         long linkedAt = Metadata.lastLinked(this);
         if (linkedAt != lastLinkedAt) {
             lastLinkedAt = linkedAt;
+            adapter.clearScraped();
+        } else if (storeMayHaveChanged) {
+            // The editor and the sweep both write rows without touching
+            // lastLinked, so the check above cannot see them - see the
+            // field's own comment.
+            storeMayHaveChanged = false;
             adapter.clearScraped();
         }
 
@@ -1630,12 +1690,28 @@ public final class LibraryActivity extends ZedexActivity {
      * passing a parsed {@link Meta} through an Intent would be a second copy
      * able to go stale.
      */
+    /**
+     * Something changed one game's metadata while this screen stayed up.
+     *
+     * The editor is a screen of its own, so coming back from it runs onResume
+     * and everything is re-read there - but a scrape happens in front of this
+     * one, and without this the row keeps the name it had until something
+     * unrelated clears the cache. Same two steps onResume takes.
+     */
+    void metadataChanged() {
+        Metadata.refresh(this);
+        adapter.clearScraped();
+        adapter.notifyDataSetChanged();
+        updatePane();
+    }
+
     private void editMetadataFor(Entry entry) {
         if (entry.isContainer() || entry.inside != null) return;
 
         String relativePath = Metadata.relativePath(this, entry.uri);
         if (relativePath == null) return;
 
+        storeMayHaveChanged = true;
         startActivity(new Intent(this, EditMetadataActivity.class)
                 .putExtra(EditMetadataActivity.EXTRA_PATH, relativePath)
                 .putExtra(EditMetadataActivity.EXTRA_NAME, entry.name));

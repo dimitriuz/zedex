@@ -1,5 +1,8 @@
 package dev.ldlab.zedex.library.meta;
 
+import dev.ldlab.zedex.storage.Storage;
+
+import android.util.Log;
 import android.util.LruCache;
 import android.content.Context;
 import android.database.Cursor;
@@ -31,6 +34,8 @@ import java.util.Map;
  * to something different, which is what a new or revoked grant does.
  */
 public final class Artwork {
+
+    private static final String TAG = "Zedex";
 
     private static final String SYSTEM = "zxspectrum";
 
@@ -99,8 +104,11 @@ public final class Artwork {
 
     /** The first of {@link #PICTURE_FOLDERS} that exists; null when none does. */
     public static synchronized Uri picture(Context context, String relativePath) {
+        // No early return on a null root any more: ES-DE not being installed,
+        // or its grant being gone, says nothing about what this app fetched
+        // for itself. freshen still runs, because its job is to notice their
+        // root changing and drop what was cached against it.
         Uri root = freshen(context);
-        if (root == null) return null;
 
         Uri cached = pictureCache.get(relativePath);
         if (cached != null) return cached == MISS ? null : cached;
@@ -109,10 +117,7 @@ public final class Artwork {
         Uri found = null;
 
         for (String folder : PICTURE_FOLDERS) {
-            for (String extension : PICTURE_EXTENSIONS) {
-                found = resolve(context, root, folder, stem + "." + extension);
-                if (found != null) break;
-            }
+            found = inFolder(context, root, folder, stem);
             if (found != null) break;
         }
 
@@ -137,7 +142,6 @@ public final class Artwork {
      */
     public static synchronized List<Uri> pictures(Context context, String relativePath) {
         Uri root = freshen(context);
-        if (root == null) return Collections.emptyList();
 
         List<Uri> cached = galleryCache.get(relativePath);
         if (cached != null) return cached;
@@ -146,13 +150,8 @@ public final class Artwork {
         List<Uri> found = new ArrayList<>();
 
         for (String folder : PICTURE_FOLDERS) {
-            for (String extension : PICTURE_EXTENSIONS) {
-                Uri one = resolve(context, root, folder, stem + "." + extension);
-                if (one != null) {
-                    found.add(one);
-                    break;
-                }
-            }
+            Uri one = inFolder(context, root, folder, stem);
+            if (one != null) found.add(one);
         }
 
         List<Uri> result = Collections.unmodifiableList(found);
@@ -163,13 +162,13 @@ public final class Artwork {
     /** {@code videos/...}; null when there is none. */
     public static synchronized Uri video(Context context, String relativePath) {
         Uri root = freshen(context);
-        if (root == null) return null;
 
         Uri cached = videoCache.get(relativePath);
         if (cached != null) return cached == MISS ? null : cached;
 
-        Uri found = resolve(context, root,
-                VIDEO_FOLDER, withoutExtension(relativePath) + "." + VIDEO_EXTENSION);
+        String name = withoutExtension(relativePath) + "." + VIDEO_EXTENSION;
+        Uri found = ours(context, VIDEO_FOLDER, name);
+        if (found == null && root != null) found = resolve(context, root, VIDEO_FOLDER, name);
 
         videoCache.put(relativePath, found == null ? MISS : found);
         return found;
@@ -184,13 +183,13 @@ public final class Artwork {
      */
     public static synchronized Uri manual(Context context, String relativePath) {
         Uri root = freshen(context);
-        if (root == null) return null;
 
         Uri cached = manualCache.get(relativePath);
         if (cached != null) return cached == MISS ? null : cached;
 
-        Uri found = resolve(context, root,
-                MANUAL_FOLDER, withoutExtension(relativePath) + "." + MANUAL_EXTENSION);
+        String name = withoutExtension(relativePath) + "." + MANUAL_EXTENSION;
+        Uri found = ours(context, MANUAL_FOLDER, name);
+        if (found == null && root != null) found = resolve(context, root, MANUAL_FOLDER, name);
 
         manualCache.put(relativePath, found == null ? MISS : found);
         return found;
@@ -231,6 +230,81 @@ public final class Artwork {
                 ? relativePath.substring(2) : relativePath;
         int dot = path.lastIndexOf('.');
         return dot > 0 ? path.substring(0, dot) : path;
+    }
+
+    /**
+     * One folder's picture for this game: ours if we have it, otherwise
+     * ES-DE's.
+     *
+     * <b>Per folder, not per source.</b> A cover this app scraped beats a
+     * cover ES-DE scraped, and their screenshots still appear beside it in
+     * the gallery - which is what somebody with a half-scraped collection
+     * actually wants, and what "ours entirely, else theirs" would take away.
+     */
+    private static Uri inFolder(Context context, Uri esde, String folder, String stem) {
+        for (String extension : PICTURE_EXTENSIONS) {
+            Uri mine = ours(context, folder, stem + "." + extension);
+            if (mine != null) return mine;
+        }
+
+        if (esde == null) return null;
+
+        for (String extension : PICTURE_EXTENSIONS) {
+            Uri theirs = resolve(context, esde, folder, stem + "." + extension);
+            if (theirs != null) return theirs;
+        }
+        return null;
+    }
+
+    /**
+     * One candidate in this app's own media folder, or null.
+     *
+     * Always a plain file - it is under {@link Storage#root}, which this app
+     * owns and reaches by path - so this is the simple half of what {@link
+     * #resolve} has to do for ES-DE's, whose root may be a SAF document.
+     */
+    private static Uri ours(Context context, String folder, String name) {
+        File file = new File(new File(Storage.mediaDirectory(context), folder), name);
+        return file.canRead() && file.length() > 0 ? Uri.fromFile(file) : null;
+    }
+
+    /**
+     * Where a scraper should write one piece of media for a game.
+     *
+     * The counterpart to everything above: this names the file, {@link #ours}
+     * finds it again, and the two must agree or a scrape appears to do
+     * nothing. Parent folders are made here, since the caller is about to
+     * write and there is nothing else it could reasonably do about them.
+     *
+     * @param folder one of ES-DE's own names - {@code covers}, {@code videos}
+     *               and the rest - which this app mirrors so one list serves
+     *               both roots; see {@link #PICTURE_FOLDERS}.
+     */
+    public static File fileFor(Context context, String relativePath,
+                               String folder, String extension) {
+        File file = new File(new File(Storage.mediaDirectory(context), folder),
+                             withoutExtension(relativePath) + "." + extension);
+
+        File parent = file.getParentFile();
+        if (parent != null && !parent.isDirectory() && !parent.mkdirs()) {
+            Log.w(TAG, "cannot make " + parent);
+        }
+        return file;
+    }
+
+    /**
+     * Drops what was remembered about one game.
+     *
+     * For a scrape that has just written this game's cover: {@link #forget()}
+     * would be correct too and throws away five hundred lookups to do it,
+     * which in the middle of a multi-scrape is five hundred games' worth of
+     * provider queries per game scraped.
+     */
+    public static synchronized void forget(String relativePath) {
+        pictureCache.remove(relativePath);
+        videoCache.remove(relativePath);
+        manualCache.remove(relativePath);
+        galleryCache.remove(relativePath);
     }
 
     /**

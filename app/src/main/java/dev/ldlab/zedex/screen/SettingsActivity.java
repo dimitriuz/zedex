@@ -16,6 +16,7 @@ import dev.ldlab.zedex.machine.Border;
 import dev.ldlab.zedex.machine.Filter;
 import dev.ldlab.zedex.media.Media;
 import dev.ldlab.zedex.frontend.EsDe;
+import dev.ldlab.zedex.library.scrape.Scrapers;
 import dev.ldlab.zedex.library.meta.Artwork;
 import dev.ldlab.zedex.library.meta.EsdeLink;
 import dev.ldlab.zedex.library.meta.Meta;
@@ -1959,6 +1960,55 @@ public class SettingsActivity extends AppCompatActivity
             Preference profile = findPreference(ControlProfiles.KEY_CURRENT);
             if (profile != null) {
                 profile.setSummary(ControlProfiles.current(settings).name);
+            }
+
+            /*
+             * The ScreenScraper login, which is one row that shows its value
+             * and one that must never show its own.
+             *
+             * A password under its row on a settings page is readable by
+             * anyone standing behind you and by any screenshot in a bug
+             * report, so this says whether there is one and nothing else -
+             * which is also the only thing anybody needs to know from here.
+             * The name is not a secret and is worth showing: it is how you
+             * tell "signed in as somebody" from "signed in as nobody".
+             */
+            Preference scraperUser = findPreference(Prefs.KEY_SCRAPER_USER);
+            if (scraperUser != null) {
+                String user = settings.getString(Prefs.KEY_SCRAPER_USER, "");
+                scraperUser.setSummary(user == null || user.trim().isEmpty()
+                        ? getString(R.string.settings_scraper_user_summary)
+                        : user.trim());
+            }
+
+            /*
+             * What a scrape fetches, and what that costs.
+             *
+             * The arithmetic belongs here rather than in anybody's head:
+             * every medium is a request against the day's allowance, so
+             * ticking two more boxes is the difference between a collection
+             * fitting in a day and not. Naming the count as well as the cost
+             * because "6 requests a game" alone does not say how many were
+             * chosen out of how many there are.
+             */
+            Preference scrapeMedia = findPreference(Prefs.KEY_SCRAPE_MEDIA);
+            if (scrapeMedia != null) {
+                int chosen = Scrapers.wanted(getActivity()).requests();
+                int available = getResources()
+                        .getStringArray(R.array.scrape_media_folders).length;
+
+                scrapeMedia.setSummary(chosen == 0
+                        ? getString(R.string.scrape_media_none)
+                        : getString(R.string.scrape_media_summary,
+                                    chosen, available, chosen + 1));
+            }
+
+            Preference scraperPassword = findPreference(Prefs.KEY_SCRAPER_PASSWORD);
+            if (scraperPassword != null) {
+                String password = settings.getString(Prefs.KEY_SCRAPER_PASSWORD, "");
+                scraperPassword.setSummary(password == null || password.isEmpty()
+                        ? R.string.settings_scraper_password_none
+                        : R.string.settings_scraper_password_set);
             }
 
             // Not while a move is in flight - see movingData. This runs after

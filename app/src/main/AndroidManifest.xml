@@ -134,6 +134,17 @@
             android:windowSoftInputMode="adjustResize"
             android:exported="false" />
 
+        <!-- A whole collection at a time. A screen and not a service on
+             purpose: leaving it stops the run, which costs nothing because
+             there is no progress to lose - the "not scraped yet" filter is
+             the resume. See screen/ScrapeManyActivity.java. -->
+        <activity
+            android:name=".screen.ScrapeManyActivity"
+            android:label="@string/scrape_many_title"
+            android:theme="@android:style/Theme.DeviceDefault"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden"
+            android:exported="false" />
+
         <!-- One picture or the video, full screen, swipeable across the
              rest of the same gallery - opened from a tap on a page in the
              pane or in GameInfoActivity; see library/ui/Gallery.java and

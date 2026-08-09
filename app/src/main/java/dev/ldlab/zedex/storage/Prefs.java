@@ -122,6 +122,57 @@ public final class Prefs {
      * LibraryActivity; this screen never reads it back.
      */
     public static final String KEY_LIBRARY_VIDEO_AUTOPLAY = "libraryVideoAutoplay";
+    /**
+     * A ScreenScraper account of the user's own, optional, and the reason it
+     * is offered.
+     *
+     * The app ships a developer id and password, and <b>they are readable by
+     * anyone who has the APK</b> - {@code aapt2 dump resources} prints them,
+     * no decompiler needed, and no amount of obfuscation changes that because
+     * a client-side secret is not a thing that exists. What that shared
+     * developer account can do is therefore what an attacker can do, and the
+     * damage worth caring about is not somebody reading the password: it is
+     * the id being hammered and <em>banned</em>, which would end scraping for
+     * every install at once.
+     *
+     * So the shared account is meant to carry casual use and nothing more.
+     * Anyone scraping a whole collection is asked to bring their own, which
+     * also buys them a real daily allowance - see {@code ScreenScraper},
+     * which has always taken {@code ssid}/{@code sspassword} and until now
+     * was never given any.
+     *
+     * Both are strings, written by an {@code EditTextPreference}. <b>Both are
+     * excluded from backup and device transfer</b> - see
+     * {@code res/xml/backup_rules.xml}: a password is not ours to put in
+     * somebody's cloud account, and carrying the name without it would
+     * restore a half-configured login that fails authentication with nothing
+     * on screen to say why. Neither goes anywhere near a bug report;
+     * {@code Diagnostics} names the keys it prints one at a time, and
+     * {@code DiagnosticsTest} checks these two are not among them.
+     */
+    public static final String KEY_SCRAPER_USER = "scraperUser";
+    public static final String KEY_SCRAPER_PASSWORD = "scraperPassword";
+    /**
+     * Which media a scrape fetches, as ES-DE folder names.
+     *
+     * A {@code StringSet}, written by a {@code MultiSelectListPreference} and
+     * turned into a {@code Provider.Wanted} by {@code Scrapers.wanted} -
+     * which is why the stored values are folder names rather than an enum or
+     * a bitmask: {@code Wanted} has always been addressed by folder, so the
+     * setting hands straight through with nothing to translate between.
+     *
+     * <b>Each one costs a request per game.</b> A cover is a {@code
+     * mediaJeu.php} call exactly like a search is, so this is the setting
+     * that decides whether a collection fits in a day: the default three are
+     * four requests a game, and all eight would be nine.
+     *
+     * Absent means the default, which is the three this app actually draws
+     * everywhere - {@code Provider.Wanted.usual}. <b>An empty set is not the
+     * same as absent</b> and must not be treated as one: it means metadata
+     * only, which is a real thing to want and the cheapest scrape there is.
+     * {@code getStringSet} tells them apart by returning null for absent.
+     */
+    public static final String KEY_SCRAPE_MEDIA = "scrapeMedia";
     /* How big the picture is drawn, one per orientation: the number of device
        pixels per emulated pixel, or "0" to fill the space. Stored as strings
        because a ListPreference stores strings, and separate because the two

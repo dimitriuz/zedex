@@ -77,12 +77,41 @@ jobs:
 
       - uses: ./.github/actions/native
 
+      # A missing secret here does not fail anything: build.gradle defaults the
+      # credentials to empty, Scrapers.any answers false, and the release
+      # ships with every scraping entry point quietly removed. It looks
+      # exactly like a normal build, which is why it is asked about here
+      # rather than discovered by somebody wondering where the menu row went -
+      # the same reason the Play bundle is checked for the debug key below.
+      - name: The scraper credentials must be there
+        env:
+          SCREENSCRAPER_DEV_ID: ${{ secrets.SCREENSCRAPER_DEV_ID }}
+          SCREENSCRAPER_DEV_PASSWORD: ${{ secrets.SCREENSCRAPER_DEV_PASSWORD }}
+        run: |
+          [ -n "$SCREENSCRAPER_DEV_ID" ] && [ -n "$SCREENSCRAPER_DEV_PASSWORD" ] || {
+            echo "::error::SCREENSCRAPER_DEV_ID / SCREENSCRAPER_DEV_PASSWORD are not set on this repository, so this release would ship with scraping silently absent"
+            exit 1
+          }
+
       - name: Assemble and sign
         env:
           ZEDEX_KEYSTORE: ${{ runner.temp }}/zedex.jks
           ZEDEX_KEYSTORE_PASSWORD: ${{ secrets.ZEDEX_KEYSTORE_PASSWORD }}
           ZEDEX_KEY_ALIAS: ${{ secrets.ZEDEX_KEY_ALIAS }}
           ZEDEX_KEY_PASSWORD: ${{ secrets.ZEDEX_KEY_PASSWORD }}
+          # Without these the release hides scraping entirely - Scrapers.any
+          # answers false and every entry point removes itself, silently and
+          # correctly. Here and not in build.yml on purpose: a PR's debug
+          # artifact is the easiest binary in the world to grab and take
+          # apart, and it does not need to scrape to be worth having.
+          #
+          # They are sealed into the APK rather than written in the clear -
+          # see library/scrape/Secrets.java, which is also candid that this
+          # is obfuscation and not secrecy. A client-side secret cannot be
+          # one. The mitigation that actually works is the optional account
+          # on the Library tab.
+          SCREENSCRAPER_DEV_ID: ${{ secrets.SCREENSCRAPER_DEV_ID }}
+          SCREENSCRAPER_DEV_PASSWORD: ${{ secrets.SCREENSCRAPER_DEV_PASSWORD }}
         run: |
           ./gradlew --no-daemon assembleRelease bundlePlay
 

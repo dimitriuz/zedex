@@ -216,6 +216,8 @@ the two either way.
   collection, not just the folder you're browsing; from the toolbar's
   **Options** button or the pad's Select
 - Names, descriptions, artwork and manuals from an ES-DE scrape — see below
+- Or scrape them yourself from ScreenScraper: one game from its menu, or a
+  whole folder at a time, choosing which pictures you want
 - A page per game: every picture ES-DE has for it, the video, and the manual
 - A controller drives all of it: the stick moves, **A** plays, **B** goes up,
   **Y** favourites, **L1/R1** change tab, **L2/R2** page, **X** searches and
@@ -303,9 +305,9 @@ browser. Changes are written back once a second and whenever the app is paused.
 
 No advertising, no analytics library, no accounts, and nothing stored about you
 anywhere. The whole app carries a single library, for one settings screen.
-Internet access is used for two things and both are yours to ask for: fetching a
-ROM set, and asking GitHub whether there is a newer release than the one you are
-running.
+Internet access is used for three things and all are yours to ask for: fetching a
+ROM set, asking GitHub whether there is a newer release than the one you are
+running, and looking a game up when you scrape it.
 
 That second one is counted, and it is the only measure of use this project has:
 the check fetches the small checksum file published beside your version's

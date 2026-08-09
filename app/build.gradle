@@ -103,6 +103,89 @@ def gitStamp = { String... command ->
     }
 }
 
+/*
+ * ScreenScraper's developer account, from local.properties - which is
+ * gitignored, so a clone never carries it and a source download builds
+ * perfectly well without one.
+ *
+ * Empty is a supported state, not a broken one: Scrapers.configured() answers
+ * false and every entry point hides itself, so the app runs and simply cannot
+ * scrape. That is what makes this safe to leave out of CI.
+ *
+ * These are extractable from the APK, as the same fields are in every other
+ * frontend that talks to ScreenScraper - a resValue and a BuildConfig field
+ * are equally readable, and there is no way to ask their API without shipping
+ * something. Rotated if it leaks.
+ *
+ * resValue rather than buildConfig, following the two build stamps below: the
+ * project deliberately does not turn the buildConfig feature on.
+ */
+def zedexLocal = new Properties()
+def zedexLocalFile = rootProject.file('local.properties')
+
+if (zedexLocalFile.exists()) {
+    zedexLocalFile.withInputStream { zedexLocal.load(it) }
+}
+
+def screenScraperId = System.getenv('SCREENSCRAPER_DEV_ID')
+        ?: zedexLocal.getProperty('screenscraper.devid') ?: ''
+def screenScraperPassword = System.getenv('SCREENSCRAPER_DEV_PASSWORD')
+        ?: zedexLocal.getProperty('screenscraper.devpassword') ?: ''
+
+/*
+ * The credentials are sealed rather than written into resources in the clear.
+ *
+ * Obfuscation, not secrecy, and library/scrape/Secrets.java says so at length:
+ * the key is derived from a constant that ships in the same APK, so anybody
+ * who reads that file can undo this. What it buys is that `aapt2 dump
+ * resources` no longer prints a password to somebody who was looking at
+ * something else - which is how most of what gets scraped off published APKs
+ * is found.
+ *
+ * The seasoning is READ OUT OF THAT FILE rather than repeated here. One copy
+ * exists; a build and an app that disagreed about it would produce an APK
+ * whose credentials silently would not open, which is exactly the kind of
+ * failure this project keeps learning to design out rather than debug.
+ */
+def zedexSeasoning = { ->
+    def source = file('src/main/java/dev/ldlab/zedex/library/scrape/Secrets.java')
+    def found = source.text =~ /SEASONING\s*=\s*"([^"]*)"/
+
+    if (!found) {
+        throw new GradleException(
+                "Secrets.java has no SEASONING constant this build can read - " +
+                "if its shape changed, this regex has to change with it")
+    }
+    return found[0][1]
+}()
+
+def zedexSeal = { String field, String plain ->
+    if (!plain) return ''
+
+    def digest = { String text ->
+        java.security.MessageDigest.getInstance('SHA-256')
+                .digest(text.getBytes('UTF-8'))
+    }
+
+    def key = new javax.crypto.spec.SecretKeySpec(digest(zedexSeasoning), 'AES')
+
+    // Derived from the plaintext, not random: a build has to be reproducible,
+    // and a fixed nonce reused across two different secrets under one key is
+    // the one way to make GCM leak. Tying it to the value means changing the
+    // password changes the nonce.
+    def iv = digest(field + '|' + plain)[0..<12] as byte[]
+
+    def cipher = javax.crypto.Cipher.getInstance('AES/GCM/NoPadding')
+    cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, key,
+                new javax.crypto.spec.GCMParameterSpec(128, iv))
+
+    def out = new java.io.ByteArrayOutputStream()
+    out.write(iv)
+    out.write(cipher.doFinal(plain.getBytes('UTF-8')))
+
+    return java.util.Base64.encoder.encodeToString(out.toByteArray())
+}
+
 def zedexCommit = gitStamp('rev-parse', '--short', 'HEAD')
 def zedexDate = gitStamp('log', '-1', '--date=format:%Y-%m-%d', '--format=%cd')
 
@@ -166,6 +249,15 @@ android {
         // buildConfig feature on to read them.
         resValue 'string', 'build_commit', zedexCommit
         resValue 'string', 'build_date', zedexDate
+
+        // See the notes above zedexLocal and zedexSeal. Empty unless
+        // local.properties or the environment supplies them, and sealed
+        // rather than in the clear when they do - the names say so, because a
+        // resource called screenscraper_dev_password holding ciphertext would
+        // read as a plaintext password to the next person along.
+        resValue 'string', 'screenscraper_id_sealed', zedexSeal('id', screenScraperId)
+        resValue 'string', 'screenscraper_password_sealed',
+                 zedexSeal('password', screenScraperPassword)
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         ndk {
             // Prebuilt by scripts/build-native.sh into src/main/jniLibs
@@ -216,17 +308,22 @@ android {
         }
 
         release {
-            // Off, and the rules beside it are still declared on purpose.
+            // On, and only safe because of the rules beside it. Read
+            // app/proguard-rules.pro before touching either: without them
+            // this is a crash on launch, and with only the default file it is
+            // worse - the app ships with errors that never appear and
+            // recording that writes nothing, and nothing is logged.
             //
-            // Turning this on without them is a crash on launch that no debug
-            // build can show, and turning it on with only the default file is
-            // worse: the class and its natives survive, the three C-called
-            // callbacks do not, and the app ships with errors that never
-            // appear and recording that writes nothing, silently. Wiring the
-            // rules in now means flipping this line is the whole change, and
-            // that the reasoning was read before somebody needed it in a
-            // hurry. See app/proguard-rules.pro.
-            minifyEnabled false
+            // 37% off the APK, measured: 13.94 MB to 8.72 MB.
+            //
+            // Nothing automated covers this. Instrumentation runs against the
+            // debug build, where minification is off, so the three failures
+            // the rules exist to prevent cannot show up in a green suite.
+            // They were checked by hand on a release install instead - it
+            // launched, a malformed snapshot produced its libspectrum error
+            // on screen, and a GIF came out with 274 frames in it. Do that
+            // again after changing anything here.
+            minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'),
                           'proguard-rules.pro'
 

@@ -1,10 +1,17 @@
 # Keep rules for the JNI boundary.
 #
-# Not currently applied: minifyEnabled is false for every build type. They are
-# here and wired into the release block anyway, because the day somebody turns
+# Applied: minifyEnabled is true for release. It was false when these were
+# written, and they were written first on purpose - the day somebody turns
 # minification on is the day this becomes a shipped crash that no debug build
-# can show, and a rule that is already written and already reviewed costs
-# nothing until then.
+# can show. That day has come and the rules were already reviewed.
+#
+# Verified on a release install rather than assumed, because none of this can
+# fail in a way the test suite sees: instrumentation runs against the debug
+# build, where minification is off. Checked by hand - the app launched, a
+# malformed .sna produced "libspectrum_sna_identify: unknown length" on
+# screen, and a recording came out a 274-frame GIF. Those three are onError,
+# onFrame and onScreenshot respectively, and they are the whole point of this
+# file.
 #
 # There are two ways to get it wrong and only one of them is obvious.
 #
@@ -16,7 +23,7 @@
 #   * With minifyEnabled true and the *standard* proguard-android-optimize.txt
 #     the class survives, because that file carries
 #     -keepclasseswithmembernames class * { native <methods>; }, and so do all
-#     72 native methods. onError, onFrame and onScreenshot do not: they are
+#     71 native methods. onError, onFrame and onScreenshot do not: they are
 #     package-private statics called from C and from nowhere in Java, so R8
 #     reads them as unreachable and removes them. The three GetStaticMethodID
 #     calls then return NULL, the guards in android_bridge.c skip the

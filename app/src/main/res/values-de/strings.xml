@@ -650,4 +650,91 @@
     <string name="edit_metadata_forget">Meine Änderungen verwerfen</string>
     <string name="edit_metadata_forget_confirm">Dieses Spiel hat gar keine Metadaten mehr, bis ES-DE erneut verknüpft wird und zurückbringt, was es weiß.</string>
     <string name="edit_metadata_forgotten">Änderungen verworfen</string>
+    <string name="scrape_menu">Daten abrufen…</string>
+    <string name="scrape_working">Wird gesucht…</string>
+    <string name="scrape_choose">Welches Spiel ist das?</string>
+    <string name="scrape_nothing">Dazu wurde nichts gefunden</string>
+    <string name="scrape_done">Abgerufen</string>
+    <string name="scrape_done_media">Abgerufen, %1$d Bild(er)</string>
+    <string name="scrape_overwrite">Die Angaben zu diesem Spiel wurden von Hand bearbeitet. Ein Abruf ersetzt sie.</string>
+    <string name="scrape_failed_quota">Heute sind keine Anfragen mehr übrig</string>
+    <string name="scrape_failed_login">Die Anmeldung wurde abgelehnt</string>
+    <string name="scrape_failed_network">Der Dienst war nicht erreichbar</string>
+    <string name="scrape_failed_closed">Der Dienst ist für dieses Konto geschlossen</string>
+    <!-- Scraping a whole collection - ScrapeManyActivity. -->
+    <string name="scrape_many_menu">Daten für viele Spiele abrufen…</string>
+    <string name="scrape_many_title">Daten für viele Spiele</string>
+    <string name="scrape_many_scope">Welcher Ordner</string>
+    <string name="scrape_many_scope_here">Dieser Ordner</string>
+    <string name="scrape_many_scope_named">Dieser Ordner (%1$s)</string>
+    <string name="scrape_many_scope_below">Dieser Ordner und alles darunter</string>
+    <string name="scrape_many_scope_library">Die ganze Bibliothek</string>
+    <string name="scrape_many_only">Welche Spiele</string>
+    <string name="scrape_many_only_unscraped">Noch nicht abgerufen</string>
+    <string name="scrape_many_only_no_picture">Spiele ohne Bild</string>
+    <string name="scrape_many_only_everything">Alles, noch einmal</string>
+    <string name="scrape_many_conflicts">Wenn mehr als ein Spiel passt</string>
+    <string name="scrape_many_conflicts_skip">Überspringen</string>
+    <string name="scrape_many_conflicts_best">Beste Übereinstimmung nehmen — manchmal das falsche Spiel</string>
+    <string name="scrape_many_conflicts_ask">Jedes Mal nachfragen — dauert so lange wie Sie brauchen</string>
+    <string name="scrape_many_counting">Wird gezählt…</string>
+    <string name="scrape_many_cannot_list">Dieser Ordner ließ sich nicht lesen</string>
+    <plurals name="scrape_many_estimate">
+        <item quantity="one">%1$d Spiel · etwa %2$d Anfragen</item>
+        <item quantity="other">%1$d Spiele · etwa %2$d Anfragen</item>
+    </plurals>
+    <string name="scrape_many_quota">Heute noch %1$d Anfragen übrig</string>
+    <string name="scrape_many_start">Starten</string>
+    <string name="scrape_many_close">Schließen</string>
+    <string name="scrape_many_working">Wird gestartet…</string>
+    <string name="scrape_many_stopping">Wird angehalten…</string>
+    <string name="scrape_many_at">%1$d von %2$d — %3$s</string>
+    <string name="scrape_many_skip_one">Dieses überspringen</string>
+    <string name="scrape_many_skip_rest">Rest überspringen</string>
+    <string name="scrape_many_cancelled">Angehalten.</string>
+    <plurals name="scrape_many_scraped">
+        <item quantity="one">%1$d Spiel abgerufen</item>
+        <item quantity="other">%1$d Spiele abgerufen</item>
+    </plurals>
+    <plurals name="scrape_many_media">
+        <item quantity="one">%1$d Datei geladen</item>
+        <item quantity="other">%1$d Dateien geladen</item>
+    </plurals>
+    <plurals name="scrape_many_ambiguous">
+        <item quantity="one">%1$d brauchte eine Auswahl</item>
+        <item quantity="other">%1$d brauchten eine Auswahl</item>
+    </plurals>
+    <plurals name="scrape_many_unknown">
+        <item quantity="one">%1$d nicht gefunden</item>
+        <item quantity="other">%1$d nicht gefunden</item>
+    </plurals>
+    <plurals name="scrape_many_yours">
+        <item quantity="one">%1$d ausgelassen — von Hand bearbeitet</item>
+        <item quantity="other">%1$d ausgelassen — von Hand bearbeitet</item>
+    </plurals>
+    <plurals name="scrape_many_failed">
+        <item quantity="one">%1$d fehlgeschlagen</item>
+        <item quantity="other">%1$d fehlgeschlagen</item>
+    </plurals>
+    <string name="scrape_many_resume">Starten Sie das erneut mit „Noch nicht abgerufen“, um dort weiterzumachen, wo es aufgehört hat.</string>
+    <!-- An optional ScreenScraper account of the user's own. -->
+    <string name="settings_group_scraper">Scraper-Konto</string>
+    <string name="settings_scraper_user">ScreenScraper-Benutzername</string>
+    <string name="settings_scraper_user_summary">Optional. Ein eigenes Konto hat ein viel größeres Tageskontingent als das, das sich alle Nutzer dieser App teilen.</string>
+    <string name="settings_scraper_password">ScreenScraper-Passwort</string>
+    <string name="settings_scraper_password_none">Nicht gesetzt</string>
+    <string name="settings_scraper_password_set">Gesetzt</string>
+    <!-- What a scrape fetches; each one costs a request per game. -->
+    <string name="settings_scrape_media">Was abgerufen wird</string>
+    <string name="scrape_media_none">Nur Angaben, keine Bilder</string>
+    <string name="scrape_media_summary">%1$d von %2$d · %3$d Anfragen pro Spiel</string>
+    <string name="scrape_media_covers">Cover — in jeder Zeile</string>
+    <string name="scrape_media_screenshots">Bildschirmfoto</string>
+    <string name="scrape_media_titlescreens">Titelbildschirm</string>
+    <string name="scrape_media_backcovers">Rückseite</string>
+    <string name="scrape_media_physicalmedia">Kassette oder Diskette</string>
+    <string name="scrape_media_miximages">Kombiniertes Bild</string>
+    <string name="scrape_media_videos">Video — etwa 1 MB je Spiel</string>
+    <string name="scrape_media_manuals">Handbuch (PDF)</string>
+    <string name="scrape_many_fetching">Was abgerufen wird</string>
 </resources>

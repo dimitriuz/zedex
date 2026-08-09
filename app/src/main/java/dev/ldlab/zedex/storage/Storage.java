@@ -78,6 +78,17 @@ public final class Storage {
 
     /** The scraped metadata store's folder; see {@code library/meta/Metadata}. */
     private static final String LIBRARY = "library";
+
+    /**
+     * Artwork, video and manuals this app fetched for itself.
+     *
+     * Kept apart from ES-DE's own {@code downloaded_media}, which the app has
+     * only ever read: writing into another app's data at the scale of a whole
+     * collection would leave no way to tell what we fetched from what they
+     * did, and would need ES-DE installed and a writable grant besides. See
+     * {@code Artwork}, which reads both and prefers this one.
+     */
+    private static final String MEDIA = "media";
     private static final String SHOTS = "screenshots";
 
     /** What a folder is called when it tells the media scanner to walk past. */
@@ -753,6 +764,18 @@ public final class Storage {
     }
 
     /**
+     * Where this app keeps artwork it fetched itself - see {@link #MEDIA}.
+     *
+     * In {@link #dataFolders} with the rest, deliberately: that is what makes
+     * a data-folder change carry the artwork along and what puts a {@code
+     * .nomedia} in it, without which a scraped collection turns up in the
+     * phone's photo gallery.
+     */
+    public static File mediaDirectory(Context context) {
+        return new File(root(context), MEDIA);
+    }
+
+    /**
      * Every folder that belongs to the data folder, in one place.
      *
      * There were three hand-kept copies of this list - createFolders,
@@ -776,12 +799,13 @@ public final class Storage {
             statesDirectory(context), romsDirectory(context),
             tapesDirectory(context), disksDirectory(context),
             cardsDirectory(context), libraryDirectory(context),
+            mediaDirectory(context),
         };
     }
 
     /** The names of those folders, for moving a data folder somewhere else. */
     public static String[] dataFolderNames() {
-        return new String[] { STATES, ROMS, TAPES, DISKS, CARDS, LIBRARY };
+        return new String[] { STATES, ROMS, TAPES, DISKS, CARDS, LIBRARY, MEDIA };
     }
 
     /** The folders exist from the first run, empty if need be. */
