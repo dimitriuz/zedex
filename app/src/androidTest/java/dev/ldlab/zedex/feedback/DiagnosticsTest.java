@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.feedback;
 
+import dev.ldlab.zedex.storage.Prefs;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -48,12 +49,12 @@ public class DiagnosticsTest {
     public void survivesAPreferenceThatIsNotAString() {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         SharedPreferences preferences = context.getSharedPreferences(
-                SettingsActivity.PREFS, Context.MODE_PRIVATE);
+                Prefs.PREFS, Context.MODE_PRIVATE);
 
         preferences.edit()
-                .putInt(SettingsActivity.KEY_JOYSTICK_TYPE, 1)
-                .putBoolean(SettingsActivity.KEY_FULLSCREEN, true)
-                .putString(SettingsActivity.KEY_MACHINE, "128")
+                .putInt(Prefs.KEY_JOYSTICK_TYPE, 1)
+                .putBoolean(Prefs.KEY_FULLSCREEN, true)
+                .putString(Prefs.KEY_MACHINE, "128")
                 .commit();
 
         try {
@@ -67,9 +68,9 @@ public class DiagnosticsTest {
                        report.contains("machine=128"));
         } finally {
             preferences.edit()
-                    .remove(SettingsActivity.KEY_JOYSTICK_TYPE)
-                    .remove(SettingsActivity.KEY_FULLSCREEN)
-                    .remove(SettingsActivity.KEY_MACHINE)
+                    .remove(Prefs.KEY_JOYSTICK_TYPE)
+                    .remove(Prefs.KEY_FULLSCREEN)
+                    .remove(Prefs.KEY_MACHINE)
                     .commit();
         }
     }

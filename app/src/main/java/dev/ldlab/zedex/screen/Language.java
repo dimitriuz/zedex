@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.screen;
 
+import dev.ldlab.zedex.storage.Prefs;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
@@ -35,7 +36,7 @@ public final class Language {
     /** The chosen tag, or empty for the phone's own. */
     public static String tag(Context context) {
         SharedPreferences preferences = context.getSharedPreferences(
-                SettingsActivity.PREFS, Context.MODE_PRIVATE);
+                Prefs.PREFS, Context.MODE_PRIVATE);
 
         // getString and not getAll: the list writes a String, and an absent key
         // is the answer here rather than a missing one.

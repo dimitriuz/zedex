@@ -1,7 +1,7 @@
 package dev.ldlab.zedex.machine;
 
+import dev.ldlab.zedex.storage.Prefs;
 import dev.ldlab.zedex.R;
-import dev.ldlab.zedex.screen.SettingsActivity;
 import dev.ldlab.zedex.screen.StartPanel;
 import android.content.SharedPreferences;
 
@@ -65,7 +65,7 @@ public enum Filter {
     }
 
     public static Filter of(SharedPreferences preferences) {
-        return of(preferences.getString(SettingsActivity.KEY_FILTER, null));
+        return of(preferences.getString(Prefs.KEY_FILTER, null));
     }
 
     /** The stored value, or {@link #OFF} for anything unrecognised. */
@@ -80,7 +80,7 @@ public enum Filter {
 
     /** Writes it, for the quick bar; the settings list writes its own. */
     public void store(SharedPreferences preferences) {
-        preferences.edit().putString(SettingsActivity.KEY_FILTER, value).apply();
+        preferences.edit().putString(Prefs.KEY_FILTER, value).apply();
     }
 
     /**
@@ -98,7 +98,7 @@ public enum Filter {
      * and the first-start screen would never appear again.
      */
     public static void migrate(SharedPreferences preferences) {
-        if (preferences.contains(SettingsActivity.KEY_FILTER)) return;
+        if (preferences.contains(Prefs.KEY_FILTER)) return;
 
         boolean hadScanlines = preferences.contains(OLD_SCANLINES);
         boolean hadCrt = preferences.contains(OLD_CRT);
@@ -106,7 +106,7 @@ public enum Filter {
         if (!hadScanlines && !hadCrt) return;
 
         preferences.edit()
-                .putString(SettingsActivity.KEY_FILTER,
+                .putString(Prefs.KEY_FILTER,
                            of(preferences.getBoolean(OLD_SCANLINES, false),
                               preferences.getBoolean(OLD_CRT, false)).value)
                 .remove(OLD_SCANLINES)

@@ -1,5 +1,6 @@
 package dev.ldlab.zedex;
 
+import dev.ldlab.zedex.storage.Prefs;
 import dev.ldlab.zedex.FuseNative;
 import dev.ldlab.zedex.screen.SettingsActivity;
 import dev.ldlab.zedex.storage.Storage;
@@ -85,7 +86,7 @@ final class Emulator {
               + " MANAGE_EXTERNAL_STORAGE allow");
 
         SharedPreferences preferences = context().getSharedPreferences(
-                SettingsActivity.PREFS, Context.MODE_PRIVATE);
+                Prefs.PREFS, Context.MODE_PRIVATE);
         preferences.edit()
                 .putString(Storage.KEY_STATES_ROOT, folder)
                 .commit();

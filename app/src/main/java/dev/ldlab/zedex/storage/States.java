@@ -2,7 +2,6 @@ package dev.ldlab.zedex.storage;
 
 import dev.ldlab.zedex.FuseNative;
 import dev.ldlab.zedex.R;
-import dev.ldlab.zedex.screen.SettingsActivity;
 import dev.ldlab.zedex.screen.StatesActivity;
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -114,7 +113,7 @@ public final class States {
         if (!directory.isDirectory() && !directory.mkdirs()) return false;
 
         String format = preferences.getString(
-                SettingsActivity.KEY_SNAPSHOT_FORMAT, FORMATS[0]);
+                Prefs.KEY_SNAPSHOT_FORMAT, FORMATS[0]);
 
         // One snapshot per name, whatever it was saved as before.
         for (String other : FORMATS) {

@@ -25,11 +25,6 @@
         <item>ABC — A слева, B в центре, C справа</item>
     </string-array>
 
-    <string-array name="video_names">
-        <item>RGB — прямо из машины</item>
-        <item>Composite — цвет растекается по горизонтали</item>
-        <item>RF — через антенный вход</item>
-    </string-array>
 
     <string-array name="tape_format_names">
         <item>TAP — меньше, самый распространённый</item>
@@ -48,9 +43,4 @@
         <item>Нет — только картинка, 256×192</item>
     </string-array>
 
-    <string-array name="video_short_names">
-        <item>RGB</item>
-        <item>Composite</item>
-        <item>RF</item>
-    </string-array>
 </resources>

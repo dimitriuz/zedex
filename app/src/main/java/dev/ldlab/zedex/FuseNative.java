@@ -352,7 +352,7 @@ public final class FuseNative {
 
     /** Values of FILTER_VIDEO: how the picture left the machine. */
     public static final int VIDEO_RGB = 0;
-    static final int VIDEO_COMPOSITE = 1;
+    public static final int VIDEO_COMPOSITE = 1;
     public static final int VIDEO_RF = 2;
 
     /**

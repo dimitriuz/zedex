@@ -1,7 +1,7 @@
 package dev.ldlab.zedex.feedback;
 
+import dev.ldlab.zedex.storage.Prefs;
 import dev.ldlab.zedex.R;
-import dev.ldlab.zedex.screen.SettingsActivity;
 import dev.ldlab.zedex.storage.Storage;
 
 import android.content.Context;
@@ -42,7 +42,7 @@ public final class Diagnostics {
 
     public static String report(Context context) {
         SharedPreferences preferences = context.getSharedPreferences(
-                SettingsActivity.PREFS, Context.MODE_PRIVATE);
+                Prefs.PREFS, Context.MODE_PRIVATE);
 
         StringBuilder out = new StringBuilder();
 
@@ -141,14 +141,14 @@ public final class Diagnostics {
                                  StringBuilder out) {
         Map<String, ?> all = preferences.getAll();
 
-        line(out, "machine", set(all, SettingsActivity.KEY_MACHINE));
-        line(out, "filter", set(all, SettingsActivity.KEY_FILTER));
-        line(out, "scale", set(all, SettingsActivity.KEY_SCALE_PORTRAIT)
-                         + "/" + set(all, SettingsActivity.KEY_SCALE_LANDSCAPE));
-        line(out, "keyboard", set(all, SettingsActivity.KEY_KEYBOARD_SKIN));
-        line(out, "joystick", set(all, SettingsActivity.KEY_JOYSTICK_TYPE));
-        line(out, "fullscreen", set(all, SettingsActivity.KEY_FULLSCREEN));
-        line(out, "secondScreen", set(all, SettingsActivity.KEY_SECOND_SCREEN));
+        line(out, "machine", set(all, Prefs.KEY_MACHINE));
+        line(out, "filter", set(all, Prefs.KEY_FILTER));
+        line(out, "scale", set(all, Prefs.KEY_SCALE_PORTRAIT)
+                         + "/" + set(all, Prefs.KEY_SCALE_LANDSCAPE));
+        line(out, "keyboard", set(all, Prefs.KEY_KEYBOARD_SKIN));
+        line(out, "joystick", set(all, Prefs.KEY_JOYSTICK_TYPE));
+        line(out, "fullscreen", set(all, Prefs.KEY_FULLSCREEN));
+        line(out, "secondScreen", set(all, Prefs.KEY_SECOND_SCREEN));
     }
 
     /**

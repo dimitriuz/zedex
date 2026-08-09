@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.screen;
 
+import dev.ldlab.zedex.storage.Prefs;
 import dev.ldlab.zedex.work.Work;
 import dev.ldlab.zedex.view.Palette;
 import dev.ldlab.zedex.EmulatorActivity;
@@ -507,7 +508,7 @@ public final class LibraryActivity extends Activity {
     protected void onCreate(Bundle state) {
         super.onCreate(state);
 
-        preferences = getSharedPreferences(SettingsActivity.PREFS, MODE_PRIVATE);
+        preferences = getSharedPreferences(Prefs.PREFS, MODE_PRIVATE);
 
         // The one decision this screen makes before drawing anything: whether
         // it should be here at all - and only the launcher path asks it. Off,

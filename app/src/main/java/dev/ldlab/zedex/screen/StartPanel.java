@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.screen;
 
+import dev.ldlab.zedex.storage.Prefs;
 import dev.ldlab.zedex.work.Work;
 import dev.ldlab.zedex.view.Palette;
 import dev.ldlab.zedex.EmulatorActivity;
@@ -192,7 +193,7 @@ public final class StartPanel {
             if (tree != null && request == REQUEST_CONTENT_TREE) {
                 Storage.keepAccessTo(activity, tree,
                         Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                activity.getSharedPreferences(SettingsActivity.PREFS,
+                activity.getSharedPreferences(Prefs.PREFS,
                                               Activity.MODE_PRIVATE)
                         .edit().putString(Storage.KEY_CONTENT_TREE, tree.toString())
                         .apply();
@@ -562,7 +563,7 @@ public final class StartPanel {
      */
     public static boolean setupNeeded(Activity activity) {
         SharedPreferences preferences = activity.getSharedPreferences(
-                SettingsActivity.PREFS, Activity.MODE_PRIVATE);
+                Prefs.PREFS, Activity.MODE_PRIVATE);
 
         if (preferences.getBoolean(Storage.KEY_SETUP_DONE, false)) return false;
 
@@ -622,7 +623,7 @@ public final class StartPanel {
                 Storage.root(activity).getAbsolutePath()));
 
         String content = Storage.describe(
-                activity.getSharedPreferences(SettingsActivity.PREFS,
+                activity.getSharedPreferences(Prefs.PREFS,
                                               Activity.MODE_PRIVATE)
                         .getString(Storage.KEY_CONTENT_TREE, null));
 
@@ -728,7 +729,7 @@ public final class StartPanel {
             return;
         }
 
-        activity.getSharedPreferences(SettingsActivity.PREFS, Activity.MODE_PRIVATE)
+        activity.getSharedPreferences(Prefs.PREFS, Activity.MODE_PRIVATE)
                 .edit()
                 .putString(Storage.KEY_STATES_ROOT, folder.getAbsolutePath())
                 .apply();
@@ -757,7 +758,7 @@ public final class StartPanel {
      */
     private void finishSetup() {
         asking = false;
-        activity.getSharedPreferences(SettingsActivity.PREFS, Activity.MODE_PRIVATE)
+        activity.getSharedPreferences(Prefs.PREFS, Activity.MODE_PRIVATE)
                 .edit().putBoolean(Storage.KEY_SETUP_DONE, true).apply();
 
         // Whatever the folder rows ended up saying, written down as the answer.

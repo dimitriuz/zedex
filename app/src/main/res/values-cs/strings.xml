@@ -631,4 +631,10 @@
     <string name="gallery_video">Video %1$d z %2$d</string>
     <string name="settings_keep_bar">Nechat rychlý panel zobrazený</string>
     <string name="settings_keep_bar_summary">Jinak zmizí po třech sekundách. Se čtečkou obrazovky vždy zobrazen.</string>
+    <string name="video_rgb">RGB — přímo z počítače</string>
+    <string name="video_composite">Composite — barva se rozpíjí do stran</string>
+    <string name="video_rf">RF — přes antenní vstup</string>
+    <string name="video_rgb_short">RGB</string>
+    <string name="video_composite_short">Composite</string>
+    <string name="video_rf_short">RF</string>
 </resources>

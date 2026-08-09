@@ -626,4 +626,10 @@
     <string name="gallery_video">Vídeo %1$d de %2$d</string>
     <string name="settings_keep_bar">Mantener la barra rápida en pantalla</string>
     <string name="settings_keep_bar_summary">Si no, se desvanece tras tres segundos. Siempre visible con lector de pantalla.</string>
+    <string name="video_rgb">RGB — directo de la máquina</string>
+    <string name="video_composite">Composite — el color se derrama a los lados</string>
+    <string name="video_rf">RF — por la toma de antena</string>
+    <string name="video_rgb_short">RGB</string>
+    <string name="video_composite_short">Composite</string>
+    <string name="video_rf_short">RF</string>
 </resources>

@@ -1,5 +1,6 @@
 package dev.ldlab.zedex;
 
+import dev.ldlab.zedex.storage.Prefs;
 import dev.ldlab.zedex.work.Work;
 import dev.ldlab.zedex.screen.Language;
 import dev.ldlab.zedex.R;
@@ -8,6 +9,7 @@ import dev.ldlab.zedex.input.Gamepad;
 import dev.ldlab.zedex.input.Hotkeys;
 import dev.ldlab.zedex.input.Mouse;
 import dev.ldlab.zedex.library.meta.Metadata;
+import dev.ldlab.zedex.machine.Video;
 import dev.ldlab.zedex.machine.Border;
 import dev.ldlab.zedex.machine.Filter;
 import dev.ldlab.zedex.machine.Machine;
@@ -103,7 +105,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      */
     private String language = "";
 
-    private static final String PREFS = SettingsActivity.PREFS;
+    private static final String PREFS = Prefs.PREFS;
 
     /**
      * Which entry of a zip to open, carried alongside the zip's own uri as
@@ -474,11 +476,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         layout.setChildren(children);
         layout.setJoystickVisible(
-                preferences.getBoolean(SettingsActivity.KEY_JOYSTICK, true));
+                preferences.getBoolean(Prefs.KEY_JOYSTICK, true));
         layout.setKeyboardVisible(
-                preferences.getBoolean(SettingsActivity.KEY_KEYBOARD, true));
+                preferences.getBoolean(Prefs.KEY_KEYBOARD, true));
         layout.setLightsVisible(
-                preferences.getBoolean(SettingsActivity.KEY_INDICATORS, true));
+                preferences.getBoolean(Prefs.KEY_INDICATORS, true));
 
         // Here rather than beside Media and the cheats: it is handed the layout,
         // so it cannot exist until there is one.
@@ -560,7 +562,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             if (imeSeen && controls.keyboardSkin() == SpectrumKeyboardView.Skin.SYSTEM
                     && layout.keyboardVisible() != visible) {
                 preferences.edit()
-                        .putBoolean(SettingsActivity.KEY_KEYBOARD, visible).apply();
+                        .putBoolean(Prefs.KEY_KEYBOARD, visible).apply();
                 layout.setKeyboardVisible(visible);
             }
 
@@ -738,7 +740,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // allowed it; see Updater.resumeIfAllowed.
         Updater.resumeIfAllowed(this);
 
-        if (preferences.getBoolean(SettingsActivity.KEY_KEEP_SCREEN_ON, true)) {
+        if (preferences.getBoolean(Prefs.KEY_KEEP_SCREEN_ON, true)) {
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         } else {
             getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -751,7 +753,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         // The settings screen can have changed these while we were away.
         layout.setLightsVisible(
-                preferences.getBoolean(SettingsActivity.KEY_INDICATORS, true));
+                preferences.getBoolean(Prefs.KEY_INDICATORS, true));
         applyScale();
         controls.applyKeyboard();
         controls.applyControls();
@@ -1013,7 +1015,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // settings page, where its summary can say which machines it is for.
         // Asked of Fuse rather than of a list of machine names kept here.
         if (FuseNative.canTurbo()) {
-            boolean turbo = preferences.getBoolean(SettingsActivity.KEY_TURBO,
+            boolean turbo = preferences.getBoolean(Prefs.KEY_TURBO,
                                                    false);
             rows.rule();
             rows.item(R.drawable.ic_turbo,
@@ -1032,7 +1034,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      * restart and nothing to confirm.
      */
     private void setTurbo(boolean on) {
-        preferences.edit().putBoolean(SettingsActivity.KEY_TURBO, on).apply();
+        preferences.edit().putBoolean(Prefs.KEY_TURBO, on).apply();
         FuseNative.setTurbo(on);
 
         note(on ? R.string.turbo_on : R.string.turbo_off);
@@ -1158,11 +1160,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
     /** The signal, in the one word a row has room for. */
     private String videoName() {
-        String[] names = getResources().getStringArray(R.array.video_short_names);
-        int now = SettingsActivity.SettingsFragment.number(
-                preferences, SettingsActivity.KEY_VIDEO, 0);
-
-        return names[ Math.max(0, Math.min(names.length - 1, now)) ];
+        return getString(Video.of(preferences).shortTitle);
     }
 
     /**
@@ -1173,12 +1171,10 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      * for. Both write the same preference the settings do, so the two agree.
      */
     private void nextVideo() {
-        int count = getResources().getStringArray(R.array.video_short_names).length;
-        int next = ( SettingsActivity.SettingsFragment.number(
-                preferences, SettingsActivity.KEY_VIDEO, 0) + 1 ) % count;
+        Video next = Video.of(preferences).next();
 
         preferences.edit()
-                .putString(SettingsActivity.KEY_VIDEO, String.valueOf(next))
+                .putString(Prefs.KEY_VIDEO, String.valueOf(next.value))
                 .apply();
         SettingsActivity.applyFilter(preferences);
 
@@ -1189,7 +1185,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         Border next = Border.of(preferences).next();
 
         preferences.edit()
-                .putString(SettingsActivity.KEY_BORDER, next.value)
+                .putString(Prefs.KEY_BORDER, next.value)
                 .apply();
         applyScale();
 
@@ -1210,13 +1206,13 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                 (android.view.accessibility.AccessibilityManager)
                         getSystemService(ACCESSIBILITY_SERVICE);
 
-        return preferences.getBoolean(SettingsActivity.KEY_KEEP_BAR, false)
+        return preferences.getBoolean(Prefs.KEY_KEEP_BAR, false)
                 || (accessibility != null && accessibility.isTouchExplorationEnabled());
     }
 
     private void showLights(boolean shown) {
         layout.setLightsVisible(shown);
-        preferences.edit().putBoolean(SettingsActivity.KEY_INDICATORS, shown).apply();
+        preferences.edit().putBoolean(Prefs.KEY_INDICATORS, shown).apply();
 
         note(shown ? R.string.lights_shown : R.string.lights_hidden);
     }
@@ -1303,7 +1299,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     }
 
     private boolean fullscreen() {
-        return preferences.getBoolean(SettingsActivity.KEY_FULLSCREEN, false);
+        return preferences.getBoolean(Prefs.KEY_FULLSCREEN, false);
     }
 
     /**
@@ -1316,7 +1312,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      */
     private void showFullscreen(boolean on) {
         preferences.edit()
-                .putBoolean(SettingsActivity.KEY_FULLSCREEN, on).apply();
+                .putBoolean(Prefs.KEY_FULLSCREEN, on).apply();
 
         applyFullscreen();
         revealQuickBar();

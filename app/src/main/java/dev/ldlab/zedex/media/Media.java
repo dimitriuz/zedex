@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.media;
 
+import dev.ldlab.zedex.storage.Prefs;
 import dev.ldlab.zedex.work.Work;
 import dev.ldlab.zedex.EmulatorActivity;
 import dev.ldlab.zedex.FuseNative;
@@ -7,7 +8,6 @@ import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.cheats.PokeDatabase;
 import dev.ldlab.zedex.library.Entry;
 import dev.ldlab.zedex.library.Listing;
-import dev.ldlab.zedex.screen.SettingsActivity;
 import dev.ldlab.zedex.storage.CardImage;
 import dev.ldlab.zedex.storage.Recents;
 import dev.ldlab.zedex.storage.States;
@@ -622,7 +622,7 @@ public final class Media {
      */
     private File tapeFile(String name) {
         String lower = name.toLowerCase(Locale.ROOT);
-        String wanted = preferences.getString(SettingsActivity.KEY_TAPE_FORMAT, "tap");
+        String wanted = preferences.getString(Prefs.KEY_TAPE_FORMAT, "tap");
         String file = lower.endsWith(".tap") || lower.endsWith(".tzx")
                 ? name : name + "." + wanted;
 

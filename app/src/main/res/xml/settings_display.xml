@@ -65,8 +65,6 @@
                 android:key="video"
                 android:title="@string/settings_video"
                 android:summary="@string/settings_video_summary"
-                android:entries="@array/video_names"
-                android:entryValues="@array/video_values"
                 android:defaultValue="0" />
             <ListPreference
                 android:key="filterBleed"

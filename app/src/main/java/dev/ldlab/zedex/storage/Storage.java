@@ -2,7 +2,6 @@ package dev.ldlab.zedex.storage;
 
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.media.Media;
-import dev.ldlab.zedex.screen.SettingsActivity;
 import dev.ldlab.zedex.screen.StartPanel;
 import android.Manifest;
 import android.content.Context;
@@ -1027,7 +1026,7 @@ public final class Storage {
     /** This app's settings. Eight places here wanted them; the two-line
      *  incantation was written out at each one. */
     private static SharedPreferences prefs(Context context) {
-        return context.getSharedPreferences(SettingsActivity.PREFS,
+        return context.getSharedPreferences(Prefs.PREFS,
                                             Context.MODE_PRIVATE);
     }
 
