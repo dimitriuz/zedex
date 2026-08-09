@@ -487,7 +487,7 @@ public final class Updater {
     }
 
     /** How far along, in whole percent, for the bar. */
-    private interface Progress {
+    interface Progress {
         void at(int percent);
     }
 
@@ -507,43 +507,8 @@ public final class Updater {
                 return "HTTP " + connection.getResponseCode();
             }
 
-            long expected = connection.getContentLengthLong();
-            MessageDigest sha = MessageDigest.getInstance("SHA-256");
-
-            try (InputStream in = connection.getInputStream();
-                 OutputStream out = new FileOutputStream(apk)) {
-
-                byte[] buffer = new byte[64 * 1024];
-                long done = 0;
-                int read;
-
-                while ((read = in.read(buffer)) != -1) {
-                    out.write(buffer, 0, read);
-                    sha.update(buffer, 0, read);
-                    done += read;
-
-                    if (expected > 0) {
-                        progress.at((int) (done * 100 / expected));
-                    }
-                }
-            }
-
-            /*
-             * The .sha256 published beside the APK is the hash the release
-             * workflow computed, so a download that arrived short or scrambled
-             * is caught here rather than by the installer refusing a corrupt
-             * package. A release without one installs anyway, on Android's own
-             * signature check.
-             */
-            if (release.sha256 != null) {
-                String got = hex(sha.digest());
-                if (!release.sha256.equalsIgnoreCase(got)) {
-                    Log.w(TAG, "download hash " + got + ", published " + release.sha256);
-                    return "checksum";
-                }
-            }
-
-            return null;
+            return save(connection.getInputStream(), connection.getContentLengthLong(),
+                        apk, release.sha256, progress);
         } catch (Exception e) {
             Log.w(TAG, "cannot download the update", e);
             return e.getClass().getSimpleName();
@@ -564,6 +529,60 @@ public final class Updater {
         }
 
         return all.toByteArray();
+    }
+
+    /**
+     * Writes the stream to {@code apk}, hashing as it goes, and says whether
+     * what arrived is what was published.
+     *
+     * Apart from {@link #fetch} because this is the half worth being sure of
+     * and the other half is a socket. Everything here is decided by the bytes:
+     * a download that arrived short or scrambled is caught by the {@code
+     * .sha256} the release workflow computed rather than by the installer
+     * refusing a corrupt package, which is a worse place to find out - the
+     * user has already been asked to allow an install by then.
+     *
+     * A release without a published hash installs anyway, on Android's own
+     * signature check, which is the only reason {@code sha256} is allowed to
+     * be null.
+     *
+     * @param expected how many bytes are coming, for the progress bar, or -1
+     *                 when the server did not say - in which case no progress
+     *                 is reported rather than a percentage of nothing.
+     * @return null when the file is on disk and its hash is the published one,
+     *         otherwise something short enough to put in a toast
+     */
+    static String save(InputStream from, long expected, File apk, String sha256,
+                       Progress progress) throws Exception {
+        MessageDigest sha = MessageDigest.getInstance("SHA-256");
+
+        try (InputStream in = from;
+             OutputStream out = new FileOutputStream(apk)) {
+
+            byte[] buffer = new byte[64 * 1024];
+            long done = 0;
+            int read;
+
+            while ((read = in.read(buffer)) != -1) {
+                out.write(buffer, 0, read);
+                sha.update(buffer, 0, read);
+                done += read;
+
+                if (expected > 0) {
+                    progress.at((int) (done * 100 / expected));
+                }
+            }
+        }
+
+        if (sha256 == null) return null;
+
+        String got = hex(sha.digest());
+        if (!sha256.equalsIgnoreCase(got)) {
+            Log.w(TAG, "download hash " + got + ", published " + sha256);
+            return "checksum";
+        }
+
+        return null;
     }
 
     private static String hex(byte[] bytes) {
