@@ -639,4 +639,20 @@
     <string name="video_rgb_short">RGB</string>
     <string name="video_composite_short">Composite</string>
     <string name="video_rf_short">RF</string>
+    <string name="edit_metadata_title">Edytuj metadane</string>
+    <string name="edit_metadata_menu">Edytuj metadane…</string>
+    <string name="edit_metadata_name">Nazwa</string>
+    <string name="edit_metadata_desc">Opis</string>
+    <string name="edit_metadata_developer">Twórca</string>
+    <string name="edit_metadata_publisher">Wydawca</string>
+    <string name="edit_metadata_genre">Gatunek</string>
+    <string name="edit_metadata_released">Rok</string>
+    <string name="edit_metadata_players">Gracze</string>
+    <string name="edit_metadata_rating">Ocena na 5</string>
+    <string name="edit_metadata_empty">Nie ustawiono</string>
+    <string name="edit_metadata_save">Zapisz</string>
+    <string name="edit_metadata_saved">Zapisano — połączenie nie będzie już zmieniać tej gry</string>
+    <string name="edit_metadata_forget">Zapomnij moje zmiany</string>
+    <string name="edit_metadata_forget_confirm">Ta gra nie będzie mieć żadnych metadanych, dopóki nie połączysz ponownie z ES-DE, które przywróci to, co wie.</string>
+    <string name="edit_metadata_forgotten">Zmiany zapomniane</string>
 </resources>

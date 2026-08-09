@@ -639,4 +639,20 @@
     <string name="video_rgb_short">RGB</string>
     <string name="video_composite_short">Composite</string>
     <string name="video_rf_short">RF</string>
+    <string name="edit_metadata_title">Upravit metadata</string>
+    <string name="edit_metadata_menu">Upravit metadata…</string>
+    <string name="edit_metadata_name">Název</string>
+    <string name="edit_metadata_desc">Popis</string>
+    <string name="edit_metadata_developer">Vývojář</string>
+    <string name="edit_metadata_publisher">Vydavatel</string>
+    <string name="edit_metadata_genre">Žánr</string>
+    <string name="edit_metadata_released">Rok</string>
+    <string name="edit_metadata_players">Hráči</string>
+    <string name="edit_metadata_rating">Hodnocení z 5</string>
+    <string name="edit_metadata_empty">Nenastaveno</string>
+    <string name="edit_metadata_save">Uložit</string>
+    <string name="edit_metadata_saved">Uloženo — propojení tuto hru nadále nezmění</string>
+    <string name="edit_metadata_forget">Zapomenout mé úpravy</string>
+    <string name="edit_metadata_forget_confirm">Tato hra nebude mít žádná metadata, dokud znovu nepropojíte ES-DE, které vrátí to, co o ní ví.</string>
+    <string name="edit_metadata_forgotten">Úpravy zapomenuty</string>
 </resources>

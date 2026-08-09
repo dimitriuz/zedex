@@ -33,12 +33,86 @@ public final class Meta {
     public final String rating;
 
     /**
-     * Where this entry came from - {@code "esde"} for anything a link
-     * brought over. Kept apart from ES-DE's own fields so that a later
-     * hand-edited value is never mistaken for a scraped one; not one of
-     * ES-DE's own gamelist elements.
+     * Where this entry came from - {@link #ESDE} for anything a link brought
+     * over, {@link #USER} for one somebody has edited by hand. Kept apart
+     * from ES-DE's own fields so that a later hand-edited value is never
+     * mistaken for a scraped one; not one of ES-DE's own gamelist elements.
+     *
+     * It decides who owns a row: {@link Metadata#replaceScraped} replaces
+     * every {@code esde} entry and leaves every {@code user} one exactly as
+     * it is, so a link never overwrites something typed in by hand.
      */
     public final String source;
+
+    /** A link brought this one over. */
+    public static final String ESDE = "esde";
+
+    /**
+     * Somebody edited this one by hand, and a link must leave it alone.
+     *
+     * The whole of the ownership rule, and it is deliberately per game rather
+     * than per field: a game whose genre was corrected keeps the rest of what
+     * was scraped, but stops receiving ES-DE's later improvements to any of
+     * it. That is the price of the simple rule, and the editor's own "forget
+     * my edits" is the way back - it drops the row so the next link brings
+     * ES-DE's version again.
+     */
+    public static final String USER = "user";
+
+    /** Whether a link must leave this one alone. */
+    public boolean isMine() {
+        return USER.equals(source);
+    }
+
+    /**
+     * A copy with one field replaced, named the way the editor names them.
+     *
+     * Immutable and ten fields wide, so the alternative at every call site is
+     * a ten-argument constructor with nine arguments copied across - which is
+     * exactly where a field gets silently dropped. The source is set to
+     * {@link #USER} by every one of these: a changed field is a hand edit by
+     * definition, and there is no way to change one without meaning it.
+     */
+    public Meta with(Field field, String value) {
+        String set = value != null && value.isEmpty() ? null : value;
+
+        return new Meta(
+                path,
+                field == Field.NAME ? set : name,
+                field == Field.DESC ? set : desc,
+                field == Field.DEVELOPER ? set : developer,
+                field == Field.PUBLISHER ? set : publisher,
+                field == Field.GENRE ? set : genre,
+                field == Field.RELEASED ? set : released,
+                field == Field.PLAYERS ? set : players,
+                field == Field.RATING ? set : rating,
+                USER);
+    }
+
+    /**
+     * The eight a person can edit - everything ES-DE's gamelist carries
+     * except the path, which is the key, and the source, which is ours.
+     *
+     * An enum rather than eight methods so the editor can build its rows by
+     * walking it: a field added here appears on the screen without the screen
+     * being told, which is the failure mode a hand-written list of eight has.
+     */
+    public enum Field { NAME, DESC, DEVELOPER, PUBLISHER, GENRE, RELEASED, PLAYERS, RATING }
+
+    /** What this game has in {@code field}, or null. */
+    public String get(Field field) {
+        switch (field) {
+            case NAME:      return name;
+            case DESC:      return desc;
+            case DEVELOPER: return developer;
+            case PUBLISHER: return publisher;
+            case GENRE:     return genre;
+            case RELEASED:  return released;
+            case PLAYERS:   return players;
+            case RATING:    return rating;
+            default:        return null;
+        }
+    }
 
     public Meta(String path, String name, String desc, String developer,
                 String publisher, String genre, String released, String players,

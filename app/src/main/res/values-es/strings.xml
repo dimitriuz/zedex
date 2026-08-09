@@ -634,4 +634,20 @@
     <string name="video_rgb_short">RGB</string>
     <string name="video_composite_short">Composite</string>
     <string name="video_rf_short">RF</string>
+    <string name="edit_metadata_title">Editar metadatos</string>
+    <string name="edit_metadata_menu">Editar metadatos…</string>
+    <string name="edit_metadata_name">Nombre</string>
+    <string name="edit_metadata_desc">Descripción</string>
+    <string name="edit_metadata_developer">Desarrollador</string>
+    <string name="edit_metadata_publisher">Editor</string>
+    <string name="edit_metadata_genre">Género</string>
+    <string name="edit_metadata_released">Año</string>
+    <string name="edit_metadata_players">Jugadores</string>
+    <string name="edit_metadata_rating">Valoración sobre 5</string>
+    <string name="edit_metadata_empty">Sin definir</string>
+    <string name="edit_metadata_save">Guardar</string>
+    <string name="edit_metadata_saved">Guardado: un enlace ya no tocará este juego</string>
+    <string name="edit_metadata_forget">Olvidar mis cambios</string>
+    <string name="edit_metadata_forget_confirm">Este juego se quedará sin metadatos hasta que vuelvas a enlazar ES-DE, que devolverá lo que sepa.</string>
+    <string name="edit_metadata_forgotten">Cambios olvidados</string>
 </resources>

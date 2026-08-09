@@ -134,17 +134,27 @@ public final class Metadata {
         return store(context);
     }
 
-    /** When {@link #replaceAll} last ran, epoch millis, or 0 if it never has. */
+    /** When the store was last written - a link, or an edit - as epoch
+     *  millis, or 0 if it never has been. */
     public static long lastLinked(Context context) {
         return store(context).linkedAt;
     }
 
     /**
-     * Writes the whole store, stamping the time. Pressing Link again is meant
-     * to replace: whatever ES-DE still has is written again, a game that
-     * appeared is added by being in {@code games} at all, and a game that is
-     * gone is dropped by not being in it - the caller decides what {@code
-     * games} holds, this only ever writes exactly that.
+     * What a link writes: every scraped row replaced, every hand-edited one
+     * kept.
+     *
+     * Pressing Link again is meant to replace what ES-DE owns - whatever it
+     * still has is written again, a game that appeared is added by being in
+     * {@code games} at all, and a game that is gone is dropped by not being
+     * in it. The caller decides what {@code games} holds.
+     *
+     * What it does <em>not</em> replace is a row somebody edited by hand. Those
+     * carry {@link Meta#USER} and survive untouched, and a scraped row for the
+     * same game gives way to them - see {@link Meta#source}, where the rule
+     * and what it costs are written down. Unlink is still {@link #clear}, which
+     * takes everything: that is what unlinking means, and it is a different
+     * button.
      *
      * Not refused when {@code games} is empty. {@link EsdeLink#read} throws
      * rather than returning empty for every case that used to masquerade as
@@ -155,7 +165,33 @@ public final class Metadata {
      * take too, and logging it costs nothing, so it is loud about doing it
      * rather than silently trusting the caller a second time.
      */
-    public static synchronized void replaceAll(Context context, List<Meta> games) {
+    public static synchronized void replaceScraped(Context context, List<Meta> games) {
+        List<Meta> keeping = new ArrayList<>(games);
+
+        // Every row somebody edited by hand survives the link, and wins over a
+        // scraped row for the same game - see Meta.USER, which is the whole of
+        // the ownership rule. Added after the scraped ones so the map below
+        // takes them last.
+        for (Meta mine : store(context).games.values()) {
+            if (mine.isMine()) keeping.add(mine);
+        }
+
+        write(context, keeping);
+    }
+
+    /**
+     * Replaces the store outright, hand-edited rows included.
+     *
+     * Only {@link #replaceScraped} above and the tests want this; a link goes
+     * through that one, because a link that discarded somebody's own
+     * corrections would be doing it silently and on a button they press
+     * whenever anything is scraped.
+     */
+    static synchronized void replaceAll(Context context, List<Meta> games) {
+        write(context, games);
+    }
+
+    private static void write(Context context, List<Meta> games) {
         File file = file(context);
         File directory = file.getParentFile();
         if (directory != null && !directory.isDirectory() && !directory.mkdirs()) {
@@ -196,6 +232,55 @@ public final class Metadata {
 
         cache = new Store(file.lastModified(), linkedAt, byPath);
         resolveCache.clear(); // a different set of games can only mean a different answer
+    }
+
+    /**
+     * Writes one game, as the editor's Save does.
+     *
+     * The whole store is read, this one row replaced by path, and the whole
+     * thing written again - which is what every other write here does, and
+     * what the file's own shape asks for: it is parsed whole and serialised
+     * whole, and a thousand games is one pass.
+     *
+     * {@code game} arrives already carrying {@link Meta#USER}, because {@link
+     * Meta#with} sets it - there is no way to change a field without meaning
+     * to own the row.
+     */
+    public static synchronized void put(Context context, Meta game) {
+        if (game == null || game.path == null || game.path.isEmpty()) {
+            Log.w(TAG, "cannot store a game with no path");
+            return;
+        }
+
+        List<Meta> keeping = new ArrayList<>();
+        for (Meta existing : store(context).games.values()) {
+            if (!game.path.equals(existing.path)) keeping.add(existing);
+        }
+        keeping.add(game);
+
+        write(context, keeping);
+    }
+
+    /**
+     * Drops one game's row - the editor's "forget my edits".
+     *
+     * The way back out of {@link Meta#USER}: the row goes, the game reads as
+     * unscraped, and the next link brings ES-DE's own version of it again.
+     * There is a gap in between where the game has nothing, which is why the
+     * wording on the button says so rather than calling itself "revert".
+     */
+    public static synchronized void forget(Context context, String path) {
+        if (path == null || path.isEmpty()) return;
+
+        List<Meta> keeping = new ArrayList<>();
+        boolean dropped = false;
+
+        for (Meta existing : store(context).games.values()) {
+            if (path.equals(existing.path)) dropped = true;
+            else keeping.add(existing);
+        }
+
+        if (dropped) write(context, keeping);
     }
 
     /** Forgets everything - Unlink in Settings. */

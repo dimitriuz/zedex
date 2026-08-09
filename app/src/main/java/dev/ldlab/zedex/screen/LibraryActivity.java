@@ -528,6 +528,20 @@ public final class LibraryActivity extends ZedexActivity {
             }
 
             @Override
+            public boolean editingAllowed() {
+                // The same test showGameInfo makes before it starts
+                // anything: a folder, an archive and a game inside a zip
+                // each have no path of their own for the store to key by.
+                return selected != null && !selected.isContainer()
+                        && selected.inside == null;
+            }
+
+            @Override
+            public void editMetadata() {
+                if (selected != null) editMetadataFor(selected);
+            }
+
+            @Override
             public boolean filteringAllowed() {
                 // Not filtering() itself, which also asks whether anything
                 // is actually set - this asks the narrower question of
@@ -1616,6 +1630,17 @@ public final class LibraryActivity extends ZedexActivity {
      * passing a parsed {@link Meta} through an Intent would be a second copy
      * able to go stale.
      */
+    private void editMetadataFor(Entry entry) {
+        if (entry.isContainer() || entry.inside != null) return;
+
+        String relativePath = Metadata.relativePath(this, entry.uri);
+        if (relativePath == null) return;
+
+        startActivity(new Intent(this, EditMetadataActivity.class)
+                .putExtra(EditMetadataActivity.EXTRA_PATH, relativePath)
+                .putExtra(EditMetadataActivity.EXTRA_NAME, entry.name));
+    }
+
     private void showGameInfo(Entry entry) {
         if (entry.isContainer()) return;
 

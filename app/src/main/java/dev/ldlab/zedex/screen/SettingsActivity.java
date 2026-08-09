@@ -1061,7 +1061,7 @@ public class SettingsActivity extends AppCompatActivity
                         // stamping a time here would have told the truth
                         // about the attempt and a lie about the collection.
                         if (!found.isEmpty()) {
-                            Metadata.replaceAll(context, found);
+                            Metadata.replaceScraped(context, found);
 
                             // Off the UI thread along with the read itself: a
                             // picture is resolved by a SAF query per game,
