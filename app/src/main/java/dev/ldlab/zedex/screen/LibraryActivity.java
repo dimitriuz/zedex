@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.screen;
 
+import dev.ldlab.zedex.work.Work;
 import dev.ldlab.zedex.view.Palette;
 import dev.ldlab.zedex.EmulatorActivity;
 import dev.ldlab.zedex.R;
@@ -2221,18 +2222,18 @@ public final class LibraryActivity extends Activity {
         setLoading(true);
 
         if (tab == Tab.FAVORITES) {
-            new Thread(() -> {
+            Work.run("favourites", () -> {
                 List<Entry> result = Favorites.all(this);
                 runOnUiThread(() -> finishLoad(token, result, null));
-            }).start();
+            });
             return;
         }
 
         if (tab == Tab.RECENTS) {
-            new Thread(() -> {
+            Work.run("recents", () -> {
                 List<Entry> result = recentsAsEntries();
                 runOnUiThread(() -> finishLoad(token, result, null));
-            }).start();
+            });
             return;
         }
 
@@ -2269,7 +2270,14 @@ public final class LibraryActivity extends Activity {
         boolean flatten = filtering() && !level.archive;
         Uri flattenFrom = stack.get(0).uri;
 
-        new Thread(() -> {
+        // Kept so the next load can call this one off: walking a folder is
+        // the longest thing this screen asks for, and a person moving through
+        // folders starts another before the last has answered. The token
+        // check in finishLoad still decides what is believed - cancelling
+        // only saves the work.
+        if (loading != null) loading.cancel(false);
+
+        loading = Work.run("listing", () -> {
             List<Entry> result = null;
             IOException failure = null;
 
@@ -2286,7 +2294,7 @@ public final class LibraryActivity extends Activity {
             List<Entry> finalResult = result;
             IOException finalFailure = failure;
             runOnUiThread(() -> finishLoad(token, finalResult, finalFailure));
-        }).start();
+        });
     }
 
     /**
@@ -2303,7 +2311,7 @@ public final class LibraryActivity extends Activity {
      *                     that method's own comment.
      */
     private void openFilterSheet(int requestToken) {
-        new Thread(() -> {
+        Work.run("facets", () -> {
             // Off the UI thread: the store may still be being read, and the
             // content folder is walked for the formats - see
             // everythingForFacets.
@@ -2317,7 +2325,7 @@ public final class LibraryActivity extends Activity {
                 if (isFinishing() || isDestroyed()) return;
                 optionsDialog.enterFiltersFromMenu(requestToken, values, formats);
             });
-        }).start();
+        });
     }
 
     /**
@@ -2475,6 +2483,9 @@ public final class LibraryActivity extends Activity {
      * would be missing from every filtered list until a further resume - the
      * one thing dropping the cache on resume exists to prevent.
      */
+    /** The listing load in flight, so a newer one can call it off. */
+    private java.util.concurrent.Future<?> loading;
+
     private final java.util.concurrent.atomic.AtomicInteger walkGeneration =
             new java.util.concurrent.atomic.AtomicInteger();
 
@@ -2526,7 +2537,7 @@ public final class LibraryActivity extends Activity {
      * that changes.
      */
     private void loadMetadataInBackground() {
-        new Thread(() -> {
+        Work.run("metadata", () -> {
             Metadata.refresh(getApplicationContext());
 
             runOnUiThread(() -> {
@@ -2534,7 +2545,7 @@ public final class LibraryActivity extends Activity {
                 adapter.notifyDataSetChanged();
                 updatePane();
             });
-        }, "zedex-metadata").start();
+        });
     }
 
     private void forgetFlattened() {
@@ -3032,7 +3043,7 @@ public final class LibraryActivity extends Activity {
      * usually is in it.
      */
     private void toggleFavorite(Entry entry) {
-        new Thread(() -> {
+        Work.run("favourite", () -> {
             String key = entry.key();
             boolean has = Favorites.has(this, key);
 
@@ -3049,7 +3060,7 @@ public final class LibraryActivity extends Activity {
                 // reads Favorites at all.
                 if (tab == Tab.FAVORITES) load();
             });
-        }).start();
+        });
     }
 
     // --- choosing a content folder ---------------------------------------------

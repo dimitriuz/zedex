@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.screen;
 
+import dev.ldlab.zedex.work.Work;
 import dev.ldlab.zedex.input.ControlProfiles;
 import dev.ldlab.zedex.input.Controls;
 import dev.ldlab.zedex.view.SpectrumKeyboardView;
@@ -1174,7 +1175,7 @@ public class SettingsActivity extends AppCompatActivity
 
             Context context = activity.getApplicationContext();
 
-            new Thread(() -> {
+            Work.alone("esde-link", () -> {
                 // Checked first, off its own back: EsdeLink.read fails soft
                 // (or, as it comes to throw for this reason too, fails loud
                 // in a way this would otherwise have to tell apart from a
@@ -1220,7 +1221,7 @@ public class SettingsActivity extends AppCompatActivity
                 int finalArtwork = artwork;
                 activity.runOnUiThread(() -> finishEsdeLink(
                         finalReachable, finalFound, finalArtwork, finalFailure));
-            }, "zedex-esde-link").start();
+            });
         }
 
         /**
@@ -1733,7 +1734,7 @@ public class SettingsActivity extends AppCompatActivity
             // library that is linked. Read it off-thread and say so again
             // when it lands.
             Context app = getActivity().getApplicationContext();
-            new Thread(() -> {
+            Work.run("metadata-settings", () -> {
                 Metadata.ensureLoaded(app);
 
                 Activity activity = getActivity();
@@ -1742,7 +1743,7 @@ public class SettingsActivity extends AppCompatActivity
                 activity.runOnUiThread(() -> {
                     if (isAdded()) updateSummaries();
                 });
-            }, "zedex-metadata-settings").start();
+            });
 
             // Back from the All files access page. Only a folder the user went
             // there for, and only once it is actually allowed; still refused

@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.screen;
 
+import dev.ldlab.zedex.work.Work;
 import dev.ldlab.zedex.view.Palette;
 import dev.ldlab.zedex.EmulatorActivity;
 import dev.ldlab.zedex.R;
@@ -211,7 +212,7 @@ public final class StartPanel {
             Uri tree = data.getData();
             if (tree != null) {
                 toast(R.string.roms_searching);
-                new Thread(() -> copyRomsFromTree(tree)).start();
+                Work.alone("roms-copy", () -> copyRomsFromTree(tree));
             }
             return true;
         }
@@ -226,7 +227,7 @@ public final class StartPanel {
             sources.add(data.getData());
         }
 
-        if (!sources.isEmpty()) new Thread(() -> copyRoms(sources)).start();
+        if (!sources.isEmpty()) Work.alone("roms-import", () -> copyRoms(sources));
         return true;
     }
 
@@ -881,7 +882,7 @@ public final class StartPanel {
                 .setMessage(R.string.roms_download_warning)
                 .setPositiveButton(R.string.roms_download, (dialog, which) -> {
                     toast(R.string.roms_downloading);
-                    new Thread(this::downloadRoms).start();
+                    Work.alone("roms-download", this::downloadRoms);
                 })
                 .setNeutralButton(R.string.roms_open_page, (dialog, which) -> openRomsPage())
                 .setNegativeButton(android.R.string.cancel, null)

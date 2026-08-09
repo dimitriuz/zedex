@@ -1,5 +1,6 @@
 package dev.ldlab.zedex;
 
+import dev.ldlab.zedex.work.Work;
 import dev.ldlab.zedex.screen.Language;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.input.ControlProfiles;
@@ -638,9 +639,9 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // Safe before Fuse has started: the command simply waits in the queue
         // until the emulation thread drains it.
         if (inside != null) {
-            new Thread(() -> media.stageAndOpenEntry(uri, inside)).start();
+            Work.run("open-entry", () -> media.stageAndOpenEntry(uri, inside));
         } else {
-            new Thread(() -> media.stageAndOpen(uri)).start();
+            Work.run("open", () -> media.stageAndOpen(uri));
         }
     }
 
@@ -684,13 +685,13 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         panels.setGameInfo(null, null);
 
         Context app = getApplicationContext();
-        new Thread(() -> {
+        Work.run("display-name", () -> {
             String name = queryDisplayName(uri);
             String resolved = Metadata.resolve(app, uri, name);
             String shown = resolved == null ? null : filenameOf(resolved);
 
             runOnUiThread(() -> panels.setGameInfo(resolved, shown));
-        }).start();
+        });
     }
 
     /** The fallback shown before the store answers with a scraped name, or
@@ -958,11 +959,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      */
     private void openRecent(Recents.Item item) {
         if (item.inside != null) {
-            new Thread(() -> media.stageAndOpenEntry(item.uri, item.inside)).start();
+            Work.run("open-recent", () -> media.stageAndOpenEntry(item.uri, item.inside));
             return;
         }
 
-        new Thread(() -> {
+        Work.run("stage-recent", () -> {
             File staged = media.stage(item.uri);
 
             if (staged == null) {
@@ -976,7 +977,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             String name = staged.getName();
             int dot = name.lastIndexOf('.');
             rememberMediaName(Storage.withoutExtension(name));
-        }).start();
+        });
     }
 
     /**

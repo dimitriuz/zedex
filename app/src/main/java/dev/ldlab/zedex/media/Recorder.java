@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.media;
 
+import dev.ldlab.zedex.work.Work;
 import dev.ldlab.zedex.FuseNative;
 import android.graphics.Bitmap;
 import android.os.Handler;
@@ -143,6 +144,11 @@ public final class Recorder {
         spare.clear();
         for (int i = 0; i < SPARE_FRAMES; i++) spare.offer(new Frame());
 
+        // Its own thread rather than dev.ldlab.zedex.work.Work: this one
+        // runs for the whole length of a recording, draining a queue until it
+        // is told to stop, and a task like that in a bounded pool holds a
+        // lane for minutes while everything short queues behind it. Kept as a
+        // field because stopping is done by joining it.
         worker = new Thread(Recorder::encode, "fuse-recorder");
         worker.start();
 
@@ -226,8 +232,9 @@ public final class Recorder {
         Frame frame = new Frame();
         read(frame, width, height, System.nanoTime());
 
-        new Thread(() -> writePng(frame, shot.file, shot.whenDone),
-                   "fuse-screenshot").start();
+        // Encoding a PNG of a whole frame and writing it: short, but not so
+        // short that it belongs on the emulation thread that produced it.
+        Work.run("screenshot", () -> writePng(frame, shot.file, shot.whenDone));
     }
 
     /** Copies the frame out while the emulation thread is held in the callback. */

@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.media;
 
+import dev.ldlab.zedex.work.Work;
 import dev.ldlab.zedex.EmulatorActivity;
 import dev.ldlab.zedex.FuseNative;
 import dev.ldlab.zedex.R;
@@ -220,21 +221,21 @@ public final class Media {
             pendingDrive = -1;
 
             if (drive >= 0) {
-                new Thread(() -> {
+                Work.run("stage-drive", () -> {
                     File staged = stage(uri);
                     if (staged == null) return;
 
                     FuseNative.insertDisk(drive >> 8, drive & 0xff,
                                           staged.getAbsolutePath());
                     host.note(R.string.disk_inserted, staged.getName());
-                }).start();
+                });
             }
         } else if (request == REQUEST_LOAD_CARD) {
             // Off the UI thread: a card image is tens of megabytes and it is
             // copied whole.
-            new Thread(() -> insertCard(uri)).start();
+            Work.run("insert-card", () -> insertCard(uri));
         } else {
-            new Thread(() -> stageAndOpen(uri)).start();
+            Work.run("stage", () -> stageAndOpen(uri));
         }
 
         return true;
@@ -780,7 +781,7 @@ public final class Media {
         temp.delete();
         FuseNative.writeDisk(id >> 8, id & 0xff, temp.getAbsolutePath());
 
-        new Thread(() -> {
+        Work.run("write-disk", () -> {
             if (!waitForWrite(temp)) {
                 // Fuse has already said why, through an error box of its own.
                 host.note(R.string.disk_save_over_failed, disk);
@@ -805,7 +806,7 @@ public final class Media {
             }
 
             host.note(R.string.tape_saved, disk);
-        }).start();
+        });
     }
 
     /**
