@@ -1,5 +1,7 @@
 package dev.ldlab.zedex;
 
+import dev.ldlab.zedex.machine.Picture;
+import dev.ldlab.zedex.machine.FuseSettings;
 import dev.ldlab.zedex.storage.Prefs;
 import dev.ldlab.zedex.work.Work;
 import dev.ldlab.zedex.screen.Language;
@@ -596,11 +598,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         Border border = Border.of(preferences);
 
         layout.setBorder(border);
-        SettingsActivity.applyBorder(preferences);
+        Picture.applyBorder(preferences);
 
-        layout.setScale(SettingsActivity.scale(preferences, false),
-                        SettingsActivity.scale(preferences, true));
-        SettingsActivity.applyScale(this, preferences);
+        layout.setScale(Picture.scale(preferences, false),
+                        Picture.scale(preferences, true));
+        Picture.applyScale(this, preferences);
     }
 
     /**
@@ -1153,7 +1155,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     /** Either of the picture switches, written and pushed like the settings do. */
     private void switchFilter(Filter filter, int said) {
         filter.store(preferences);
-        SettingsActivity.applyFilter(preferences);
+        FuseSettings.applyFilter(preferences);
 
         note(said);
     }
@@ -1176,7 +1178,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         preferences.edit()
                 .putString(Prefs.KEY_VIDEO, String.valueOf(next.value))
                 .apply();
-        SettingsActivity.applyFilter(preferences);
+        FuseSettings.applyFilter(preferences);
 
         note(R.string.quick_video, videoName());
     }

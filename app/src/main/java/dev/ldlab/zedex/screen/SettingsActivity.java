@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.screen;
 
+import dev.ldlab.zedex.machine.Picture;
 import dev.ldlab.zedex.work.Work;
 import dev.ldlab.zedex.input.ControlProfiles;
 import dev.ldlab.zedex.input.Controls;
@@ -9,6 +10,7 @@ import dev.ldlab.zedex.EmulatorActivity;
 import dev.ldlab.zedex.FuseNative;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.input.Controls;
+import dev.ldlab.zedex.machine.FuseSettings;
 import dev.ldlab.zedex.machine.Video;
 import dev.ldlab.zedex.machine.Border;
 import dev.ldlab.zedex.machine.Filter;
@@ -82,93 +84,11 @@ public class SettingsActivity extends AppCompatActivity
     }
 
 
-    /**
-     * One filter strength: the preference it is stored under, the index the
-     * renderer knows it by, and what it is worth when nothing is stored.
-     *
-     * Three typed fields rather than the {@code Object[][]} this was. That
-     * table had the default written as a String and parsed on every call -
-     * at startup, not only on change - so a transposed pair of columns or a
-     * typed "5O" for "50" compiled cleanly and then threw ClassCastException
-     * or an uncaught NumberFormatException at launch. All three of those are
-     * compile errors now, and the parse is gone.
-     */
-    private static final class FilterKey {
-        final String preference;
-        final int index;
-        final int fallback;
 
-        FilterKey(String preference, int index, int fallback) {
-            this.preference = preference;
-            this.index = index;
-            this.fallback = fallback;
-        }
-    }
 
-    /** Which effects are on at all is one setting, handled apart from these. */
-    private static final FilterKey[] FILTER_KEYS = {
-        new FilterKey(KEY_FILTER_SHARPNESS, FuseNative.FILTER_SHARPNESS, 100),
-        new FilterKey(KEY_FILTER_SCANLINE,  FuseNative.FILTER_SCANLINE,   50),
-        new FilterKey(KEY_FILTER_CURVE,     FuseNative.FILTER_CURVE,      40),
-        new FilterKey(KEY_FILTER_MASK,      FuseNative.FILTER_MASK,       40),
-        new FilterKey(KEY_FILTER_GLOW,      FuseNative.FILTER_GLOW,       30),
-        new FilterKey(KEY_VIDEO,            FuseNative.FILTER_VIDEO,       0),
-        new FilterKey(KEY_FILTER_BLEED,     FuseNative.FILTER_BLEED,      50),
-        new FilterKey(KEY_FILTER_NOISE,     FuseNative.FILTER_NOISE,      20),
-    };
 
-    /**
-     * Pushes every filter number at once.
-     *
-     * Called at startup as well as on a change, because these are not Fuse
-     * settings and so cannot ride in on its command line: the renderer has to
-     * be told. Queued like everything else, so doing it before Fuse has started
-     * is safe - the commands wait.
-     */
-    public static void applyFilter(android.content.SharedPreferences preferences) {
-        Filter filter = Filter.of(preferences);
 
-        FuseNative.setFilter(FuseNative.FILTER_SCANLINES, filter.scanlines ? 1 : 0);
-        FuseNative.setFilter(FuseNative.FILTER_CRT, filter.crt ? 1 : 0);
 
-        for (FilterKey key : FILTER_KEYS) {
-            FuseNative.setFilter(key.index,
-                                 Prefs.number(preferences,
-                                                         key.preference,
-                                                         key.fallback));
-        }
-    }
-
-    /**
-     * The stored scale for one orientation, or {@link FuseNative#SCALE_FIT}.
-     *
-     * Fitting is the default, and also what an unparseable value means: a scale
-     * that was possible on the display the setting was made on may not be on
-     * this one, and the picture being the wrong size is worse than it being the
-     * size it has always been.
-     */
-    public static int scale(android.content.SharedPreferences preferences,
-                     boolean landscape) {
-        return Prefs.number(preferences,
-                landscape ? KEY_SCALE_LANDSCAPE : KEY_SCALE_PORTRAIT,
-                FuseNative.SCALE_FIT);
-    }
-
-    /**
-     * Pushes the scale for the way up the device is now, like
-     * {@link #applyFilter} and for the same reason. EmulatorActivity does this
-     * again on a rotation; the settings screen only ever needs the current one,
-     * since changing the other orientation's cannot show until it turns.
-     */
-    public static void applyScale(Context context,
-                           android.content.SharedPreferences preferences) {
-        FuseNative.setScale(scale(preferences, isLandscape(context)));
-    }
-
-    /** The border, which the renderer crops and the scale list counts. */
-    public static void applyBorder(android.content.SharedPreferences preferences) {
-        FuseNative.setBorder(Border.of(preferences).ordinal());
-    }
 
     /**
      * Turns the library off for anyone who already had the app, and leaves it
@@ -285,11 +205,6 @@ public class SettingsActivity extends AppCompatActivity
         return preferences.getString(Storage.KEY_CONTENT_TREE, null) != null;
     }
 
-    /** Which way up the device is; both the scale settings hang off this. */
-    public static boolean isLandscape(Context context) {
-        return context.getResources().getConfiguration().orientation
-                == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
-    }
 
     /**
      * The largest whole-pixel scale this display has room for, one orientation
@@ -315,63 +230,9 @@ public class SettingsActivity extends AppCompatActivity
         return Math.max(1, Math.min(width / border.width, height / border.height));
     }
 
-    /** Whether a key is one of the filters'. */
-    private static boolean isFilterKey(String key) {
-        if (KEY_FILTER.equals(key)) return true;
 
-        for (FilterKey entry : FILTER_KEYS) {
-            if (entry.preference.equals(key)) return true;
-        }
-        return false;
-    }
 
-    /** The stored words, and the level each one means. */
-    private static final String[] LOADER_LEVELS = { "off", "safe", "turbo" };
 
-    /**
-     * AY stereo separation. These are Fuse's own words rather than ours,
-     * because {@code --separation} takes them verbatim and Fuse compares them
-     * with strcmp — so what is stored is what is passed.
-     */
-    private static final String[] AY_STEREO = { "None", "ACB", "ABC" };
-
-    /** The stored separation as {@link FuseNative#setAyStereo} wants it. */
-    public static int ayStereo(android.content.SharedPreferences preferences) {
-        String stored = preferences.getString(KEY_AY_STEREO, AY_STEREO[0]);
-
-        for (int i = 0; i < AY_STEREO.length; i++) {
-            if (AY_STEREO[i].equals(stored)) return i;
-        }
-
-        return 0;
-    }
-
-    /** And as Fuse's command line wants it. */
-    public static String ayStereoName(android.content.SharedPreferences preferences) {
-        return AY_STEREO[ ayStereo(preferences) ];
-    }
-
-    /**
-     * How hard to push a tape, as {@link FuseNative#setLoaderAcceleration}
-     * wants it. Shared with the emulator, which needs the same number for the
-     * command line before Fuse has finished starting.
-     */
-    public static int loaderLevel(android.content.SharedPreferences preferences) {
-        String stored = preferences.getString(KEY_LOADER, null);
-
-        // Migrating from the boolean this replaced: it was all or nothing, so
-        // whichever end it was at is the end to start from.
-        if (stored == null) {
-            return preferences.getBoolean(KEY_FAST_TAPE, true)
-                    ? LOADER_LEVELS.length - 1 : 0;
-        }
-
-        for (int level = 0; level < LOADER_LEVELS.length; level++) {
-            if (LOADER_LEVELS[level].equals(stored)) return level;
-        }
-
-        return LOADER_LEVELS.length - 1;
-    }
 
     private static final int REQUEST_CONTENT_TREE = 2;
     private static final int REQUEST_DATA_TREE = 3;
@@ -1710,64 +1571,24 @@ public class SettingsActivity extends AppCompatActivity
         }
 
         private void apply(android.content.SharedPreferences preferences, String key) {
-            if (isFilterKey(key)) {
-                applyFilter(preferences);
-                return;
-            }
+            // One table, shared with the command line Machine builds at a
+            // cold start - see FuseSettings. This used to be a switch of its
+            // own, and the two had already drifted: divmmc had a case here
+            // and no argument there, so switching it on and then restarting
+            // came up without it.
+            if (FuseSettings.push(preferences, key)) return;
 
             switch (key) {
-                case KEY_LOADER:
-                    FuseNative.setLoaderAcceleration(loaderLevel(preferences));
-                    break;
-                case KEY_DETECT_LOADER:
-                    FuseNative.setDetectLoader(preferences.getBoolean(key, true));
-                    break;
-                case KEY_TAPE_SOUND:
-                    FuseNative.setTapeSound(preferences.getBoolean(key, true));
-                    break;
-                case KEY_AUTOLOAD:
-                    FuseNative.setAutoLoad(preferences.getBoolean(key, true));
-                    break;
-                case KEY_ISSUE2:
-                    FuseNative.setIssue2(preferences.getBoolean(key, false));
-                    break;
-                case KEY_DIVMMC:
-                    FuseNative.setDivmmc(preferences.getBoolean(key, false));
-                    break;
-                case KEY_BW_TV:
-                    FuseNative.setBlackAndWhite(preferences.getBoolean(key, false));
-                    break;
-                case KEY_SOUND:
-                    FuseNative.setSound(preferences.getBoolean(key, true));
-                    break;
-                case KEY_SPEED:
-                    FuseNative.setSpeed(number(preferences, key, 100));
-                    break;
+                // What is left is what is not Fuse's: the picture's scale and
+                // border are as much this app's layout as the emulator's, so
+                // they are applied through the screen that owns it.
                 case KEY_SCALE_PORTRAIT:
                 case KEY_SCALE_LANDSCAPE:
-                    applyScale(getActivity(), preferences);
+                    Picture.applyScale(getActivity(), preferences);
                     break;
-                // A different border is a different number of pixels to scale,
-                // so the scale list is rebuilt as well as the renderer told.
                 case KEY_BORDER:
-                    applyBorder(preferences);
-                    applyScale(getActivity(), preferences);
-                    populateScales();
-                    break;
-                case KEY_AY_STEREO:
-                    FuseNative.setAyStereo(ayStereo(preferences));
-                    break;
-                case KEY_TURBOSOUND:
-                    FuseNative.setTurboSound(preferences.getBoolean(key, true));
-                    break;
-                case KEY_TURBO:
-                    FuseNative.setTurbo(preferences.getBoolean(key, false));
-                    break;
-                case KEY_AY_VOLUME:
-                    FuseNative.setAyVolume(number(preferences, key, 100));
-                    break;
-                case KEY_BEEPER_VOLUME:
-                    FuseNative.setBeeperVolume(number(preferences, key, 100));
+                    Picture.applyBorder(preferences);
+                    Picture.applyScale(getActivity(), preferences);
                     break;
                 default:
                     // The machine and keep-screen-on are read where they are
