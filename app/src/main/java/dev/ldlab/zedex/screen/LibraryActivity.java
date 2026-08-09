@@ -257,7 +257,7 @@ public final class LibraryActivity extends ZedexActivity {
 
     /**
      * The row the pane is about, or null when nothing is selected. A file is
-     * selected rather than opened by a tap - see {@link #isContainer} - and
+     * selected rather than opened by a tap - see {@link Entry#isContainer} - and
      * the pane's own Play button is what actually starts it; only a folder or
      * a zip still acts immediately, by being walked into.
      */
@@ -889,7 +889,7 @@ public final class LibraryActivity extends ZedexActivity {
             @Override
             public void activate() {
                 if (selected == null) return;
-                if (isContainer(selected)) enter(selected); else openGame(selected);
+                if (selected.isContainer()) enter(selected); else openGame(selected);
             }
 
             @Override
@@ -1183,7 +1183,7 @@ public final class LibraryActivity extends ZedexActivity {
         adapter = new EntryAdapter(this, new EntryAdapter.Callbacks() {
             @Override
             public void onOpen(Entry entry) {
-                if (isContainer(entry)) {
+                if (entry.isContainer()) {
                     enter(entry);
                     return;
                 }
@@ -1840,7 +1840,7 @@ public final class LibraryActivity extends ZedexActivity {
         paneActionButton = new Button(this);
         paneActionButton.setOnClickListener(v -> {
             if (selected == null) return;
-            if (isContainer(selected)) enter(selected); else openGame(selected);
+            if (selected.isContainer()) enter(selected); else openGame(selected);
         });
         actions.addView(paneActionButton, new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
@@ -1888,7 +1888,7 @@ public final class LibraryActivity extends ZedexActivity {
      * {@link Meta} through an Intent would be a second copy able to go stale.
      */
     private void showGameInfo() {
-        if (selected == null || isContainer(selected)) return;
+        if (selected == null || selected.isContainer()) return;
 
         String relativePath = Metadata.relativePath(this, selected.uri);
         if (relativePath == null) return;
@@ -1905,7 +1905,7 @@ public final class LibraryActivity extends ZedexActivity {
      * through the Intent: the gallery is a lookup away on the other side.
      */
     private void openViewerFromPane(int index) {
-        if (selected == null || isContainer(selected) || selected.inside != null) return;
+        if (selected == null || selected.isContainer() || selected.inside != null) return;
 
         String relativePath = Metadata.relativePath(this, selected.uri);
         if (relativePath == null) return;
@@ -1968,7 +1968,7 @@ public final class LibraryActivity extends ZedexActivity {
         // exactly the same reason - see its own comment a little further
         // down.
         if (libraryPanel.inUse()) {
-            String relativePath = have && !isContainer(selected) && selected.inside == null
+            String relativePath = have && !selected.isContainer() && selected.inside == null
                     ? Metadata.relativePath(this, selected.uri) : null;
 
             libraryPanel.setGameInfo(relativePath, relativePath == null ? null : selected.name);
@@ -1992,7 +1992,7 @@ public final class LibraryActivity extends ZedexActivity {
         paneFilename.setVisibility(View.GONE);
         paneFacts.setVisibility(View.GONE);
         paneSubtitle.setText(EntryAdapter.detail(this, selected));
-        paneActionButton.setText(isContainer(selected) ? R.string.library_open
+        paneActionButton.setText(selected.isContainer() ? R.string.library_open
                                                         : R.string.library_play);
 
         // A folder or an archive has nothing an information screen could say,
@@ -2000,12 +2000,12 @@ public final class LibraryActivity extends ZedexActivity {
         // for the store to have matched - the same test showGameInfo makes
         // before it does anything.
         paneInfoButton.setVisibility(
-                !isContainer(selected) && selected.inside == null ? View.VISIBLE : View.GONE);
+                !selected.isContainer() && selected.inside == null ? View.VISIBLE : View.GONE);
 
         // A folder, an archive, or a file reached from inside a zip has no
         // path of its own to have been scraped by - see EntryAdapter's own
         // note on exactly this, which this mirrors.
-        if (isContainer(selected) || selected.inside != null) {
+        if (selected.isContainer() || selected.inside != null) {
             paneGallery.clear();
             return;
         }
@@ -2091,10 +2091,10 @@ public final class LibraryActivity extends ZedexActivity {
         if (selected == null) return;
 
         paneSubtitle.setText(EntryAdapter.detail(this, selected));
-        paneActionButton.setText(isContainer(selected) ? R.string.library_open
+        paneActionButton.setText(selected.isContainer() ? R.string.library_open
                                                         : R.string.library_play);
         paneInfoButton.setVisibility(
-                !isContainer(selected) && selected.inside == null ? View.VISIBLE : View.GONE);
+                !selected.isContainer() && selected.inside == null ? View.VISIBLE : View.GONE);
     }
 
     /**
@@ -2804,24 +2804,6 @@ public final class LibraryActivity extends ZedexActivity {
     // --- opening things --------------------------------------------------------
 
     /**
-     * Whether a row is a folder or a zip to walk into, rather than a game to
-     * select.
-     *
-     * Decided by {@code inside} rather than by {@link Entry#kind} alone, and
-     * not by which tab this is either: {@link Favorites#all} hands back
-     * {@code Kind.ARCHIVE} for a favourite that merely <em>lives</em> inside a
-     * zip - it has nothing else to call an entry it cannot enter - but such an
-     * entry always carries its path within the archive, and a real container
-     * never does. Checking {@code inside} rather than the tab makes this true
-     * everywhere at once, Browse included, rather than everywhere the tab
-     * happens to agree with it.
-     */
-    private boolean isContainer(Entry entry) {
-        return entry.inside == null
-                && (entry.kind == Entry.Kind.FOLDER || entry.kind == Entry.Kind.ARCHIVE);
-    }
-
-    /**
      * Walks into a folder or a zip immediately - navigation, not a selection,
      * and so not something a Play button gates.
      *
@@ -3051,7 +3033,7 @@ public final class LibraryActivity extends ZedexActivity {
      * tap and this callback are not the same instant.
      */
     private void playSelected() {
-        if (selected == null || isContainer(selected) || selected.inside != null) return;
+        if (selected == null || selected.isContainer() || selected.inside != null) return;
         openGame(selected);
     }
 

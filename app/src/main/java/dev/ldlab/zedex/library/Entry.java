@@ -53,4 +53,25 @@ public final class Entry {
     public String key() {
         return inside == null ? uri.toString() : uri.toString() + "#" + inside;
     }
+
+    /**
+     * Whether this row is a folder or a zip to walk into, rather than a game
+     * to select.
+     *
+     * Decided by {@link #inside} rather than by {@link #kind} alone: {@link
+     * Favorites#all} hands back {@link Kind#ARCHIVE} for a favourite that
+     * merely <em>lives</em> inside a zip - it has nothing else to call an
+     * entry it cannot enter - but such an entry always carries its path
+     * within the archive, and a real container never does.
+     *
+     * Here rather than on whoever is showing the row, which is what it used
+     * to be: the list decides what a tap does with it, the pane decides what
+     * its own button says, and both were asking the same question of the same
+     * object. Nothing about the answer depends on which of them is asking, or
+     * on which tab the row came from - checking {@code inside} makes it true
+     * everywhere at once rather than everywhere a tab happens to agree.
+     */
+    public boolean isContainer() {
+        return inside == null && (kind == Kind.FOLDER || kind == Kind.ARCHIVE);
+    }
 }
