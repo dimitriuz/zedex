@@ -45,6 +45,28 @@ public interface Http {
     String save(String url, File into) throws IOException;
 
     /**
+     * A refusal from the media endpoint, with the status that explains it.
+     *
+     * A plain {@code IOException} would be enough to know the picture did not
+     * arrive, and not enough to know why - and the why is the difference
+     * between one missing cover and a spent quota that makes the next eight
+     * hundred pointless. See {@code Downloads}.
+     *
+     * <b>Never carries the URL.</b> ScreenScraper's media URLs are ordinary
+     * API calls with {@code devpassword} and {@code sspassword} in the query,
+     * so a message built from one puts credentials into logcat and into every
+     * bug report taken afterwards.
+     */
+    final class Refused extends IOException {
+        public final int status;
+
+        public Refused(int status) {
+            super("the server answered " + status);
+            this.status = status;
+        }
+    }
+
+    /**
      * A reply: what the server said, and what it said it with.
      *
      * The status is kept apart from the body because ScreenScraper answers
@@ -107,7 +129,9 @@ public interface Http {
             try {
                 int status = connection.getResponseCode();
                 if (status != HttpURLConnection.HTTP_OK) {
-                    throw new IOException("HTTP " + status + " for " + url);
+                    // Deliberately without the URL - it carries the
+                    // credentials; see Refused.
+                    throw new Refused(status);
                 }
 
                 MessageDigest md5;

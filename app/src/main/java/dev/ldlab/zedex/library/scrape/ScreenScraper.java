@@ -112,6 +112,29 @@ public final class ScreenScraper implements Provider {
         this.userPassword = userPassword == null ? "" : userPassword;
     }
 
+    /**
+     * Extra query parameters, for the live tests only.
+     *
+     * ScreenScraper has a debug mode that can force the quota counters, the
+     * account's level and so its thread allowance - which is the only way to
+     * see a real 429 or a real thread refusal rather than one written from
+     * the documentation. Those are exactly the paths a multi-scrape is built
+     * on and exactly the ones a live service will not produce on request.
+     *
+     * Package private and reachable only through the package-private
+     * constructor, so nothing the app builds can set it: {@link
+     * #ScreenScraper(Context, Http)} does not take it and there is no setter
+     * on the interface. The debug password itself is never stored here, in
+     * the build, or in the APK - the test that uses it takes it from an
+     * instrumentation argument, so it lives on somebody's command line and
+     * nowhere else.
+     */
+    private String debugQuery = "";
+
+    void debugWith(String query) {
+        debugQuery = query == null ? "" : query;
+    }
+
     @Override
     public String name() {
         return "ScreenScraper";
@@ -177,6 +200,9 @@ public final class ScreenScraper implements Provider {
         if (romName != null) add(url, "romnom", romName);
         if (game.size() > 0) add(url, "romtaille", String.valueOf(game.size()));
 
+        // Empty in every build; see debugWith.
+        url.append(debugQuery);
+
         return url.toString();
     }
 
@@ -224,11 +250,20 @@ public final class ScreenScraper implements Provider {
      * a multi-scrape, which is why they are told apart rather than collapsed
      * into "it failed".
      */
+    @Override
+    public ScrapeException refusalFor(int status) {
+        return refusal(status, "");
+    }
+
     private static ScrapeException refusal(Http.Reply reply) {
         String detail = reply.body.trim();
         if (detail.length() > 200) detail = detail.substring(0, 200);
 
-        switch (reply.status) {
+        return refusal(reply.status, detail);
+    }
+
+    private static ScrapeException refusal(int status, String detail) {
+        switch (status) {
             case 401:
             case 403:
             case 426:
@@ -250,7 +285,7 @@ public final class ScreenScraper implements Provider {
                         "nothing found, reported as 404");
             default:
                 return new ScrapeException(ScrapeException.Kind.NETWORK,
-                        "HTTP " + reply.status + ": " + detail);
+                        "HTTP " + status + ": " + detail);
         }
     }
 

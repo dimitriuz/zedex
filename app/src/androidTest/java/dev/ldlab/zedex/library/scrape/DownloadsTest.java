@@ -8,6 +8,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
 import android.content.Context;
@@ -74,6 +75,37 @@ public class DownloadsTest {
         Artwork.forget();
     }
 
+    /** ScreenScraper's own reading of a status, without its credentials -
+     *  Downloads has to ask somebody, and this is who it would ask. */
+    private static Provider classifier() {
+        return new ScreenScraper(new Http() {
+            @Override public Reply get(String url) { throw new UnsupportedOperationException(); }
+            @Override public String save(String url, File into) {
+                throw new UnsupportedOperationException();
+            }
+        }, "id", "password", "", "");
+    }
+
+    /** Refuses everything with one status. */
+    private final class Refusing implements Http {
+        private final int status;
+
+        Refusing(int status) {
+            this.status = status;
+        }
+
+        @Override
+        public Reply get(String url) {
+            throw new UnsupportedOperationException("not this test's business");
+        }
+
+        @Override
+        public String save(String url, File into) throws IOException {
+            made.add(into);
+            throw new Http.Refused(status);
+        }
+    }
+
     /** Hands over fixed bytes and remembers where they were asked to go. */
     private final class Bytes implements Http {
         private final byte[] content;
@@ -121,6 +153,16 @@ public class DownloadsTest {
         }
     }
 
+    /** Downloads.fetch, with the classifier and the exception unwrapped for
+     *  the cases that are not about refusals. */
+    private Downloads.Result fetch(Http http, String path, java.util.List<Medium> media) {
+        try {
+            return Downloads.fetch(context, http, classifier(), path, media);
+        } catch (ScrapeException e) {
+            throw new AssertionError("unexpected refusal: " + e.kind, e);
+        }
+    }
+
     private static Medium cover(String md5) {
         return new Medium("covers", "https://x/cover.png", "png", md5);
     }
@@ -130,7 +172,7 @@ public class DownloadsTest {
     @Test
     public void amediumIsWrittenWhereArtworkWillFindIt() {
         String body = "a picture, near enough";
-        Downloads.Result result = Downloads.fetch(context, new Bytes(body), GAME,
+        Downloads.Result result = fetch(new Bytes(body), GAME,
                 Collections.singletonList(cover(md5Of(body.getBytes(StandardCharsets.UTF_8)))));
 
         assertEquals(1, result.saved);
@@ -153,7 +195,7 @@ public class DownloadsTest {
         assertNull("nothing yet", Artwork.picture(context, GAME));   // caches the miss
 
         String body = "a picture";
-        Downloads.fetch(context, new Bytes(body), GAME,
+        fetch(new Bytes(body), GAME,
                 Collections.singletonList(cover(md5Of(body.getBytes(StandardCharsets.UTF_8)))));
 
         assertNotNull("the miss was never forgotten, so the cover is invisible",
@@ -167,7 +209,7 @@ public class DownloadsTest {
         String hash = md5Of(body.getBytes(StandardCharsets.UTF_8));
 
         Bytes http = new Bytes(body);
-        Downloads.Result result = Downloads.fetch(context, http, GAME, Arrays.asList(
+        Downloads.Result result = fetch(http, GAME, Arrays.asList(
                 new Medium("covers", "https://x/a.png", "png", hash),
                 new Medium("screenshots", "https://x/b.png", "png", hash),
                 new Medium("videos", "https://x/c.mp4", "mp4", hash)));
@@ -188,7 +230,7 @@ public class DownloadsTest {
      */
     @Test
     public void adownloadThatHashesWrongIsDeletedRatherThanKept() {
-        Downloads.Result result = Downloads.fetch(context, new Bytes("what actually arrived"),
+        Downloads.Result result = fetch(new Bytes("what actually arrived"),
                 GAME, Collections.singletonList(cover("0000notthehashatall0000")));
 
         assertEquals(0, result.saved);
@@ -205,7 +247,7 @@ public class DownloadsTest {
      *  refusing everything unhashed would fetch nothing at all from them. */
     @Test
     public void amediumWithNoStatedHashIsKept() {
-        Downloads.Result result = Downloads.fetch(context, new Bytes("no hash offered"),
+        Downloads.Result result = fetch(new Bytes("no hash offered"),
                 GAME, Collections.singletonList(cover(null)));
 
         assertEquals(1, result.saved);
@@ -217,7 +259,7 @@ public class DownloadsTest {
      *  heals. */
     @Test
     public void anEmptyDownloadIsNotKept() {
-        Downloads.Result result = Downloads.fetch(context, new Bytes(""),
+        Downloads.Result result = fetch(new Bytes(""),
                 GAME, Collections.singletonList(cover(null)));
 
         assertEquals(0, result.saved);
@@ -228,8 +270,7 @@ public class DownloadsTest {
     /** A socket that went away mid-picture takes the part-file with it. */
     @Test
     public void afailedDownloadLeavesNoHalfFile() {
-        Downloads.Result result = Downloads.fetch(context,
-                new Bytes(new IOException("connection reset")),
+        Downloads.Result result = fetch(new Bytes(new IOException("connection reset")),
                 GAME, Collections.singletonList(cover(null)));
 
         assertEquals(0, result.saved);
@@ -250,7 +291,7 @@ public class DownloadsTest {
         String body = "content";
         String right = md5Of(body.getBytes(StandardCharsets.UTF_8));
 
-        Downloads.Result result = Downloads.fetch(context, new Bytes(body), GAME, Arrays.asList(
+        Downloads.Result result = fetch(new Bytes(body), GAME, Arrays.asList(
                 cover("wronghash"),
                 new Medium("screenshots", "https://x/b.png", "png", right)));
 
@@ -267,7 +308,7 @@ public class DownloadsTest {
     @Test
     public void nomediaIsNoWork() {
         Downloads.Result result =
-                Downloads.fetch(context, new Bytes("unused"), GAME, Collections.emptyList());
+                fetch(new Bytes("unused"), GAME, Collections.emptyList());
 
         assertEquals(0, result.saved);
         assertEquals(0, result.failed);
@@ -279,11 +320,133 @@ public class DownloadsTest {
     @Test
     public void theStatedExtensionIsWhatLandsOnDisk() {
         String body = "a jpeg, allegedly";
-        Downloads.fetch(context, new Bytes(body), GAME, Collections.singletonList(
+        fetch(new Bytes(body), GAME, Collections.singletonList(
                 new Medium("covers", "https://x/cover.jpg", "jpg",
                            md5Of(body.getBytes(StandardCharsets.UTF_8)))));
 
         assertTrue(Artwork.fileFor(context, GAME, "covers", "jpg").isFile());
         assertFalse(Artwork.fileFor(context, GAME, "covers", "png").exists());
+    }
+
+    // --- a refusal from the media endpoint --------------------------------------------
+
+    /**
+     * A spent quota during a download stops everything, rather than counting
+     * as one missing cover.
+     *
+     * The hole this closes. ScreenScraper's media are fetched from the same
+     * API as its metadata - a cover is a {@code mediaJeu.php} call with the
+     * credentials in the query - so the quota can run out <em>between</em> the
+     * search and the pictures. Treated as an ordinary failure, a multi-scrape
+     * would carry on through eight hundred more games downloading nothing and
+     * reporting each one as a missing picture.
+     */
+    @Test
+    public void aspentQuotaWhileDownloadingStopsRatherThanCountingAsAMissingPicture() {
+        try {
+            Downloads.fetch(context, new Refusing(429), classifier(), GAME,
+                            Collections.singletonList(cover(null)));
+            fail("a spent quota was swallowed as a missing picture");
+        } catch (ScrapeException e) {
+            assertEquals(ScrapeException.Kind.QUOTA_EXCEEDED, e.kind);
+        }
+    }
+
+    /** Credentials refused mid-scrape is the same: asking again will be
+     *  refused identically. */
+    @Test
+    public void refusedCredentialsWhileDownloadingStopToo() {
+        try {
+            Downloads.fetch(context, new Refusing(401), classifier(), GAME,
+                            Collections.singletonList(cover(null)));
+            fail("refused credentials were swallowed");
+        } catch (ScrapeException e) {
+            assertEquals(ScrapeException.Kind.BAD_CREDENTIALS, e.kind);
+        }
+    }
+
+    /**
+     * A picture the service simply does not have is <em>not</em> a reason to
+     * stop.
+     *
+     * The other half, and the one that makes the rule worth having: a 404 on
+     * one manual must not abandon a collection.
+     */
+    @Test
+    public void amissingPictureIsNotAReasonToStop() throws Exception {
+        Downloads.Result result = Downloads.fetch(context, new Refusing(404), classifier(),
+                GAME, Collections.singletonList(cover(null)));
+
+        assertEquals(0, result.saved);
+        assertEquals(1, result.failed);
+    }
+
+    /** Nor is a server hiccup - the next game is still worth trying. */
+    @Test
+    public void aserverHiccupIsNotAReasonToStop() throws Exception {
+        Downloads.Result result = Downloads.fetch(context, new Refusing(500), classifier(),
+                GAME, Collections.singletonList(cover(null)));
+
+        assertEquals(1, result.failed);
+    }
+
+    /** And a refusal leaves nothing half-written behind it. */
+    @Test
+    public void arefusalLeavesNoFile() {
+        try {
+            Downloads.fetch(context, new Refusing(429), classifier(), GAME,
+                            Collections.singletonList(cover(null)));
+        } catch (ScrapeException expected) {
+            // the point is what is on disk
+        }
+
+        assertFalse("a refused download left a file behind",
+                    Artwork.fileFor(context, GAME, "covers", "png").exists());
+    }
+
+    /**
+     * What arrived before the refusal is still made visible.
+     *
+     * A scrape stopped halfway still fetched the covers it got to, and leaving
+     * them behind a cached miss would throw away work already paid for out of
+     * the day's allowance.
+     */
+    @Test
+    public void whatArrivedBeforeTheRefusalIsNotWasted() {
+        assertNull("nothing yet", Artwork.picture(context, GAME));   // caches the miss
+
+        String body = "a picture";
+        String hash = md5Of(body.getBytes(StandardCharsets.UTF_8));
+
+        // First medium arrives, second is refused with a quota.
+        Http mixed = new Http() {
+            private int calls;
+
+            @Override public Reply get(String url) { throw new UnsupportedOperationException(); }
+
+            @Override
+            public String save(String url, File into) throws IOException {
+                made.add(into);
+                if (calls++ == 0) {
+                    try (FileOutputStream out = new FileOutputStream(into)) {
+                        out.write(body.getBytes(StandardCharsets.UTF_8));
+                    }
+                    return hash;
+                }
+                throw new Http.Refused(429);
+            }
+        };
+
+        try {
+            Downloads.fetch(context, mixed, classifier(), GAME, Arrays.asList(
+                    new Medium("covers", "https://x/a.png", "png", hash),
+                    new Medium("screenshots", "https://x/b.png", "png", hash)));
+            fail("the quota refusal should have come out");
+        } catch (ScrapeException e) {
+            assertEquals(ScrapeException.Kind.QUOTA_EXCEEDED, e.kind);
+        }
+
+        assertNotNull("the cover that did arrive was left behind a cached miss",
+                      Artwork.picture(context, GAME));
     }
 }

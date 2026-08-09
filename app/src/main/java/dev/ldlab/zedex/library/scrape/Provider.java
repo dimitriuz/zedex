@@ -61,6 +61,19 @@ public interface Provider {
     Scraped fetch(Candidate candidate, Wanted wanted) throws ScrapeException;
 
     /**
+     * What a bare HTTP status from this service means.
+     *
+     * Media are fetched from the same API as everything else - for
+     * ScreenScraper a cover is a {@code mediaJeu.php} call, credentials and
+     * all - so a download can be refused for exactly the reasons a search can,
+     * and a spent quota arrives as a status on a picture rather than as a
+     * parsed reply. Only the provider knows what its own codes mean, and
+     * {@code Downloads} has to ask before deciding whether one missing cover
+     * is a reason to stop everything.
+     */
+    ScrapeException refusalFor(int status);
+
+    /**
      * What the last reply said about how much asking is left.
      *
      * Null before anything has been asked. ScreenScraper reports the day's
