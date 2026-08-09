@@ -158,11 +158,34 @@ public interface Http {
             }
         }
 
+        /**
+         * What this app calls itself to a server.
+         *
+         * Without it every request goes out as {@code Dalvik/2.1.0 (Linux; U;
+         * Android …)}, which says a JVM asked and nothing about who. That is
+         * poor manners to a service run by volunteers, and practically it is
+         * the difference between an operator who can see what a client is
+         * doing - and ask, or allow-list it - and one whose only option when
+         * traffic looks odd is to block a range.
+         *
+         * The project URL rather than an email: it is already public, it is
+         * where anybody would go to complain, and it does not put an address
+         * into every log file on the way.
+         *
+         * No version in it, deliberately. This class has no {@code Context}
+         * and none of its callers pass one, and threading a version through
+         * four call sites to put a number in a header nobody has asked for
+         * would be more plumbing than the number is worth.
+         */
+        private static final String USER_AGENT =
+                "Zedex (+https://github.com/dimitriuz/zedex)";
+
         private static HttpURLConnection open(String url) throws IOException {
             HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
             connection.setInstanceFollowRedirects(true);
             connection.setConnectTimeout(CONNECT_MS);
             connection.setReadTimeout(READ_MS);
+            connection.setRequestProperty("User-Agent", USER_AGENT);
             return connection;
         }
 
