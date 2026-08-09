@@ -292,7 +292,11 @@ public final class EsdeLink {
      * be - into every picture disappearing instead of the default, which
      * happened to be right, ever being tried.
      */
-    private static String mediaDirectory(EsDe.Reach reach) {
+    // Package private, not private: EsDe.Reach is already the seam this
+    // reaches ES-DE's folder through, so a test supplies one over a string
+    // and drives the parse without a device - the same crack EsDe.Place was
+    // opened for EsDeMergeTest.
+    static String mediaDirectory(EsDe.Reach reach) {
         InputStream in;
         try {
             in = reach.open(SETTINGS);
