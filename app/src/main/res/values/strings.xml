@@ -633,10 +633,11 @@
          instead while nothing is. Never the fields themselves, which are
          what tapping through to the filter sheet's own rows is for.
 
-         This app's first <plurals> - scripts/check-strings.py parses only
-         <string> and <string-array>, so it silently skips this key in every
-         language rather than checking it; the translations below were
-         reviewed by hand instead. -->
+         This app's first <plurals>. The check script only read <string> and
+         <string-array> when this was written, so it skipped the key
+         silently; it reads plurals now - not form for form, since which
+         forms a language has is the language's business, but every form has
+         to take the same arguments as English and "other" has to exist. -->
     <plurals name="library_filter_count">
         <item quantity="one">%1$d field</item>
         <item quantity="other">%1$d fields</item>
@@ -771,4 +772,144 @@
     <string name="scrape_failed_login">The scraper\'s login was refused</string>
     <string name="scrape_failed_network">Could not reach the scraper</string>
     <string name="scrape_failed_closed">The scraper is closed to this account</string>
+    <!-- Scraping a whole collection - ScrapeManyActivity. The three settings
+         are chosen once, before the run, which is the difference between this
+         and doing it a game at a time from the popup. -->
+    <string name="scrape_many_menu">Scrape many games…</string>
+    <string name="scrape_many_title">Scrape many games</string>
+    <string name="scrape_many_scope">Which folder</string>
+    <string name="scrape_many_scope_here">This folder</string>
+    <string name="scrape_many_scope_named">This folder (%1$s)</string>
+    <string name="scrape_many_scope_below">This folder and everything below it</string>
+    <string name="scrape_many_scope_library">The whole library</string>
+    <string name="scrape_many_only">Which games</string>
+    <string name="scrape_many_only_unscraped">Not scraped yet</string>
+    <string name="scrape_many_only_no_picture">Games with no picture</string>
+    <string name="scrape_many_only_everything">Everything, again</string>
+    <string name="scrape_many_conflicts">When more than one game matches</string>
+    <string name="scrape_many_conflicts_skip">Skip them</string>
+    <!-- Says plainly what it is rather than hiding it behind a confirmation:
+         the provider's own first answer, which on a Spectrum collection will
+         sometimes be a different game. -->
+    <string name="scrape_many_conflicts_best">Take the best match — sometimes the wrong game</string>
+    <string name="scrape_many_conflicts_ask">Ask me each time — as long as you take</string>
+    <string name="scrape_many_counting">Counting…</string>
+    <string name="scrape_many_cannot_list">Could not read that folder</string>
+    <plurals name="scrape_many_estimate">
+        <item quantity="one">%1$d game · about %2$d requests</item>
+        <item quantity="other">%1$d games · about %2$d requests</item>
+    </plurals>
+    <string name="scrape_many_quota">%1$d requests left today</string>
+    <string name="scrape_many_start">Start</string>
+    <string name="scrape_many_close">Close</string>
+    <string name="scrape_many_working">Starting…</string>
+    <string name="scrape_many_stopping">Stopping…</string>
+    <string name="scrape_many_at">%1$d of %2$d — %3$s</string>
+    <string name="scrape_many_skip_one">Skip this one</string>
+    <string name="scrape_many_skip_rest">Skip the rest</string>
+    <string name="scrape_many_cancelled">Stopped.</string>
+    <plurals name="scrape_many_scraped">
+        <item quantity="one">%1$d game scraped</item>
+        <item quantity="other">%1$d games scraped</item>
+    </plurals>
+    <plurals name="scrape_many_media">
+        <item quantity="one">%1$d file downloaded</item>
+        <item quantity="other">%1$d files downloaded</item>
+    </plurals>
+    <plurals name="scrape_many_ambiguous">
+        <item quantity="one">%1$d needed choosing</item>
+        <item quantity="other">%1$d needed choosing</item>
+    </plurals>
+    <plurals name="scrape_many_unknown">
+        <item quantity="one">%1$d not found</item>
+        <item quantity="other">%1$d not found</item>
+    </plurals>
+    <plurals name="scrape_many_yours">
+        <item quantity="one">%1$d left alone — you edited it by hand</item>
+        <item quantity="other">%1$d left alone — you edited them by hand</item>
+    </plurals>
+    <plurals name="scrape_many_failed">
+        <item quantity="one">%1$d failed</item>
+        <item quantity="other">%1$d failed</item>
+    </plurals>
+    <!-- The whole of this feature's resume story: there is no stored
+         progress, and none is needed. -->
+    <string name="scrape_many_resume">Run this again with “Not scraped yet” to carry on where it stopped.</string>
+    <!-- An optional ScreenScraper account of the user's own. The summary says
+         plainly why it is worth having, since a login nobody understands the
+         point of is a login nobody sets. -->
+    <string name="settings_group_scraper">Scraper account</string>
+    <string name="settings_scraper_user">ScreenScraper username</string>
+    <string name="settings_scraper_user_summary">Optional. Your own account gets a much larger daily allowance than the one shared by everyone using this app.</string>
+    <string name="settings_scraper_password">ScreenScraper password</string>
+    <string name="settings_scraper_password_none">Not set</string>
+    <!-- Never the password itself: a settings page is read over shoulders and
+         photographed into bug reports. -->
+    <string name="settings_scraper_password_set">Set</string>
+    <!-- What a scrape fetches. Each one costs a request per game, which is
+         why the summary does the arithmetic rather than leaving somebody to
+         find out at eight hundred games. -->
+    <string name="settings_scrape_media">What to fetch</string>
+    <string name="scrape_media_none">Details only, no pictures</string>
+    <string name="scrape_media_summary">%1$d of %2$d · %3$d requests a game</string>
+    <string name="scrape_media_covers">Cover — shown on every row</string>
+    <string name="scrape_media_screenshots">Screenshot</string>
+    <string name="scrape_media_titlescreens">Title screen</string>
+    <string name="scrape_media_backcovers">Back cover</string>
+    <string name="scrape_media_physicalmedia">Cassette or disk</string>
+    <string name="scrape_media_miximages">Mixed image</string>
+    <string name="scrape_media_videos">Video — about 1 MB each</string>
+    <string name="scrape_media_manuals">Manual (PDF)</string>
+    <!-- The list a person ticks, in the order the pane shows them.
+
+         translatable="false" on an array of visible labels looks wrong and is
+         not: every item is a reference, and a reference inside an array is
+         resolved in the current locale like any other. The words are
+         translated - just above, one <string> at a time. Copying the array
+         into eight more files would only be eight more chances for the order
+         to drift out of step with scrape_media_folders, which is the one
+         thing here that must not happen. -->
+    <string-array name="scrape_media_entries" translatable="false">
+        <item>@string/scrape_media_covers</item>
+        <item>@string/scrape_media_screenshots</item>
+        <item>@string/scrape_media_titlescreens</item>
+        <item>@string/scrape_media_backcovers</item>
+        <item>@string/scrape_media_physicalmedia</item>
+        <item>@string/scrape_media_miximages</item>
+        <item>@string/scrape_media_videos</item>
+        <item>@string/scrape_media_manuals</item>
+    </string-array>
+    <!-- ES-DE's own folder names, which is what Provider.Wanted is addressed
+         by and what lands in the media folder. Never translated: these are
+         paths on disk, not words. Order must match the entries above. -->
+    <string-array name="scrape_media_folders" translatable="false">
+        <item>covers</item>
+        <item>screenshots</item>
+        <item>titlescreens</item>
+        <item>backcovers</item>
+        <item>physicalmedia</item>
+        <item>miximages</item>
+        <item>videos</item>
+        <item>manuals</item>
+    </string-array>
+    <!-- What is ticked before anybody has chosen: the three this app draws
+         everywhere, matching Provider.Wanted.usual.
+
+         This exists because a MultiSelectListPreference has no way to show
+         "nobody has chosen yet" - with no defaultValue it renders an absent
+         key as nothing ticked, while Scrapers.wanted was reading the same
+         absence as the usual three. The summary said "3 of 8" over a dialog
+         with none of the eight ticked, and pressing OK without touching a
+         thing would have quietly moved somebody from three media to none.
+
+         The default is only displayed, never written, so the absent/empty
+         distinction Scrapers.wanted depends on survives intact. -->
+    <string-array name="scrape_media_default" translatable="false">
+        <item>covers</item>
+        <item>screenshots</item>
+        <item>titlescreens</item>
+    </string-array>
+    <!-- The sweep screen's own line, which opens the same dialog and writes
+         the same key - see ScrapeManyActivity. -->
+    <string name="scrape_many_fetching">What to fetch</string>
 </resources>

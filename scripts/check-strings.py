@@ -147,6 +147,15 @@ def main() -> int:
         for element in ElementTree.parse(RES / "values" / file).getroot()
         if element.get("translatable") == "false"
     }
+    # An array is one element and many keys. A <string-array> that says
+    # translatable="false" puts its own name in the set above, but this file
+    # names its items name[0], name[1] and so on, so the exclusion never
+    # reached them and every item counted as missing in all eight languages
+    # for ever. Add the items as well as the array.
+    untranslatable |= {
+        name for name in english
+        if "[" in name and name[:name.index("[")] in untranslatable
+    }
     untranslatable |= {"app_name"}
     untranslatable |= {
         name for name, text in english.items()

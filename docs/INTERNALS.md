@@ -991,6 +991,154 @@ opened - so by the time anything asks, `getAll().isEmpty()` is already false,
 and every new install would read as an update and switch the library off for
 everybody it was meant for.
 
+### Scraping
+
+Linking to ES-DE takes what ES-DE already scraped. Scraping asks a service
+directly, so the app has a collection of its own to fill rather than only a
+view onto somebody else's.
+
+**Two media roots, ours first.** `Artwork` reads the app's own media folder
+and ES-DE's, per folder, and prefers ours. That is what lets a scrape improve
+one game without touching ES-DE's tree, and it is why the four early returns
+on "ES-DE is not installed" had to go: their tree being absent says nothing
+about what this app fetched for itself.
+
+**Three owners, and a link only overwrites one.** A row is ES-DE's, the
+user's, or a provider's — `Meta.source`. `replaceScraped` keeps everything
+that is not ES-DE's, so a link leaves both a hand edit and a scrape alone.
+The rule used to be "a link keeps hand edits", which was the same thing right
+up until the app could scrape for itself.
+
+**What gets fetched is a person's own choice.** Eight types, and the list is
+exactly what this app can display - `Provider`'s `MEDIA_FOLDERS` plus videos
+and manuals on one side, `Artwork`'s `PICTURE_FOLDERS` plus the same two on
+the other. Offering a ninth that nothing draws would be spending the
+allowance on a file nobody sees. Stored as ES-DE folder names
+(`Prefs.KEY_SCRAPE_MEDIA`), which is what `Provider.Wanted` has always been
+addressed by, so the setting hands straight through.
+
+*Absent is not empty*, and `Scrapers.wanted` turns on it: nothing stored means
+nobody has chosen and the usual three apply; an empty set means somebody
+deliberately asked for metadata only. `getStringSet(key, usual)` would be the
+convenient spelling and cannot tell them apart, so "none" would silently
+become "three". The preference widget cannot express absent either - which
+cost a real bug, found on a device: the summary read *3 of 8* above a dialog
+with none of the eight ticked, and OK on an untouched dialog moved you from
+three media to none. `android:defaultValue` fixes the display without
+persisting anything, so the distinction survives.
+
+Two places edit it - the Library tab and the sweep screen's own row - and both
+write the one key. Two editors of one answer, not two answers.
+
+**Every picture is a request.** ScreenScraper's media URLs are `mediaJeu.php`
+calls with the credentials in the query, not static files — so a cover costs
+exactly what a search costs, and a cover can be refused for exactly the
+reasons a search can. Hence `Provider.Wanted` names folders and counts:
+`usual()` is three media plus the search, four a game, and everything the
+service has would be nine or ten and would not fit a collection into a day.
+Hence too that those URLs must never reach a log line, which is why
+`Http.Refused` carries the status and nothing else.
+
+**The service does not refuse when you are over.** Forcing the counter to
+100000 against an allowance of 10000 still answered 200 with a real
+candidate. The counters in every reply are the only warning there is, so
+`Sweep` checks `Quota.left()` *before* each game rather than waiting to be
+told. An unknown allowance stops nothing — refusing to try on a guess is
+worse than one refused request.
+
+**Serial, because the account is.** One request in flight is what an account
+without a subscription gets, and `forcelevel=30` does not change it. So the
+multi-scrape is a loop, not a pool.
+
+**Each half splits at the screen.** `Scrape` and `Sweep` hold everything a
+run does; `ScrapeOneGame` and `ScrapeManyActivity` hold only what needs a
+person — which of several candidates, and whether to replace something typed
+by hand. That is what makes the first two testable: `Provider` and `Http` are
+interfaces, so a spent quota, a refused password, a thread limit and a
+cancelled run are all things a fake produces on demand and none of them can
+be arranged against a live service.
+
+**A 404 is an answer.** Most of a Spectrum collection is obscure, so an
+unknown game is the common case. Throwing for it would stop a collection-wide
+run within a dozen games.
+
+**The resume is the filter.** There is no stored progress anywhere in the
+multi-scrape. "Not scraped yet" means *no row, or a row this app did not
+write* — run it again and it is exactly the games the last run did not reach,
+after a cancel, a spent quota, a crash or a reinstall. Deliberately not "has
+no metadata": on a linked collection the store is already mostly full, so
+that question would match almost nothing and resuming would silently do
+nothing.
+
+**A run cannot ask three hundred times**, so a hand-edited row is skipped and
+counted rather than confirmed one at a time, and the conflict policy is
+chosen once before the run. *Ask me each time* blocks the sweep thread on a
+dialog; the way out of a long tail of them is *Skip the rest*, which switches
+the rest of the run to skipping rather than cancelling it.
+
+**Credentials, and the fact that they cannot be hidden.** The developer id
+and password come from `local.properties` or the environment into `resValue`
+strings — a source build without them has no provider at all and every entry
+point hides itself (`Scrapers.any`).
+
+They are **readable by anyone who has the APK**, and no amount of work
+changes that. R8 does not obfuscate resource *values*, a Java constant leaves
+the literal in the dex, a native library leaves it in `strings`, and
+encrypting it ships the key alongside. A client-side secret is not a thing
+that exists.
+
+They are nonetheless **sealed rather than written in the clear**, which is a
+smaller and different claim. `app/build.gradle` AES-GCMs them at
+configuration time into `screenscraper_id_sealed` and
+`screenscraper_password_sealed`; `Secrets.reveal` opens them. That does not
+make them secret — `Secrets.java` is right there and says so in its own first
+paragraph — it makes them not *greppable*. Before it, `aapt2 dump resources`
+printed the password to somebody who was looking at something else, which is
+how most of what gets scraped off published APKs is found. Measured after:
+the password appears **zero** times anywhere in the APK, across every entry
+decompressed.
+
+The one thing that can go wrong is silent, so it is designed out rather than
+watched for. `Secrets.SEASONING` — what the key is derived from — exists in
+exactly one place, and the build **reads it out of the Java source** with a
+regex instead of keeping a second copy. If that regex ever stops matching,
+the build fails and says so by name; if the two ever seal and open with
+different keys, `SecretsTest` fails and says which. Both were checked by
+breaking them on purpose. Without either, the APK would ship happily and
+every scrape would fail as though the credentials were absent.
+
+The nonce is derived from the plaintext rather than randomised: a build has
+to be reproducible, and a fixed nonce reused under one key across two
+different secrets is the one way to make GCM leak.
+
+So the threat model is not confidentiality. Nobody wants the password for its
+own sake; the damage is the id being hammered and **banned**, which would end
+scraping for every install at once, because a devid identifies the
+*application* — which is exactly why ScreenScraper issues one per application
+and why every other client (ES-DE, Skraper, RetroArch, Batocera) embeds one
+too.
+
+Two things follow, and they are the whole mitigation:
+
+- **A user's own account.** `Prefs.KEY_SCRAPER_USER`/`KEY_SCRAPER_PASSWORD`,
+  two rows on the Library tab, passed through by `Scrapers.withAccount` as
+  `ssid`/`sspassword` alongside the developer id rather than instead of it.
+  It buys a real daily allowance, so anyone scraping a whole collection is
+  using their own quota and the shared account carries casual use only. Half
+  a login — a name with no password — is treated as none, since it would
+  authenticate as nobody and read as the service being broken.
+- **The password never appears anywhere it could be read.** Not in the
+  settings summary (`SettingsActivity` says *Set* or *Not set*), not in a bug
+  report (`Diagnostics` names the keys it prints one at a time, and
+  `DiagnosticsTest.carriesNoScraperLogin` fails if that ever becomes a loop
+  over `getAll`), and not in a cloud backup or a device transfer — both are
+  excluded in `backup_rules.xml`, the name along with the password so a
+  restore does not leave a login that silently fails.
+
+ScreenScraper's *DebugPassword*, which can force the quota counters and the
+error codes, is never in the repository, the build or the APK: the live tests
+take it as an instrumentation argument.
+
 ### Settings
 
 `SettingsActivity` is a plain framework `PreferenceFragment` over the same
@@ -1148,6 +1296,7 @@ Everything else is in a layer:
 | `menu` | `ControlsUi`, `PokesUi`, `StatesUi`, `Capture` — what fills a page or a bar group |
 | `library` | `Entry`, `Listing`, `Filters`, `Sorting`, `Facets`, `Favorites`, `Shortlist` — what a row is, where rows come from, and which of them are shown |
 | `library.meta` | `Meta`, `Metadata`, `Artwork`, `EsdeLink`, `EsdeManuals` — what ES-DE knows about a row, and where its pictures are |
+| `library.scrape` | `Provider`, `ScreenScraper`, `Http`, `Scrape`, `Sweep`, `Downloads`, `Candidate`, `Medium`, `Quota` — fetching what a game is from a service |
 | `library.ui` | `EntryAdapter`, `DetailPane`, `Gallery`, `OptionsDialog`, `GamepadCursor`, `Scraped` — the library screen's own views |
 | `screen` | the other activities, plus `StartPanel`, `SecondScreen` and `Panels` |
 

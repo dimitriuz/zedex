@@ -97,10 +97,25 @@ public final class ScreenScraper implements Provider {
     private Quota quota = Quota.unknown();
 
     public ScreenScraper(Context context, Http http) {
+        this(context, http, "", "");
+    }
+
+    /**
+     * With an account of the user's own, which is optional and buys a real
+     * daily allowance.
+     *
+     * The developer id goes as well, not instead: it identifies the
+     * application to the service and every request carries it. See {@code
+     * Prefs.KEY_SCRAPER_USER} for why anyone is being asked for a login at
+     * all - the short version being that the developer credentials are in the
+     * APK and cannot be hidden there, so the shared account is meant to carry
+     * casual use and nothing heavier.
+     */
+    public ScreenScraper(Context context, Http http, String userName, String userPassword) {
         this(http,
-             context.getString(R.string.screenscraper_dev_id),
-             context.getString(R.string.screenscraper_dev_password),
-             "", "");
+             Secrets.reveal(context, R.string.screenscraper_id_sealed),
+             Secrets.reveal(context, R.string.screenscraper_password_sealed),
+             userName, userPassword);
     }
 
     ScreenScraper(Http http, String devId, String devPassword,

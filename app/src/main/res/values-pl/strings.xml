@@ -666,4 +666,94 @@
     <string name="scrape_failed_login">Odrzucono logowanie do usługi</string>
     <string name="scrape_failed_network">Nie udało się połączyć z usługą</string>
     <string name="scrape_failed_closed">Usługa jest zamknięta dla tego konta</string>
+    <!-- Scraping a whole collection - ScrapeManyActivity. -->
+    <string name="scrape_many_menu">Pobierz dane wielu gier…</string>
+    <string name="scrape_many_title">Dane wielu gier</string>
+    <string name="scrape_many_scope">Który folder</string>
+    <string name="scrape_many_scope_here">Ten folder</string>
+    <string name="scrape_many_scope_named">Ten folder (%1$s)</string>
+    <string name="scrape_many_scope_below">Ten folder i wszystko poniżej</string>
+    <string name="scrape_many_scope_library">Cała biblioteka</string>
+    <string name="scrape_many_only">Które gry</string>
+    <string name="scrape_many_only_unscraped">Jeszcze bez danych</string>
+    <string name="scrape_many_only_no_picture">Gry bez obrazka</string>
+    <string name="scrape_many_only_everything">Wszystko, jeszcze raz</string>
+    <string name="scrape_many_conflicts">Gdy pasuje więcej niż jedna gra</string>
+    <string name="scrape_many_conflicts_skip">Pomiń je</string>
+    <string name="scrape_many_conflicts_best">Weź najlepsze dopasowanie — czasem nie tę grę</string>
+    <string name="scrape_many_conflicts_ask">Pytaj za każdym razem — potrwa tyle, ile zechcesz</string>
+    <string name="scrape_many_counting">Liczenie…</string>
+    <string name="scrape_many_cannot_list">Nie udało się odczytać tego folderu</string>
+    <plurals name="scrape_many_estimate">
+        <item quantity="one">%1$d gra · około %2$d żądań</item>
+        <item quantity="few">%1$d gry · około %2$d żądań</item>
+        <item quantity="many">%1$d gier · około %2$d żądań</item>
+        <item quantity="other">%1$d gry · około %2$d żądań</item>
+    </plurals>
+    <string name="scrape_many_quota">Dziś zostało %1$d żądań</string>
+    <string name="scrape_many_start">Rozpocznij</string>
+    <string name="scrape_many_close">Zamknij</string>
+    <string name="scrape_many_working">Rozpoczynanie…</string>
+    <string name="scrape_many_stopping">Zatrzymywanie…</string>
+    <string name="scrape_many_at">%1$d z %2$d — %3$s</string>
+    <string name="scrape_many_skip_one">Pomiń tę</string>
+    <string name="scrape_many_skip_rest">Pomiń resztę</string>
+    <string name="scrape_many_cancelled">Zatrzymano.</string>
+    <plurals name="scrape_many_scraped">
+        <item quantity="one">Pobrano dane %1$d gry</item>
+        <item quantity="few">Pobrano dane %1$d gier</item>
+        <item quantity="many">Pobrano dane %1$d gier</item>
+        <item quantity="other">Pobrano dane %1$d gry</item>
+    </plurals>
+    <plurals name="scrape_many_media">
+        <item quantity="one">Pobrano %1$d plik</item>
+        <item quantity="few">Pobrano %1$d pliki</item>
+        <item quantity="many">Pobrano %1$d plików</item>
+        <item quantity="other">Pobrano %1$d pliku</item>
+    </plurals>
+    <plurals name="scrape_many_ambiguous">
+        <item quantity="one">%1$d wymagała wyboru</item>
+        <item quantity="few">%1$d wymagały wyboru</item>
+        <item quantity="many">%1$d wymagało wyboru</item>
+        <item quantity="other">%1$d wymagało wyboru</item>
+    </plurals>
+    <plurals name="scrape_many_unknown">
+        <item quantity="one">%1$d nie znaleziono</item>
+        <item quantity="few">%1$d nie znaleziono</item>
+        <item quantity="many">%1$d nie znaleziono</item>
+        <item quantity="other">%1$d nie znaleziono</item>
+    </plurals>
+    <plurals name="scrape_many_yours">
+        <item quantity="one">%1$d pominięta — edytowana ręcznie</item>
+        <item quantity="few">%1$d pominięte — edytowane ręcznie</item>
+        <item quantity="many">%1$d pominiętych — edytowanych ręcznie</item>
+        <item quantity="other">%1$d pominiętych — edytowanych ręcznie</item>
+    </plurals>
+    <plurals name="scrape_many_failed">
+        <item quantity="one">%1$d nie powiodła się</item>
+        <item quantity="few">%1$d nie powiodły się</item>
+        <item quantity="many">%1$d nie powiodło się</item>
+        <item quantity="other">%1$d nie powiodło się</item>
+    </plurals>
+    <string name="scrape_many_resume">Uruchom to ponownie z opcją „Jeszcze bez danych”, aby kontynuować od miejsca zatrzymania.</string>
+    <!-- An optional ScreenScraper account of the user's own. -->
+    <string name="settings_group_scraper">Konto scrapera</string>
+    <string name="settings_scraper_user">Nazwa użytkownika ScreenScraper</string>
+    <string name="settings_scraper_user_summary">Opcjonalne. Własne konto ma znacznie większy dzienny limit niż to współdzielone przez wszystkich użytkowników tej aplikacji.</string>
+    <string name="settings_scraper_password">Hasło ScreenScraper</string>
+    <string name="settings_scraper_password_none">Nie ustawiono</string>
+    <string name="settings_scraper_password_set">Ustawione</string>
+    <!-- What a scrape fetches; each one costs a request per game. -->
+    <string name="settings_scrape_media">Co pobierać</string>
+    <string name="scrape_media_none">Tylko dane, bez obrazków</string>
+    <string name="scrape_media_summary">%1$d z %2$d · %3$d żądań na grę</string>
+    <string name="scrape_media_covers">Okładka — w każdym wierszu</string>
+    <string name="scrape_media_screenshots">Zrzut ekranu</string>
+    <string name="scrape_media_titlescreens">Ekran tytułowy</string>
+    <string name="scrape_media_backcovers">Tył okładki</string>
+    <string name="scrape_media_physicalmedia">Kaseta lub dyskietka</string>
+    <string name="scrape_media_miximages">Obraz złożony</string>
+    <string name="scrape_media_videos">Wideo — około 1 MB każde</string>
+    <string name="scrape_media_manuals">Instrukcja (PDF)</string>
+    <string name="scrape_many_fetching">Co pobierać</string>
 </resources>

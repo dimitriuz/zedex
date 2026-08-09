@@ -80,6 +80,66 @@
             android:defaultValue="true" />
     </PreferenceCategory>
 
+    <!--
+        A ScreenScraper account of the user's own, optional.
+
+        The app's own developer credentials are in the APK and readable by
+        anyone who wants them - see Prefs.KEY_SCRAPER_USER for why that cannot
+        be fixed and what actually follows from it. This row is the mitigation
+        that works: anyone scraping a whole collection uses their own account,
+        so the shared one carries casual use and is less worth abusing.
+
+        Both are kept out of backup and device transfer; see backup_rules.xml.
+    -->
+    <PreferenceCategory android:title="@string/settings_group_scraper">
+        <EditTextPreference
+            android:key="scraperUser"
+            android:title="@string/settings_scraper_user"
+            android:summary="@string/settings_scraper_user_summary"
+            android:inputType="text"
+            android:selectAllOnFocus="true"
+            android:singleLine="true" />
+        <!--
+            No summary binding anywhere: an EditTextPreference that showed its
+            own value would print the password under the row, on a settings
+            page anyone standing behind you can read. SettingsActivity says
+            whether it is set, never what it is.
+        -->
+        <EditTextPreference
+            android:key="scraperPassword"
+            android:title="@string/settings_scraper_password"
+            android:summary="@string/settings_scraper_password_none"
+            android:inputType="textPassword"
+            android:singleLine="true" />
+        <!--
+            What a scrape fetches, as ES-DE folder names - see
+            Prefs.KEY_SCRAPE_MEDIA.
+
+            defaultValue is what the dialog shows before anybody has chosen,
+            and it has to be here: without it the widget renders an absent key
+            as nothing ticked, while Scrapers.wanted reads the same absence as
+            the usual three - so the summary said "3 of 8" above a dialog with
+            none of the eight ticked, and OK on an untouched dialog moved you
+            from three media to none. Measured on a device, not reasoned
+            about.
+
+            It is displayed, not written: nothing persists until somebody
+            changes something, so absent still means "nobody has chosen" and
+            empty still means "chose nothing", which is the distinction the
+            whole setting turns on.
+
+            The same dialog opens from the scrape-many screen, which writes
+            this very key rather than keeping an answer of its own.
+        -->
+        <MultiSelectListPreference
+            android:key="scrapeMedia"
+            android:title="@string/settings_scrape_media"
+            android:dialogTitle="@string/settings_scrape_media"
+            android:entries="@array/scrape_media_entries"
+            android:entryValues="@array/scrape_media_folders"
+            android:defaultValue="@array/scrape_media_default" />
+    </PreferenceCategory>
+
     <PreferenceCategory android:title="@string/settings_group_library_media">
         <!--
             True is what the pane already did before this switch existed - see

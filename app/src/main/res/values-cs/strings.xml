@@ -666,4 +666,94 @@
     <string name="scrape_failed_login">Přihlášení ke službě bylo odmítnuto</string>
     <string name="scrape_failed_network">Službu se nepodařilo kontaktovat</string>
     <string name="scrape_failed_closed">Služba je pro tento účet uzavřena</string>
+    <!-- Scraping a whole collection - ScrapeManyActivity. -->
+    <string name="scrape_many_menu">Načíst data k více hrám…</string>
+    <string name="scrape_many_title">Načtení dat k více hrám</string>
+    <string name="scrape_many_scope">Která složka</string>
+    <string name="scrape_many_scope_here">Tato složka</string>
+    <string name="scrape_many_scope_named">Tato složka (%1$s)</string>
+    <string name="scrape_many_scope_below">Tato složka a vše pod ní</string>
+    <string name="scrape_many_scope_library">Celá knihovna</string>
+    <string name="scrape_many_only">Které hry</string>
+    <string name="scrape_many_only_unscraped">Zatím bez načtených dat</string>
+    <string name="scrape_many_only_no_picture">Hry bez obrázku</string>
+    <string name="scrape_many_only_everything">Vše, znovu</string>
+    <string name="scrape_many_conflicts">Když odpovídá více her</string>
+    <string name="scrape_many_conflicts_skip">Přeskočit je</string>
+    <string name="scrape_many_conflicts_best">Vzít nejlepší shodu — někdy jinou hru</string>
+    <string name="scrape_many_conflicts_ask">Zeptat se pokaždé — potrvá, jak dlouho budete chtít</string>
+    <string name="scrape_many_counting">Počítání…</string>
+    <string name="scrape_many_cannot_list">Tuto složku nelze přečíst</string>
+    <plurals name="scrape_many_estimate">
+        <item quantity="one">%1$d hra · přibližně %2$d požadavků</item>
+        <item quantity="few">%1$d hry · přibližně %2$d požadavků</item>
+        <item quantity="many">%1$d her · přibližně %2$d požadavků</item>
+        <item quantity="other">%1$d her · přibližně %2$d požadavků</item>
+    </plurals>
+    <string name="scrape_many_quota">Dnes zbývá %1$d požadavků</string>
+    <string name="scrape_many_start">Spustit</string>
+    <string name="scrape_many_close">Zavřít</string>
+    <string name="scrape_many_working">Spouštění…</string>
+    <string name="scrape_many_stopping">Zastavování…</string>
+    <string name="scrape_many_at">%1$d z %2$d — %3$s</string>
+    <string name="scrape_many_skip_one">Přeskočit tuto</string>
+    <string name="scrape_many_skip_rest">Přeskočit zbytek</string>
+    <string name="scrape_many_cancelled">Zastaveno.</string>
+    <plurals name="scrape_many_scraped">
+        <item quantity="one">Načtena data k %1$d hře</item>
+        <item quantity="few">Načtena data k %1$d hrám</item>
+        <item quantity="many">Načtena data k %1$d hrám</item>
+        <item quantity="other">Načtena data k %1$d hrám</item>
+    </plurals>
+    <plurals name="scrape_many_media">
+        <item quantity="one">Stažen %1$d soubor</item>
+        <item quantity="few">Staženy %1$d soubory</item>
+        <item quantity="many">Staženo %1$d souborů</item>
+        <item quantity="other">Staženo %1$d souborů</item>
+    </plurals>
+    <plurals name="scrape_many_ambiguous">
+        <item quantity="one">%1$d vyžadovala výběr</item>
+        <item quantity="few">%1$d vyžadovaly výběr</item>
+        <item quantity="many">%1$d vyžadovalo výběr</item>
+        <item quantity="other">%1$d vyžadovalo výběr</item>
+    </plurals>
+    <plurals name="scrape_many_unknown">
+        <item quantity="one">%1$d nenalezena</item>
+        <item quantity="few">%1$d nenalezeny</item>
+        <item quantity="many">%1$d nenalezeno</item>
+        <item quantity="other">%1$d nenalezeno</item>
+    </plurals>
+    <plurals name="scrape_many_yours">
+        <item quantity="one">%1$d ponechána — upravili jste ji ručně</item>
+        <item quantity="few">%1$d ponechány — upravili jste je ručně</item>
+        <item quantity="many">%1$d ponecháno — upravili jste je ručně</item>
+        <item quantity="other">%1$d ponecháno — upravili jste je ručně</item>
+    </plurals>
+    <plurals name="scrape_many_failed">
+        <item quantity="one">%1$d selhala</item>
+        <item quantity="few">%1$d selhaly</item>
+        <item quantity="many">%1$d selhalo</item>
+        <item quantity="other">%1$d selhalo</item>
+    </plurals>
+    <string name="scrape_many_resume">Spusťte to znovu s volbou „Zatím bez načtených dat“ a bude se pokračovat tam, kde se přestalo.</string>
+    <!-- An optional ScreenScraper account of the user's own. -->
+    <string name="settings_group_scraper">Účet scraperu</string>
+    <string name="settings_scraper_user">Uživatelské jméno ScreenScraper</string>
+    <string name="settings_scraper_user_summary">Nepovinné. Vlastní účet má mnohem větší denní limit než ten, který sdílejí všichni uživatelé této aplikace.</string>
+    <string name="settings_scraper_password">Heslo ScreenScraper</string>
+    <string name="settings_scraper_password_none">Nenastaveno</string>
+    <string name="settings_scraper_password_set">Nastaveno</string>
+    <!-- What a scrape fetches; each one costs a request per game. -->
+    <string name="settings_scrape_media">Co stahovat</string>
+    <string name="scrape_media_none">Jen údaje, žádné obrázky</string>
+    <string name="scrape_media_summary">%1$d z %2$d · %3$d požadavků na hru</string>
+    <string name="scrape_media_covers">Obal — na každém řádku</string>
+    <string name="scrape_media_screenshots">Snímek obrazovky</string>
+    <string name="scrape_media_titlescreens">Titulní obrazovka</string>
+    <string name="scrape_media_backcovers">Zadní strana obalu</string>
+    <string name="scrape_media_physicalmedia">Kazeta nebo disketa</string>
+    <string name="scrape_media_miximages">Kombinovaný obrázek</string>
+    <string name="scrape_media_videos">Video — asi 1 MB každé</string>
+    <string name="scrape_media_manuals">Manuál (PDF)</string>
+    <string name="scrape_many_fetching">Co stahovat</string>
 </resources>

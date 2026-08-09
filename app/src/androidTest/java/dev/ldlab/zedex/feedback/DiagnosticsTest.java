@@ -122,4 +122,49 @@ public class DiagnosticsTest {
                         .compile("[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}")
                         .matcher(report).find());
     }
+
+    /**
+     * And no scraper login, which is the one secret this app now stores.
+     *
+     * A bug report is written to be read by the user and sent by hand to a
+     * stranger, so a password in it is a password given away - and the whole
+     * design is that they can read it first, which only helps if the thing
+     * they would object to is visible rather than buried among forty settings.
+     *
+     * Safe today by construction: {@code Diagnostics.settings} names the keys
+     * it prints one at a time rather than walking {@code getAll}. That is
+     * exactly the kind of safety that lasts until somebody makes it a loop,
+     * which is what this test is for. It sets a value that could not occur by
+     * accident and asks whether it came out the other end.
+     */
+    @Test
+    public void carriesNoScraperLogin() {
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        SharedPreferences preferences =
+                context.getSharedPreferences(Prefs.PREFS, Context.MODE_PRIVATE);
+
+        String user = preferences.getString(Prefs.KEY_SCRAPER_USER, null);
+        String password = preferences.getString(Prefs.KEY_SCRAPER_PASSWORD, null);
+
+        try {
+            preferences.edit()
+                    .putString(Prefs.KEY_SCRAPER_USER, "zedex-test-username")
+                    .putString(Prefs.KEY_SCRAPER_PASSWORD, "zedex-test-passphrase")
+                    .commit();
+
+            String report = report();
+
+            assertFalse("a report containing the scraper username:\n" + report,
+                        report.contains("zedex-test-username"));
+            assertFalse("a report containing the scraper password:\n" + report,
+                        report.contains("zedex-test-passphrase"));
+        } finally {
+            // Somebody's real login, if they have one - putting it back
+            // matters more here than in most of these.
+            preferences.edit()
+                    .putString(Prefs.KEY_SCRAPER_USER, user)
+                    .putString(Prefs.KEY_SCRAPER_PASSWORD, password)
+                    .commit();
+        }
+    }
 }

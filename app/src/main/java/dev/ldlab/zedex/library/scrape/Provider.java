@@ -146,6 +146,28 @@ public interface Provider {
             return new Wanted(new java.util.LinkedHashSet<>(java.util.Arrays.asList(folders)));
         }
 
+        /**
+         * From a stored set, which is where a person's own choice arrives -
+         * see {@code Prefs.KEY_SCRAPE_MEDIA}.
+         *
+         * Copied rather than held: a {@code Set} handed back by {@code
+         * getStringSet} belongs to the preferences and must not be kept, let
+         * alone mutated, which is a documented way to corrupt them.
+         *
+         * An empty set stays empty. That is metadata only, and it is the one
+         * case where "nothing chosen" must not quietly become "the default" -
+         * the caller has already decided whether absent means the default,
+         * because only the caller can tell absent from empty.
+         */
+        public static Wanted of(java.util.Set<String> folders) {
+            return new Wanted(new java.util.LinkedHashSet<>(folders));
+        }
+
+        /** The folders themselves, for a screen that has to name them. */
+        public java.util.Set<String> folders() {
+            return java.util.Collections.unmodifiableSet(folders);
+        }
+
         /** Metadata only, which is a real thing to want and the cheapest
          *  possible scrape. */
         public static Wanted nothing() {

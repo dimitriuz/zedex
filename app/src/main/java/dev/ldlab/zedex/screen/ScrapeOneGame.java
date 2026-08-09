@@ -55,7 +55,7 @@ final class ScrapeOneGame {
      * result will be thrown away.
      */
     void scrape(Entry entry) {
-        Provider provider = Scrapers.preferred(activity);
+        Provider provider = Scrapers.withAccount(activity);
         if (provider == null) return;
 
         String path = Metadata.relativePath(activity, entry.uri);
@@ -142,7 +142,7 @@ final class ScrapeOneGame {
 
         try {
             result = Scrape.apply(activity, provider, new Http.Real(), candidate, path,
-                                  Provider.Wanted.usual());
+                                  Scrapers.wanted(activity));
         } catch (ScrapeException e) {
             failure = e;
         }

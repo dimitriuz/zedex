@@ -26,6 +26,10 @@
         the library is unreachable with nothing on screen to explain why -
         which is the failure this file mostly exists to prevent.
 
+      * a ScreenScraper login. See Prefs.KEY_SCRAPER_USER - a password is
+        not ours to put in a cloud account, and half of one is worse than
+        none.
+
     Everything else is worth carrying: save states, key profiles, pokes,
     recents and the rest of the settings.
 
@@ -44,6 +48,14 @@
         <exclude domain="sharedpref" path="fuse.xml" key="esdeMediaTree" />
         <exclude domain="sharedpref" path="fuse.xml" key="card" />
         <exclude domain="sharedpref" path="fuse.xml" key="setupDone" />
+
+        <!-- A ScreenScraper account of the user's own. The password is not
+             ours to copy into somebody's cloud account, and the name goes
+             with it rather than alone: restored without the password it is a
+             login that fails authentication with nothing on screen to say
+             why - the same failure this file exists to prevent. -->
+        <exclude domain="sharedpref" path="fuse.xml" key="scraperUser" />
+        <exclude domain="sharedpref" path="fuse.xml" key="scraperPassword" />
     </cloud-backup>
 
     <device-transfer>
@@ -55,6 +67,14 @@
         <exclude domain="sharedpref" path="fuse.xml" key="esdeMediaTree" />
         <exclude domain="sharedpref" path="fuse.xml" key="card" />
         <exclude domain="sharedpref" path="fuse.xml" key="setupDone" />
+
+        <!-- A ScreenScraper account of the user's own. The password is not
+             ours to copy into somebody's cloud account, and the name goes
+             with it rather than alone: restored without the password it is a
+             login that fails authentication with nothing on screen to say
+             why - the same failure this file exists to prevent. -->
+        <exclude domain="sharedpref" path="fuse.xml" key="scraperUser" />
+        <exclude domain="sharedpref" path="fuse.xml" key="scraperPassword" />
     </device-transfer>
 
 </data-extraction-rules>

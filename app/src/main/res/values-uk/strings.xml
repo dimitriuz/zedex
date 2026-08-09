@@ -666,4 +666,94 @@
     <string name="scrape_failed_login">Служба відхилила вхід</string>
     <string name="scrape_failed_network">Не вдалося зв’язатися зі службою</string>
     <string name="scrape_failed_closed">Служба закрита для цього облікового запису</string>
+    <!-- Scraping a whole collection - ScrapeManyActivity. -->
+    <string name="scrape_many_menu">Завантажити дані для багатьох ігор…</string>
+    <string name="scrape_many_title">Дані для багатьох ігор</string>
+    <string name="scrape_many_scope">Яка тека</string>
+    <string name="scrape_many_scope_here">Ця тека</string>
+    <string name="scrape_many_scope_named">Ця тека (%1$s)</string>
+    <string name="scrape_many_scope_below">Ця тека і все, що в ній</string>
+    <string name="scrape_many_scope_library">Уся бібліотека</string>
+    <string name="scrape_many_only">Які ігри</string>
+    <string name="scrape_many_only_unscraped">Ще без даних</string>
+    <string name="scrape_many_only_no_picture">Ігри без зображення</string>
+    <string name="scrape_many_only_everything">Усе знову</string>
+    <string name="scrape_many_conflicts">Коли підходить більше однієї гри</string>
+    <string name="scrape_many_conflicts_skip">Пропускати їх</string>
+    <string name="scrape_many_conflicts_best">Брати найкращий збіг — іноді не ту гру</string>
+    <string name="scrape_many_conflicts_ask">Питати щоразу — триватиме стільки, скільки вам треба</string>
+    <string name="scrape_many_counting">Підрахунок…</string>
+    <string name="scrape_many_cannot_list">Не вдалося прочитати цю теку</string>
+    <plurals name="scrape_many_estimate">
+        <item quantity="one">%1$d гра · приблизно %2$d запитів</item>
+        <item quantity="few">%1$d гри · приблизно %2$d запитів</item>
+        <item quantity="many">%1$d ігор · приблизно %2$d запитів</item>
+        <item quantity="other">%1$d гри · приблизно %2$d запитів</item>
+    </plurals>
+    <string name="scrape_many_quota">Сьогодні залишилося запитів: %1$d</string>
+    <string name="scrape_many_start">Почати</string>
+    <string name="scrape_many_close">Закрити</string>
+    <string name="scrape_many_working">Запуск…</string>
+    <string name="scrape_many_stopping">Зупинка…</string>
+    <string name="scrape_many_at">%1$d з %2$d — %3$s</string>
+    <string name="scrape_many_skip_one">Пропустити цю</string>
+    <string name="scrape_many_skip_rest">Пропустити решту</string>
+    <string name="scrape_many_cancelled">Зупинено.</string>
+    <plurals name="scrape_many_scraped">
+        <item quantity="one">Завантажено дані для %1$d гри</item>
+        <item quantity="few">Завантажено дані для %1$d ігор</item>
+        <item quantity="many">Завантажено дані для %1$d ігор</item>
+        <item quantity="other">Завантажено дані для %1$d гри</item>
+    </plurals>
+    <plurals name="scrape_many_media">
+        <item quantity="one">Завантажено %1$d файл</item>
+        <item quantity="few">Завантажено %1$d файли</item>
+        <item quantity="many">Завантажено %1$d файлів</item>
+        <item quantity="other">Завантажено %1$d файлу</item>
+    </plurals>
+    <plurals name="scrape_many_ambiguous">
+        <item quantity="one">%1$d потребує вибору</item>
+        <item quantity="few">%1$d потребують вибору</item>
+        <item quantity="many">%1$d потребують вибору</item>
+        <item quantity="other">%1$d потребують вибору</item>
+    </plurals>
+    <plurals name="scrape_many_unknown">
+        <item quantity="one">%1$d не знайдено</item>
+        <item quantity="few">%1$d не знайдено</item>
+        <item quantity="many">%1$d не знайдено</item>
+        <item quantity="other">%1$d не знайдено</item>
+    </plurals>
+    <plurals name="scrape_many_yours">
+        <item quantity="one">%1$d залишено — ви редагували її вручну</item>
+        <item quantity="few">%1$d залишено — ви редагували їх вручну</item>
+        <item quantity="many">%1$d залишено — ви редагували їх вручну</item>
+        <item quantity="other">%1$d залишено — ви редагували їх вручну</item>
+    </plurals>
+    <plurals name="scrape_many_failed">
+        <item quantity="one">%1$d не вдалася</item>
+        <item quantity="few">%1$d не вдалися</item>
+        <item quantity="many">%1$d не вдалося</item>
+        <item quantity="other">%1$d не вдалося</item>
+    </plurals>
+    <string name="scrape_many_resume">Запустіть знову з «Ще без даних», щоб продовжити з того місця, де зупинилися.</string>
+    <!-- An optional ScreenScraper account of the user's own. -->
+    <string name="settings_group_scraper">Обліковий запис служби</string>
+    <string name="settings_scraper_user">Ім’я користувача ScreenScraper</string>
+    <string name="settings_scraper_user_summary">Необов’язково. У власного облікового запису денний ліміт набагато більший, ніж у спільного для всіх користувачів застосунку.</string>
+    <string name="settings_scraper_password">Пароль ScreenScraper</string>
+    <string name="settings_scraper_password_none">Не задано</string>
+    <string name="settings_scraper_password_set">Задано</string>
+    <!-- What a scrape fetches; each one costs a request per game. -->
+    <string name="settings_scrape_media">Що завантажувати</string>
+    <string name="scrape_media_none">Лише відомості, без зображень</string>
+    <string name="scrape_media_summary">%1$d з %2$d · %3$d запитів на гру</string>
+    <string name="scrape_media_covers">Обкладинка — у кожному рядку</string>
+    <string name="scrape_media_screenshots">Знімок екрана</string>
+    <string name="scrape_media_titlescreens">Заставка</string>
+    <string name="scrape_media_backcovers">Зворот обкладинки</string>
+    <string name="scrape_media_physicalmedia">Касета або дискета</string>
+    <string name="scrape_media_miximages">Комбіноване зображення</string>
+    <string name="scrape_media_videos">Відео — близько 1 МБ кожне</string>
+    <string name="scrape_media_manuals">Посібник (PDF)</string>
+    <string name="scrape_many_fetching">Що завантажувати</string>
 </resources>

@@ -67,8 +67,12 @@ public class LiveRefusalsTest {
 
         ScreenScraper scraper = new ScreenScraper(
                 new Http.Real(),
-                context.getString(dev.ldlab.zedex.R.string.screenscraper_dev_id),
-                context.getString(dev.ldlab.zedex.R.string.screenscraper_dev_password),
+                // Through Secrets, because the resources hold ciphertext now
+                // - see Secrets.java. The five-argument constructor is still
+                // the one used here: this test needs debugWith, which the
+                // context-taking ones do not expose.
+                Secrets.reveal(context, dev.ldlab.zedex.R.string.screenscraper_id_sealed),
+                Secrets.reveal(context, dev.ldlab.zedex.R.string.screenscraper_password_sealed),
                 "", "");
 
         scraper.debugWith("&devdebugpassword=" + android.net.Uri.encode(debugPassword())
@@ -104,7 +108,8 @@ public class LiveRefusalsTest {
     private void needWorkingDebugMode() {
         Context context = ApplicationProvider.getApplicationContext();
         assumeTrue("this build has no ScreenScraper developer account",
-                   !context.getString(dev.ldlab.zedex.R.string.screenscraper_dev_id).isEmpty());
+                   !context.getString(
+                           dev.ldlab.zedex.R.string.screenscraper_id_sealed).isEmpty());
         assumeTrue("no -e ss_debug_password given, so the refusals cannot be forced",
                    !debugPassword().isEmpty());
 
@@ -228,12 +233,17 @@ public class LiveRefusalsTest {
     public void awrongDebugPasswordIsIgnoredRatherThanRefused() throws Exception {
         Context context = ApplicationProvider.getApplicationContext();
         assumeTrue("this build has no ScreenScraper developer account",
-                   !context.getString(dev.ldlab.zedex.R.string.screenscraper_dev_id).isEmpty());
+                   !context.getString(
+                           dev.ldlab.zedex.R.string.screenscraper_id_sealed).isEmpty());
 
         ScreenScraper scraper = new ScreenScraper(
                 new Http.Real(),
-                context.getString(dev.ldlab.zedex.R.string.screenscraper_dev_id),
-                context.getString(dev.ldlab.zedex.R.string.screenscraper_dev_password),
+                // Through Secrets, because the resources hold ciphertext now
+                // - see Secrets.java. The five-argument constructor is still
+                // the one used here: this test needs debugWith, which the
+                // context-taking ones do not expose.
+                Secrets.reveal(context, dev.ldlab.zedex.R.string.screenscraper_id_sealed),
+                Secrets.reveal(context, dev.ldlab.zedex.R.string.screenscraper_password_sealed),
                 "", "");
         scraper.debugWith("&devdebugpassword=definitely-not-it&forcerequestok=4242");
 

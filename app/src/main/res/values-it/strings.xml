@@ -661,4 +661,80 @@
     <string name="scrape_failed_login">L’accesso al servizio è stato rifiutato</string>
     <string name="scrape_failed_network">Impossibile raggiungere il servizio</string>
     <string name="scrape_failed_closed">Il servizio è chiuso per questo account</string>
+    <!-- Scraping a whole collection - ScrapeManyActivity. -->
+    <string name="scrape_many_menu">Recupera i dati di più giochi…</string>
+    <string name="scrape_many_title">Dati di più giochi</string>
+    <string name="scrape_many_scope">Quale cartella</string>
+    <string name="scrape_many_scope_here">Questa cartella</string>
+    <string name="scrape_many_scope_named">Questa cartella (%1$s)</string>
+    <string name="scrape_many_scope_below">Questa cartella e tutto ciò che contiene</string>
+    <string name="scrape_many_scope_library">Tutta la libreria</string>
+    <string name="scrape_many_only">Quali giochi</string>
+    <string name="scrape_many_only_unscraped">Non ancora recuperati</string>
+    <string name="scrape_many_only_no_picture">Giochi senza immagine</string>
+    <string name="scrape_many_only_everything">Tutto, di nuovo</string>
+    <string name="scrape_many_conflicts">Quando corrisponde più di un gioco</string>
+    <string name="scrape_many_conflicts_skip">Saltarli</string>
+    <string name="scrape_many_conflicts_best">Prendere la corrispondenza migliore — a volte il gioco sbagliato</string>
+    <string name="scrape_many_conflicts_ask">Chiedermelo ogni volta — durerà quanto vorrai</string>
+    <string name="scrape_many_counting">Conteggio…</string>
+    <string name="scrape_many_cannot_list">Impossibile leggere quella cartella</string>
+    <plurals name="scrape_many_estimate">
+        <item quantity="one">%1$d gioco · circa %2$d richieste</item>
+        <item quantity="other">%1$d giochi · circa %2$d richieste</item>
+    </plurals>
+    <string name="scrape_many_quota">Oggi restano %1$d richieste</string>
+    <string name="scrape_many_start">Avvia</string>
+    <string name="scrape_many_close">Chiudi</string>
+    <string name="scrape_many_working">Avvio…</string>
+    <string name="scrape_many_stopping">Arresto…</string>
+    <string name="scrape_many_at">%1$d di %2$d — %3$s</string>
+    <string name="scrape_many_skip_one">Salta questo</string>
+    <string name="scrape_many_skip_rest">Salta il resto</string>
+    <string name="scrape_many_cancelled">Interrotto.</string>
+    <plurals name="scrape_many_scraped">
+        <item quantity="one">%1$d gioco recuperato</item>
+        <item quantity="other">%1$d giochi recuperati</item>
+    </plurals>
+    <plurals name="scrape_many_media">
+        <item quantity="one">%1$d file scaricato</item>
+        <item quantity="other">%1$d file scaricati</item>
+    </plurals>
+    <plurals name="scrape_many_ambiguous">
+        <item quantity="one">%1$d da scegliere</item>
+        <item quantity="other">%1$d da scegliere</item>
+    </plurals>
+    <plurals name="scrape_many_unknown">
+        <item quantity="one">%1$d non trovato</item>
+        <item quantity="other">%1$d non trovati</item>
+    </plurals>
+    <plurals name="scrape_many_yours">
+        <item quantity="one">%1$d lasciato — l’hai modificato a mano</item>
+        <item quantity="other">%1$d lasciati — li hai modificati a mano</item>
+    </plurals>
+    <plurals name="scrape_many_failed">
+        <item quantity="one">%1$d non riuscito</item>
+        <item quantity="other">%1$d non riusciti</item>
+    </plurals>
+    <string name="scrape_many_resume">Riavvialo con «Non ancora recuperati» per riprendere da dove si è fermato.</string>
+    <!-- An optional ScreenScraper account of the user's own. -->
+    <string name="settings_group_scraper">Account dello scraper</string>
+    <string name="settings_scraper_user">Nome utente ScreenScraper</string>
+    <string name="settings_scraper_user_summary">Facoltativo. Un account tuo ha un limite giornaliero molto più alto di quello condiviso da tutti gli utenti di questa app.</string>
+    <string name="settings_scraper_password">Password ScreenScraper</string>
+    <string name="settings_scraper_password_none">Non impostata</string>
+    <string name="settings_scraper_password_set">Impostata</string>
+    <!-- What a scrape fetches; each one costs a request per game. -->
+    <string name="settings_scrape_media">Cosa recuperare</string>
+    <string name="scrape_media_none">Solo dati, nessuna immagine</string>
+    <string name="scrape_media_summary">%1$d di %2$d · %3$d richieste per gioco</string>
+    <string name="scrape_media_covers">Copertina — su ogni riga</string>
+    <string name="scrape_media_screenshots">Schermata</string>
+    <string name="scrape_media_titlescreens">Schermata del titolo</string>
+    <string name="scrape_media_backcovers">Retro copertina</string>
+    <string name="scrape_media_physicalmedia">Cassetta o disco</string>
+    <string name="scrape_media_miximages">Immagine composita</string>
+    <string name="scrape_media_videos">Video — circa 1 MB ciascuno</string>
+    <string name="scrape_media_manuals">Manuale (PDF)</string>
+    <string name="scrape_many_fetching">Cosa recuperare</string>
 </resources>
