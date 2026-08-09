@@ -405,7 +405,7 @@
     <string name="settings_filter_bleed">Sangrado del color</string>
     <string name="settings_filter_noise">Ruido</string>
     <string name="settings_filter_sharpness">Nitidez</string>
-    <string name="settings_filter_sharpness_summary">100% es píxel a píxel; menos suaviza los bordes</string>
+    <string name="settings_filter_sharpness_summary" formatted="false">100% es píxel a píxel; menos suaviza los bordes</string>
     <string name="settings_filter_scanline">Intensidad de las líneas</string>
     <string name="settings_filter_curve">Curvatura</string>
     <string name="settings_filter_mask">Máscara de sombra</string>

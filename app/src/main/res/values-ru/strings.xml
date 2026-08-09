@@ -405,7 +405,7 @@
     <string name="settings_filter_bleed">Растекание цвета</string>
     <string name="settings_filter_noise">Шум</string>
     <string name="settings_filter_sharpness">Резкость</string>
-    <string name="settings_filter_sharpness_summary">100% — пиксель в пиксель; меньше — края мягче</string>
+    <string name="settings_filter_sharpness_summary" formatted="false">100% — пиксель в пиксель; меньше — края мягче</string>
     <string name="settings_filter_scanline">Сила строк развёртки</string>
     <string name="settings_filter_curve">Кривизна</string>
     <string name="settings_filter_mask">Теневая маска</string>

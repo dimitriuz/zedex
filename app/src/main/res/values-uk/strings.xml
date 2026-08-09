@@ -405,7 +405,7 @@
     <string name="settings_filter_bleed">Розтікання кольору</string>
     <string name="settings_filter_noise">Шум</string>
     <string name="settings_filter_sharpness">Різкість</string>
-    <string name="settings_filter_sharpness_summary">100% — піксель у піксель; менше — краї м’якші</string>
+    <string name="settings_filter_sharpness_summary" formatted="false">100% — піксель у піксель; менше — краї м’якші</string>
     <string name="settings_filter_scanline">Сила рядків розгортки</string>
     <string name="settings_filter_curve">Кривина</string>
     <string name="settings_filter_mask">Тіньова маска</string>

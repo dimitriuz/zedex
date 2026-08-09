@@ -6,12 +6,20 @@
     of screens rather than a list of names.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:descendantFocusability="blocksDescendants"
     android:padding="6dp">
 
+    <!--
+        0dp with no weight, which would ordinarily mean invisible: the height
+        is set per cell in StatesActivity.getView, from the grid's own column
+        width, because the picture is 4:3 against a width the grid only knows
+        at bind time. A number here would be overwritten on every bind and
+        would only mislead about where the size comes from.
+    -->
     <ImageView
         android:id="@+id/thumbnail"
         android:layout_width="match_parent"
@@ -19,7 +27,8 @@
         android:adjustViewBounds="true"
         android:scaleType="centerCrop"
         android:background="#000000"
-        android:contentDescription="@null" />
+        android:contentDescription="@null"
+        tools:ignore="Suspicious0dp" />
 
     <LinearLayout
         android:layout_width="match_parent"

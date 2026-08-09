@@ -447,7 +447,7 @@
     <string name="settings_filter_bleed">Colour bleed</string>
     <string name="settings_filter_noise">Noise</string>
     <string name="settings_filter_sharpness">Sharpness</string>
-    <string name="settings_filter_sharpness_summary">100% is pixel for pixel; less softens the edges</string>
+    <string name="settings_filter_sharpness_summary" formatted="false">100% is pixel for pixel; less softens the edges</string>
     <string name="settings_filter_scanline">Scanline strength</string>
     <string name="settings_filter_curve">Curvature</string>
     <string name="settings_filter_mask">Shadow mask</string>

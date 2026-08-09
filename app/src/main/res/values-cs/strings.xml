@@ -405,7 +405,7 @@
     <string name="settings_filter_bleed">Rozpití barev</string>
     <string name="settings_filter_noise">Šum</string>
     <string name="settings_filter_sharpness">Ostrost</string>
-    <string name="settings_filter_sharpness_summary">100% je pixel na pixel; méně zjemní hrany</string>
+    <string name="settings_filter_sharpness_summary" formatted="false">100% je pixel na pixel; méně zjemní hrany</string>
     <string name="settings_filter_scanline">Síla řádků rozkladu</string>
     <string name="settings_filter_curve">Zakřivení</string>
     <string name="settings_filter_mask">Maska</string>

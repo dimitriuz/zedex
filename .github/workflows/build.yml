@@ -64,6 +64,25 @@ jobs:
           path: app/build/reports/tests/testDebugUnitTest/
           if-no-files-found: ignore
 
+      # Errors only, and it can fail now - `lint { abortOnError false }` used
+      # to mean that even lintVitalRelease, which runs inside assembleRelease,
+      # could not stop anything. The first run with it armed found an API 33
+      # call on a minSdk 30 build and a percent sign that reads as a format
+      # specifier in two translations. The two checks this project disagrees
+      # with are off in app/lint.xml, with the reasoning beside each.
+      - name: Lint
+        run: ./gradlew --no-daemon lintDebug
+
+      - name: Keep the lint report when it fails
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: lint-report
+          path: |
+            app/build/reports/lint-results-debug.html
+            app/build/reports/lint-results-debug.xml
+          if-no-files-found: ignore
+
       # Cheap guard against the mistake CLAUDE.md warns about: an APK that
       # packages a stale or missing library. Both ABIs must be in there.
       - name: Check both ABIs are packaged

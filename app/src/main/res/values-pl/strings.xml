@@ -405,7 +405,7 @@
     <string name="settings_filter_bleed">Rozlewanie koloru</string>
     <string name="settings_filter_noise">Szum</string>
     <string name="settings_filter_sharpness">Ostrość</string>
-    <string name="settings_filter_sharpness_summary">100% to piksel w piksel; mniej zmiękcza krawędzie</string>
+    <string name="settings_filter_sharpness_summary" formatted="false">100% to piksel w piksel; mniej zmiękcza krawędzie</string>
     <string name="settings_filter_scanline">Siła linii skanowania</string>
     <string name="settings_filter_curve">Krzywizna</string>
     <string name="settings_filter_mask">Maska</string>

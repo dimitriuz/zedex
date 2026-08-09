@@ -277,8 +277,29 @@ android {
         }
     }
 
+    /*
+     * Lint runs, and can fail the build.
+     *
+     * abortOnError was false, which meant not only that `lint` never stopped
+     * anything but that lintVitalRelease - which does run as part of
+     * assembleRelease - could not either. So the one lint that was already
+     * wired into a real build was wired in unable to speak. Turning it on
+     * found two things worth having: an API 33 call on a minSdk 30 build
+     * whose guard was two methods away, and a percent sign in the Spanish and
+     * French sharpness summary that reads as a format specifier.
+     *
+     * Errors only. There are seventy-odd warnings - unused resources, a
+     * handful of accessibility notes, notifyDataSetChanged - and several are
+     * things this project has decided about deliberately. Failing on those
+     * would mean either a large sweep now or a baseline file, and a baseline
+     * is a list of problems nobody looks at again.
+     *
+     * The two checks that disagree with decisions made here are turned off in
+     * app/lint.xml, with the reasoning beside each.
+     */
     lint {
-        abortOnError false
+        abortOnError true
+        lintConfig file('lint.xml')
     }
 }
 

@@ -405,7 +405,7 @@
     <string name="settings_filter_bleed">Sbavatura del colore</string>
     <string name="settings_filter_noise">Rumore</string>
     <string name="settings_filter_sharpness">Nitidezza</string>
-    <string name="settings_filter_sharpness_summary">100% è pixel per pixel; meno ammorbidisce i bordi</string>
+    <string name="settings_filter_sharpness_summary" formatted="false">100% è pixel per pixel; meno ammorbidisce i bordi</string>
     <string name="settings_filter_scanline">Intensità delle linee</string>
     <string name="settings_filter_curve">Curvatura</string>
     <string name="settings_filter_mask">Maschera d\'ombra</string>

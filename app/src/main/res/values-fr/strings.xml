@@ -405,7 +405,7 @@
     <string name="settings_filter_bleed">Bavure des couleurs</string>
     <string name="settings_filter_noise">Bruit</string>
     <string name="settings_filter_sharpness">Netteté</string>
-    <string name="settings_filter_sharpness_summary">100% est pixel pour pixel ; moins adoucit les bords</string>
+    <string name="settings_filter_sharpness_summary" formatted="false">100% est pixel pour pixel ; moins adoucit les bords</string>
     <string name="settings_filter_scanline">Intensité des lignes</string>
     <string name="settings_filter_curve">Courbure</string>
     <string name="settings_filter_mask">Masque</string>
