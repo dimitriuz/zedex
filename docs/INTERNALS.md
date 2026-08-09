@@ -929,7 +929,7 @@ rebuilt from lists that would put `.sh` somewhere else in it.
 
 **A file is selected, not opened; a folder or a zip still opens on the first
 tap.** `EntryAdapter.Callbacks.onOpen` fires for either, and
-`LibraryActivity.isContainer` is what tells them apart - a folder or a zip
+`Entry.isContainer()` is what tells them apart - a folder or a zip
 with nothing inside it yet (`entry.inside == null`) is walked into at once,
 through `enter()`, exactly as it always was, while a file becomes `selected`
 and fills the pane beside the list in landscape, or beneath it in portrait -
@@ -1146,6 +1146,9 @@ Everything else is in a layer:
 | `media` | `Media`, `Recorder`, `Recording`, `GifRecording`, `Mp4Recording` |
 | `view` | the custom views: `EmulatorLayout`, `MenuDrawer`, `QuickBar`, `Rows`, `JoystickView`, `ActivityLights` and the two keyboards |
 | `menu` | `ControlsUi`, `PokesUi`, `StatesUi`, `Capture` — what fills a page or a bar group |
+| `library` | `Entry`, `Listing`, `Filters`, `Sorting`, `Facets`, `Favorites`, `Shortlist` — what a row is, where rows come from, and which of them are shown |
+| `library.meta` | `Meta`, `Metadata`, `Artwork`, `EsdeLink`, `EsdeManuals` — what ES-DE knows about a row, and where its pictures are |
+| `library.ui` | `EntryAdapter`, `DetailPane`, `Gallery`, `OptionsDialog`, `GamepadCursor`, `Scraped` — the library screen's own views |
 | `screen` | the other activities, plus `StartPanel`, `SecondScreen` and `Panels` |
 
 **Sub-packages cost package-private.** The codebase used it everywhere — `final

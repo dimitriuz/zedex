@@ -174,7 +174,7 @@ public final class Gallery extends LinearLayout {
      * return from {@code GameInfoActivity} - that turned into a thread every
      * time, climbing for as long as the reselecting kept happening, which is
      * what read as the gallery scrolling on its own. The de-dupe in {@code
-     * LibraryActivity.select} and {@code refreshPaneFacts} is the real fix -
+     * LibraryActivity.select} and {@link DetailPane#refreshFacts} is the real fix -
      * the ordinary case now makes no call here at all - but the same
      * reasoning as {@link #decodeExecutor} still applies: a future bug that
      * calls {@link #load} too often should be slow, not one more unbounded
