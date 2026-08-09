@@ -250,17 +250,22 @@ android {
         }
 
         release {
-            // Off, and the rules beside it are still declared on purpose.
+            // On, and only safe because of the rules beside it. Read
+            // app/proguard-rules.pro before touching either: without them
+            // this is a crash on launch, and with only the default file it is
+            // worse - the app ships with errors that never appear and
+            // recording that writes nothing, and nothing is logged.
             //
-            // Turning this on without them is a crash on launch that no debug
-            // build can show, and turning it on with only the default file is
-            // worse: the class and its natives survive, the three C-called
-            // callbacks do not, and the app ships with errors that never
-            // appear and recording that writes nothing, silently. Wiring the
-            // rules in now means flipping this line is the whole change, and
-            // that the reasoning was read before somebody needed it in a
-            // hurry. See app/proguard-rules.pro.
-            minifyEnabled false
+            // 37% off the APK, measured: 13.94 MB to 8.72 MB.
+            //
+            // Nothing automated covers this. Instrumentation runs against the
+            // debug build, where minification is off, so the three failures
+            // the rules exist to prevent cannot show up in a green suite.
+            // They were checked by hand on a release install instead - it
+            // launched, a malformed snapshot produced its libspectrum error
+            // on screen, and a GIF came out with 274 frames in it. Do that
+            // again after changing anything here.
+            minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'),
                           'proguard-rules.pro'
 
