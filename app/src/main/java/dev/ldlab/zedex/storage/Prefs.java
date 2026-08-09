@@ -114,7 +114,7 @@ public final class Prefs {
     /**
      * Whether the pane moves itself to a scraped video three seconds after
      * the selection stops changing - see docs/LIBRARY.md and {@code
-     * LibraryActivity.advanceToPaneVideo}. Default true, which is what the
+     * DetailPane.advanceToVideo}. Default true, which is what the
      * app already did before this switch existed, so upgrading changes
      * nobody's behaviour. Off leaves the video reachable by swiping to it,
      * same as always - only the automatic move is what this turns off.

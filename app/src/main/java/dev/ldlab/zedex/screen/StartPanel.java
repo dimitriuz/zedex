@@ -800,7 +800,7 @@ public final class StartPanel {
             message.setText(detail);
 
             for (View choice : choices) choice.setVisibility(View.GONE);
-                grant.setVisibility(View.GONE);
+            grant.setVisibility(View.GONE);
             run.setVisibility(View.GONE);
 
             panel.setVisibility(View.VISIBLE);
@@ -973,7 +973,7 @@ public final class StartPanel {
                                                reason == null ? "" : reason));
 
             for (View choice : choices) choice.setVisibility(View.VISIBLE);
-                grant.setVisibility(View.GONE);
+            grant.setVisibility(View.GONE);
             run.setVisibility(Storage.haveRoms(activity) ? View.VISIBLE : View.GONE);
 
             panel.setVisibility(View.VISIBLE);

@@ -342,6 +342,8 @@
     <string name="settings_library_summary">Открывать приложение на играх, а не на машине. Нужна папка с играми.</string>
     <string name="settings_library_needs_folder">Сначала выберите папку с играми.</string>
     <string name="settings_states_moved">Состояния перенесены</string>
+    <string name="settings_states_moving">Перенос…</string>
+    <string name="settings_states_move_partial">Некоторые файлы не удалось перенести, они остались в старой папке</string>
 
     <string name="settings_states">Сохранённые состояния</string>
     <string name="settings_snapshot_format">Формат состояния</string>
@@ -403,7 +405,7 @@
     <string name="settings_filter_bleed">Растекание цвета</string>
     <string name="settings_filter_noise">Шум</string>
     <string name="settings_filter_sharpness">Резкость</string>
-    <string name="settings_filter_sharpness_summary">100% — пиксель в пиксель; меньше — края мягче</string>
+    <string name="settings_filter_sharpness_summary" formatted="false">100% — пиксель в пиксель; меньше — края мягче</string>
     <string name="settings_filter_scanline">Сила строк развёртки</string>
     <string name="settings_filter_curve">Кривизна</string>
     <string name="settings_filter_mask">Теневая маска</string>

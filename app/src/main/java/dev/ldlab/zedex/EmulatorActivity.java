@@ -1725,7 +1725,12 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         super.onDestroy();
         getApplication().unregisterActivityLifecycleCallbacks(panels.lifecycle());
 
-        if (backCallback != null) {
+        // The version check as well as the null one. Nothing below 33 ever
+        // sets backCallback - registerBackCallback returns early - so the null
+        // test alone is correct today, but it is an invariant two methods
+        // apart rather than something this line says, and lint reads it as an
+        // API 33 call on a minSdk 30 build because that is what it is.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && backCallback != null) {
             getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(backCallback);
             backCallback = null;
         }

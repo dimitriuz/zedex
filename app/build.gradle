@@ -277,8 +277,50 @@ android {
         }
     }
 
+    /*
+     * Lint runs, and can fail the build.
+     *
+     * abortOnError was false, which meant not only that `lint` never stopped
+     * anything but that lintVitalRelease - which does run as part of
+     * assembleRelease - could not either. So the one lint that was already
+     * wired into a real build was wired in unable to speak. Turning it on
+     * found two things worth having: an API 33 call on a minSdk 30 build
+     * whose guard was two methods away, and a percent sign in the Spanish and
+     * French sharpness summary that reads as a format specifier.
+     *
+     * Errors only. There are seventy-odd warnings - unused resources, a
+     * handful of accessibility notes, notifyDataSetChanged - and several are
+     * things this project has decided about deliberately. Failing on those
+     * would mean either a large sweep now or a baseline file, and a baseline
+     * is a list of problems nobody looks at again.
+     *
+     * The two checks that disagree with decisions made here are turned off in
+     * app/lint.xml, with the reasoning beside each.
+     */
     lint {
-        abortOnError false
+        abortOnError true
+        lintConfig file('lint.xml')
+    }
+
+    /*
+     * android.jar on the unit-test classpath is stubs, and every method in it
+     * throws "not mocked" by default. That is right for most of it - a test
+     * that reaches a real Android API by accident should be told so loudly -
+     * but it also makes a single android.util.Log.w in an otherwise pure
+     * method enough to put that method out of reach, and Log is everywhere
+     * here by design: most of this codebase's error handling is a log line
+     * with a comment above it explaining the failure.
+     *
+     * So: return defaults instead of throwing. The cost is real and worth
+     * naming - Uri.parse now answers null rather than complaining, so a test
+     * that leans on a framework class it should have faked gets a quiet null
+     * where it used to get an error. The rule that follows is that anything
+     * needing more than a logger belongs behind a seam the test can supply,
+     * the way EsDe.Place and Sorting.Lookup already are, rather than being
+     * left to a stub's idea of zero.
+     */
+    testOptions {
+        unitTests.returnDefaultValues = true
     }
 }
 
@@ -322,6 +364,22 @@ dependencies {
      * boundary was drawn where it was.
      */
     testImplementation 'junit:junit:4.13.2'
+
+    /*
+     * A real org.json on the unit-test classpath.
+     *
+     * The stub android.jar has org.json in it, and with returnDefaultValues
+     * every method of it answers null or zero without complaining - so a JSON
+     * round-trip test would pass having serialised nothing and parsed nothing.
+     * That is worse than no test. This shadows the stub with the same
+     * implementation Android actually ships, so the round trip is a real one.
+     *
+     * It buys Pokes, and only Pokes. Hotkeys keeps its bindings in an
+     * android.util.SparseArray and ControlProfiles reaches FuseNative, so
+     * neither is one dependency away from the JVM - they want a seam first,
+     * the way EsDe.Place and Sorting.Lookup already are.
+     */
+    testImplementation 'org.json:json:20231013'
 
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test:runner:1.5.2'

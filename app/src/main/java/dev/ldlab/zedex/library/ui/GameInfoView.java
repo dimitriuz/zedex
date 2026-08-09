@@ -164,8 +164,13 @@ public final class GameInfoView extends LinearLayout {
         manualButton.setContentDescription(context.getString(R.string.library_manual));
         manualButton.setVisibility(View.GONE);
 
+        // 48dp: the same button is already 48 on GameInfoActivity, and one
+        // control being easier to hit on one screen than another is the sort
+        // of difference nobody chooses on purpose. It floats in the corner of
+        // the cover box with nothing beside it, so the eight extra dp cost
+        // nothing.
         FrameLayout.LayoutParams buttonParams = new FrameLayout.LayoutParams(
-                pixels(40), pixels(40), Gravity.TOP | Gravity.END);
+                pixels(48), pixels(48), Gravity.TOP | Gravity.END);
         buttonParams.topMargin = buttonParams.rightMargin = pixels(12);
         coverBox.addView(manualButton, buttonParams);
 

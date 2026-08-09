@@ -342,6 +342,8 @@
     <string name="settings_library_summary">Beim Start die Spiele zeigen statt der Maschine. Braucht einen Spieleordner.</string>
     <string name="settings_library_needs_folder">Wähle zuerst einen Spieleordner.</string>
     <string name="settings_states_moved">Spielstände verschoben</string>
+    <string name="settings_states_moving">Wird verschoben…</string>
+    <string name="settings_states_move_partial">Einige Dateien konnten nicht verschoben werden und liegen noch im alten Ordner</string>
 
     <string name="settings_states">Spielstände</string>
     <string name="settings_snapshot_format">Format für Spielstände</string>
@@ -403,7 +405,7 @@
     <string name="settings_filter_bleed">Farbverlaufen</string>
     <string name="settings_filter_noise">Rauschen</string>
     <string name="settings_filter_sharpness">Schärfe</string>
-    <string name="settings_filter_sharpness_summary">100% ist Pixel für Pixel; weniger macht die Kanten weicher</string>
+    <string name="settings_filter_sharpness_summary" formatted="false">100% ist Pixel für Pixel; weniger macht die Kanten weicher</string>
     <string name="settings_filter_scanline">Stärke der Scanlines</string>
     <string name="settings_filter_curve">Wölbung</string>
     <string name="settings_filter_mask">Schattenmaske</string>

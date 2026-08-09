@@ -342,6 +342,8 @@
     <string name="settings_library_summary">Ouvrir l\'app sur vos jeux plutôt que sur la machine. Nécessite un dossier de jeux.</string>
     <string name="settings_library_needs_folder">Choisissez d\'abord un dossier de jeux.</string>
     <string name="settings_states_moved">Sauvegardes déplacées</string>
+    <string name="settings_states_moving">Déplacement…</string>
+    <string name="settings_states_move_partial">Certains fichiers n’ont pas pu être déplacés et sont encore dans l’ancien dossier</string>
 
     <string name="settings_states">Sauvegardes</string>
     <string name="settings_snapshot_format">Format des sauvegardes</string>
@@ -403,7 +405,7 @@
     <string name="settings_filter_bleed">Bavure des couleurs</string>
     <string name="settings_filter_noise">Bruit</string>
     <string name="settings_filter_sharpness">Netteté</string>
-    <string name="settings_filter_sharpness_summary">100% est pixel pour pixel ; moins adoucit les bords</string>
+    <string name="settings_filter_sharpness_summary" formatted="false">100% est pixel pour pixel ; moins adoucit les bords</string>
     <string name="settings_filter_scanline">Intensité des lignes</string>
     <string name="settings_filter_curve">Courbure</string>
     <string name="settings_filter_mask">Masque</string>

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    The two checks this project disagrees with, and why. Everything else lint
+    reports as an error is a real one and fails the build - see the lint block
+    in build.gradle.
+
+    Kept as a file rather than as suppressions at each site: both of these are
+    decisions about the whole app, made once and written down in CLAUDE.md,
+    and scattering them across two hundred plural entries would say the
+    opposite - that each was judged on its own.
+-->
+<lint>
+
+    <!--
+        Which plural forms a language has is the language's business.
+
+        Russian and Polish need "few" and "many"; English has only "one" and
+        "other". Lint reads every language's set against a table of what CLDR
+        says that language *can* take and calls a missing one an error, which
+        turns a correct Czech translation into twelve build failures.
+
+        What actually matters here is enforced by scripts/check-strings.py,
+        which is stricter where it counts and quiet where it does not: every
+        form must take the same arguments as English, "other" must exist, and
+        a name must be a plural in every language or in none. See CLAUDE.md,
+        "A new string is nine files".
+    -->
+    <issue id="MissingQuantity" severity="ignore" />
+
+    <!--
+        Predictive back is handled, in both of the ways it has to be.
+
+        targetSdk 36 turns predictive back on by default, so from API 33 an
+        OnBackInvokedCallback is registered and the key never arrives; below
+        33 there is no dispatcher at all and onKeyDown/onBackPressed remains
+        the path, because minSdk is 30. Lint sees the second half and reports
+        the first as missing. Both are deliberate and exclusive - see
+        EmulatorActivity.registerBackCallback and CLAUDE.md on targetSdk.
+    -->
+    <issue id="GestureBackNavigation" severity="ignore" />
+
+</lint>

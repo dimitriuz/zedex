@@ -378,6 +378,8 @@
     <string name="settings_library_summary">Open the app on your games rather than on the machine. Needs a content folder.</string>
     <string name="settings_library_needs_folder">Choose a content folder first.</string>
     <string name="settings_states_moved">Save states moved</string>
+    <string name="settings_states_moving">Moving…</string>
+    <string name="settings_states_move_partial">Some files could not be moved and are still in the old folder</string>
 
     <string name="settings_states">Save states</string>
     <string name="settings_snapshot_format">Save state format</string>
@@ -445,7 +447,7 @@
     <string name="settings_filter_bleed">Colour bleed</string>
     <string name="settings_filter_noise">Noise</string>
     <string name="settings_filter_sharpness">Sharpness</string>
-    <string name="settings_filter_sharpness_summary">100% is pixel for pixel; less softens the edges</string>
+    <string name="settings_filter_sharpness_summary" formatted="false">100% is pixel for pixel; less softens the edges</string>
     <string name="settings_filter_scanline">Scanline strength</string>
     <string name="settings_filter_curve">Curvature</string>
     <string name="settings_filter_mask">Shadow mask</string>

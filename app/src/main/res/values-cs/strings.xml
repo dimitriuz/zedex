@@ -342,6 +342,8 @@
     <string name="settings_library_summary">Otevírat aplikaci u her místo u počítače. Vyžaduje složku s hrami.</string>
     <string name="settings_library_needs_folder">Nejdřív vyber složku s hrami.</string>
     <string name="settings_states_moved">Uložené stavy přesunuty</string>
+    <string name="settings_states_moving">Přesouvání…</string>
+    <string name="settings_states_move_partial">Některé soubory se nepodařilo přesunout a zůstaly ve staré složce</string>
 
     <string name="settings_states">Uložené stavy</string>
     <string name="settings_snapshot_format">Formát uloženého stavu</string>
@@ -403,7 +405,7 @@
     <string name="settings_filter_bleed">Rozpití barev</string>
     <string name="settings_filter_noise">Šum</string>
     <string name="settings_filter_sharpness">Ostrost</string>
-    <string name="settings_filter_sharpness_summary">100% je pixel na pixel; méně zjemní hrany</string>
+    <string name="settings_filter_sharpness_summary" formatted="false">100% je pixel na pixel; méně zjemní hrany</string>
     <string name="settings_filter_scanline">Síla řádků rozkladu</string>
     <string name="settings_filter_curve">Zakřivení</string>
     <string name="settings_filter_mask">Maska</string>

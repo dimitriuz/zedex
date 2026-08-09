@@ -342,6 +342,8 @@
     <string name="settings_library_summary">Otwierać aplikację przy grach zamiast przy maszynie. Wymaga folderu z grami.</string>
     <string name="settings_library_needs_folder">Najpierw wybierz folder z grami.</string>
     <string name="settings_states_moved">Stany przeniesione</string>
+    <string name="settings_states_moving">Przenoszenie…</string>
+    <string name="settings_states_move_partial">Niektórych plików nie udało się przenieść i pozostały w starym folderze</string>
 
     <string name="settings_states">Zapisane stany</string>
     <string name="settings_snapshot_format">Format stanu</string>
@@ -403,7 +405,7 @@
     <string name="settings_filter_bleed">Rozlewanie koloru</string>
     <string name="settings_filter_noise">Szum</string>
     <string name="settings_filter_sharpness">Ostrość</string>
-    <string name="settings_filter_sharpness_summary">100% to piksel w piksel; mniej zmiękcza krawędzie</string>
+    <string name="settings_filter_sharpness_summary" formatted="false">100% to piksel w piksel; mniej zmiękcza krawędzie</string>
     <string name="settings_filter_scanline">Siła linii skanowania</string>
     <string name="settings_filter_curve">Krzywizna</string>
     <string name="settings_filter_mask">Maska</string>
