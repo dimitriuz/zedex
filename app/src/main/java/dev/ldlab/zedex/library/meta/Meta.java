@@ -100,7 +100,21 @@ public final class Meta {
                 field == Field.RELEASED ? set : released,
                 field == Field.PLAYERS ? set : players,
                 field == Field.RATING ? set : rating,
-                USER);
+                USER,
+                controls);
+    }
+
+    /**
+     * The same game, with the provider's control layout attached.
+     *
+     * A copy rather than an eleventh constructor argument: ten is already more
+     * than anybody counts correctly at a call site, and every existing one
+     * means null here.
+     */
+    public Meta withControls(String layout) {
+        return new Meta(path, name, desc, developer, publisher, genre, released,
+                        players, rating, source,
+                        layout != null && layout.isEmpty() ? null : layout);
     }
 
     /**
@@ -128,9 +142,44 @@ public final class Meta {
         }
     }
 
+    /**
+     * How this game's own keys are laid out, as the provider wrote it, or
+     * null.
+     *
+     * ScreenScraper's {@code sp2kcfg}: a few lines of hand-authored config
+     * naming which Spectrum key each pad control should send for this
+     * particular game - {@code 0:left = q}, {@code 0:a = v} and so on. Kept
+     * <em>verbatim</em> rather than parsed, because nothing reads it yet:
+     * mapping it onto {@code ControlProfiles}' own eight slots is a separate
+     * piece of work, and parsing it now would decide the shape of that in
+     * advance and throw away whatever turns out to matter.
+     *
+     * Not one of {@link Field}, so the hand editor does not offer it. It is a
+     * config file, not a fact about the game, and a one-line box is the wrong
+     * way to edit one.
+     *
+     * <b>The line breaks are two characters, not newlines.</b> ScreenScraper
+     * sends {@code "# Manic Miner \n0:left = q"} with a literal backslash and
+     * n, so anything reading this has to split on that rather than on
+     * {@code \n} - measured against the live service, and the sort of thing
+     * that costs an afternoon to rediscover.
+     *
+     * Present for roughly half of what is well known: seven of twelve famous
+     * titles asked for, which is worth having and not worth relying on.
+     */
+    public final String controls;
+
     public Meta(String path, String name, String desc, String developer,
                 String publisher, String genre, String released, String players,
                 String rating, String source) {
+        this(path, name, desc, developer, publisher, genre, released, players,
+             rating, source, null);
+    }
+
+    private Meta(String path, String name, String desc, String developer,
+                 String publisher, String genre, String released, String players,
+                 String rating, String source, String controls) {
+        this.controls = controls;
         this.path = path;
         this.name = name;
         this.desc = desc;

@@ -70,6 +70,16 @@ public final class Metadata {
     private static final String LINKED = "zedexLinked";
     private static final String SOURCE = "zedexSource";
 
+    /**
+     * The provider's own control layout for a game - see {@link Meta#controls}.
+     *
+     * Ours, like {@link #SOURCE}, and not one of ES-DE's elements: they have
+     * nothing that means this. Harmless in a file ES-DE never reads - this
+     * store is the app's own - and it keeps the file a gamelist that opens in
+     * an editor and still makes sense.
+     */
+    private static final String CONTROLS = "zedexControls";
+
     private static final class Store {
         final long mtime;
         final long linkedAt;
@@ -498,6 +508,7 @@ public final class Metadata {
             append(document, element, "players", game.players);
             append(document, element, "rating", game.rating);
             append(document, element, SOURCE, game.source);
+            append(document, element, CONTROLS, game.controls);
             root.appendChild(element);
         }
 
@@ -732,7 +743,7 @@ public final class Metadata {
 
         String path = null, name = null, desc = null, developer = null;
         String publisher = null, genre = null, released = null;
-        String players = null, rating = null, source = null;
+        String players = null, rating = null, source = null, controls = null;
 
         while (parser.next() != XmlPullParser.END_DOCUMENT) {
             int event = parser.getEventType();
@@ -755,6 +766,7 @@ public final class Metadata {
                 case "rating":      rating = value;    break;
                 default:
                     if (SOURCE.equals(tag)) source = value;
+                    else if (CONTROLS.equals(tag)) controls = value;
                     break;
             }
         }
@@ -762,7 +774,8 @@ public final class Metadata {
         if (path == null || path.isEmpty()) return null;
 
         return new Meta(path, name, desc, developer, publisher,
-                        genre, released, players, rating, source);
+                        genre, released, players, rating, source)
+                .withControls(controls);
     }
 
     /** The {@code linked} attribute, or 0 for anything unreadable. */

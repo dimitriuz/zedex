@@ -226,6 +226,15 @@ public final class ScreenScraper implements Provider {
             throw new ScrapeException(ScrapeException.Kind.NETWORK, "cannot reach " + BASE, e);
         }
 
+        // Their way of saying they have never heard of it, and it is an
+        // ordinary answer rather than a failure - most of a Spectrum
+        // collection is obscure. Returning null here is what lets the md5
+        // question fall through to the filename, and the filename question
+        // end in an empty list rather than an exception. A multi-scrape over
+        // eight hundred games would otherwise throw for every one they do not
+        // know.
+        if (reply.status == 404) return null;
+
         if (!reply.ok()) throw refusal(reply);
 
         JSONObject response;
@@ -279,10 +288,6 @@ public final class ScreenScraper implements Provider {
             case 431:
                 return new ScrapeException(ScrapeException.Kind.THREAD_LIMIT,
                         "too many requests at once: " + detail);
-            case 404:
-                // Their "no such game" for some queries. Not a failure.
-                return new ScrapeException(ScrapeException.Kind.MALFORMED,
-                        "nothing found, reported as 404");
             default:
                 return new ScrapeException(ScrapeException.Kind.NETWORK,
                         "HTTP " + status + ": " + detail);
@@ -371,6 +376,27 @@ public final class ScreenScraper implements Provider {
      * and it is settled where the ownership rules live.
      */
     private Meta meta(JSONObject game) {
+        return bareMeta(game).withControls(controls(game));
+    }
+
+    /**
+     * {@code sp2kcfg} - which Spectrum key each pad control should send, for
+     * this game in particular.
+     *
+     * Hand-authored, a few lines of config, and the only thing here that
+     * changes how a game <em>plays</em> rather than how it looks. Taken
+     * verbatim: nothing reads it yet, and parsing it now would settle the
+     * shape of the mapping onto {@code ControlProfiles}' own slots before that
+     * work has been thought about.
+     *
+     * It rides in the reply that was already paid for, so it costs no request.
+     */
+    private static String controls(JSONObject game) {
+        String config = game.optString("sp2kcfg", "");
+        return config.isEmpty() ? null : config;
+    }
+
+    private Meta bareMeta(JSONObject game) {
         return new Meta(
                 null,                      // the caller knows the path; the API does not
                 bestName(game),

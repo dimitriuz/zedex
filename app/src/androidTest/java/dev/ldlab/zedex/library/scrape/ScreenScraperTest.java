@@ -105,6 +105,7 @@ public class ScreenScraperTest {
             + "\"genres\":[{\"id\":\"7\",\"noms\":[{\"langue\":\"en\",\"text\":\"Platform\"}]},"
             + "            {\"id\":\"8\",\"noms\":[{\"langue\":\"en\",\"text\":\"Action\"}]}],"
             + "\"dates\":[{\"region\":\"wor\",\"text\":\"1989-06-01\"}],"
+            + "\"sp2kcfg\":\"# Batman\\n0:left = q ;; left\\n0:a = v ;; jump\","
             + "\"medias\":["
             + " {\"type\":\"box-3D\",\"url\":\"https://x/3d.png\",\"format\":\"png\"},"
             + " {\"type\":\"box-2D\",\"url\":\"https://x/cover.png\",\"format\":\"png\","
@@ -528,5 +529,85 @@ public class ScreenScraperTest {
         assertEquals("Batman", new Candidate("1", "Batman", null, null, false).describe());
         assertEquals("Batman (1989)",
                      new Candidate("1", "Batman", "1989", "", false).describe());
+    }
+
+    // --- the control layout ------------------------------------------------------------
+
+    /**
+     * {@code sp2kcfg} comes back verbatim.
+     *
+     * The one field here that changes how a game plays rather than how it
+     * looks: hand-authored config naming which Spectrum key each pad control
+     * should send, for this game in particular. Nothing reads it yet - mapping
+     * it onto ControlProfiles is its own piece of work - so it is stored as it
+     * arrived rather than parsed, which would settle that mapping's shape in
+     * advance.
+     */
+    @Test
+    public void thecontrolLayoutIsCarriedThroughVerbatim() throws Exception {
+        String controls = fetchAll().meta.controls;
+
+        assertNotNull("sp2kcfg was dropped", controls);
+        assertTrue("the layout was reformatted on the way: " + controls,
+                   controls.contains("0:left = q") && controls.contains("0:a = v"));
+    }
+
+    /** A game without one says nothing rather than an empty string, so
+     *  "has a layout" is a null check like every other field here. */
+    @Test
+    public void agameWithNoLayoutHasNone() throws Exception {
+        String bare = "{\"response\":{" + USER
+                    + ",\"jeu\":{\"id\":\"1\",\"noms\":[{\"region\":\"wor\",\"text\":\"Bare\"}]}}}";
+        Canned http = new Canned().then(200, bare);
+        ScreenScraper scraper = scraperOn(http);
+
+        Candidate one = scraper.search(new AGame("x")).get(0);
+        assertNull(scraper.fetch(one, Provider.Wanted.nothing()).meta.controls);
+    }
+
+    /** And it costs no request of its own - it rides in the reply the search
+     *  already paid for. */
+    @Test
+    public void thelayoutCostsNoExtraRequest() throws Exception {
+        Canned http = new Canned().then(200, FOUND);
+        ScreenScraper scraper = scraperOn(http);
+
+        Candidate one = scraper.search(new AGame("d41d8cd98f00b204e9800998ecf8427e")).get(0);
+        assertNotNull(scraper.fetch(one, Provider.Wanted.nothing()).meta.controls);
+
+        assertEquals("the layout should not have cost a second request",
+                     1, http.asked.size());
+    }
+
+    /**
+     * A game they have never heard of answers with nothing, and does not
+     * throw.
+     *
+     * ScreenScraper says 404 for that, and treating it as a failure is a real
+     * bug rather than a nicety: most of a Spectrum collection is obscure, so a
+     * multi-scrape over eight hundred games would raise an exception for every
+     * one they do not know. Found on the bench - searching for a real
+     * filename from this collection returned 404 and the client threw.
+     */
+    @Test
+    public void a404IsNothingFoundRatherThanAFailure() throws Exception {
+        Canned http = new Canned().then(404, "Erreur : Rom/Jeu non trouvee !")
+                                  .then(404, "Erreur : Rom/Jeu non trouvee !");
+
+        assertTrue("a 404 should be an empty answer",
+                   scraperOn(http).search(new AGame("unknown")).isEmpty());
+    }
+
+    /** And a 404 on the hash still falls through to the filename, which is the
+     *  whole point of having two questions. */
+    @Test
+    public void a404OnTheHashStillTriesTheFilename() throws Exception {
+        Canned http = new Canned().then(404, "not found").then(200, FOUND);
+
+        List<Candidate> found = scraperOn(http).search(new AGame("unknownhash"));
+
+        assertEquals(1, found.size());
+        assertFalse("the filename answer is a guess", found.get(0).exact);
+        assertEquals(2, http.asked.size());
     }
 }

@@ -77,9 +77,12 @@ public class ScrapeTest {
         Metadata.refresh(context);
     }
 
+    private static final String LAYOUT = "# Arkanoid \\n0:left = o ;; left";
+
     private static Meta fromProvider() {
         return new Meta(null, "Arkanoid", "Bat and ball", "Taito", "Imagine",
-                        "Action", "19870101T000000", "1", "0.7500", null);
+                        "Action", "19870101T000000", "1", "0.7500", null)
+                .withControls(LAYOUT);
     }
 
     // --- who owns what comes back ------------------------------------------------
@@ -262,5 +265,32 @@ public class ScrapeTest {
     public void askingForNothingCostsNothingExtra() {
         assertFalse(Provider.Wanted.nothing().any());
         assertEquals(0, Provider.Wanted.nothing().requests());
+    }
+
+    /**
+     * The control layout survives being keyed and owned.
+     *
+     * It did not. {@code owned} rebuilt the row through the ten-argument
+     * constructor, which leaves the layout null, so every scrape stored
+     * everything except the one field that had just been added. Nothing
+     * failed and nothing logged - the store simply had no layout in it, and it
+     * took comparing a real scrape against a live reply to see.
+     *
+     * The same trap {@code Meta.with}'s own comment names: ten arguments is
+     * more than anybody counts correctly at a call site.
+     */
+    @Test
+    public void thecontrolLayoutSurvivesBeingKeyedAndOwned() {
+        assertEquals("owned() dropped the control layout",
+                     LAYOUT, Scrape.owned(fromProvider(), PATH, "ScreenScraper").controls);
+    }
+
+    /** And through the store, which is the whole journey. */
+    @Test
+    public void thelayoutSurvivesTheWholeJourney() {
+        Metadata.put(context, Scrape.owned(fromProvider(), PATH, "ScreenScraper"));
+        Metadata.refresh(context);
+
+        assertEquals(LAYOUT, Metadata.forPath(context, PATH).controls);
     }
 }

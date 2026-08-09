@@ -83,11 +83,21 @@ public final class Scrape {
         return Downloads.fetch(context, http, provider, path, scraped.media);
     }
 
-    /** The scraped facts, keyed and owned. */
+    /**
+     * The scraped facts, keyed and owned.
+     *
+     * {@code withControls} last, and not optional: the ten-argument
+     * constructor leaves the control layout null, so rebuilding a {@link Meta}
+     * through it drops whatever the provider sent. That is not hypothetical -
+     * this method did exactly that, and it took comparing the store against a
+     * live reply to notice, because everything else about the row was right.
+     * {@code Meta.with} has the same shape and the same warning on it.
+     */
     static Meta owned(Meta from, String path, String providerName) {
         return new Meta(path, from.name, from.desc, from.developer, from.publisher,
                         from.genre, from.released, from.players, from.rating,
-                        providerName);
+                        providerName)
+                .withControls(from.controls);
     }
 
     /**
