@@ -254,6 +254,21 @@ public final class FuseSettings {
         applyFilter(preferences);
     }
 
+    /**
+     * Every key in the table, for a test that has to walk it.
+     *
+     * Package private and for that alone. The drift this table exists to stop
+     * - a setting with a live push and no command-line argument, so switching
+     * it on worked until the app was restarted - is invisible from outside
+     * unless something can enumerate what is in here; see
+     * {@code FuseSettingsTest}.
+     */
+    static String[] keys() {
+        String[] keys = new String[ALL.length];
+        for (int at = 0; at < ALL.length; at++) keys[at] = ALL[at].key;
+        return keys;
+    }
+
     /** Adds each setting Fuse takes as an argument to a command line. */
     public static void appendArguments(SharedPreferences preferences,
                                        List<String> out) {
