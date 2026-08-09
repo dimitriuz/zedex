@@ -31,13 +31,8 @@ import android.widget.Toast;
  * resources that the build stamps out of git, so nothing here can claim to be a
  * version or a commit it is not.
  */
-public final class AboutActivity extends Activity {
+public final class AboutActivity extends ZedexActivity {
 
-    /** Every screen speaks the chosen language; see {@link Language}. */
-    @Override
-    protected void attachBaseContext(android.content.Context base) {
-        super.attachBaseContext(Language.wrap(base));
-    }
 
     private static final String SOURCE = "https://github.com/dimitriuz/zedex";
 
@@ -59,7 +54,7 @@ public final class AboutActivity extends Activity {
         setContentView(page);
 
         // Nothing of ours under the status bar or the camera; see SafeArea.
-        SafeArea.fit(findViewById(android.R.id.content));
+        fitToSafeArea();
     }
 
     private View content() {

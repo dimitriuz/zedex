@@ -41,20 +41,14 @@ import java.util.List;
  * whichever profile is current, since that is the one the controls are using and
  * the one whose changes can be felt straight away.
  */
-public final class ProfileActivity extends Activity
+public final class ProfileActivity extends ZedexActivity
         implements SpectrumKeyboardView.Picker {
 
-    /** Every screen speaks the chosen language; see {@link Language}. */
-    @Override
-    protected void attachBaseContext(android.content.Context base) {
-        super.attachBaseContext(Language.wrap(base));
-    }
 
     /** Bright enough to read as chosen against the dark rows. */
     private static final int SELECTED = 0xff00b0c8;
     private static final int ROW = 0x22ffffff;
 
-    private SharedPreferences preferences;
     private final Button[] slots = new Button[ControlProfiles.SLOTS];
 
     private int selected = FuseNative.JOYSTICK_UP;
@@ -68,11 +62,10 @@ public final class ProfileActivity extends Activity
         // this screen's, so the title is set here; see Language.
         setTitle(R.string.profile_activity);
 
-        preferences = getSharedPreferences(Prefs.PREFS, MODE_PRIVATE);
         setContentView(build());
 
         // Nothing of ours under the status bar or the camera; see SafeArea.
-        SafeArea.fit(findViewById(android.R.id.content));
+        fitToSafeArea();
         showKeys();
     }
 

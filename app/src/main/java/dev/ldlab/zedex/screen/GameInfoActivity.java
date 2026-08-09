@@ -47,7 +47,7 @@ import android.widget.TextView;
  * says. Both lookups are a read of another app's storage, so both happen off
  * the UI thread.
  */
-public final class GameInfoActivity extends Activity {
+public final class GameInfoActivity extends ZedexActivity {
 
     /** The game's path relative to the content tree - {@link Metadata#relativePath}. */
     public static final String EXTRA_PATH = "dev.ldlab.zedex.extra.GAME_PATH";
@@ -78,11 +78,6 @@ public final class GameInfoActivity extends Activity {
     private TextView facts;
     private TextView description;
 
-    /** Every screen speaks the chosen language; see {@link Language}. */
-    @Override
-    protected void attachBaseContext(android.content.Context base) {
-        super.attachBaseContext(Language.wrap(base));
-    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -101,7 +96,7 @@ public final class GameInfoActivity extends Activity {
         String name = getIntent().getStringExtra(EXTRA_NAME);
 
         setContentView(page(name));
-        SafeArea.fit(findViewById(android.R.id.content));
+        fitToSafeArea();
 
         if (path != null) {
             load(path);

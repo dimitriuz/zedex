@@ -85,13 +85,8 @@ import java.util.Set;
  * That is the one requirement a folder of a few thousand tapes puts on this
  * screen, and the reason it exists at all.
  */
-public final class LibraryActivity extends Activity {
+public final class LibraryActivity extends ZedexActivity {
 
-    /** Every screen speaks the chosen language; see {@link Language}. */
-    @Override
-    protected void attachBaseContext(android.content.Context base) {
-        super.attachBaseContext(Language.wrap(base));
-    }
 
     private static final String TAG = "Zedex";
 
@@ -217,7 +212,6 @@ public final class LibraryActivity extends Activity {
         }
     }
 
-    private SharedPreferences preferences;
     private Tab tab = Tab.BROWSE;
 
     /**
@@ -509,7 +503,6 @@ public final class LibraryActivity extends Activity {
     protected void onCreate(Bundle state) {
         super.onCreate(state);
 
-        preferences = getSharedPreferences(Prefs.PREFS, MODE_PRIVATE);
 
         // The one decision this screen makes before drawing anything: whether
         // it should be here at all - and only the launcher path asks it. Off,
@@ -582,7 +575,7 @@ public final class LibraryActivity extends Activity {
         if (getActionBar() != null) getActionBar().hide();
 
         // Nothing of ours under the status bar or the camera; see SafeArea.
-        SafeArea.fit(findViewById(android.R.id.content));
+        fitToSafeArea();
 
         padNav = buildPadNav();
         padCursor = new GamepadCursor(padNav);

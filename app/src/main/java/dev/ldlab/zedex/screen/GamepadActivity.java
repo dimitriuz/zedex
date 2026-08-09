@@ -37,17 +37,11 @@ import android.widget.TextView;
  * is a page of rows that each open something, which a menu sheet is the wrong
  * shape for.
  */
-public final class GamepadActivity extends Activity {
+public final class GamepadActivity extends ZedexActivity {
 
-    /** Every screen speaks the chosen language; see {@link Language}. */
-    @Override
-    protected void attachBaseContext(android.content.Context base) {
-        super.attachBaseContext(Language.wrap(base));
-    }
 
     private static final int ROW = 0x22ffffff;
 
-    private SharedPreferences preferences;
 
     /** The rows, so a capture can rewrite them all without rebuilding. */
     private final Button[] rows = new Button[Hotkeys.Action.values().length];
@@ -69,11 +63,10 @@ public final class GamepadActivity extends Activity {
         // this screen's, so the title is set here; see Language.
         setTitle(R.string.gamepad_activity);
 
-        preferences = getSharedPreferences(Prefs.PREFS, MODE_PRIVATE);
         setContentView(build());
 
         // Nothing of ours under the status bar or the camera; see SafeArea.
-        SafeArea.fit(findViewById(android.R.id.content));
+        fitToSafeArea();
         showBindings();
     }
 
