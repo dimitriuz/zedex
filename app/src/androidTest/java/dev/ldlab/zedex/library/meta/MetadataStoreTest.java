@@ -96,7 +96,7 @@ public class MetadataStoreTest {
 
     @Test
     public void agameSurvivesBeingWrittenAndReadBack() {
-        Metadata.replaceAll(context, Collections.singletonList(
+        Metadata.replaceScraped(context, Collections.singletonList(
                 game("./games/Tujad.z80", "Tujad")));
         Metadata.refresh(context);
 
@@ -113,7 +113,7 @@ public class MetadataStoreTest {
      *  app being killed. */
     @Test
     public void whatWasWrittenIsOnDiskAndNotOnlyInMemory() throws IOException {
-        Metadata.replaceAll(context, Collections.singletonList(
+        Metadata.replaceScraped(context, Collections.singletonList(
                 game("./games/Tujad.z80", "Tujad")));
 
         assertTrue("no store file was written", store.isFile());
@@ -127,7 +127,7 @@ public class MetadataStoreTest {
 
     @Test
     public void thecountAndTheWholeCollectionAgree() {
-        Metadata.replaceAll(context, Arrays.asList(
+        Metadata.replaceScraped(context, Arrays.asList(
                 game("./a.tap", "A"), game("./b.tap", "B"), game("./c.tap", "C")));
         Metadata.refresh(context);
 
@@ -140,7 +140,7 @@ public class MetadataStoreTest {
      *  keying exists to avoid. */
     @Test
     public void anUnknownPathAnswersNothing() {
-        Metadata.replaceAll(context, Collections.singletonList(game("./a.tap", "A")));
+        Metadata.replaceScraped(context, Collections.singletonList(game("./a.tap", "A")));
         Metadata.refresh(context);
 
         assertNull(Metadata.forPath(context, "./somewhere/else.tap"));
@@ -150,7 +150,7 @@ public class MetadataStoreTest {
      *  empty key that every unmatched lookup would then find. */
     @Test
     public void agameWithNoPathIsNotStored() {
-        Metadata.replaceAll(context, Arrays.asList(
+        Metadata.replaceScraped(context, Arrays.asList(
                 game("", "No path"), game(null, "Also none"), game("./real.tap", "Real")));
         Metadata.refresh(context);
 
@@ -174,14 +174,14 @@ public class MetadataStoreTest {
      */
     @Test
     public void relinkingMovesTheLinkedTime() throws InterruptedException {
-        Metadata.replaceAll(context, Collections.singletonList(game("./a.tap", "A")));
+        Metadata.replaceScraped(context, Collections.singletonList(game("./a.tap", "A")));
         Metadata.refresh(context);
         long first = Metadata.lastLinked(context);
         assertTrue("nothing recorded a link time at all", first > 0);
 
         Thread.sleep(1100);   // the stamp is in milliseconds but the file's mtime is not
 
-        Metadata.replaceAll(context, Collections.singletonList(game("./b.tap", "B")));
+        Metadata.replaceScraped(context, Collections.singletonList(game("./b.tap", "B")));
         Metadata.refresh(context);
 
         assertTrue("relinking did not move lastLinked: " + first + " then "
@@ -203,7 +203,7 @@ public class MetadataStoreTest {
 
     @Test
     public void clearingForgetsTheGamesAndTheFile() {
-        Metadata.replaceAll(context, Collections.singletonList(game("./a.tap", "A")));
+        Metadata.replaceScraped(context, Collections.singletonList(game("./a.tap", "A")));
         Metadata.refresh(context);
         assertEquals(1, Metadata.count(context));
 
@@ -212,6 +212,166 @@ public class MetadataStoreTest {
         assertEquals(0, Metadata.count(context));
         assertFalse("Unlink left the store file behind", store.isFile());
         assertNull(Metadata.forPath(context, "./a.tap"));
+    }
+
+    // --- who owns a row -----------------------------------------------------------------
+
+    private static Meta mine(String path, String name) {
+        return new Meta(path, name, null, null, null, null, null, null, null, Meta.USER);
+    }
+
+    /**
+     * A link replaces what ES-DE owns and leaves a hand-edited row alone.
+     *
+     * The whole ownership rule. Getting it wrong is not an error anybody sees:
+     * the edit is simply gone the next time Link is pressed, which on this
+     * collection is whenever anything at all is scraped.
+     */
+    @Test
+    public void alinkKeepsAHandEditedRowAndReplacesTheRest() {
+        Metadata.put(context, mine("./mine.tap", "My own name"));
+        Metadata.replaceScraped(context, Collections.singletonList(
+                game("./theirs.tap", "Scraped")));
+        Metadata.refresh(context);
+
+        assertEquals(2, Metadata.count(context));
+        assertNotNull("the hand-edited row was dropped by a link",
+                      Metadata.forPath(context, "./mine.tap"));
+        assertEquals("My own name", Metadata.forPath(context, "./mine.tap").name);
+        assertEquals("Scraped", Metadata.forPath(context, "./theirs.tap").name);
+    }
+
+    /** And a scraped row for the same game gives way to the hand-edited one -
+     *  otherwise the edit survives the link and is overwritten by it in the
+     *  same breath. */
+    @Test
+    public void ahandEditedRowWinsOverAScrapedOneForTheSameGame() {
+        Metadata.put(context, mine("./same.tap", "What I called it"));
+
+        Metadata.replaceScraped(context, Collections.singletonList(
+                game("./same.tap", "What ES-DE calls it")));
+        Metadata.refresh(context);
+
+        assertEquals(1, Metadata.count(context));
+        assertEquals("the link overwrote a hand-edited row",
+                     "What I called it", Metadata.forPath(context, "./same.tap").name);
+    }
+
+    /** A link that finds nothing still leaves the hand-edited rows - the case
+     *  where a lapsed grant would otherwise take somebody's own work with it. */
+    @Test
+    public void alinkThatFindsNothingStillKeepsWhatWasEdited() {
+        Metadata.put(context, mine("./mine.tap", "My own name"));
+
+        Metadata.replaceScraped(context, new ArrayList<>());
+        Metadata.refresh(context);
+
+        assertEquals(1, Metadata.count(context));
+        assertNotNull(Metadata.forPath(context, "./mine.tap"));
+    }
+
+    /** Unlink is a different button and takes everything, edits included -
+     *  that is what unlinking means. */
+    @Test
+    public void unlinkTakesTheHandEditedRowsToo() {
+        Metadata.put(context, mine("./mine.tap", "My own name"));
+        Metadata.refresh(context);
+        assertEquals(1, Metadata.count(context));
+
+        Metadata.clear(context);
+
+        assertEquals(0, Metadata.count(context));
+    }
+
+    // --- writing and forgetting one game -----------------------------------------------
+
+    @Test
+    public void onegameCanBeWrittenWithoutTouchingTheRest() {
+        Metadata.replaceScraped(context, Arrays.asList(
+                game("./a.tap", "A"), game("./b.tap", "B")));
+        Metadata.refresh(context);
+
+        Metadata.put(context, mine("./a.tap", "A, corrected"));
+        Metadata.refresh(context);
+
+        assertEquals(2, Metadata.count(context));
+        assertEquals("A, corrected", Metadata.forPath(context, "./a.tap").name);
+        assertEquals("B", Metadata.forPath(context, "./b.tap").name);
+    }
+
+    /** Writing a game that was not there adds it - the editor can fill in
+     *  something ES-DE never scraped at all. */
+    @Test
+    public void onegameCanBeWrittenWhereThereWasNone() {
+        Metadata.put(context, mine("./new.tap", "Never scraped"));
+        Metadata.refresh(context);
+
+        assertEquals(1, Metadata.count(context));
+        assertEquals("Never scraped", Metadata.forPath(context, "./new.tap").name);
+    }
+
+    /** A game with no path is refused rather than stored under nothing. */
+    @Test
+    public void agameWithNoPathIsNotWritten() {
+        Metadata.put(context, mine("", "No path"));
+        Metadata.put(context, null);
+        Metadata.refresh(context);
+
+        assertEquals(0, Metadata.count(context));
+    }
+
+    /**
+     * Forgetting drops the row, so the next link brings ES-DE's own back.
+     *
+     * The way out of owning a game. There is a gap where the game has nothing
+     * at all, which is the honest cost of the per-game rule and what the
+     * button's wording has to say.
+     */
+    @Test
+    public void forgettingDropsTheRowSoALinkCanBringItBack() {
+        Metadata.put(context, mine("./mine.tap", "My own name"));
+        Metadata.refresh(context);
+
+        Metadata.forget(context, "./mine.tap");
+        Metadata.refresh(context);
+
+        assertNull("the row survived being forgotten",
+                   Metadata.forPath(context, "./mine.tap"));
+
+        Metadata.replaceScraped(context, Collections.singletonList(
+                game("./mine.tap", "What ES-DE calls it")));
+        Metadata.refresh(context);
+
+        assertEquals("a link did not bring the scraped version back",
+                     "What ES-DE calls it", Metadata.forPath(context, "./mine.tap").name);
+    }
+
+    /** Forgetting something that was never there leaves the rest alone. */
+    @Test
+    public void forgettingSomethingThatIsNotThereIsHarmless() {
+        Metadata.replaceScraped(context, Collections.singletonList(game("./a.tap", "A")));
+        Metadata.refresh(context);
+
+        Metadata.forget(context, "./never.tap");
+        Metadata.forget(context, null);
+        Metadata.refresh(context);
+
+        assertEquals(1, Metadata.count(context));
+    }
+
+    /** The source survives the round trip, or nothing above can be told apart
+     *  after a restart. */
+    @Test
+    public void whoOwnsARowSurvivesBeingWrittenAndReadBack() {
+        Metadata.put(context, mine("./mine.tap", "Mine"));
+        Metadata.replaceScraped(context, Collections.singletonList(
+                game("./theirs.tap", "Theirs")));
+        Metadata.refresh(context);
+
+        assertTrue("a hand-edited row did not read back as one",
+                   Metadata.forPath(context, "./mine.tap").isMine());
+        assertFalse("a scraped row read back as hand-edited",
+                    Metadata.forPath(context, "./theirs.tap").isMine());
     }
 
     // --- a store that will not read ---------------------------------------------------------
@@ -244,7 +404,7 @@ public class MetadataStoreTest {
         }
         Metadata.refresh(context);
 
-        Metadata.replaceAll(context, Collections.singletonList(game("./a.tap", "A")));
+        Metadata.replaceScraped(context, Collections.singletonList(game("./a.tap", "A")));
         Metadata.refresh(context);
 
         assertEquals(1, Metadata.count(context));
@@ -261,7 +421,7 @@ public class MetadataStoreTest {
      */
     @Test
     public void nothingIsLeftHalfWritten() {
-        Metadata.replaceAll(context, Collections.singletonList(game("./a.tap", "A")));
+        Metadata.replaceScraped(context, Collections.singletonList(game("./a.tap", "A")));
 
         File temp = new File(store.getParentFile(), "gamelist.xml.tmp");
         assertFalse("a half-written " + temp.getName() + " was left behind", temp.exists());
@@ -278,11 +438,11 @@ public class MetadataStoreTest {
      */
     @Test
     public void replacingWithAnEmptyListEmptiesTheStore() {
-        Metadata.replaceAll(context, Collections.singletonList(game("./a.tap", "A")));
+        Metadata.replaceScraped(context, Collections.singletonList(game("./a.tap", "A")));
         Metadata.refresh(context);
         assertEquals(1, Metadata.count(context));
 
-        Metadata.replaceAll(context, new ArrayList<>());
+        Metadata.replaceScraped(context, new ArrayList<>());
         Metadata.refresh(context);
 
         assertEquals(0, Metadata.count(context));
@@ -292,7 +452,7 @@ public class MetadataStoreTest {
      *  cannot hold both, and the later one wins rather than the read failing. */
     @Test
     public void twoGamesOnOnePathLeaveOne() {
-        Metadata.replaceAll(context, Arrays.asList(
+        Metadata.replaceScraped(context, Arrays.asList(
                 game("./same.tap", "First"), game("./same.tap", "Second")));
         Metadata.refresh(context);
 
@@ -306,7 +466,7 @@ public class MetadataStoreTest {
     public void awkwardTextSurvivesTheRoundTrip() {
         String awkward = "Tom & Jerry <the> \"one\" with 'apostrophes'";
 
-        Metadata.replaceAll(context, Collections.singletonList(
+        Metadata.replaceScraped(context, Collections.singletonList(
                 new Meta("./a.tap", awkward, awkward, null, null, null,
                          null, null, null, "esde")));
         Metadata.refresh(context);
@@ -324,7 +484,7 @@ public class MetadataStoreTest {
         List<Meta> many = new ArrayList<>();
         for (int at = 0; at < 1000; at++) many.add(game("./game" + at + ".tap", "Game " + at));
 
-        Metadata.replaceAll(context, many);
+        Metadata.replaceScraped(context, many);
         Metadata.refresh(context);
 
         assertEquals(1000, Metadata.count(context));

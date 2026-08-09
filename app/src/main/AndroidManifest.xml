@@ -122,6 +122,18 @@
             android:theme="@android:style/Theme.DeviceDefault"
             android:exported="false" />
 
+        <!-- The same game's facts, by hand: reached from the library's own
+             options popup while a game is selected. adjustResize so the soft
+             keyboard scrolls the fields rather than covering the one being
+             typed into - eight rows and a keyboard do not both fit on a
+             landscape phone. See screen/EditMetadataActivity.java. -->
+        <activity
+            android:name=".screen.EditMetadataActivity"
+            android:label="@string/edit_metadata_title"
+            android:theme="@android:style/Theme.DeviceDefault"
+            android:windowSoftInputMode="adjustResize"
+            android:exported="false" />
+
         <!-- One picture or the video, full screen, swipeable across the
              rest of the same gallery - opened from a tap on a page in the
              pane or in GameInfoActivity; see library/ui/Gallery.java and

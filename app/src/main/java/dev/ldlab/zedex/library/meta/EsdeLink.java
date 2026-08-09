@@ -85,11 +85,13 @@ public final class EsdeLink {
      *
      * The empty list and an exception mean different facts, and the caller's
      * safety turns on never letting them collapse into one: {@link
-     * Metadata#replaceAll} throws away whatever this app already recorded and
-     * writes exactly what this method hands back, so a lapsed grant or an
-     * uninstalled ES-DE answering "no games" instead of "cannot tell" would
-     * silently erase a real scrape the moment it happened - which is exactly
-     * what returning an empty list here used to do.
+     * Metadata#replaceScraped} throws away every scraped row this app already
+     * recorded and writes exactly what this method hands back, so a lapsed
+     * grant or an uninstalled ES-DE answering "no games" instead of "cannot
+     * tell" would silently erase a real scrape the moment it happened - which
+     * is exactly what returning an empty list here used to do. Hand-edited
+     * rows are the one thing it would not take, and only because they are not
+     * ES-DE's to lose.
      *
      * @throws IOException if ES-DE cannot be reached at all - no All files
      *                      access and no granted folder - or its gamelist

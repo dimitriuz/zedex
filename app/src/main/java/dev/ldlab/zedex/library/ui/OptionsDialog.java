@@ -109,6 +109,29 @@ public final class OptionsDialog {
          *  View have no such question: both apply to every tab, which is why
          *  only this one row asks it. */
         boolean filteringAllowed();
+
+        /**
+         * Whether there is a game selected whose metadata can be edited.
+         *
+         * Its own question, deliberately not folded into {@link
+         * #filteringAllowed}: that one asks whether the current tab answers to
+         * a filter, this one asks whether one row is selected and has a path
+         * of its own for the store to key by - a folder, an archive and a game
+         * inside a zip all have none, which is the same test the pane's
+         * magnifier makes. CLAUDE.md's "one predicate must not answer two
+         * questions" was written about this file's neighbour.
+         *
+         * Asked fresh every time {@link #buildMenuPage} runs, for the same
+         * reason the one above is: the selection moves while this dialog is
+         * not up to be told.
+         */
+        boolean editingAllowed();
+
+        /** MENU's own Edit row was chosen - open the editor for whatever is
+         *  selected. The dialog closes itself first; a screen opening behind
+         *  it would be reached by dismissing something the person did not put
+         *  there. */
+        void editMetadata();
     }
 
     // Matches LibraryActivity's own palette - duplicated rather than shared,
@@ -653,6 +676,18 @@ public final class OptionsDialog {
         if (callbacks.filteringAllowed()) {
             addRow(column, menuRow(R.string.library_filter, filterSummary()),
                     () -> callbacks.openFilters(++filterRequestToken));
+        }
+
+        // Last, and only with a game selected: unlike the three above it, this
+        // row is about one row of the list rather than about the list. Left
+        // off entirely rather than disabled, the same choice Filter makes just
+        // above - a row that could only ever do nothing is worse than one that
+        // is not offered.
+        if (callbacks.editingAllowed()) {
+            addRow(column, activity.getString(R.string.edit_metadata_menu), () -> {
+                dismiss();
+                callbacks.editMetadata();
+            });
         }
     }
 

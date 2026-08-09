@@ -744,4 +744,20 @@
     <string name="video_rgb_short">RGB</string>
     <string name="video_composite_short">Composite</string>
     <string name="video_rf_short">RF</string>
+    <string name="edit_metadata_title">Edit metadata</string>
+    <string name="edit_metadata_menu">Edit metadata…</string>
+    <string name="edit_metadata_name">Name</string>
+    <string name="edit_metadata_desc">Description</string>
+    <string name="edit_metadata_developer">Developer</string>
+    <string name="edit_metadata_publisher">Publisher</string>
+    <string name="edit_metadata_genre">Genre</string>
+    <string name="edit_metadata_released">Year</string>
+    <string name="edit_metadata_players">Players</string>
+    <string name="edit_metadata_rating">Rating out of 5</string>
+    <string name="edit_metadata_empty">Not set</string>
+    <string name="edit_metadata_save">Save</string>
+    <string name="edit_metadata_saved">Saved — a link will leave this game alone from now on</string>
+    <string name="edit_metadata_forget">Forget my edits</string>
+    <string name="edit_metadata_forget_confirm">This game will have no metadata at all until ES-DE is linked again, which will bring back whatever it knows.</string>
+    <string name="edit_metadata_forgotten">Edits forgotten</string>
 </resources>

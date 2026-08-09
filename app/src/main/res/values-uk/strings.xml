@@ -639,4 +639,20 @@
     <string name="video_rgb_short">RGB</string>
     <string name="video_composite_short">Composite</string>
     <string name="video_rf_short">RF</string>
+    <string name="edit_metadata_title">Змінити метадані</string>
+    <string name="edit_metadata_menu">Змінити метадані…</string>
+    <string name="edit_metadata_name">Назва</string>
+    <string name="edit_metadata_desc">Опис</string>
+    <string name="edit_metadata_developer">Розробник</string>
+    <string name="edit_metadata_publisher">Видавець</string>
+    <string name="edit_metadata_genre">Жанр</string>
+    <string name="edit_metadata_released">Рік</string>
+    <string name="edit_metadata_players">Гравці</string>
+    <string name="edit_metadata_rating">Оцінка з 5</string>
+    <string name="edit_metadata_empty">Не задано</string>
+    <string name="edit_metadata_save">Зберегти</string>
+    <string name="edit_metadata_saved">Збережено — зв’язування більше не змінюватиме цю гру</string>
+    <string name="edit_metadata_forget">Забути мої правки</string>
+    <string name="edit_metadata_forget_confirm">Ця гра залишиться без метаданих, доки ви знову не зв’яжете ES-DE — воно поверне те, що знає.</string>
+    <string name="edit_metadata_forgotten">Правки забуто</string>
 </resources>

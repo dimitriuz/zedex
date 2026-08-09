@@ -639,4 +639,20 @@
     <string name="video_rgb_short">RGB</string>
     <string name="video_composite_short">Composite</string>
     <string name="video_rf_short">RF</string>
+    <string name="edit_metadata_title">Изменить метаданные</string>
+    <string name="edit_metadata_menu">Изменить метаданные…</string>
+    <string name="edit_metadata_name">Название</string>
+    <string name="edit_metadata_desc">Описание</string>
+    <string name="edit_metadata_developer">Разработчик</string>
+    <string name="edit_metadata_publisher">Издатель</string>
+    <string name="edit_metadata_genre">Жанр</string>
+    <string name="edit_metadata_released">Год</string>
+    <string name="edit_metadata_players">Игроки</string>
+    <string name="edit_metadata_rating">Оценка из 5</string>
+    <string name="edit_metadata_empty">Не задано</string>
+    <string name="edit_metadata_save">Сохранить</string>
+    <string name="edit_metadata_saved">Сохранено — связывание больше не будет изменять эту игру</string>
+    <string name="edit_metadata_forget">Забыть мои правки</string>
+    <string name="edit_metadata_forget_confirm">У этой игры не останется метаданных, пока вы снова не свяжете ES-DE — оно вернёт то, что знает.</string>
+    <string name="edit_metadata_forgotten">Правки забыты</string>
 </resources>
