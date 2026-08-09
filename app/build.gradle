@@ -301,6 +301,27 @@ android {
         abortOnError true
         lintConfig file('lint.xml')
     }
+
+    /*
+     * android.jar on the unit-test classpath is stubs, and every method in it
+     * throws "not mocked" by default. That is right for most of it - a test
+     * that reaches a real Android API by accident should be told so loudly -
+     * but it also makes a single android.util.Log.w in an otherwise pure
+     * method enough to put that method out of reach, and Log is everywhere
+     * here by design: most of this codebase's error handling is a log line
+     * with a comment above it explaining the failure.
+     *
+     * So: return defaults instead of throwing. The cost is real and worth
+     * naming - Uri.parse now answers null rather than complaining, so a test
+     * that leans on a framework class it should have faked gets a quiet null
+     * where it used to get an error. The rule that follows is that anything
+     * needing more than a logger belongs behind a seam the test can supply,
+     * the way EsDe.Place and Sorting.Lookup already are, rather than being
+     * left to a stub's idea of zero.
+     */
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
 }
 
 dependencies {

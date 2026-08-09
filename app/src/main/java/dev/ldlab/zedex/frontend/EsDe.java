@@ -208,7 +208,7 @@ public final class EsDe {
             return false;
         }
 
-        return write(context, new Paths(custom));
+        return write(context.getPackageName(), new Paths(custom));
     }
 
     /**
@@ -228,7 +228,7 @@ public final class EsDe {
         }
         if (folder == null) return false;
 
-        return write(context, new Tree(context, tree, DocumentsContract
+        return write(context.getPackageName(), new Tree(context, tree, DocumentsContract
                 .getDocumentId(folder)));
     }
 
@@ -310,10 +310,10 @@ public final class EsDe {
      * is say so - the caller only learns true or false, and "it failed" while
      * half of it is on disk is the sort of thing that gets debugged twice.
      */
-    private static boolean write(Context context, Place place) {
-        if (!findRule(context, place)) return false;
+    static boolean write(String packageName, Place place) {
+        if (!findRule(packageName, place)) return false;
 
-        if (!system(context, place)) {
+        if (!system(packageName, place)) {
             Log.w(TAG, "the find rule was written but the system entry was"
                        + " not - ES-DE has an emulator definition nothing"
                        + " refers to, which is inert; running this again"
@@ -325,11 +325,11 @@ public final class EsDe {
     }
 
     /** {@code <emulator name="ZEDEX">} and the package to start. */
-    private static boolean findRule(Context context, Place place) {
+    private static boolean findRule(String packageName, Place place) {
         Document document = read(place, RULES, "ruleList");
         if (document == null) return false;
 
-        String entry = context.getPackageName() + "/" + ACTIVITY;
+        String entry = packageName + "/" + ACTIVITY;
 
         Element emulator = child(document.getDocumentElement(), "emulator",
                                  "name", EMULATOR);
@@ -356,7 +356,7 @@ public final class EsDe {
     }
 
     /** The {@code zxspectrum} system, with our command first and theirs kept. */
-    private static boolean system(Context context, Place place) {
+    private static boolean system(String packageName, Place place) {
         Document document = read(place, SYSTEMS, "systemList");
         if (document == null) return false;
 
@@ -377,7 +377,7 @@ public final class EsDe {
             append(document, system, "fullname", FULLNAME);
             append(document, system, "path", PATH);
             append(document, system, "extension", EXTENSIONS);
-            command(document, system, label(context), COMMAND);
+            command(document, system, label(packageName), COMMAND);
             for (String[] bundled : BUNDLED) {
                 command(document, system, bundled[0], bundled[1]);
             }
@@ -390,8 +390,8 @@ public final class EsDe {
         // A system the user wrote themselves. Add the command if it is not
         // there and touch nothing else - not the extensions they may have
         // trimmed, not the path they may have moved.
-        if (child(system, "command", "label", label(context)) == null) {
-            command(document, system, label(context), COMMAND);
+        if (child(system, "command", "label", label(packageName)) == null) {
+            command(document, system, label(packageName), COMMAND);
         }
 
         return write(document, place, SYSTEMS);
@@ -402,9 +402,8 @@ public final class EsDe {
      * because the two install side by side and a menu with the same label twice
      * in it would be a guess — and because it is how this was tested at all.
      */
-    private static String label(Context context) {
-        return context.getPackageName().endsWith(".debug")
-                ? "Zedex (debug)" : "Zedex";
+    private static String label(String packageName) {
+        return packageName.endsWith(".debug") ? "Zedex (debug)" : "Zedex";
     }
 
     private static void command(Document document, Element system,
@@ -439,6 +438,7 @@ public final class EsDe {
                         Log.w(TAG, name + " is not a " + root + " file");
                         return null;
                     }
+                    dropLayoutWhitespace(document.getDocumentElement());
                     return document;
                 }
             }
@@ -450,6 +450,41 @@ public final class EsDe {
             Log.w(TAG, "cannot read " + name, e);
             return null;
         }
+    }
+
+    /**
+     * Throws away the indentation the file was written with, so the
+     * transformer below can put it back.
+     *
+     * Without this, running the row twice does not leave the file alone: the
+     * parse keeps the last run's newlines and spaces as text nodes, the
+     * serialiser indents around them, and every install adds a blank line
+     * before every element. A few taps and ES-DE's own file is mostly empty
+     * lines. It parses, and ES-DE reads it perfectly well, which is why this
+     * went unnoticed - but CLAUDE.md says "a second run changes nothing", and
+     * until now that was true of the meaning and not of the bytes.
+     *
+     * Only whitespace-only nodes, and only between elements: a text node with
+     * anything in it is content - an extension list, a command - and this must
+     * not touch a character of it. Found by {@code EsDeMergeTest}, which is
+     * the whole reason that file was worth writing.
+     */
+    private static void dropLayoutWhitespace(Element parent) {
+        java.util.List<Node> going = new java.util.ArrayList<>();
+        NodeList nodes = parent.getChildNodes();
+
+        for (int at = 0; at < nodes.getLength(); at++) {
+            Node node = nodes.item(at);
+
+            if (node instanceof Element) {
+                dropLayoutWhitespace((Element) node);
+            } else if (node.getNodeType() == Node.TEXT_NODE
+                    && node.getTextContent().trim().isEmpty()) {
+                going.add(node);
+            }
+        }
+
+        for (Node node : going) parent.removeChild(node);
     }
 
     /**
@@ -500,8 +535,13 @@ public final class EsDe {
     /**
      * Where the two files are, so that everything above this line is the same
      * whether they are reached by path or through a granted folder.
+     *
+     * Package private rather than private because it is the seam the tests
+     * use as well - a third implementation, over two byte arrays, is what
+     * lets the merge above be driven without a device or a real ES-DE. That
+     * was always what this interface was for; it only needed opening a crack.
      */
-    private interface Place {
+    interface Place {
         /** The file's bytes, or null if it is not there yet. */
         InputStream read(String name) throws Exception;
 
