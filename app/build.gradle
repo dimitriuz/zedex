@@ -103,6 +103,35 @@ def gitStamp = { String... command ->
     }
 }
 
+/*
+ * ScreenScraper's developer account, from local.properties - which is
+ * gitignored, so a clone never carries it and a source download builds
+ * perfectly well without one.
+ *
+ * Empty is a supported state, not a broken one: Scrapers.configured() answers
+ * false and every entry point hides itself, so the app runs and simply cannot
+ * scrape. That is what makes this safe to leave out of CI.
+ *
+ * These are extractable from the APK, as the same fields are in every other
+ * frontend that talks to ScreenScraper - a resValue and a BuildConfig field
+ * are equally readable, and there is no way to ask their API without shipping
+ * something. Rotated if it leaks.
+ *
+ * resValue rather than buildConfig, following the two build stamps below: the
+ * project deliberately does not turn the buildConfig feature on.
+ */
+def zedexLocal = new Properties()
+def zedexLocalFile = rootProject.file('local.properties')
+
+if (zedexLocalFile.exists()) {
+    zedexLocalFile.withInputStream { zedexLocal.load(it) }
+}
+
+def screenScraperId = System.getenv('SCREENSCRAPER_DEV_ID')
+        ?: zedexLocal.getProperty('screenscraper.devid') ?: ''
+def screenScraperPassword = System.getenv('SCREENSCRAPER_DEV_PASSWORD')
+        ?: zedexLocal.getProperty('screenscraper.devpassword') ?: ''
+
 def zedexCommit = gitStamp('rev-parse', '--short', 'HEAD')
 def zedexDate = gitStamp('log', '-1', '--date=format:%Y-%m-%d', '--format=%cd')
 
@@ -166,6 +195,11 @@ android {
         // buildConfig feature on to read them.
         resValue 'string', 'build_commit', zedexCommit
         resValue 'string', 'build_date', zedexDate
+
+        // See the note above zedexLocal. Empty unless local.properties or the
+        // environment supplies them.
+        resValue 'string', 'screenscraper_dev_id', screenScraperId
+        resValue 'string', 'screenscraper_dev_password', screenScraperPassword
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         ndk {
             // Prebuilt by scripts/build-native.sh into src/main/jniLibs
