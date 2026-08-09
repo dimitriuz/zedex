@@ -644,6 +644,7 @@
     </plurals>
     <string name="library_filter_format">Format</string>
     <string name="library_filter_genre">Genre</string>
+    <string name="library_filter_subgenre">Subgenre</string>
     <string name="library_filter_rating">Rating</string>
     <string name="library_filter_developer">Developer</string>
     <string name="library_filter_publisher">Publisher</string>
@@ -752,6 +753,7 @@
     <string name="edit_metadata_developer">Developer</string>
     <string name="edit_metadata_publisher">Publisher</string>
     <string name="edit_metadata_genre">Genre</string>
+    <string name="edit_metadata_subgenre">Subgenre</string>
     <string name="edit_metadata_released">Year</string>
     <string name="edit_metadata_players">Players</string>
     <string name="edit_metadata_rating">Rating out of 5</string>

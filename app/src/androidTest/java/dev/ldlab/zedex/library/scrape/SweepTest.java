@@ -73,7 +73,7 @@ public class SweepTest {
         assumeTrue("the data folder is not usable on this device: " + root,
                    root.isDirectory() && Storage.isWritable(root));
 
-        store = new File(Storage.libraryDirectory(context), "gamelist.xml");
+        store = new File(Storage.libraryDirectory(context), "metadata.json");
         theirs = store.isFile() ? Files.readAllBytes(store.toPath()) : null;
 
         Metadata.clear(context);
@@ -158,9 +158,12 @@ public class SweepTest {
         public Scraped fetch(Candidate candidate, Wanted wanted) {
             fetched.add(candidate.name);
 
-            Meta meta = new Meta(null, candidate.name, "from the fake", "Taito",
-                                 "Imagine", "Action", "19870101T000000", "1",
-                                 "0.7500", null);
+            Meta meta = Meta.at(null)
+                    .name(candidate.name).desc("from the fake")
+                    .developer("Taito").publisher("Imagine")
+                    .genre("Action").released("19870101T000000")
+                    .players("1").rating("0.7500")
+                    .build();
             return new Scraped(meta, media);
         }
 
@@ -390,8 +393,8 @@ public class SweepTest {
     @Test
     public void ahandEditedRowIsLeftAloneWithoutSpendingARequest() {
         Entry mine = game("Mine.tap");
-        Metadata.put(context, new Meta(pathOf(mine), "What I called it", null, null,
-                                       null, null, null, null, null, Meta.USER));
+        Metadata.put(context,
+                     Meta.at(pathOf(mine)).name("What I called it").source(Meta.USER).build());
         Metadata.refresh(context);
 
         Fake provider = new Fake();

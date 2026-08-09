@@ -211,7 +211,7 @@ public final class OptionsDialog {
      * is the one place that translates between the two, and answers {@code
      * null} for {@link #RATING}.
      */
-    private enum FilterRow { FORMAT, GENRE, RATING, DEVELOPER, PUBLISHER }
+    private enum FilterRow { FORMAT, GENRE, SUBGENRE, RATING, DEVELOPER, PUBLISHER }
 
     /** Where View, Sort and Filter sit among {@link #rows} on {@link
      *  Page#MENU} - {@link #show} starts the cursor on MENU_VIEW, and {@link
@@ -1007,6 +1007,7 @@ public final class OptionsDialog {
         switch (row) {
             case FORMAT: return R.string.library_filter_format;
             case GENRE: return R.string.library_filter_genre;
+            case SUBGENRE: return R.string.library_filter_subgenre;
             case RATING: return R.string.library_filter_rating;
             case DEVELOPER: return R.string.library_filter_developer;
             default: return R.string.library_filter_publisher;
@@ -1019,6 +1020,7 @@ public final class OptionsDialog {
         switch (row) {
             case FORMAT: return Filters.Field.FORMAT;
             case GENRE: return Filters.Field.GENRE;
+            case SUBGENRE: return Filters.Field.SUBGENRE;
             case DEVELOPER: return Filters.Field.DEVELOPER;
             case PUBLISHER: return Filters.Field.PUBLISHER;
             default: return null;

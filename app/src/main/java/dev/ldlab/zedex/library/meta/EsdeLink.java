@@ -134,11 +134,20 @@ public final class EsdeLink {
                 String path = text(element, "path");
                 if (path == null || path.isEmpty()) continue; // unmatchable without a key
 
-                games.add(new Meta(path, text(element, "name"), text(element, "desc"),
-                        text(element, "developer"), text(element, "publisher"),
-                        text(element, "genre"), text(element, "releasedate"),
-                        text(element, "players"), text(element, "rating"),
-                        "esde"));
+                // No subgenre and no key map: ES-DE's gamelist has neither,
+                // and inventing one from its single genre string would be
+                // guessing at where a colon means a hierarchy.
+                games.add(Meta.at(path)
+                        .name(text(element, "name"))
+                        .desc(text(element, "desc"))
+                        .developer(text(element, "developer"))
+                        .publisher(text(element, "publisher"))
+                        .genre(text(element, "genre"))
+                        .released(text(element, "releasedate"))
+                        .players(text(element, "players"))
+                        .rating(text(element, "rating"))
+                        .source(Meta.ESDE)
+                        .build());
             }
         } catch (IOException e) {
             throw e;

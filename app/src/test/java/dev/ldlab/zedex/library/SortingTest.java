@@ -22,8 +22,10 @@ public class SortingTest {
     }
 
     private void scrape(String name, String released, String rating) {
-        store.put(name, new Meta("./" + name, name, null, null, null, null,
-                                 released, null, rating, "esde"));
+        store.put(name, Meta.at("./" + name)
+                .name(name).released(released).rating(rating)
+                .source(Meta.ESDE)
+                .build());
     }
 
     private List<String> sorted(String field, boolean descending, Entry... entries) {

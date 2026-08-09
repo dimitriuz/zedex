@@ -545,7 +545,7 @@ public class ScreenScraperTest {
      */
     @Test
     public void thecontrolLayoutIsCarriedThroughVerbatim() throws Exception {
-        String controls = fetchAll().meta.controls;
+        String controls = fetchAll().meta.keymap;
 
         assertNotNull("sp2kcfg was dropped", controls);
         assertTrue("the layout was reformatted on the way: " + controls,
@@ -562,7 +562,7 @@ public class ScreenScraperTest {
         ScreenScraper scraper = scraperOn(http);
 
         Candidate one = scraper.search(new AGame("x")).get(0);
-        assertNull(scraper.fetch(one, Provider.Wanted.nothing()).meta.controls);
+        assertNull(scraper.fetch(one, Provider.Wanted.nothing()).meta.keymap);
     }
 
     /** And it costs no request of its own - it rides in the reply the search
@@ -573,7 +573,7 @@ public class ScreenScraperTest {
         ScreenScraper scraper = scraperOn(http);
 
         Candidate one = scraper.search(new AGame("d41d8cd98f00b204e9800998ecf8427e")).get(0);
-        assertNotNull(scraper.fetch(one, Provider.Wanted.nothing()).meta.controls);
+        assertNotNull(scraper.fetch(one, Provider.Wanted.nothing()).meta.keymap);
 
         assertEquals("the layout should not have cost a second request",
                      1, http.asked.size());

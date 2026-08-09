@@ -1,14 +1,20 @@
 package dev.ldlab.zedex.library.meta;
 
 /**
- * One game's facts, as the library stores them - whatever ES-DE's own
- * gamelist carries, plus {@link #source} to say where they came from.
+ * One game's facts, as the library stores them.
  *
  * Immutable, and every field but {@link #path} may be null: most of a
  * collection is unscraped, so "nothing known but the path" is the ordinary
  * shape of a row rather than a special case to guard against. See "What the
  * pane shows" in docs/LIBRARY.md for which of these actually reach the
  * screen.
+ *
+ * <b>Built, not constructed.</b> This class grew from eight fields to twelve
+ * and will grow again as providers offer more, and a positional constructor
+ * that wide has already dropped a field silently once - see {@code
+ * Scrape.owned}, which rebuilt a row through it and lost the key map without
+ * anything failing or logging. A builder names every value at the call site,
+ * so a field added here cannot quietly become null at nineteen of them.
  */
 public final class Meta {
 
@@ -19,7 +25,31 @@ public final class Meta {
     public final String desc;
     public final String developer;
     public final String publisher;
+
+    /**
+     * The broad kind of thing this is - {@code Arcade Game}, {@code Utility}.
+     *
+     * Whatever the provider called it, and they do not agree: ES-DE and
+     * ScreenScraper write one string that may itself be a comma-separated
+     * list, and ZXInfo writes a two-level classification whose upper half
+     * lands here. {@code Filters.genresOf} splits on commas, so a collection
+     * scraped from more than one service ends up with more than one
+     * vocabulary in the filter - untidy, and not wrong.
+     */
     public final String genre;
+
+    /**
+     * The narrower half, where the provider has one, or null.
+     *
+     * ZXInfo's {@code genreSubType}: {@code Adventure} under {@code Arcade
+     * Game}. Kept apart from {@link #genre} rather than joined into
+     * "Arcade Game: Adventure" so the filter can offer two levels instead of
+     * one long facet, which on a Spectrum collection is the difference
+     * between a usable list and three hundred distinct strings. Null for
+     * every ES-DE and ScreenScraper row, which have no such thing.
+     */
+    public final String subgenre;
+
     public final String released;
     public final String players;
 
@@ -34,13 +64,13 @@ public final class Meta {
 
     /**
      * Where this entry came from - {@link #ESDE} for anything a link brought
-     * over, {@link #USER} for one somebody has edited by hand. Kept apart
-     * from ES-DE's own fields so that a later hand-edited value is never
-     * mistaken for a scraped one; not one of ES-DE's own gamelist elements.
+     * over, {@link #USER} for one somebody has edited by hand, otherwise the
+     * name of the provider that scraped it.
      *
      * It decides who owns a row: {@link Metadata#replaceScraped} replaces
-     * every {@code esde} entry and leaves every {@code user} one exactly as
-     * it is, so a link never overwrites something typed in by hand.
+     * every {@code esde} entry and leaves everything else exactly as it is,
+     * so a link never overwrites something typed in by hand or fetched from
+     * a provider.
      */
     public final String source;
 
@@ -59,89 +89,6 @@ public final class Meta {
      */
     public static final String USER = "user";
 
-    /** Whether somebody typed this one in by hand. */
-    public boolean isMine() {
-        return USER.equals(source);
-    }
-
-    /**
-     * Whether an ES-DE link owns this row and may replace it.
-     *
-     * The rule is "a link replaces only what ES-DE brought over", not "a link
-     * keeps hand edits" - those were the same thing until this app could
-     * scrape for itself, and then they were not: a row fetched from
-     * ScreenScraper carries that provider's name, is nobody's hand edit, and
-     * must survive a link every bit as much as one that was typed. See {@code
-     * Metadata#replaceScraped}.
-     */
-    public boolean isEsde() {
-        return source == null || ESDE.equals(source);
-    }
-
-    /**
-     * A copy with one field replaced, named the way the editor names them.
-     *
-     * Immutable and ten fields wide, so the alternative at every call site is
-     * a ten-argument constructor with nine arguments copied across - which is
-     * exactly where a field gets silently dropped. The source is set to
-     * {@link #USER} by every one of these: a changed field is a hand edit by
-     * definition, and there is no way to change one without meaning it.
-     */
-    public Meta with(Field field, String value) {
-        String set = value != null && value.isEmpty() ? null : value;
-
-        return new Meta(
-                path,
-                field == Field.NAME ? set : name,
-                field == Field.DESC ? set : desc,
-                field == Field.DEVELOPER ? set : developer,
-                field == Field.PUBLISHER ? set : publisher,
-                field == Field.GENRE ? set : genre,
-                field == Field.RELEASED ? set : released,
-                field == Field.PLAYERS ? set : players,
-                field == Field.RATING ? set : rating,
-                USER,
-                controls);
-    }
-
-    /**
-     * The same game, with the provider's control layout attached.
-     *
-     * A copy rather than an eleventh constructor argument: ten is already more
-     * than anybody counts correctly at a call site, and every existing one
-     * means null here.
-     */
-    public Meta withControls(String layout) {
-        return new Meta(path, name, desc, developer, publisher, genre, released,
-                        players, rating, source,
-                        layout != null && layout.isEmpty() ? null : layout);
-    }
-
-    /**
-     * The eight a person can edit - everything ES-DE's gamelist carries
-     * except the path, which is the key, and the source, which is ours.
-     *
-     * An enum rather than eight methods so the editor can build its rows by
-     * walking it: a field added here appears on the screen without the screen
-     * being told, which is the failure mode a hand-written list of eight has.
-     */
-    public enum Field { NAME, DESC, DEVELOPER, PUBLISHER, GENRE, RELEASED, PLAYERS, RATING }
-
-    /** What this game has in {@code field}, or null. */
-    public String get(Field field) {
-        switch (field) {
-            case NAME:      return name;
-            case DESC:      return desc;
-            case DEVELOPER: return developer;
-            case PUBLISHER: return publisher;
-            case GENRE:     return genre;
-            case RELEASED:  return released;
-            case PLAYERS:   return players;
-            case RATING:    return rating;
-            default:        return null;
-        }
-    }
-
     /**
      * How this game's own keys are laid out, as the provider wrote it, or
      * null.
@@ -153,6 +100,13 @@ public final class Meta {
      * mapping it onto {@code ControlProfiles}' own eight slots is a separate
      * piece of work, and parsing it now would decide the shape of that in
      * advance and throw away whatever turns out to matter.
+     *
+     * <b>Not the same thing as which joystick a game speaks.</b> That is a
+     * separate fact, from a separate provider, and it will live in a separate
+     * field: ZXInfo says a game accepts Kempston and cursor keys, this says
+     * what to bind each button to. Naming this one {@code controls} - which
+     * it was - invited exactly that confusion, since {@code controls} is
+     * ZXInfo's own name for the other thing.
      *
      * Not one of {@link Field}, so the hand editor does not offer it. It is a
      * config file, not a fact about the game, and a one-line box is the wrong
@@ -167,30 +121,150 @@ public final class Meta {
      * Present for roughly half of what is well known: seven of twelve famous
      * titles asked for, which is worth having and not worth relying on.
      */
-    public final String controls;
+    public final String keymap;
 
-    public Meta(String path, String name, String desc, String developer,
-                String publisher, String genre, String released, String players,
-                String rating, String source) {
-        this(path, name, desc, developer, publisher, genre, released, players,
-             rating, source, null);
+    private Meta(Builder from) {
+        this.path = from.path;
+        this.name = from.name;
+        this.desc = from.desc;
+        this.developer = from.developer;
+        this.publisher = from.publisher;
+        this.genre = from.genre;
+        this.subgenre = from.subgenre;
+        this.released = from.released;
+        this.players = from.players;
+        this.rating = from.rating;
+        this.source = from.source;
+        this.keymap = from.keymap;
     }
 
-    private Meta(String path, String name, String desc, String developer,
-                 String publisher, String genre, String released, String players,
-                 String rating, String source, String controls) {
-        this.controls = controls;
-        this.path = path;
-        this.name = name;
-        this.desc = desc;
-        this.developer = developer;
-        this.publisher = publisher;
-        this.genre = genre;
-        this.released = released;
-        this.players = players;
-        this.rating = rating;
-        this.source = source;
+    /** Whether somebody typed this one in by hand. */
+    public boolean isMine() {
+        return USER.equals(source);
     }
+
+    /**
+     * Whether an ES-DE link owns this row and may replace it.
+     *
+     * The rule is "a link replaces only what ES-DE brought over", not "a link
+     * keeps hand edits" - those were the same thing until this app could
+     * scrape for itself, and then they were not: a row fetched from a
+     * provider carries that provider's name, is nobody's hand edit, and must
+     * survive a link every bit as much as one that was typed.
+     */
+    public boolean isEsde() {
+        return source == null || ESDE.equals(source);
+    }
+
+    // --- building ------------------------------------------------------------------
+
+    /** A new row for {@code path}, which is the one thing every row must have. */
+    public static Builder at(String path) {
+        return new Builder().path(path);
+    }
+
+    /** This row again, to change something. Every field is carried over, which
+     *  is the whole point: the old way was to retype eleven of them. */
+    public Builder but() {
+        return new Builder()
+                .path(path).name(name).desc(desc)
+                .developer(developer).publisher(publisher)
+                .genre(genre).subgenre(subgenre)
+                .released(released).players(players).rating(rating)
+                .source(source).keymap(keymap);
+    }
+
+    /**
+     * A copy with one editable field replaced, named the way the editor names
+     * them.
+     *
+     * The source becomes {@link #USER} for every one of these: a changed field
+     * is a hand edit by definition, and there is no way to change one without
+     * meaning it.
+     */
+    public Meta with(Field field, String value) {
+        return but().set(field, value).source(USER).build();
+    }
+
+    public static final class Builder {
+
+        private String path, name, desc, developer, publisher, genre, subgenre,
+                released, players, rating, source, keymap;
+
+        /** Empty means absent. Every caller here is either a parser reading a
+         *  file or a screen reading a text box, and both produce "" for a
+         *  field nobody filled in - storing that would make an empty string
+         *  and an absent value two different kinds of nothing. */
+        private static String orNull(String value) {
+            return value == null || value.isEmpty() ? null : value;
+        }
+
+        public Builder path(String v)      { path = v;                 return this; }
+        public Builder name(String v)      { name = orNull(v);         return this; }
+        public Builder desc(String v)      { desc = orNull(v);         return this; }
+        public Builder developer(String v) { developer = orNull(v);    return this; }
+        public Builder publisher(String v) { publisher = orNull(v);    return this; }
+        public Builder genre(String v)     { genre = orNull(v);        return this; }
+        public Builder subgenre(String v)  { subgenre = orNull(v);     return this; }
+        public Builder released(String v)  { released = orNull(v);     return this; }
+        public Builder players(String v)   { players = orNull(v);      return this; }
+        public Builder rating(String v)    { rating = orNull(v);       return this; }
+        public Builder source(String v)    { source = orNull(v);       return this; }
+        public Builder keymap(String v)    { keymap = orNull(v);       return this; }
+
+        /** By {@link Field}, for the editor and for {@link Meta#with}. */
+        public Builder set(Field field, String value) {
+            switch (field) {
+                case NAME:      return name(value);
+                case DESC:      return desc(value);
+                case DEVELOPER: return developer(value);
+                case PUBLISHER: return publisher(value);
+                case GENRE:     return genre(value);
+                case SUBGENRE:  return subgenre(value);
+                case RELEASED:  return released(value);
+                case PLAYERS:   return players(value);
+                case RATING:    return rating(value);
+                default:        return this;
+            }
+        }
+
+        public Meta build() {
+            return new Meta(this);
+        }
+    }
+
+    // --- the editable fields ----------------------------------------------------------
+
+    /**
+     * The nine a person can edit - the facts about the game, but not the path,
+     * which is the key, nor the source, which is ours, nor the key map, which
+     * is a config file.
+     *
+     * An enum rather than nine methods so the editor can build its rows by
+     * walking it: a field added here appears on the screen without the screen
+     * being told, which is the failure mode a hand-written list has.
+     */
+    public enum Field {
+        NAME, DESC, DEVELOPER, PUBLISHER, GENRE, SUBGENRE, RELEASED, PLAYERS, RATING
+    }
+
+    /** What this game has in {@code field}, or null. */
+    public String get(Field field) {
+        switch (field) {
+            case NAME:      return name;
+            case DESC:      return desc;
+            case DEVELOPER: return developer;
+            case PUBLISHER: return publisher;
+            case GENRE:     return genre;
+            case SUBGENRE:  return subgenre;
+            case RELEASED:  return released;
+            case PLAYERS:   return players;
+            case RATING:    return rating;
+            default:        return null;
+        }
+    }
+
+    // --- reading the awkward fields -----------------------------------------------------
 
     /**
      * The rating out of five as a number, or {@code -1} when there is none.

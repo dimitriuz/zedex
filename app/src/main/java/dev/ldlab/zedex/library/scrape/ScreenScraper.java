@@ -391,7 +391,7 @@ public final class ScreenScraper implements Provider {
      * and it is settled where the ownership rules live.
      */
     private Meta meta(JSONObject game) {
-        return bareMeta(game).withControls(controls(game));
+        return bareMeta(game).but().keymap(keymap(game)).build();
     }
 
     /**
@@ -406,23 +406,24 @@ public final class ScreenScraper implements Provider {
      *
      * It rides in the reply that was already paid for, so it costs no request.
      */
-    private static String controls(JSONObject game) {
+    private static String keymap(JSONObject game) {
         String config = game.optString("sp2kcfg", "");
         return config.isEmpty() ? null : config;
     }
 
     private Meta bareMeta(JSONObject game) {
-        return new Meta(
-                null,                      // the caller knows the path; the API does not
-                bestName(game),
-                text(game, "synopsis"),
-                company(game, "developpeur"),
-                company(game, "editeur"),
-                genre(game),
-                released(game),
-                players(game),
-                rating(game),
-                null);
+        // No path: the caller knows it and the API does not. No source
+        // either - see this method's caller.
+        return Meta.at(null)
+                .name(bestName(game))
+                .desc(text(game, "synopsis"))
+                .developer(company(game, "developpeur"))
+                .publisher(company(game, "editeur"))
+                .genre(genre(game))
+                .released(released(game))
+                .players(players(game))
+                .rating(rating(game))
+                .build();
     }
 
     /**

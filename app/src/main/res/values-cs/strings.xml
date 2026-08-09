@@ -566,6 +566,7 @@
     </plurals>
     <string name="library_filter_format">Formát</string>
     <string name="library_filter_genre">Žánr</string>
+    <string name="library_filter_subgenre">Podžánr</string>
     <string name="library_filter_rating">Hodnocení</string>
     <string name="library_filter_developer">Vývojář</string>
     <string name="library_filter_publisher">Vydavatel</string>
@@ -646,6 +647,7 @@
     <string name="edit_metadata_developer">Vývojář</string>
     <string name="edit_metadata_publisher">Vydavatel</string>
     <string name="edit_metadata_genre">Žánr</string>
+    <string name="edit_metadata_subgenre">Podžánr</string>
     <string name="edit_metadata_released">Rok</string>
     <string name="edit_metadata_players">Hráči</string>
     <string name="edit_metadata_rating">Hodnocení z 5</string>

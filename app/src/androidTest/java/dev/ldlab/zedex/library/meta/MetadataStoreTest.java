@@ -35,7 +35,7 @@ import java.util.List;
  *
  * The rest of 11.4's number three - {@link EsdeSettingsTest} covers the
  * synthetic-root wrapper over ES-DE's own settings file; this is our own
- * {@code library/gamelist.xml}, the thing a link produces and every row in the
+ * {@code library/metadata.json}, the thing a link produces and every row in the
  * library then reads.
  *
  * What makes it worth its own file rather than a corner of the link's is that
@@ -64,7 +64,7 @@ public class MetadataStoreTest {
         assumeTrue("the data folder is not usable on this device: " + root,
                    root.isDirectory() && Storage.isWritable(root));
 
-        store = new File(Storage.libraryDirectory(context), "gamelist.xml");
+        store = new File(Storage.libraryDirectory(context), "metadata.json");
         theirs = store.isFile() ? Files.readAllBytes(store.toPath()) : null;
 
         Metadata.clear(context);
@@ -88,8 +88,12 @@ public class MetadataStoreTest {
     }
 
     private static Meta game(String path, String name) {
-        return new Meta(path, name, "a description", "Ocean", "Ocean",
-                        "Platform", "1984", "1-2", "0.9", "esde");
+        return Meta.at(path)
+                .name(name).desc("a description")
+                .developer("Ocean").publisher("Ocean")
+                .genre("Platform").released("1984").players("1-2").rating("0.9")
+                .source(Meta.ESDE)
+                .build();
     }
 
     // --- the round trip -------------------------------------------------------------
@@ -217,7 +221,7 @@ public class MetadataStoreTest {
     // --- who owns a row -----------------------------------------------------------------
 
     private static Meta mine(String path, String name) {
-        return new Meta(path, name, null, null, null, null, null, null, null, Meta.USER);
+        return Meta.at(path).name(name).source(Meta.USER).build();
     }
 
     /**
@@ -413,7 +417,7 @@ public class MetadataStoreTest {
     /**
      * No temporary file is left beside the store.
      *
-     * The write goes to {@code gamelist.xml.tmp} and is renamed, so that a
+     * The write goes to {@code metadata.json.tmp} and is renamed, so that a
      * failure part way through cannot leave the real file half written - which
      * would then read back as no metadata at all, the moment it lost the tag
      * that made it well formed. A {@code .tmp} still there afterwards means
@@ -423,7 +427,7 @@ public class MetadataStoreTest {
     public void nothingIsLeftHalfWritten() {
         Metadata.replaceScraped(context, Collections.singletonList(game("./a.tap", "A")));
 
-        File temp = new File(store.getParentFile(), "gamelist.xml.tmp");
+        File temp = new File(store.getParentFile(), "metadata.json.tmp");
         assertFalse("a half-written " + temp.getName() + " was left behind", temp.exists());
         assertTrue("the store itself is not there", store.isFile());
     }
@@ -467,8 +471,7 @@ public class MetadataStoreTest {
         String awkward = "Tom & Jerry <the> \"one\" with 'apostrophes'";
 
         Metadata.replaceScraped(context, Collections.singletonList(
-                new Meta("./a.tap", awkward, awkward, null, null, null,
-                         null, null, null, "esde")));
+                Meta.at("./a.tap").name(awkward).desc(awkward).source(Meta.ESDE).build()));
         Metadata.refresh(context);
 
         Meta back = Metadata.forPath(context, "./a.tap");
@@ -504,10 +507,10 @@ public class MetadataStoreTest {
     public void acontrolLayoutSurvivesTheRoundTrip() {
         String layout = "# Manic Miner\n0:left = q ;; left\n0:a = v ;; jump";
 
-        Metadata.put(context, game("./a.tap", "A").withControls(layout));
+        Metadata.put(context, game("./a.tap", "A").but().keymap(layout).build());
         Metadata.refresh(context);
 
-        assertEquals(layout, Metadata.forPath(context, "./a.tap").controls);
+        assertEquals(layout, Metadata.forPath(context, "./a.tap").keymap);
     }
 
     /** A game without one reads back with none, not an empty string. */
@@ -516,7 +519,7 @@ public class MetadataStoreTest {
         Metadata.replaceScraped(context, Collections.singletonList(game("./a.tap", "A")));
         Metadata.refresh(context);
 
-        assertNull(Metadata.forPath(context, "./a.tap").controls);
+        assertNull(Metadata.forPath(context, "./a.tap").keymap);
     }
 
     /** Editing a field by hand keeps it - the editor does not show the layout,
@@ -525,7 +528,7 @@ public class MetadataStoreTest {
     public void editingAFieldByHandKeepsTheLayout() {
         String layout = "0:left = q";
 
-        Metadata.put(context, game("./a.tap", "A").withControls(layout));
+        Metadata.put(context, game("./a.tap", "A").but().keymap(layout).build());
         Metadata.refresh(context);
 
         Meta edited = Metadata.forPath(context, "./a.tap").with(Meta.Field.NAME, "Renamed");
@@ -534,7 +537,7 @@ public class MetadataStoreTest {
 
         assertEquals("Renamed", Metadata.forPath(context, "./a.tap").name);
         assertEquals("the hand editor dropped the control layout",
-                     layout, Metadata.forPath(context, "./a.tap").controls);
+                     layout, Metadata.forPath(context, "./a.tap").keymap);
     }
 
     /** Multi-line and full of punctuation, which is what it really is. */
@@ -544,9 +547,9 @@ public class MetadataStoreTest {
                       + "0:start = ENTER ;; start game\n0:left = q ;; left\n"
                       + "0:r1 = h ;; music on & off <loud>";
 
-        Metadata.put(context, game("./a.tap", "A").withControls(layout));
+        Metadata.put(context, game("./a.tap", "A").but().keymap(layout).build());
         Metadata.refresh(context);
 
-        assertEquals(layout, Metadata.forPath(context, "./a.tap").controls);
+        assertEquals(layout, Metadata.forPath(context, "./a.tap").keymap);
     }
 }

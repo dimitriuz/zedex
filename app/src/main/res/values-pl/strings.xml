@@ -566,6 +566,7 @@
     </plurals>
     <string name="library_filter_format">Format</string>
     <string name="library_filter_genre">Gatunek</string>
+    <string name="library_filter_subgenre">Podgatunek</string>
     <string name="library_filter_rating">Ocena</string>
     <string name="library_filter_developer">Twórca</string>
     <string name="library_filter_publisher">Wydawca</string>
@@ -646,6 +647,7 @@
     <string name="edit_metadata_developer">Twórca</string>
     <string name="edit_metadata_publisher">Wydawca</string>
     <string name="edit_metadata_genre">Gatunek</string>
+    <string name="edit_metadata_subgenre">Podgatunek</string>
     <string name="edit_metadata_released">Rok</string>
     <string name="edit_metadata_players">Gracze</string>
     <string name="edit_metadata_rating">Ocena na 5</string>

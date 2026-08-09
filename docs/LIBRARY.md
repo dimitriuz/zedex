@@ -166,8 +166,16 @@ matched without guessing; a folder that does not line up produces no matches
 rather than wrong ones, and says so.
 
 **Metadata is copied; media is not.** A link reads ES-DE's
-`gamelists/zxspectrum/gamelist.xml` and writes our own gamelist-shaped file into
-the data folder, with our own fields alongside ES-DE's. Artwork stays where ES-DE
+`gamelists/zxspectrum/gamelist.xml` and writes `library/metadata.json` into the
+data folder — our own file, keyed by the game's path.
+
+That store used to be a gamelist too, borrowing ES-DE's schema so it opened as
+something familiar. It stopped paying: every field ES-DE has no room for meant
+another `zedex*` element they will never read, in a file they own and rewrite,
+and providers offer plenty they have no room for. Our own format says so, holds
+lists without inventing a convention per field, and can carry characters XML
+1.0 cannot — see `Metadata.write` for the single control byte that once took
+803 games' metadata down with it. Artwork stays where ES-DE
 put it and is referenced by its path *relative to the media folder*, resolved
 each time it is drawn — so ES-DE re-scraping a game, or replacing its cover,
 needs no re-link, and a picture that has gone is a missing picture rather than a

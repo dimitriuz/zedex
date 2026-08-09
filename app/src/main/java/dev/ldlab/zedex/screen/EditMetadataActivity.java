@@ -217,6 +217,7 @@ public final class EditMetadataActivity extends ZedexActivity {
     private static Filters.Field suggestionsFor(Meta.Field field) {
         switch (field) {
             case GENRE:     return Filters.Field.GENRE;
+            case SUBGENRE:  return Filters.Field.SUBGENRE;
             case DEVELOPER: return Filters.Field.DEVELOPER;
             case PUBLISHER: return Filters.Field.PUBLISHER;
             default:        return null;
@@ -240,6 +241,7 @@ public final class EditMetadataActivity extends ZedexActivity {
             case DEVELOPER: return R.string.edit_metadata_developer;
             case PUBLISHER: return R.string.edit_metadata_publisher;
             case GENRE:     return R.string.edit_metadata_genre;
+            case SUBGENRE:  return R.string.edit_metadata_subgenre;
             case RELEASED:  return R.string.edit_metadata_released;
             case PLAYERS:   return R.string.edit_metadata_players;
             default:        return R.string.edit_metadata_rating;
@@ -369,7 +371,7 @@ public final class EditMetadataActivity extends ZedexActivity {
      */
     private void save() {
         Meta building = original != null ? original
-                : new Meta(path, null, null, null, null, null, null, null, null, Meta.USER);
+                : Meta.at(path).source(Meta.USER).build();
 
         boolean changed = false;
 

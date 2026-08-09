@@ -91,7 +91,7 @@ public class DataFoldersTest {
         }
 
         assertTrue("Storage.libraryDirectory is not in dataFolders, so changing"
-                   + " the data folder leaves gamelist.xml behind and the"
+                   + " the data folder leaves metadata.json behind and the"
                    + " library reads as never linked: " + named,
                    named.contains(library.getAbsolutePath()));
     }

@@ -40,8 +40,12 @@ import org.junit.runner.RunWith;
 public class EditMetadataFieldsTest {
 
     private static Meta scraped(String released, String rating) {
-        return new Meta("./a.tap", "A name", "A description", "Ocean", "Ocean",
-                        "Platform", released, "1-2", rating, Meta.ESDE);
+        return Meta.at("./a.tap")
+                .name("A name").desc("A description")
+                .developer("Ocean").publisher("Ocean")
+                .genre("Platform").released(released).players("1-2").rating(rating)
+                .source(Meta.ESDE)
+                .build();
     }
 
     private static String stored(Meta original, Meta.Field field, String typed) {

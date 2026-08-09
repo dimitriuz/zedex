@@ -62,7 +62,7 @@ public class SweepSelectionTest {
         assumeTrue("the data folder is not usable on this device: " + root,
                    root.isDirectory() && Storage.isWritable(root));
 
-        store = new File(Storage.libraryDirectory(context), "gamelist.xml");
+        store = new File(Storage.libraryDirectory(context), "metadata.json");
         theirs = store.isFile() ? Files.readAllBytes(store.toPath()) : null;
 
         Metadata.clear(context);
@@ -117,8 +117,8 @@ public class SweepSelectionTest {
     }
 
     private void store(Entry entry, String source) {
-        Metadata.put(context, new Meta(pathOf(entry), entry.name, null, null, null,
-                                       null, null, null, null, source));
+        Metadata.put(context,
+                     Meta.at(pathOf(entry)).name(entry.name).source(source).build());
         Metadata.refresh(context);
     }
 

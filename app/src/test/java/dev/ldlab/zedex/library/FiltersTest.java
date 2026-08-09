@@ -20,8 +20,11 @@ import java.util.Arrays;
 public class FiltersTest {
 
     private Meta meta(String genre, String developer, String publisher, String rating) {
-        return new Meta("./g.tap", "G", null, developer, publisher, genre,
-                        null, null, rating, "esde");
+        return Meta.at("./g.tap")
+                .name("G").developer(developer).publisher(publisher).genre(genre)
+                .rating(rating)
+                .source(Meta.ESDE)
+                .build();
     }
 
     private Entry file(String name) {

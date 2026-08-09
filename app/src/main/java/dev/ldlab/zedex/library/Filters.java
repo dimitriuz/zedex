@@ -32,7 +32,7 @@ public final class Filters {
 
     /** The four list-shaped fields. The rating is a threshold, not a list, so
      *  it is not one of these - see {@link #minStars}. */
-    public enum Field { FORMAT, GENRE, DEVELOPER, PUBLISHER }
+    public enum Field { FORMAT, GENRE, SUBGENRE, DEVELOPER, PUBLISHER }
 
     private final Map<Field, Set<String>> chosen = new EnumMap<>(Field.class);
 
@@ -105,6 +105,10 @@ public final class Filters {
             if (!any) return false;
         }
 
+        // A plain match, unlike genre above: a subgenre is one value, never a
+        // comma-separated list, because only ZXInfo writes one and it writes
+        // exactly one.
+        if (!matchesField(Field.SUBGENRE, meta == null ? null : meta.subgenre)) return false;
         if (!matchesField(Field.DEVELOPER, meta == null ? null : meta.developer)) return false;
         if (!matchesField(Field.PUBLISHER, meta == null ? null : meta.publisher)) return false;
 

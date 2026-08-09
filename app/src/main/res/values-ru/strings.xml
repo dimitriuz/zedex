@@ -566,6 +566,7 @@
     </plurals>
     <string name="library_filter_format">Формат</string>
     <string name="library_filter_genre">Жанр</string>
+    <string name="library_filter_subgenre">Поджанр</string>
     <string name="library_filter_rating">Оценка</string>
     <string name="library_filter_developer">Разработчик</string>
     <string name="library_filter_publisher">Издатель</string>
@@ -646,6 +647,7 @@
     <string name="edit_metadata_developer">Разработчик</string>
     <string name="edit_metadata_publisher">Издатель</string>
     <string name="edit_metadata_genre">Жанр</string>
+    <string name="edit_metadata_subgenre">Поджанр</string>
     <string name="edit_metadata_released">Год</string>
     <string name="edit_metadata_players">Игроки</string>
     <string name="edit_metadata_rating">Оценка из 5</string>

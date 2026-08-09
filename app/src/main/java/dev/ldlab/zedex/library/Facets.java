@@ -48,6 +48,7 @@ public final class Facets {
      */
     public static Map<Filters.Field, List<Value>> of(Collection<Meta> games) {
         Map<String, Integer> genres = new LinkedHashMap<>();
+        Map<String, Integer> subgenres = new LinkedHashMap<>();
         Map<String, Integer> developers = new LinkedHashMap<>();
         Map<String, Integer> publishers = new LinkedHashMap<>();
 
@@ -55,6 +56,7 @@ public final class Facets {
             if (game == null) continue;
 
             for (String genre : Filters.genresOf(game.genre)) add(genres, genre);
+            add(subgenres, game.subgenre);
             add(developers, game.developer);
             add(publishers, game.publisher);
         }
@@ -62,6 +64,7 @@ public final class Facets {
         Map<Filters.Field, List<Value>> all = new EnumMap<>(Filters.Field.class);
         all.put(Filters.Field.FORMAT, Collections.emptyList());
         all.put(Filters.Field.GENRE, ranked(genres));
+        all.put(Filters.Field.SUBGENRE, ranked(subgenres));
         all.put(Filters.Field.DEVELOPER, ranked(developers));
         all.put(Filters.Field.PUBLISHER, ranked(publishers));
 
