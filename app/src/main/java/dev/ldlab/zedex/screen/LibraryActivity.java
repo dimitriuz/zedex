@@ -10,6 +10,7 @@ import dev.ldlab.zedex.library.Facets;
 import dev.ldlab.zedex.library.Favorites;
 import dev.ldlab.zedex.library.Filters;
 import dev.ldlab.zedex.library.Listing;
+import dev.ldlab.zedex.library.Shortlist;
 import dev.ldlab.zedex.library.Sorting;
 import dev.ldlab.zedex.library.meta.Artwork;
 import dev.ldlab.zedex.library.meta.Meta;
@@ -54,9 +55,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -2029,45 +2028,22 @@ public final class LibraryActivity extends ZedexActivity {
         flattened.set(null);
     }
 
+    /**
+     * What the list shows, and then everything on this screen that has to
+     * follow from it.
+     *
+     * The deciding - the search, the filter, the sort - is {@link Shortlist},
+     * which has no Android in it and can be asked the same question by a JVM
+     * test. What is left here is the part that could only ever run on a
+     * device: the adapter, a scroll to restore, the selection to carry across
+     * or let go of, and what an empty list should say about why it is empty.
+     */
     private void applyFilterSort() {
         noFolderView.setVisibility(View.GONE);
 
-        List<Entry> shown = new ArrayList<>();
-        String needle = query.toLowerCase(Locale.ROOT);
+        List<Entry> shown = Shortlist.of(
+                loaded, query, filters, filtering(), sort, sortDescending, this::metaOf);
 
-        // Resolved at most once per entry for this whole call, not once per
-        // comparison - see cachedMeta's own comment for why that matters.
-        Map<String, Meta> metaCache = new HashMap<>();
-
-        for (Entry entry : loaded) {
-            if (!needle.isEmpty()
-                    && !entry.name.toLowerCase(Locale.ROOT).contains(needle)) {
-                continue;
-            }
-
-            // filtering(), not tab == Tab.BROWSE: that plain tab check is
-            // true on every keystroke in the search box even with nothing
-            // set, which ran cachedMeta - Storage.contentFolder plus
-            // Metadata.forPath - for every non-folder row on every call for
-            // no reason at all.
-            // filtering() already implies Browse and short-circuits the
-            // moment nothing is set - see that method - which removes the
-            // whole cost from the unfiltered path without changing what is
-            // shown: Favourites and Recent are already an answer to a
-            // question of their own, and a filter set in Browse and left in
-            // place must not narrow them too. See the design spec,
-            // "Filtering applies to Browse only". Folders are never filtered
-            // either way - they are how you move, not what you are looking
-            // for.
-            if (filtering() && entry.kind != Entry.Kind.FOLDER
-                    && !filters.matches(entry, cachedMeta(entry, metaCache))) {
-                continue;
-            }
-
-            shown.add(entry);
-        }
-
-        sortEntries(shown, entry -> cachedMeta(entry, metaCache));
         adapter.setEntries(shown);
 
         // Right here, and nowhere later: the adapter has this load's rows
@@ -2154,62 +2130,17 @@ public final class LibraryActivity extends ZedexActivity {
     }
 
     /**
-     * Folders stay first and alphabetical whatever the sort says - the same
-     * rule {@link Listing#folder} itself sorts by - since they are what Browse
-     * is walked through rather than a game to weigh by size or rating. A no-op
-     * split for Favourites and Recents, which are never folders, and skipped
-     * entirely while {@link #filtering()}: a flattened list has no folders in
-     * it to hold apart from the rest.
-     */
-    private void sortEntries(List<Entry> list, Sorting.Lookup lookup) {
-        if (filtering()) {
-            Collections.sort(list, Sorting.comparator(sort, sortDescending, lookup));
-            return;
-        }
-
-        List<Entry> folders = new ArrayList<>();
-        List<Entry> rest = new ArrayList<>();
-
-        for (Entry entry : list) {
-            (entry.kind == Entry.Kind.FOLDER ? folders : rest).add(entry);
-        }
-
-        folders.sort((a, b) -> a.name.compareToIgnoreCase(b.name));
-        Collections.sort(rest, Sorting.comparator(sort, sortDescending, lookup));
-
-        list.clear();
-        list.addAll(folders);
-        list.addAll(rest);
-    }
-
-    /**
-     * {@link #metaOf}, resolved at most once per entry for one call to
-     * {@link #applyFilterSort} rather than once per ask.
+     * The store's entry for a row, or null - {@link Shortlist}'s own {@link
+     * Sorting.Lookup}, and the one part of deciding what the list shows that
+     * needs a {@code Context}, which is why it stayed behind when the rest
+     * left.
      *
-     * {@link Sorting#comparator} alone asks a field's value twice per side of
-     * a pairwise comparison - once in {@code has}, once in {@code
-     * compareValues} - and {@code Collections.sort} calls the comparator
-     * O(n log n) times over the whole list; the filter pass before it asks
-     * once more per entry on top of that. Each ask means a {@link
+     * Asked at most once per row per call, whatever the filter and the sort
+     * between them do with it: {@code Shortlist} wraps this in a map of its
+     * own. Worth knowing, because this is not free - a {@link
      * Metadata#forPath} and, before it, a {@code Storage.contentFolder} and
-     * the relative-path derivation - cheap each, and not free O(n log n)
-     * times. It was far worse than cheap until recently: forPath took a lock
-     * and stat'd the store file on every call, at 53 microseconds a time.
-     * A miss is cached too, not just a hit: most entries have
-     * no metadata at all, and a null answer is exactly as expensive to ask
-     * for again as a real one - skipping the cache for it would have kept
-     * the greater part of the cost this exists to remove.
-     */
-    private Meta cachedMeta(Entry entry, Map<String, Meta> cache) {
-        String key = entry.key();
-        if (!cache.containsKey(key)) {
-            cache.put(key, metaOf(entry));
-        }
-        return cache.get(key);
-    }
-
-    /**
-     * The store's entry for a row, or null.
+     * the relative-path derivation - and {@code Collections.sort} would
+     * otherwise ask O(n log n) times.
      *
      * Folders and archive members have no path in the store, so they never
      * have metadata; asking anyway would cost a URI round trip per row.
