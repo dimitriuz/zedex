@@ -78,18 +78,28 @@ import java.util.Locale;
  *       list that comes back empty falls back to {@link Kinds#ZXDB_VOCABULARY}
  *       rather than opening onto nothing.</li>
  *   <li><b>A genre sub-shelf</b> searches {@code genretype=…}, singular, which
- *       is what {@code /search} takes. Still unproven - the two requests this
- *       class was allowed went to the shelves above.</li>
+ *       is what {@code /search} takes - and <b>the filter is applied</b>,
+ *       verified 2026-08-10. {@code genretype=Utility} answered with a total of
+ *       6,436 and thirty rows every one of which is a Utility. The total is
+ *       the part that proves it: an unfiltered search over this database
+ *       reports the 10,000 cap below, so a total beneath the cap cannot be an
+ *       unfiltered one. Worth a request because a wrong parameter name here
+ *       would have been <em>ignored rather than refused</em> - a category
+ *       quietly containing the entire database, which reads on screen as a
+ *       category that works.</li>
  * </ul>
  *
- * <b>A total of exactly 10,000 is a cap and not a count.</b> The unfiltered
- * Newest shelf reported one, where the database holds about 39,666 - it is
- * Elasticsearch's default limit on counting, and it is also the deepest a
- * paged search may go. So the number is right for deciding whether to ask
- * again and wrong for telling somebody how many there are, and a screen that
- * prints it as a count will be wrong on exactly the broad shelves where it
- * matters least. A shelf narrow enough to have a real total gets one: the
- * search that proved this class answered 153.
+ * <b>A total of exactly 10,000 is a cap and not a count - do not print it.</b>
+ * The unfiltered Newest shelf reported one, where the database holds about
+ * 39,666. It is Elasticsearch's default limit on counting and, at the same
+ * time, the deepest a paged search may go - so it is the right number to page
+ * against, and {@code Page.hasMore} stops the list exactly at the window
+ * rather than walking into a refusal, which is why it is passed through
+ * unaltered. It is a lie as a result count, and the lie is worst on the broad
+ * shelves where somebody is most likely to read one. Whatever draws these rows
+ * must treat the cap as "at least this many" and not as "this many". A shelf
+ * narrow enough to have a real total gets one: the search that proved this
+ * class answered 153, and the Utility genre above 6,436.
  */
 public final class ZxInfoCatalogue implements Catalogue {
 
