@@ -721,6 +721,7 @@
     <string name="scrape_many_resume">Vuelve a ejecutarlo con «Aún sin datos» para continuar donde se detuvo.</string>
     <!-- An optional ScreenScraper account of the user's own. -->
     <string name="settings_group_scraper">Cuenta del scraper</string>
+    <string name="settings_scraper">Obtener datos de</string>
     <string name="settings_scraper_user">Usuario de ScreenScraper</string>
     <string name="settings_scraper_user_summary">Opcional. Tu propia cuenta tiene un límite diario mucho mayor que el que comparten todos los usuarios de esta app.</string>
     <string name="settings_scraper_password">Contraseña de ScreenScraper</string>

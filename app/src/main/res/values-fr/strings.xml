@@ -721,6 +721,7 @@
     <string name="scrape_many_resume">Relancez avec « Pas encore récupérés » pour reprendre là où cela s’est arrêté.</string>
     <!-- An optional ScreenScraper account of the user's own. -->
     <string name="settings_group_scraper">Compte du scraper</string>
+    <string name="settings_scraper">Récupérer depuis</string>
     <string name="settings_scraper_user">Nom d’utilisateur ScreenScraper</string>
     <string name="settings_scraper_user_summary">Facultatif. Votre propre compte dispose d’un quota quotidien bien plus élevé que celui partagé par tous les utilisateurs de cette application.</string>
     <string name="settings_scraper_password">Mot de passe ScreenScraper</string>

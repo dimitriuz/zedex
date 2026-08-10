@@ -841,6 +841,7 @@
          plainly why it is worth having, since a login nobody understands the
          point of is a login nobody sets. -->
     <string name="settings_group_scraper">Scraper account</string>
+    <string name="settings_scraper">Scrape from</string>
     <string name="settings_scraper_user">ScreenScraper username</string>
     <string name="settings_scraper_user_summary">Optional. Your own account gets a much larger daily allowance than the one shared by everyone using this app.</string>
     <string name="settings_scraper_password">ScreenScraper password</string>

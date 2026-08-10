@@ -16,6 +16,7 @@ import dev.ldlab.zedex.machine.Border;
 import dev.ldlab.zedex.machine.Filter;
 import dev.ldlab.zedex.media.Media;
 import dev.ldlab.zedex.frontend.EsDe;
+import dev.ldlab.zedex.library.scrape.Provider;
 import dev.ldlab.zedex.library.scrape.Scrapers;
 import dev.ldlab.zedex.library.meta.Artwork;
 import dev.ldlab.zedex.library.meta.EsdeLink;
@@ -1991,6 +1992,30 @@ public class SettingsActivity extends AppCompatActivity
              * because "6 requests a game" alone does not say how many were
              * chosen out of how many there are.
              */
+            /*
+             * Which service answers, from the providers this build actually
+             * has - ZXInfo always, ScreenScraper only when the build carries
+             * credentials. Filled in here rather than in XML for that reason:
+             * a static list would offer one that cannot work and then fail
+             * with nothing on screen to explain it.
+             *
+             * The whole row is hidden when there is only one, because a
+             * choice between one thing is a question with no answer.
+             */
+            androidx.preference.ListPreference scraper =
+                    findPreference(Prefs.KEY_SCRAPER);
+            if (scraper != null) {
+                java.util.List<String> names = Scrapers.names(getActivity());
+                CharSequence[] entries = names.toArray(new CharSequence[0]);
+
+                scraper.setEntries(entries);
+                scraper.setEntryValues(entries);
+                scraper.setVisible(names.size() > 1);
+
+                Provider using = Scrapers.preferred(getActivity());
+                scraper.setSummary(using == null ? "" : using.name());
+            }
+
             Preference scrapeMedia = findPreference(Prefs.KEY_SCRAPE_MEDIA);
             if (scrapeMedia != null) {
                 int chosen = Scrapers.wanted(getActivity()).requests();

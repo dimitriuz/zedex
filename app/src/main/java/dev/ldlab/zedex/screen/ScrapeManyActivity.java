@@ -472,7 +472,7 @@ public final class ScrapeManyActivity extends ZedexActivity {
 
     private void showEstimate() {
         int games = chosen.size();
-        int requests = games * (1 + Scrapers.wanted(this).requests());
+        int requests = games * provider.costPerGame(Scrapers.wanted(this));
 
         estimate.setText(getResources().getQuantityString(
                 R.plurals.scrape_many_estimate, games, games, requests));

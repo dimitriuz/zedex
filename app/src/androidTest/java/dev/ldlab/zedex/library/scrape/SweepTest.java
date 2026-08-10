@@ -148,6 +148,10 @@ public class SweepTest {
         @Override public boolean configured() { return true; }
         @Override public Quota quota() { return quota; }
 
+        /** The same arithmetic ScreenScraper uses, since these tests were
+         *  written against a provider whose media are requests. */
+        @Override public int costPerGame(Wanted wanted) { return 1 + wanted.requests(); }
+
         @Override
         public List<Candidate> search(Game game) throws ScrapeException {
             searched.add(game.filename());

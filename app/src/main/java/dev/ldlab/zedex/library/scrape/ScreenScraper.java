@@ -165,6 +165,12 @@ public final class ScreenScraper implements Provider {
         return quota;
     }
 
+    /** The search, plus one per medium: every picture here is an API call. */
+    @Override
+    public int costPerGame(Wanted wanted) {
+        return 1 + wanted.requests();
+    }
+
     // --- searching ----------------------------------------------------------------
 
     @Override

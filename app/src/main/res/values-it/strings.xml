@@ -721,6 +721,7 @@
     <string name="scrape_many_resume">Riavvialo con «Non ancora recuperati» per riprendere da dove si è fermato.</string>
     <!-- An optional ScreenScraper account of the user's own. -->
     <string name="settings_group_scraper">Account dello scraper</string>
+    <string name="settings_scraper">Recupera da</string>
     <string name="settings_scraper_user">Nome utente ScreenScraper</string>
     <string name="settings_scraper_user_summary">Facoltativo. Un account tuo ha un limite giornaliero molto più alto di quello condiviso da tutti gli utenti di questa app.</string>
     <string name="settings_scraper_password">Password ScreenScraper</string>

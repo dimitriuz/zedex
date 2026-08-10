@@ -1,0 +1,524 @@
+package dev.ldlab.zedex.library.scrape;
+
+import dev.ldlab.zedex.library.meta.Meta;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
+import androidx.test.ext.junit.runners.AndroidJUnit4;
+
+import org.junit.Test;
+import org.junit.runner.RunWith;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * The second provider, against recorded replies rather than the service.
+ *
+ * Every shape here was taken from real answers - {@code /games/0002259} and a
+ * {@code /search} - captured before the API stopped answering this address.
+ * The bodies are cut down to the fields under test and otherwise unaltered,
+ * which is the point: a parser tested against JSON somebody wrote to make the
+ * parser pass proves only that the two agree.
+ *
+ * <b>One thing here is not from a recording.</b> The reply to
+ * {@code /filecheck} is written from the specification's sentence - "returns
+ * id and title for found entry" - because the service has been unreachable
+ * since before this was written. The tests below say so where it matters, and
+ * the parser is deliberately lenient about which of two plausible shapes it
+ * gets. That is the one part of this class a live run could still contradict.
+ */
+@RunWith(AndroidJUnit4.class)
+public class ZxInfoTest {
+
+    // --- a stand-in for the network ---------------------------------------------------
+
+    /** Answers whatever it was told to, and remembers what it was asked. */
+    private static final class Canned implements Http {
+        private final List<Reply> replies = new ArrayList<>();
+        final List<String> asked = new ArrayList<>();
+
+        Canned then(int status, String body) {
+            replies.add(new Reply(status, body));
+            return this;
+        }
+
+        @Override
+        public Reply get(String url) {
+            asked.add(url);
+            if (replies.isEmpty()) return new Reply(200, "{}");
+            return replies.remove(0);
+        }
+
+        @Override
+        public String save(String url, File into) {
+            throw new UnsupportedOperationException("not this test's business");
+        }
+    }
+
+    private static final class AGame implements Provider.Game {
+        private final String md5;
+
+        AGame(String md5) {
+            this.md5 = md5;
+        }
+
+        @Override public String path() { return "./h/HeadOverHeels.tap"; }
+        @Override public String filename() { return "Head over Heels 48K (1987)(Ocean).tap"; }
+        @Override public long size() { return 37132; }
+        @Override public String md5() { return md5; }
+    }
+
+    // --- recorded bodies -----------------------------------------------------------------
+
+    /** {@code /games/0002259?mode=full}, trimmed to what is asserted on. */
+    private static final String RECORD = "{"
+            + "\"_id\":\"0002259\",\"found\":true,\"_source\":{"
+            + "  \"title\":\"Head over Heels\","
+            + "  \"originalYearOfRelease\":1987,"
+            + "  \"machineType\":\"ZX-Spectrum 48K/128K\","
+            + "  \"genre\":\"Arcade Game: Adventure\","
+            + "  \"genreType\":\"Arcade Game\","
+            + "  \"genreSubType\":\"Adventure\","
+            + "  \"numberOfPlayers\":1,"
+            + "  \"availability\":\"Available\","
+            + "  \"remarks\":\"Jon Ritman and Bernie Drummond's isometric one.\","
+            + "  \"score\":{\"score\":8.48,\"votes\":756},"
+            + "  \"authors\":[{\"name\":\"Jon Ritman\",\"type\":\"Creator\"}],"
+            + "  \"publishers\":[{\"name\":\"Ocean Software Ltd\",\"country\":\"UK\"}],"
+            + "  \"controls\":[{\"control\":\"Cursor\"},{\"control\":\"Kempston Joystick\"}],"
+            + "  \"screens\":["
+            + "    {\"type\":\"Loading screen\",\"format\":\"Picture\","
+            + "     \"url\":\"/zxscreens/0002259/HeadOverHeels-load.png\",\"size\":8491},"
+            + "    {\"type\":\"Running screen\",\"format\":\"Picture (GIF)\","
+            + "     \"url\":\"/pub/sinclair/screens/in-game/h/HeadOverHeels.gif\",\"size\":6878}"
+            + "  ],"
+            + "  \"additionalDownloads\":["
+            + "    {\"type\":\"Inlay - Front\",\"format\":\"Picture (JPG)\","
+            + "     \"path\":\"/zxdb/sinclair/entries/0002259/HeadOverHeels.jpg\"},"
+            + "    {\"type\":\"Inlay - Back\",\"format\":\"Picture (JPG)\","
+            + "     \"path\":\"/zxdb/sinclair/entries/0002259/HeadOverHeels_back.jpg\"},"
+            + "    {\"type\":\"Loading screen\",\"format\":\"Screen dump (SCR)\","
+            + "     \"path\":\"/pub/sinclair/screens/load/h/scr/HeadOverHeels.scr\"},"
+            + "    {\"type\":\"Running screen\",\"format\":\"Picture (GIF)\","
+            + "     \"path\":\"/pub/sinclair/screens/in-game/h/HeadOverHeels.gif\"},"
+            + "    {\"type\":\"Instructions\",\"format\":\"Document (PDF)\","
+            + "     \"path\":\"/zxdb/sinclair/entries/0002259/HeadOverHeels(EN).pdf\"},"
+            + "    {\"type\":\"Instructions\",\"format\":\"Document (TXT)\","
+            + "     \"path\":\"/pub/sinclair/games-info/h/HeadOverHeels.txt\"},"
+            + "    {\"type\":\"Game map\",\"format\":\"Picture (JPG)\","
+            + "     \"path\":\"/pub/sinclair/games-maps/h/HeadOverHeels.jpg\"}"
+            + "  ]"
+            + "}}";
+
+    /** {@code /search?...&mode=compact}, two hits. */
+    private static final String SEARCH = "{\"hits\":{\"total\":{\"value\":2},\"hits\":["
+            + "{\"_id\":\"0002259\",\"_source\":{\"title\":\"Head over Heels\","
+            + "  \"originalYearOfRelease\":1987,"
+            + "  \"publishers\":[{\"name\":\"Ocean Software Ltd\"}]}},"
+            + "{\"_id\":\"0031337\",\"_source\":{\"title\":\"Head over Heels (128K remix)\","
+            + "  \"originalYearOfRelease\":2013,"
+            + "  \"publishers\":[{\"name\":\"Somebody\"}]}}"
+            + "]}}";
+
+    private static final String NO_HITS = "{\"hits\":{\"total\":{\"value\":0},\"hits\":[]}}";
+
+    /** Written from the specification, not recorded - see the class comment. */
+    private static final String BY_HASH = "{\"id\":\"0002259\",\"title\":\"Head over Heels\"}";
+
+    // --- what a filename is worth searching for -------------------------------------------
+
+    /**
+     * A Spectrum collection names its files in a convention, and almost none
+     * of it belongs in a title search.
+     *
+     * The year, the publisher and the disambiguating number all live in
+     * brackets, and the machine often rides outside them. Searching for the
+     * whole filename finds nothing at all; searching for what is left finds
+     * the game.
+     */
+    @Test
+    public void afilenameIsReducedToSomethingWorthSearchingFor() {
+        assertEquals("Arkanoid", ZxInfo.titleOf("Arkanoid 48K (1987)(Imagine) (1).tzx"));
+        assertEquals("Head over Heels",
+                     ZxInfo.titleOf("Head over Heels 128K (1987)(Ocean).tap"));
+        assertEquals("Chase H.Q.", ZxInfo.titleOf("Chase H.Q..tzx"));
+        assertEquals("Cybernoid II - The Revenge",
+                     ZxInfo.titleOf("Cybernoid II - The Revenge 128K (1988)(Hewson).tzx"));
+        assertEquals("Bloodstone", ZxInfo.titleOf("Bloodstone [2026].trd"));
+    }
+
+    /** And nothing sensible is thrown away: a title that is only a title
+     *  survives untouched. */
+    @Test
+    public void aplainNameIsLeftAlone() {
+        assertEquals("Manic Miner", ZxInfo.titleOf("Manic Miner.tap"));
+        assertEquals("", ZxInfo.titleOf(null));
+    }
+
+    // --- finding ----------------------------------------------------------------------------
+
+    /**
+     * A hash match is certain, and certainty is the whole point.
+     *
+     * It is what lets {@code Scrape.certain} fill a row in without asking
+     * anybody, and so what makes an unattended sweep of eight hundred games
+     * worth starting. Without it every game would need a person.
+     */
+    @Test
+    public void ahashMatchIsTheOneCertainAnswer() throws Exception {
+        Canned http = new Canned().then(200, BY_HASH);
+        List<Candidate> found = new ZxInfo(http).search(new AGame("a550220f26615e452d"
+                                                                 + "2e27384801cd18"));
+
+        assertEquals(1, found.size());
+        assertTrue("a hash match must be exact, or nothing scrapes unattended",
+                   found.get(0).exact);
+        assertEquals("0002259", found.get(0).handle);
+
+        assertTrue("it did not ask filecheck: " + http.asked.get(0),
+                   http.asked.get(0).contains("/filecheck/a550220f"));
+    }
+
+    /**
+     * A name match never is, however good the ranking.
+     *
+     * Their own search prioritises original entries over modified ones, which
+     * is better than anything written here would be - and still a guess. A
+     * guess acted on silently is one game's cover on another for ever.
+     */
+    @Test
+    public void anameMatchIsNeverCertain() throws Exception {
+        Canned http = new Canned().then(404, "").then(200, SEARCH);
+        List<Candidate> found = new ZxInfo(http).search(new AGame("deadbeef"));
+
+        assertEquals(2, found.size());
+        for (Candidate candidate : found) {
+            assertFalse("a name match claimed to be exact", candidate.exact);
+        }
+
+        assertEquals("Head over Heels", found.get(0).name);
+        assertEquals("1987", found.get(0).year);
+        assertEquals("Ocean Software Ltd", found.get(0).publisher);
+    }
+
+    /** The search asks about the title alone, and asks for the title alone. */
+    @Test
+    public void thesearchIsRestrictedToTitles() throws Exception {
+        Canned http = new Canned().then(404, "").then(200, SEARCH);
+        new ZxInfo(http).search(new AGame(null));
+
+        String asked = http.asked.get(http.asked.size() - 1);
+
+        assertTrue("without titlesonly a file named after its publisher brings"
+                   + " back everything they published: " + asked,
+                   asked.contains("titlesonly=true"));
+        assertTrue(asked.contains("Head%20over%20Heels") || asked.contains("Head+over+Heels"));
+    }
+
+    /**
+     * Nothing is filtered by kind, machine or file type.
+     *
+     * The one that would actually bite: PENTAGON is a sibling of ZXSPECTRUM in
+     * their scheme rather than a variant of it, so filtering to Spectrum would
+     * silently drop the Pentagon demoscene - which is most of what arrives as
+     * .trd and .scl. genretype would drop demos and magazines with it.
+     */
+    @Test
+    public void nothingIsFilteredOutOfTheSearch() throws Exception {
+        Canned http = new Canned().then(404, "").then(200, SEARCH);
+        new ZxInfo(http).search(new AGame(null));
+
+        String asked = http.asked.get(http.asked.size() - 1);
+
+        for (String filter : new String[] { "genretype", "machinetype",
+                                            "contenttype", "tosectype" }) {
+            assertFalse("the search narrowed by " + filter + ", which can only"
+                        + " lose the right answer: " + asked,
+                        asked.contains(filter));
+        }
+    }
+
+    /** A hash nobody knows falls through to the name, rather than failing. */
+    @Test
+    public void anunknownHashFallsThroughToTheName() throws Exception {
+        Canned http = new Canned().then(404, "").then(200, SEARCH);
+
+        assertEquals(2, new ZxInfo(http).search(new AGame("deadbeef")).size());
+        assertEquals("both were asked", 2, http.asked.size());
+    }
+
+    /** And a game nobody has heard of at all is an empty answer, not an error.
+     *  Most of a Spectrum collection is obscure; throwing here would stop a
+     *  collection-wide run within a dozen games. */
+    @Test
+    public void agameNobodyKnowsIsAnEmptyAnswer() throws Exception {
+        Canned http = new Canned().then(404, "").then(200, NO_HITS);
+
+        assertTrue(new ZxInfo(http).search(new AGame("deadbeef")).isEmpty());
+    }
+
+    // --- the record ----------------------------------------------------------------------
+
+    private static Provider.Scraped fetched(Provider.Wanted wanted) throws Exception {
+        return new ZxInfo(new Canned().then(200, RECORD))
+                .fetch(new Candidate("0002259", "Head over Heels", null, null, true), wanted);
+    }
+
+    @Test
+    public void thefactsComeOutOfTheRecord() throws Exception {
+        Meta meta = fetched(Provider.Wanted.nothing()).meta;
+
+        assertEquals("Head over Heels", meta.name);
+        assertEquals("Ocean Software Ltd", meta.publisher);
+        assertEquals("1", meta.players);
+        assertTrue(meta.desc.startsWith("Jon Ritman"));
+    }
+
+    /**
+     * The genre arrives in two levels and is kept that way.
+     *
+     * Joined, "Arcade Game: Adventure" would be one facet among hundreds in a
+     * filter that splits on commas. Apart, it is two useful lists.
+     */
+    @Test
+    public void thegenreIsKeptInItsTwoLevels() throws Exception {
+        Meta meta = fetched(Provider.Wanted.nothing()).meta;
+
+        assertEquals("Arcade Game", meta.genre);
+        assertEquals("Adventure", meta.subgenre);
+    }
+
+    /** ZXDB scores out of ten; the store keeps ES-DE's fraction. 8.48 of ten
+     *  is 0.848, which {@code Meta.stars} shows as 4.2 of five. */
+    @Test
+    public void thescoreBecomesAFractionOutOfOne() throws Exception {
+        Meta meta = fetched(Provider.Wanted.nothing()).meta;
+
+        assertEquals("0.8480", meta.rating);
+        assertEquals(4.24f, meta.ratingOutOfFive(), 0.01f);
+    }
+
+    /** A year alone becomes the stamp ES-DE writes, so both providers sort
+     *  together. */
+    @Test
+    public void theyearBecomesTheSameStampEverythingElseUses() throws Exception {
+        assertEquals("19870101T000000", fetched(Provider.Wanted.nothing()).meta.released);
+        assertEquals("1987", fetched(Provider.Wanted.nothing()).meta.year());
+    }
+
+    /**
+     * The developer is the person who wrote it.
+     *
+     * A judgement call worth pinning down: ZXDB keeps people and companies
+     * apart where ES-DE and ScreenScraper both mean a company by "developer".
+     * The author is closer to what that row is for than the publisher printed
+     * twice.
+     */
+    @Test
+    public void thedeveloperIsTheAuthorRatherThanThePublisherAgain() throws Exception {
+        Meta meta = fetched(Provider.Wanted.nothing()).meta;
+
+        assertEquals("Jon Ritman", meta.developer);
+        assertFalse(meta.developer.equals(meta.publisher));
+    }
+
+    /** Nothing invents a source or a path: both belong to whoever asked. */
+    @Test
+    public void thepathAndTheSourceAreTheCallersToSet() throws Exception {
+        Meta meta = fetched(Provider.Wanted.nothing()).meta;
+
+        assertNull(meta.path);
+        assertNull(meta.source);
+    }
+
+    // --- media ----------------------------------------------------------------------------
+
+    private static String urlIn(List<Medium> media, String folder) {
+        for (Medium medium : media) {
+            if (medium.folder.equals(folder)) return medium.url;
+        }
+        return null;
+    }
+
+    @Test
+    public void themediaLandInTheFoldersTheAppAlreadyDraws() throws Exception {
+        List<Medium> media = fetched(Provider.Wanted.usual()).media;
+
+        assertEquals("covers, screenshots and titlescreens were asked for", 3, media.size());
+        assertTrue(urlIn(media, "covers").endsWith("/HeadOverHeels.jpg"));
+        assertTrue(urlIn(media, "screenshots").endsWith("/HeadOverHeels.gif"));
+        assertTrue(urlIn(media, "titlescreens").endsWith("/HeadOverHeels-load.png"));
+    }
+
+    /** Off spectrumcomputing.co.uk, not the API: these are static files and
+     *  cost nothing against anything. */
+    @Test
+    public void themediaComeFromTheArchiveRatherThanTheApi() throws Exception {
+        for (Medium medium : fetched(Provider.Wanted.usual()).media) {
+            assertTrue(medium.url + " is not on the file host",
+                       medium.url.startsWith("https://spectrumcomputing.co.uk/"));
+            assertFalse("a medium was pointed at the API",
+                        medium.url.contains("api.zxinfo.dk"));
+        }
+    }
+
+    /** Only what was asked for. */
+    @Test
+    public void nothingUnwantedIsFetched() throws Exception {
+        assertTrue(fetched(Provider.Wanted.nothing()).media.isEmpty());
+
+        List<Medium> covers = fetched(Provider.Wanted.of("covers")).media;
+        assertEquals(1, covers.size());
+        assertEquals("covers", covers.get(0).folder);
+    }
+
+    /**
+     * When a loading screen exists as both a picture and a raw {@code .scr},
+     * the picture wins.
+     *
+     * This one is about order, not filtering: {@code screens} is read before
+     * {@code additionalDownloads} and a folder keeps the first thing it is
+     * given. The filtering is the test below, and the two were one test until
+     * a deliberately broken build showed it passing with the filter removed -
+     * the dedupe was doing all the work and the {@code .scr} check was never
+     * reached.
+     */
+    @Test
+    public void thepictureLoadingScreenIsPreferredToTheRawDump() throws Exception {
+        String title = urlIn(fetched(Provider.Wanted.of("titlescreens")).media, "titlescreens");
+
+        assertTrue("expected the picture, got " + title, title.endsWith(".png"));
+    }
+
+    /** A record whose only loading screen is a {@code .scr}, which is what
+     *  plenty of entries have. */
+    private static final String ONLY_A_SCR = "{\"_source\":{"
+            + "\"title\":\"Something\","
+            + "\"additionalDownloads\":["
+            + "  {\"type\":\"Loading screen\",\"format\":\"Screen dump (SCR)\","
+            + "   \"path\":\"/pub/sinclair/screens/load/s/scr/Something.scr\"}"
+            + "]}}";
+
+    /**
+     * And where the {@code .scr} is all there is, nothing is taken at all.
+     *
+     * A {@code .scr} is 6912 bytes of Spectrum memory, not an image file.
+     * Fetching one into {@code titlescreens} would put a file on disk that
+     * {@code Artwork} reports as present and {@code BitmapFactory} cannot
+     * decode - a permanently broken thumbnail, and one that hides the fact
+     * that no real picture was ever found.
+     *
+     * This app could render it, being an emulator, and does not yet. Until it
+     * does, not fetching is the honest answer.
+     */
+    @Test
+    public void arawScrIsNotFetchedAsAPictureAtAll() throws Exception {
+        Provider.Scraped scraped = new ZxInfo(new Canned().then(200, ONLY_A_SCR))
+                .fetch(new Candidate("1", "Something", null, null, true),
+                       Provider.Wanted.of("titlescreens"));
+
+        assertTrue("a .scr was fetched as artwork", scraped.media.isEmpty());
+    }
+
+    /** Instructions come as PDF and as text, and the manual viewer reads
+     *  PDFs. */
+    @Test
+    public void onlyThePdfInstructionsAreTakenAsAManual() throws Exception {
+        String manual = urlIn(fetched(Provider.Wanted.of("manuals")).media, "manuals");
+
+        assertTrue("the text instructions were taken as a manual: " + manual,
+                   manual.endsWith(".pdf"));
+    }
+
+    /**
+     * The running screen is listed in both places, and is fetched once.
+     *
+     * {@code screens} and {@code additionalDownloads} overlap, and a folder
+     * taking two media would mean the second overwriting the first on disk -
+     * a wasted download and, on a slow connection, a visible flicker.
+     */
+    @Test
+    public void amediumListedTwiceIsFetchedOnce() throws Exception {
+        List<Medium> media = fetched(Provider.Wanted.of("screenshots")).media;
+
+        assertEquals(1, media.size());
+    }
+
+    /** No checksums: ZXDB publishes none per file, so Downloads must skip the
+     *  verification it does for ScreenScraper rather than discard everything. */
+    @Test
+    public void themediaCarryNoChecksumAndSaySo() throws Exception {
+        for (Medium medium : fetched(Provider.Wanted.usual()).media) {
+            assertNull(medium.md5);
+        }
+    }
+
+    // --- what it costs, and what stops it -----------------------------------------------
+
+    /**
+     * Two requests a game whatever is asked for, because the pictures are
+     * free.
+     *
+     * The number the sweep multiplies by. Against ScreenScraper the same two
+     * hundred games with the default three media is eight hundred requests;
+     * here it is four hundred, and adding video and manuals changes it not at
+     * all.
+     */
+    @Test
+    public void agameCostsTwoRequestsHoweverMuchIsWanted() {
+        Provider zxinfo = new ZxInfo(new Canned());
+
+        assertEquals(2, zxinfo.costPerGame(Provider.Wanted.nothing()));
+        assertEquals(2, zxinfo.costPerGame(Provider.Wanted.usual()));
+        assertEquals(2, zxinfo.costPerGame(Provider.Wanted.of(
+                "covers", "screenshots", "titlescreens", "backcovers",
+                "physicalmedia", "miximages", "videos", "manuals")));
+    }
+
+    /** It needs no credentials, which is why a source clone can scrape. */
+    @Test
+    public void itisAlwaysConfigured() {
+        assertTrue(new ZxInfo(new Canned()).configured());
+    }
+
+    /**
+     * Being refused stops a run rather than letting it hammer on.
+     *
+     * This service says "enough" by blocking an address for hours, so 429 and
+     * 403 have to be the kind of failure {@code Sweep} stops for. Mapping them
+     * to something it carries on past would turn one refusal into eight
+     * hundred.
+     */
+    @Test
+    public void beingRefusedIsTheKindOfFailureThatStopsASweep() {
+        Provider zxinfo = new ZxInfo(new Canned());
+
+        assertEquals(ScrapeException.Kind.CLOSED, zxinfo.refusalFor(429).kind);
+        assertEquals(ScrapeException.Kind.CLOSED, zxinfo.refusalFor(403).kind);
+
+        // A server having a bad minute is worth waiting out, not stopping for.
+        assertTrue(zxinfo.refusalFor(503).worthWaiting());
+    }
+
+    /** A body that is not JSON is a reply this build cannot read, and says so
+     *  rather than pretending the game is unknown. */
+    @Test
+    public void abodyThatIsNotJsonIsMalformedRatherThanEmpty() {
+        Canned http = new Canned().then(200, "<html>maintenance</html>");
+
+        try {
+            new ZxInfo(http).fetch(new Candidate("1", "x", null, null, true),
+                                   Provider.Wanted.nothing());
+            fail("a page of HTML was accepted as a record");
+        } catch (ScrapeException e) {
+            assertEquals(ScrapeException.Kind.MALFORMED, e.kind);
+        }
+    }
+}

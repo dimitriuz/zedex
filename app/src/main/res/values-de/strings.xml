@@ -721,6 +721,7 @@
     <string name="scrape_many_resume">Starten Sie das erneut mit „Noch nicht abgerufen“, um dort weiterzumachen, wo es aufgehört hat.</string>
     <!-- An optional ScreenScraper account of the user's own. -->
     <string name="settings_group_scraper">Scraper-Konto</string>
+    <string name="settings_scraper">Daten abrufen von</string>
     <string name="settings_scraper_user">ScreenScraper-Benutzername</string>
     <string name="settings_scraper_user_summary">Optional. Ein eigenes Konto hat ein viel größeres Tageskontingent als das, das sich alle Nutzer dieser App teilen.</string>
     <string name="settings_scraper_password">ScreenScraper-Passwort</string>

@@ -740,6 +740,7 @@
     <string name="scrape_many_resume">Spusťte to znovu s volbou „Zatím bez načtených dat“ a bude se pokračovat tam, kde se přestalo.</string>
     <!-- An optional ScreenScraper account of the user's own. -->
     <string name="settings_group_scraper">Účet scraperu</string>
+    <string name="settings_scraper">Zdroj dat</string>
     <string name="settings_scraper_user">Uživatelské jméno ScreenScraper</string>
     <string name="settings_scraper_user_summary">Nepovinné. Vlastní účet má mnohem větší denní limit než ten, který sdílejí všichni uživatelé této aplikace.</string>
     <string name="settings_scraper_password">Heslo ScreenScraper</string>

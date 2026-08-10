@@ -84,6 +84,19 @@ public interface Provider {
     Quota quota();
 
     /**
+     * How many requests one game costs, so a screen can say so before
+     * somebody commits to a collection.
+     *
+     * On the provider and not on {@link Wanted} because the answer is not a
+     * property of what was asked for: a ScreenScraper cover is a
+     * {@code mediaJeu.php} call and costs one, a ZXInfo cover is a static
+     * file and costs nothing. The same two hundred games are eight hundred
+     * requests against one service and two hundred against the other, and a
+     * sweep that assumed either would be wrong by a factor of four.
+     */
+    int costPerGame(Wanted wanted);
+
+    /**
      * The game being asked about, as much as is known cheaply.
      *
      * The hash is a supplier rather than a value because taking it means

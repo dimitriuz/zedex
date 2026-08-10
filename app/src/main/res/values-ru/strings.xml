@@ -740,6 +740,7 @@
     <string name="scrape_many_resume">Запустите снова с «Ещё без данных», чтобы продолжить с того места, где остановились.</string>
     <!-- An optional ScreenScraper account of the user's own. -->
     <string name="settings_group_scraper">Учётная запись службы</string>
+    <string name="settings_scraper">Источник данных</string>
     <string name="settings_scraper_user">Имя пользователя ScreenScraper</string>
     <string name="settings_scraper_user_summary">Необязательно. У собственной учётной записи дневной лимит намного больше, чем у общей для всех пользователей приложения.</string>
     <string name="settings_scraper_password">Пароль ScreenScraper</string>
