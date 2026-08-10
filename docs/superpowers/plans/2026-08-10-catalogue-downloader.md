@@ -1728,7 +1728,7 @@ Before writing anything, fetch `https://api.zxinfo.dk/v3/swagger_v3.yaml` **thro
 1. The search path and its parameter names (`query`, `mode`, `size`, `offset`, `sort`, `contenttype`).
 2. Whether a by-letter path exists (`/games/byletter/{letter}`). **If it does not**, the A–Z shelf is implemented as the ordinary search with `query=<letter>` and `sort=title_asc`, and the class comment says so — a shelf is data, and one implemented a different way is still the same shelf.
 3. What `sort` accepts, for the newest shelf.
-4. That `/metadata/` still answers with `genretype` and a count each — CLAUDE.md records 32 machine types over 39,666 entries from this call, and it is the genre list the *Categories* shelf hands back as sub-shelves. **Check its size.** `Http.Real.get` refuses a body over `MOST_BODY` (2 MB) with `IOException("reply too large")`; if `/metadata/` is bigger than that, the *Categories* shelf needs the genre list hard-coded from `Kinds.ZXDB_VOCABULARY` instead, and the class comment says why.
+4. That `/metadata/` answers with `genretypes` — **plural**, measured 2026-08-10: top-level keys are `machinetypes genretypes features`, 5,289 bytes. This plan originally said `genretype`, singular, and was wrong; the recorded body below was written from memory rather than from a reply, which is the exact thing this plan's own testing rules forbid. Read `genretypes` then `genretype`, the same leniency `ZxInfo.byHash` already uses for `entry_id`. And a count each — CLAUDE.md records 32 machine types over 39,666 entries from this call, and it is the genre list the *Categories* shelf hands back as sub-shelves. **Check its size.** `Http.Real.get` refuses a body over `MOST_BODY` (2 MB) with `IOException("reply too large")`; if `/metadata/` is bigger than that, the *Categories* shelf needs the genre list hard-coded from `Kinds.ZXDB_VOCABULARY` instead, and the class comment says why.
 
 **Never filter a search by machine.** `PENTAGON` is a sibling of `ZXSPECTRUM` in ZXInfo's scheme, not a variant of it, and filtering to Spectrum silently excludes the Pentagon demoscene — most of what arrives as `.trd` and `.scl`.
 
@@ -1834,7 +1834,7 @@ public class ZxInfoCatalogueTest {
     /** {@code /metadata/}, trimmed to the genre list the Categories shelf
      *  hands back. */
     private static final String METADATA = "{"
-            + "\"genretype\":[{\"key\":\"Arcade Game\",\"doc_count\":12184},"
+            + "\"genretypes\":[{\"key\":\"Arcade Game\",\"doc_count\":12184},"
             + "               {\"key\":\"Utility\",\"doc_count\":5731}]}";
 
     // --- the shelves --------------------------------------------------------------------
@@ -2196,7 +2196,7 @@ Implement the rest against these rules, each of which the test above pins:
 2. **`ask`** calls `Pace.before("api.zxinfo.dk", ZxInfo.MINIMUM_INTERVAL_MS)` then `http.get(ZxInfo.API + path)`, mapping a non-2xx through `refusalFor` and an `IOException` to a retryable `ScrapeException` — copy `ZxInfo.ask`'s body rather than inventing a second shape.
 3. **`itemFrom`** reads `title`, `originalYearOfRelease`, the first of `publishers[].name`, `genreType`, `availability`, and the first `screens[]` entry as the picture. **Pass every screen path through a `hostOf`** that returns `ZxInfo.SCREENS` for a path starting `ZxInfo.SCREENS_PREFIX` and `ZxInfo.FILES` otherwise — this is the two-hosts rule and it is why the loading screens were all 404s before it was measured.
 4. **Files** come from `releases[].files[]`. Each `path` that already starts `http` is used **as it is** — that is ZXDB's archive.org recordings; anything else is joined onto `hostOf(path)`. The format is derived from the JSON `format` field lower-cased, and where that is `zip`, from the inner extension of the path (`HeadOverHeels.tzx.zip` → `tzx`). Size comes from `size` or `-1`.
-5. **`genres`** calls `metadata/`, reads the `genretype` array, and returns a `Page` of `Shelf(GENRE_PREFIX + key, key, Accepts.NOTHING)` with **no items** and `UNKNOWN_TOTAL`.
+5. **`genres`** calls `metadata/`, reads the `genretypes` array (falling back to `genretype`, and to `Kinds.ZXDB_VOCABULARY` as a floor if the list is empty for any reason — an empty shelf list is indistinguishable on screen from a screen that failed to draw), and returns a `Page` of `Shelf(GENRE_PREFIX + key, key, Accepts.NOTHING)` with **no items** and `UNKNOWN_TOTAL`.
 6. **Every `optString`/`optJSONArray` is guarded.** A field this app has never seen missing is a field the next dump drops.
 
 - [ ] **Step 5: Run the test and watch it pass**
@@ -3291,6 +3291,7 @@ One adapter, three row types: a shelf, an item, and the failed-page row. Modelle
 - An **item row** draws the title, `Item.describe()` as the detail line, and `Thumbnails.get(item.pictureUrl())` — requesting it through `Thumbnails.load` when it is a miss, and `notifyItemChanged` on the callback. **A null picture url is a text row**, exactly as an unscraped local game already is; it is not a placeholder waiting for something that will never come.
 - The bind carries a **staleness token**, as `EntryAdapter.onBindViewHolder` does (`int token = ++holder.bindToken;`, checked in the callback). A recycled holder whose old picture lands afterwards puts one game's cover on another, which is the failure this app takes most seriously.
 - An **unavailable item** is drawn at 50% alpha with `availability()` as its detail line. It is still tappable: the reason is worth reading.
+- **Never print `total` as a count when it is exactly 10,000.** Measured in Task 5: ZXInfo's search answers `total=10000` against a database of ~39,666, because that is Elasticsearch's counting cap and its paging window at once. It is the right number for `hasMore` to page against and a lie to show somebody — "10,000 results" for a search that matched four times that many reads as a broken filter. Show the count only below the cap.
 - **Grey only what the catalogue actually calls unavailable.** `Item.available()` answers "is this definitely available", so it reads an *absent* `availability` as false — correct for that question, wrong for this one. Measured on a live ZXInfo reply during Task 5: one row of three omitted the field entirely, and it was a 2024 release. Greying it would tell somebody a game they can have is missing, with no reason given, because a field was absent. So the row greys on **stated and not available** — `availability() != null && !available()` — and an unstated availability draws normally. Two questions, two predicates; this codebase has been bitten by one predicate answering two questions before.
 - The **failed row** carries `catalogue_failed` and a `catalogue_retry` button. What already arrived stays above it — a page that fails must not empty the grid.
 
