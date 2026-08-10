@@ -73,9 +73,26 @@ import java.util.List;
  * there is one) and reachable from no test that runs inside this process,
  * since Fuse cannot be stopped once anything has started it.
  *
- * The other three are covered, and were checked by mutation: dropping the
- * keyboard from the choices, dropping the store's load, and putting the
- * question back on the intent alone each make this fail.
+ * Two of the other three are covered, and were checked by mutation: dropping
+ * the keyboard from the choices, and putting the question back on the intent
+ * alone, each still make this fail.
+ *
+ * <b>The third - the store's load - is no longer one of them.</b> {@code
+ * setUp} calls {@code Metadata.refresh(context)} right after writing the
+ * fixture, to fix a real flake this class had: it failed whenever it ran
+ * behind {@code DetailPaneTest}, because instrumentation shares the app's own
+ * process, an earlier class had already loaded the store, and {@code
+ * ensureLoaded} correctly found nothing left to do - so the fixture this test
+ * had just written was never read. That refresh is still the right fix: the
+ * alternative is a class whose result depends on what ran before it, which is
+ * worse than a mutation this test cannot catch. But the same call pre-warms
+ * the cache that {@code EmulatorActivity.gameOpened}'s own {@code
+ * ensureLoaded} exists to fill, so by the time the dialog is asked that call
+ * is already a guaranteed no-op. Commenting it out of {@code gameOpened} and
+ * running this class confirms it: the test still passes. Nothing else in the
+ * suite exercises that call either, so "the store does not read itself" -
+ * the third bullet above - is demonstrated by this class's history, not
+ * proved by anything that runs today.
  */
 @RunWith(AndroidJUnit4.class)
 public class SetupDialogTest {
