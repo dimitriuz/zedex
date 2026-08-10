@@ -167,6 +167,8 @@ Expected: FAIL, compilation error — `cannot find symbol: class Pace`.
 
 - [ ] **Step 3: Write `Pace`**
 
+> **The source below has a defect, found in review and fixed in `b916dc0` — read the shipped `Pace.java` rather than this block.** `static synchronized` locks on `Pace.class`, and with `Thread.sleep` inside that lock a thread pacing one host blocks callers for *every* host, which is precisely what the class exists not to do. What shipped reserves the next slot per host under a brief lock and sleeps outside it, so hosts are independent while two callers for the same host still queue — `slot = max(now, reserved + minimum)` is monotonic, so two same-host callers can never both compute "no wait".
+
 Create `app/src/main/java/dev/ldlab/zedex/library/scrape/Pace.java`:
 
 ```java
