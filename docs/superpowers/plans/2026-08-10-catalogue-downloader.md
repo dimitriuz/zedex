@@ -2243,17 +2243,32 @@ that must not be duplicated."
 
 ---
 
-### Task 6: `Tree` — the SAF verbs, in one place
+### Task 6: `Tree` — the SAF verbs, and the write grant nobody had
 
 `EsDe.java` already does find-or-create-and-write through SAF, and every helper it uses is `private`. The importer needs the same three verbs, and a second private copy of them is how two callers come to disagree about what `"wt"` means.
+
+**And the content folder is granted read-only.** Measured on the bench, `dumpsys activity permissions`: the persisted grant on `KEY_CONTENT_TREE` is `mode=0x1`, read. All three places that persist it — `StartPanel:194`, `LibraryActivity:2596`, `SettingsActivity:1293` — pass `FLAG_GRANT_READ_URI_PERMISSION` alone, and correctly so until now: the app only ever read that folder. The one tree persisted with write is ES-DE's, whose call site says so in a comment, and the ES-DE *media* tree is read-only with a comment saying it is "never written to". This codebase takes write exactly where it writes, which is why importing needs a decision rather than a flag flip.
+
+`createDocument` against a read-only tree throws `SecurityException`, and `Storage.keepAccessTo` swallows the failure to re-take it — so without this the import fails with nothing on screen to say why.
+
+**Taking write on an existing grant does not work.** `takePersistableUriPermission` can only persist flags the grant already carries, and the bench's shows `persistable=0x1`. Existing installs must re-pick their folder; there is no silent upgrade.
+
+**So, decided in conversation:** new folder choices take read **and** write, and anyone whose grant is read-only is asked once, **at the moment they first import**, with the picker opening at the folder they already chose. Nobody who never imports is asked for anything. The ask itself is Task 11's, where the import button lives; this task provides the flag and the question.
 
 **Files:**
 - Create: `app/src/main/java/dev/ldlab/zedex/storage/Tree.java`
 - Create: `app/src/androidTest/java/dev/ldlab/zedex/storage/TreeTest.java`
+- Modify: `app/src/main/java/dev/ldlab/zedex/screen/StartPanel.java` (~line 194)
+- Modify: `app/src/main/java/dev/ldlab/zedex/screen/LibraryActivity.java` (~line 2596)
+- Modify: `app/src/main/java/dev/ldlab/zedex/screen/SettingsActivity.java` (~line 1293)
 
 **Interfaces:**
-- Consumes: `Storage.contentFolder(Context)`.
-- Produces: `Tree.folder(Context, Uri tree, String... names)` → `Uri` of the (created if absent) folder; `Tree.find(Context, Uri parent, String name)` → `Uri` or null; `Tree.write(Context, Uri parent, String name, File from)` → `Uri` or null.
+- Consumes: `Storage.contentFolder(Context)`, `Storage.keepAccessTo(Context, Uri, int)`.
+- Produces: `Tree.folder(Context, Uri tree, String... names)` → `Uri` of the (created if absent) folder; `Tree.find(Context, Uri parent, String name)` → `Uri` or null; `Tree.write(Context, Uri parent, String name, File from)` → `Uri` or null; `Tree.canWrite(Context, Uri tree)` → boolean, answered from the persisted permission list rather than by attempting a write.
+
+**The three call sites** each gain `| Intent.FLAG_GRANT_WRITE_URI_PERMISSION`. Leave `SettingsActivity:1279` alone — that is the ES-DE media tree, read-only on purpose, with a comment saying why.
+
+**`canWrite` asks, it does not probe.** Walk `getContentResolver().getPersistedUriPermissions()` for the tree and return `isWritePermission()`. Probing by writing a file is what `Storage.isWritable` does for plain paths and is wrong here: a probe leaves a document behind on success, and MediaProvider keeps a row per path that can outlive the file — the reason the probe elsewhere carries a `nanoTime`. There is nothing to guess at; the permission list is authoritative.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -3372,6 +3387,8 @@ with a retry under it, so what already arrived stays."
 | `catalogue_imported` | %1$s imported | %1$s importováno | %1$s importiert | %1$s importado | %1$s importé | %1$s importato | Zaimportowano %1$s | %1$s импортирован | %1$s імпортовано |
 | `catalogue_already` | %1$s is already in your library | %1$s už v knihovně je | %1$s ist bereits in der Bibliothek | %1$s ya está en tu biblioteca | %1$s est déjà dans votre bibliothèque | %1$s è già nella tua libreria | %1$s jest już w bibliotece | %1$s уже в библиотеке | %1$s уже в бібліотеці |
 | `catalogue_nothing_to_get` | Nothing here the Spectrum can open. | Nic, co by Spectrum otevřelo. | Nichts, was der Spectrum öffnen kann. | Nada que el Spectrum pueda abrir. | Rien que le Spectrum puisse ouvrir. | Niente che lo Spectrum possa aprire. | Nic, co Spectrum mógłby otworzyć. | Здесь нет ничего, что откроет Spectrum. | Тут немає нічого, що відкриє Spectrum. |
+| `catalogue_needs_write` | Zedex needs permission to add games to %1$s. | Zedex potřebuje oprávnění přidávat hry do %1$s. | Zedex braucht die Berechtigung, Spiele zu %1$s hinzuzufügen. | Zedex necesita permiso para añadir juegos a %1$s. | Zedex a besoin d'une autorisation pour ajouter des jeux à %1$s. | Zedex ha bisogno del permesso per aggiungere giochi a %1$s. | Zedex potrzebuje uprawnienia, aby dodawać gry do %1$s. | Zedex нужно разрешение добавлять игры в %1$s. | Zedex потрібен дозвіл додавати ігри до %1$s. |
+| `catalogue_choose_folder` | Choose | Vybrat | Auswählen | Elegir | Choisir | Scegli | Wybierz | Выбрать | Вибрати |
 
 `%1$s` is `%1$s` in every one of the nine — `check-strings.py` fails on a disagreeing specifier, and `%1$s` against `%1$d` is a `ClassCastException` only a non-English reader ever sees.
 
@@ -3383,7 +3400,10 @@ with a retry under it, so what already arrived stays."
 
 Its own class, positioned where `DetailPane` sits and styled to match — see *Two places this plan differs from the spec*. It shows the item's picture, title, year, publisher, kind and availability, and up to three buttons:
 
-- **Import** — enabled when `Pick.forGame(item) != null`, replaced by `catalogue_nothing_to_get` when not. Runs `Imports.game` then `Imports.describe` on `Work.run`, with a progress line; on return, `catalogue_imported` or `catalogue_already`, and tells the host to refresh.
+- **Import** — enabled when `Pick.forGame(item) != null`, replaced by `catalogue_nothing_to_get` when not. Runs `Imports.game` then `Imports.describe` on `Work.alone`, with a progress line; on return, `catalogue_imported` or `catalogue_already`, and tells the host to refresh.
+  - **First, `Tree.canWrite(context, Storage.contentFolder(context))`.** A content folder chosen before this feature existed is granted read-only — see Task 6 — and `createDocument` against it throws, so the import would fail with nothing on screen to explain it. When the answer is no, show `catalogue_needs_write` naming the folder, and on *Choose* launch `ACTION_OPEN_DOCUMENT_TREE` with `EXTRA_INITIAL_URI` set to the current tree so the picker opens **at the folder they already use** and takes one tap. Persist read+write, then carry on with the import that prompted it — an ask that loses the thing you asked for is an ask you have to answer twice.
+  - Ask **only here**, never at startup or on opening the tab. Someone who browses the catalogue and imports nothing must never see it; the permission is for importing, so importing is when it is worth interrupting somebody.
+  - The answer arrives in `onActivityResult`. Note that a *settings-page* permission has no such callback — this one is a picker and does — so do not copy `Updater.resumeIfAllowed`'s `onResume` shape here.
 - **Other versions…** — shown only when `item.versions().size() > 1`; a list of `Version.label()`/`year()`, each importing `Pick.forGame(version)`.
 - **Play the recording** — shown only when `Pick.recording(item) != null`. Imports it to `Kinds.RECORDINGS` and opens it, which starts playback: `utils_open_file` hands an RZX to `rzx_start_playback_from_buffer`.
 
