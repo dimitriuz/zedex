@@ -57,9 +57,29 @@ public final class ZxInfo implements Provider {
 
     private static final String BASE = "https://api.zxinfo.dk/v3/";
 
-    /** Where the files themselves live. Every {@code path} and {@code url} in
-     *  a record is relative to this, and none of them is an API call. */
+    /** Where the files themselves live. Most of what a record names is
+     *  relative to this, and none of it is an API call. */
     private static final String FILES = "https://spectrumcomputing.co.uk";
+
+    /**
+     * And where the rest of it lives, which is not the same host.
+     *
+     * <b>A record's paths are relative to two different places.</b> Anything
+     * under {@code /pub/} or {@code /zxdb/} is on the archive; anything under
+     * {@code /zxscreens/} - which is every rendered loading screen - is on
+     * ZXInfo's own media host and 404s on the archive. Both appear inside the
+     * same {@code screens} array of the same record, so the array is no guide
+     * and the prefix is the only thing that decides.
+     *
+     * Measured after a scrape wrote a cover and a screenshot and no title
+     * screen at all: every loading screen this provider has ever offered was
+     * fetched from the wrong host and quietly discarded as a 404, and the
+     * failure looked exactly like a game that had none.
+     */
+    private static final String SCREENS = "https://zxinfo.dk/media";
+
+    /** The prefix that means ZXInfo's own host - see {@link #SCREENS}. */
+    private static final String SCREENS_PREFIX = "/zxscreens/";
 
     /** How many candidates a name search offers. Enough to find the right one
      *  among re-releases and hacks, few enough to read in a dialog. */
@@ -595,7 +615,8 @@ public final class ZxInfo implements Provider {
             String format = item.optString("format", "");
             if (!usable(folder, format, path)) continue;
 
-            into.put(folder, new Medium(folder, FILES + path, extensionOf(path), null));
+            into.put(folder, new Medium(folder, hostOf(path) + path,
+                                        extensionOf(path), null));
         }
     }
 
@@ -604,24 +625,33 @@ public final class ZxInfo implements Provider {
      *
      * An allow-list rather than a list of things to reject, which is the
      * difference between a new format arriving as a missing picture and
-     * arriving as a broken one. Two cases make it earn its keep on a single
-     * record: a loading screen comes as both a picture and a {@code .scr} -
-     * raw Spectrum memory, which nothing here decodes yet even though this
-     * app of all apps could - and instructions come as PDF and as text, where
-     * the manual viewer reads PDFs.
+     * arriving as a broken one. Instructions are what make it earn its keep:
+     * they come as PDF and as text, and the manual viewer reads PDFs.
      *
-     * There was an explicit {@code .scr} check here as well, and it never did
-     * anything: the allow-list already excluded it. Deleting a line that
-     * cannot fail is worth doing precisely because its comment claimed
-     * otherwise, and the next person to change the list would have trusted it.
+     * <b>A {@code .scr} counts, and only for the loading screen.</b> It is
+     * raw Spectrum memory - the one format in a record that only this app can
+     * make sense of, and the one a third of the database carries its loading
+     * screen as, against a fifth with a front inlay. {@code Downloads} turns
+     * it into a picture as it lands, so nothing downstream ever meets one.
+     *
+     * It stays second to a real picture: {@code screens} is read before
+     * {@code additionalDownloads} and a folder keeps the first thing it is
+     * given, so a game with a PNG loading screen still gets the PNG. The dump
+     * is what fills in the far commoner case of a game with neither.
      */
     private static boolean usable(String folder, String format, String path) {
         String extension = extensionOf(path);
 
         if ("manuals".equals(folder)) return "pdf".equals(extension);
+        if ("scr".equals(extension)) return "titlescreens".equals(folder);
 
         return "png".equals(extension) || "jpg".equals(extension)
                 || "jpeg".equals(extension) || "gif".equals(extension);
+    }
+
+    /** Which of the two hosts a path is relative to - see {@link #SCREENS}. */
+    private static String hostOf(String path) {
+        return path.startsWith(SCREENS_PREFIX) ? SCREENS : FILES;
     }
 
     /** From the path itself rather than the {@code format} text, which says

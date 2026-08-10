@@ -1,6 +1,7 @@
 package dev.ldlab.zedex.library.scrape;
 
 import dev.ldlab.zedex.library.meta.Artwork;
+import dev.ldlab.zedex.library.meta.ScreenPicture;
 
 import android.content.Context;
 import android.util.Log;
@@ -116,6 +117,41 @@ public final class Downloads {
         }
     }
 
+    /** The one medium that arrives in a format only a Spectrum understands. */
+    private static boolean isScreenDump(Medium medium) {
+        return "scr".equalsIgnoreCase(medium.extension);
+    }
+
+    /**
+     * Turns the dump that was just fetched into the picture beside it.
+     *
+     * The {@code .scr} goes either way: converted, it has served its purpose
+     * and a second file per game that nothing reads is clutter; unconvertable,
+     * it is a truncated download or something that was never a screen, and
+     * keeping it would leave {@code Artwork} resolving a file it cannot draw.
+     */
+    private static boolean convert(Context context, String relativePath,
+                                   String folder, File dump) {
+        // The folder is passed rather than read back off the file, which was
+        // the first attempt and was wrong for every game in a subfolder: what
+        // a downloaded file's parent directory is called is the game's own
+        // folder - "titlescreens/GOTY 2021/Angels.scr" - and not the media
+        // folder at all. It put the picture where nothing looks, for exactly
+        // the collections that are organised.
+        File into = Artwork.fileFor(context, relativePath, folder,
+                                    ScreenPicture.EXTENSION);
+
+        boolean converted = ScreenPicture.convert(dump, into);
+        delete(dump);
+
+        if (!converted) {
+            Log.w(TAG, "not a screen dump: " + dump.getName());
+            delete(into);
+        }
+
+        return converted;
+    }
+
     private static boolean save(Context context, Http http, String relativePath,
                                 Medium medium) throws Http.Refused {
         File into = Artwork.fileFor(context, relativePath, medium.folder, medium.extension);
@@ -136,6 +172,13 @@ public final class Downloads {
                 // heals - fileFor would hand back the same name next time.
                 delete(into);
                 return false;
+            }
+
+            // A raw Spectrum screen becomes a picture here and nowhere else,
+            // so nothing downstream ever meets one - see ScreenPicture.
+            if (ScreenPicture.EXTENSION.equals(medium.extension)) return true;
+            if (isScreenDump(medium)) {
+                return convert(context, relativePath, medium.folder, into);
             }
 
             return true;

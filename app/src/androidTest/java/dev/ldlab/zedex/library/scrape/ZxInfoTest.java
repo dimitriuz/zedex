@@ -520,16 +520,56 @@ public class ZxInfoTest {
                    media.get(0).url.endsWith("/HeadOverHeels.jpg"));
     }
 
+    /**
+     * A dump is a loading screen and nothing else.
+     *
+     * The folder is the guard: a {@code .scr} named as a cover or a map is
+     * either a mistake in the record or a format this app has not thought
+     * about, and either way it must not become the picture every row draws.
+     */
+    @Test
+    public void adumpIsOnlyEverTakenAsAloadingScreen() throws Exception {
+        String asAcover = ONLY_A_SCR.replace("Loading screen", "Inlay - Front");
+
+        Provider.Scraped scraped = new ZxInfo(new Canned().then(200, asAcover))
+                .fetch(new Candidate("1", "Something", null, null, true),
+                       Provider.Wanted.of("covers", "titlescreens"));
+
+        assertTrue("a .scr was taken as a cover", scraped.media.isEmpty());
+    }
+
     /** Off spectrumcomputing.co.uk, not the API: these are static files and
      *  cost nothing against anything. */
     @Test
     public void themediaComeFromTheArchiveRatherThanTheApi() throws Exception {
         for (Medium medium : fetched(Provider.Wanted.usual()).media) {
-            assertTrue(medium.url + " is not on the file host",
-                       medium.url.startsWith("https://spectrumcomputing.co.uk/"));
+            assertTrue(medium.url + " is not on a file host",
+                       medium.url.startsWith("https://spectrumcomputing.co.uk/")
+                       || medium.url.startsWith("https://zxinfo.dk/media/"));
             assertFalse("a medium was pointed at the API",
                         medium.url.contains("api.zxinfo.dk"));
         }
+    }
+
+    /**
+     * A rendered loading screen comes off ZXInfo's own host, not the archive.
+     *
+     * The two are mixed inside one {@code screens} array - the running screen
+     * below is on the archive and the loading screen is not - so the prefix
+     * is the only thing that decides. Fetching a {@code /zxscreens/} path from
+     * the archive returns a 404 page, which {@code Downloads} discards, which
+     * looks exactly like a game with no loading screen. Every one this
+     * provider offered was lost that way until it was measured.
+     */
+    @Test
+    public void arenderedLoadingScreenComesFromZxinfosOwnHost() throws Exception {
+        List<Medium> media = fetched(Provider.Wanted.of("titlescreens", "screenshots")).media;
+
+        assertEquals("https://zxinfo.dk/media/zxscreens/0002259/HeadOverHeels-load.png",
+                     urlIn(media, "titlescreens"));
+        assertTrue("the running screen is on the archive: " + urlIn(media, "screenshots"),
+                   urlIn(media, "screenshots")
+                           .startsWith("https://spectrumcomputing.co.uk/pub/"));
     }
 
     /** Only what was asked for. */
@@ -570,24 +610,30 @@ public class ZxInfoTest {
             + "]}}";
 
     /**
-     * And where the {@code .scr} is all there is, nothing is taken at all.
+     * And where the {@code .scr} is all there is, it is taken.
      *
-     * A {@code .scr} is 6912 bytes of Spectrum memory, not an image file.
-     * Fetching one into {@code titlescreens} would put a file on disk that
-     * {@code Artwork} reports as present and {@code BitmapFactory} cannot
-     * decode - a permanently broken thumbnail, and one that hides the fact
-     * that no real picture was ever found.
+     * This used to assert the opposite, and said why: 6912 bytes of Spectrum
+     * memory is not an image file, and fetching one would have left {@code
+     * Artwork} resolving a file {@code BitmapFactory} cannot decode - a
+     * permanently broken thumbnail hiding the fact that no picture was found.
+     * "This app could render it, being an emulator, and does not yet" was the
+     * closing line. It does now: {@code Downloads} converts the dump into a
+     * png as it lands, so what reaches the folder is a picture like any other.
      *
-     * This app could render it, being an emulator, and does not yet. Until it
-     * does, not fetching is the honest answer.
+     * Worth the change for how common it is - a third of ZXDB's Spectrum
+     * entries carry their loading screen only this way, against a fifth with
+     * a front inlay.
      */
     @Test
-    public void arawScrIsNotFetchedAsAPictureAtAll() throws Exception {
+    public void arawScrIsTakenWhenItIsTheOnlyLoadingScreen() throws Exception {
         Provider.Scraped scraped = new ZxInfo(new Canned().then(200, ONLY_A_SCR))
                 .fetch(new Candidate("1", "Something", null, null, true),
                        Provider.Wanted.of("titlescreens"));
 
-        assertTrue("a .scr was fetched as artwork", scraped.media.isEmpty());
+        assertEquals(1, scraped.media.size());
+        assertEquals("titlescreens", scraped.media.get(0).folder);
+        assertEquals("it has to reach Downloads as a dump to be converted there",
+                     "scr", scraped.media.get(0).extension);
     }
 
     /** Instructions come as PDF and as text, and the manual viewer reads
