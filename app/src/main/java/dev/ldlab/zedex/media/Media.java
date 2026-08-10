@@ -91,8 +91,19 @@ public final class Media {
         /** The ☰ sheet, for the one page here that navigates rather than acts. */
         MenuDrawer sheet();
 
-        /** Something was opened, and states and pokes are named after it. */
-        void opened(String name);
+        /**
+         * Something was opened, and states and pokes are named after it.
+         *
+         * The document it came from travels with the name because this is
+         * where <em>every</em> way of opening a game meets - a file manager's
+         * hand-over, the library, the picker, <em>Open recent…</em> - and
+         * something has to be able to say which game is running without
+         * knowing which of them it was. See {@code EmulatorActivity.gameOpened}.
+         *
+         * @param uri    the document, which for an entry is the archive
+         * @param inside the entry within it, or null for a plain file
+         */
+        void opened(String name, Uri uri, String inside);
     }
 
     private final Activity activity;
@@ -253,7 +264,7 @@ public final class Media {
         FuseNative.openFile(staged.getAbsolutePath());
         host.note(R.string.file_opened, staged.getName());
 
-        host.opened(Storage.withoutExtension(staged.getName()));
+        host.opened(Storage.withoutExtension(staged.getName()), uri, null);
     }
 
     /**
@@ -341,7 +352,7 @@ public final class Media {
 
         FuseNative.openFile(staged.getAbsolutePath());
         host.note(R.string.file_opened, staged.getName());
-        host.opened(Storage.withoutExtension(staged.getName()));
+        host.opened(Storage.withoutExtension(staged.getName()), archive, inside);
 
         String archiveName = Storage.displayName(activity, archive);
         Recents.remember(activity.getContentResolver(), preferences, archive,

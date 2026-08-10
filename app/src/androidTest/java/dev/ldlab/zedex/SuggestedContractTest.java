@@ -166,6 +166,29 @@ public class SuggestedContractTest {
                    missed.isEmpty());
     }
 
+    /**
+     * Fuse has no joystick called the keyboard, and this is what says so.
+     *
+     * The pad's keyboard mode is this app's own idea - {@code
+     * Controls.JOYSTICK_KEYBOARD}, a number past the end of Fuse's list - and
+     * the setup dialog shipped without ever offering it because it went
+     * looking for the name in this array. Nothing in it starts with
+     * "keyboard", here or ever, which is also what makes {@code
+     * Setup.KEYBOARD} safe to store beside Fuse's own names: the two sets
+     * cannot collide.
+     */
+    @Test
+    public void fuseHasNoJoystickCalledTheKeyboard() {
+        String[] names = joystickNames();
+
+        for (String name : names) {
+            assertFalse("Fuse now offers " + name + ", so the app's own"
+                        + " keyboard choice needs rethinking: "
+                        + Arrays.toString(names),
+                        name.toLowerCase(java.util.Locale.US).startsWith("keyboard"));
+        }
+    }
+
     /** And the two Interface 2 sockets really are two different joysticks -
      *  crossed on purpose, and worthless if both land on the same one. */
     @Test

@@ -34,9 +34,21 @@ public class SuggestedTest {
         "scorpion", "se",
     };
 
+    /**
+     * Fuse's real list, and all of it - eight, with <b>no keyboard among
+     * them</b>.
+     *
+     * This fixture used to carry a ninth entry called "Keyboard — the
+     * profile's keys", and inventing it is what let the dialog ship without a
+     * keyboard option: the code looked the keyboard up by name in this list
+     * and found it here and never on a device. The pad's keyboard mode is this
+     * app's own idea ({@code Controls.JOYSTICK_KEYBOARD}), sitting after
+     * Fuse's list rather than in it. {@code SuggestedContractTest} asserts the
+     * absence against the real Fuse.
+     */
     private static final String[] JOYSTICKS = {
         "None", "Cursor", "Kempston", "Sinclair 1", "Sinclair 2",
-        "Timex 1", "Timex 2", "Fuller", "Keyboard — the profile's keys",
+        "Timex 1", "Timex 2", "Fuller",
     };
 
     private static List<String> ids(List<Integer> indices) {
@@ -217,6 +229,63 @@ public class SuggestedTest {
         assertFalse("a layout, but the game does not read the keys",
                     Suggested.keyboard(game("ZX-Spectrum 48K", "0:left = o", "Kempston Joystick")));
         assertFalse(Suggested.keyboard(null));
+    }
+
+    // --- the choices offered, which are not Fuse's list ---------------------------------
+
+    /**
+     * The keyboard is a choice the dialog can offer and Fuse has no name for.
+     *
+     * Fuse emulates eight interfaces and the pad's keyboard mode is none of
+     * them - it is this app's, {@code Controls.JOYSTICK_KEYBOARD}, appended
+     * after Fuse's list everywhere the user is asked to choose one. So the
+     * choices are worked out here, in the same terms the rest of the app uses,
+     * rather than as indices into an array that cannot express one of them.
+     */
+    @Test
+    public void thekeyboardIsOfferedAlongsideTheInterfaces() {
+        assertEquals(Arrays.asList(2, 1, dev.ldlab.zedex.input.Controls.JOYSTICK_KEYBOARD),
+                     Suggested.controls(game("ZX-Spectrum 48K", "0:left = o",
+                                             "Kempston Joystick", "Cursor",
+                                             "Redefineable keys"),
+                                        JOYSTICKS));
+    }
+
+    /** Last, because an interface the game was written for beats reading the
+     *  keys, and the first choice is the one already selected. */
+    @Test
+    public void thekeyboardIsTheLastChoiceRatherThanTheFirst() {
+        List<Integer> offered = Suggested.controls(
+                game("ZX-Spectrum 48K", "0:left = o", "Kempston Joystick",
+                     "Redefineable keys"), JOYSTICKS);
+
+        assertEquals(dev.ldlab.zedex.input.Controls.JOYSTICK_KEYBOARD,
+                     (int) offered.get(offered.size() - 1));
+    }
+
+    @Test
+    public void nolayoutMeansTheInterfacesAloneAreOffered() {
+        assertEquals(Collections.singletonList(2),
+                     Suggested.controls(game("ZX-Spectrum 48K", null,
+                                             "Kempston Joystick",
+                                             "Redefineable keys"),
+                                        JOYSTICKS));
+    }
+
+    /** A game that reads nothing but its own keys still has one thing to
+     *  offer, and it is the whole reason the keyboard is a choice at all. */
+    @Test
+    public void thekeyboardCanBeTheOnlyChoice() {
+        assertEquals(Collections.singletonList(
+                             dev.ldlab.zedex.input.Controls.JOYSTICK_KEYBOARD),
+                     Suggested.controls(game(null, "0:left = o",
+                                             "Redefineable keys"), JOYSTICKS));
+    }
+
+    @Test
+    public void nothingKnownIsNoChoices() {
+        assertTrue(Suggested.controls(null, JOYSTICKS).isEmpty());
+        assertTrue(Suggested.controls(game("ZX-Spectrum 48K", null), JOYSTICKS).isEmpty());
     }
 
     // --- whether to ask at all ----------------------------------------------------------

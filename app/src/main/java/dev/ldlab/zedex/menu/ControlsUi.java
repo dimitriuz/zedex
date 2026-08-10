@@ -257,14 +257,28 @@ public final class ControlsUi {
                     int chosen = which == fuseTypes.length
                             ? Controls.JOYSTICK_KEYBOARD : which;
 
-                    preferences.edit()
-                            .putInt(Prefs.KEY_JOYSTICK_TYPE, chosen)
-                            .apply();
-                    setJoystickType(chosen);
+                    chooseJoystickType(chosen);
                     host.note(R.string.joystick_type_set, names[which]);
                 });
             }
         };
+    }
+
+    /**
+     * Chooses an interface, wherever the choice came from.
+     *
+     * Three things, and all three or none: the setting, which is what the next
+     * launch reads; Fuse, which is what the running machine reads; and the
+     * pad, which has to be laid out again because a Kempston stick and the
+     * game's own keys are not the same buttons. The menu row does this and so
+     * does the setup dialog - see {@code SetupUi} - and one method rather than
+     * two is what keeps them from drifting apart.
+     *
+     * @param type a Fuse joystick index, or {@link Controls#JOYSTICK_KEYBOARD}
+     */
+    public void chooseJoystickType(int type) {
+        preferences.edit().putInt(Prefs.KEY_JOYSTICK_TYPE, type).apply();
+        setJoystickType(type);
     }
 
     /** Nothing plugged in for Keyboard, since the pad sends keys instead. */

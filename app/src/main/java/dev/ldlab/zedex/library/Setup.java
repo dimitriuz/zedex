@@ -37,6 +37,20 @@ public final class Setup {
     private static final String TAG = "Zedex";
     private static final String FILE = "setup.json";
 
+    /**
+     * The answer "use the pad as the game's own keys", which is not one of
+     * Fuse's joysticks.
+     *
+     * {@link Answer#joystick} is otherwise a Fuse interface name, stored by
+     * name so a future Fuse cannot repoint it. The keyboard has no such name -
+     * it is the app's own {@code Controls.JOYSTICK_KEYBOARD}, a number past
+     * the end of Fuse's list - so it needs a word of its own here, and this is
+     * it. Safe beside Fuse's own names because Fuse has nothing called this
+     * and never has: {@code SuggestedContractTest} asserts it against the
+     * running emulator rather than trusting the observation.
+     */
+    public static final String KEYBOARD = "Keyboard";
+
     private Setup() {
     }
 
@@ -114,7 +128,8 @@ public final class Setup {
         /** A Fuse machine id, or null to leave the machine alone. */
         public final String machine;
 
-        /** A Fuse joystick interface name, or null to leave it alone. */
+        /** A Fuse joystick interface name or {@link Setup#KEYBOARD}, or null
+         *  to leave it alone. */
         public final String joystick;
 
         public Answer(boolean skip, String machine, String joystick) {

@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.machine;
 
+import dev.ldlab.zedex.input.Controls;
 import dev.ldlab.zedex.library.meta.Meta;
 
 import java.util.ArrayList;
@@ -199,6 +200,34 @@ public final class Suggested {
         }
 
         return false;
+    }
+
+    /**
+     * Every control the game can be offered, in the app's own terms.
+     *
+     * <b>Not indices into Fuse's list.</b> Fuse emulates eight interfaces and
+     * the pad's keyboard mode is none of them - it is this app's own choice,
+     * {@link Controls#JOYSTICK_KEYBOARD}, which sits after Fuse's list
+     * wherever the user picks one (see {@code ControlsUi.joystickTypePage}).
+     * Looking the keyboard up by name in Fuse's array is how the setup dialog
+     * shipped without ever offering it: there is no such name and there never
+     * will be. So the choices are worked out here as the same numbers the
+     * joystick setting is written with, and one of them is simply not an
+     * index.
+     *
+     * The keyboard comes last, when it comes at all: an interface the game was
+     * written for is the better default, and the first choice is the one the
+     * dialog arrives with selected.
+     *
+     * @param names {@code FuseNative.joystickTypeNames()}
+     */
+    public static List<Integer> controls(Meta meta, String[] names) {
+        List<Integer> found = meta == null ? new ArrayList<>()
+                                           : joysticks(meta.inputs, names);
+
+        if (keyboard(meta)) found.add(Controls.JOYSTICK_KEYBOARD);
+
+        return found;
     }
 
     /** Whether there is anything at all worth asking about. */
