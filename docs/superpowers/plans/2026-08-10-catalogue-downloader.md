@@ -3016,7 +3016,7 @@ An imported game that appears as a filename is worse than one imported by hand �
 
 **Interfaces:**
 - Consumes: `Metadata.relativePath(Context, Uri)`, `Metadata.ensureLoaded(Context)`, `Scrape.apply(Context, Provider, Http, Candidate, String, Provider.Wanted)`, `Scrapers.preferred(Context)`, `Scrapers.wanted(Context)`, `Artwork.forget(String)`, `Candidate`.
-- Produces: `Imports.describe(Context, Http, Imports.Result, Catalogue.Item)` → `Downloads.Result` or null.
+- Produces: `Imports.describe(Context, Provider, Http, Imports.Result, Catalogue.Item)` → `Downloads.Result` or null. **The provider is passed in, not resolved inside** — `Scrapers.preferred` builds real `ScreenScraper`/`ZxInfo` instances wired to a real `Http.Real` with no seam anywhere, so a `describe` that resolved its own could not be tested without touching the network. `Scrape.apply` and `Sweep.run` already take theirs the same way.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -3414,6 +3414,7 @@ with a retry under it, so what already arrived stays."
 Its own class, positioned where `DetailPane` sits and styled to match — see *Two places this plan differs from the spec*. It shows the item's picture, title, year, publisher, kind and availability, and up to three buttons:
 
 - **Import** — enabled when `Pick.forGame(item) != null`, replaced by `catalogue_nothing_to_get` when not. Runs `Imports.game` then `Imports.describe` on `Work.alone`, with a progress line; on return, `catalogue_imported` or `catalogue_already`, and tells the host to refresh.
+  - **The pane resolves the collaborators.** `Scrapers.preferred(context)` — null is not a failure, the file still imports and only the details are missing — and `new Http.Real(context)`, both handed to `describe`. See its signature above for why it does not fetch them itself.
   - **First, `Tree.canWrite(context, Storage.contentFolder(context))`.** A content folder chosen before this feature existed is granted read-only — see Task 6 — and `createDocument` against it throws, so the import would fail with nothing on screen to explain it. When the answer is no, show `catalogue_needs_write` naming the folder, and on *Choose* launch `ACTION_OPEN_DOCUMENT_TREE` with `EXTRA_INITIAL_URI` set to the current tree so the picker opens **at the folder they already use** and takes one tap. Persist read+write, then carry on with the import that prompted it — an ask that loses the thing you asked for is an ask you have to answer twice.
   - Ask **only here**, never at startup or on opening the tab. Someone who browses the catalogue and imports nothing must never see it; the permission is for importing, so importing is when it is worth interrupting somebody.
   - The answer arrives in `onActivityResult`. Note that a *settings-page* permission has no such callback — this one is a picker and does — so do not copy `Updater.resumeIfAllowed`'s `onResume` shape here.
