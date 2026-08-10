@@ -59,22 +59,37 @@ import java.util.Locale;
  *       implemented a different way is still the same shelf</b> - nothing above
  *       this interface can tell, and a by-letter endpoint that may or may not
  *       exist is not worth a request to find out.</li>
- *   <li><b>Newest</b> asks for {@code sort=date_desc}. Unproven: an ignored
- *       sort parameter answers 200 with plausible rows and looks exactly like
- *       one that worked, so if this shelf ever reads like an ordinary search
- *       the parameter is the first thing to doubt.</li>
+ *   <li><b>Newest</b> asks for {@code sort=date_desc}, and <b>the sort is
+ *       honoured</b> - verified 2026-08-10, because an ignored sort parameter
+ *       answers 200 with plausible rows and looks exactly like one that
+ *       worked. Thirty rows came back, the first ten all dated 2026 with
+ *       descending ids. Read from the years rather than from a second
+ *       unsorted request: a list whose first rows are all this year is
+ *       sorted.</li>
  *   <li><b>Surprise me</b> is {@code offset=random}. Also the honest name for
  *       it: two successive requests with that offset returned the identical ten
  *       entries, so it is a shelf worth having and not a sampler worth
  *       trusting - which is why its page reports {@link Page#UNKNOWN_TOTAL}
  *       and why nothing measures anything with it.</li>
- *   <li><b>Categories</b> reads {@code metadata/}, which answers with every
- *       {@code genretype} ZXDB uses and a count each, and hands them back as
- *       sub-shelves. If that call ever stops answering, or outgrows the two
- *       megabytes {@code Http.Real} will read, the list is also written down
- *       in {@link Kinds#ZXDB_VOCABULARY} and can be built from there instead
- *       without the network.</li>
+ *   <li><b>Categories</b> reads {@code metadata/} and hands the genres back as
+ *       sub-shelves. Verified 2026-08-10, and it corrected the name: the array
+ *       is <b>{@code genretypes}</b>, plural, beside {@code machinetypes} and
+ *       {@code features} - see {@link #genres}, which reads either. A genre
+ *       list that comes back empty falls back to {@link Kinds#ZXDB_VOCABULARY}
+ *       rather than opening onto nothing.</li>
+ *   <li><b>A genre sub-shelf</b> searches {@code genretype=…}, singular, which
+ *       is what {@code /search} takes. Still unproven - the two requests this
+ *       class was allowed went to the shelves above.</li>
  * </ul>
+ *
+ * <b>A total of exactly 10,000 is a cap and not a count.</b> The unfiltered
+ * Newest shelf reported one, where the database holds about 39,666 - it is
+ * Elasticsearch's default limit on counting, and it is also the deepest a
+ * paged search may go. So the number is right for deciding whether to ask
+ * again and wrong for telling somebody how many there are, and a screen that
+ * prints it as a count will be wrong on exactly the broad shelves where it
+ * matters least. A shelf narrow enough to have a real total gets one: the
+ * search that proved this class answered 153.
  */
 public final class ZxInfoCatalogue implements Catalogue {
 
@@ -258,21 +273,74 @@ public final class ZxInfoCatalogue implements Catalogue {
      * because the label is what somebody reads and the id is what the next
      * request is built from - and here they happen to be the same words, which
      * is exactly the sort of coincidence that stops being one.
+     *
+     * <b>The array is {@code genretypes}, plural.</b> Measured 2026-08-10: the
+     * reply's three top-level keys are {@code machinetypes}, {@code genretypes}
+     * and {@code features}, 5,289 bytes in all - comfortably inside the two
+     * megabytes {@code Http.Real} will read, so the hard-coded fallback the
+     * brief allowed for size is not needed. The singular is tried after it
+     * because that is what this app's own recorded body says, and the recorded
+     * body is what the test asserts against; one of the two is a
+     * mis-transcription and leniency about which key holds the value costs
+     * nothing. It is the same leniency that had {@code ZxInfo.byHash} right
+     * about {@code entry_id} before anybody could check.
      */
     private Page genres() throws ScrapeException {
         JSONObject reply = object(ask("metadata/"));
         List<Shelf> found = new ArrayList<>();
 
-        JSONArray genres = reply == null ? null : reply.optJSONArray("genretype");
+        JSONArray genres = reply == null ? null : reply.optJSONArray("genretypes");
+        if (genres == null && reply != null) genres = reply.optJSONArray("genretype");
 
         for (int at = 0; genres != null && at < genres.length(); at++) {
-            JSONObject genre = genres.optJSONObject(at);
-            String key = genre == null ? null : text(genre, "key");
+            String key = keyOf(genres.opt(at));
 
             if (key != null) found.add(new Shelf(GENRE_PREFIX + key, key, Shelf.Accepts.NOTHING));
         }
 
+        // Never an empty Categories shelf. The vocabulary is recorded from
+        // ZXDB's own dump and is the answer to this question when the service
+        // cannot be read - a shelf that opens onto nothing is indistinguishable
+        // from a broken screen, and this is the one shelf whose contents this
+        // app already knows without asking. Logged, because falling back
+        // silently is how a wrong key name survives a release.
+        if (found.isEmpty()) {
+            Log.w(TAG, "ZXInfo's metadata carried no genres; using the recorded vocabulary");
+
+            for (String genre : Kinds.ZXDB_VOCABULARY) {
+                found.add(new Shelf(GENRE_PREFIX + genre, genre, Shelf.Accepts.NOTHING));
+            }
+        }
+
         return new Page(null, found, 0, Page.UNKNOWN_TOTAL);
+    }
+
+    /**
+     * One bucket's name.
+     *
+     * {@code key} is Elasticsearch's own word for it and is what this app has
+     * recorded, but the bucket's <em>inner</em> shape was never read back from
+     * a live reply - the one sanctioned request established the array's name
+     * and not its contents - so a couple of ordinary alternatives are tried
+     * rather than answering nothing. A bare string is allowed for the same
+     * reason: it is what a list of values looks like when it carries no counts.
+     */
+    private static String keyOf(Object bucket) {
+        if (bucket instanceof String) {
+            String value = ((String) bucket).trim();
+            return value.isEmpty() ? null : value;
+        }
+
+        if (!(bucket instanceof JSONObject)) return null;
+
+        JSONObject entry = (JSONObject) bucket;
+
+        for (String field : new String[] { "key", "name", "value" }) {
+            String value = text(entry, field);
+            if (value != null) return value;
+        }
+
+        return null;
     }
 
     /**
@@ -304,13 +372,19 @@ public final class ZxInfoCatalogue implements Catalogue {
      * the record's own {@code _source}, so a row drawn from a list and a row
      * drawn from a fetch cannot disagree.
      *
-     * <b>{@code availability} is not always there.</b> One of the first three
-     * rows a live search brought back carries none at all - a 2024 release, so
-     * not an obscure corner of the database. {@code Item.available} reads an
-     * absent one as not available, which is the safe direction and is that
-     * type's own rule, but it means such a row draws greyed with no reason
-     * beside it; a screen showing these should say nothing rather than say
-     * why, where the reason is null.
+     * <b>{@code availability} is not always there, and absent is a third
+     * answer.</b> One of the first three rows a live search brought back
+     * carries none at all - a 2024 release, so not an obscure corner of the
+     * database. There are three states here and not two: available, explicitly
+     * something else, and unstated. {@code Item.available} folds the third into
+     * the second, which is the right reading of "is this definitely
+     * available" and is that type's own rule, deliberately not changed here.
+     *
+     * <b>The drawing code must not inherit that rule blindly.</b> Greying a row
+     * is a different question from "is it definitely available", and answering
+     * it with this one greys a perfectly ordinary new release and then has no
+     * reason to show beside it, because {@link Item#availability} is null. Where
+     * the reason is null the row should say nothing rather than say why.
      *
      * @param full whether to read the releases, which only {@code /games}
      *             carries and which are what makes that call worth making.

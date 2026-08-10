@@ -96,6 +96,29 @@ public class ZxInfoCatalogueTest {
             + "\"genretype\":[{\"key\":\"Arcade Game\",\"doc_count\":12184},"
             + "               {\"key\":\"Utility\",\"doc_count\":5731}]}";
 
+    /**
+     * The same call, under the name the service actually uses.
+     *
+     * <b>Measured, and it corrected the body above:</b> asked on 2026-08-10,
+     * {@code /metadata/} answered 5,289 bytes whose three top-level keys are
+     * {@code machinetypes}, {@code genretypes} and {@code features} - plural.
+     * A parser reading the singular found no genres at all and handed back an
+     * empty Categories shelf, which on screen is indistinguishable from a
+     * screen that failed to draw.
+     *
+     * The two arrays that are empty here are empty because they were not read,
+     * not because the service sent them so; and the buckets inside
+     * {@code genretypes} are carried over from the body above rather than
+     * measured, since the one request this was allowed established the array's
+     * name and not its contents. Both are honest gaps rather than inventions -
+     * see {@code ZxInfoCatalogue.keyOf}, which is lenient for that reason.
+     */
+    private static final String METADATA_LIVE = "{"
+            + "\"machinetypes\":[],"
+            + "\"genretypes\":[{\"key\":\"Arcade Game\",\"doc_count\":12184},"
+            + "                {\"key\":\"Utility\",\"doc_count\":5731}],"
+            + "\"features\":[]}";
+
     // --- the shelves --------------------------------------------------------------------
 
     /** Declared, and asking for them makes no request - the tab builds itself
@@ -287,6 +310,38 @@ public class ZxInfoCatalogueTest {
         assertEquals(2, page.shelves().size());
         assertEquals("Arcade Game", page.shelves().get(0).label());
         assertFalse("a page of shelves must not page on",  page.hasMore());
+    }
+
+    /** And the array is the plural one, which is the whole of what a live
+     *  request changed here. */
+    @Test
+    public void thegenresComeFromThepluralArray() throws Exception {
+        Canned http = new Canned().then(200, METADATA_LIVE);
+
+        Catalogue.Page page = new ZxInfoCatalogue(http).open(
+                shelf(http, "genres"), Catalogue.Query.none(), 0);
+
+        assertEquals(2, page.shelves().size());
+        assertEquals("Arcade Game", page.shelves().get(0).label());
+    }
+
+    /**
+     * Categories never opens onto nothing.
+     *
+     * The genres are the one list this app already knows without asking - it
+     * is recorded in {@code Kinds.ZXDB_VOCABULARY} from ZXDB's own dump - so a
+     * reply it cannot read falls back to that rather than to an empty screen.
+     * A key name that changes again should cost the counts and not the shelf.
+     */
+    @Test
+    public void areplyWithNoGenresFallsBackToTheRecordedVocabulary() throws Exception {
+        Canned http = new Canned().then(200, "{\"machinetypes\":[],\"features\":[]}");
+
+        Catalogue.Page page = new ZxInfoCatalogue(http).open(
+                shelf(http, "genres"), Catalogue.Query.none(), 0);
+
+        assertEquals(Kinds.ZXDB_VOCABULARY.length, page.shelves().size());
+        assertTrue("a fallback shelf brought items", page.items().isEmpty());
     }
 
     // --- refusals --------------------------------------------------------------------------
