@@ -153,6 +153,15 @@ public class SetupDialogTest {
 
         writeStore();
 
+        // The store does not read itself, and instrumentation runs in the
+        // app's own process: a class that ran earlier in this suite leaves a
+        // loaded copy behind, `ensureLoaded` then does nothing, and the file
+        // just written is never read - so no record is found and the question
+        // is correctly never asked. This passes alone and fails behind
+        // DetailPaneTest, which is how it was found. The @After below already
+        // does the same thing for whatever runs next.
+        Metadata.refresh(context);
+
         SharedPreferences preferences = preferences();
         theirProfiles = preferences.getString(ControlProfiles.KEY_PROFILES, null);
         theirCurrent = preferences.getInt(ControlProfiles.KEY_CURRENT, 0);
