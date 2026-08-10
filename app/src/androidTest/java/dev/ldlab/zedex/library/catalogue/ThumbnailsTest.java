@@ -18,9 +18,11 @@ import org.junit.runner.RunWith;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -61,6 +63,70 @@ public class ThumbnailsTest {
         }
     }
 
+    /**
+     * Writes a 1x1 png like {@link OnePixel}, but only after the test
+     * releases it - so a caller landing while this is blocked is
+     * genuinely concurrent with the fetch, not merely re-entrant on the
+     * same thread before the pool has picked the task up.
+     */
+    private static final class Blocking implements Http {
+        final List<String> asked = new ArrayList<>();
+
+        /** Counted down the moment save() is actually entered - proof the
+         *  fetch is really running, not merely submitted. */
+        final CountDownLatch entered = new CountDownLatch(1);
+
+        /** Held closed by the test until it wants save() to finish. */
+        final CountDownLatch release = new CountDownLatch(1);
+
+        @Override
+        public Reply get(String url) {
+            throw new UnsupportedOperationException("not this test's business");
+        }
+
+        @Override
+        public String save(String url, File into) throws IOException {
+            synchronized (asked) {
+                asked.add(url);
+            }
+            entered.countDown();
+
+            try {
+                release.await(10, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+
+            Bitmap dot = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
+            try (FileOutputStream out = new FileOutputStream(into)) {
+                dot.compress(Bitmap.CompressFormat.PNG, 100, out);
+            }
+            return "00000000000000000000000000000000";
+        }
+
+        int askedCount() {
+            synchronized (asked) {
+                return asked.size();
+            }
+        }
+    }
+
+    /** Throws, the way a 404 or a timeout would. */
+    private static final class Failing implements Http {
+        final List<String> asked = new ArrayList<>();
+
+        @Override
+        public Reply get(String url) {
+            throw new UnsupportedOperationException("not this test's business");
+        }
+
+        @Override
+        public synchronized String save(String url, File into) throws IOException {
+            asked.add(url);
+            throw new IOException("404");
+        }
+    }
+
     @Before
     public void setUp() {
         context = ApplicationProvider.getApplicationContext();
@@ -92,15 +158,17 @@ public class ThumbnailsTest {
     }
 
     /**
-     * <b>Two rows wanting the same picture make one request.</b>
+     * <b>A second caller before the first finishes joins rather than
+     * fetches.</b>
      *
-     * Not a nicety: the same cover appears in a search result and again in
-     * whatever list it was reached from, and a grid scrolled past a row and
-     * back asks again before the first answer has landed. One request per url
-     * in flight is what keeps that from being two.
+     * Both calls are made from this one thread, back to back, so this
+     * proves re-entrancy before completion - a naive check-then-start
+     * would already pass it, since only one thread is ever inside the
+     * decision. {@link #twoThreadsAskingAtOnceStillMakeOneRequest} is what
+     * exercises the same guarantee under real concurrency.
      */
     @Test
-    public void thesameUrlAskedTwiceAtOnceIsOneRequest() throws Exception {
+    public void joiningAFetchAlreadyUnderwayMakesOneRequest() throws Exception {
         OnePixel http = new OnePixel();
         CountDownLatch both = new CountDownLatch(2);
 
@@ -112,6 +180,53 @@ public class ThumbnailsTest {
         assertEquals("the same picture was fetched twice", 1, http.asked.size());
     }
 
+    /**
+     * <b>Two rows wanting the same picture make one request - even asked
+     * from two real threads at once.</b>
+     *
+     * The same cover appears in a search result and again in whatever list
+     * it was reached from, and a grid scrolled past a row and back asks
+     * again before the first answer has landed - both are genuinely
+     * concurrent callers, not one thread calling twice. A {@link
+     * CyclicBarrier} releases two threads together, and {@link Blocking}
+     * holds {@code save()} open until both calls have returned and the
+     * fetch one of them started has actually entered {@code save()} - so
+     * the second call is guaranteed to land while the first is really in
+     * flight, not merely submitted, whichever of the two threads happens
+     * to be the one that starts it.
+     */
+    @Test
+    public void twoThreadsAskingAtOnceStillMakeOneRequest() throws Exception {
+        Blocking http = new Blocking();
+        CyclicBarrier together = new CyclicBarrier(2);
+        CountDownLatch told = new CountDownLatch(2);
+
+        Runnable ask = () -> {
+            try {
+                together.await(10, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+            Thumbnails.load(context, http, URL, (url, picture) -> told.countDown());
+        };
+
+        Thread first = new Thread(ask);
+        Thread second = new Thread(ask);
+        first.start();
+        second.start();
+        first.join(10_000);
+        second.join(10_000);
+
+        assertEquals("the fetch never really started", true,
+                     http.entered.await(10, TimeUnit.SECONDS));
+
+        http.release.countDown();
+
+        assertEquals("both callers were not told", true,
+                     told.await(10, TimeUnit.SECONDS));
+        assertEquals("the same picture was fetched twice", 1, http.askedCount());
+    }
+
     /** A url of nothing is not a request. Plenty of catalogue entries have no
      *  picture at all, and those rows are text rows. */
     @Test
@@ -121,5 +236,35 @@ public class ThumbnailsTest {
         Thumbnails.load(context, http, null, (url, picture) -> { });
 
         assertEquals(0, http.asked.size());
+    }
+
+    /**
+     * A url known to answer with nothing is not asked again until {@link
+     * Thumbnails#forget()} - a row scrolling back on screen must not repeat
+     * a request already known to fail, the same pattern that got this
+     * app's address blocked once.
+     */
+    @Test
+    public void aknownFailureIsNotRetriedUntilForget() throws Exception {
+        Failing http = new Failing();
+
+        CountDownLatch missed = new CountDownLatch(1);
+        Thumbnails.load(context, http, URL, (url, picture) -> missed.countDown());
+        assertEquals("the miss was never reported", true,
+                     missed.await(10, TimeUnit.SECONDS));
+
+        CountDownLatch again = new CountDownLatch(1);
+        Thumbnails.load(context, http, URL, (url, picture) -> again.countDown());
+        assertEquals("the second caller was not told", true,
+                     again.await(10, TimeUnit.SECONDS));
+        assertEquals("a known failure was retried", 1, http.asked.size());
+
+        Thumbnails.forget();
+
+        CountDownLatch retried = new CountDownLatch(1);
+        Thumbnails.load(context, http, URL, (url, picture) -> retried.countDown());
+        assertEquals("forget() did not clear the remembered failure", true,
+                     retried.await(10, TimeUnit.SECONDS));
+        assertEquals("forget() should allow exactly one retry", 2, http.asked.size());
     }
 }

@@ -35,7 +35,8 @@ import java.util.Map;
  * blocked once. {@link #inFlight} is what makes a second caller join the
  * first rather than start another - see its own comment for why the check
  * and the start have to be one atomic step rather than two, or the guarantee
- * is luck rather than a proof.
+ * is luck rather than a proof - and for why every listener that joins is
+ * told exactly once, whatever the fetch actually does.
  *
  * Bounded the same way {@code PictureCache} is - an {@link LruCache} sized
  * from a fraction of this process's own heap, evicting the least-recently
@@ -49,7 +50,7 @@ public final class Thumbnails {
 
     /** Told once a cover has arrived - or has not, in which case {@code
      *  picture} is null and the row keeps whatever placeholder it already
-     *  draws. Never told twice for the same {@link #load} call. */
+     *  draws. Told exactly once for the same {@link #load} call. */
     public interface Listener {
         void ready(String url, Bitmap picture);
     }
@@ -83,21 +84,58 @@ public final class Thumbnails {
     };
 
     /**
+     * Urls that were asked for and answered with nothing - a 404, a
+     * timeout, a file {@code BitmapFactory} could not decode - remembered
+     * so that scrolling the same row off screen and back does not repeat a
+     * request already known to fail. The same shape {@code Artwork} uses,
+     * caching a miss as {@code Uri.EMPTY} rather than re-deriving it every
+     * time it is asked; see CLAUDE.md on this very address having been
+     * blocked once for exactly this pattern of repeated requests for
+     * nothing. Bounded by entry count rather than by heap fraction the way
+     * {@link #cache} is - a remembered failure costs a few bytes, not a
+     * decoded bitmap, so sizing it off memory pressure would answer a
+     * question this map does not raise.
+     */
+    private static final LruCache<String, Boolean> failed = new LruCache<>(512);
+
+    /**
      * Every url a fetch is currently running for, and who is waiting to be
-     * told when it finishes. The key's presence is the only fact that
-     * decides "start a fetch" from "join the one already running" - so the
-     * check and the start are done inside the same block synchronized on
-     * this map, never as two separate steps a second thread could land
-     * between.
+     * told when it finishes.
      *
-     * The same lock also guards writing the answer: {@link #fetch} puts the
-     * finished bitmap into {@link #cache} and removes this map's entry
-     * inside one more synchronized block, so a caller can never observe
-     * "not cached, and nobody is fetching it" while an answer is on its way
-     * in but has not been filed yet - the one interleaving that would let a
-     * second, needless fetch start. That is what makes "one request per
-     * url" a guarantee rather than something that happens to hold on a
-     * loaded emulator and stops holding on a fast one.
+     * <p>The key's presence is the only fact that decides "start a fetch"
+     * from "join the one already running", so {@link #load} makes that
+     * decision - together with the {@link #cache} and {@link #failed}
+     * lookups, since a caller must tell all three apart in one look - inside
+     * a single block synchronized on this map, never as separate steps a
+     * second caller could land between.
+     *
+     * <p>The same lock guards the other end: {@link #finish} files the
+     * answer (into {@link #cache} on a picture, {@link #failed} on nothing)
+     * and removes this map's entry inside one more synchronized block, so a
+     * caller can never observe "not cached, not a known failure, and nobody
+     * is fetching it" while an answer is on its way in but not yet filed -
+     * the one interleaving that would let a second, needless fetch start.
+     * That is what makes "one request per url" a guarantee rather than
+     * something that happens to hold under one timing and stops holding
+     * under another.
+     *
+     * <p>It is also what guarantees every listener that ever entered this
+     * map is told exactly once. A listener is added to a url's list inside
+     * the same synchronized block that confirms the url is (or is about to
+     * become) in flight, so it can never be added after {@link #finish} has
+     * already removed and notified that same list - there is no state
+     * between "still in flight" and "answered" for it to be added into by
+     * mistake. And {@link #finish} itself runs exactly once per fetch,
+     * reached through {@link #fetch}'s own {@code finally} whatever the
+     * fetch actually did - decoded a picture, threw, or ran out of memory -
+     * so a list, once handed to {@link #finish}, is always notified and
+     * never notified twice.
+     *
+     * <p>{@link #forget} deliberately does not touch this map. Clearing an
+     * in-flight entry here - rather than only a finished answer in {@link
+     * #cache} or {@link #failed} - is exactly what would strand its
+     * listeners: {@link #finish} would find nothing to remove and notify
+     * nobody, including the very caller that started the fetch.
      */
     private static final Map<String, List<Listener>> inFlight = new HashMap<>();
 
@@ -119,33 +157,48 @@ public final class Thumbnails {
      * A null or empty {@code url} is not a request - plenty of catalogue
      * entries have no picture at all, and those rows are text rows; asking
      * for nothing here would only be a wasted round trip through {@link
-     * Work}. A cache hit answers {@code listener} at once, on the calling
-     * thread, exactly as {@code Scraped.picture} already does; a miss
-     * fetches on {@link Work#run} and answers through {@link
-     * Work#onMain}, so a caller never has to guess which thread it will be
-     * told on.
+     * Work}. A url already known to answer with nothing - see {@link
+     * #failed} - is not re-requested either, for the same reason: a row
+     * scrolling back on screen must not repeat a request already known to
+     * fail.
+     *
+     * A cache hit, or a known failure, answers {@code listener} at once, on
+     * the calling thread, exactly as {@code Scraped.picture} already does
+     * for its own cache hit; an actual miss fetches on {@link Work#run} and
+     * answers through {@link Work#onMain}, so a caller never has to guess
+     * which thread it will be told on.
      */
     public static void load(Context context, Http http, String url, Listener listener) {
         if (url == null || url.isEmpty()) return;
 
         Bitmap cached;
+        boolean knownFailure = false;
         boolean start = false;
 
         synchronized (inFlight) {
             cached = cache.get(url);
             if (cached == null) {
-                List<Listener> waiting = inFlight.get(url);
-                if (waiting == null) {
-                    waiting = new ArrayList<>();
-                    inFlight.put(url, waiting);
-                    start = true;
+                if (Boolean.TRUE.equals(failed.get(url))) {
+                    knownFailure = true;
+                } else {
+                    List<Listener> waiting = inFlight.get(url);
+                    if (waiting == null) {
+                        waiting = new ArrayList<>();
+                        inFlight.put(url, waiting);
+                        start = true;
+                    }
+                    waiting.add(listener);
                 }
-                waiting.add(listener);
             }
         }
 
         if (cached != null) {
             listener.ready(url, cached);
+            return;
+        }
+
+        if (knownFailure) {
+            listener.ready(url, null);
             return;
         }
 
@@ -158,21 +211,27 @@ public final class Thumbnails {
     }
 
     /**
-     * Drops every cover held.
+     * Drops every cover held and every remembered failure - a fresh {@link
+     * #load} for anything tries again as though nothing had been asked
+     * before.
      *
-     * A fetch already in flight is not stopped by this - nothing here can
-     * reach into {@link Http} mid-read - and still tells whoever is waiting
-     * on it once it finishes; only the cache entry it would otherwise have
-     * filled is gone, so the next {@link #get} still misses and the next
-     * {@link #load} fetches again. Used by the test to start each case with
-     * nothing cached from the one before, the same reason {@code
-     * PictureCache.forget} exists.
+     * <b>Does not touch a fetch already in flight.</b> That fetch's own
+     * {@link #finish} still runs when it completes and still notifies
+     * whatever listeners joined it - {@link #inFlight} is untouched here on
+     * purpose; see its own comment for why clearing it is exactly what would
+     * strand those listeners. This is called by a low-memory handler and by
+     * the view tearing down, precisely while the grid can be live and a
+     * row's cover mid-fetch, so a permanently blank row is the one outcome
+     * that is worse than this method doing slightly less than "forget"
+     * suggests. What it does free is only what {@link #finish} would
+     * otherwise have found already filed - a fetch still in flight simply
+     * files its answer into an empty cache when it lands.
      */
     public static void forget() {
         synchronized (inFlight) {
-            inFlight.clear();
+            cache.evictAll();
+            failed.evictAll();
         }
-        cache.evictAll();
     }
 
     private static void fetch(Context context, Http http, String url, int targetPx) {
@@ -180,29 +239,57 @@ public final class Thumbnails {
         File file = new File(context.getCacheDir(), "thumbnail-" + System.nanoTime());
 
         try {
-            http.save(url, file);
-            picture = decode(file, targetPx);
-        } catch (Exception e) {
+            try {
+                http.save(url, file);
+                picture = decode(file, targetPx);
+            } finally {
+                file.delete();
+            }
+        } catch (Throwable t) {
             // A 404, a timeout, a corrupt file, a format BitmapFactory does
-            // not know - any of them means "no picture" here, the same
-            // reasoning PictureCache.decodeFresh already uses for a
-            // provider answering unpredictably.
+            // not know, or a decode too large to fit in memory - an
+            // OutOfMemoryError, not an Exception; PictureCache.decodeFresh
+            // catches the same width for the same reason. Any of them means
+            // "no picture", never "leave this url in flight for ever": the
+            // outer finally below always runs regardless of what was thrown
+            // here, so every listener that joined is still told and no
+            // future load() for this url is left joining a fetch that can
+            // never finish.
             picture = null;
         } finally {
-            file.delete();
+            // Reached on every path out of the try above - success, the
+            // caught failure, or anything this method did not anticipate -
+            // which is what makes finish() run exactly once per fetch
+            // rather than a catch clause hoped to be wide enough. See
+            // inFlight's own comment for why that is what guarantees every
+            // listener is told exactly once.
+            finish(url, picture);
         }
+    }
 
+    /**
+     * The one place a fetch ends, always reached through {@link #fetch}'s
+     * own {@code finally}. Files the answer and hands the url's own waiters
+     * to it, atomically with {@link #load}'s hit / known-failure / join /
+     * start decision - see {@link #inFlight}'s comment for why that
+     * atomicity is what guarantees every listener is told exactly once.
+     */
+    private static void finish(String url, Bitmap picture) {
         List<Listener> waiting;
+
         synchronized (inFlight) {
-            if (picture != null) cache.put(url, picture);
+            if (picture != null) {
+                cache.put(url, picture);
+            } else {
+                failed.put(url, Boolean.TRUE);
+            }
             waiting = inFlight.remove(url);
         }
 
-        Bitmap result = picture;
-        if (waiting != null) {
-            for (Listener listener : waiting) {
-                Work.onMain(() -> listener.ready(url, result));
-            }
+        if (waiting == null) return;
+
+        for (Listener listener : waiting) {
+            Work.onMain(() -> listener.ready(url, picture));
         }
     }
 
