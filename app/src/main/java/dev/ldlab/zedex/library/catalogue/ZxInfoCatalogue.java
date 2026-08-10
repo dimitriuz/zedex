@@ -58,7 +58,12 @@ import java.util.Locale;
  *       title sort, rather than a path of its own. <b>A shelf is data, and one
  *       implemented a different way is still the same shelf</b> - nothing above
  *       this interface can tell, and a by-letter endpoint that may or may not
- *       exist is not worth a request to find out.</li>
+ *       exist is not worth a request to find out. <b>{@code sort=title_asc} is
+ *       a guessed value and is unverified</b> - the parameter itself is proven,
+ *       since {@code date_desc} was checked on the same one, but nothing has
+ *       confirmed the service knows this value. It fails gently: an unrecognised
+ *       sort leaves the shelf in relevance order rather than alphabetical, which
+ *       is a worse A-Z and not a wrong one.</li>
  *   <li><b>Newest</b> asks for {@code sort=date_desc}, and <b>the sort is
  *       honoured</b> - verified 2026-08-10, because an ignored sort parameter
  *       answers 200 with plausible rows and looks exactly like one that
@@ -92,10 +97,15 @@ import java.util.Locale;
  * <b>A total of exactly 10,000 is a cap and not a count - do not print it.</b>
  * The unfiltered Newest shelf reported one, where the database holds about
  * 39,666. It is Elasticsearch's default limit on counting and, at the same
- * time, the deepest a paged search may go - so it is the right number to page
- * against, and {@code Page.hasMore} stops the list exactly at the window
- * rather than walking into a refusal, which is why it is passed through
- * unaltered. It is a lie as a result count, and the lie is worst on the broad
+ * time, about as deep as a paged search may go - so it is the right number to
+ * page against, and {@code Page.hasMore} stops the list within a page of the
+ * window rather than walking on for ever, which is why it is passed through
+ * unaltered. Not exactly at it: thirty does not divide ten thousand, so the
+ * last request this makes is {@code offset=9990&size=30}, which reaches a
+ * little past the window and may be refused. One refusal at the bottom of ten
+ * thousand rows is a good trade for arithmetic nobody has to maintain, and it
+ * is written down here rather than guarded against because it has not been
+ * seen. It is a lie as a result count, and the lie is worst on the broad
  * shelves where somebody is most likely to read one. Whatever draws these rows
  * must treat the cap as "at least this many" and not as "this many". A shelf
  * narrow enough to have a real total gets one: the search that proved this
@@ -167,7 +177,26 @@ public final class ZxInfoCatalogue implements Catalogue {
     public Page open(Shelf shelf, Query query, int page) throws ScrapeException {
         if (SHELF_GENRES.equals(shelf.id())) return genres();
 
-        // A random shelf cannot count: the offset is not an index into
+        // A surprise is one page, and the second one is empty on purpose.
+        //
+        // offset=random does not resample: two successive requests with it
+        // returned the identical ten entries. So page two of this shelf is
+        // page one again - the same URL, the same thirty rows, appended to the
+        // thirty already on screen. And nothing stops it, because the total is
+        // unknown and Page.hasMore reads unknown-plus-non-empty as "there is
+        // more": an endless grid of duplicates, one paced request per fling,
+        // against the host that blocked this app once already.
+        //
+        // Ended here rather than in hasMore, whose contract is right and which
+        // other shelves depend on. The only honest thing to do with a shelf
+        // that cannot page is to stop after the first one; the total stays
+        // UNKNOWN_TOTAL because there genuinely is no count, and it is the
+        // empty second page that ends the list.
+        if (SHELF_RANDOM.equals(shelf.id()) && page > 0) {
+            return new Page(null, null, page * PAGE_SIZE, Page.UNKNOWN_TOTAL);
+        }
+
+        // A random shelf cannot count either: the offset is not an index into
         // anything, so the total the service reports says nothing about how
         // much of it this list has seen.
         boolean countable = !SHELF_RANDOM.equals(shelf.id());
@@ -266,8 +295,11 @@ public final class ZxInfoCatalogue implements Catalogue {
             JSONObject source = hit.optJSONObject("_source");
             if (source == null) continue;
 
-            String id = hit.optString("_id", "");
-            if (id.isEmpty()) continue;
+            // Through text() like everything else: optString answers the
+            // string "null" for a JSON null, and that id would go straight
+            // back out as games/null?mode=compact.
+            String id = text(hit, "_id");
+            if (id == null) continue;
 
             items.add(itemFrom(id, source, false));
         }
@@ -288,12 +320,18 @@ public final class ZxInfoCatalogue implements Catalogue {
      * reply's three top-level keys are {@code machinetypes}, {@code genretypes}
      * and {@code features}, 5,289 bytes in all - comfortably inside the two
      * megabytes {@code Http.Real} will read, so the hard-coded fallback the
-     * brief allowed for size is not needed. The singular is tried after it
-     * because that is what this app's own recorded body says, and the recorded
-     * body is what the test asserts against; one of the two is a
-     * mis-transcription and leniency about which key holds the value costs
-     * nothing. It is the same leniency that had {@code ZxInfo.byHash} right
-     * about {@code entry_id} before anybody could check.
+     * brief allowed for size is not needed.
+     *
+     * The singular is still tried after it, and it is worth being exact about
+     * why, because the reason is not that the two are equally likely. The
+     * fixture this class was first written against said {@code genretype}, and
+     * that fixture was written from memory rather than captured from a reply -
+     * so it was never a recording and is not evidence of anything the service
+     * has ever sent. The parser and the fixture agreed with each other and both
+     * disagreed with the service, which is the one class of mistake a canned
+     * test cannot catch. The singular is kept only as a cheap second guess, at
+     * no cost, in the same spirit that had {@code ZxInfo.byHash} right about
+     * {@code entry_id} before anybody could check. The verified name is first.
      */
     private Page genres() throws ScrapeException {
         JSONObject reply = object(ask("metadata/"));
@@ -513,11 +551,23 @@ public final class ZxInfoCatalogue implements Catalogue {
         return extensionOf(path.substring(0, path.length() - extension.length() - 1));
     }
 
+    /**
+     * The extension, <b>of the last path segment only</b>.
+     *
+     * A path here can be a whole url - ZXDB's recordings are on archive.org -
+     * and a url need not end in a file name. Reading from the last dot in the
+     * whole string makes {@code https://archive.org/download/zx_rzx/Foo} an
+     * extension of {@code org/download/zx_rzx/foo}: harmless where the record
+     * states a real format, and a plausible-looking wrong answer where it does
+     * not, which is the worse of the two failures.
+     */
     private static String extensionOf(String path) {
-        int dot = path.lastIndexOf('.');
-        if (dot < 0 || dot == path.length() - 1) return "";
+        String name = path.substring(path.lastIndexOf('/') + 1);
 
-        return path.substring(dot + 1).toLowerCase(Locale.US);
+        int dot = name.lastIndexOf('.');
+        if (dot < 0 || dot == name.length() - 1) return "";
+
+        return name.substring(dot + 1).toLowerCase(Locale.US);
     }
 
     private static String publisher(JSONObject of) {

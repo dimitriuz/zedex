@@ -8,6 +8,7 @@ import static org.junit.Assert.assertTrue;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
 import dev.ldlab.zedex.library.scrape.Http;
+import dev.ldlab.zedex.library.scrape.ZxInfo;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -24,11 +25,19 @@ import java.util.List;
  * answers both with null - silently, under returnDefaultValues - so a unit
  * test here would assert against a URL that was never encoded.
  *
- * Every body below is one the service actually sent, trimmed to what is
- * asserted on. Writing one to make a parser pass is how a client comes to
- * believe a field name the service does not use, which this app has been
- * caught by once already: /filecheck answers entry_id where the specification
- * says id.
+ * Every body below is meant to be one the service actually sent, trimmed to
+ * what is asserted on - and each says which it is. Writing one from memory is
+ * how a client comes to believe a field name the service does not use, which
+ * this app has been caught by twice: /filecheck answers entry_id where the
+ * specification says id, and {@link #METADATA} below claimed a genretype array
+ * where the service sends genretypes, so the parser and the fixture agreed with
+ * each other and both disagreed with the service. That one is kept, marked, as
+ * the reason {@link #METADATA_LIVE} exists.
+ *
+ * <b>What a canned body cannot attest to is the URL.</b> A wrong parameter name
+ * is ignored rather than refused by this service - it answers 200 with a full
+ * unfiltered result set that reads exactly like a shelf that works - so the
+ * requests are asserted on directly, shelf by shelf, further down.
  */
 @RunWith(AndroidJUnit4.class)
 public class ZxInfoCatalogueTest {
@@ -90,8 +99,12 @@ public class ZxInfoCatalogueTest {
             + "       \"path\":\"https://archive.org/download/zx_rzx/HeadOverHeels.rzx.zip\"}"
             + "  ]}]}}";
 
-    /** {@code /metadata/}, trimmed to the genre list the Categories shelf
-     *  hands back. */
+    /**
+     * {@code /metadata/} as this class first believed it - <b>written from
+     * memory, and wrong</b>. The array is {@code genretypes}; see
+     * {@link #METADATA_LIVE}. Kept because the parser is deliberately lenient
+     * about which of the two it finds, and this is what pins that leniency.
+     */
     private static final String METADATA = "{"
             + "\"genretype\":[{\"key\":\"Arcade Game\",\"doc_count\":12184},"
             + "               {\"key\":\"Utility\",\"doc_count\":5731}]}";
@@ -344,6 +357,129 @@ public class ZxInfoCatalogueTest {
         assertTrue("a fallback shelf brought items", page.items().isEmpty());
     }
 
+    // --- what each shelf actually asks for --------------------------------------------------
+
+    /**
+     * <b>Every shelf, opened offline, asserted on its URL.</b>
+     *
+     * These cost no requests and catch what no reply ever could. This service
+     * <em>ignores</em> a parameter it does not know rather than refusing it:
+     * a wrong name answers 200 with the whole unfiltered database and reads on
+     * screen as a shelf that works. So a wrong base host, a misspelt path, a
+     * renamed parameter or a changed page size all have to be caught here or
+     * not at all - and this task met that failure twice while it was being
+     * written, at {@code genretypes} and nearly at {@code genretype=}.
+     *
+     * The absence of a filter is asserted on every shelf rather than only on
+     * search: a filter added to one branch later is exactly how the Pentagon
+     * demoscene disappears, and PENTAGON is a sibling of ZXSPECTRUM in this
+     * scheme rather than a variant of it.
+     */
+    @Test
+    public void everyShelfAsksThisServiceForAcompactUnfilteredPageOfThirty() throws Exception {
+        for (Catalogue.Shelf shelf : new ZxInfoCatalogue(new Canned()).shelves()) {
+            // Categories is not a search at all; it has its own test below,
+            // and the genre shelves it yields are covered by the round trip.
+            if ("genres".equals(shelf.id())) continue;
+
+            String url = urlOpening(shelf, Catalogue.Query.text("x"));
+
+            assertTrue(url, url.startsWith(ZxInfo.API + "search?"));
+            assertTrue(url, url.contains("mode=compact"));
+            assertTrue(url, url.contains("size=30"));
+            assertNoFilter(url);
+        }
+    }
+
+    @Test
+    public void thesearchShelfSearchesForTheTypedText() throws Exception {
+        assertTrue(urlOpening(shelfNamed("search"), Catalogue.Query.text("head"))
+                           .contains("query=head"));
+    }
+
+    /** The letter is the query, and the shelf is alphabetical - which is the
+     *  whole difference between A-Z and Search. */
+    @Test
+    public void theletterShelfSearchesForTheLetterInTitleOrder() throws Exception {
+        String url = urlOpening(shelfNamed("letter"), Catalogue.Query.letter("Q"));
+
+        assertTrue(url, url.contains("query=Q"));
+        assertTrue(url, url.contains("sort=title_asc"));
+    }
+
+    @Test
+    public void thenewestShelfSortsByDateDescending() throws Exception {
+        assertTrue(urlOpening(shelfNamed("newest"), Catalogue.Query.none())
+                           .contains("sort=date_desc"));
+    }
+
+    @Test
+    public void thesurpriseShelfAsksForArandomOffset() throws Exception {
+        assertTrue(urlOpening(shelfNamed("random"), Catalogue.Query.none())
+                           .contains("offset=random"));
+    }
+
+    /**
+     * A surprise is one page.
+     *
+     * {@code offset=random} does not resample - two successive requests with it
+     * returned the identical ten entries - so a second page is the first page
+     * again, appended to itself. With no total to stop it that repeats for
+     * ever: an endless grid of duplicates, one paced request per fling, against
+     * a host that blocks on behaviour. Ended in the shelf rather than in
+     * {@code Page.hasMore}, whose contract the other shelves depend on.
+     */
+    @Test
+    public void thesurpriseShelfDoesNotPageOn() throws Exception {
+        Canned http = new Canned().then(200, SEARCH);
+
+        Catalogue.Page second = new ZxInfoCatalogue(http).open(
+                shelf(http, "random"), Catalogue.Query.none(), 1);
+
+        assertEquals("a second surprise page cost a request", 0, http.asked.size());
+        assertTrue("a second surprise page brought rows", second.items().isEmpty());
+        assertFalse("the surprise shelf pages for ever", second.hasMore());
+    }
+
+    @Test
+    public void categoriesAsksForThemetadataDocument() throws Exception {
+        Canned http = new Canned().then(200, METADATA_LIVE);
+
+        new ZxInfoCatalogue(http).open(shelf(http, "genres"), Catalogue.Query.none(), 0);
+
+        assertEquals(ZxInfo.API + "metadata/", http.asked.get(0));
+    }
+
+    /**
+     * The round trip: Categories yields a shelf, and opening that shelf asks
+     * for that genre.
+     *
+     * The one mechanism nothing else offline touches, and the one zxart's
+     * category tree will rest on entirely. It also pins that the id's internal
+     * prefix stays internal - a shelf id is the catalogue's own and means
+     * nothing to anyone else, so leaking "genre:" into the query would be a
+     * filter for a genre that does not exist, which this service would answer
+     * with everything.
+     */
+    @Test
+    public void agenreSubShelfComesBackAsAsearchFilteredByThatGenre() throws Exception {
+        Canned http = new Canned().then(200, METADATA_LIVE).then(200, SEARCH);
+        ZxInfoCatalogue catalogue = new ZxInfoCatalogue(http);
+
+        Catalogue.Shelf utility = catalogue.open(shelf(http, "genres"),
+                                                 Catalogue.Query.none(), 0).shelves().get(1);
+        assertEquals("Utility", utility.label());
+
+        catalogue.open(utility, Catalogue.Query.none(), 0);
+
+        String url = http.asked.get(1);
+        assertTrue(url, url.startsWith(ZxInfo.API + "search?"));
+        assertTrue(url, url.contains("genretype=Utility"));
+        assertFalse("the shelf id's prefix went out in the request: " + url,
+                    url.contains("%3A"));
+        assertNoFilter(url);
+    }
+
     // --- refusals --------------------------------------------------------------------------
 
     /** Told apart by kind, so the screen can say "in a minute" rather than
@@ -358,6 +494,29 @@ public class ZxInfoCatalogueTest {
     }
 
     // --- helpers ----------------------------------------------------------------------------
+
+    /** Opens a shelf against a canned reply and hands back what it asked for. */
+    private static String urlOpening(Catalogue.Shelf shelf, Catalogue.Query query)
+            throws Exception {
+        Canned http = new Canned().then(200, SEARCH);
+
+        new ZxInfoCatalogue(http).open(shelf, query, 0);
+
+        assertEquals("opening a shelf is one request", 1, http.asked.size());
+        return http.asked.get(0);
+    }
+
+    /** Nothing this app sends narrows a search. Every filter can only lose the
+     *  right answer, and the one that matters most is invisible: filtering to
+     *  ZXSPECTRUM drops PENTAGON, which is a sibling of it here. */
+    private static void assertNoFilter(String url) {
+        assertFalse("a machine filter was applied: " + url, url.contains("machinetype"));
+        assertFalse("a content filter was applied: " + url, url.contains("contenttype"));
+    }
+
+    private static Catalogue.Shelf shelfNamed(String id) {
+        return shelf(new Canned(), id);
+    }
 
     private static Catalogue.Shelf shelf(Http http, String id) {
         for (Catalogue.Shelf shelf : new ZxInfoCatalogue(http).shelves()) {
