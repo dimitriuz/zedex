@@ -149,8 +149,11 @@ Favourites need a store of their own now — paths and their hashes, in the data
 folder — which the metadata PR then absorbs rather than leaves behind. It is
 worth the small duplication: having every tab from the start settles the layout
 before any artwork arrives, and Recents costs almost nothing because the list is
-already there. That bet paid: the fourth tab, two pull requests later, needed no
-change to any of it.
+already there. That bet paid for the tab bar and the list layout: the fourth
+tab, two pull requests later, reused both untouched. It did not pay for the pad
+— `LibraryActivity.buildPadNav`, built for a list, gained branches gated on
+`Tab.CATALOGUE` throughout (move, page, activate, back) once the catalogue tab
+arrived with a view of its own that a cursor cannot walk the same way.
 
 The metadata pane, artwork and video are the second pull request, on
 `feature/library-metadata`. The layout was designed with the pane in it and
