@@ -12,10 +12,12 @@ import dev.ldlab.zedex.library.Filters;
 import dev.ldlab.zedex.library.Listing;
 import dev.ldlab.zedex.library.Shortlist;
 import dev.ldlab.zedex.library.Sorting;
+import dev.ldlab.zedex.library.catalogue.Catalogues;
 import dev.ldlab.zedex.library.meta.Artwork;
 import dev.ldlab.zedex.library.meta.Meta;
 import dev.ldlab.zedex.library.meta.Metadata;
 import dev.ldlab.zedex.library.scrape.Scrapers;
+import dev.ldlab.zedex.library.ui.CatalogueView;
 import dev.ldlab.zedex.library.ui.DetailPane;
 import dev.ldlab.zedex.library.ui.EntryAdapter;
 import dev.ldlab.zedex.library.ui.Gallery;
@@ -56,6 +58,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -168,15 +171,27 @@ public final class LibraryActivity extends ZedexActivity {
      *  buttons were 44 until it was measured. */
     private static final int TOUCH_TARGET_DP = 48;
 
+    /** Indexed by {@link Tab#ordinal()}, both of them - so a new tab goes last
+     *  in the enum and last in each of these, together. */
     private static final int[] TAB_LABELS = {
         R.string.library_tab_browse, R.string.library_tab_favorites,
-        R.string.library_tab_recents,
+        R.string.library_tab_recents, R.string.library_tab_catalogue,
     };
     private static final int[] TAB_ICONS = {
         R.drawable.ic_folder, R.drawable.ic_bookmark, R.drawable.ic_history,
+        R.drawable.ic_catalogue,
     };
 
-    private enum Tab { BROWSE, FAVORITES, RECENTS }
+    /**
+     * The three views of what somebody already has, and one of what they have
+     * not.
+     *
+     * {@link #CATALOGUE} is the only one that may be missing: it is built only
+     * when {@link Catalogues#any} says there is something to browse - see
+     * {@link #buildRail} - which is why {@link #tabViews} is keyed by this
+     * rather than indexed by {@code ordinal()}.
+     */
+    private enum Tab { BROWSE, FAVORITES, RECENTS, CATALOGUE }
 
     /**
      * One level of Browse's own back stack: the folder or zip it is showing,
@@ -248,7 +263,14 @@ public final class LibraryActivity extends ZedexActivity {
      */
     private final Filters filters = new Filters();
 
-    /** Whether anything is narrowed, which is also whether the list is flat. */
+    /**
+     * Whether anything is narrowed, which is also whether the list is flat.
+     *
+     * Browse and nothing else. The library filter is a question about the
+     * content folder, so Favourites, Recent and the catalogue alike answer no
+     * to it however it is set - which is also what keeps its chips off a tab
+     * they would say nothing about; see {@link #updateFilterChips}.
+     */
     private boolean filtering() {
         return !filters.isEmpty() && tab == Tab.BROWSE;
     }
@@ -393,7 +415,35 @@ public final class LibraryActivity extends ZedexActivity {
      *  Select; see {@link #buildToolbar} and {@code OptionsDialog}'s own
      *  class comment on why one door beats two that could drift apart. */
     private ImageButton optionsButton;
-    private final List<View> tabViews = new ArrayList<>();
+
+    /**
+     * The rail's own buttons, by the tab each one shows.
+     *
+     * A map and not a list: {@link Tab#CATALOGUE} is built only when there is
+     * a catalogue to browse, so an index by {@code ordinal()} points at the
+     * wrong button - or off the end - the moment one tab is missing, and the
+     * failure is the wrong button lighting up, which reads as a tap that went
+     * somewhere else. An {@link EnumMap} iterates in ordinal order, so this is
+     * also the rail's own left-to-right order - which {@link
+     * GamepadCursor.Nav#tab} walks.
+     */
+    private final Map<Tab, View> tabViews = new EnumMap<>(Tab.class);
+
+    /**
+     * Everything the library's own three tabs draw - the toolbar, the
+     * breadcrumb, the list - as one view, so that showing the catalogue is
+     * hiding one thing rather than four. Set once, by {@link #buildPage}.
+     */
+    private View mainColumn;
+
+    /**
+     * The fourth tab, or null when this build has no catalogue to browse.
+     *
+     * It owns its own shelves, paging, search and pane, so this screen decides
+     * only which of the two is showing - see {@link #applyTabViews} - and
+     * forwards two things inward: {@code Back}, and the folder picker's answer.
+     */
+    private CatalogueView catalogueView;
 
     /**
      * The pane: always present - see docs/LIBRARY.md and the second pull
@@ -798,8 +848,21 @@ public final class LibraryActivity extends ZedexActivity {
      */
     @Override
     public void onBackPressed() {
+        if (catalogueBack()) return;
         if (popStack()) return;
         super.onBackPressed();
+    }
+
+    /**
+     * The catalogue's own way up, asked first whenever that tab is showing.
+     *
+     * It is a stack too - a pane over a shelf over the roots - and Back means
+     * the same thing there as it does in Browse, so it gets the press before
+     * anything here does. False at its own roots, which is what lets Back go
+     * on to mean "leave the screen".
+     */
+    private boolean catalogueBack() {
+        return tab == Tab.CATALOGUE && catalogueView != null && catalogueView.onBack();
     }
 
     /**
@@ -822,10 +885,17 @@ public final class LibraryActivity extends ZedexActivity {
             return;
         }
 
-        boolean wanted = canPopStack();
+        // The catalogue's answer cannot be known in advance and must not be
+        // asked for: onBack() acts as well as answers, and nothing tells this
+        // screen when a shelf is opened or the pane closed, so a registration
+        // that depended on the view's state would be stale by the first tap.
+        // So the callback is held for the whole of that tab and handleBack
+        // decides - which is why it, and not the dispatcher, is what leaves
+        // the screen when the catalogue is at its roots.
+        boolean wanted = tab == Tab.CATALOGUE || canPopStack();
 
         if (wanted && backCallback == null) {
-            backCallback = this::popStack;
+            backCallback = this::handleBack;
             getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
                     android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
                     backCallback);
@@ -833,6 +903,24 @@ public final class LibraryActivity extends ZedexActivity {
             getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(backCallback);
             backCallback = null;
         }
+    }
+
+    /**
+     * Back on API 33 and later, once {@link #syncBackCallback} has claimed it.
+     *
+     * The same order {@link #onBackPressed} takes on 30 to 32: the catalogue,
+     * then Browse's stack. The third case is the one that only exists here -
+     * the callback is registered for the whole of the catalogue tab, so a Back
+     * at its roots arrives with nothing left to do, and finishing is what an
+     * unclaimed Back would have done anyway. The cost is the predictive
+     * animation for that one press, which is the price of a registration that
+     * cannot go stale.
+     */
+    private void handleBack() {
+        if (catalogueBack()) return;
+        if (popStack()) return;
+
+        finish();
     }
 
     // --- gamepad ---------------------------------------------------------
@@ -868,18 +956,26 @@ public final class LibraryActivity extends ZedexActivity {
                 // gamepad's own are the only ones intercepted before it; see
                 // dispatchKeyEvent.
                 if (searchField.isFocused()) return;
+
+                // And on the catalogue tab the list underneath is hidden:
+                // moving a cursor nobody can see would leave a selection that
+                // activate() could then open, which is a game started by a
+                // press that appeared to do nothing. Left-and-right across the
+                // rail, below, is what a pad can still do here.
+                if (tab == Tab.CATALOGUE) return;
+
                 moveCursor(dx, dy);
             }
 
             @Override
             public void page(int rows) {
-                if (searchField.isFocused()) return;
+                if (searchField.isFocused() || tab == Tab.CATALOGUE) return;
                 pageCursor(rows);
             }
 
             @Override
             public void activate() {
-                if (selected == null) return;
+                if (selected == null || tab == Tab.CATALOGUE) return;
                 open(selected);
             }
 
@@ -893,6 +989,8 @@ public final class LibraryActivity extends ZedexActivity {
                     dismissKeyboard();
                     return;
                 }
+                if (catalogueBack()) return;
+
                 popStack();
             }
 
@@ -905,9 +1003,17 @@ public final class LibraryActivity extends ZedexActivity {
 
             @Override
             public void tab(int delta) {
-                Tab[] values = Tab.values();
-                int index = Math.max(0, Math.min(values.length - 1, tab.ordinal() + delta));
-                show(values[index]);
+                // Across what the rail actually has, in the order it has it -
+                // Tab.values() includes a catalogue tab that may never have
+                // been built, and stepping onto it would select a button that
+                // is not there. tabViews is an EnumMap, so this is ordinal
+                // order, which is rail order.
+                List<Tab> shown = new ArrayList<>(tabViews.keySet());
+
+                int index = shown.indexOf(tab);
+                if (index < 0) return;
+
+                show(shown.get(Math.max(0, Math.min(shown.size() - 1, index + delta))));
             }
 
             @Override
@@ -1125,7 +1231,9 @@ public final class LibraryActivity extends ZedexActivity {
         divider.setBackgroundColor(DIVIDER);
         paneDivider = divider;
 
-        outer.addView(buildMainColumn(), new LinearLayout.LayoutParams(
+        mainColumn = buildMainColumn();
+
+        outer.addView(mainColumn, new LinearLayout.LayoutParams(
                 landscape ? 0 : LinearLayout.LayoutParams.MATCH_PARENT,
                 landscape ? LinearLayout.LayoutParams.MATCH_PARENT : 0, 2f));
 
@@ -1158,6 +1266,26 @@ public final class LibraryActivity extends ZedexActivity {
         outer.addView(pane, new LinearLayout.LayoutParams(
                 landscape ? 0 : LinearLayout.LayoutParams.MATCH_PARENT,
                 landscape ? LinearLayout.LayoutParams.MATCH_PARENT : 0, 1f));
+
+        // The fourth tab, beside the other three's whole column rather than
+        // inside it: it brings its own toolbar, its own list and its own pane,
+        // so it replaces all of that instead of sitting in the middle of it -
+        // which is what keeps this screen at "which of the two is showing".
+        // Built here, once, and kept: rebuilding it on every tab switch would
+        // throw away the shelf somebody was standing in.
+        //
+        // Weighted like the pane, so that with the other two GONE - a GONE
+        // child of a weighted LinearLayout is not laid out at all - it takes
+        // the whole window beside the rail.
+        if (Catalogues.any(this)) {
+            catalogueView = new CatalogueView(this, Catalogues.preferred(this),
+                    this::catalogueImported);
+            catalogueView.setVisibility(View.GONE);
+
+            outer.addView(catalogueView, new LinearLayout.LayoutParams(
+                    landscape ? 0 : LinearLayout.LayoutParams.MATCH_PARENT,
+                    landscape ? LinearLayout.LayoutParams.MATCH_PARENT : 0, 1f));
+        }
 
         root.addView(outer, landscape
                 ? new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
@@ -1286,8 +1414,14 @@ public final class LibraryActivity extends ZedexActivity {
         rail.setGravity(landscape ? Gravity.CENTER_HORIZONTAL : Gravity.CENTER_VERTICAL);
 
         for (Tab candidate : Tab.values()) {
+            // The one tab that may not be here at all. A build with no
+            // catalogue offers no button for it rather than one that can only
+            // fail, exactly as every scrape row in this app already behaves -
+            // and Catalogues.any() answers that question and no other.
+            if (candidate == Tab.CATALOGUE && !Catalogues.any(this)) continue;
+
             View button = buildTab(candidate);
-            tabViews.add(button);
+            tabViews.put(candidate, button);
             rail.addView(button);
         }
 
@@ -1356,9 +1490,12 @@ public final class LibraryActivity extends ZedexActivity {
     }
 
     private void paintTabs() {
-        for (Tab candidate : Tab.values()) {
-            ImageButton button = (ImageButton) tabViews.get(candidate.ordinal());
-            boolean active = candidate == tab;
+        // Over what was actually built, never over Tab.values(): a tab that
+        // was skipped has no button, and indexing this by ordinal() would
+        // light up whichever button happens to sit at that index instead.
+        for (Map.Entry<Tab, View> each : tabViews.entrySet()) {
+            ImageButton button = (ImageButton) each.getValue();
+            boolean active = each.getKey() == tab;
 
             button.setColorFilter(active ? ACTIVE : Palette.MUTED);
 
@@ -1663,12 +1800,57 @@ public final class LibraryActivity extends ZedexActivity {
      * than this method repeating that decision.
      */
     private void applySecondScreen() {
-        boolean hidden = libraryPanel.inUse();
-
-        pane.setVisibility(hidden ? View.GONE : View.VISIBLE);
-        paneDivider.setVisibility(hidden ? View.GONE : View.VISIBLE);
-
+        applyTabViews();
         updatePane();
+    }
+
+    /**
+     * Which of this screen's two surfaces is showing: the library's own column
+     * and pane, or {@link #catalogueView}.
+     *
+     * One place, and both questions asked in it - the tab, and whether the
+     * panel has taken the pane's job. Two places would be two answers, and the
+     * one that ran second would win: {@link #applySecondScreen} used to set the
+     * pane visible on any panel change, which over the catalogue tab is a
+     * third of the window given to a pane about nothing.
+     *
+     * The rail is not touched - it is the way back, and hiding it would leave
+     * a screen with nothing on it but a catalogue.
+     */
+    private void applyTabViews() {
+        boolean catalogue = tab == Tab.CATALOGUE;
+
+        mainColumn.setVisibility(catalogue ? View.GONE : View.VISIBLE);
+        if (catalogueView != null) {
+            catalogueView.setVisibility(catalogue ? View.VISIBLE : View.GONE);
+        }
+
+        // The pane belongs to the library's own three tabs, and stands down
+        // for the panel on those - see applySecondScreen's own reasoning,
+        // which this now carries.
+        boolean paneShows = !catalogue && !libraryPanel.inUse();
+
+        pane.setVisibility(paneShows ? View.VISIBLE : View.GONE);
+        paneDivider.setVisibility(paneShows ? View.VISIBLE : View.GONE);
+    }
+
+    /**
+     * {@link CatalogueView.Host#imported()}: a file has just landed in the
+     * content folder.
+     *
+     * Both caches this screen keeps are keyed by path and neither knows about
+     * a file it did not list - the metadata store's, which {@link
+     * #metadataChanged} re-reads, and the flattened walk a filter reads from,
+     * which is dropped outright. Then the current tab is asked again: while the
+     * catalogue is showing that is a no-op and switching back to Browse lists
+     * the folder afresh anyway, but an import finishing after somebody has
+     * already switched back is exactly the case that would otherwise show a
+     * folder without the file that was just put in it.
+     */
+    private void catalogueImported() {
+        metadataChanged();
+        forgetFlattened();
+        load();
     }
 
     /**
@@ -1755,6 +1937,11 @@ public final class LibraryActivity extends ZedexActivity {
 
         boolean browsing = tab == Tab.BROWSE;
 
+        // Which of the two surfaces this screen has is showing - the library's
+        // own column and pane, or the catalogue's. Everything below it is
+        // about the first, and harmless while it is hidden.
+        applyTabViews();
+
         // Leaving Browse with a filter still set must not leave the chips
         // showing over a tab filtering() does not apply to - updateFilterChips
         // reads the tab this just became, so it is what decides between the
@@ -1804,7 +1991,21 @@ public final class LibraryActivity extends ZedexActivity {
      * stream read from a zip, and none of it may run here.
      */
     private void load() {
+        // Bumped before the catalogue's own early return, not after: switching
+        // to that tab has to disown whatever listing was still in flight, or
+        // it lands afterwards carrying a token that still matches and fills a
+        // list nobody can see - and, on a failed root, replaces the screen
+        // with "choose a content folder" over the catalogue.
         int token = ++loadToken;
+
+        if (tab == Tab.CATALOGUE) {
+            // The view loads itself, one shelf and one page at a time. Running
+            // Browse's own walk here would list somebody's folder behind the
+            // catalogue for nothing - and it is the slowest thing this screen
+            // does.
+            return;
+        }
+
         setLoading(true);
 
         if (tab == Tab.FAVORITES) {
@@ -2232,7 +2433,15 @@ public final class LibraryActivity extends ZedexActivity {
             // the folder itself having nothing in it, which would be false
             // whenever a search or a filter is why the list is empty rather
             // than the folder.
-            emptyLabel.setText(filtering() ? R.string.library_empty_filtered
+            // The catalogue first, and not because it is likely: this method
+            // still runs on that tab - show()'s own clearSearch fires the
+            // search field's TextWatcher, which lands here - and every other
+            // branch is a claim about the content folder, which is not what is
+            // on screen. The catalogue draws its own empty label; this one is
+            // hidden with the rest of the column, and says the same thing
+            // rather than something false if it is ever seen.
+            emptyLabel.setText(tab == Tab.CATALOGUE ? R.string.catalogue_empty
+                              : filtering() ? R.string.library_empty_filtered
                               : !query.isEmpty() ? R.string.library_empty_search
                               : tab == Tab.FAVORITES ? R.string.library_empty_favorites
                               : tab == Tab.RECENTS ? R.string.library_empty_recents
@@ -2583,6 +2792,19 @@ public final class LibraryActivity extends ZedexActivity {
     @Override
     protected void onActivityResult(int request, int result, Intent data) {
         super.onActivityResult(request, result, data);
+
+        // Inward first, and before the early return below - which is what made
+        // this unreachable: the catalogue's pane asks for a writable folder
+        // through this activity, since a view has no onActivityResult of its
+        // own, and every request code that is not this screen's belongs to it.
+        // Without this a content folder granted read-only before importing
+        // existed loses both the grant it was just given and the import that
+        // prompted the ask, silently - createDocument throws a SecurityException
+        // that Storage.keepAccessTo swallows. See CataloguePane.onActivityResult,
+        // which answers whether the request was its own.
+        if (catalogueView != null && catalogueView.onActivityResult(request, result, data)) {
+            return;
+        }
 
         if (request != REQUEST_CONTENT_TREE || result != RESULT_OK
                 || data == null || data.getData() == null) {
