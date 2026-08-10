@@ -45,10 +45,13 @@ import java.util.List;
  * answers false, so Back means what it always meant and the activity - not
  * this view - decides to leave.
  *
- * <b>Two guards on paging, and both are load-bearing.</b> Without {@code
- * inFlight} one fling sends four identical requests; without {@code hasMore}
- * the end of a shelf asks for ever, one paced request per fling, against a
- * host that blocks on behaviour patterns rather than on a published limit.
+ * <b>Three guards on paging, and all three are load-bearing.</b> Without
+ * {@code inFlight} one fling sends four identical requests; without {@code
+ * hasMore} the end of a shelf asks for ever; without {@code failed} a page
+ * that did not arrive is asked for again on every downward scroll, since the
+ * row it leaves behind sits exactly where the prefetch trigger fires. All
+ * three are one paced request per fling against a host that blocks on
+ * behaviour patterns rather than on a published limit.
  */
 public final class CatalogueView extends FrameLayout {
 
@@ -105,11 +108,39 @@ public final class CatalogueView extends FrameLayout {
     private boolean inFlight;
 
     /**
+     * A page of the shelf now open did not arrive, and has not been asked for
+     * again.
+     *
+     * <b>Scrolling must stop asking once this is set.</b> The failed row is
+     * appended at the bottom, which is precisely where the prefetch trigger
+     * fires, so without this every further downward scroll re-sends the same
+     * request - one per fling, with nobody having asked for anything, against
+     * the address this app has already had blocked once for behaviour
+     * patterns. The retry button is the way back, and that is why it exists.
+     *
+     * Separate from {@link #hasMore}, which is the shelf's own answer about
+     * whether there are more pages and stays true across a failure - clearing
+     * that instead would silence the scroll and stop {@link #retry()} dead at
+     * the same guard.
+     */
+    private boolean failed;
+
+    /**
      * Compared on arrival, the same shape {@code LibraryActivity.load} uses
      * and for the same reason: somebody types a second search, or opens
      * another shelf, before the first has answered - and the older answer,
      * arriving late, would otherwise append a page of the wrong shelf to the
      * rows of the new one.
+     *
+     * <b>The token alone does not do it, and for a while this comment claimed
+     * it did.</b> {@link #fetch()} takes its token <em>after</em> the {@code
+     * inFlight} guard, so a shelf opened while a page was still coming made no
+     * request at all - and then the earlier answer landed carrying a token
+     * that still matched and was appended to the rows of the shelf it was not
+     * from, under its header, with {@code page} and {@code hasMore} now
+     * describing something else. Invalidate first, then decide whether to
+     * ask: every path that changes what is on screen goes through {@link
+     * #abandon()} before it goes anywhere near {@link #fetch()}.
      */
     private int fetchToken;
 
@@ -190,7 +221,7 @@ public final class CatalogueView extends FrameLayout {
         recycler.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(RecyclerView view, int dx, int dy) {
-                if (dy <= 0 || inFlight || !hasMore) return;
+                if (dy <= 0 || inFlight || failed || !hasMore) return;
 
                 int count = manager.getItemCount();
                 int last = manager.findLastVisibleItemPosition();
@@ -251,8 +282,7 @@ public final class CatalogueView extends FrameLayout {
      */
     private void showRoots() {
         stack.clear();
-        fetchToken++;          // any answer still in flight is for nowhere now
-        inFlight = false;
+        abandon();
         hasMore = false;
         page = 0;
 
@@ -333,8 +363,33 @@ public final class CatalogueView extends FrameLayout {
 
     // --- pages ---------------------------------------------------------------------
 
+    /**
+     * Whatever is on its way is for somewhere nobody is any more.
+     *
+     * <b>Invalidate first, then decide whether to ask.</b> Both halves are
+     * needed and neither is enough alone: bumping the token is what makes the
+     * older answer undeliverable, and clearing {@code inFlight} is what lets
+     * the new question actually go out - {@link #fetch()} returns at its
+     * {@code inFlight} guard before it takes a token, so without this a search
+     * typed while a page was still coming made no request at all and then wore
+     * the previous shelf's page as its results. {@code failed} goes too: the
+     * failure belonged to the shelf being left.
+     *
+     * The request already in flight is not cancelled, only disowned. It is one
+     * request that has already been paid for; racing it would need a
+     * cancellable {@code Http} this app does not have, and its answer is
+     * dropped on arrival.
+     */
+    private void abandon() {
+        fetchToken++;
+        inFlight = false;
+        failed = false;
+    }
+
     /** Empties the list and asks for page zero of whatever is on top. */
     private void restart() {
+        abandon();
+
         rows.clear();
         adapter.setRows(rows);
 
@@ -345,7 +400,17 @@ public final class CatalogueView extends FrameLayout {
         fetch();
     }
 
+    /**
+     * The next page, because somebody scrolled towards it.
+     *
+     * Refused after a failure. The failed row is at the bottom, which is where
+     * the prefetch trigger fires, so this is the path that would re-send the
+     * same request on every fling with nobody having asked for anything. See
+     * {@link #failed}; {@link #retry()} is the way back.
+     */
     private void nextPage() {
+        if (failed) return;
+
         fetch();
     }
 
@@ -355,26 +420,43 @@ public final class CatalogueView extends FrameLayout {
      * {@link #page} was never incremented by the page that failed, so this
      * asks the same question rather than skipping the page that did not
      * arrive - which would leave a hole nobody could see.
+     *
+     * <b>The row goes only if a request actually went out.</b> {@link #fetch()}
+     * can decline - something else is already in flight, or there is no shelf
+     * open - and removing the row first left somebody looking at a page that
+     * had not come back, with nothing coming and no way left to ask.
      */
     private void retry() {
+        boolean was = failed;
+        failed = false;
+
+        if (!fetch()) {
+            failed = was;
+            return;
+        }
+
         rows.remove(CatalogueAdapter.Failed.ROW);
         adapter.setRows(rows);
-        fetch();
+        updateState();
     }
 
     /**
      * One page, off the UI thread.
      *
-     * Both guards are checked here as well as in the scroll listener, since a
+     * The guards are checked here as well as in the scroll listener, since a
      * retry and a fling can arrive at this from two directions.
+     *
+     * @return whether a request actually went out, since a caller that is
+     *         about to change what is on screen on the strength of one needs
+     *         to know - see {@link #retry()}.
      */
-    private void fetch() {
+    private boolean fetch() {
         Catalogue.Shelf shelf = stack.peek();
-        if (shelf == null || inFlight) return;
+        if (shelf == null || inFlight) return false;
 
         // hasMore is not consulted for page zero: it is what a page answers,
         // and no page has been answered yet.
-        if (page > 0 && !hasMore) return;
+        if (page > 0 && !hasMore) return false;
 
         inFlight = true;
         updateState();
@@ -403,6 +485,8 @@ public final class CatalogueView extends FrameLayout {
 
             Work.onMain(() -> deliver(token, answered, why));
         });
+
+        return true;
     }
 
     /**
@@ -436,6 +520,12 @@ public final class CatalogueView extends FrameLayout {
 
         if (failure != null) {
             Log.w(TAG, "a page of " + labelOf(stack.peek()) + " did not arrive", failure);
+
+            // Automatic paging stops here. hasMore is left alone - it is the
+            // shelf's own answer and retry() has to get past it - so this is
+            // what keeps the row that failure leaves at the bottom of the list
+            // from re-sending the same request on every scroll.
+            failed = true;
 
             // Appended, so whatever already arrived stays on screen. An
             // emptied grid is indistinguishable from a catalogue with nothing

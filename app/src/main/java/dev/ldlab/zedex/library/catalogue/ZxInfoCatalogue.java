@@ -334,6 +334,32 @@ public final class ZxInfoCatalogue implements Catalogue {
     }
 
     /**
+     * The A-Z shelf: one sub-shelf per letter, no items, and no request.
+     *
+     * The letter travels in the sub-shelf's id rather than in a {@link Query},
+     * which is what lets the screen stay ignorant of letters entirely - it
+     * descends into a shelf here exactly as it descends into a genre. The
+     * label is the letter itself, since that is both what somebody reads and,
+     * behind {@link #LETTER_PREFIX}, what the search is built from.
+     *
+     * {@link #ALPHABET} is Latin and only Latin, deliberately - see its own
+     * comment. Twenty-six shelves are built here every time this is called
+     * rather than once into a constant: it is twenty-six small objects on a
+     * tap, and a shared mutable list handed out through {@link Page} is a
+     * worse thing to own.
+     */
+    private Page letters() {
+        List<Shelf> found = new ArrayList<>(ALPHABET.length());
+
+        for (int at = 0; at < ALPHABET.length(); at++) {
+            String letter = String.valueOf(ALPHABET.charAt(at));
+            found.add(new Shelf(LETTER_PREFIX + letter, letter, Shelf.Accepts.NOTHING));
+        }
+
+        return new Page(null, found, 0, Page.UNKNOWN_TOTAL);
+    }
+
+    /**
      * The Categories shelf: sub-shelves, no items.
      *
      * The genre is carried in the sub-shelf's id rather than in its label,
@@ -358,26 +384,6 @@ public final class ZxInfoCatalogue implements Catalogue {
      * no cost, in the same spirit that had {@code ZxInfo.byHash} right about
      * {@code entry_id} before anybody could check. The verified name is first.
      */
-    /**
-     * The A-Z shelf: one sub-shelf per letter, no items, and no request.
-     *
-     * The letter travels in the sub-shelf's id rather than in a {@link Query},
-     * which is what lets the screen stay ignorant of letters entirely - it
-     * descends into a shelf here exactly as it descends into a genre. The
-     * label is the letter itself, since that is both what somebody reads and,
-     * behind {@link #LETTER_PREFIX}, what the search is built from.
-     */
-    private Page letters() {
-        List<Shelf> found = new ArrayList<>(ALPHABET.length());
-
-        for (int at = 0; at < ALPHABET.length(); at++) {
-            String letter = String.valueOf(ALPHABET.charAt(at));
-            found.add(new Shelf(LETTER_PREFIX + letter, letter, Shelf.Accepts.NOTHING));
-        }
-
-        return new Page(null, found, 0, Page.UNKNOWN_TOTAL);
-    }
-
     private Page genres() throws ScrapeException {
         JSONObject reply = object(ask("metadata/"));
         List<Shelf> found = new ArrayList<>();
