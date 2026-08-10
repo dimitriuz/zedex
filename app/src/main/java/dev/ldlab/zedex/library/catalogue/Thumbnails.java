@@ -219,13 +219,21 @@ public final class Thumbnails {
      * {@link #finish} still runs when it completes and still notifies
      * whatever listeners joined it - {@link #inFlight} is untouched here on
      * purpose; see its own comment for why clearing it is exactly what would
-     * strand those listeners. This is called by a low-memory handler and by
-     * the view tearing down, precisely while the grid can be live and a
+     * strand those listeners. It can be called while the grid is live and a
      * row's cover mid-fetch, so a permanently blank row is the one outcome
      * that is worse than this method doing slightly less than "forget"
      * suggests. What it does free is only what {@link #finish} would
      * otherwise have found already filed - a fetch still in flight simply
      * files its answer into an empty cache when it lands.
+     *
+     * <b>Nothing calls this when a view goes away, and that is deliberate.</b>
+     * A rotation detaches the catalogue's grid, and emptying the cache on one
+     * would mean fetching a screenful of covers all over again from a host
+     * that blocked this app's address once for behaviour patterns: the cache
+     * is meant to outlive a detach. This is for a deliberate emptying, and
+     * memory pressure would be its honest caller - there is no such caller
+     * yet. Leaving it uncalled leaks nothing: {@link #cache} is bounded by a
+     * fraction of the heap and evicts its own least-recently-used entry.
      */
     public static void forget() {
         synchronized (inFlight) {

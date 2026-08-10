@@ -150,6 +150,29 @@ public final class CatalogueAdapter extends RecyclerView.Adapter<RecyclerView.Vi
     }
 
     /**
+     * What a row says under its name: {@code "1983 · Bug-Byte Software Ltd"},
+     * skipping whichever is unknown and empty when neither is known.
+     *
+     * <b>Not {@link Catalogue.Item#describe()}</b>, which is the same facts
+     * with the title in front of them. That one is built for a single line in
+     * a chooser, where the title has to be part of it; a row that has already
+     * drawn the title above needs only what distinguishes it, and drawing both
+     * reads as "Manic Miner / Manic Miner (1983) · Bug-Byte Software Ltd".
+     * {@code describe()} is left alone because the pane will want it whole.
+     */
+    static String facts(Catalogue.Item item) {
+        String year = item.year();
+        String publisher = item.publisher();
+
+        boolean hasYear = year != null && !year.isEmpty();
+        boolean hasPublisher = publisher != null && !publisher.isEmpty();
+
+        if (hasYear && hasPublisher) return year + " · " + publisher;
+        if (hasYear) return year;
+        return hasPublisher ? publisher : "";
+    }
+
+    /**
      * Whether a row is drawn as unavailable.
      *
      * <b>Stated and not available</b>, which is a different question from
@@ -226,7 +249,7 @@ public final class CatalogueAdapter extends RecyclerView.Adapter<RecyclerView.Vi
         // The catalogue's own word for why, in place of the facts line: a game
         // announced and cancelled is a real thing to find, and the reason is
         // worth more on that row than the year and the publisher.
-        holder.detail.setText(unavailable ? item.availability() : item.describe());
+        holder.detail.setText(unavailable ? item.availability() : facts(item));
 
         // Reset, not merely set: a recycled holder arrives carrying whatever
         // the row before it was drawn at.

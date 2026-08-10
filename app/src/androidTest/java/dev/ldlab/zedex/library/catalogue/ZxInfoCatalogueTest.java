@@ -378,9 +378,10 @@ public class ZxInfoCatalogueTest {
     @Test
     public void everyShelfAsksThisServiceForAcompactUnfilteredPageOfThirty() throws Exception {
         for (Catalogue.Shelf shelf : new ZxInfoCatalogue(new Canned()).shelves()) {
-            // Categories is not a search at all; it has its own test below,
-            // and the genre shelves it yields are covered by the round trip.
-            if ("genres".equals(shelf.id())) continue;
+            // Categories and A-Z are not searches at all - each yields
+            // sub-shelves, and each has its own test below; the shelves they
+            // yield are covered by their own round trips.
+            if ("genres".equals(shelf.id()) || "letter".equals(shelf.id())) continue;
 
             String url = urlOpening(shelf, Catalogue.Query.text("x"));
 
@@ -397,14 +398,59 @@ public class ZxInfoCatalogueTest {
                            .contains("query=head"));
     }
 
-    /** The letter is the query, and the shelf is alphabetical - which is the
-     *  whole difference between A-Z and Search. */
+    /**
+     * The letter is the query, and the shelf is alphabetical - which is the
+     * whole difference between A-Z and Search.
+     *
+     * Reached the way the screen reaches it: down into the letter's own
+     * sub-shelf. Nothing hands this shelf a {@link Catalogue.Query} any more,
+     * so a test that built one would be testing a path the app does not take.
+     */
     @Test
-    public void theletterShelfSearchesForTheLetterInTitleOrder() throws Exception {
-        String url = urlOpening(shelfNamed("letter"), Catalogue.Query.letter("Q"));
+    public void aletterSubShelfSearchesForThatLetterInTitleOrder() throws Exception {
+        Canned http = new Canned().then(200, SEARCH);
+        ZxInfoCatalogue catalogue = new ZxInfoCatalogue(http);
 
+        Catalogue.Shelf q = catalogue.open(shelf(http, "letter"),
+                                           Catalogue.Query.none(), 0).shelves().get(16);
+        assertEquals("Q", q.label());
+
+        catalogue.open(q, Catalogue.Query.none(), 0);
+
+        String url = http.asked.get(0);
+        assertTrue(url, url.startsWith(ZxInfo.API + "search?"));
         assertTrue(url, url.contains("query=Q"));
         assertTrue(url, url.contains("sort=title_asc"));
+
+        // The prefix is the catalogue's own and means nothing to anyone else -
+        // leaking "letter:" into the query would search for a phrase no title
+        // contains, which this service answers with a plausible empty shelf.
+        assertFalse("the shelf id's prefix went out in the request: " + url,
+                    url.contains("%3A"));
+        assertNoFilter(url);
+    }
+
+    /**
+     * Opening A-Z yields the alphabet and costs nothing.
+     *
+     * The same mechanism Categories uses, on the one list that needs no reply
+     * at all - which is why this is the cheaper of the two proofs that a page
+     * of shelves works, and why the letters are not a widget the screen had to
+     * grow for one shelf.
+     */
+    @Test
+    public void openingAtoZyieldsAshelfPerLetterAndNoRequest() throws Exception {
+        Canned http = new Canned();
+
+        Catalogue.Page page = new ZxInfoCatalogue(http).open(
+                shelf(http, "letter"), Catalogue.Query.none(), 0);
+
+        assertEquals("the alphabet cost a request", 0, http.asked.size());
+        assertEquals(26, page.shelves().size());
+        assertTrue("A-Z brought items", page.items().isEmpty());
+        assertEquals("A", page.shelves().get(0).label());
+        assertEquals("Z", page.shelves().get(25).label());
+        assertFalse("a page of shelves must not page on", page.hasMore());
     }
 
     @Test

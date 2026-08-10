@@ -405,13 +405,23 @@ public final class CatalogueView extends FrameLayout {
         });
     }
 
-    /** What a shelf is handed. Each ignores what it does not use, which is
-     *  why there is one of these rather than an argument per kind. */
+    /**
+     * What a shelf is handed. Each ignores what it does not use, which is why
+     * there is one of these rather than an argument per kind.
+     *
+     * <b>No catalogue this app ships asks for a letter this way.</b> ZXInfo's
+     * A-Z opens onto twenty-six sub-shelves and carries the letter in each
+     * shelf's own id, so nothing here has to know that letters exist - which
+     * is the right shape, and why this screen grew no letter picker. The
+     * branch stays because the seam declares the kind: a catalogue that asks
+     * for its letter through the query gets the first character of whatever is
+     * in the search box. That path is unexercised, and it is written down here
+     * rather than left to be discovered.
+     */
     private Catalogue.Query queryFor(Catalogue.Shelf shelf) {
         if (shelf.accepts(Catalogue.Shelf.Accepts.TEXT)) return Catalogue.Query.text(typed);
-        if (shelf.accepts(Catalogue.Shelf.Accepts.LETTER)) {
-            return Catalogue.Query.letter(typed.isEmpty()
-                    ? "a" : typed.substring(0, 1));
+        if (shelf.accepts(Catalogue.Shelf.Accepts.LETTER) && !typed.isEmpty()) {
+            return Catalogue.Query.letter(typed.substring(0, 1));
         }
         return Catalogue.Query.none();
     }

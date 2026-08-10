@@ -10,12 +10,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeTrue;
 
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
-import android.net.ConnectivityManager;
 import android.os.SystemClock;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -45,12 +43,16 @@ import java.util.function.IntPredicate;
  * the UI thread and the rows it produces. The tab that opens it is covered
  * where it is written.
  *
- * <b>The skip turns on a fact.</b> {@code getActiveNetwork() == null} is
- * checked, not "nothing appeared within three seconds" - {@code NewDiskTest}
- * once decided the ROMs were missing from what the screen said after a wait,
- * and skipped in twenty seconds having formatted nothing and reported OK. A
- * device with no network genuinely cannot run the second test here; a device
- * with a slow one must wait, not skip.
+ * <b>There is no skip, on purpose.</b> The obvious one - "no network, so pass
+ * quietly" - would hide the failure this project most needs to hear about.
+ * There are two reasons the catalogue would not answer: this bench is offline,
+ * and <em>this app's address has been blocked by that host again</em>, which
+ * has happened once and took an email to lift. A green run says nothing about
+ * either. So the test waits for the rows and fails when they do not come,
+ * naming both causes in the message - a red test that names what to check is
+ * strictly more use than a skip that says nothing. (It would also have needed
+ * ACCESS_NETWORK_STATE, which this app does not declare and should not start
+ * declaring to power a skip.)
  *
  * <b>And the waits are for conditions.</b> A page arrives when the service
  * answers, which depends on the service, the connection and what else the
@@ -129,10 +131,6 @@ public class CatalogueScreenTest {
      */
     @Test
     public void aTypedSearchBringsRowsBackFromTheCatalogue() {
-        assumeTrue("no network on this device, so nothing can be fetched",
-                   context.getSystemService(ConnectivityManager.class)
-                          .getActiveNetwork() != null);
-
         UiObject2 field = device.wait(Until.findObject(By.desc(
                 context.getString(R.string.catalogue_search_hint))), FIND);
         assertNotNull("the catalogue has no search field on screen", field);
@@ -146,9 +144,14 @@ public class CatalogueScreenTest {
         // count that is a page of results rather than the list that was
         // already there.
         int found = awaitRowCount(count -> count > 0 && count != SHELVES);
-        assertTrue("searching for \"" + SEARCH + "\" left the shelves on screen"
-                   + " - the page never arrived, or never replaced them"
-                   + " (rows: " + found + ")",
+        assertTrue("searching for \"" + SEARCH + "\" brought nothing back within "
+                   + (FIND / 1000) + "s - the rows on screen are still the "
+                   + SHELVES + " shelves (counted " + found + "). Two things to"
+                   + " check before the screen: whether this device has a"
+                   + " network at all, and whether api.zxinfo.dk is refusing"
+                   + " this address again - it has blocked it once, at the"
+                   + " network layer, and DNS still resolves while port 443 is"
+                   + " refused, so that looks exactly like the host being down.",
                    found > 0 && found != SHELVES);
 
         assertNotNull("no row on screen names \"" + SEARCH + "\", so what came"

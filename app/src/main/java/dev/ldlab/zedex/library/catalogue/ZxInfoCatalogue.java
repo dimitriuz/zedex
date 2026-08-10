@@ -54,9 +54,14 @@ import java.util.Locale;
  *       with - 30 rows of a stated 153, and the two-host rule visible inside
  *       that single reply: one entry's picture came back under {@code /zxdb/}
  *       and the next two under {@code /zxscreens/}.</li>
- *   <li><b>A-Z</b> is that same search with the letter as the query and a
- *       title sort, rather than a path of its own. <b>A shelf is data, and one
- *       implemented a different way is still the same shelf</b> - nothing above
+ *   <li><b>A-Z</b> opens onto twenty-six sub-shelves, one per letter, and each
+ *       of those is that same search with its letter as the query and a title
+ *       sort, rather than a path of its own. Sub-shelves rather than a letter
+ *       picker of the screen's own: a page may carry shelves, {@link #genres}
+ *       already works that way, and the tab already knows how to descend into
+ *       one - a shelf needing a widget nothing else needs is a seam in the
+ *       wrong place. <b>A shelf is data, and one implemented a different way
+ *       is still the same shelf</b> - nothing above
  *       this interface can tell, and a by-letter endpoint that may or may not
  *       exist is not worth a request to find out. <b>{@code sort=title_asc} is
  *       a guessed value and is unverified</b> - the parameter itself is proven,
@@ -131,6 +136,16 @@ public final class ZxInfoCatalogue implements Catalogue {
      *  shelf without a second field. */
     private static final String GENRE_PREFIX = "genre:";
 
+    /** The same trick for {@link #SHELF_LETTER}'s own twenty-six: the letter
+     *  is the id behind this, so {@link #open} can tell "the A-Z shelf" from
+     *  "the letter Q" without a second field. */
+    private static final String LETTER_PREFIX = "letter:";
+
+    /** What A-Z opens onto. Latin only, and deliberately: this is a search
+     *  term handed to a service whose titles are indexed in it, not an
+     *  alphabet for the phone's language. */
+    private static final String ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
     /**
      * Wrappers rather than formats - what a file is inside one of these is
      * what decides whether this app can open it, so a {@code .tzx.zip} is a
@@ -167,7 +182,10 @@ public final class ZxInfoCatalogue implements Catalogue {
     public List<Shelf> shelves() {
         return Arrays.asList(
                 new Shelf(SHELF_SEARCH, "Search", Shelf.Accepts.TEXT),
-                new Shelf(SHELF_LETTER, "A-Z", Shelf.Accepts.LETTER),
+                // Takes nothing: the letter is chosen by descending into one
+                // of the twenty-six shelves this yields, not by handing it a
+                // query. See open().
+                new Shelf(SHELF_LETTER, "A-Z", Shelf.Accepts.NOTHING),
                 new Shelf(SHELF_GENRES, "Categories", Shelf.Accepts.NOTHING),
                 new Shelf(SHELF_NEWEST, "Newest", Shelf.Accepts.NOTHING),
                 new Shelf(SHELF_RANDOM, "Surprise me", Shelf.Accepts.NOTHING));
@@ -176,6 +194,12 @@ public final class ZxInfoCatalogue implements Catalogue {
     @Override
     public Page open(Shelf shelf, Query query, int page) throws ScrapeException {
         if (SHELF_GENRES.equals(shelf.id())) return genres();
+
+        // Twenty-six shelves and no request. A page carrying shelves rather
+        // than items is the mechanism Categories already uses; this is the
+        // second thing to rest on it, which is worth something in itself,
+        // since zxart's whole category tree will.
+        if (SHELF_LETTER.equals(shelf.id())) return letters();
 
         // A surprise is one page, and the second one is empty on purpose.
         //
@@ -250,8 +274,9 @@ public final class ZxInfoCatalogue implements Catalogue {
                              offset);
         }
 
-        if (SHELF_LETTER.equals(id)) {
-            return searchFor("query=" + Uri.encode(query.letter()) + "&sort=title_asc", offset);
+        if (id.startsWith(LETTER_PREFIX)) {
+            return searchFor("query=" + Uri.encode(id.substring(LETTER_PREFIX.length()))
+                             + "&sort=title_asc", offset);
         }
 
         if (SHELF_NEWEST.equals(id)) {
@@ -333,6 +358,26 @@ public final class ZxInfoCatalogue implements Catalogue {
      * no cost, in the same spirit that had {@code ZxInfo.byHash} right about
      * {@code entry_id} before anybody could check. The verified name is first.
      */
+    /**
+     * The A-Z shelf: one sub-shelf per letter, no items, and no request.
+     *
+     * The letter travels in the sub-shelf's id rather than in a {@link Query},
+     * which is what lets the screen stay ignorant of letters entirely - it
+     * descends into a shelf here exactly as it descends into a genre. The
+     * label is the letter itself, since that is both what somebody reads and,
+     * behind {@link #LETTER_PREFIX}, what the search is built from.
+     */
+    private Page letters() {
+        List<Shelf> found = new ArrayList<>(ALPHABET.length());
+
+        for (int at = 0; at < ALPHABET.length(); at++) {
+            String letter = String.valueOf(ALPHABET.charAt(at));
+            found.add(new Shelf(LETTER_PREFIX + letter, letter, Shelf.Accepts.NOTHING));
+        }
+
+        return new Page(null, found, 0, Page.UNKNOWN_TOTAL);
+    }
+
     private Page genres() throws ScrapeException {
         JSONObject reply = object(ask("metadata/"));
         List<Shelf> found = new ArrayList<>();
