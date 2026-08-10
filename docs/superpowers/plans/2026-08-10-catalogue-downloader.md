@@ -1624,7 +1624,7 @@ public final class Pick {
 - [ ] **Step 4: Run the test and watch it pass**
 
 Run: `env JAVA_HOME=/opt/android-studio/jbr ./gradlew --no-daemon testDebugUnitTest --tests '*PickTest'`
-Expected: PASS, 13 tests.
+Expected: PASS, 13 tests at this point — Step 5's findings take it to 15.
 
 - [ ] **Step 5: Mutation-check the preference**
 
