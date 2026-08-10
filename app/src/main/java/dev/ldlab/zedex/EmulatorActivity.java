@@ -19,6 +19,7 @@ import dev.ldlab.zedex.media.Media;
 import dev.ldlab.zedex.media.Recorder;
 import dev.ldlab.zedex.menu.Capture;
 import dev.ldlab.zedex.menu.ControlsUi;
+import dev.ldlab.zedex.menu.SetupUi;
 import dev.ldlab.zedex.menu.PokesUi;
 import dev.ldlab.zedex.menu.StatesUi;
 import dev.ldlab.zedex.screen.AboutActivity;
@@ -219,6 +220,9 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      */
     private ControlsUi controls;
 
+    /** Offers what a scraped record says about how to run a game. */
+    private SetupUi setupUi;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -319,6 +323,20 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                 roms.show(true);
             }
         });
+
+        // In onCreate rather than as a field initialiser: those run first and
+        // would be handed a null preferences. See CLAUDE.md.
+        setupUi = new SetupUi(this, new SetupUi.Host() {
+            @Override
+            public void reopenCurrentGame() {
+                EmulatorActivity.this.reopenCurrentGame();
+            }
+
+            @Override
+            public void note(int message, Object... arguments) {
+                EmulatorActivity.this.note(message, arguments);
+            }
+        }, preferences);
 
         panels = new Panels(this, preferences, new Panels.Host() {
             @Override
@@ -638,6 +656,12 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         String inside = intent.getStringExtra(EXTRA_ZIP_ENTRY);
 
+        // Kept so that SetupUi can open the same thing again: applying a
+        // machine from a scraped record resets Fuse, which throws away
+        // whatever was loaded. See SetupUi.apply.
+        openedUri = uri;
+        openedInside = inside;
+
         resolveLibraryPath(intent, uri, inside);
 
         // Safe before Fuse has started: the command simply waits in the queue
@@ -683,6 +707,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         String known = intent.getStringExtra(EXTRA_LIBRARY_PATH);
         if (known != null) {
             panels.setGameInfo(known, filenameOf(known));
+            setupUi.offer(known);
             return;
         }
 
@@ -694,8 +719,35 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             String resolved = Metadata.resolve(app, uri, name);
             String shown = resolved == null ? null : filenameOf(resolved);
 
-            runOnUiThread(() -> panels.setGameInfo(resolved, shown));
+            runOnUiThread(() -> {
+                panels.setGameInfo(resolved, shown);
+                setupUi.offer(resolved);
+            });
         });
+    }
+
+    /**
+     * What is loaded, so it can be loaded again.
+     *
+     * Only {@link SetupUi} needs this, and only because changing the machine
+     * resets the emulator: the file that was just opened has to be opened
+     * again behind it or it silently disappears.
+     */
+    private Uri openedUri;
+    private String openedInside;
+
+    /** Opens whatever is loaded, again, exactly as it was opened. */
+    private void reopenCurrentGame() {
+        Uri uri = openedUri;
+        if (uri == null) return;
+
+        String inside = openedInside;
+
+        if (inside != null) {
+            Work.run("reopen-entry", () -> media.stageAndOpenEntry(uri, inside));
+        } else {
+            Work.run("reopen", () -> media.stageAndOpen(uri));
+        }
     }
 
     /** The fallback shown before the store answers with a scraped name, or

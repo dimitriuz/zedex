@@ -759,4 +759,13 @@
     <string name="scrape_media_videos">Video — asi 1 MB každé</string>
     <string name="scrape_media_manuals">Manuál (PDF)</string>
     <string name="scrape_many_fetching">Co stahovat</string>
+    <!-- How to run a game, from a scraped record. -->
+    <string name="suggest_title">Jak toto spustit</string>
+    <string name="suggest_says">Databáze uvádí: %1$s</string>
+    <string name="suggest_machine">Počítač</string>
+    <string name="suggest_control">Ovládání</string>
+    <string name="suggest_remember">Zapamatovat pro tuto hru</string>
+    <string name="suggest_apply">Použít</string>
+    <string name="suggest_skip">Přeskočit</string>
+    <string name="suggest_applied">Použito</string>
 </resources>

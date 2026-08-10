@@ -740,4 +740,13 @@
     <string name="scrape_media_videos">Video — circa 1 MB ciascuno</string>
     <string name="scrape_media_manuals">Manuale (PDF)</string>
     <string name="scrape_many_fetching">Cosa recuperare</string>
+    <!-- How to run a game, from a scraped record. -->
+    <string name="suggest_title">Come eseguirlo</string>
+    <string name="suggest_says">Il database dice: %1$s</string>
+    <string name="suggest_machine">Macchina</string>
+    <string name="suggest_control">Controllo</string>
+    <string name="suggest_remember">Ricorda per questo gioco</string>
+    <string name="suggest_apply">Applica</string>
+    <string name="suggest_skip">Salta</string>
+    <string name="suggest_applied">Applicato</string>
 </resources>

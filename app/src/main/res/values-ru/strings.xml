@@ -759,4 +759,13 @@
     <string name="scrape_media_videos">Видео — около 1 МБ каждое</string>
     <string name="scrape_media_manuals">Руководство (PDF)</string>
     <string name="scrape_many_fetching">Что загружать</string>
+    <!-- How to run a game, from a scraped record. -->
+    <string name="suggest_title">Как это запускать</string>
+    <string name="suggest_says">База данных сообщает: %1$s</string>
+    <string name="suggest_machine">Компьютер</string>
+    <string name="suggest_control">Управление</string>
+    <string name="suggest_remember">Запомнить для этой игры</string>
+    <string name="suggest_apply">Применить</string>
+    <string name="suggest_skip">Пропустить</string>
+    <string name="suggest_applied">Применено</string>
 </resources>

@@ -915,4 +915,15 @@
     <!-- The sweep screen's own line, which opens the same dialog and writes
          the same key - see ScrapeManyActivity. -->
     <string name="scrape_many_fetching">What to fetch</string>
+    <!-- Offering what a scraped record says about how to run a game -
+         see menu/SetupUi. Asked once per game; the answer, including a
+         refusal, is remembered. -->
+    <string name="suggest_title">How to run this</string>
+    <string name="suggest_says">The database says: %1$s</string>
+    <string name="suggest_machine">Machine</string>
+    <string name="suggest_control">Control</string>
+    <string name="suggest_remember">Remember for this game</string>
+    <string name="suggest_apply">Apply</string>
+    <string name="suggest_skip">Skip</string>
+    <string name="suggest_applied">Applied</string>
 </resources>
