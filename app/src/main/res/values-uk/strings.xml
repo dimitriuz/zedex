@@ -12,6 +12,7 @@
     <string name="menu_states">Стани…</string>
     <string name="menu_pokes">Чити…</string>
     <string name="poke_for_game">Чити для %1$s</string>
+    <string name="poke_scraped">Чити, знайдені під час скрапінгу</string>
     <string name="poke_none_for_game">У базі для цієї гри немає нічого придатного</string>
     <string name="poke_search">Пошук у базі читів…</string>
     <string name="poke_search_hint">Назва гри</string>
@@ -566,6 +567,7 @@
     </plurals>
     <string name="library_filter_format">Формат</string>
     <string name="library_filter_genre">Жанр</string>
+    <string name="library_filter_subgenre">Піджанр</string>
     <string name="library_filter_rating">Оцінка</string>
     <string name="library_filter_developer">Розробник</string>
     <string name="library_filter_publisher">Видавець</string>
@@ -587,6 +589,16 @@
     <string name="library_play">Грати</string>
     <string name="library_info">Про гру</string>
     <string name="library_manual">Інструкція</string>
+    <string name="instructions_title">Інструкція</string>
+    <string name="instructions_unreadable">Не вдалося прочитати файл.</string>
+    <string name="music_title">Музика…</string>
+    <string name="music_playing">Грає %1$s</string>
+    <string name="music_stop">Зупинити музику</string>
+    <string name="music_stopped">Зупинено — гра повернулася</string>
+    <string name="music_unplayable">%1$s не відтворюється</string>
+    <string name="music_unnamed">Трек %1$d</string>
+    <string name="music_none">Для цієї гри немає музики</string>
+    <string name="music_hint">Їх грає сама машина, тож гру відкладено на час відтворення, і вона повертається після зупинки.</string>
     <string name="library_open">Відкрити</string>
     <string name="library_nothing_selected">Виберіть гру, щоб побачити, що про неї відомо.</string>
     <string name="library_up">Вгору</string>
@@ -646,8 +658,16 @@
     <string name="edit_metadata_developer">Розробник</string>
     <string name="edit_metadata_publisher">Видавець</string>
     <string name="edit_metadata_genre">Жанр</string>
+    <string name="edit_metadata_subgenre">Піджанр</string>
     <string name="edit_metadata_released">Рік</string>
     <string name="edit_metadata_players">Гравці</string>
+    <string name="edit_metadata_machine">Комп\'ютер</string>
+    <string name="edit_metadata_controls">Керування</string>
+    <string name="info_authors">Автори</string>
+    <string name="info_price">Ціна</string>
+    <string name="info_series">Серія</string>
+    <string name="info_compilations">У збірках</string>
+    <string name="info_contents">У цій збірці</string>
     <string name="edit_metadata_rating">Оцінка з 5</string>
     <string name="edit_metadata_empty">Не задано</string>
     <string name="edit_metadata_save">Зберегти</string>
@@ -738,6 +758,7 @@
     <string name="scrape_many_resume">Запустіть знову з «Ще без даних», щоб продовжити з того місця, де зупинилися.</string>
     <!-- An optional ScreenScraper account of the user's own. -->
     <string name="settings_group_scraper">Обліковий запис служби</string>
+    <string name="settings_scraper">Джерело даних</string>
     <string name="settings_scraper_user">Ім’я користувача ScreenScraper</string>
     <string name="settings_scraper_user_summary">Необов’язково. У власного облікового запису денний ліміт набагато більший, ніж у спільного для всіх користувачів застосунку.</string>
     <string name="settings_scraper_password">Пароль ScreenScraper</string>
@@ -755,5 +776,17 @@
     <string name="scrape_media_miximages">Комбіноване зображення</string>
     <string name="scrape_media_videos">Відео — близько 1 МБ кожне</string>
     <string name="scrape_media_manuals">Посібник (PDF)</string>
+    <string name="scrape_media_maps">Карта гри</string>
+    <string name="scrape_media_adverts">Реклама</string>
+    <string name="scrape_media_pokes">Чити (поки)</string>
     <string name="scrape_many_fetching">Що завантажувати</string>
+    <!-- How to run a game, from a scraped record. -->
+    <string name="suggest_title">Як це запускати</string>
+    <string name="suggest_says">База даних повідомляє: %1$s</string>
+    <string name="suggest_machine">Комп’ютер</string>
+    <string name="suggest_control">Керування</string>
+    <string name="suggest_remember">Запам’ятати для цієї гри</string>
+    <string name="suggest_apply">Застосувати</string>
+    <string name="suggest_skip">Пропустити</string>
+    <string name="suggest_applied">Застосовано</string>
 </resources>

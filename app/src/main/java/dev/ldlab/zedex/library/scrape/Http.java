@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.library.scrape;
 
+import android.content.Context;
 import android.util.Log;
 
 import java.io.ByteArrayOutputStream;
@@ -158,11 +159,63 @@ public interface Http {
             }
         }
 
-        private static HttpURLConnection open(String url) throws IOException {
+        /**
+         * What this app calls itself to a server: {@code Zedex/1.4.2}.
+         *
+         * Without it every request goes out as {@code Dalvik/2.1.0 (Linux; U;
+         * Android …)}, which says a JVM asked and nothing about who. That is
+         * poor manners to a service run by volunteers, and practically it is
+         * the difference between an operator who can see what a client is
+         * doing - and ask, or allow-list it - and one whose only option when
+         * traffic looks odd is to block a range. ZXInfo's own specification
+         * asks for it and says access without one risks being treated as a
+         * crawler, which is exactly what happened.
+         *
+         * The name and the version, and nothing else: no URL, no email, no
+         * device. A header is sent on every request and ends up in every log
+         * along the way, so it carries what identifies the client and stops
+         * there.
+         *
+         * <b>The version is the installed one, not a build constant.</b> Read
+         * from the package manager, so it is what is actually running and
+         * needs neither the {@code buildConfig} feature this project keeps off
+         * nor a resource that could disagree with the APK it is in. A version
+         * is worth the {@code Context} it costs: it is how an operator tells
+         * "the old build with the bug" from "the one that fixed it", and
+         * without it every report is about "Zedex".
+         */
+        private final String userAgent;
+
+        /**
+         * The only constructor, so nothing can be built that goes out
+         * unversioned - the header is not worth having if half the traffic
+         * lacks it, and a caller with no {@code Context} at all does not
+         * exist here.
+         */
+        public Real(Context context) {
+            this.userAgent = "Zedex/" + versionOf(context);
+        }
+
+        /** Whatever is installed, or "?" - a missing version must not be the
+         *  reason a scrape cannot start. */
+        private static String versionOf(Context context) {
+            try {
+                String name = context.getPackageManager()
+                        .getPackageInfo(context.getPackageName(), 0).versionName;
+
+                return name == null || name.isEmpty() ? "?" : name;
+            } catch (Exception e) {
+                Log.w(TAG, "cannot read this app's own version", e);
+                return "?";
+            }
+        }
+
+        private HttpURLConnection open(String url) throws IOException {
             HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
             connection.setInstanceFollowRedirects(true);
             connection.setConnectTimeout(CONNECT_MS);
             connection.setReadTimeout(READ_MS);
+            connection.setRequestProperty("User-Agent", userAgent);
             return connection;
         }
 

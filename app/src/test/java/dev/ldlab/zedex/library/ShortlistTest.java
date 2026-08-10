@@ -40,8 +40,10 @@ public class ShortlistTest {
     }
 
     private static Meta meta(String genre, String developer, String year) {
-        return new Meta("./g.tap", null, null, developer, null, genre,
-                        year, null, null, "esde");
+        return Meta.at("./g.tap")
+                .developer(developer).genre(genre).released(year)
+                .source(Meta.ESDE)
+                .build();
     }
 
     /** No metadata for anything - the commonest case in a real collection,

@@ -12,6 +12,7 @@
     <string name="menu_states">Spielstände…</string>
     <string name="menu_pokes">Cheats…</string>
     <string name="poke_for_game">Cheats für %1$s</string>
+    <string name="poke_scraped">Beim Scrapen gefundene Cheats</string>
     <string name="poke_none_for_game">In der Datenbank ist für dieses Spiel nichts Brauchbares</string>
     <string name="poke_search">Cheat-Datenbank durchsuchen…</string>
     <string name="poke_search_hint">Spielname</string>
@@ -564,6 +565,7 @@
     </plurals>
     <string name="library_filter_format">Format</string>
     <string name="library_filter_genre">Genre</string>
+    <string name="library_filter_subgenre">Untergenre</string>
     <string name="library_filter_rating">Bewertung</string>
     <string name="library_filter_developer">Entwickler</string>
     <string name="library_filter_publisher">Herausgeber</string>
@@ -585,6 +587,16 @@
     <string name="library_play">Spielen</string>
     <string name="library_info">Spieldetails</string>
     <string name="library_manual">Handbuch</string>
+    <string name="instructions_title">Anleitung</string>
+    <string name="instructions_unreadable">Diese Datei kann nicht gelesen werden.</string>
+    <string name="music_title">Musik…</string>
+    <string name="music_playing">%1$s läuft</string>
+    <string name="music_stop">Musik anhalten</string>
+    <string name="music_stopped">Angehalten — das Spiel ist zurück</string>
+    <string name="music_unplayable">%1$s lässt sich nicht abspielen</string>
+    <string name="music_unnamed">Stück %1$d</string>
+    <string name="music_none">Keine Musik für dieses Spiel</string>
+    <string name="music_hint">Der Rechner spielt sie selbst, daher wird das Spiel währenddessen beiseitegelegt und kehrt danach zurück.</string>
     <string name="library_open">Öffnen</string>
     <string name="library_nothing_selected">Wähle ein Spiel, um zu sehen, was darüber bekannt ist.</string>
     <string name="library_up">Nach oben</string>
@@ -641,8 +653,16 @@
     <string name="edit_metadata_developer">Entwickler</string>
     <string name="edit_metadata_publisher">Herausgeber</string>
     <string name="edit_metadata_genre">Genre</string>
+    <string name="edit_metadata_subgenre">Untergenre</string>
     <string name="edit_metadata_released">Jahr</string>
     <string name="edit_metadata_players">Spieler</string>
+    <string name="edit_metadata_machine">Modell</string>
+    <string name="edit_metadata_controls">Steuerung</string>
+    <string name="info_authors">Mitwirkende</string>
+    <string name="info_price">Preis</string>
+    <string name="info_series">Reihe</string>
+    <string name="info_compilations">Auf Kompilationen</string>
+    <string name="info_contents">Auf dieser Kompilation</string>
     <string name="edit_metadata_rating">Bewertung von 5</string>
     <string name="edit_metadata_empty">Nicht gesetzt</string>
     <string name="edit_metadata_save">Speichern</string>
@@ -719,6 +739,7 @@
     <string name="scrape_many_resume">Starten Sie das erneut mit „Noch nicht abgerufen“, um dort weiterzumachen, wo es aufgehört hat.</string>
     <!-- An optional ScreenScraper account of the user's own. -->
     <string name="settings_group_scraper">Scraper-Konto</string>
+    <string name="settings_scraper">Daten abrufen von</string>
     <string name="settings_scraper_user">ScreenScraper-Benutzername</string>
     <string name="settings_scraper_user_summary">Optional. Ein eigenes Konto hat ein viel größeres Tageskontingent als das, das sich alle Nutzer dieser App teilen.</string>
     <string name="settings_scraper_password">ScreenScraper-Passwort</string>
@@ -736,5 +757,17 @@
     <string name="scrape_media_miximages">Kombiniertes Bild</string>
     <string name="scrape_media_videos">Video — etwa 1 MB je Spiel</string>
     <string name="scrape_media_manuals">Handbuch (PDF)</string>
+    <string name="scrape_media_maps">Spielkarte</string>
+    <string name="scrape_media_adverts">Werbung</string>
+    <string name="scrape_media_pokes">Cheats (Pokes)</string>
     <string name="scrape_many_fetching">Was abgerufen wird</string>
+    <!-- How to run a game, from a scraped record. -->
+    <string name="suggest_title">Wie das laufen soll</string>
+    <string name="suggest_says">Die Datenbank sagt: %1$s</string>
+    <string name="suggest_machine">Modell</string>
+    <string name="suggest_control">Steuerung</string>
+    <string name="suggest_remember">Für dieses Spiel merken</string>
+    <string name="suggest_apply">Anwenden</string>
+    <string name="suggest_skip">Überspringen</string>
+    <string name="suggest_applied">Angewendet</string>
 </resources>

@@ -14,7 +14,8 @@ import java.io.StringReader;
 /**
  * Document builders that read the file and nothing else.
  *
- * Every XML file this app parses is one anybody can write. {@code gamelist.xml}
+ * Every XML file this app parses is one anybody can write. ES-DE's own
+ * {@code gamelist.xml}
  * and {@code es_settings.xml} sit in shared storage; {@code es_systems.xml} and
  * {@code es_find_rules.xml} belong to ES-DE, and this app edits them in place —
  * parse, add ours, write back.

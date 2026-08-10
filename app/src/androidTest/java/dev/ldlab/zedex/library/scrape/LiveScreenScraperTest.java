@@ -46,7 +46,7 @@ public class LiveScreenScraperTest {
     public void screenScraperAnswersInTheShapeTheClientExpects() throws Exception {
         Context context = ApplicationProvider.getApplicationContext();
 
-        ScreenScraper scraper = new ScreenScraper(context, new Http.Real());
+        ScreenScraper scraper = new ScreenScraper(context, new Http.Real(context));
         assumeTrue("this build has no ScreenScraper developer account",
                    scraper.configured());
 

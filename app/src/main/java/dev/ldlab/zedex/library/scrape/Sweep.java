@@ -295,10 +295,10 @@ public final class Sweep {
         tally.total = entries.size();
 
         // The cost of one game, and so how much has to be left before there
-        // is any point starting another: the search, plus one request per
-        // medium, because a cover is a mediaJeu.php call exactly like a
-        // search is.
-        int perGame = 1 + wanted.requests();
+        // is any point starting another. Only the provider can answer it: a
+        // ScreenScraper cover is a mediaJeu.php call and costs one, a ZXInfo
+        // cover is a static file and costs nothing.
+        int perGame = provider.costPerGame(wanted);
 
         for (Entry entry : entries) {
             if (watcher.cancelled()) {

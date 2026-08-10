@@ -1,6 +1,7 @@
 package dev.ldlab.zedex.menu;
 
 import dev.ldlab.zedex.FuseNative;
+import dev.ldlab.zedex.library.meta.Artwork;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.cheats.PokeDatabase;
 import dev.ldlab.zedex.cheats.Pokes;
@@ -11,9 +12,14 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
+import android.util.Log;
 import android.widget.EditText;
 
 import java.util.ArrayList;
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.List;
 
 /**
@@ -27,6 +33,8 @@ import java.util.List;
  * A stored poke is a thing to press: nothing is applied by being on the list.
  */
 public final class PokesUi {
+
+    private static final String TAG = "Zedex";
 
     /** How many names a page can offer before it is a list to scroll. */
     private static final int RESULTS = 30;
@@ -54,6 +62,23 @@ public final class PokesUi {
     /** The cheat database, opened once and kept; null if it will not open. */
     private PokeDatabase database;
 
+    /**
+     * The game that is loaded, by the store's own key, or null.
+     *
+     * Set rather than asked for: {@code Host} is four methods and a fifth
+     * would be the point at which the seam is wrong - see CLAUDE.md - and the
+     * screen already knows this the moment a game opens. Only the scraped
+     * {@code .pok} needs it; the bundled database is found by hash and does
+     * not care what the file is called or where it lives.
+     */
+    private String libraryPath;
+
+    /** Told by the screen when a game opens, and told null when one fails
+     *  to - a stale path would offer the last game's cheats for this one. */
+    public void forGame(String path) {
+        this.libraryPath = path;
+    }
+
     public PokesUi(Activity activity, SharedPreferences preferences, Host host) {
         this.activity = activity;
         this.preferences = preferences;
@@ -73,8 +98,25 @@ public final class PokesUi {
 
         if (found != null) {
             sheet.addSection(text(R.string.poke_for_game, found.name));
-            fillTrainers(sheet, found);
+            fillTrainers(sheet, found.trainers());
             sheet.addRule();
+        } else {
+            // And what a scrape found, when the database knows nothing.
+            //
+            // <b>Second, not first.</b> The bundled database matches on the
+            // md5 of the file that is actually loaded, which is exact; a
+            // scraped .pok belongs to whichever entry the scrape settled on,
+            // which for a name match is a good guess and no more. Where both
+            // exist they are usually the same cheats from the same source
+            // anyway - this is here to top up the two thirds of a collection
+            // the database has never heard of.
+            List<PokeDatabase.Trainer> scraped = scrapedTrainers();
+
+            if (!scraped.isEmpty()) {
+                sheet.addSection(text(R.string.poke_scraped));
+                fillTrainers(sheet, scraped);
+                sheet.addRule();
+            }
         }
 
         sheet.addSubmenu(text(R.string.poke_search), R.drawable.ic_poke, search());
@@ -131,9 +173,28 @@ public final class PokesUi {
      * are one, some are dozens - and a cheat that wants a number asks for it
      * first, which is what a value of 256 means in the format.
      */
-    private void fillTrainers(MenuDrawer sheet, PokeDatabase.Game game) {
-        List<PokeDatabase.Trainer> trainers = game.trainers();
+    /**
+     * The cheats a scrape fetched for the game that is loaded.
+     *
+     * Read when the page is built rather than kept: it is a few hundred bytes
+     * off the disk, once, at the moment somebody asks - and reading it then is
+     * what lets a scrape that has just finished show up without anything
+     * having to be told about it.
+     */
+    private List<PokeDatabase.Trainer> scrapedTrainers() {
+        File file = Artwork.pokes(activity, libraryPath);
+        if (file == null) return java.util.Collections.emptyList();
 
+        try {
+            return PokeDatabase.parse(new String(Files.readAllBytes(file.toPath()),
+                                                 StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            Log.w(TAG, "cannot read " + file, e);
+            return java.util.Collections.emptyList();
+        }
+    }
+
+    private void fillTrainers(MenuDrawer sheet, List<PokeDatabase.Trainer> trainers) {
         if (trainers.isEmpty()) {
             sheet.addNote(text(R.string.poke_none_for_game));
             return;
@@ -144,13 +205,13 @@ public final class PokesUi {
                     ? text(R.string.poke_unnamed) : trainer.name;
 
             sheet.addItem(trainer.asks() ? label + "…" : label, R.drawable.ic_poke,
-                          () -> applyTrainer(game, trainer));
+                          () -> applyTrainer(trainer));
         }
     }
 
-    private void applyTrainer(PokeDatabase.Game game, PokeDatabase.Trainer trainer) {
+    private void applyTrainer(PokeDatabase.Trainer trainer) {
         if (trainer.asks()) {
-            askTrainerValue(game, trainer);
+            askTrainerValue(trainer);
             return;
         }
 
@@ -164,8 +225,7 @@ public final class PokesUi {
      * marked that way gets the same answer - which is what the tools that came
      * before do, and what a cheat like "lives (0-255)" means.
      */
-    private void askTrainerValue(PokeDatabase.Game game,
-                                 PokeDatabase.Trainer trainer) {
+    private void askTrainerValue(PokeDatabase.Trainer trainer) {
         host.sheet().go(trainer.name, page -> {
             page.addNote(text(R.string.poke_asks));
 
@@ -243,7 +303,7 @@ public final class PokesUi {
     /** A page of one game's cheats, reached from a search. */
     private void showGame(PokeDatabase.Game game) {
         host.sheet().go(game.name, sheet -> {
-            fillTrainers(sheet, game);
+            fillTrainers(sheet, game.trainers());
             sheet.addNote(text(R.string.poke_from_search, game.name));
         });
     }

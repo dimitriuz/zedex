@@ -19,6 +19,9 @@ import dev.ldlab.zedex.media.Media;
 import dev.ldlab.zedex.media.Recorder;
 import dev.ldlab.zedex.menu.Capture;
 import dev.ldlab.zedex.menu.ControlsUi;
+import dev.ldlab.zedex.media.Music;
+import dev.ldlab.zedex.menu.MusicUi;
+import dev.ldlab.zedex.menu.SetupUi;
 import dev.ldlab.zedex.menu.PokesUi;
 import dev.ldlab.zedex.menu.StatesUi;
 import dev.ldlab.zedex.screen.AboutActivity;
@@ -134,6 +137,16 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      */
     public static final String EXTRA_LIBRARY_PATH = "dev.ldlab.zedex.extra.LIBRARY_PATH";
 
+    /**
+     * A game whose music to offer, by the store's own key.
+     *
+     * Sent by the library's own Music button. It carries no document, because
+     * there is nothing to load: a tune is played by this screen, on this
+     * machine, and whatever is already running is put aside for it - see
+     * {@code media.Music}.
+     */
+    public static final String EXTRA_MUSIC = "dev.ldlab.zedex.extra.MUSIC";
+
 
     private SharedPreferences preferences;
     private JoystickView[] keyButtons = new JoystickView[0];
@@ -219,6 +232,12 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      */
     private ControlsUi controls;
 
+    /** Offers what a scraped record says about how to run a game. */
+    private SetupUi setupUi;
+
+    /** The game's own music, played by the machine itself. */
+    private MusicUi music;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -242,8 +261,9 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             }
 
             @Override
-            public void opened(String name) {
+            public void opened(String name, Uri uri, String inside) {
                 rememberMediaName(name);
+                gameOpened(uri, inside);
             }
         });
 
@@ -317,6 +337,28 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             @Override
             public void startFailed() {
                 roms.show(true);
+            }
+        });
+
+        // In onCreate rather than as a field initialiser: those run first and
+        // would be handed a null preferences. See CLAUDE.md.
+        music = new MusicUi(this);
+
+        setupUi = new SetupUi(this, new SetupUi.Host() {
+            @Override
+            public void reopenCurrentGame() {
+                EmulatorActivity.this.reopenCurrentGame();
+            }
+
+            @Override
+            public void note(int message, Object... arguments) {
+                EmulatorActivity.this.note(message, arguments);
+            }
+
+            @Override
+            public void chooseControl(int type,
+                                      dev.ldlab.zedex.input.ControlProfiles.Profile layout) {
+                controls.chooseControl(type, layout);
             }
         });
 
@@ -576,6 +618,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         layout.post(controls::applySystemKeyboard);
 
         handleViewIntent(getIntent());
+        handleMusicIntent(getIntent());
     }
 
     @Override
@@ -583,6 +626,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         super.onNewIntent(intent);
         setIntent(intent);
         handleViewIntent(intent);
+        handleMusicIntent(intent);
     }
 
     /**
@@ -638,7 +682,9 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         String inside = intent.getStringExtra(EXTRA_ZIP_ENTRY);
 
-        resolveLibraryPath(intent, uri, inside);
+        // Whatever the panel was showing belonged to the last game; it is
+        // filled in again from gameOpened once this one is actually open.
+        panels.setGameInfo(null, null);
 
         // Safe before Fuse has started: the command simply waits in the queue
         // until the emulation thread drains it.
@@ -650,52 +696,140 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     }
 
     /**
-     * Whatever the panel's own switch should offer for this game, handed to
-     * {@link #panels} once it is known - see {@code Panels.setGameInfo} and
-     * {@code SecondScreen}, which read a null path as "no switch to offer"
-     * rather than "an empty panel to show".
+     * The library asking for a game's music.
      *
-     * {@link #EXTRA_LIBRARY_PATH} is the fast path: the library already knew
-     * the answer when it started this activity, so there is nothing to ask.
-     * A zip entry has no path of its own in the store - the library's own
-     * rows offer no details for one either, so this is read the same way a
-     * miss is. Everything else - a file manager's hand-over, <em>Open
-     * recent…</em>, ES-DE's own {@code %ROMPROVIDER%} - goes through {@code
-     * Metadata.resolve} instead, which is the same question the library asks
-     * for a selected row, just answered here without already knowing the
-     * document is one of ours.
-     *
-     * That last path runs off the UI thread: {@link #queryDisplayName} is a
-     * provider round trip and {@code Metadata.resolve} is a file parse,
-     * neither safe here. Whatever was showing for a previous game is cleared
-     * first rather than left up while this resolves, the same reasoning
-     * {@code LibraryActivity.updatePane} already applies to its own pane. A
-     * miss - most of what opens this app has nothing to do with the library,
-     * and most of a collection is unscraped besides - is the ordinary
-     * answer, not a failure, so nothing is logged for it.
+     * Opens the sheet on the tune list rather than playing anything: a file
+     * usually holds several and the person tapped "music", not a tune. Posted
+     * because the sheet cannot be shown before the window it lives in has
+     * been laid out, which on a cold start is after this runs.
      */
-    private void resolveLibraryPath(Intent intent, Uri uri, String inside) {
+    private void handleMusicIntent(Intent intent) {
+        if (intent == null) return;
+
+        String path = intent.getStringExtra(EXTRA_MUSIC);
+        if (path == null) return;
+
+        // Once only: this activity is long-lived and the intent that started
+        // it is remembered, so without this every return to the screen would
+        // reopen the menu over whatever the person was doing.
+        intent.removeExtra(EXTRA_MUSIC);
+
+        music.forGame(path);
+        layout.post(() -> menu.go(getString(R.string.music_title), music.page()));
+    }
+
+    /**
+     * A game is open, whichever way in it came.
+     *
+     * <b>The one place all of them meet.</b> A file manager's hand-over, the
+     * library, ES-DE, the picker, <em>Open recent…</em> - four routes and only
+     * one of them is an {@code ACTION_VIEW} intent. The setup question used to
+     * hang off the intent path alone, so opening the same game from the recent
+     * list was never asked about; and both halves of what is known here - what
+     * the panel shows and what the question is asked about - are the same
+     * answer to the same question, so they are worked out once.
+     *
+     * Called from the staging thread, after the file has actually been opened
+     * rather than while it is on its way: {@link #queryDisplayName} is a
+     * provider round trip and {@code Metadata.resolve} is a file parse,
+     * neither safe on the UI thread, and a game that failed to open should not
+     * be asked about.
+     *
+     * A zip entry has no path of its own in the store, so nothing is looked up
+     * for one - the library's own rows offer no details for an entry either.
+     * A miss is the ordinary answer besides: most of what opens this app has
+     * nothing to do with the library, and most of a collection is unscraped.
+     *
+     * @param uri    the document opened, which for an entry is its archive
+     * @param inside the entry within it, or null for a plain file
+     */
+    private void gameOpened(Uri uri, String inside) {
+        // Kept so that SetupUi can open the same thing again: applying a
+        // machine from a scraped record resets Fuse, which throws away
+        // whatever was loaded. See SetupUi.apply.
+        openedUri = uri;
+        openedInside = inside;
+
         if (inside != null) {
-            panels.setGameInfo(null, null);
+            runOnUiThread(() -> panels.setGameInfo(null, null));
             return;
         }
 
-        String known = intent.getStringExtra(EXTRA_LIBRARY_PATH);
-        if (known != null) {
-            panels.setGameInfo(known, filenameOf(known));
-            return;
-        }
-
-        panels.setGameInfo(null, null);
-
+        // The store does not read itself: every other screen that needs the
+        // facts asks for them on a background thread, and this one never did
+        // - so a game opened without the library having run first found an
+        // empty store, and the setup question had nothing to ask about. It
+        // looked exactly like an unscraped game. Here rather than in SetupUi
+        // because this is the background thread; the parse must not happen on
+        // the UI one.
         Context app = getApplicationContext();
-        Work.run("display-name", () -> {
-            String name = queryDisplayName(uri);
-            String resolved = Metadata.resolve(app, uri, name);
-            String shown = resolved == null ? null : filenameOf(resolved);
+        Metadata.ensureLoaded(app);
 
-            runOnUiThread(() -> panels.setGameInfo(resolved, shown));
+        String known = libraryPathFor(uri);
+        String path = known != null ? known
+                : Metadata.resolve(app, uri, queryDisplayName(uri));
+        String shown = path == null ? null : filenameOf(path);
+
+        runOnUiThread(() -> {
+            panels.setGameInfo(path, shown);
+
+            // The cheats page reads a scraped .pok beside the game, which it
+            // can only find by the store's own key - see PokesUi.forGame.
+            pokes.forGame(path);
+            music.forGame(path);
+
+            // Whatever was being listened to belonged to the last game, and
+            // the machine it was saved from has just been replaced by this
+            // one - so there is nothing to go back to any more.
+            Music.forget(EmulatorActivity.this);
+
+            setupUi.offer(path);
         });
+    }
+
+    /**
+     * The path the library already knew, when this game is the one it started
+     * us with.
+     *
+     * The library sends {@link #EXTRA_LIBRARY_PATH} beside the document
+     * because it has the answer in hand, and asking the store again would be
+     * a file parse for something already known. Matched on the document
+     * rather than remembered in a field: the intent is the only thing that
+     * says which game the extra belongs to, and by the time a second game has
+     * been opened from the recent list it belongs to neither.
+     */
+    private String libraryPathFor(Uri uri) {
+        Intent intent = getIntent();
+
+        return intent != null && uri.equals(intent.getData())
+                ? intent.getStringExtra(EXTRA_LIBRARY_PATH) : null;
+    }
+
+    /**
+     * What is loaded, so it can be loaded again.
+     *
+     * Only {@link SetupUi} needs this, and only because changing the machine
+     * resets the emulator: the file that was just opened has to be opened
+     * again behind it or it silently disappears.
+     *
+     * Volatile because {@link #gameOpened} writes them on the staging thread
+     * and the dialog reads them on the UI thread.
+     */
+    private volatile Uri openedUri;
+    private volatile String openedInside;
+
+    /** Opens whatever is loaded, again, exactly as it was opened. */
+    private void reopenCurrentGame() {
+        Uri uri = openedUri;
+        if (uri == null) return;
+
+        String inside = openedInside;
+
+        if (inside != null) {
+            Work.run("reopen-entry", () -> media.stageAndOpenEntry(uri, inside));
+        } else {
+            Work.run("reopen", () -> media.stageAndOpen(uri));
+        }
     }
 
     /** The fallback shown before the store answers with a scraped name, or
@@ -978,9 +1112,8 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             FuseNative.openFile(staged.getAbsolutePath());
             note(R.string.file_opened, staged.getName());
 
-            String name = staged.getName();
-            int dot = name.lastIndexOf('.');
-            rememberMediaName(Storage.withoutExtension(name));
+            rememberMediaName(Storage.withoutExtension(staged.getName()));
+            gameOpened(item.uri, null);
         });
     }
 
@@ -1439,6 +1572,14 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                              states::fill);
             sheet.addSubmenu(getString(R.string.menu_pokes), R.drawable.ic_poke,
                              pokes::fill);
+
+            // Only for a game a tune was fetched for, which is a small
+            // minority - a row that is nearly always an empty page is worse
+            // than no row.
+            if (music.anything()) {
+                sheet.addSubmenu(getString(R.string.music_title),
+                                 R.drawable.ic_music, music.page());
+            }
             // The page's own heading, which sits over the tape rows: the
             // drives that follow have DRIVES of their own.
             sheet.addSubmenu(getString(R.string.menu_media),
@@ -1701,6 +1842,13 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     protected void onStop() {
         super.onStop();
         panels.close();
+
+        // Somebody who has left the app has finished with the music, not with
+        // the game - so the machine comes back now rather than being left as a
+        // tune nobody is listening to, and coming back to a game that is
+        // where it was is the whole point of putting it aside. Does nothing
+        // when no music was playing.
+        Music.stop(this);
     }
 
     /**

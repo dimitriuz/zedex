@@ -1,6 +1,7 @@
 package dev.ldlab.zedex.library.scrape;
 
 import dev.ldlab.zedex.library.meta.Artwork;
+import dev.ldlab.zedex.library.meta.ScreenDump;
 import dev.ldlab.zedex.storage.Storage;
 
 import static org.junit.Assert.assertEquals;
@@ -69,8 +70,18 @@ public class DownloadsTest {
         for (File file : made) file.delete();
         made.clear();
 
-        for (String folder : new String[] { "covers", "screenshots", "videos", "manuals" }) {
-            new File(Storage.mediaDirectory(context), folder + "/zedex-test").delete();
+        // Everything this class can leave behind, and not only what the fake
+        // was asked to write: a screen dump is converted into a picture whose
+        // name the fake never sees, so listing the folder is the only way to
+        // be sure. A leftover here is not a small thing - the next test in
+        // this class asserts that a game has no picture yet, and finds one.
+        for (String folder : new String[] { "covers", "screenshots", "videos",
+                                            "manuals", "titlescreens" }) {
+            File mine = new File(Storage.mediaDirectory(context), folder + "/zedex-test");
+            File[] left = mine.listFiles();
+
+            if (left != null) for (File file : left) file.delete();
+            mine.delete();
         }
         Artwork.forget();
     }
@@ -115,6 +126,12 @@ public class DownloadsTest {
         Bytes(String content) {
             this.content = content == null ? null
                     : content.getBytes(StandardCharsets.UTF_8);
+            this.fail = null;
+        }
+
+        /** For the one medium that is not text: a Spectrum screen dump. */
+        Bytes(byte[] content) {
+            this.content = content;
             this.fail = null;
         }
 
@@ -448,5 +465,83 @@ public class DownloadsTest {
 
         assertNotNull("the cover that did arrive was left behind a cached miss",
                       Artwork.picture(context, GAME));
+    }
+
+    // --- the one medium that is not a picture when it arrives -------------------------
+
+    private static Medium dump() {
+        return new Medium("titlescreens",
+                          "https://x/screens/load/s/scr/Something.scr", "scr", null);
+    }
+
+    /**
+     * A screen, in the format the hardware stored it.
+     *
+     * The top pixel row of the first two character lines - which live at 0
+     * and 32, the addresses being what they are - and an attribute apiece.
+     * Written out rather than through {@code ScreenDump}'s own arithmetic:
+     * what this test is about is the wiring, and a fixture that computes its
+     * own answer the same way the code does proves nothing about either.
+     */
+    private static byte[] screen() {
+        byte[] bytes = new byte[ScreenDump.SIZE];
+
+        bytes[0] = (byte) 0xff;
+        bytes[32] = (byte) 0xff;
+
+        bytes[6144] = 0x02;                     // black paper, red ink
+        bytes[6144 + 32] = 0x39;                // white paper, blue ink
+
+        return bytes;
+    }
+
+    /**
+     * A fetched {@code .scr} lands as a picture, and the dump does not stay.
+     *
+     * The wiring, which neither {@code ScreenDumpTest} nor {@code
+     * ScreenPictureTest} can see: without it a raw dump reaches the media
+     * folder under its own name, {@code Artwork} resolves nothing - it looks
+     * for png and jpg - and the game shows as having no loading screen while
+     * a file nothing reads sits beside it for ever.
+     */
+    @Test
+    public void afetchedScreenDumpBecomesApicture() {
+        Downloads.Result result = fetch(new Bytes(screen()), GAME,
+                                        Collections.singletonList(dump()));
+
+        assertEquals(1, result.saved);
+        assertEquals(0, result.failed);
+
+        assertNotNull("Artwork cannot find the converted screen",
+                      Artwork.picture(context, GAME));
+
+        for (File made : this.made) {
+            if (made.getName().endsWith(".scr")) {
+                assertFalse("the dump was left behind: " + made, made.isFile());
+            }
+        }
+    }
+
+    /**
+     * And a dump that is not one is refused, leaving neither file.
+     *
+     * The realistic failure: a host answering 200 with an error page. There
+     * is no header to check, so the length is the whole test - and something
+     * that fails it must not become a picture nor stay as a dump.
+     */
+    @Test
+    public void adumpThatIsNotAscreenLeavesNothingBehind() {
+        Downloads.Result result = fetch(new Bytes("<html>not a screen</html>"), GAME,
+                                        Collections.singletonList(dump()));
+
+        assertEquals(0, result.saved);
+        assertEquals(1, result.failed);
+
+        assertNull("a broken screen became this game's picture",
+                   Artwork.picture(context, GAME));
+
+        for (File made : this.made) {
+            assertFalse("something was left behind: " + made, made.isFile());
+        }
     }
 }

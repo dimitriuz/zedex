@@ -16,6 +16,7 @@
     <string name="menu_pokes">Pokes\u2026</string>
     <!-- %1$s is the game the loaded file was recognised as. -->
     <string name="poke_for_game">Cheats for %1$s</string>
+    <string name="poke_scraped">Cheats found by scraping</string>
     <string name="poke_none_for_game">Nothing usable in the database for this one</string>
     <string name="poke_search">Search the cheat database\u2026</string>
     <string name="poke_search_hint">Game name</string>
@@ -644,6 +645,7 @@
     </plurals>
     <string name="library_filter_format">Format</string>
     <string name="library_filter_genre">Genre</string>
+    <string name="library_filter_subgenre">Subgenre</string>
     <string name="library_filter_rating">Rating</string>
     <string name="library_filter_developer">Developer</string>
     <string name="library_filter_publisher">Publisher</string>
@@ -685,6 +687,16 @@
          yes; see LibraryActivity and GameInfoActivity. Tapping it opens the
          PDF in whatever app the phone has for one. -->
     <string name="library_manual">Manual</string>
+    <string name="instructions_title">Instructions</string>
+    <string name="instructions_unreadable">That file cannot be read.</string>
+    <string name="music_title">Music…</string>
+    <string name="music_playing">Playing %1$s</string>
+    <string name="music_stop">Stop the music</string>
+    <string name="music_stopped">Stopped — the game is back</string>
+    <string name="music_unplayable">%1$s will not play</string>
+    <string name="music_unnamed">Tune %1$d</string>
+    <string name="music_none">No music for this game</string>
+    <string name="music_hint">The machine plays these itself, so the game is set aside while one runs and comes back when it stops.</string>
     <!-- The pane's own button, when the selection is a folder or an archive
          rather than a game - see LibraryActivity.updatePane. Matches
          menu_open's own word for the same action, minus its ellipsis: this
@@ -752,8 +764,16 @@
     <string name="edit_metadata_developer">Developer</string>
     <string name="edit_metadata_publisher">Publisher</string>
     <string name="edit_metadata_genre">Genre</string>
+    <string name="edit_metadata_subgenre">Subgenre</string>
     <string name="edit_metadata_released">Year</string>
     <string name="edit_metadata_players">Players</string>
+    <string name="edit_metadata_machine">Machine</string>
+    <string name="edit_metadata_controls">Controls</string>
+    <string name="info_authors">Credits</string>
+    <string name="info_price">Price</string>
+    <string name="info_series">Series</string>
+    <string name="info_compilations">On compilations</string>
+    <string name="info_contents">On this compilation</string>
     <string name="edit_metadata_rating">Rating out of 5</string>
     <string name="edit_metadata_empty">Not set</string>
     <string name="edit_metadata_save">Save</string>
@@ -839,6 +859,7 @@
          plainly why it is worth having, since a login nobody understands the
          point of is a login nobody sets. -->
     <string name="settings_group_scraper">Scraper account</string>
+    <string name="settings_scraper">Scrape from</string>
     <string name="settings_scraper_user">ScreenScraper username</string>
     <string name="settings_scraper_user_summary">Optional. Your own account gets a much larger daily allowance than the one shared by everyone using this app.</string>
     <string name="settings_scraper_password">ScreenScraper password</string>
@@ -860,6 +881,9 @@
     <string name="scrape_media_miximages">Mixed image</string>
     <string name="scrape_media_videos">Video — about 1 MB each</string>
     <string name="scrape_media_manuals">Manual (PDF)</string>
+    <string name="scrape_media_maps">Game map</string>
+    <string name="scrape_media_adverts">Advertisement</string>
+    <string name="scrape_media_pokes">Cheats (pokes)</string>
     <!-- The list a person ticks, in the order the pane shows them.
 
          translatable="false" on an array of visible labels looks wrong and is
@@ -878,6 +902,9 @@
         <item>@string/scrape_media_miximages</item>
         <item>@string/scrape_media_videos</item>
         <item>@string/scrape_media_manuals</item>
+        <item>@string/scrape_media_maps</item>
+        <item>@string/scrape_media_adverts</item>
+        <item>@string/scrape_media_pokes</item>
     </string-array>
     <!-- ES-DE's own folder names, which is what Provider.Wanted is addressed
          by and what lands in the media folder. Never translated: these are
@@ -891,6 +918,9 @@
         <item>miximages</item>
         <item>videos</item>
         <item>manuals</item>
+        <item>maps</item>
+        <item>adverts</item>
+        <item>pokes</item>
     </string-array>
     <!-- What is ticked before anybody has chosen: the three this app draws
          everywhere, matching Provider.Wanted.usual.
@@ -912,4 +942,15 @@
     <!-- The sweep screen's own line, which opens the same dialog and writes
          the same key - see ScrapeManyActivity. -->
     <string name="scrape_many_fetching">What to fetch</string>
+    <!-- Offering what a scraped record says about how to run a game -
+         see menu/SetupUi. Asked once per game; the answer, including a
+         refusal, is remembered. -->
+    <string name="suggest_title">How to run this</string>
+    <string name="suggest_says">The database says: %1$s</string>
+    <string name="suggest_machine">Machine</string>
+    <string name="suggest_control">Control</string>
+    <string name="suggest_remember">Remember for this game</string>
+    <string name="suggest_apply">Apply</string>
+    <string name="suggest_skip">Skip</string>
+    <string name="suggest_applied">Applied</string>
 </resources>

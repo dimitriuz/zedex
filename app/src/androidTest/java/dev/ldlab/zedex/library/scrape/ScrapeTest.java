@@ -57,7 +57,7 @@ public class ScrapeTest {
         assumeTrue("the data folder is not usable on this device: " + root,
                    root.isDirectory() && Storage.isWritable(root));
 
-        store = new File(Storage.libraryDirectory(context), "gamelist.xml");
+        store = new File(Storage.libraryDirectory(context), "metadata.json");
         theirs = store.isFile() ? Files.readAllBytes(store.toPath()) : null;
 
         Metadata.clear(context);
@@ -80,9 +80,13 @@ public class ScrapeTest {
     private static final String LAYOUT = "# Arkanoid \\n0:left = o ;; left";
 
     private static Meta fromProvider() {
-        return new Meta(null, "Arkanoid", "Bat and ball", "Taito", "Imagine",
-                        "Action", "19870101T000000", "1", "0.7500", null)
-                .withControls(LAYOUT);
+        return Meta.at(null)
+                .name("Arkanoid").desc("Bat and ball")
+                .developer("Taito").publisher("Imagine")
+                .genre("Action").released("19870101T000000")
+                .players("1").rating("0.7500")
+                .keymap(LAYOUT)
+                .build();
     }
 
     // --- who owns what comes back ------------------------------------------------
@@ -140,8 +144,7 @@ public class ScrapeTest {
         Metadata.refresh(context);
 
         Metadata.replaceScraped(context, Collections.singletonList(
-                new Meta("./something-else.tap", "Theirs", null, null, null, null,
-                         null, null, null, Meta.ESDE)));
+                Meta.at("./something-else.tap").name("Theirs").source(Meta.ESDE).build()));
         Metadata.refresh(context);
 
         assertNotNull("an ES-DE link discarded what this app had scraped",
@@ -156,8 +159,7 @@ public class ScrapeTest {
         Metadata.put(context, Scrape.owned(fromProvider(), PATH, "ScreenScraper"));
 
         Metadata.replaceScraped(context, Collections.singletonList(
-                new Meta(PATH, "What ES-DE calls it", null, null, null, null,
-                         null, null, null, Meta.ESDE)));
+                Meta.at(PATH).name("What ES-DE calls it").source(Meta.ESDE).build()));
         Metadata.refresh(context);
 
         assertEquals("Arkanoid", Metadata.forPath(context, PATH).name);
@@ -203,8 +205,8 @@ public class ScrapeTest {
      */
     @Test
     public void ahandEditedRowIsRecognisedBeforeBeingOverwritten() {
-        Metadata.put(context, new Meta(PATH, "What I called it", null, null, null,
-                                       null, null, null, null, Meta.USER));
+        Metadata.put(context,
+                     Meta.at(PATH).name("What I called it").source(Meta.USER).build());
         Metadata.refresh(context);
 
         assertTrue(Scrape.wouldOverwriteAHandEdit(context, PATH));
@@ -226,7 +228,7 @@ public class ScrapeTest {
                     Scrape.wouldOverwriteAHandEdit(context, PATH));
 
         Metadata.replaceScraped(context, Collections.singletonList(
-                new Meta(PATH, "Theirs", null, null, null, null, null, null, null, Meta.ESDE)));
+                Meta.at(PATH).name("Theirs").source(Meta.ESDE).build()));
         Metadata.refresh(context);
 
         assertFalse("an ES-DE row is not somebody's own work",
@@ -282,7 +284,7 @@ public class ScrapeTest {
     @Test
     public void thecontrolLayoutSurvivesBeingKeyedAndOwned() {
         assertEquals("owned() dropped the control layout",
-                     LAYOUT, Scrape.owned(fromProvider(), PATH, "ScreenScraper").controls);
+                     LAYOUT, Scrape.owned(fromProvider(), PATH, "ScreenScraper").keymap);
     }
 
     /** And through the store, which is the whole journey. */
@@ -291,6 +293,6 @@ public class ScrapeTest {
         Metadata.put(context, Scrape.owned(fromProvider(), PATH, "ScreenScraper"));
         Metadata.refresh(context);
 
-        assertEquals(LAYOUT, Metadata.forPath(context, PATH).controls);
+        assertEquals(LAYOUT, Metadata.forPath(context, PATH).keymap);
     }
 }

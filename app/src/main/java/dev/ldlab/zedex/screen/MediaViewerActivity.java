@@ -89,6 +89,11 @@ public final class MediaViewerActivity extends ZedexActivity {
         gallery = new Gallery(this);
         gallery.setPictureTargetPx(fullScreenTargetPx());
 
+        // The one place a picture is looked straight at rather than flicked
+        // past: a game map is unreadable at a phone's width, and a media scan
+        // is opened to read the small print on a cassette.
+        gallery.setZoomable(true);
+
         // A tap anywhere in the gallery puts it away again - the same
         // gesture the picture-only dialog this screen replaced answered to,
         // now true of the video page as well.

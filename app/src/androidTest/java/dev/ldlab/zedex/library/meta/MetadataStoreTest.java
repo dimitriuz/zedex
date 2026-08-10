@@ -35,7 +35,7 @@ import java.util.List;
  *
  * The rest of 11.4's number three - {@link EsdeSettingsTest} covers the
  * synthetic-root wrapper over ES-DE's own settings file; this is our own
- * {@code library/gamelist.xml}, the thing a link produces and every row in the
+ * {@code library/metadata.json}, the thing a link produces and every row in the
  * library then reads.
  *
  * What makes it worth its own file rather than a corner of the link's is that
@@ -64,7 +64,7 @@ public class MetadataStoreTest {
         assumeTrue("the data folder is not usable on this device: " + root,
                    root.isDirectory() && Storage.isWritable(root));
 
-        store = new File(Storage.libraryDirectory(context), "gamelist.xml");
+        store = new File(Storage.libraryDirectory(context), "metadata.json");
         theirs = store.isFile() ? Files.readAllBytes(store.toPath()) : null;
 
         Metadata.clear(context);
@@ -88,8 +88,12 @@ public class MetadataStoreTest {
     }
 
     private static Meta game(String path, String name) {
-        return new Meta(path, name, "a description", "Ocean", "Ocean",
-                        "Platform", "1984", "1-2", "0.9", "esde");
+        return Meta.at(path)
+                .name(name).desc("a description")
+                .developer("Ocean").publisher("Ocean")
+                .genre("Platform").released("1984").players("1-2").rating("0.9")
+                .source(Meta.ESDE)
+                .build();
     }
 
     // --- the round trip -------------------------------------------------------------
@@ -217,7 +221,7 @@ public class MetadataStoreTest {
     // --- who owns a row -----------------------------------------------------------------
 
     private static Meta mine(String path, String name) {
-        return new Meta(path, name, null, null, null, null, null, null, null, Meta.USER);
+        return Meta.at(path).name(name).source(Meta.USER).build();
     }
 
     /**
@@ -413,7 +417,7 @@ public class MetadataStoreTest {
     /**
      * No temporary file is left beside the store.
      *
-     * The write goes to {@code gamelist.xml.tmp} and is renamed, so that a
+     * The write goes to {@code metadata.json.tmp} and is renamed, so that a
      * failure part way through cannot leave the real file half written - which
      * would then read back as no metadata at all, the moment it lost the tag
      * that made it well formed. A {@code .tmp} still there afterwards means
@@ -423,7 +427,7 @@ public class MetadataStoreTest {
     public void nothingIsLeftHalfWritten() {
         Metadata.replaceScraped(context, Collections.singletonList(game("./a.tap", "A")));
 
-        File temp = new File(store.getParentFile(), "gamelist.xml.tmp");
+        File temp = new File(store.getParentFile(), "metadata.json.tmp");
         assertFalse("a half-written " + temp.getName() + " was left behind", temp.exists());
         assertTrue("the store itself is not there", store.isFile());
     }
@@ -467,8 +471,7 @@ public class MetadataStoreTest {
         String awkward = "Tom & Jerry <the> \"one\" with 'apostrophes'";
 
         Metadata.replaceScraped(context, Collections.singletonList(
-                new Meta("./a.tap", awkward, awkward, null, null, null,
-                         null, null, null, "esde")));
+                Meta.at("./a.tap").name(awkward).desc(awkward).source(Meta.ESDE).build()));
         Metadata.refresh(context);
 
         Meta back = Metadata.forPath(context, "./a.tap");
@@ -504,10 +507,10 @@ public class MetadataStoreTest {
     public void acontrolLayoutSurvivesTheRoundTrip() {
         String layout = "# Manic Miner\n0:left = q ;; left\n0:a = v ;; jump";
 
-        Metadata.put(context, game("./a.tap", "A").withControls(layout));
+        Metadata.put(context, game("./a.tap", "A").but().keymap(layout).build());
         Metadata.refresh(context);
 
-        assertEquals(layout, Metadata.forPath(context, "./a.tap").controls);
+        assertEquals(layout, Metadata.forPath(context, "./a.tap").keymap);
     }
 
     /** A game without one reads back with none, not an empty string. */
@@ -516,7 +519,7 @@ public class MetadataStoreTest {
         Metadata.replaceScraped(context, Collections.singletonList(game("./a.tap", "A")));
         Metadata.refresh(context);
 
-        assertNull(Metadata.forPath(context, "./a.tap").controls);
+        assertNull(Metadata.forPath(context, "./a.tap").keymap);
     }
 
     /** Editing a field by hand keeps it - the editor does not show the layout,
@@ -525,7 +528,7 @@ public class MetadataStoreTest {
     public void editingAFieldByHandKeepsTheLayout() {
         String layout = "0:left = q";
 
-        Metadata.put(context, game("./a.tap", "A").withControls(layout));
+        Metadata.put(context, game("./a.tap", "A").but().keymap(layout).build());
         Metadata.refresh(context);
 
         Meta edited = Metadata.forPath(context, "./a.tap").with(Meta.Field.NAME, "Renamed");
@@ -534,7 +537,7 @@ public class MetadataStoreTest {
 
         assertEquals("Renamed", Metadata.forPath(context, "./a.tap").name);
         assertEquals("the hand editor dropped the control layout",
-                     layout, Metadata.forPath(context, "./a.tap").controls);
+                     layout, Metadata.forPath(context, "./a.tap").keymap);
     }
 
     /** Multi-line and full of punctuation, which is what it really is. */
@@ -544,9 +547,134 @@ public class MetadataStoreTest {
                       + "0:start = ENTER ;; start game\n0:left = q ;; left\n"
                       + "0:r1 = h ;; music on & off <loud>";
 
-        Metadata.put(context, game("./a.tap", "A").withControls(layout));
+        Metadata.put(context, game("./a.tap", "A").but().keymap(layout).build());
         Metadata.refresh(context);
 
-        assertEquals(layout, Metadata.forPath(context, "./a.tap").controls);
+        assertEquals(layout, Metadata.forPath(context, "./a.tap").keymap);
+    }
+
+    // --- the fields that are not strings ------------------------------------------------
+
+    /**
+     * A list survives the round trip, which the old format could not have
+     * managed without inventing a separator.
+     *
+     * {@code inputs} is the first field here that is not a single string, and
+     * the concrete reason the store stopped borrowing ES-DE's schema: in XML
+     * this needed a convention for joining them and a rule for a value that
+     * contained the joining character.
+     */
+    @Test
+    public void alistOfInputsSurvivesBeingWrittenAndReadBack() {
+        java.util.List<String> inputs =
+                java.util.Arrays.asList("Kempston Joystick", "Cursor", "Redefineable keys");
+
+        Metadata.put(context, Meta.at("./a.tap").name("A")
+                .machine("ZX-Spectrum 48K/128K").inputs(inputs)
+                .source("ZXInfo").build());
+        Metadata.refresh(context);
+
+        Meta back = Metadata.forPath(context, "./a.tap");
+
+        assertEquals(inputs, back.inputs);
+        assertEquals("ZX-Spectrum 48K/128K", back.machine);
+    }
+
+    /** And nothing stored gives an empty list rather than null, so no caller
+     *  has to remember which. */
+    @Test
+    public void agameWithNoInputsReadsBackAsAnEmptyList() {
+        Metadata.put(context, Meta.at("./a.tap").name("A").source(Meta.ESDE).build());
+        Metadata.refresh(context);
+
+        assertTrue(Metadata.forPath(context, "./a.tap").inputs.isEmpty());
+    }
+
+    // --- the fields a second provider brought ----------------------------------------
+
+    /** Writes the store as text, for the cases where what is under test is
+     *  what the reader makes of a file it did not write. */
+    private void write(String json) throws IOException {
+        store.getParentFile().mkdirs();
+
+        try (FileOutputStream out = new FileOutputStream(store)) {
+            out.write(json.getBytes(StandardCharsets.UTF_8));
+        }
+    }
+
+
+    /**
+     * Authors, price, series and compilations survive the round trip.
+     *
+     * The point of a format of our own: these are ZXInfo's and ES-DE's schema
+     * has no room for them. Two of them are lists of <em>other entries</em>,
+     * so each row is an object rather than a string - which the gamelist this
+     * replaced could not have held at all without inventing a separator
+     * convention and a rule for what happens when a title contains it.
+     */
+    @Test
+    public void thesecondProvidersFieldsSurviveTheRoundTrip() {
+        Metadata.put(context, game("./a.tap", "A").but()
+                .authors(Arrays.asList("Jon Ritman", "F. David Thorpe (Load Screen)"))
+                .price("£7.95")
+                .series("Chaos")
+                .seriesGames(Collections.singletonList(
+                        new Meta.Link("2930", "Lords of Chaos")))
+                .compilations(Arrays.asList(
+                        new Meta.Link("12019", "Dixons Premier Collection for Your +2"),
+                        new Meta.Link("14204", "Outlet issue 117")))
+                .contents(Collections.singletonList(
+                        new Meta.Link("1860", "Freddy Hardest")))
+                .build());
+        Metadata.refresh(context);
+
+        Meta back = Metadata.forPath(context, "./a.tap");
+
+        assertEquals(Arrays.asList("Jon Ritman", "F. David Thorpe (Load Screen)"),
+                     back.authors);
+        assertEquals("£7.95", back.price);
+        assertEquals("Chaos", back.series);
+
+        assertEquals(Collections.singletonList(new Meta.Link("2930", "Lords of Chaos")),
+                     back.seriesGames);
+        assertEquals("the id has to survive, or the titles can never become links",
+                     "12019", back.compilations.get(0).id);
+        assertEquals(2, back.compilations.size());
+        assertEquals(Collections.singletonList(new Meta.Link("1860", "Freddy Hardest")),
+                     back.contents);
+    }
+
+    /** A game with none of them reads back with none of them, rather than with
+     *  empty strings and lists of nothing. */
+    @Test
+    public void agameWithoutThemIsNotGivenEmptyOnes() {
+        Metadata.put(context, game("./b.tap", "B"));
+        Metadata.refresh(context);
+
+        Meta back = Metadata.forPath(context, "./b.tap");
+
+        assertNull(back.price);
+        assertNull(back.series);
+        assertTrue(back.authors.isEmpty());
+        assertTrue(back.seriesGames.isEmpty());
+        assertTrue(back.compilations.isEmpty());
+        assertTrue(back.contents.isEmpty());
+    }
+
+    /** A row of the list with no id, or no title, is not a link - the store is
+     *  a file people edit, and half a link points nowhere. */
+    @Test
+    public void ahalfWrittenLinkIsDropped() throws Exception {
+        write("{\"version\":1,\"linked\":0,\"games\":{\"./c.tap\":{"
+              + "\"name\":\"C\",\"compilations\":["
+              + "{\"id\":\"1\",\"title\":\"Kept\"},"
+              + "{\"title\":\"No id\"},"
+              + "{\"id\":\"3\"},"
+              + "\"not an object\"]}}}");
+        Metadata.refresh(context);
+
+        Meta back = Metadata.forPath(context, "./c.tap");
+        assertEquals(Collections.singletonList(new Meta.Link("1", "Kept")),
+                     back.compilations);
     }
 }

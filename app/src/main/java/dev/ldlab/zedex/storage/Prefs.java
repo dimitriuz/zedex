@@ -173,6 +173,20 @@ public final class Prefs {
      * {@code getStringSet} tells them apart by returning null for absent.
      */
     public static final String KEY_SCRAPE_MEDIA = "scrapeMedia";
+    /**
+     * Which service a scrape asks, by {@code Provider.name()}.
+     *
+     * A name rather than an index, so that adding or reordering providers
+     * cannot silently repoint somebody's choice at a different service - and
+     * so a value this build does not recognise falls back to the default
+     * rather than to whatever happens to be second in a list.
+     *
+     * Absent means the default, which is whichever {@code Scrapers} prefers.
+     * One service answers everything; merging fields from two was considered
+     * and rejected, because two sources disagreeing about a name or a year
+     * needs a rule per field and every conflict is silent when it goes wrong.
+     */
+    public static final String KEY_SCRAPER = "scraper";
     /* How big the picture is drawn, one per orientation: the number of device
        pixels per emulated pixel, or "0" to fill the space. Stored as strings
        because a ListPreference stores strings, and separate because the two

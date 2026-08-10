@@ -141,7 +141,7 @@ final class ScrapeOneGame {
         ScrapeException failure = null;
 
         try {
-            result = Scrape.apply(activity, provider, new Http.Real(), candidate, path,
+            result = Scrape.apply(activity, provider, new Http.Real(activity), candidate, path,
                                   Scrapers.wanted(activity));
         } catch (ScrapeException e) {
             failure = e;

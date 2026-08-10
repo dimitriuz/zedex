@@ -472,7 +472,7 @@ public final class ScrapeManyActivity extends ZedexActivity {
 
     private void showEstimate() {
         int games = chosen.size();
-        int requests = games * (1 + Scrapers.wanted(this).requests());
+        int requests = games * provider.costPerGame(Scrapers.wanted(this));
 
         estimate.setText(getResources().getQuantityString(
                 R.plurals.scrape_many_estimate, games, games, requests));
@@ -547,7 +547,7 @@ public final class ScrapeManyActivity extends ZedexActivity {
         // Work.alone rather than the pool: this is twenty minutes and would
         // hold a lane the short work wants.
         Work.alone("scrape-many", () -> {
-            Sweep.Tally tally = Sweep.run(this, provider, new Http.Real(), entries,
+            Sweep.Tally tally = Sweep.run(this, provider, new Http.Real(this), entries,
                                           Scrapers.wanted(this), conflicts, watcher);
 
             runOnUiThread(() -> finished(tally));

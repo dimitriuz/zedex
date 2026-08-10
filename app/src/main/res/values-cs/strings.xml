@@ -12,6 +12,7 @@
     <string name="menu_states">Uložené stavy…</string>
     <string name="menu_pokes">Cheaty…</string>
     <string name="poke_for_game">Cheaty pro %1$s</string>
+    <string name="poke_scraped">Cheaty nalezené scrapováním</string>
     <string name="poke_none_for_game">V databázi není pro tuhle hru nic použitelného</string>
     <string name="poke_search">Hledat v databázi cheatů…</string>
     <string name="poke_search_hint">Název hry</string>
@@ -566,6 +567,7 @@
     </plurals>
     <string name="library_filter_format">Formát</string>
     <string name="library_filter_genre">Žánr</string>
+    <string name="library_filter_subgenre">Podžánr</string>
     <string name="library_filter_rating">Hodnocení</string>
     <string name="library_filter_developer">Vývojář</string>
     <string name="library_filter_publisher">Vydavatel</string>
@@ -587,6 +589,16 @@
     <string name="library_play">Hrát</string>
     <string name="library_info">Podrobnosti o hře</string>
     <string name="library_manual">Návod</string>
+    <string name="instructions_title">Návod</string>
+    <string name="instructions_unreadable">Tento soubor nelze přečíst.</string>
+    <string name="music_title">Hudba…</string>
+    <string name="music_playing">Přehrává se %1$s</string>
+    <string name="music_stop">Zastavit hudbu</string>
+    <string name="music_stopped">Zastaveno — hra je zpět</string>
+    <string name="music_unplayable">%1$s nelze přehrát</string>
+    <string name="music_unnamed">Skladba %1$d</string>
+    <string name="music_none">Pro tuto hru není hudba</string>
+    <string name="music_hint">Přehrává je sám počítač, takže se hra na dobu přehrávání odloží a po zastavení se vrátí.</string>
     <string name="library_open">Otevřít</string>
     <string name="library_nothing_selected">Vyberte hru a zobrazí se, co je o ní známo.</string>
     <string name="library_up">Nahoru</string>
@@ -646,8 +658,16 @@
     <string name="edit_metadata_developer">Vývojář</string>
     <string name="edit_metadata_publisher">Vydavatel</string>
     <string name="edit_metadata_genre">Žánr</string>
+    <string name="edit_metadata_subgenre">Podžánr</string>
     <string name="edit_metadata_released">Rok</string>
     <string name="edit_metadata_players">Hráči</string>
+    <string name="edit_metadata_machine">Počítač</string>
+    <string name="edit_metadata_controls">Ovládání</string>
+    <string name="info_authors">Autoři</string>
+    <string name="info_price">Cena</string>
+    <string name="info_series">Série</string>
+    <string name="info_compilations">Na kompilacích</string>
+    <string name="info_contents">Na této kompilaci</string>
     <string name="edit_metadata_rating">Hodnocení z 5</string>
     <string name="edit_metadata_empty">Nenastaveno</string>
     <string name="edit_metadata_save">Uložit</string>
@@ -738,6 +758,7 @@
     <string name="scrape_many_resume">Spusťte to znovu s volbou „Zatím bez načtených dat“ a bude se pokračovat tam, kde se přestalo.</string>
     <!-- An optional ScreenScraper account of the user's own. -->
     <string name="settings_group_scraper">Účet scraperu</string>
+    <string name="settings_scraper">Zdroj dat</string>
     <string name="settings_scraper_user">Uživatelské jméno ScreenScraper</string>
     <string name="settings_scraper_user_summary">Nepovinné. Vlastní účet má mnohem větší denní limit než ten, který sdílejí všichni uživatelé této aplikace.</string>
     <string name="settings_scraper_password">Heslo ScreenScraper</string>
@@ -755,5 +776,17 @@
     <string name="scrape_media_miximages">Kombinovaný obrázek</string>
     <string name="scrape_media_videos">Video — asi 1 MB každé</string>
     <string name="scrape_media_manuals">Manuál (PDF)</string>
+    <string name="scrape_media_maps">Mapa hry</string>
+    <string name="scrape_media_adverts">Reklama</string>
+    <string name="scrape_media_pokes">Cheaty (poke)</string>
     <string name="scrape_many_fetching">Co stahovat</string>
+    <!-- How to run a game, from a scraped record. -->
+    <string name="suggest_title">Jak toto spustit</string>
+    <string name="suggest_says">Databáze uvádí: %1$s</string>
+    <string name="suggest_machine">Počítač</string>
+    <string name="suggest_control">Ovládání</string>
+    <string name="suggest_remember">Zapamatovat pro tuto hru</string>
+    <string name="suggest_apply">Použít</string>
+    <string name="suggest_skip">Přeskočit</string>
+    <string name="suggest_applied">Použito</string>
 </resources>

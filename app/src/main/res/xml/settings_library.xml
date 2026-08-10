@@ -112,6 +112,16 @@
             android:inputType="textPassword"
             android:singleLine="true" />
         <!--
+            Which service answers. Entries are filled in by SettingsActivity,
+            not listed here: which providers a build has depends on whether it
+            was given ScreenScraper credentials, and a hard-coded list would
+            offer one that cannot work.
+        -->
+        <ListPreference
+            android:key="scraper"
+            android:title="@string/settings_scraper"
+            android:dialogTitle="@string/settings_scraper" />
+        <!--
             What a scrape fetches, as ES-DE folder names - see
             Prefs.KEY_SCRAPE_MEDIA.
 

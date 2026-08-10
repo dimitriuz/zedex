@@ -4,6 +4,7 @@ import dev.ldlab.zedex.library.meta.Meta;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
@@ -40,8 +41,12 @@ import org.junit.runner.RunWith;
 public class EditMetadataFieldsTest {
 
     private static Meta scraped(String released, String rating) {
-        return new Meta("./a.tap", "A name", "A description", "Ocean", "Ocean",
-                        "Platform", released, "1-2", rating, Meta.ESDE);
+        return Meta.at("./a.tap")
+                .name("A name").desc("A description")
+                .developer("Ocean").publisher("Ocean")
+                .genre("Platform").released(released).players("1-2").rating(rating)
+                .source(Meta.ESDE)
+                .build();
     }
 
     private static String stored(Meta original, Meta.Field field, String typed) {
@@ -235,5 +240,75 @@ public class EditMetadataFieldsTest {
         assertEquals("20201218T000000", changed.released);
         assertEquals("0.9", changed.rating);
         assertEquals("./a.tap", changed.path);
+    }
+
+    // --- the two that a person fills in when the database cannot ----------------
+
+    /**
+     * The controls are a list stored and a line edited, and the two have to
+     * survive each other.
+     *
+     * A record can name three interfaces, and a text box holds one string, so
+     * the list is shown comma-separated and split back on the commas. The
+     * round trip has to be exact or an untouched field is rewritten every
+     * time this screen is opened: {@code storedValue} decides "untouched" by
+     * comparing what was typed against what was shown.
+     */
+    @Test
+    public void thecontrolsGoRoundAsAcommaSeparatedLine() {
+        Meta game = scraped("20200101T000000", "0.9").but()
+                .inputs(java.util.Arrays.asList("Kempston", "Cursor",
+                                                "Redefineable keys"))
+                .build();
+
+        assertEquals("Kempston, Cursor, Redefineable keys",
+                     EditMetadataActivity.shownValue(game, Meta.Field.INPUTS));
+
+        assertNull("shown and stored disagree, so opening this screen rewrites it",
+                   stored(game, Meta.Field.INPUTS,
+                          "Kempston, Cursor, Redefineable keys"));
+
+        assertEquals(java.util.Arrays.asList("Kempston", "Cursor"),
+                     game.with(Meta.Field.INPUTS, "Kempston, Cursor").inputs);
+    }
+
+    /** Typed by a person, so the spacing is theirs and the empties are not
+     *  controls. */
+    @Test
+    public void thecontrolsAreTidiedOnTheWayIn() {
+        Meta game = scraped("20200101T000000", "0.9");
+
+        assertEquals(java.util.Arrays.asList("Kempston", "Cursor"),
+                     game.with(Meta.Field.INPUTS, "  Kempston ,, Cursor ,  ").inputs);
+        assertTrue("a line of separators is no controls at all",
+                   game.with(Meta.Field.INPUTS, " , ,").inputs.isEmpty());
+    }
+
+    /** The machine is one string in the database's own words, so there is
+     *  nothing to convert - but it still has to be storable at all. */
+    @Test
+    public void themachineIsStoredAsItIsTyped() {
+        Meta game = scraped("20200101T000000", "0.9");
+
+        assertEquals("", EditMetadataActivity.shownValue(game, Meta.Field.MACHINE));
+        assertEquals("ZX-Spectrum 48K/128K",
+                     stored(game, Meta.Field.MACHINE, "ZX-Spectrum 48K/128K"));
+        assertEquals("ZX-Spectrum 128K",
+                     game.with(Meta.Field.MACHINE, "ZX-Spectrum 128K").machine);
+    }
+
+    /** Clearing either one empties it rather than leaving what was there. */
+    @Test
+    public void eitherCanBeClearedAgain() {
+        Meta game = scraped("20200101T000000", "0.9").but()
+                .machine("ZX-Spectrum 48K")
+                .inputs(java.util.Collections.singletonList("Kempston"))
+                .build();
+
+        assertEquals("", stored(game, Meta.Field.MACHINE, ""));
+        assertEquals("", stored(game, Meta.Field.INPUTS, ""));
+
+        assertNull(game.with(Meta.Field.MACHINE, "").machine);
+        assertTrue(game.with(Meta.Field.INPUTS, "").inputs.isEmpty());
     }
 }

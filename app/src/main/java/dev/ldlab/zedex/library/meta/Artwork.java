@@ -48,7 +48,16 @@ public final class Artwork {
      */
     private static final String[] PICTURE_FOLDERS = {
         "covers", "backcovers", "physicalmedia", "miximages", "screenshots", "titlescreens",
+        "maps", "adverts",
     };
+
+    /*
+     * The last two are not ES-DE's - it has no folder for either, and a map
+     * and an advertisement are worth having - so they are this app's own, and
+     * they go last on purpose. This list is a preference order as well as a
+     * gallery: the first that exists is what every row and tile draws, and a
+     * game map is a poor thumbnail for a game that also has a cover.
+     */
 
     /**
      * Both cases, because {@link EsdeLink#read} copies whatever extension
@@ -66,7 +75,38 @@ public final class Artwork {
      * BitmapFactory}, which cannot read one at all.
      */
     private static final String MANUAL_FOLDER = "manuals";
-    private static final String MANUAL_EXTENSION = "pdf";
+
+    /**
+     * A PDF first, then a transcription.
+     *
+     * ES-DE only ever has the PDF, and where a provider offers both the PDF
+     * is the better document - a scan or a typeset manual against somebody's
+     * plain-text version of it. But rather more of what ZXDB carries is text
+     * than PDF, 6,945 files against 3,723, so taking only the first meant
+     * having no manual for most of the games that have one.
+     *
+     * Two extensions and one folder, because it is one thing to the person
+     * looking at it: the button says Manual either way, and {@code Manuals}
+     * decides which viewer by what it is handed.
+     */
+    private static final String[] MANUAL_EXTENSIONS = { "pdf", "txt" };
+
+    /**
+     * The cheats a provider found for one game.
+     *
+     * A {@code .pok} is a few lines of text naming pokes - see {@code
+     * PokeDatabase}, which parses the same format out of the database that
+     * ships with the app. Kept beside the pictures because it belongs to the
+     * game in the same way and is fetched by the same machinery, and not
+     * because it is artwork.
+     */
+    private static final String POKE_FOLDER = "pokes";
+    private static final String POKE_EXTENSION = "pok";
+
+    /** The game's own music, as the driver that plays it - see {@code
+     *  media.AyFile}. Unzipped by {@code Downloads} as it arrives. */
+    private static final String MUSIC_FOLDER = "music";
+    private static final String MUSIC_EXTENSION = "ay";
 
     /** A cached miss, so the map can tell "not looked up" from "looked up, nothing there". */
     private static final Uri MISS = Uri.EMPTY;
@@ -187,12 +227,53 @@ public final class Artwork {
         Uri cached = manualCache.get(relativePath);
         if (cached != null) return cached == MISS ? null : cached;
 
-        String name = withoutExtension(relativePath) + "." + MANUAL_EXTENSION;
-        Uri found = ours(context, MANUAL_FOLDER, name);
-        if (found == null && root != null) found = resolve(context, root, MANUAL_FOLDER, name);
+        Uri found = null;
+
+        for (String extension : MANUAL_EXTENSIONS) {
+            String name = withoutExtension(relativePath) + "." + extension;
+
+            found = ours(context, MANUAL_FOLDER, name);
+            if (found == null && root != null) {
+                found = resolve(context, root, MANUAL_FOLDER, name);
+            }
+            if (found != null) break;
+        }
 
         manualCache.put(relativePath, found == null ? MISS : found);
         return found;
+    }
+
+    /**
+     * The {@code .pok} fetched for this game, or null.
+     *
+     * <b>A {@code File} and not a {@code Uri}, unlike everything else here.</b>
+     * ES-DE has no such folder, so this is only ever ours - there is no second
+     * place to look and no document to resolve - and the caller reads the text
+     * rather than handing it to something that opens a stream. Uncached for
+     * the same reason it is cheap: a few hundred bytes read once, when
+     * somebody opens the cheats page.
+     */
+    public static File pokes(Context context, String relativePath) {
+        return ours(context, POKE_FOLDER, POKE_EXTENSION, relativePath);
+    }
+
+    /** One of this app's own files for a game, or null when there is none -
+     *  the shared half of {@link #pokes} and {@link #music}. */
+    private static File ours(Context context, String folder, String extension,
+                             String relativePath) {
+        if (relativePath == null) return null;
+
+        File file = new File(new File(Storage.mediaDirectory(context), folder),
+                             withoutExtension(relativePath) + "." + extension);
+
+        return file.canRead() && file.length() > 0 ? file : null;
+    }
+
+    /** The {@code .ay} fetched for this game, or null. A {@code File} for the
+     *  same reasons {@link #pokes} is one: only ever ours, and read rather
+     *  than opened. */
+    public static File music(Context context, String relativePath) {
+        return ours(context, MUSIC_FOLDER, MUSIC_EXTENSION, relativePath);
     }
 
     /** The current media root, clearing every cache first if it has changed since last time. */

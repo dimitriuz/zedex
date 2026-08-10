@@ -594,7 +594,7 @@ public final class Storage {
             // early enough that one has not been granted yet. Whatever is
             // written in that window goes to the default root and is invisible
             // afterwards - which is how a linked library came to report itself
-            // as never linked, with its gamelist.xml sitting in the folder the
+            // as never linked, with its metadata.json sitting in the folder the
             // app used to think was its own.
             Log.w(TAG, "data folder " + chosen + " is not readable; using "
                        + defaultRoot(context) + " instead. Anything written now"
@@ -785,7 +785,7 @@ public final class Storage {
      * scraped metadata store goes.
      *
      * That last one is worth the sentence it costs. Changing the data folder
-     * left gamelist.xml behind, and Metadata reads a missing file as an *empty*
+     * left metadata.json behind, and Metadata reads a missing file as an *empty*
      * store rather than an error - so the app answered "no games known" and
      * "never linked" while artwork, which comes from ES-DE's media folder and
      * not from the store, went on working. The link looked like it had

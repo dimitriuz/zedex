@@ -14,8 +14,10 @@ import java.util.Map;
 public class FacetsTest {
 
     private Meta meta(String genre, String developer, String publisher) {
-        return new Meta("./g.tap", "G", null, developer, publisher, genre,
-                        null, null, null, "esde");
+        return Meta.at("./g.tap")
+                .name("G").developer(developer).publisher(publisher).genre(genre)
+                .source(Meta.ESDE)
+                .build();
     }
 
     private List<Facets.Value> values(Map<Filters.Field, List<Facets.Value>> all,

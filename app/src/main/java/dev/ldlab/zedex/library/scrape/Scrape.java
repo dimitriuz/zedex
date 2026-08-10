@@ -86,18 +86,16 @@ public final class Scrape {
     /**
      * The scraped facts, keyed and owned.
      *
-     * {@code withControls} last, and not optional: the ten-argument
-     * constructor leaves the control layout null, so rebuilding a {@link Meta}
-     * through it drops whatever the provider sent. That is not hypothetical -
-     * this method did exactly that, and it took comparing the store against a
-     * live reply to notice, because everything else about the row was right.
-     * {@code Meta.with} has the same shape and the same warning on it.
+     * Two changes to what the provider sent, and everything else carried
+     * across untouched - which is the whole reason {@link Meta#but} exists.
+     * This method used to rebuild the row through a ten-argument constructor
+     * and silently dropped the key map, and nothing failed or logged: the
+     * store simply had no key map in it, and it took comparing a real scrape
+     * against a live reply to see. Listing what changes rather than what stays
+     * makes that class of bug unwriteable here.
      */
     static Meta owned(Meta from, String path, String providerName) {
-        return new Meta(path, from.name, from.desc, from.developer, from.publisher,
-                        from.genre, from.released, from.players, from.rating,
-                        providerName)
-                .withControls(from.controls);
+        return from.but().path(path).source(providerName).build();
     }
 
     /**

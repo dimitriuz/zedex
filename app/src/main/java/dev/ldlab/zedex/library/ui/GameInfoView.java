@@ -3,11 +3,13 @@ package dev.ldlab.zedex.library.ui;
 import dev.ldlab.zedex.work.Work;
 import dev.ldlab.zedex.view.Palette;
 import dev.ldlab.zedex.R;
+import dev.ldlab.zedex.EmulatorActivity;
 import dev.ldlab.zedex.library.meta.Artwork;
 import dev.ldlab.zedex.library.meta.Meta;
 import dev.ldlab.zedex.library.meta.Metadata;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.res.Configuration;
 import android.net.Uri;
 import android.os.Handler;
@@ -79,6 +81,9 @@ public final class GameInfoView extends LinearLayout {
 
     private final Gallery gallery;
     private final ImageButton manualButton;
+
+    /** Beside it, and only for a game a tune was fetched for. */
+    private final ImageButton musicButton;
     private final Button playButton;
     private final TextView title;
     private final TextView filename;
@@ -150,14 +155,9 @@ public final class GameInfoView extends LinearLayout {
         // faint ring so the disc still reads as an edge against black art,
         // and round so it reads as a button rather than as part of the
         // picture it sits on.
-        GradientDrawable disc = new GradientDrawable();
-        disc.setShape(GradientDrawable.OVAL);
-        disc.setColor(0xd0000000);
-        disc.setStroke(pixels(1), 0x66ffffff);
-
         manualButton = new ImageButton(context);
         manualButton.setImageResource(R.drawable.ic_manual);
-        manualButton.setBackground(disc);
+        manualButton.setBackground(disc());
         manualButton.setPadding(pixels(9), pixels(9), pixels(9), pixels(9));
         manualButton.setColorFilter(0xffffffff);
         manualButton.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
@@ -173,6 +173,24 @@ public final class GameInfoView extends LinearLayout {
                 pixels(48), pixels(48), Gravity.TOP | Gravity.END);
         buttonParams.topMargin = buttonParams.rightMargin = pixels(12);
         coverBox.addView(manualButton, buttonParams);
+
+        musicButton = new ImageButton(context);
+        musicButton.setImageResource(R.drawable.ic_music);
+        musicButton.setBackground(disc());
+        musicButton.setPadding(pixels(9), pixels(9), pixels(9), pixels(9));
+        musicButton.setColorFilter(0xffffffff);
+        musicButton.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
+        musicButton.setContentDescription(context.getString(R.string.music_title));
+        musicButton.setVisibility(View.GONE);
+
+        // Under the manual rather than beside it: the box is as wide as a
+        // cover and two buttons in a row across the top of one crowd the
+        // artwork somebody came to look at.
+        FrameLayout.LayoutParams musicParams = new FrameLayout.LayoutParams(
+                pixels(48), pixels(48), Gravity.TOP | Gravity.END);
+        musicParams.topMargin = pixels(12) + pixels(48) + pixels(8);
+        musicParams.rightMargin = pixels(12);
+        coverBox.addView(musicButton, musicParams);
 
         // Neither of the lane's own dimensions exists yet at construction
         // time - portrait's lane is bounded by width and open on height,
@@ -346,6 +364,7 @@ public final class GameInfoView extends LinearLayout {
         facts.setVisibility(View.GONE);
         description.setVisibility(View.GONE);
         manualButton.setVisibility(View.GONE);
+        musicButton.setVisibility(View.GONE);
         updatePlayVisibility();
 
         gallery.load(relativePath);
@@ -362,6 +381,23 @@ public final class GameInfoView extends LinearLayout {
             handler.post(() -> {
                 if (mine != token) return; // this game was left before the store answered
                 show(meta);
+            });
+        });
+
+        Work.run("pane-music", () -> {
+            java.io.File tune;
+            try {
+                tune = Artwork.music(app, relativePath);
+            } catch (Exception e) {
+                tune = null;
+            }
+
+            boolean any = tune != null;
+            handler.post(() -> {
+                if (mine != token || !any) return;
+
+                musicButton.setVisibility(View.VISIBLE);
+                musicButton.setOnClickListener(v -> openMusic(relativePath));
             });
         });
 
@@ -389,6 +425,41 @@ public final class GameInfoView extends LinearLayout {
                         v -> Manuals.open(getContext(), result, getDisplay(), onManualOpened));
             });
         });
+    }
+
+    /**
+     * The backing every one of these buttons sits on.
+     *
+     * One each rather than one shared: a {@code Drawable} handed to two views
+     * shares its state with both, and a background that is only ever drawn
+     * still costs nothing to make twice.
+     */
+    private GradientDrawable disc() {
+        GradientDrawable disc = new GradientDrawable();
+
+        disc.setShape(GradientDrawable.OVAL);
+        disc.setColor(0xd0000000);
+        disc.setStroke(pixels(1), 0x66ffffff);
+
+        return disc;
+    }
+
+    /**
+     * Hands the game's music to the machine, which is the only thing that can
+     * play it.
+     *
+     * The emulator screen rather than one of this pane's own: a tune is the
+     * Spectrum running the game's driver, so it happens where the Spectrum
+     * is. Whatever was loaded there is put aside and given back - see {@code
+     * media.Music}.
+     */
+    private void openMusic(String relativePath) {
+        Intent intent = new Intent(getContext(), EmulatorActivity.class)
+                .putExtra(EmulatorActivity.EXTRA_MUSIC, relativePath)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                        | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+
+        getContext().startActivity(intent);
     }
 
     /** Nothing to show - clears every field and empties the gallery. */

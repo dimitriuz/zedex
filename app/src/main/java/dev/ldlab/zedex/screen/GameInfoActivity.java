@@ -68,6 +68,9 @@ public final class GameInfoActivity extends ZedexActivity {
      *  Shown only once {@link #loadManualButton} answers this game has one. */
     private ImageButton manualButton;
 
+    /** Under it, and only for a game a tune was fetched for. */
+    private ImageButton musicButton;
+
     /** The path this screen was opened with - kept so a tap on a page can
      *  open {@link MediaViewerActivity} against the same game, rather than
      *  the intent extra being read a second time. */
@@ -77,6 +80,10 @@ public final class GameInfoActivity extends ZedexActivity {
     private TextView filename;
     private TextView facts;
     private TextView description;
+
+    /** The rows under the description: credits, price, series, compilations.
+     *  A column of its own because it is rebuilt whenever the store answers. */
+    private LinearLayout extras;
 
 
     @Override
@@ -102,6 +109,7 @@ public final class GameInfoActivity extends ZedexActivity {
             load(path);
             gallery.load(path);
             loadManualButton(path);
+        loadMusicButton(path);
         }
     }
 
@@ -196,6 +204,22 @@ public final class GameInfoActivity extends ZedexActivity {
         buttonParams.rightMargin = pixels(16);
         box.addView(manualButton, buttonParams);
 
+        musicButton = new ImageButton(this);
+        musicButton.setImageResource(R.drawable.ic_music);
+        musicButton.setBackgroundColor(0x80000000);
+        musicButton.setColorFilter(0xffffffff);
+        musicButton.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
+        musicButton.setContentDescription(getString(R.string.music_title));
+        musicButton.setVisibility(View.GONE);
+
+        // Under the manual, as in the pane: two buttons across the top of a
+        // cover crowd the artwork somebody came to look at.
+        FrameLayout.LayoutParams musicParams = new FrameLayout.LayoutParams(
+                pixels(48), pixels(48), Gravity.TOP | Gravity.END);
+        musicParams.topMargin = pixels(16) + pixels(48) + pixels(8);
+        musicParams.rightMargin = pixels(16);
+        box.addView(musicButton, musicParams);
+
         return box;
     }
 
@@ -229,6 +253,36 @@ public final class GameInfoActivity extends ZedexActivity {
 
                 manualButton.setVisibility(View.VISIBLE);
                 manualButton.setOnClickListener(v -> Manuals.open(this, result));
+            });
+        });
+    }
+
+    /**
+     * Whether this game has music, and where tapping it goes.
+     *
+     * The emulator screen, because a tune is the Spectrum running the game's
+     * own driver and that is where the Spectrum is - see {@code media.Music},
+     * which puts whatever was loaded there aside and gives it back.
+     */
+    private void loadMusicButton(String path) {
+        Work.run("music", () -> {
+            java.io.File tune;
+            try {
+                tune = Artwork.music(this, path);
+            } catch (Exception e) {
+                tune = null;
+            }
+
+            boolean any = tune != null;
+            handler.post(() -> {
+                if (isFinishing() || isDestroyed() || !any) return;
+
+                musicButton.setVisibility(View.VISIBLE);
+                musicButton.setOnClickListener(v -> startActivity(
+                        new Intent(this, dev.ldlab.zedex.EmulatorActivity.class)
+                                .putExtra(dev.ldlab.zedex.EmulatorActivity.EXTRA_MUSIC, path)
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                                        | Intent.FLAG_ACTIVITY_CLEAR_TOP)));
             });
         });
     }
@@ -271,7 +325,55 @@ public final class GameInfoActivity extends ZedexActivity {
         description.setVisibility(View.GONE);
         column.addView(description, wrap());
 
+        // Under the description, because these are the long tail: a quarter of
+        // entries have a price, six per cent a series, and a row that is
+        // usually absent belongs below the one thing somebody came to read.
+        extras = new LinearLayout(this);
+        extras.setOrientation(LinearLayout.VERTICAL);
+        extras.setPadding(0, pixels(20), 0, 0);
+        column.addView(extras, wrap());
+
         return column;
+    }
+
+    /**
+     * A labelled fact, or nothing at all.
+     *
+     * Nothing at all is the common case - see {@link #extras} - and an empty
+     * row with a heading over it would claim the database was asked and had
+     * no answer, when mostly it was never asked.
+     */
+    private void extra(int label, String value) {
+        if (value == null || value.trim().isEmpty()) return;
+
+        TextView heading = new TextView(this);
+        heading.setText(label);
+        heading.setTextColor(Palette.MUTED);
+        heading.setTextSize(12);
+        heading.setPadding(0, pixels(12), 0, 0);
+        extras.addView(heading, wrap());
+
+        TextView text = new TextView(this);
+        text.setText(value.trim());
+        text.setTextColor(Palette.TEXT);
+        text.setTextSize(15);
+        text.setLineSpacing(pixels(3), 1f);
+        extras.addView(text, wrap());
+    }
+
+    /** The titles of other entries, comma separated. The ids travel with them
+     *  in the store and nothing reads them yet - see {@code Meta.Link}. */
+    private static String titlesOf(java.util.List<Meta.Link> links) {
+        if (links == null || links.isEmpty()) return null;
+
+        StringBuilder text = new StringBuilder();
+
+        for (Meta.Link link : links) {
+            if (text.length() > 0) text.append(", ");
+            text.append(link.title);
+        }
+
+        return text.toString();
     }
 
     /**
@@ -317,6 +419,22 @@ public final class GameInfoActivity extends ZedexActivity {
             description.setText(meta.desc.trim());
             description.setVisibility(View.VISIBLE);
         }
+
+        extras.removeAllViews();
+        extra(R.string.info_authors, String.join(", ", meta.authors));
+        extra(R.string.info_price, meta.price);
+        extra(R.string.info_series, seriesLine(meta));
+        extra(R.string.info_compilations, titlesOf(meta.compilations));
+        extra(R.string.info_contents, titlesOf(meta.contents));
+    }
+
+    /** The series' name, and the rest of it after a dash where the record
+     *  names any - "Chaos — Lords of Chaos". */
+    private static String seriesLine(Meta meta) {
+        String rest = titlesOf(meta.seriesGames);
+
+        if (meta.series == null) return rest;
+        return rest == null ? meta.series : meta.series + " — " + rest;
     }
 
     /**

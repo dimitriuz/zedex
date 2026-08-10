@@ -12,6 +12,7 @@
     <string name="menu_states">Состояния…</string>
     <string name="menu_pokes">Читы…</string>
     <string name="poke_for_game">Читы для %1$s</string>
+    <string name="poke_scraped">Читы, найденные при скрапинге</string>
     <string name="poke_none_for_game">В базе для этой игры ничего подходящего</string>
     <string name="poke_search">Поиск в базе читов…</string>
     <string name="poke_search_hint">Название игры</string>
@@ -566,6 +567,7 @@
     </plurals>
     <string name="library_filter_format">Формат</string>
     <string name="library_filter_genre">Жанр</string>
+    <string name="library_filter_subgenre">Поджанр</string>
     <string name="library_filter_rating">Оценка</string>
     <string name="library_filter_developer">Разработчик</string>
     <string name="library_filter_publisher">Издатель</string>
@@ -587,6 +589,16 @@
     <string name="library_play">Играть</string>
     <string name="library_info">Об игре</string>
     <string name="library_manual">Инструкция</string>
+    <string name="instructions_title">Инструкция</string>
+    <string name="instructions_unreadable">Не удалось прочитать файл.</string>
+    <string name="music_title">Музыка…</string>
+    <string name="music_playing">Играет %1$s</string>
+    <string name="music_stop">Остановить музыку</string>
+    <string name="music_stopped">Остановлено — игра вернулась</string>
+    <string name="music_unplayable">%1$s не воспроизводится</string>
+    <string name="music_unnamed">Трек %1$d</string>
+    <string name="music_none">Для этой игры нет музыки</string>
+    <string name="music_hint">Их играет сама машина, поэтому игра откладывается на время воспроизведения и возвращается после остановки.</string>
     <string name="library_open">Открыть</string>
     <string name="library_nothing_selected">Выберите игру, чтобы увидеть, что о ней известно.</string>
     <string name="library_up">Вверх</string>
@@ -646,8 +658,16 @@
     <string name="edit_metadata_developer">Разработчик</string>
     <string name="edit_metadata_publisher">Издатель</string>
     <string name="edit_metadata_genre">Жанр</string>
+    <string name="edit_metadata_subgenre">Поджанр</string>
     <string name="edit_metadata_released">Год</string>
     <string name="edit_metadata_players">Игроки</string>
+    <string name="edit_metadata_machine">Компьютер</string>
+    <string name="edit_metadata_controls">Управление</string>
+    <string name="info_authors">Авторы</string>
+    <string name="info_price">Цена</string>
+    <string name="info_series">Серия</string>
+    <string name="info_compilations">В сборниках</string>
+    <string name="info_contents">В этом сборнике</string>
     <string name="edit_metadata_rating">Оценка из 5</string>
     <string name="edit_metadata_empty">Не задано</string>
     <string name="edit_metadata_save">Сохранить</string>
@@ -738,6 +758,7 @@
     <string name="scrape_many_resume">Запустите снова с «Ещё без данных», чтобы продолжить с того места, где остановились.</string>
     <!-- An optional ScreenScraper account of the user's own. -->
     <string name="settings_group_scraper">Учётная запись службы</string>
+    <string name="settings_scraper">Источник данных</string>
     <string name="settings_scraper_user">Имя пользователя ScreenScraper</string>
     <string name="settings_scraper_user_summary">Необязательно. У собственной учётной записи дневной лимит намного больше, чем у общей для всех пользователей приложения.</string>
     <string name="settings_scraper_password">Пароль ScreenScraper</string>
@@ -755,5 +776,17 @@
     <string name="scrape_media_miximages">Комбинированное изображение</string>
     <string name="scrape_media_videos">Видео — около 1 МБ каждое</string>
     <string name="scrape_media_manuals">Руководство (PDF)</string>
+    <string name="scrape_media_maps">Карта игры</string>
+    <string name="scrape_media_adverts">Реклама</string>
+    <string name="scrape_media_pokes">Читы (поки)</string>
     <string name="scrape_many_fetching">Что загружать</string>
+    <!-- How to run a game, from a scraped record. -->
+    <string name="suggest_title">Как это запускать</string>
+    <string name="suggest_says">База данных сообщает: %1$s</string>
+    <string name="suggest_machine">Компьютер</string>
+    <string name="suggest_control">Управление</string>
+    <string name="suggest_remember">Запомнить для этой игры</string>
+    <string name="suggest_apply">Применить</string>
+    <string name="suggest_skip">Пропустить</string>
+    <string name="suggest_applied">Применено</string>
 </resources>

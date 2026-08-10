@@ -1,24 +1,25 @@
 package dev.ldlab.zedex.library.meta;
 
 import dev.ldlab.zedex.storage.Storage;
-import dev.ldlab.zedex.storage.Xml;
 import android.content.Context;
 import android.net.Uri;
 import android.provider.DocumentsContract;
+import android.util.JsonReader;
+import android.util.JsonToken;
+import android.util.JsonWriter;
 import android.util.Log;
 
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
-
-import org.xmlpull.v1.XmlPullParser;
-
 import java.io.File;
+import java.io.IOException;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.Reader;
+import java.io.Writer;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,34 +28,34 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.transform.OutputKeys;
-import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
 
 /**
- * Our own gamelist-shaped store of what a link to ES-DE found, in the app's
- * data folder rather than beside the games - the content folder can be
- * read-only, and a library that cannot record what it learned is worse than
- * one that does not travel. See "Metadata lives in the app's data folder" in
- * docs/LIBRARY.md.
+ * Our own store of what a link to ES-DE found and what this app has scraped
+ * since, in the app's data folder rather than beside the games - the content
+ * folder can be read-only, and a library that cannot record what it learned is
+ * worse than one that does not travel. See "Metadata lives in the app's data
+ * folder" in docs/LIBRARY.md.
  *
- * One file, {@code library/gamelist.xml}, in ES-DE's own element names -
- * {@code path}, {@code name}, {@code desc} and so on - so a file the user
- * opens by hand still reads as a gamelist, plus {@code zedexSource} under a
- * name of its own so a later hand-edited field can never be confused with a
- * scraped one. The root element carries {@code zedexLinked}, the epoch millis
- * of the last write - the one thing {@link #lastLinked} needs, and parsing
- * every game just to read one attribute would be wasteful.
+ * One file, {@code library/metadata.json}, keyed by the game's path, with
+ * {@code linked} at the top - the epoch millis of the last write, which is the
+ * one thing {@link #lastLinked} needs and not worth reading every game to
+ * learn.
+ *
+ * <b>It was ES-DE's gamelist.xml, and is not any more.</b> Borrowing their
+ * schema bought a file that opened as something familiar, and cost a growing
+ * pile of {@code zedex*} elements ES-DE will never read in a file ES-DE
+ * rewrites - which stops scaling the moment a provider offers fields their
+ * format has no room for. This is our own file saying so, and it can hold
+ * things XML could not: see {@link #write} for the control character that once
+ * took eight hundred games' metadata down with it. Reading <em>ES-DE's</em>
+ * gamelist is a separate job and still XML; see {@link EsdeLink}.
  *
  * Blocking, like {@code library.Favorites}: read and written whole, because a
  * few hundred games is still a small file and nothing here does a query a
  * database would earn its keep on. A missing, unreadable or malformed file
  * reads as no metadata at all - logged once, never thrown - and {@link
  * #replaceAll} writes to a temporary file first so a crash mid-write never
- * leaves gamelist.xml itself half written.
+ * leaves metadata.json itself half written.
  *
  * The parsed file is cached in memory and only re-read when its own
  * modification time has moved on - which happens only when this class writes
@@ -64,21 +65,22 @@ import javax.xml.transform.stream.StreamResult;
 public final class Metadata {
 
     private static final String TAG = "Zedex";
-    private static final String FILE = "gamelist.xml";
-    private static final String ROOT = "gameList";
-    private static final String GAME = "game";
-    private static final String LINKED = "zedexLinked";
-    private static final String SOURCE = "zedexSource";
+    private static final String FILE = "metadata.json";
 
     /**
-     * The provider's own control layout for a game - see {@link Meta#controls}.
+     * What shape the file on disk is in.
      *
-     * Ours, like {@link #SOURCE}, and not one of ES-DE's elements: they have
-     * nothing that means this. Harmless in a file ES-DE never reads - this
-     * store is the app's own - and it keeps the file a gamelist that opens in
-     * an editor and still makes sense.
+     * Read and ignored today, and here from the start anyway: a reader that
+     * has never looked cannot tell version two from a corrupt version one, and
+     * by then the file exists on people's devices. Unknown keys are skipped
+     * rather than refused, so a newer file still loads whatever this build
+     * understands.
      */
-    private static final String CONTROLS = "zedexControls";
+    private static final int VERSION = 1;
+
+    private static final String VERSION_KEY = "version";
+    private static final String LINKED = "linked";
+    private static final String GAMES = "games";
 
     private static final class Store {
         final long mtime;
@@ -221,14 +223,13 @@ public final class Metadata {
             if (game.path != null && !game.path.isEmpty()) byPath.put(game.path, game);
         }
 
-        // A temporary file first: a transformer that fails partway through
-        // must not leave gamelist.xml itself half written, which would then
-        // read back as "no metadata at all" the moment it lost the tag that
-        // made it well-formed.
+        // A temporary file first: a write that fails partway through must not
+        // leave the store itself half written, which would read back as "no
+        // metadata at all" the moment it lost its closing brace.
         File temp = new File(directory, FILE + ".tmp");
 
         try (OutputStream out = new FileOutputStream(temp)) {
-            write(build(linkedAt, games), out);
+            write(out, linkedAt, games);
         } catch (Exception e) {
             Log.w(TAG, "cannot write " + file, e);
             temp.delete();
@@ -486,99 +487,117 @@ public final class Metadata {
         return new File(Storage.libraryDirectory(context), FILE);
     }
 
-    private static Document build(long linkedAt, List<Meta> games) throws Exception {
-        DocumentBuilder builder = Xml.builder();
-        Document document = builder.newDocument();
+    /**
+     * The whole store, streamed out.
+     *
+     * Keyed by path rather than a list of objects each carrying a path: that
+     * is what the in-memory map is, so reading rebuilds it without a pass to
+     * re-key, and it makes a duplicated path impossible to write rather than
+     * something to check for.
+     *
+     * <b>This format can hold characters the old one could not.</b> The store
+     * was XML, and one scraped description ended in U+0001 - a stray control
+     * byte from whatever filled ES-DE's gamelist. XML 1.0 cannot carry that at
+     * all: it was written out as a numeric reference no parser will read back,
+     * so the next load threw, the catch turned it into an empty store, and 803
+     * games' worth of metadata vanished behind an app saying - in the same
+     * tone it uses when it is true - that the library had never been linked.
+     * One byte in 762 kilobytes, and artwork went on working, so the link
+     * looked like it had succeeded. JSON escapes that character and reads it
+     * back, so the sanitising that used to guard this is gone rather than
+     * ported.
+     */
+    private static void write(OutputStream out, long linkedAt, List<Meta> games)
+            throws IOException {
+        Writer text = new OutputStreamWriter(out, StandardCharsets.UTF_8);
+        JsonWriter writer = new JsonWriter(text);
 
-        Element root = document.createElement(ROOT);
-        root.setAttribute(LINKED, Long.toString(linkedAt));
-        document.appendChild(root);
+        // Indented because somebody will open this by hand, and a store is
+        // exactly the file people open by hand when something looks wrong.
+        writer.setIndent("  ");
+
+        writer.beginObject();
+        writer.name(VERSION_KEY).value(VERSION);
+        writer.name(LINKED).value(linkedAt);
+        writer.name(GAMES).beginObject();
 
         for (Meta game : games) {
             if (game.path == null || game.path.isEmpty()) continue;
 
-            Element element = document.createElement(GAME);
-            append(document, element, "path", game.path);
-            append(document, element, "name", game.name);
-            append(document, element, "desc", game.desc);
-            append(document, element, "developer", game.developer);
-            append(document, element, "publisher", game.publisher);
-            append(document, element, "genre", game.genre);
-            append(document, element, "releasedate", game.released);
-            append(document, element, "players", game.players);
-            append(document, element, "rating", game.rating);
-            append(document, element, SOURCE, game.source);
-            append(document, element, CONTROLS, game.controls);
-            root.appendChild(element);
+            writer.name(game.path).beginObject();
+            field(writer, "name", game.name);
+            field(writer, "desc", game.desc);
+            field(writer, "developer", game.developer);
+            field(writer, "publisher", game.publisher);
+            field(writer, "genre", game.genre);
+            field(writer, "subgenre", game.subgenre);
+            field(writer, "released", game.released);
+            field(writer, "players", game.players);
+            field(writer, "rating", game.rating);
+            field(writer, "source", game.source);
+            field(writer, "keymap", game.keymap);
+            field(writer, "machine", game.machine);
+            field(writer, "price", game.price);
+            field(writer, "series", game.series);
+            list(writer, "inputs", game.inputs);
+            list(writer, "authors", game.authors);
+            links(writer, "seriesGames", game.seriesGames);
+            links(writer, "compilations", game.compilations);
+            links(writer, "contents", game.contents);
+            writer.endObject();
         }
 
-        return document;
+        writer.endObject();
+        writer.endObject();
+        writer.flush();
     }
 
-    /** Only when there is something to say - an empty file is omitted, ES-DE's own way. */
-    private static void append(Document document, Element parent, String name, String text) {
-        if (text == null || text.isEmpty()) return;
+    /** The first field here that is a list rather than a string, and the
+     *  reason a format of our own was worth the change: in the gamelist this
+     *  would have needed a separator convention and a rule about what to do
+     *  when a value contained it. */
+    private static void list(JsonWriter writer, String name, List<String> values)
+            throws IOException {
+        if (values == null || values.isEmpty()) return;
 
-        String usable = xmlSafe(text);
-        if (usable.isEmpty()) return;
-
-        Element element = document.createElement(name);
-        element.setTextContent(usable);
-        parent.appendChild(element);
+        writer.name(name).beginArray();
+        for (String value : values) writer.value(value);
+        writer.endArray();
     }
 
     /**
-     * Text with the characters XML cannot carry taken out of it.
+     * A list of other entries, each an object rather than a string.
      *
-     * This is not defensive tidying; it is a file this app wrote and then could
-     * not read. One scraped description ended in U+0001 - "Selection between
-     * right-hand and left-hand drive." and then a stray control byte, from
-     * whatever scraper filled ES-DE's own gamelist. The DOM took it without
-     * complaint and the Transformer wrote it out as {@code &#1;}, which is not
-     * well-formed XML 1.0 at all: no parser will read that reference back.
-     *
-     * So the next {@link #load} threw, the catch turned it into {@link #EMPTY},
-     * and 803 games' worth of metadata vanished behind an app that said, in the
-     * same tone it uses when it is true, that the library had never been
-     * linked. Artwork went on working - it comes from ES-DE's media folder and
-     * never touches this file - so the link looked like it had worked. One byte
-     * out of 762 kilobytes.
-     *
-     * The permitted set is the one from the XML 1.0 specification: tab,
-     * newline, carriage return, and everything from {@code #x20} up, less the
-     * two non-characters at the end of the BMP. Surrogate pairs are left alone
-     * - a Java char in the surrogate range is half of an astral character, and
-     * dropping one of the pair would corrupt what it is trying to protect.
+     * The id is written beside the title although nothing reads it yet - see
+     * {@code Meta.Link}, which argues why. An object also leaves room for
+     * whatever a link turns out to need without a second convention: this is
+     * the shape a gamelist could not have held at all.
      */
-    static String xmlSafe(String text) {
-        StringBuilder kept = null;
+    private static void links(JsonWriter writer, String name, List<Meta.Link> values)
+            throws IOException {
+        if (values == null || values.isEmpty()) return;
 
-        for (int i = 0; i < text.length(); i++) {
-            char c = text.charAt(i);
+        writer.name(name).beginArray();
 
-            boolean allowed = c == '\t' || c == '\n' || c == '\r'
-                    || (c >= 0x20 && c <= 0xD7FF)
-                    || (c >= 0xE000 && c <= 0xFFFD)
-                    || Character.isSurrogate(c);
+        for (Meta.Link link : values) {
+            if (link == null || link.id == null || link.title == null) continue;
 
-            if (allowed) {
-                if (kept != null) kept.append(c);
-                continue;
-            }
-
-            // The first one that has to go: copy what came before it.
-            if (kept == null) kept = new StringBuilder(text.length()).append(text, 0, i);
+            writer.beginObject();
+            writer.name("id").value(link.id);
+            writer.name("title").value(link.title);
+            writer.endObject();
         }
 
-        return kept == null ? text : kept.toString();
+        writer.endArray();
     }
 
-    private static void write(Document document, OutputStream out) throws Exception {
-        Transformer transformer = TransformerFactory.newInstance().newTransformer();
-        transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-        transformer.setOutputProperty(
-                "{http://xml.apache.org/xslt}indent-amount", "4");
-        transformer.transform(new DOMSource(document), new StreamResult(out));
+    /** Only when there is something to say: an absent field is left out
+     *  rather than written null, so the file stays readable and a row with
+     *  nothing known is two braces. */
+    private static void field(JsonWriter writer, String name, String value)
+            throws IOException {
+        if (value == null || value.isEmpty()) return;
+        writer.name(name).value(value);
     }
 
     /**
@@ -666,147 +685,188 @@ public final class Metadata {
     /**
      * Reads the store, streaming.
      *
-     * A pull parser rather than a DOM. The DOM built a tree of every element
-     * and attribute in the file and then threw all of it away to keep ten
-     * short strings per game: 776 KB of XML is on the order of ten megabytes
-     * of transient objects, and it scales with the file - a five megabyte
-     * gamelist would be sixty to ninety, which is an OutOfMemoryError while
-     * linking rather than a slow read. This allocates the strings it keeps
-     * and little else.
+     * A {@link JsonReader} rather than a tree, for the same reason the XML
+     * this replaced used a pull parser rather than a DOM: a tree of every
+     * value in the file is built and then thrown away to keep eleven short
+     * strings per game, which for a 776 KB store is on the order of ten
+     * megabytes of transient objects and scales with the file. This allocates
+     * the strings it keeps and little else.
      *
-     * The hardening {@code Xml.builder} exists for is not lost with it. That
-     * class refuses external entities because a DocumentBuilder resolves them
-     * by default; a pull parser does not process a doctype at all unless
-     * FEATURE_PROCESS_DOCDECL is turned on, and it is off by default and not
-     * turned on here. Same guarantee, from the other direction.
+     * Unknown keys are skipped rather than refused, at both levels. A store
+     * written by a newer build - or by a provider that learned a field this
+     * one has never heard of - still loads everything this build understands.
      */
     private static Store load(File file, long mtime) {
         if (mtime == 0) return EMPTY;
 
-        try (InputStream in = new java.io.BufferedInputStream(new FileInputStream(file))) {
-            XmlPullParser parser = android.util.Xml.newPullParser();
-            parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false);
-            parser.setInput(in, null);
+        try (Reader text = new java.io.BufferedReader(
+                     new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8));
+             JsonReader reader = new JsonReader(text)) {
 
             Map<String, Meta> games = new HashMap<>();
             long linkedAt = 0;
-            boolean sawRoot = false;
 
-            for (int event = parser.getEventType();
-                 event != XmlPullParser.END_DOCUMENT;
-                 event = parser.next()) {
+            reader.beginObject();
+            while (reader.hasNext()) {
+                String key = reader.nextName();
 
-                if (event != XmlPullParser.START_TAG) continue;
-
-                if (!sawRoot) {
-                    if (!ROOT.equals(parser.getName())) {
-                        Log.w(TAG, file + " is not a " + ROOT + " file");
-                        return EMPTY;
+                if (LINKED.equals(key)) {
+                    linkedAt = reader.nextLong();
+                } else if (GAMES.equals(key)) {
+                    readGames(reader, games);
+                } else if (VERSION_KEY.equals(key)) {
+                    int version = reader.nextInt();
+                    if (version > VERSION) {
+                        Log.w(TAG, file + " is version " + version + " and this build"
+                                   + " understands " + VERSION + "; reading what it can");
                     }
-
-                    sawRoot = true;
-                    linkedAt = number(parser.getAttributeValue(null, LINKED));
-                    continue;
+                } else {
+                    reader.skipValue();
                 }
-
-                if (!GAME.equals(parser.getName())) continue;
-
-                Meta meta = readGame(parser);
-                if (meta != null) games.put(meta.path, meta);
             }
+            reader.endObject();
 
             return new Store(mtime, linkedAt, games);
         } catch (Exception e) {
-            // Loud, and specific about the consequence: what is returned
-            // below is indistinguishable from an empty store, so every screen
-            // goes on to say the library has never been linked. A file that
-            // exists and will not parse is a different thing from no file at
-            // all, and here is the only place that difference is visible.
+            // Loud, and specific about the consequence: what is returned below
+            // is indistinguishable from an empty store, so every screen goes
+            // on to say the library has never been linked. A file that exists
+            // and will not parse is a different thing from no file at all, and
+            // here is the only place that difference is visible.
             Log.e(TAG, "cannot read " + file + " - it exists but will not parse,"
                        + " so the library will report itself as never linked."
-                       + " Linking again rewrites it; see Metadata.xmlSafe for"
-                       + " the character that used to cause this.", e);
+                       + " Linking again rewrites it.", e);
             return EMPTY;
         }
     }
 
+    /** The games object: one member per game, named by its path. */
+    private static void readGames(JsonReader reader, Map<String, Meta> into)
+            throws IOException {
+        reader.beginObject();
+
+        while (reader.hasNext()) {
+            String path = reader.nextName();
+
+            // The key is the identity, so there is no such thing here as a
+            // game without a path - the shape that the old format needed a
+            // guard for, and this one cannot express.
+            Meta game = readGame(reader, path);
+            if (game != null) into.put(path, game);
+        }
+
+        reader.endObject();
+    }
+
+    /** One game's object. Null only when it is not an object at all, which
+     *  means a hand edit went wrong rather than anything this app wrote. */
+    private static Meta readGame(JsonReader reader, String path) throws IOException {
+        if (reader.peek() != JsonToken.BEGIN_OBJECT) {
+            reader.skipValue();
+            return null;
+        }
+
+        Meta.Builder building = Meta.at(path);
+        reader.beginObject();
+
+        while (reader.hasNext()) {
+            String key = reader.nextName();
+
+            // A null written by hand is the same as the field being absent,
+            // and nextString would throw on it.
+            if (reader.peek() == JsonToken.NULL) {
+                reader.nextNull();
+                continue;
+            }
+
+            switch (key) {
+                case "name":      building.name(reader.nextString());      break;
+                case "desc":      building.desc(reader.nextString());      break;
+                case "developer": building.developer(reader.nextString()); break;
+                case "publisher": building.publisher(reader.nextString()); break;
+                case "genre":     building.genre(reader.nextString());     break;
+                case "subgenre":  building.subgenre(reader.nextString());  break;
+                case "released":  building.released(reader.nextString());  break;
+                case "players":   building.players(reader.nextString());   break;
+                case "rating":    building.rating(reader.nextString());    break;
+                case "source":    building.source(reader.nextString());    break;
+                case "keymap":    building.keymap(reader.nextString());    break;
+                case "machine":   building.machine(reader.nextString());   break;
+                case "price":     building.price(reader.nextString());     break;
+                case "series":    building.series(reader.nextString());    break;
+                case "inputs":    building.inputs(strings(reader));        break;
+                case "authors":   building.authors(strings(reader));       break;
+                case "seriesGames":  building.seriesGames(links(reader));  break;
+                case "compilations": building.compilations(links(reader)); break;
+                case "contents":     building.contents(links(reader));     break;
+                default:          reader.skipValue();                      break;
+            }
+        }
+
+        reader.endObject();
+        return building.build();
+    }
+
     /**
-     * One {@code <game>}, from its start tag to its end tag.
+     * An array of strings, skipping anything in it that is not one.
      *
-     * Null when it has no path, which is what a game is identified by - the
-     * same entry the DOM version skipped. Unknown children are read and
-     * dropped rather than refused, so a gamelist carrying fields this app
-     * does not know about still loads.
+     * A store is a file people open and edit, and one bad element should cost
+     * that element rather than the game it belongs to - the same reason an
+     * unknown key is skipped rather than refused.
      */
-    private static Meta readGame(XmlPullParser parser) throws Exception {
-        int depth = parser.getDepth();
+    /**
+     * An array of {@code {id, title}}, skipping anything that is not one.
+     *
+     * <b>Half a link is dropped.</b> A row with only a title cannot be opened
+     * and a row with only an id cannot be shown, so neither is a link - and
+     * the store is a file people edit, so both are things that will happen.
+     * The same reasoning as {@link #strings}: one bad element costs that
+     * element rather than the game it belongs to.
+     */
+    private static List<Meta.Link> links(JsonReader reader) throws IOException {
+        List<Meta.Link> values = new ArrayList<>();
 
-        String path = null, name = null, desc = null, developer = null;
-        String publisher = null, genre = null, released = null;
-        String players = null, rating = null, source = null, controls = null;
+        reader.beginArray();
 
-        while (parser.next() != XmlPullParser.END_DOCUMENT) {
-            int event = parser.getEventType();
+        while (reader.hasNext()) {
+            if (reader.peek() != JsonToken.BEGIN_OBJECT) {
+                reader.skipValue();
+                continue;
+            }
 
-            if (event == XmlPullParser.END_TAG && parser.getDepth() == depth) break;
-            if (event != XmlPullParser.START_TAG) continue;
+            String id = null, title = null;
+            reader.beginObject();
 
-            String tag = parser.getName();
-            String value = parser.nextText().trim();
+            while (reader.hasNext()) {
+                String key = reader.nextName();
 
-            switch (tag) {
-                case "path":        path = value;      break;
-                case "name":        name = value;      break;
-                case "desc":        desc = value;      break;
-                case "developer":   developer = value; break;
-                case "publisher":   publisher = value; break;
-                case "genre":       genre = value;     break;
-                case "releasedate": released = value;  break;
-                case "players":     players = value;   break;
-                case "rating":      rating = value;    break;
-                default:
-                    if (SOURCE.equals(tag)) source = value;
-                    else if (CONTROLS.equals(tag)) controls = value;
-                    break;
+                if (reader.peek() == JsonToken.NULL) { reader.nextNull(); continue; }
+                if ("id".equals(key))         id = reader.nextString();
+                else if ("title".equals(key)) title = reader.nextString();
+                else                          reader.skipValue();
+            }
+
+            reader.endObject();
+
+            if (id != null && !id.isEmpty() && title != null && !title.isEmpty()) {
+                values.add(new Meta.Link(id, title));
             }
         }
 
-        if (path == null || path.isEmpty()) return null;
-
-        return new Meta(path, name, desc, developer, publisher,
-                        genre, released, players, rating, source)
-                .withControls(controls);
+        reader.endArray();
+        return values;
     }
 
-    /** The {@code linked} attribute, or 0 for anything unreadable. */
-    private static long number(String value) {
-        if (value == null || value.isEmpty()) return 0;
+    private static List<String> strings(JsonReader reader) throws IOException {
+        List<String> values = new ArrayList<>();
 
-        try {
-            return Long.parseLong(value);
-        } catch (NumberFormatException e) {
-            return 0;
+        reader.beginArray();
+        while (reader.hasNext()) {
+            if (reader.peek() == JsonToken.STRING) values.add(reader.nextString());
+            else reader.skipValue();
         }
-    }
+        reader.endArray();
 
-    private static long attribute(Element element, String name) {
-        String value = element.getAttribute(name);
-        try {
-            return value.isEmpty() ? 0 : Long.parseLong(value);
-        } catch (NumberFormatException e) {
-            return 0;
-        }
-    }
-
-    private static String text(Element parent, String name) {
-        NodeList children = parent.getChildNodes();
-        for (int i = 0; i < children.getLength(); i++) {
-            Node node = children.item(i);
-            if (node instanceof Element && name.equals(node.getNodeName())) {
-                String text = node.getTextContent();
-                return text == null ? null : text.trim();
-            }
-        }
-        return null;
+        return values;
     }
 }

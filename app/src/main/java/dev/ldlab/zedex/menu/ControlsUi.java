@@ -17,6 +17,7 @@ import android.app.Activity;
 import android.content.SharedPreferences;
 import android.widget.EditText;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -257,14 +258,75 @@ public final class ControlsUi {
                     int chosen = which == fuseTypes.length
                             ? Controls.JOYSTICK_KEYBOARD : which;
 
-                    preferences.edit()
-                            .putInt(Prefs.KEY_JOYSTICK_TYPE, chosen)
-                            .apply();
-                    setJoystickType(chosen);
+                    chooseJoystickType(chosen);
                     host.note(R.string.joystick_type_set, names[which]);
                 });
             }
         };
+    }
+
+    /**
+     * Chooses an interface, and the keys to send when that interface is the
+     * keyboard.
+     *
+     * The two together because they are one decision: "play this with the
+     * keyboard" means nothing without saying which keys, and a scraped layout
+     * arrives with the choice that needs it. The layout is installed first, so
+     * that by the time the pad is laid out again it is being laid out from the
+     * right profile.
+     *
+     * @param layout a profile to install and select, or null to leave the key
+     *               profiles alone - which is every choice but the keyboard's
+     */
+    public void chooseControl(int type, ControlProfiles.Profile layout) {
+        if (layout != null) install(layout);
+
+        chooseJoystickType(type);
+    }
+
+    /**
+     * Puts a profile in the list and selects it, replacing one of the same
+     * name.
+     *
+     * By name, because these are named after games: opening the same game
+     * twice must not leave two profiles called "Batman", and re-scraping it
+     * must update the one that is there rather than adding a second. The list
+     * is the user's own, so nothing else in it is touched.
+     */
+    private void install(ControlProfiles.Profile layout) {
+        List<ControlProfiles.Profile> profiles =
+                new ArrayList<>(ControlProfiles.all(preferences));
+
+        int at = -1;
+        for (int i = 0; i < profiles.size(); i++) {
+            if (profiles.get(i).name.equals(layout.name)) { at = i; break; }
+        }
+
+        if (at < 0) {
+            profiles.add(layout);
+            at = profiles.size() - 1;
+        } else {
+            profiles.set(at, layout);
+        }
+
+        ControlProfiles.store(preferences, profiles, at);
+    }
+
+    /**
+     * Chooses an interface, wherever the choice came from.
+     *
+     * Three things, and all three or none: the setting, which is what the next
+     * launch reads; Fuse, which is what the running machine reads; and the
+     * pad, which has to be laid out again because a Kempston stick and the
+     * game's own keys are not the same buttons. The menu row does this and so
+     * does the setup dialog - see {@code SetupUi} - and one method rather than
+     * two is what keeps them from drifting apart.
+     *
+     * @param type a Fuse joystick index, or {@link Controls#JOYSTICK_KEYBOARD}
+     */
+    public void chooseJoystickType(int type) {
+        preferences.edit().putInt(Prefs.KEY_JOYSTICK_TYPE, type).apply();
+        setJoystickType(type);
     }
 
     /** Nothing plugged in for Keyboard, since the pad sends keys instead. */
