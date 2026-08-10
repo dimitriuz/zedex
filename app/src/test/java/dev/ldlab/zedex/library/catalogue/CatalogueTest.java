@@ -6,8 +6,10 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
 /**
  * The seam's own value types, and the counting.
@@ -102,6 +104,36 @@ public class CatalogueTest {
         assertFalse("a page of shelves has nothing more to page through",
                     page.hasMore());
         assertEquals(1, page.shelves().size());
+    }
+
+    // --- guarding against a list mutated after handing it over -----------------------
+
+    /**
+     * A page must not see a change to the list the caller made it from.
+     *
+     * {@code Page} stores the caller's own reference and only wraps it in an
+     * unmodifiable view at accessor time - a view, not a copy, which stops the
+     * accessor's caller mutating the list but does nothing about the
+     * constructor's caller, who still holds the original reference. Task 5's
+     * ZXInfo parser builds a {@code Page} per page of results from an
+     * {@code ArrayList}; if it ever reused or cleared that list between pages,
+     * a page already handed out would quietly change under its owner - games
+     * would appear to show another page's items, which reads as a service bug
+     * rather than a mutability bug here.
+     */
+    @Test
+    public void apageIsNotChangedByEditingTheListAfterHandingItOver() {
+        List<Catalogue.Item> mutable = new ArrayList<Catalogue.Item>();
+        mutable.add(anItem("1"));
+
+        Catalogue.Page page = new Catalogue.Page(
+                mutable, Collections.<Catalogue.Shelf>emptyList(), 0, 2);
+
+        mutable.add(anItem("2"));
+        mutable.clear();
+
+        assertEquals(1, page.items().size());
+        assertEquals("1", page.items().get(0).id());
     }
 
     // --- what a shelf accepts --------------------------------------------------------

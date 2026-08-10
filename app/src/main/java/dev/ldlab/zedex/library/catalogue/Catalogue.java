@@ -2,6 +2,7 @@ package dev.ldlab.zedex.library.catalogue;
 
 import dev.ldlab.zedex.library.scrape.ScrapeException;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -184,8 +185,9 @@ public interface Catalogue {
          *                   short page in the middle of a run.
          */
         public Page(List<Item> items, List<Shelf> shelves, int seenBefore, int total) {
-            this.items = items == null ? Collections.<Item>emptyList() : items;
-            this.shelves = shelves == null ? Collections.<Shelf>emptyList() : shelves;
+            this.items = items == null ? Collections.<Item>emptyList() : new ArrayList<Item>(items);
+            this.shelves = shelves == null ? Collections.<Shelf>emptyList()
+                                            : new ArrayList<Shelf>(shelves);
             this.seenBefore = seenBefore;
             this.total = total;
         }
@@ -251,7 +253,8 @@ public interface Catalogue {
             this.kind = kind;
             this.availability = availability;
             this.pictureUrl = pictureUrl;
-            this.versions = versions == null ? Collections.<Version>emptyList() : versions;
+            this.versions = versions == null ? Collections.<Version>emptyList()
+                                              : new ArrayList<Version>(versions);
         }
 
         public String id() {
@@ -310,7 +313,7 @@ public interface Catalogue {
                     && "available".equals(availability.toLowerCase(Locale.ROOT));
         }
 
-        /** "Head over Heels (1987) - Ocean Software Ltd", skipping whichever
+        /** "Head over Heels (1987) · Ocean Software Ltd", skipping whichever
          *  is unknown. The same joining {@code Candidate.describe} does. */
         public String describe() {
             StringBuilder line = new StringBuilder(title == null ? "" : title);
@@ -340,7 +343,8 @@ public interface Catalogue {
         public Version(String label, String year, List<Download> files) {
             this.label = label;
             this.year = year;
-            this.files = files == null ? Collections.<Download>emptyList() : files;
+            this.files = files == null ? Collections.<Download>emptyList()
+                                        : new ArrayList<Download>(files);
         }
 
         /** What tells two apart on a list - "Spanish re-release", "128K
