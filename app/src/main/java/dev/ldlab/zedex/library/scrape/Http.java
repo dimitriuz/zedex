@@ -160,8 +160,7 @@ public interface Http {
         }
 
         /**
-         * What this app calls itself to a server: {@code Zedex/1.4.2
-         * (+https://github.com/dimitriuz/zedex)}.
+         * What this app calls itself to a server: {@code Zedex/1.4.2}.
          *
          * Without it every request goes out as {@code Dalvik/2.1.0 (Linux; U;
          * Android …)}, which says a JVM asked and nothing about who. That is
@@ -172,9 +171,10 @@ public interface Http {
          * asks for it and says access without one risks being treated as a
          * crawler, which is exactly what happened.
          *
-         * The project URL rather than an email: it is already public, it is
-         * where anybody would go to complain, and it does not put an address
-         * into every log file on the way.
+         * The name and the version, and nothing else: no URL, no email, no
+         * device. A header is sent on every request and ends up in every log
+         * along the way, so it carries what identifies the client and stops
+         * there.
          *
          * <b>The version is the installed one, not a build constant.</b> Read
          * from the package manager, so it is what is actually running and
@@ -184,8 +184,6 @@ public interface Http {
          * "the old build with the bug" from "the one that fixed it", and
          * without it every report is about "Zedex".
          */
-        private static final String IDENTITY = "(+https://github.com/dimitriuz/zedex)";
-
         private final String userAgent;
 
         /**
@@ -195,7 +193,7 @@ public interface Http {
          * exist here.
          */
         public Real(Context context) {
-            this.userAgent = "Zedex/" + versionOf(context) + " " + IDENTITY;
+            this.userAgent = "Zedex/" + versionOf(context);
         }
 
         /** Whatever is installed, or "?" - a missing version must not be the
