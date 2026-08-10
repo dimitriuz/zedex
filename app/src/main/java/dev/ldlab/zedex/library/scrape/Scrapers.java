@@ -51,10 +51,10 @@ public final class Scrapers {
     public static List<Provider> all(Context context) {
         List<Provider> providers = new ArrayList<>();
 
-        Provider screenScraper = new ScreenScraper(context, new Http.Real());
+        Provider screenScraper = new ScreenScraper(context, new Http.Real(context));
         if (screenScraper.configured()) providers.add(screenScraper);
 
-        providers.add(new ZxInfo(new Http.Real()));
+        providers.add(new ZxInfo(new Http.Real(context)));
 
         return providers;
     }
@@ -112,10 +112,10 @@ public final class Scrapers {
         List<Provider> providers = new ArrayList<>();
 
         Provider screenScraper =
-                new ScreenScraper(context, new Http.Real(), user.trim(), password);
+                new ScreenScraper(context, new Http.Real(context), user.trim(), password);
         if (screenScraper.configured()) providers.add(screenScraper);
 
-        providers.add(new ZxInfo(new Http.Real()));
+        providers.add(new ZxInfo(new Http.Real(context)));
 
         return chosen(context, providers);
     }

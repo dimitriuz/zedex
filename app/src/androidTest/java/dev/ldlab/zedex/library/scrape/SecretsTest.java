@@ -90,7 +90,7 @@ public class SecretsTest {
         assumeTrue("this build has no scraper credentials to seal",
                    !sealedPassword().isEmpty());
 
-        assertTrue(new ScreenScraper(context(), new Http.Real()).configured());
+        assertTrue(new ScreenScraper(context(), new Http.Real(context())).configured());
     }
 
     // --- failing closed ------------------------------------------------------------

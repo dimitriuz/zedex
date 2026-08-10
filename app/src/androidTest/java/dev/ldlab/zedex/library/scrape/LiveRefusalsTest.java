@@ -66,7 +66,7 @@ public class LiveRefusalsTest {
         Context context = ApplicationProvider.getApplicationContext();
 
         ScreenScraper scraper = new ScreenScraper(
-                new Http.Real(),
+                new Http.Real(context),
                 // Through Secrets, because the resources hold ciphertext now
                 // - see Secrets.java. The five-argument constructor is still
                 // the one used here: this test needs debugWith, which the
@@ -237,7 +237,7 @@ public class LiveRefusalsTest {
                            dev.ldlab.zedex.R.string.screenscraper_id_sealed).isEmpty());
 
         ScreenScraper scraper = new ScreenScraper(
-                new Http.Real(),
+                new Http.Real(context),
                 // Through Secrets, because the resources hold ciphertext now
                 // - see Secrets.java. The five-argument constructor is still
                 // the one used here: this test needs debugWith, which the
