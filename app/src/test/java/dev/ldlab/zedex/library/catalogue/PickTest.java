@@ -8,6 +8,7 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -60,9 +61,23 @@ public class PickTest {
         assertEquals("tzx", Pick.forGame(version(null, file("tap"), file("tzx"))).format());
     }
 
-    /** The whole order, walked - every format beats every one after it. */
+    /**
+     * The scan follows {@link Pick#PREFERENCE} in declaration order, whatever
+     * that order is.
+     *
+     * <b>Deliberately indifferent to the array's contents.</b> Every expected
+     * winner here comes from {@code PREFERENCE} itself, so this proves only
+     * that a file earlier in the array beats one later in it - it would pass
+     * exactly as well if {@code PREFERENCE} were reversed, or in any other
+     * order, because "earlier index wins" would still hold either way.
+     * That is a real property of {@link Pick#forGame} worth pinning, but it
+     * is not the same claim as "the order is the right one" - for that see
+     * {@link #atapeBeatsAnyDiskBeatsAnySnapshot}, which hard-codes its
+     * expectations independently of the array and so would catch exactly
+     * the reordering this test cannot.
+     */
     @Test
-    public void everyFormatBeatsTheOnesAfterIt() {
+    public void theScanHonoursTheDeclaredOrderWhateverItIs() {
         for (int first = 0; first < Pick.PREFERENCE.length; first++) {
             for (int second = first + 1; second < Pick.PREFERENCE.length; second++) {
                 Catalogue.Download chosen = Pick.forGame(
@@ -73,6 +88,60 @@ public class PickTest {
                              Pick.PREFERENCE[first], chosen.format());
             }
         }
+    }
+
+    /** Tape, disk and snapshot formats, exactly as {@link Pick#PREFERENCE}
+     *  groups them - used to state the order rule without restating the
+     *  array as a literal, which a reordering that also reordered the
+     *  literal would still pass. */
+    private static final String[] TAPES = { "tzx", "tap" };
+    private static final String[] DISKS = { "trd", "scl", "dsk", "mgt", "img", "udi" };
+    private static final String[] SNAPSHOTS = { "szx", "z80", "sna" };
+
+    /**
+     * Tape beats disk beats snapshot, asserted as the domain rule rather than
+     * as a copy of the array.
+     *
+     * A tape image carries the loading scheme and the custom loader that a
+     * snapshot has already thrown away, and half of what a Spectrum game is
+     * remembered for happens while it loads - a disk falls in between for
+     * the same reason, one step further from the original medium. Written
+     * this way so that reversing {@link Pick#PREFERENCE} fails it, which
+     * {@link #theScanHonoursTheDeclaredOrderWhateverItIs} cannot.
+     */
+    @Test
+    public void atapeBeatsAnyDiskBeatsAnySnapshot() {
+        for (String tape : TAPES) {
+            for (String disk : DISKS) {
+                assertEquals(tape + " lost to " + disk, tape,
+                             Pick.forGame(version(null, file(disk), file(tape))).format());
+            }
+        }
+
+        for (String disk : DISKS) {
+            for (String snapshot : SNAPSHOTS) {
+                assertEquals(disk + " lost to " + snapshot, disk,
+                             Pick.forGame(version(null, file(snapshot), file(disk))).format());
+            }
+        }
+    }
+
+    /** {@link #TAPES}, {@link #DISKS} and {@link #SNAPSHOTS} have to add up
+     *  to the whole of {@link Pick#PREFERENCE} - otherwise a format added to
+     *  the array later sits outside {@link #atapeBeatsAnyDiskBeatsAnySnapshot}'s
+     *  guarantee with nothing here to say so. */
+    @Test
+    public void theGroupsAccountForEveryDeclaredFormat() {
+        List<String> grouped = new ArrayList<>();
+        grouped.addAll(Arrays.asList(TAPES));
+        grouped.addAll(Arrays.asList(DISKS));
+        grouped.addAll(Arrays.asList(SNAPSHOTS));
+
+        List<String> declared = Arrays.asList(Pick.PREFERENCE);
+
+        assertEquals(declared.size(), grouped.size());
+        assertTrue(grouped.containsAll(declared));
+        assertTrue(declared.containsAll(grouped));
     }
 
     // --- what is never the game --------------------------------------------------------

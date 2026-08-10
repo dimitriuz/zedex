@@ -1628,10 +1628,34 @@ Expected: PASS, 13 tests.
 
 - [ ] **Step 5: Mutation-check the preference**
 
+**Correction, found during implementation:** the original wording of this
+step claimed reversing `PREFERENCE` fails `everyFormatBeatsTheOnesAfterIt`
+along with the other two. It does not. That test builds its own expected
+winner from `Pick.PREFERENCE[first]` (with `first < second` by index
+construction), so it only proves the scan honours whatever order the array
+currently declares - reversing the array reverses the expectation right
+along with it, and the test passes either way. It was renamed
+`theScanHonoursTheDeclaredOrderWhateverItIs` and its javadoc now says so
+plainly. A second test, `atapeBeatsAnyDiskBeatsAnySnapshot`, was added that
+states the domain rule against independent literals (`TAPES`/`DISKS`/
+`SNAPSHOTS` groups) rather than against the array, so it fails when the
+array's *order* is wrong. A third, `theGroupsAccountForEveryDeclaredFormat`,
+asserts those three groups add up to the whole of `PREFERENCE`, so a format
+added to the array later can't sit outside the guarantee unnoticed.
+
 Reverse `PREFERENCE` and re-run.
-Expected: `atapeBeatsAdiskBeatsAsnapshot`, `tzxBeatsTap` and `everyFormatBeatsTheOnesAfterIt` all FAIL.
+Expected: `atapeBeatsAdiskBeatsAsnapshot`, `tzxBeatsTap` and
+`atapeBeatsAnyDiskBeatsAnySnapshot` FAIL.
+`theScanHonoursTheDeclaredOrderWhateverItIs` and
+`theGroupsAccountForEveryDeclaredFormat` still PASS - the array is still a
+permutation of the same 11 formats, just in the wrong order, and the first
+of those two tests was never able to notice that in the first place.
+
 Then add `"rzx"` to the end of `PREFERENCE` and re-run.
-Expected: `arecordingIsNeverChosenAsTheGame` FAILS.
+Expected: `arecordingIsNeverChosenAsTheGame` FAILS, and so now does
+`theGroupsAccountForEveryDeclaredFormat` - a bonus catch, since `rzx` is not
+in any of the three groups and was never meant to be in `PREFERENCE` at all.
+
 Restore both.
 
 - [ ] **Step 6: Commit**
