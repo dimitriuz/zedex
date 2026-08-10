@@ -670,11 +670,18 @@ public final class ZxInfoCatalogue implements Catalogue {
      *
      * Null rather than a guess where the phrase carries no code, so
      * {@link #formatOf} falls through to the path. What is accepted is
-     * deliberately narrow: one parenthesised word with no space in it. A
-     * phrase whose brackets hold prose is not an extension, and answering one
-     * would be worse than answering nothing - {@code Pick} would look for it
-     * in {@code PREFERENCE}, not find it, and the file would be dropped
-     * silently.
+     * deliberately narrow: one parenthesised word, no space in it, and no
+     * longer than four characters - long enough for every extension this
+     * plan knows about ({@code tzx}, {@code jpeg}, {@code dsk}, ...) and no
+     * longer. A phrase whose brackets hold prose rather than an extension -
+     * nothing measured has this shape, but {@code "Compilation (multiload)"}
+     * would be one - is not caught by the no-spaces rule alone, and taking it
+     * as a format would be worse than falling through to the path: {@code
+     * Pick} would look for it in {@code PREFERENCE}, not find it, and the
+     * file would be dropped silently rather than opened by its own
+     * extension. The length limit is the cheap guard against that: an
+     * extension is short, a word that merely lacks a space is not
+     * necessarily one.
      */
     private static String code(String format) {
         if (format == null) return null;
@@ -685,7 +692,13 @@ public final class ZxInfoCatalogue implements Catalogue {
 
         String code = format.substring(open + 1, close).trim().toLowerCase(Locale.ROOT);
 
-        return code.isEmpty() || code.contains(" ") ? null : code;
+        if (code.isEmpty() || code.length() > 4) return null;
+
+        for (int at = 0; at < code.length(); at++) {
+            if (!Character.isLetterOrDigit(code.charAt(at))) return null;
+        }
+
+        return code;
     }
 
     /** The extension under one wrapper, or the extension itself. */

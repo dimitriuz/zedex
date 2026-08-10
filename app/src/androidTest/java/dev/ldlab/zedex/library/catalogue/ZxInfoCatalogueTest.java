@@ -454,6 +454,72 @@ public class ZxInfoCatalogueTest {
                      tape.url());
     }
 
+    /**
+     * <b>The branch the class comment leans on hardest, and until now the one
+     * branch nothing exercised through {@code formatOf} itself.</b>
+     *
+     * {@code "Picture"} - word for word what {@link #RECORD}'s own {@code
+     * screens[0]} carries - is the one measured value with no parenthesis at
+     * all. That entry never reaches {@code formatOf} though: a rendered
+     * loading screen's url is built by {@code pictureUrl}, which reads its
+     * format through {@code extensionOf} on the path instead, so the bare
+     * value has only ever been exercised on the side of the parser this test
+     * is not about. This puts the identical bare word where {@code formatOf}
+     * itself reads it - a release's own file - so falling through to the
+     * path's extension ({@code .png}) is what a real reply, not merely code()
+     * in isolation, is asserted to do.
+     */
+    @Test
+    public void abareFormatWithNoParenthesisFallsBackToThePath() throws Exception {
+        String record = "{\"_id\":\"0000001\",\"found\":true,\"_source\":{"
+                + "\"title\":\"No Parenthesis\","
+                + "\"publishers\":[{\"name\":\"Nobody\"}],"
+                + "\"releases\":[{\"publishers\":[{\"name\":\"Nobody\"}],"
+                + "  \"files\":[{\"path\":\"/pub/sinclair/screens/load/h/scr/Something.png\","
+                + "             \"size\":1234,\"type\":\"Loading screen\","
+                + "             \"format\":\"Picture\"}]}]}}";
+
+        Canned http = new Canned().then(200, record);
+
+        List<Catalogue.Download> files =
+                new ZxInfoCatalogue(http).item("0000001").versions().get(0).files();
+
+        assertEquals("a bare word with no parenthesis was read as a format of"
+                     + " its own rather than falling through to the path's own"
+                     + " extension", "png", files.get(0).format());
+    }
+
+    /**
+     * <b>A parenthetical that is not an extension must not be taken for one.</b>
+     *
+     * Nothing measured has this shape, but nothing rules it out either: a
+     * phrase like {@code "Compilation (multiload)"} has no space inside its
+     * brackets, so the no-space rule alone would accept {@code multiload} as
+     * a format and {@code Pick} would look for it in {@code PREFERENCE}, find
+     * nothing, and drop a file that could have been opened by its own
+     * extension. The length guard is what stops that: nothing in the
+     * measured vocabulary needs more than four characters ({@code tzx},
+     * {@code jpeg}, ...), so a longer word falls through to the path instead.
+     */
+    @Test
+    public void aparentheticalLongerThanAnExtensionFallsBackToThePath() throws Exception {
+        String record = "{\"_id\":\"0000002\",\"found\":true,\"_source\":{"
+                + "\"title\":\"Overlong Parenthetical\","
+                + "\"publishers\":[{\"name\":\"Nobody\"}],"
+                + "\"releases\":[{\"publishers\":[{\"name\":\"Nobody\"}],"
+                + "  \"files\":[{\"path\":\"/pub/sinclair/games/x/Something.tzx.zip\","
+                + "             \"size\":1234,\"type\":\"Tape image\","
+                + "             \"format\":\"Compilation (multiload)\"}]}]}}";
+
+        Canned http = new Canned().then(200, record);
+
+        List<Catalogue.Download> files =
+                new ZxInfoCatalogue(http).item("0000002").versions().get(0).files();
+
+        assertEquals("a parenthetical too long to be an extension was taken"
+                     + " for one anyway", "tzx", files.get(0).format());
+    }
+
     /** A release's year is {@code yearOfRelease}. Read as {@code releaseYear},
      *  a key no live record carries, every version this class answered with
      *  had no year and the list somebody chooses one from showed none. */

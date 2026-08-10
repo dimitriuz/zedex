@@ -3,6 +3,8 @@ package dev.ldlab.zedex.library.catalogue;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.Screen;
 import dev.ldlab.zedex.library.Types;
+import dev.ldlab.zedex.library.meta.Artwork;
+import dev.ldlab.zedex.library.meta.Metadata;
 import dev.ldlab.zedex.library.scrape.Http;
 import dev.ldlab.zedex.library.ui.CatalogueView;
 import dev.ldlab.zedex.screen.LibraryActivity;
@@ -21,6 +23,8 @@ import android.os.SystemClock;
 import android.provider.DocumentsContract;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.TextView;
+
+import java.io.File;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
@@ -75,6 +79,20 @@ import java.util.regex.Pattern;
  * import and only the documents that were not there before are deleted
  * afterwards. Never the {@code Downloaded/Games/} folder, which on any real
  * device is somebody's own imported games.
+ *
+ * <b>That guarantee covers the SAF document and nothing this run wrote
+ * elsewhere, which is not the whole of what a passing run leaves behind.</b>
+ * {@code describe} writes a row into {@code library/metadata.json} and pulls
+ * covers, screenshots and the rest into this app's own media folder - neither
+ * is under {@code Downloaded/Games/}, so the guarantee above never touched
+ * either, and a run that reached {@code describe} left the bench with one more
+ * row and a handful more files than it found, for ever. {@link #tidyUp} now
+ * also forgets the metadata row for each document this run made ({@link
+ * Metadata#forget}) and deletes whatever landed under this app's media
+ * folder for that same path - both keyed off the same {@link
+ * Metadata#relativePath} the pane itself used to write them, so what is
+ * undone is exactly what this run's own import could have written and
+ * nothing a real collection put there first.
  *
  * <b>A repeat run still proves something.</b> The second time this runs the file
  * is already there, {@code Imports} says so rather than writing a second copy -
@@ -139,6 +157,11 @@ public class ImportFlowTest {
     /** The documents this run created, and only those. */
     private final List<Uri> made = new ArrayList<>();
 
+    /** {@link Metadata#relativePath} for each of {@link #made} - what
+     *  {@link #tidyUp} forgets from the metadata store and deletes from the
+     *  media folder, alongside the document itself. */
+    private final List<String> described = new ArrayList<>();
+
     @Before
     public void setUp() {
         context = InstrumentationRegistry.getInstrumentation().getTargetContext();
@@ -165,11 +188,12 @@ public class ImportFlowTest {
     }
 
     /**
-     * Removes the documents this run created, and nothing else.
+     * Removes the documents this run created, and what {@code describe} wrote
+     * about them - and nothing else.
      *
      * A run stopped by hand never reaches this, which is the other half of why
-     * only new documents are ever named: a leftover is left alone by the next
-     * run rather than mistaken for its own.
+     * only new documents (and their own metadata and media) are ever named: a
+     * leftover is left alone by the next run rather than mistaken for its own.
      */
     @After
     public void tidyUp() {
@@ -182,10 +206,74 @@ public class ImportFlowTest {
             }
         }
 
+        // Same key the pane itself wrote them under, so this can only ever
+        // touch what this run's own import could have produced.
+        for (String path : described) {
+            Metadata.forget(context, path);
+            deleteMedia(path);
+
+            // Metadata.forget only touches metadata.json; Artwork keeps its
+            // own in-memory cache of what it has already found for a path,
+            // which would otherwise go on answering with a file this just
+            // deleted for the rest of the process.
+            Artwork.forget(path);
+        }
+
         try {
             device.unfreezeRotation();
         } catch (android.os.RemoteException ignored) {
             // Nothing worth failing a finished test over.
+        }
+    }
+
+    /**
+     * Deletes every file this app's own media folder holds for {@code
+     * relativePath}, under whichever of {@code Artwork}'s folders it landed
+     * in.
+     *
+     * {@code Artwork}'s own folder list ({@code covers}, {@code manuals}, the
+     * rest) is private, and duplicating it here would drift the moment it
+     * changes - so this walks the whole media folder instead and matches each
+     * file against the same stem {@code Artwork} itself computes: {@code
+     * relativePath} with a leading {@code ./} and its own extension both
+     * dropped. A one-off walk of a few hundred games' worth of media costs
+     * nothing against a test that has just made two network round trips.
+     */
+    private void deleteMedia(String relativePath) {
+        String stem = relativePath.startsWith("./") ? relativePath.substring(2) : relativePath;
+        int dot = stem.lastIndexOf('.');
+        if (dot > 0) stem = stem.substring(0, dot);
+
+        File root = Storage.mediaDirectory(context);
+        deleteMatching(root, root, stem);
+    }
+
+    /**
+     * Recurses under {@code dir}, deleting any file whose path relative to
+     * {@code root} - with its top-level medium folder ({@code covers}, {@code
+     * manuals}, ...) and its own extension both stripped - equals {@code
+     * stem}.
+     */
+    private void deleteMatching(File root, File dir, String stem) {
+        File[] children = dir.listFiles();
+        if (children == null) return;
+
+        for (File child : children) {
+            if (child.isDirectory()) {
+                deleteMatching(root, child, stem);
+                continue;
+            }
+
+            String relative = root.toURI().relativize(child.toURI()).getPath();
+            int slash = relative.indexOf('/');
+            String underMediumFolder = slash >= 0 ? relative.substring(slash + 1) : relative;
+
+            int dot = underMediumFolder.lastIndexOf('.');
+            String base = dot > 0 ? underMediumFolder.substring(0, dot) : underMediumFolder;
+
+            if (base.equals(stem) && !child.delete()) {
+                android.util.Log.w("Zedex", "cannot remove leftover media " + child);
+            }
         }
     }
 
@@ -255,7 +343,16 @@ public class ImportFlowTest {
                    outcome.appeared() || outcome.saidAlready);
 
         for (Map.Entry<String, Uri> one : outcome.after.entrySet()) {
-            if (!before.containsKey(one.getKey())) made.add(one.getValue());
+            if (before.containsKey(one.getKey())) continue;
+
+            made.add(one.getValue());
+
+            // Keyed the same way Imports.describe itself keys it, so tidyUp
+            // can only ever forget what this run's own import could have
+            // written - never a game somebody else's collection already had
+            // metadata for.
+            String path = Metadata.relativePath(context, one.getValue());
+            if (path != null) described.add(path);
         }
 
         // A file, not a name: SAF will happily create a document and leave it

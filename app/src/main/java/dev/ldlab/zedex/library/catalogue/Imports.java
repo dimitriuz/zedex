@@ -127,14 +127,30 @@ public final class Imports {
      * somebody to confirm the game they have just chosen off a list.
      *
      * <b>{@code provider} arrives as a parameter rather than this calling
-     * {@code Scrapers.preferred(context)} itself.</b> Every other caller of
-     * {@link Scrape#apply} - {@code ScrapeOneGame}, {@code Sweep} - is handed
-     * a concrete {@link Provider} rather than resolving one internally, and
-     * for the same reason here: {@code Scrapers} always wraps a real service
-     * in a real {@code Http.Real}, so resolving it from inside this method
-     * would make every test of it a live network call. The caller gets it
-     * from {@code Scrapers.preferred(context)} and hands it through; whether
-     * there is one at all is exactly the null this method returns for.
+     * {@code Scrapers} itself.</b> Every other caller of {@link Scrape#apply}
+     * - {@code ScrapeOneGame}, {@code Sweep} - is handed a concrete {@link
+     * Provider} rather than resolving one internally, and for the same
+     * reason here: {@code Scrapers} always wraps a real service in a real
+     * {@code Http.Real}, so resolving it from inside this method would make
+     * every test of it a live network call.
+     *
+     * <b>It must not be {@code Scrapers.preferred(context)}, and never was
+     * meant to be.</b> The whole reason {@code item.id()} goes straight
+     * through as an already-matched {@link Candidate} is that it is the
+     * catalogue's own id - certain against the service that issued it, and
+     * meaningless to any other. {@code Scrapers.preferred} answers whichever
+     * scraper the user picked for ordinary scraping, which need not be, and
+     * by default on a build with ScreenScraper credentials baked in is not,
+     * the service this id came from; handing a ZXInfo id to ScreenScraper is
+     * not a lookup, it is a coincidence waiting to happen - at best {@link
+     * Provider#fetch} refuses it outright, at worst it is answered by
+     * whatever that other service's own numbering happens to mean by the
+     * same number, and the game is silently described with somebody else's
+     * details and cover. The caller must instead resolve the one provider
+     * whose {@code name()} matches the catalogue's own - see {@code
+     * CataloguePane.providerFor} - and hand through null when nothing
+     * matches, which this method already treats as the clean, honest
+     * outcome below.
      *
      * Returns null when {@code provider} is null, which is not a failure -
      * the file is imported either way and details are the extra, so
