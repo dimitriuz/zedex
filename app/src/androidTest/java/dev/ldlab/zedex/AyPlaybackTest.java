@@ -1,9 +1,11 @@
 package dev.ldlab.zedex;
 
 import dev.ldlab.zedex.media.AyFile;
+import dev.ldlab.zedex.media.Music;
 import dev.ldlab.zedex.media.AySnapshot;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
@@ -42,6 +44,15 @@ public class AyPlaybackTest {
     /** Long enough for the machine to come up on the snapshot's own model,
      *  run the driver's init and take a few dozen interrupts. */
     private static final long PLAYS_FOR = 5 * Emulator.SECOND;
+
+    /** Green, and then nothing else - so the border says whether this
+     *  program is still the thing running. */
+    private static final int GREEN = 4;
+
+    private static final TapeProgram REPORTER = new TapeProgram()
+            .line(10, "BORDER 4")
+            .line(20, "GO TO 20")
+            .startingAt(10);
 
     private final Emulator emulator = new Emulator();
 
@@ -178,6 +189,52 @@ public class AyPlaybackTest {
         FuseNative.openFile(into.getAbsolutePath());
         SystemClock.sleep(PLAYS_FOR);
         into.delete();
+    }
+
+    /**
+     * The game survives the music.
+     *
+     * <b>The whole design in one test.</b> There is one machine, so a tune is
+     * played by loading it - and loading anything is the end of what was
+     * running. A player who wanted to hear the theme and lost their game
+     * mid-level would never press it twice. So the machine is put aside
+     * first and put back after, and this is what says so: a program is left
+     * running with the border a colour of its own, the music plays over it,
+     * and the border is that colour again afterwards.
+     */
+    @Test
+    public void thegameIsWhereItWasLeftAfterTheMusicStops() throws IOException {
+        Music.forget(emulator.context());
+
+        runTheReporter();
+        assertEquals("the program did not start", GREEN, emulator.borderColour());
+
+        AyFile file = AyFile.read(asset("licence-to-kill.ay"));
+        assertTrue("the tune would not play", Music.play(emulator.context(),
+                                                         file.songs.get(file.first)));
+        emulator.idle(PLAYS_FOR);
+
+        assertTrue("the music is not playing", loudestChannel() > 0);
+        assertTrue("the machine was not put aside",
+                   Music.interrupted(emulator.context()));
+
+        Music.stop(emulator.context());
+        emulator.idle(3 * Emulator.SECOND);
+
+        assertEquals("the game did not come back - the border should be the"
+                     + " colour the program left it", GREEN, emulator.borderColour());
+        assertFalse("the kept machine was left lying about",
+                    Music.interrupted(emulator.context()));
+    }
+
+    /** Something to interrupt: a program that paints the border and stays
+     *  running, so its state is visible before and after. */
+    private void runTheReporter() throws IOException {
+        File tape = new File(emulator.context().getCacheDir(), "uitest-music.tap");
+        REPORTER.writeTo(tape, "music");
+
+        emulator.open(tape);
+        emulator.idle(10 * Emulator.SECOND);
     }
 
     /** The loudest of the three channels, as the meter reads them. */
