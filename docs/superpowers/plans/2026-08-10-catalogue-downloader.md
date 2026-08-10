@@ -1051,7 +1051,7 @@ public class KindsTest {
         assertEquals(Kinds.OTHER, Kinds.folderFor("Advertising"));
 
         assertEquals("a genre invented after this was written",
-                     Kinds.OTHER, Kinds.folderFor("Holographic Game"));
+                     Kinds.OTHER, Kinds.folderFor("Firmware"));
         assertEquals(Kinds.OTHER, Kinds.folderFor(null));
         assertEquals(Kinds.OTHER, Kinds.folderFor(""));
     }
@@ -1105,6 +1105,30 @@ public class KindsTest {
     public void themoreSpecificWordWins() {
         assertEquals(Kinds.COMPILATIONS, Kinds.folderFor("Compilation Game"));
         assertEquals(Kinds.MAGAZINES, Kinds.folderFor("Electronic Magazine Game"));
+    }
+
+    /**
+     * And the catch-all is greedy on purpose.
+     *
+     * The bare "game" keyword swallows any "&lt;something&gt; Game", which is what
+     * makes a genre added upstream next year land somewhere sensible instead
+     * of in Other. Pinned so that nobody later reads it as the ZX81 bug
+     * repeating and "fixes" it: there, "16" matched inside "ZX81 16K", a
+     * numeric fragment matching across an unrelated machine. Here it is a
+     * whole word of the domain matching something that genuinely is one, and
+     * the ordering tries "emulator" and "magazine" first so the near misses
+     * go where they belong.
+     */
+    @Test
+    public void anyGenreEndingInGameIsAgame() {
+        assertEquals(Kinds.GAMES, Kinds.folderFor("Holographic Game"));
+        assertEquals(Kinds.GAMES, Kinds.folderFor("Board Game"));
+        assertEquals(Kinds.GAMES, Kinds.folderFor("Educational Game"));
+
+        assertEquals("the ordering catches this one first",
+                     Kinds.APPLICATIONS, Kinds.folderFor("Gameboy Emulator"));
+        assertEquals("and this one",
+                     Kinds.MAGAZINES, Kinds.folderFor("Game Magazine"));
     }
 
     /** Matching is case-insensitive, since a second catalogue's vocabulary is
