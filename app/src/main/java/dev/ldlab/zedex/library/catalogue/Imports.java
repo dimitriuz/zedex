@@ -1,8 +1,14 @@
 package dev.ldlab.zedex.library.catalogue;
 
 import dev.ldlab.zedex.library.Types;
+import dev.ldlab.zedex.library.meta.Metadata;
+import dev.ldlab.zedex.library.scrape.Candidate;
+import dev.ldlab.zedex.library.scrape.Downloads;
 import dev.ldlab.zedex.library.scrape.Http;
+import dev.ldlab.zedex.library.scrape.Provider;
+import dev.ldlab.zedex.library.scrape.Scrape;
 import dev.ldlab.zedex.library.scrape.ScrapeException;
+import dev.ldlab.zedex.library.scrape.Scrapers;
 import dev.ldlab.zedex.storage.Storage;
 import dev.ldlab.zedex.storage.Tree;
 
@@ -104,6 +110,68 @@ public final class Imports {
     public static Result recording(Context context, Http http, Catalogue.Item item,
                                    Catalogue.Download file) {
         return bring(context, http, item, file, Kinds.RECORDINGS);
+    }
+
+    /**
+     * Details and artwork for what was just imported.
+     *
+     * <b>The entry id goes straight through.</b> {@link Provider#fetch} takes
+     * a {@link Candidate} whose handle is the catalogue's own id, so this
+     * builds one around the id already in hand rather than searching by the
+     * name of a file it has only this second written. That is the difference
+     * between certainty and a guess, and a guess acted on silently is one
+     * game's cover on another for ever.
+     *
+     * {@code exact} is true for the same reason: a {@link Candidate} that
+     * admits to guessing sends the flow back through a dialog asking
+     * somebody to confirm the game they have just chosen off a list.
+     *
+     * <b>{@code provider} arrives as a parameter rather than this calling
+     * {@code Scrapers.preferred(context)} itself.</b> Every other caller of
+     * {@link Scrape#apply} - {@code ScrapeOneGame}, {@code Sweep} - is handed
+     * a concrete {@link Provider} rather than resolving one internally, and
+     * for the same reason here: {@code Scrapers} always wraps a real service
+     * in a real {@code Http.Real}, so resolving it from inside this method
+     * would make every test of it a live network call. The caller gets it
+     * from {@code Scrapers.preferred(context)} and hands it through; whether
+     * there is one at all is exactly the null this method returns for.
+     *
+     * Returns null when {@code provider} is null, which is not a failure -
+     * the file is imported either way and details are the extra, so
+     * somebody with no scraper configured must still be able to import - and
+     * equally null on anything {@link Scrape#apply} itself throws: a spent
+     * quota or a network hiccup here is a reason to leave the game
+     * undescribed, not a reason to treat an import that already succeeded
+     * as a failure.
+     */
+    public static Downloads.Result describe(Context context, Provider provider, Http http,
+                                            Result result, Catalogue.Item item) {
+        if (provider == null) return null;
+
+        // The store does not read itself - a game imported before the
+        // library has run in this process would otherwise resolve against
+        // an empty cache and read as unscraped, silently. Never on the UI
+        // thread.
+        Metadata.ensureLoaded(context);
+
+        // relativePath answers null for anything outside the granted
+        // content tree. An import is inside it by construction, but the one
+        // way this can still happen is somebody re-granting a different
+        // folder mid-import, and a crash there is worse than an uncovered
+        // game.
+        String path = Metadata.relativePath(context, result.documentUri);
+        if (path == null) return null;
+
+        Candidate candidate =
+                new Candidate(item.id(), item.title(), item.year(), item.publisher(), true);
+
+        try {
+            return Scrape.apply(context, provider, http, candidate, path,
+                                Scrapers.wanted(context));
+        } catch (ScrapeException e) {
+            Log.w(TAG, "imported " + path + " but could not describe it: " + e.kind, e);
+            return null;
+        }
     }
 
     /** One extracted entry: the name it carried inside the zip, and where it
