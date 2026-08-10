@@ -156,6 +156,90 @@ public final class Meta {
      */
     public final List<String> inputs;
 
+    /**
+     * Who made it, one to a line, with a role where the record names one -
+     * {@code "Jon Ritman"}, {@code "F. David Thorpe (Load Screen)"}.
+     *
+     * Formatted here rather than kept apart, because a role is a qualifier on
+     * a name and never appears without one: ZXDB gives the main creators no
+     * role at all and reserves them for specialists, so a list of roles is
+     * mostly empty and a list of names is what anybody wants to read. Nine
+     * per cent of entries carry a role; sixty-four carry an author.
+     */
+    public final List<String> authors;
+
+    /**
+     * What it cost when it came out, formatted - {@code "£7.95"}.
+     *
+     * One string rather than an amount and a currency, for the same reason
+     * {@link #rating} keeps the string it arrived as: nothing here does
+     * arithmetic on it, and a currency this app has never heard of survives
+     * unchanged instead of being turned into something it is not. Just under
+     * a quarter of entries have one.
+     */
+    public final String price;
+
+    /** The series this game belongs to, by name - {@code "Chaos"} - or null.
+     *  Six per cent of entries are in one. */
+    public final String series;
+
+    /** The other games in that series. Never includes this one: ZXDB's own
+     *  list does, and a series that lists the game you are looking at is
+     *  noise. */
+    public final List<Link> seriesGames;
+
+    /** The compilations this game appears on - a quarter of entries are on
+     *  at least one. */
+    public final List<Link> compilations;
+
+    /** And, when this entry <em>is</em> a compilation, what is on it. */
+    public final List<Link> contents;
+
+    /**
+     * Another entry in the database: what it is called, and its id.
+     *
+     * <b>The id is stored although nothing reads it yet.</b> Every one of
+     * these is a game somebody may want to open, and turning a title into
+     * something tappable needs the id - the store is keyed by file path and
+     * the provider knows nothing about paths, so the two can only be joined
+     * through it. Capturing it now costs a few bytes a row; capturing it
+     * later costs scraping the whole collection again, which is the argument
+     * that decided every other field here.
+     */
+    public static final class Link {
+
+        /** The provider's own id for the entry, as a string - it is an
+         *  opaque handle here, and {@code Candidate.handle} is one too. */
+        public final String id;
+
+        public final String title;
+
+        public Link(String id, String title) {
+            this.id = id;
+            this.title = title;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (!(other instanceof Link)) return false;
+
+            Link that = (Link) other;
+            return java.util.Objects.equals(id, that.id)
+                    && java.util.Objects.equals(title, that.title);
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(id, title);
+        }
+
+        /** For a test's failure message, and for nothing else. */
+        @Override
+        public String toString() {
+            return title + " (" + id + ")";
+        }
+    }
+
     private Meta(Builder from) {
         this.path = from.path;
         this.name = from.name;
@@ -170,9 +254,18 @@ public final class Meta {
         this.source = from.source;
         this.keymap = from.keymap;
         this.machine = from.machine;
-        this.inputs = from.inputs == null
-                ? Collections.emptyList()
-                : Collections.unmodifiableList(new ArrayList<>(from.inputs));
+        this.inputs = copy(from.inputs);
+        this.authors = copy(from.authors);
+        this.price = from.price;
+        this.series = from.series;
+        this.seriesGames = copy(from.seriesGames);
+        this.compilations = copy(from.compilations);
+        this.contents = copy(from.contents);
+    }
+
+    private static <T> List<T> copy(List<T> values) {
+        return values == null ? Collections.emptyList()
+                              : Collections.unmodifiableList(new ArrayList<>(values));
     }
 
     /** Whether somebody typed this one in by hand. */
@@ -209,7 +302,10 @@ public final class Meta {
                 .genre(genre).subgenre(subgenre)
                 .released(released).players(players).rating(rating)
                 .source(source).keymap(keymap)
-                .machine(machine).inputs(inputs);
+                .machine(machine).inputs(inputs)
+                .authors(authors).price(price)
+                .series(series).seriesGames(seriesGames)
+                .compilations(compilations).contents(contents);
     }
 
     /**
@@ -227,9 +323,10 @@ public final class Meta {
     public static final class Builder {
 
         private String path, name, desc, developer, publisher, genre, subgenre,
-                released, players, rating, source, keymap, machine;
+                released, players, rating, source, keymap, machine, price, series;
 
-        private List<String> inputs;
+        private List<String> inputs, authors;
+        private List<Link> seriesGames, compilations, contents;
 
         /** Empty means absent. Every caller here is either a parser reading a
          *  file or a screen reading a text box, and both produce "" for a
@@ -251,6 +348,13 @@ public final class Meta {
         public Builder rating(String v)    { rating = orNull(v);       return this; }
         public Builder source(String v)    { source = orNull(v);       return this; }
         public Builder keymap(String v)    { keymap = orNull(v);       return this; }
+        public Builder price(String v)     { price = orNull(v);        return this; }
+        public Builder series(String v)    { series = orNull(v);       return this; }
+
+        public Builder authors(List<String> v)     { authors = v;      return this; }
+        public Builder seriesGames(List<Link> v)   { seriesGames = v;  return this; }
+        public Builder compilations(List<Link> v)  { compilations = v; return this; }
+        public Builder contents(List<Link> v)      { contents = v;     return this; }
         public Builder machine(String v)   { machine = orNull(v);      return this; }
 
         /** Copied, and empty is the same as none. */

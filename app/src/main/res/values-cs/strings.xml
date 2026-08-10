@@ -652,6 +652,11 @@
     <string name="edit_metadata_players">Hráči</string>
     <string name="edit_metadata_machine">Počítač</string>
     <string name="edit_metadata_controls">Ovládání</string>
+    <string name="info_authors">Autoři</string>
+    <string name="info_price">Cena</string>
+    <string name="info_series">Série</string>
+    <string name="info_compilations">Na kompilacích</string>
+    <string name="info_contents">Na této kompilaci</string>
     <string name="edit_metadata_rating">Hodnocení z 5</string>
     <string name="edit_metadata_empty">Nenastaveno</string>
     <string name="edit_metadata_save">Uložit</string>

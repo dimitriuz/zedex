@@ -647,6 +647,11 @@
     <string name="edit_metadata_players">Giocatori</string>
     <string name="edit_metadata_machine">Macchina</string>
     <string name="edit_metadata_controls">Controlli</string>
+    <string name="info_authors">Crediti</string>
+    <string name="info_price">Prezzo</string>
+    <string name="info_series">Serie</string>
+    <string name="info_compilations">In raccolte</string>
+    <string name="info_contents">In questa raccolta</string>
     <string name="edit_metadata_rating">Voto su 5</string>
     <string name="edit_metadata_empty">Non impostato</string>
     <string name="edit_metadata_save">Salva</string>

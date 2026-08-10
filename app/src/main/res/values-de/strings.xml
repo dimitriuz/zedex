@@ -647,6 +647,11 @@
     <string name="edit_metadata_players">Spieler</string>
     <string name="edit_metadata_machine">Modell</string>
     <string name="edit_metadata_controls">Steuerung</string>
+    <string name="info_authors">Mitwirkende</string>
+    <string name="info_price">Preis</string>
+    <string name="info_series">Reihe</string>
+    <string name="info_compilations">Auf Kompilationen</string>
+    <string name="info_contents">Auf dieser Kompilation</string>
     <string name="edit_metadata_rating">Bewertung von 5</string>
     <string name="edit_metadata_empty">Nicht gesetzt</string>
     <string name="edit_metadata_save">Speichern</string>

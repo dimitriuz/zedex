@@ -17,6 +17,8 @@ import org.junit.runner.RunWith;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -182,6 +184,63 @@ public class ZxInfoTest {
         assertEquals("Manic Miner", ZxInfo.titleOf("Manic Miner.tap"));
         assertEquals("", ZxInfo.titleOf(null));
     }
+
+    /**
+     * Three real {@code compact} replies, trimmed to the fields under test.
+     *
+     * Recorded 2026-08-10 from {@code /games/0002259}, {@code /games/0000894}
+     * and {@code /games/0012019} - Head over Heels, Chaos, and a compilation
+     * the first of them appears on. Between them they carry every shape these
+     * fields come in: an author with no role and one with a role, a price, a
+     * series, both directions of compilation.
+     *
+     * The authors are cut to two and the lists to two entries; nothing is
+     * reshaped. Only their {@code notes} are dropped, which are paragraphs of
+     * prose about the person and nothing this reads.
+     */
+    private static final String HEAD_OVER_HEELS = "{\"title\":\"Head over Heels\",\"authors\":[{\"type\":\"Creator\",\"authorSe"
+            + "q\":1,\"name\":\"Jon Ritman\",\"country\":\"UK\",\"labelType\":\"Person\",\""
+            + "roles\":[],\"groupName\":null,\"groupCountry\":null,\"groupType\":null},{\"t"
+            + "ype\":\"Creator\",\"authorSeq\":3,\"name\":\"F. David Thorpe\",\"country\":"
+            + "\"UK\",\"labelType\":\"Nickname\",\"roles\":[{\"roleType\":\"S\",\"roleName\""
+            + ":\"Load Screen\"}],\"groupName\":null,\"groupCountry\":null,\"groupType\":nu"
+            + "ll}],\"originalPrice\":{\"amount\":\"7.95\",\"currency\":\"£\",\"prefix\":1}"
+            + ",\"inCompilations\":[{\"entry_id\":12019,\"title\":\"Dixons Premier Collecti"
+            + "on for Your +2\",\"publishers\":[{\"name\":\"Dixons\",\"country\":\"UK\",\"l"
+            + "abelType\":null}],\"machineType\":\"ZX-Spectrum 48K\",\"type\":\"Compilation"
+            + "\"},{\"entry_id\":14204,\"title\":\"Outlet issue 117\",\"publishers\":[{\"na"
+            + "me\":\"Chezron Software\",\"country\":\"UK\",\"labelType\":\"Company\"}],\"m"
+            + "achineType\":\"ZX-Spectrum 48K\",\"type\":\"Electronic Magazine\"}]}";
+
+    private static final String CHAOS = "{\"title\":\"Chaos\",\"authors\":[{\"type\":\"Creator\",\"authorSeq\":1,\"na"
+            + "me\":\"Julian Gollop\",\"country\":\"UK\",\"labelType\":\"Person\",\"roles\""
+            + ":[],\"groupName\":null,\"groupCountry\":null,\"groupType\":null},{\"type\":"
+            + "\"Contributor\",\"authorSeq\":3,\"name\":\"Julek Heller\",\"country\":null,\""
+            + "labelType\":\"Person\",\"roles\":[{\"roleType\":\"A\",\"roleName\":\"Inlay/P"
+            + "oster Art\"}],\"groupName\":null,\"groupCountry\":null,\"groupType\":null}],"
+            + "\"originalPrice\":{\"amount\":\"7.95\",\"currency\":\"£\",\"prefix\":1},\"se"
+            + "ries\":[{\"entry_id\":894,\"title\":\"Chaos\",\"publishers\":[{\"name\":\"Ga"
+            + "mes Workshop\",\"country\":\"UK\",\"labelType\":\"Company: Publisher/Manager"
+            + "\"}],\"machineType\":\"ZX-Spectrum 48K\",\"groupName\":\"Chaos\"},{\"entry_i"
+            + "d\":2930,\"title\":\"Lords of Chaos\",\"publishers\":[{\"name\":\"Blade Soft"
+            + "ware Ltd\",\"country\":\"UK\",\"labelType\":\"Company\"}],\"machineType\":\""
+            + "ZX-Spectrum 48K\",\"groupName\":\"Chaos\"}],\"inCompilations\":[{\"entry_id"
+            + "\":14482,\"title\":\"The Rebelstar Collection\",\"publishers\":[{\"name\":\"M"
+            + "ythos Games Ltd\",\"country\":\"UK\",\"labelType\":\"Company\"}],\"machineTy"
+            + "pe\":\"ZX-Spectrum 48K\",\"type\":\"Compilation\"},{\"entry_id\":13788,\"tit"
+            + "le\":\"Your Sinclair issue 57: Smash Tape 34\",\"publishers\":[{\"name\":nul"
+            + "l,\"country\":null,\"labelType\":null}],\"machineType\":\"ZX-Spectrum 48K\","
+            + "\"type\":\"Covertape\"}]}";
+
+    private static final String COMPILATION = "{\"title\":\"Dixons Premier Collection for Your +2\",\"authors\":[{}],\"comp"
+            + "ilationContents\":[{\"entry_id\":1860,\"title\":\"Freddy Hardest\",\"publish"
+            + "ers\":[{\"name\":\"Dinamic Software\",\"country\":\"Spain\",\"labelType\":\""
+            + "Company\"}],\"machineType\":\"ZX-Spectrum 48K\",\"sequence\":1,\"side\":\"Ta"
+            + "pe 1, side A\",\"variation\":\"Full version\"},{\"entry_id\":5129,\"title\":"
+            + "\"Tank\",\"publishers\":[{\"name\":\"Ocean Software Ltd\",\"country\":\"UK\""
+            + ",\"labelType\":\"Company: Publisher/Manager\"}],\"machineType\":\"ZX-Spectru"
+            + "m 48K/128K\",\"sequence\":2,\"side\":\"Tape 1, side A\",\"variation\":\"Full"
+            + " version\"}]}";
 
     // --- finding ----------------------------------------------------------------------------
 
@@ -570,5 +629,109 @@ public class ZxInfoTest {
         } catch (ScrapeException e) {
             assertEquals(ScrapeException.Kind.MALFORMED, e.kind);
         }
+    }
+
+    // --- the fields ES-DE's schema had no room for -------------------------------------
+
+    private static Meta metaOf(String record) throws Exception {
+        return new ZxInfo(new Canned().then(200, "{\"_source\":" + record + "}"))
+                .fetch(new Candidate("1", "x", null, null, true),
+                       Provider.Wanted.nothing()).meta;
+    }
+
+    /**
+     * The credits, with a role only where the record names one.
+     *
+     * ZXDB gives the main creators no role at all - it keeps them for
+     * specialists - so a list of roles would be mostly empty and a list of
+     * names is what anybody wants to read. Nine per cent of entries have a
+     * role on anybody; sixty-four have an author.
+     */
+    @Test
+    public void theauthorsCarryTheirRolesWhereThereAreAny() throws Exception {
+        assertEquals(Arrays.asList("Jon Ritman", "F. David Thorpe (Load Screen)"),
+                     metaOf(HEAD_OVER_HEELS).authors);
+
+        assertEquals(Arrays.asList("Julian Gollop", "Julek Heller (Inlay/Poster Art)"),
+                     metaOf(CHAOS).authors);
+    }
+
+    /** The developer is still the first author, and the credits do not
+     *  replace it - one is the row every provider fills in. */
+    @Test
+    public void thedeveloperIsStillTheFirstOfThem() throws Exception {
+        assertEquals("Jon Ritman", metaOf(HEAD_OVER_HEELS).developer);
+    }
+
+    /**
+     * The price, with the symbol on the side the record says.
+     *
+     * {@code prefix} decides it: a pound sign leads, and the currencies that
+     * follow their amount would read as nonsense the other way round.
+     */
+    @Test
+    public void thepriceIsFormattedTheWayTheRecordSpellsIt() throws Exception {
+        assertEquals("£7.95", metaOf(HEAD_OVER_HEELS).price);
+    }
+
+    /**
+     * The series, without the game itself in it.
+     *
+     * ZXDB's list includes the entry you asked about - Chaos is the first of
+     * the "Chaos" series - and a game listing itself among its related games
+     * reads as a bug.
+     */
+    @Test
+    public void theseriesIsNamedAndDoesNotListTheGameItself() throws Exception {
+        Meta meta = metaOf(CHAOS);
+
+        assertEquals("Chaos", meta.series);
+        assertEquals(Collections.singletonList(new Meta.Link("2930", "Lords of Chaos")),
+                     meta.seriesGames);
+    }
+
+    /** Both directions of compilation: what this is on, and - for a
+     *  compilation - what is on it. */
+    @Test
+    public void thecompilationsAreReadBothWaysRound() throws Exception {
+        Meta game = metaOf(HEAD_OVER_HEELS);
+
+        assertEquals(Arrays.asList(
+                        new Meta.Link("12019", "Dixons Premier Collection for Your +2"),
+                        new Meta.Link("14204", "Outlet issue 117")),
+                     game.compilations);
+        assertTrue(game.contents.isEmpty());
+
+        Meta compilation = metaOf(COMPILATION);
+
+        assertEquals(Arrays.asList(new Meta.Link("1860", "Freddy Hardest"),
+                                   new Meta.Link("5129", "Tank")),
+                     compilation.contents);
+        assertTrue(compilation.compilations.isEmpty());
+    }
+
+    /** A record with none of them yields none of them, which is most records:
+     *  a quarter carry a price, six per cent a series. */
+    @Test
+    public void arecordWithoutThemYieldsNothingRatherThanEmptyText() throws Exception {
+        Meta meta = metaOf("{\"title\":\"Bare\"}");
+
+        assertNull(meta.price);
+        assertNull(meta.series);
+        assertTrue(meta.authors.isEmpty());
+        assertTrue(meta.seriesGames.isEmpty());
+        assertTrue(meta.compilations.isEmpty());
+        assertTrue(meta.contents.isEmpty());
+    }
+
+    /** And the whole record is asked for in the mode that carries them. */
+    @Test
+    public void therecordIsAskedForCompactRatherThanFull() throws Exception {
+        Canned http = new Canned().then(200, RECORD);
+        new ZxInfo(http).fetch(new Candidate("0002259", "x", null, null, true),
+                               Provider.Wanted.nothing());
+
+        assertTrue("asked for " + http.asked.get(0),
+                   http.asked.get(0).contains("mode=compact"));
     }
 }

@@ -589,4 +589,92 @@ public class MetadataStoreTest {
 
         assertTrue(Metadata.forPath(context, "./a.tap").inputs.isEmpty());
     }
+
+    // --- the fields a second provider brought ----------------------------------------
+
+    /** Writes the store as text, for the cases where what is under test is
+     *  what the reader makes of a file it did not write. */
+    private void write(String json) throws IOException {
+        store.getParentFile().mkdirs();
+
+        try (FileOutputStream out = new FileOutputStream(store)) {
+            out.write(json.getBytes(StandardCharsets.UTF_8));
+        }
+    }
+
+
+    /**
+     * Authors, price, series and compilations survive the round trip.
+     *
+     * The point of a format of our own: these are ZXInfo's and ES-DE's schema
+     * has no room for them. Two of them are lists of <em>other entries</em>,
+     * so each row is an object rather than a string - which the gamelist this
+     * replaced could not have held at all without inventing a separator
+     * convention and a rule for what happens when a title contains it.
+     */
+    @Test
+    public void thesecondProvidersFieldsSurviveTheRoundTrip() {
+        Metadata.put(context, game("./a.tap", "A").but()
+                .authors(Arrays.asList("Jon Ritman", "F. David Thorpe (Load Screen)"))
+                .price("£7.95")
+                .series("Chaos")
+                .seriesGames(Collections.singletonList(
+                        new Meta.Link("2930", "Lords of Chaos")))
+                .compilations(Arrays.asList(
+                        new Meta.Link("12019", "Dixons Premier Collection for Your +2"),
+                        new Meta.Link("14204", "Outlet issue 117")))
+                .contents(Collections.singletonList(
+                        new Meta.Link("1860", "Freddy Hardest")))
+                .build());
+        Metadata.refresh(context);
+
+        Meta back = Metadata.forPath(context, "./a.tap");
+
+        assertEquals(Arrays.asList("Jon Ritman", "F. David Thorpe (Load Screen)"),
+                     back.authors);
+        assertEquals("£7.95", back.price);
+        assertEquals("Chaos", back.series);
+
+        assertEquals(Collections.singletonList(new Meta.Link("2930", "Lords of Chaos")),
+                     back.seriesGames);
+        assertEquals("the id has to survive, or the titles can never become links",
+                     "12019", back.compilations.get(0).id);
+        assertEquals(2, back.compilations.size());
+        assertEquals(Collections.singletonList(new Meta.Link("1860", "Freddy Hardest")),
+                     back.contents);
+    }
+
+    /** A game with none of them reads back with none of them, rather than with
+     *  empty strings and lists of nothing. */
+    @Test
+    public void agameWithoutThemIsNotGivenEmptyOnes() {
+        Metadata.put(context, game("./b.tap", "B"));
+        Metadata.refresh(context);
+
+        Meta back = Metadata.forPath(context, "./b.tap");
+
+        assertNull(back.price);
+        assertNull(back.series);
+        assertTrue(back.authors.isEmpty());
+        assertTrue(back.seriesGames.isEmpty());
+        assertTrue(back.compilations.isEmpty());
+        assertTrue(back.contents.isEmpty());
+    }
+
+    /** A row of the list with no id, or no title, is not a link - the store is
+     *  a file people edit, and half a link points nowhere. */
+    @Test
+    public void ahalfWrittenLinkIsDropped() throws Exception {
+        write("{\"version\":1,\"linked\":0,\"games\":{\"./c.tap\":{"
+              + "\"name\":\"C\",\"compilations\":["
+              + "{\"id\":\"1\",\"title\":\"Kept\"},"
+              + "{\"title\":\"No id\"},"
+              + "{\"id\":\"3\"},"
+              + "\"not an object\"]}}}");
+        Metadata.refresh(context);
+
+        Meta back = Metadata.forPath(context, "./c.tap");
+        assertEquals(Collections.singletonList(new Meta.Link("1", "Kept")),
+                     back.compilations);
+    }
 }

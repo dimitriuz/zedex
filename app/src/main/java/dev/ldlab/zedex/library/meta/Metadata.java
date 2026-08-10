@@ -537,7 +537,13 @@ public final class Metadata {
             field(writer, "source", game.source);
             field(writer, "keymap", game.keymap);
             field(writer, "machine", game.machine);
+            field(writer, "price", game.price);
+            field(writer, "series", game.series);
             list(writer, "inputs", game.inputs);
+            list(writer, "authors", game.authors);
+            links(writer, "seriesGames", game.seriesGames);
+            links(writer, "compilations", game.compilations);
+            links(writer, "contents", game.contents);
             writer.endObject();
         }
 
@@ -556,6 +562,32 @@ public final class Metadata {
 
         writer.name(name).beginArray();
         for (String value : values) writer.value(value);
+        writer.endArray();
+    }
+
+    /**
+     * A list of other entries, each an object rather than a string.
+     *
+     * The id is written beside the title although nothing reads it yet - see
+     * {@code Meta.Link}, which argues why. An object also leaves room for
+     * whatever a link turns out to need without a second convention: this is
+     * the shape a gamelist could not have held at all.
+     */
+    private static void links(JsonWriter writer, String name, List<Meta.Link> values)
+            throws IOException {
+        if (values == null || values.isEmpty()) return;
+
+        writer.name(name).beginArray();
+
+        for (Meta.Link link : values) {
+            if (link == null || link.id == null || link.title == null) continue;
+
+            writer.beginObject();
+            writer.name("id").value(link.id);
+            writer.name("title").value(link.title);
+            writer.endObject();
+        }
+
         writer.endArray();
     }
 
@@ -760,7 +792,13 @@ public final class Metadata {
                 case "source":    building.source(reader.nextString());    break;
                 case "keymap":    building.keymap(reader.nextString());    break;
                 case "machine":   building.machine(reader.nextString());   break;
+                case "price":     building.price(reader.nextString());     break;
+                case "series":    building.series(reader.nextString());    break;
                 case "inputs":    building.inputs(strings(reader));        break;
+                case "authors":   building.authors(strings(reader));       break;
+                case "seriesGames":  building.seriesGames(links(reader));  break;
+                case "compilations": building.compilations(links(reader)); break;
+                case "contents":     building.contents(links(reader));     break;
                 default:          reader.skipValue();                      break;
             }
         }
@@ -776,6 +814,49 @@ public final class Metadata {
      * that element rather than the game it belongs to - the same reason an
      * unknown key is skipped rather than refused.
      */
+    /**
+     * An array of {@code {id, title}}, skipping anything that is not one.
+     *
+     * <b>Half a link is dropped.</b> A row with only a title cannot be opened
+     * and a row with only an id cannot be shown, so neither is a link - and
+     * the store is a file people edit, so both are things that will happen.
+     * The same reasoning as {@link #strings}: one bad element costs that
+     * element rather than the game it belongs to.
+     */
+    private static List<Meta.Link> links(JsonReader reader) throws IOException {
+        List<Meta.Link> values = new ArrayList<>();
+
+        reader.beginArray();
+
+        while (reader.hasNext()) {
+            if (reader.peek() != JsonToken.BEGIN_OBJECT) {
+                reader.skipValue();
+                continue;
+            }
+
+            String id = null, title = null;
+            reader.beginObject();
+
+            while (reader.hasNext()) {
+                String key = reader.nextName();
+
+                if (reader.peek() == JsonToken.NULL) { reader.nextNull(); continue; }
+                if ("id".equals(key))         id = reader.nextString();
+                else if ("title".equals(key)) title = reader.nextString();
+                else                          reader.skipValue();
+            }
+
+            reader.endObject();
+
+            if (id != null && !id.isEmpty() && title != null && !title.isEmpty()) {
+                values.add(new Meta.Link(id, title));
+            }
+        }
+
+        reader.endArray();
+        return values;
+    }
+
     private static List<String> strings(JsonReader reader) throws IOException {
         List<String> values = new ArrayList<>();
 

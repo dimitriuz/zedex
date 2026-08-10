@@ -78,6 +78,10 @@ public final class GameInfoActivity extends ZedexActivity {
     private TextView facts;
     private TextView description;
 
+    /** The rows under the description: credits, price, series, compilations.
+     *  A column of its own because it is rebuilt whenever the store answers. */
+    private LinearLayout extras;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -271,7 +275,55 @@ public final class GameInfoActivity extends ZedexActivity {
         description.setVisibility(View.GONE);
         column.addView(description, wrap());
 
+        // Under the description, because these are the long tail: a quarter of
+        // entries have a price, six per cent a series, and a row that is
+        // usually absent belongs below the one thing somebody came to read.
+        extras = new LinearLayout(this);
+        extras.setOrientation(LinearLayout.VERTICAL);
+        extras.setPadding(0, pixels(20), 0, 0);
+        column.addView(extras, wrap());
+
         return column;
+    }
+
+    /**
+     * A labelled fact, or nothing at all.
+     *
+     * Nothing at all is the common case - see {@link #extras} - and an empty
+     * row with a heading over it would claim the database was asked and had
+     * no answer, when mostly it was never asked.
+     */
+    private void extra(int label, String value) {
+        if (value == null || value.trim().isEmpty()) return;
+
+        TextView heading = new TextView(this);
+        heading.setText(label);
+        heading.setTextColor(Palette.MUTED);
+        heading.setTextSize(12);
+        heading.setPadding(0, pixels(12), 0, 0);
+        extras.addView(heading, wrap());
+
+        TextView text = new TextView(this);
+        text.setText(value.trim());
+        text.setTextColor(Palette.TEXT);
+        text.setTextSize(15);
+        text.setLineSpacing(pixels(3), 1f);
+        extras.addView(text, wrap());
+    }
+
+    /** The titles of other entries, comma separated. The ids travel with them
+     *  in the store and nothing reads them yet - see {@code Meta.Link}. */
+    private static String titlesOf(java.util.List<Meta.Link> links) {
+        if (links == null || links.isEmpty()) return null;
+
+        StringBuilder text = new StringBuilder();
+
+        for (Meta.Link link : links) {
+            if (text.length() > 0) text.append(", ");
+            text.append(link.title);
+        }
+
+        return text.toString();
     }
 
     /**
@@ -317,6 +369,22 @@ public final class GameInfoActivity extends ZedexActivity {
             description.setText(meta.desc.trim());
             description.setVisibility(View.VISIBLE);
         }
+
+        extras.removeAllViews();
+        extra(R.string.info_authors, String.join(", ", meta.authors));
+        extra(R.string.info_price, meta.price);
+        extra(R.string.info_series, seriesLine(meta));
+        extra(R.string.info_compilations, titlesOf(meta.compilations));
+        extra(R.string.info_contents, titlesOf(meta.contents));
+    }
+
+    /** The series' name, and the rest of it after a dash where the record
+     *  names any - "Chaos — Lords of Chaos". */
+    private static String seriesLine(Meta meta) {
+        String rest = titlesOf(meta.seriesGames);
+
+        if (meta.series == null) return rest;
+        return rest == null ? meta.series : meta.series + " — " + rest;
     }
 
     /**

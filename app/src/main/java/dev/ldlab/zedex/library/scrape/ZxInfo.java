@@ -265,7 +265,7 @@ public final class ZxInfo implements Provider {
 
     @Override
     public Scraped fetch(Candidate candidate, Wanted wanted) throws ScrapeException {
-        JSONObject reply = object(ask("games/" + Uri.encode(candidate.handle) + "?mode=full"));
+        JSONObject reply = object(ask("games/" + Uri.encode(candidate.handle) + "?mode=compact"));
         if (reply == null) throw malformed("no record for entry " + candidate.handle);
 
         JSONObject game = reply.optJSONObject("_source");
@@ -302,7 +302,145 @@ public final class ZxInfo implements Provider {
                 .rating(rating(game))
                 .machine(text(game, "machineType"))
                 .inputs(inputs(game))
+                .authors(authors(game))
+                .price(price(game))
+                .series(seriesName(game))
+                .seriesGames(seriesGames(game))
+                .compilations(links(game, "inCompilations"))
+                .contents(links(game, "compilationContents"))
                 .build();
+    }
+
+    /**
+     * Who made it, with a role where there is one.
+     *
+     * ZXDB gives the main creators no role at all and keeps them for
+     * specialists - a load screen, the music - so this reads as a list of
+     * names with the occasional qualifier rather than a table of jobs. Where
+     * somebody has several, they are joined: "(Music, Load Screen)".
+     *
+     * The first of these is also the developer - see {@link #firstAuthor} -
+     * which is not a duplication worth removing: one is the row every other
+     * provider fills in, and this is the credits.
+     */
+    private static List<String> authors(JSONObject game) {
+        List<String> found = new ArrayList<>();
+        JSONArray authors = game.optJSONArray("authors");
+        if (authors == null) return found;
+
+        for (int at = 0; at < authors.length(); at++) {
+            JSONObject author = authors.optJSONObject(at);
+            if (author == null) continue;
+
+            String name = text(author, "name");
+            if (name == null) continue;
+
+            String roles = roles(author);
+            found.add(roles == null ? name : name + " (" + roles + ")");
+        }
+
+        return found;
+    }
+
+    /** This author's roles as one phrase, or null where the record names
+     *  none - which is most of them. */
+    private static String roles(JSONObject author) {
+        JSONArray roles = author.optJSONArray("roles");
+        if (roles == null || roles.length() == 0) return null;
+
+        List<String> named = new ArrayList<>();
+
+        for (int at = 0; at < roles.length(); at++) {
+            JSONObject role = roles.optJSONObject(at);
+            String name = role == null ? null : text(role, "roleName");
+
+            if (name != null) named.add(name);
+        }
+
+        return named.isEmpty() ? null : String.join(", ", named);
+    }
+
+    /**
+     * What it cost, formatted the way the record spells it.
+     *
+     * {@code prefix} says which side the symbol goes: a pound sign leads and
+     * a "Ptas" follows, and getting it the wrong way round makes a price
+     * nobody in either country would recognise.
+     */
+    private static String price(JSONObject game) {
+        JSONObject price = game.optJSONObject("originalPrice");
+        if (price == null) return null;
+
+        String amount = text(price, "amount");
+        if (amount == null) return null;
+
+        String currency = text(price, "currency");
+        if (currency == null) return amount;
+
+        return price.optInt("prefix", 0) == 1 ? currency + amount
+                                              : amount + " " + currency;
+    }
+
+    /** The series' own name, which ZXDB hangs off each of its members
+     *  rather than stating once. */
+    private static String seriesName(JSONObject game) {
+        JSONArray series = game.optJSONArray("series");
+        if (series == null) return null;
+
+        for (int at = 0; at < series.length(); at++) {
+            JSONObject one = series.optJSONObject(at);
+            String name = one == null ? null : text(one, "groupName");
+
+            if (name != null) return name;
+        }
+
+        return null;
+    }
+
+    /**
+     * The rest of the series.
+     *
+     * <b>Without this game.</b> ZXDB's list includes the entry you asked
+     * about, and a series that lists the game being looked at as one of its
+     * related games reads as a mistake. Matched on the title rather than the
+     * id, because the id of the entry being fetched is not in the reply body.
+     */
+    private static List<Meta.Link> seriesGames(JSONObject game) {
+        List<Meta.Link> found = new ArrayList<>();
+        String title = game.optString("title", null);
+
+        for (Meta.Link link : links(game, "series")) {
+            if (title != null && title.equals(link.title)) continue;
+            found.add(link);
+        }
+
+        return found;
+    }
+
+    /**
+     * Another entry named in this one: its id and its title.
+     *
+     * One shape for four different fields, because ZXDB uses one -
+     * {@code series}, {@code inCompilations} and {@code compilationContents}
+     * are all arrays of the same object with different extras hung off them.
+     */
+    private static List<Meta.Link> links(JSONObject game, String field) {
+        List<Meta.Link> found = new ArrayList<>();
+        JSONArray entries = game.optJSONArray(field);
+        if (entries == null) return found;
+
+        for (int at = 0; at < entries.length(); at++) {
+            JSONObject entry = entries.optJSONObject(at);
+            if (entry == null) continue;
+
+            String title = text(entry, "title");
+            int id = entry.optInt("entry_id", -1);
+
+            if (title == null || id < 0) continue;
+            found.add(new Meta.Link(Integer.toString(id), title));
+        }
+
+        return found;
     }
 
     /** ES-DE's stamp, from a year alone - the same shape ScreenScraper's

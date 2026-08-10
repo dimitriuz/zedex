@@ -758,6 +758,11 @@
     <string name="edit_metadata_players">Players</string>
     <string name="edit_metadata_machine">Machine</string>
     <string name="edit_metadata_controls">Controls</string>
+    <string name="info_authors">Credits</string>
+    <string name="info_price">Price</string>
+    <string name="info_series">Series</string>
+    <string name="info_compilations">On compilations</string>
+    <string name="info_contents">On this compilation</string>
     <string name="edit_metadata_rating">Rating out of 5</string>
     <string name="edit_metadata_empty">Not set</string>
     <string name="edit_metadata_save">Save</string>
