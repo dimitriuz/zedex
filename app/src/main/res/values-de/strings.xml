@@ -12,6 +12,7 @@
     <string name="menu_states">Spielstände…</string>
     <string name="menu_pokes">Cheats…</string>
     <string name="poke_for_game">Cheats für %1$s</string>
+    <string name="poke_scraped">Beim Scrapen gefundene Cheats</string>
     <string name="poke_none_for_game">In der Datenbank ist für dieses Spiel nichts Brauchbares</string>
     <string name="poke_search">Cheat-Datenbank durchsuchen…</string>
     <string name="poke_search_hint">Spielname</string>
@@ -748,6 +749,7 @@
     <string name="scrape_media_manuals">Handbuch (PDF)</string>
     <string name="scrape_media_maps">Spielkarte</string>
     <string name="scrape_media_adverts">Werbung</string>
+    <string name="scrape_media_pokes">Cheats (Pokes)</string>
     <string name="scrape_many_fetching">Was abgerufen wird</string>
     <!-- How to run a game, from a scraped record. -->
     <string name="suggest_title">Wie das laufen soll</string>

@@ -12,6 +12,7 @@
     <string name="menu_states">Stany…</string>
     <string name="menu_pokes">Kody…</string>
     <string name="poke_for_game">Kody do %1$s</string>
+    <string name="poke_scraped">Kody znalezione podczas pobierania danych</string>
     <string name="poke_none_for_game">W bazie nie ma nic użytecznego do tej gry</string>
     <string name="poke_search">Szukaj w bazie kodów…</string>
     <string name="poke_search_hint">Nazwa gry</string>
@@ -767,6 +768,7 @@
     <string name="scrape_media_manuals">Instrukcja (PDF)</string>
     <string name="scrape_media_maps">Mapa gry</string>
     <string name="scrape_media_adverts">Reklama</string>
+    <string name="scrape_media_pokes">Kody (poke)</string>
     <string name="scrape_many_fetching">Co pobierać</string>
     <!-- How to run a game, from a scraped record. -->
     <string name="suggest_title">Jak to uruchomić</string>

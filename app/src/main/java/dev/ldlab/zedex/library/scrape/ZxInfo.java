@@ -573,6 +573,12 @@ public final class ZxInfo implements Provider {
         folders.put("Game map", "maps");
         folders.put("Advertisement", "adverts");
 
+        // Not a picture at all: a few lines of text naming cheats, in the
+        // format the poke database that ships with the app is built from. On
+        // 7.9% of Spectrum entries, and the bundled database finds pokes for
+        // about a third of a collection - so this is what tops it up.
+        folders.put("POK pokes file", "pokes");
+
         return Collections.unmodifiableMap(folders);
     }
 
@@ -643,6 +649,7 @@ public final class ZxInfo implements Provider {
         String extension = extensionOf(path);
 
         if ("manuals".equals(folder)) return "pdf".equals(extension);
+        if ("pokes".equals(folder)) return "pok".equals(extension);
         if ("scr".equals(extension)) return "titlescreens".equals(folder);
 
         return "png".equals(extension) || "jpg".equals(extension)

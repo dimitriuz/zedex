@@ -129,7 +129,9 @@ public class ZxInfoTest {
             + "    {\"type\":\"Media scan\",\"format\":\"Picture (JPG)\","
             + "     \"path\":\"/zxdb/sinclair/entries/0002259/HeadOverHeels_Media.jpg\"},"
             + "    {\"type\":\"Media scan\",\"format\":\"Picture (JPG)\","
-            + "     \"path\":\"/zxdb/sinclair/entries/0002259/HeadOverHeels_Media_2.jpg\"}"
+            + "     \"path\":\"/zxdb/sinclair/entries/0002259/HeadOverHeels_Media_2.jpg\"},"
+            + "    {\"type\":\"POK pokes file\",\"format\":\"Pokes (POK)\","
+            + "     \"path\":\"/zxdb/sinclair/pokes/h/Head over Heels (1987)(Ocean Software).pok\"}"
             + "  ]"
             + "}}";
 
@@ -518,6 +520,42 @@ public class ZxInfoTest {
         assertTrue("the first map in the record is the one taken: "
                    + media.get(0).url,
                    media.get(0).url.endsWith("/HeadOverHeels.jpg"));
+    }
+
+    /**
+     * The cheats, which are not a picture at all.
+     *
+     * A {@code .pok} is a few lines of text in the format the bundled poke
+     * database is built from, so a fetched one drops straight into the cheats
+     * page. On 7.9% of Spectrum entries, against a bundled database that
+     * finds pokes for about a third of a real collection - so this is what
+     * tops it up rather than what replaces it.
+     */
+    @Test
+    public void thepokesAreFetchedAsTheirOwnKindOfFile() throws Exception {
+        List<Medium> media = fetched(Provider.Wanted.of("pokes")).media;
+
+        assertEquals(1, media.size());
+        assertEquals("pokes", media.get(0).folder);
+        assertEquals("pok", media.get(0).extension);
+        assertTrue(media.get(0).url.endsWith(".pok"));
+    }
+
+    /** And nothing else is taken as one - a picture in the pokes folder
+     *  would be a file the cheats page tries to read as text. */
+    @Test
+    public void onlyApokFileIsTakenAsPokes() throws Exception {
+        String wrong = RECORD.replace(
+                "{\"type\":\"POK pokes file\",\"format\":\"Pokes (POK)\","
+                + "     \"path\":\"/zxdb/sinclair/pokes/h/Head over Heels (1987)(Ocean Software).pok\"}",
+                "{\"type\":\"POK pokes file\",\"format\":\"Picture (JPG)\","
+                + "     \"path\":\"/zxdb/sinclair/pokes/h/HeadOverHeels.jpg\"}");
+
+        Provider.Scraped scraped = new ZxInfo(new Canned().then(200, wrong))
+                .fetch(new Candidate("1", "x", null, null, true),
+                       Provider.Wanted.of("pokes"));
+
+        assertTrue("a jpg was taken as a pokes file", scraped.media.isEmpty());
     }
 
     /**

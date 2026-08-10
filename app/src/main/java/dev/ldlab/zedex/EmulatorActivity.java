@@ -730,6 +730,10 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         runOnUiThread(() -> {
             panels.setGameInfo(path, shown);
+
+            // The cheats page reads a scraped .pok beside the game, which it
+            // can only find by the store's own key - see PokesUi.forGame.
+            pokes.forGame(path);
             setupUi.offer(path);
         });
     }

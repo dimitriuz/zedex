@@ -12,6 +12,7 @@
     <string name="menu_states">Состояния…</string>
     <string name="menu_pokes">Читы…</string>
     <string name="poke_for_game">Читы для %1$s</string>
+    <string name="poke_scraped">Читы, найденные при скрапинге</string>
     <string name="poke_none_for_game">В базе для этой игры ничего подходящего</string>
     <string name="poke_search">Поиск в базе читов…</string>
     <string name="poke_search_hint">Название игры</string>
@@ -767,6 +768,7 @@
     <string name="scrape_media_manuals">Руководство (PDF)</string>
     <string name="scrape_media_maps">Карта игры</string>
     <string name="scrape_media_adverts">Реклама</string>
+    <string name="scrape_media_pokes">Читы (поки)</string>
     <string name="scrape_many_fetching">Что загружать</string>
     <!-- How to run a game, from a scraped record. -->
     <string name="suggest_title">Как это запускать</string>

@@ -77,6 +77,18 @@ public final class Artwork {
     private static final String MANUAL_FOLDER = "manuals";
     private static final String MANUAL_EXTENSION = "pdf";
 
+    /**
+     * The cheats a provider found for one game.
+     *
+     * A {@code .pok} is a few lines of text naming pokes - see {@code
+     * PokeDatabase}, which parses the same format out of the database that
+     * ships with the app. Kept beside the pictures because it belongs to the
+     * game in the same way and is fetched by the same machinery, and not
+     * because it is artwork.
+     */
+    private static final String POKE_FOLDER = "pokes";
+    private static final String POKE_EXTENSION = "pok";
+
     /** A cached miss, so the map can tell "not looked up" from "looked up, nothing there". */
     private static final Uri MISS = Uri.EMPTY;
 
@@ -202,6 +214,25 @@ public final class Artwork {
 
         manualCache.put(relativePath, found == null ? MISS : found);
         return found;
+    }
+
+    /**
+     * The {@code .pok} fetched for this game, or null.
+     *
+     * <b>A {@code File} and not a {@code Uri}, unlike everything else here.</b>
+     * ES-DE has no such folder, so this is only ever ours - there is no second
+     * place to look and no document to resolve - and the caller reads the text
+     * rather than handing it to something that opens a stream. Uncached for
+     * the same reason it is cheap: a few hundred bytes read once, when
+     * somebody opens the cheats page.
+     */
+    public static File pokes(Context context, String relativePath) {
+        if (relativePath == null) return null;
+
+        File file = new File(new File(Storage.mediaDirectory(context), POKE_FOLDER),
+                             withoutExtension(relativePath) + "." + POKE_EXTENSION);
+
+        return file.canRead() && file.length() > 0 ? file : null;
     }
 
     /** The current media root, clearing every cache first if it has changed since last time. */

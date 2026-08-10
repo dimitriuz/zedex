@@ -16,6 +16,7 @@
     <string name="menu_pokes">Pokes\u2026</string>
     <!-- %1$s is the game the loaded file was recognised as. -->
     <string name="poke_for_game">Cheats for %1$s</string>
+    <string name="poke_scraped">Cheats found by scraping</string>
     <string name="poke_none_for_game">Nothing usable in the database for this one</string>
     <string name="poke_search">Search the cheat database\u2026</string>
     <string name="poke_search_hint">Game name</string>
@@ -872,6 +873,7 @@
     <string name="scrape_media_manuals">Manual (PDF)</string>
     <string name="scrape_media_maps">Game map</string>
     <string name="scrape_media_adverts">Advertisement</string>
+    <string name="scrape_media_pokes">Cheats (pokes)</string>
     <!-- The list a person ticks, in the order the pane shows them.
 
          translatable="false" on an array of visible labels looks wrong and is
@@ -892,6 +894,7 @@
         <item>@string/scrape_media_manuals</item>
         <item>@string/scrape_media_maps</item>
         <item>@string/scrape_media_adverts</item>
+        <item>@string/scrape_media_pokes</item>
     </string-array>
     <!-- ES-DE's own folder names, which is what Provider.Wanted is addressed
          by and what lands in the media folder. Never translated: these are
@@ -907,6 +910,7 @@
         <item>manuals</item>
         <item>maps</item>
         <item>adverts</item>
+        <item>pokes</item>
     </string-array>
     <!-- What is ticked before anybody has chosen: the three this app draws
          everywhere, matching Provider.Wanted.usual.

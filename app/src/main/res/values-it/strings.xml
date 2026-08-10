@@ -12,6 +12,7 @@
     <string name="menu_states">Salvataggi…</string>
     <string name="menu_pokes">Trucchi…</string>
     <string name="poke_for_game">Trucchi per %1$s</string>
+    <string name="poke_scraped">Trucchi trovati durante il recupero</string>
     <string name="poke_none_for_game">Nel database non c\'è niente di utile per questo gioco</string>
     <string name="poke_search">Cerca nel database dei trucchi…</string>
     <string name="poke_search_hint">Nome del gioco</string>
@@ -748,6 +749,7 @@
     <string name="scrape_media_manuals">Manuale (PDF)</string>
     <string name="scrape_media_maps">Mappa del gioco</string>
     <string name="scrape_media_adverts">Pubblicità</string>
+    <string name="scrape_media_pokes">Trucchi (poke)</string>
     <string name="scrape_many_fetching">Cosa recuperare</string>
     <!-- How to run a game, from a scraped record. -->
     <string name="suggest_title">Come eseguirlo</string>
