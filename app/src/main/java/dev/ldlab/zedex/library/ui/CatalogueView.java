@@ -28,8 +28,8 @@ import java.util.Deque;
 import java.util.List;
 
 /**
- * The catalogue tab: the shelves you descend into, the titles you tap, and the
- * next page, fetched because you scrolled.
+ * The catalogue tab: the shelves you descend into, the titles you tap, the pane
+ * that opens on one, and the next page, fetched because you scrolled.
  *
  * <b>Nothing is fetched speculatively.</b> A page when the grid reaches it, a
  * cover when its row is on screen, and nothing at all until somebody opens a
@@ -38,6 +38,12 @@ import java.util.List;
  * {@link Catalogue#shelves()} is the one call that makes no request, which is
  * what lets this build itself on the UI thread; everything else goes through
  * {@link Work#run}.
+ *
+ * <b>The pane is part of this view, not of the screen holding it.</b> A tapped
+ * title opens {@link CataloguePane} in the third of the window {@code
+ * DetailPane} takes on the library's other three tabs, so a hosting activity
+ * decides only which of the two views is showing - and Back closes the pane
+ * before it starts popping shelves, since the pane is what is in front.
  *
  * <b>Where a person is</b> is a stack of shelves. The roots are the
  * catalogue's declared ways in; opening one pushes it, a sub-shelf that comes
@@ -57,12 +63,28 @@ public final class CatalogueView extends FrameLayout {
 
     private static final String TAG = "Zedex";
 
-    /** What a chosen title is handed to - {@code CataloguePane} in Task 11,
-     *  and the activity's own business, not this view's. Deliberately one
-     *  method: a {@code Host} wider than about four is a seam in the wrong
-     *  place. */
+    /** The same hairline {@code LibraryActivity} draws between its own list and
+     *  its pane, so the two screens' seams match. */
+    private static final int DIVIDER = 0x33ffffff;
+
+    /**
+     * The one thing this view cannot answer for itself.
+     *
+     * <b>A chosen title does not come through here.</b> It used to be declared
+     * that way - "handed to {@code CataloguePane}... the activity's own
+     * business" - and that was written before the pane existed. The pane sits
+     * inside this view, in the third of the window {@code DetailPane} occupies
+     * on the library's own three tabs, so choosing a title is entirely this
+     * view's business now and nothing crosses the boundary for it.
+     *
+     * What does cross is an import: a file has appeared in somebody's folder
+     * and whatever else is holding a listing of that folder - Browse, and the
+     * metadata store's own caches - is keyed by path and knows nothing about a
+     * file it did not list. Still deliberately one method: a {@code Host} wider
+     * than about four is a seam in the wrong place.
+     */
     public interface Host {
-        void chosen(Catalogue.Item item);
+        void imported();
     }
 
     private final Catalogue catalogue;
@@ -86,6 +108,21 @@ public final class CatalogueView extends FrameLayout {
     private final RecyclerView recycler;
     private final LinearLayoutManager manager;
     private final CatalogueAdapter adapter;
+
+    /**
+     * One title in full, and the button that brings it in.
+     *
+     * Inside this view rather than up in the activity, which is what lets a
+     * hosting screen stay at "which of the two is showing" - see {@link Host}.
+     * It takes the same third of the window {@code DetailPane} does, and the
+     * same side of it: beside the list in landscape, beneath it in portrait.
+     */
+    private final CataloguePane pane;
+
+    /** The hairline between the list and {@link #pane}, hidden and shown with
+     *  it - a divider with nothing on the far side of it is a line across the
+     *  screen for no reason. */
+    private final View paneDivider;
 
     /** Where a person is. Empty means the roots, which is also what makes
      *  {@link #onBack()} able to say "not mine". */
@@ -209,7 +246,7 @@ public final class CatalogueView extends FrameLayout {
 
             @Override
             public void openItem(Catalogue.Item item) {
-                CatalogueView.this.host.chosen(item);
+                showPane(item);
             }
 
             @Override
@@ -263,11 +300,90 @@ public final class CatalogueView extends FrameLayout {
         column.addView(content, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
 
-        addView(column, new FrameLayout.LayoutParams(
+        // The list and the pane, two against one, split the way LibraryActivity
+        // splits its own list and DetailPane - beside each other in landscape,
+        // stacked in portrait, since height is the scarce thing in the first and
+        // width in the second. Read once, here, and handed to the pane rather
+        // than asked again inside it: two reads of one question are two chances
+        // to disagree.
+        boolean landscape = getResources().getConfiguration().orientation
+                == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
+
+        LinearLayout outer = new LinearLayout(context);
+        outer.setOrientation(landscape ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
+
+        outer.addView(column, new LinearLayout.LayoutParams(
+                landscape ? 0 : LinearLayout.LayoutParams.MATCH_PARENT,
+                landscape ? LinearLayout.LayoutParams.MATCH_PARENT : 0, 2f));
+
+        paneDivider = new View(context);
+        paneDivider.setBackgroundColor(DIVIDER);
+        paneDivider.setVisibility(View.GONE);
+        outer.addView(paneDivider, landscape
+                ? new LinearLayout.LayoutParams(Math.round(density), LinearLayout.LayoutParams.MATCH_PARENT)
+                : new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, Math.round(density)));
+
+        // Hidden, and taking no room while it is: a GONE child of a weighted
+        // LinearLayout is not laid out at all, so the list has the whole window
+        // until somebody taps a title. That is the one place this differs from
+        // DetailPane, which is present whether or not anything is selected -
+        // see CataloguePane's own class comment for why.
+        pane = new CataloguePane(context, landscape, catalogue, http, host::imported);
+        pane.setVisibility(View.GONE);
+        outer.addView(pane, new LinearLayout.LayoutParams(
+                landscape ? 0 : LinearLayout.LayoutParams.MATCH_PARENT,
+                landscape ? LinearLayout.LayoutParams.MATCH_PARENT : 0, 1f));
+
+        addView(outer, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT));
 
         showRoots();
+    }
+
+    // --- the pane -------------------------------------------------------------------
+
+    /**
+     * A title was tapped: the pane opens on it and asks the catalogue for its
+     * versions and files.
+     *
+     * Nothing is fetched for a row that was only drawn - see {@link
+     * CataloguePane#show}, and {@link Catalogue#item}'s own note on what makes
+     * that call the expensive one.
+     */
+    private void showPane(Catalogue.Item item) {
+        paneDivider.setVisibility(View.VISIBLE);
+        pane.setVisibility(View.VISIBLE);
+        pane.show(item);
+    }
+
+    /**
+     * Closes it, and says whether there was one to close.
+     *
+     * Not {@code show(null)}: there is nothing for an empty pane to say here
+     * that the list behind it does not say better, and the third of the window
+     * it occupies is worth giving back.
+     */
+    private boolean hidePane() {
+        if (pane.getVisibility() != View.VISIBLE) return false;
+
+        pane.setVisibility(View.GONE);
+        paneDivider.setVisibility(View.GONE);
+        return true;
+    }
+
+    /**
+     * The folder picker's answer, on its way to the pane - forwarded by
+     * whichever activity is holding this view, since a view has no {@code
+     * onActivityResult} of its own.
+     *
+     * The pane asks for a writable content folder at the moment somebody
+     * imports, and only then; see {@link CataloguePane#REQUEST_WRITABLE_TREE}.
+     *
+     * @return whether it was the pane's, so a host can go on to its own.
+     */
+    public boolean onActivityResult(int request, int result, android.content.Intent data) {
+        return pane.onActivityResult(request, result, data);
     }
 
     // --- where a person is ---------------------------------------------------------
@@ -283,6 +399,10 @@ public final class CatalogueView extends FrameLayout {
     private void showRoots() {
         stack.clear();
         abandon();
+
+        // Whatever the pane was about is not on this list any more. Both paths
+        // that replace what is on screen do this - see restart().
+        hidePane();
         hasMore = false;
         page = 0;
 
@@ -308,6 +428,11 @@ public final class CatalogueView extends FrameLayout {
      *         leave. True when this view handled it.
      */
     public boolean onBack() {
+        // The pane first, and before the stack is touched: it is what is in
+        // front, so it is what Back is about. Closing it leaves the list exactly
+        // where it was, which is where somebody tapped from.
+        if (hidePane()) return true;
+
         if (stack.isEmpty()) return false;
 
         stack.pop();
@@ -389,6 +514,10 @@ public final class CatalogueView extends FrameLayout {
     /** Empties the list and asks for page zero of whatever is on top. */
     private void restart() {
         abandon();
+
+        // A pane open over a shelf nobody is on any more, with an Import button
+        // for a title that is no longer on the list behind it.
+        hidePane();
 
         rows.clear();
         adapter.setRows(rows);

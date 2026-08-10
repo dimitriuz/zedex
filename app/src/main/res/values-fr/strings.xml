@@ -775,4 +775,13 @@
     <string name="catalogue_empty">Rien ici.</string>
     <string name="catalogue_failed">Cela n\'est pas arrivé.</string>
     <string name="catalogue_retry">Réessayer</string>
+    <string name="catalogue_import">Importer</string>
+    <string name="catalogue_versions">Autres versions…</string>
+    <string name="catalogue_recording">Lire l\'enregistrement</string>
+    <string name="catalogue_importing">Importation de %1$s…</string>
+    <string name="catalogue_imported">%1$s importé</string>
+    <string name="catalogue_already">%1$s est déjà dans votre bibliothèque</string>
+    <string name="catalogue_nothing_to_get">Rien que le Spectrum puisse ouvrir.</string>
+    <string name="catalogue_needs_write">Zedex a besoin d\'une autorisation pour ajouter des jeux à %1$s.</string>
+    <string name="catalogue_choose_folder">Choisir</string>
 </resources>

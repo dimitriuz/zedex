@@ -209,7 +209,7 @@ public class CatalogueScreenTest {
         InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
             view = new CatalogueView(activity,
                     new ZxInfoCatalogue(new Http.Real(activity)),
-                    item -> { /* Task 11's pane; nothing to do here. */ });
+                    () -> { /* nothing here imports; see ImportFlowTest. */ });
             activity.setContentView(view);
         });
 

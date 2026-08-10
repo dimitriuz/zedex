@@ -963,4 +963,19 @@
     <string name="catalogue_empty">Nothing here.</string>
     <string name="catalogue_failed">That did not arrive.</string>
     <string name="catalogue_retry">Try again</string>
+    <!-- The catalogue's detail pane - what one title offers, and the button
+         that brings it in; see library/ui/CataloguePane. The service's own
+         words for the kind and the availability are not here, only this app's.
+         catalogue_needs_write names the content folder because the answer is
+         "which folder" and a message that does not say which one is a question
+         nobody can answer. -->
+    <string name="catalogue_import">Import</string>
+    <string name="catalogue_versions">Other versions…</string>
+    <string name="catalogue_recording">Play the recording</string>
+    <string name="catalogue_importing">Importing %1$s…</string>
+    <string name="catalogue_imported">%1$s imported</string>
+    <string name="catalogue_already">%1$s is already in your library</string>
+    <string name="catalogue_nothing_to_get">Nothing here the Spectrum can open.</string>
+    <string name="catalogue_needs_write">Zedex needs permission to add games to %1$s.</string>
+    <string name="catalogue_choose_folder">Choose</string>
 </resources>
