@@ -38,7 +38,9 @@ import java.util.Map;
  *       onto the provider.</li>
  *   <li><b>There is no quota to pace against.</b> Nothing is reported, so
  *       this class paces itself - see {@code MINIMUM_INTERVAL_MS}, and note
- *       that it is not an optional courtesy.</li>
+ *       that it is not an optional courtesy. Paced through {@link Pace},
+ *       which counts per host rather than per object - see its own comment
+ *       for why that distinction is the whole of the manners here.</li>
  *   <li><b>No credentials at all</b>, so {@link #configured} is always true
  *       and this provider works in a build made from a clean clone.</li>
  * </ul>
@@ -55,11 +57,11 @@ public final class ZxInfo implements Provider {
 
     private static final String TAG = "Zedex";
 
-    private static final String BASE = "https://api.zxinfo.dk/v3/";
+    static final String API = "https://api.zxinfo.dk/v3/";
 
     /** Where the files themselves live. Most of what a record names is
      *  relative to this, and none of it is an API call. */
-    private static final String FILES = "https://spectrumcomputing.co.uk";
+    static final String FILES = "https://spectrumcomputing.co.uk";
 
     /**
      * And where the rest of it lives, which is not the same host.
@@ -76,10 +78,10 @@ public final class ZxInfo implements Provider {
      * fetched from the wrong host and quietly discarded as a 404, and the
      * failure looked exactly like a game that had none.
      */
-    private static final String SCREENS = "https://zxinfo.dk/media";
+    static final String SCREENS = "https://zxinfo.dk/media";
 
     /** The prefix that means ZXInfo's own host - see {@link #SCREENS}. */
-    private static final String SCREENS_PREFIX = "/zxscreens/";
+    static final String SCREENS_PREFIX = "/zxscreens/";
 
     /** How many candidates a name search offers. Enough to find the right one
      *  among re-releases and hacks, few enough to read in a dialog. */
@@ -147,25 +149,7 @@ public final class ZxInfo implements Provider {
      * caller-side delay would have to be got right twice and would still miss
      * the second request each game makes.
      */
-    private static final long MINIMUM_INTERVAL_MS = 500;
-
-    /** When the last request went out, for {@link #pace}. Per instance, which
-     *  matches how it is used: one provider for the life of a sweep. */
-    private long lastAsked;
-
-    private void pace() {
-        long since = android.os.SystemClock.elapsedRealtime() - lastAsked;
-
-        if (lastAsked != 0 && since < MINIMUM_INTERVAL_MS) {
-            try {
-                Thread.sleep(MINIMUM_INTERVAL_MS - since);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }
-
-        lastAsked = android.os.SystemClock.elapsedRealtime();
-    }
+    static final long MINIMUM_INTERVAL_MS = 500;
 
     // --- finding a game ------------------------------------------------------------
 
@@ -695,10 +679,10 @@ public final class ZxInfo implements Provider {
      * learned the expensive way, and it applies here identically.
      */
     private String ask(String path) throws ScrapeException {
-        pace();
+        Pace.before("api.zxinfo.dk", MINIMUM_INTERVAL_MS);
 
         try {
-            Http.Reply reply = http.get(BASE + path);
+            Http.Reply reply = http.get(API + path);
 
             if (reply.status == 404) return null;
             if (!reply.ok()) throw refusalFor(reply.status);
