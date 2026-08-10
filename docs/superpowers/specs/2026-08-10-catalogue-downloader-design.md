@@ -73,7 +73,10 @@ zxart's `releasesIds` fetched separately. An `Item` also carries:
 - its **availability** (`availability` on ZXInfo, `legalStatus` on zxart);
 - a **picture url** when the catalogue offers one.
 
-A file carries its format, its size and its url. **The catalogue lists files;
+A file carries its format, its size and its **absolute url** — not a path to be
+joined onto a base. ZXDB's own recordings live on `archive.org` rather than on
+the Spectrum archive, so a catalogue's files can be spread across hosts and the
+downloader must follow what it is given. **The catalogue lists files;
 this app decides which it can open**, from `Types.OPENABLE` — read, never
 copied, so the two cannot drift. A catalogue is never asked to know what a
 Spectrum is.
@@ -152,6 +155,7 @@ already hide themselves.
 | Compilations | Compilation, Covertape, Box Set | ~3,600 |
 | Magazines | Electronic Magazine, Book, E-Book | ~3,400 |
 | Demoscene | Demoscene, Tech Demo, Animation | ~1,400 |
+| Recordings | any entry's RZX, whatever its genre — see *Recordings* | 5,352 have one |
 | Other | General, Hardware, Advertising, and anything unrecognised | ~4,800 |
 
 Three rules keep this from repeating the ZX81 mistake, where a table written
@@ -169,6 +173,20 @@ An entry can be a game *and* a compilation. First match wins, in the order
 above, so a compilation of games goes to Compilations — otherwise the rule is
 not a rule.
 
+### Recordings
+
+An RZX is a recording of somebody playing, and 5,352 entries — 13.5% — have
+one. They are worth importing and they are not games, so:
+
+- a recording is **never** the file chosen for "import this game";
+- an entry that has one offers **Play the recording** beside Import;
+- an imported recording goes to `Downloaded/Recordings`, whatever the entry's
+  genre says, because the folder scheme answers "what kind of thing is this
+  file" and a recording of Bomb Jack in your Games folder is not Bomb Jack.
+
+That is the one place the file's kind outranks the entry's category. Everything
+else follows the table above.
+
 ### Which file
 
 One tap imports **the original release** — the one the catalogue lists first —
@@ -180,9 +198,14 @@ Tape images first, because they carry the loading scheme and the custom loader
 that a snapshot has already thrown away — half of what a Spectrum game is
 remembered for happens during loading. Disk images next, in the order the
 machines that read them appear. Snapshots last: they always work and they
-always start after the part worth seeing. `rzx` and `gz` are openable but are
-not games — a recording and a wrapper — so they are never chosen, though a file
-list still shows them.
+always start after the part worth seeing.
+
+`gz` is a wrapper rather than a format and is never chosen. **`rzx` is neither
+— it is somebody playing the game, and this app can play it back.** Verified on
+a device: opening one starts playback, because `utils_open_file` hands an RZX
+to `rzx_start_playback_from_buffer`, and 10th Frame duly bowled a frame with
+nobody touching the controls. So a recording is never chosen *as the game* — it
+is not the game — but it is offered in its own right; see below.
 
 Entries with more than one version also offer *Other versions…*, so a Spanish
 re-release or a 128K remake is two taps away rather than the thing you got by
@@ -204,6 +227,9 @@ footnote.
   sync — the difference between a client and a crawler is exactly this.
 - **Never `curl` those hosts bare** while working on this. That is how the
   address was lost.
+- **A file may be on a host neither of us chose** — the recordings are on
+  `archive.org`. The identity header goes to whatever host a file names, and
+  nothing else changes: one file, one request, when somebody asked for it.
 
 ## Testing
 
