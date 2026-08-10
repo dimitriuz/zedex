@@ -3519,7 +3519,7 @@ The `CatalogueView.Host` callback calls the activity's existing `metadataChanged
 - [ ] **Step 5: Check the preference**
 
 Run `python3 scripts/check-prefs.py`.
-Expected: `every preference is read as it is written`, with `catalogueProvider  String  String` in the table.
+Expected: `every preference is read as it is written`. The row reads `catalogueProvider  -  String` — **nothing writes the key yet**, because this task adds no settings row to choose a catalogue, exactly as `scraper` has always read. Do not invent a writer to make a column line up.
 
 - [ ] **Step 6: Build, install, and drive it by hand**
 
