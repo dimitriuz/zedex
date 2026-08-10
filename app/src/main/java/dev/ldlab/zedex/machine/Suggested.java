@@ -40,24 +40,36 @@ public final class Suggested {
     // --- machines -------------------------------------------------------------------
 
     /**
-     * ZXDB's words for a machine, and the Fuse id each implies, most specific
+     * ZXDB's words for a machine, and the Fuse ids each implies, most specific
      * first.
      *
-     * Order matters and is the whole trick: {@code ZX-Spectrum 128K +2} holds
+     * Order matters and is the whole trick: {@code ZX-Spectrum 128 +2} holds
      * "128" as well as "+2", so the longer token has to be looked for first or
      * every +2 game would suggest a plain 128K.
+     *
+     * <b>Checked against the real vocabulary.</b> {@code GET /v3/metadata/}
+     * answers with every value ZXDB uses and how many entries carry each;
+     * {@code SuggestedTest} holds that list and asserts both directions of
+     * this table against it. Before that call was possible this was written
+     * from what one collection happened to contain.
+     *
+     * More than one id where ZXDB names more than one machine: it writes the
+     * two Timex 2068s as a single "Tx2068", and Fuse has both, so both are
+     * offered and the person decides - the same answer {@code 48K/128K} gets.
      */
     private static final String[][] MACHINES = {
         { "scorpion",      "scorpion" },
         { "pentagon 1024", "pentagon1024" },
         { "pentagon 512",  "pentagon512" },
         { "pentagon",      "pentagon" },
+        { "tx2068",        "ts2068", "2068" },
         { "ts2068",        "ts2068" },
         { "tc2068",        "2068" },
         { "tc2048",        "2048" },
         { "+3e",           "plus3e" },
         { "+3",            "plus3" },
         { "+2a",           "plus2a" },
+        { "+2b",           "plus2a" },
         { "+2",            "plus2" },
         { "128",           "128" },
         { "48",            "48" },
@@ -69,7 +81,27 @@ public final class Suggested {
      * machine ZXDB has no word for, and "48_ntsc" is a region rather than a
      * machine anybody's record names. Scorpion is here because ZXDB does name
      * it and because it is where a good deal of the .trd demoscene runs.
+     *
+     * The +2B is a late +2A rather than a +2 - the same ROM in the same
+     * disk-less shell - so it is pointed at Fuse's plus2a.
      */
+
+    /**
+     * The computers this can only get wrong, whatever else the value says.
+     *
+     * <b>A ZX81 is not a 16K Spectrum.</b> "ZX81 16K" contains "16", and the
+     * matching below is by substring, so this table used to offer a 16K
+     * Spectrum for the 3,096 entries ZXDB records that way - more than every
+     * Pentagon, Timex and Scorpion entry in the database put together. A wrong
+     * machine is worse than none: nothing offered reads as the database not
+     * knowing, and a machine offered reads as the database saying so.
+     *
+     * Only these two need naming. Every other computer ZXDB lists - the QL,
+     * the SAM Coupé, the Next, the ACE, the Z88, the Russian clones Fuse does
+     * not emulate - contains no token this table looks for, so it is refused
+     * by finding nothing, which is the same answer arrived at for free.
+     */
+    private static final String[] NOT_A_SPECTRUM = { "zx81", "zx80" };
 
     /**
      * Every machine the record implies, as indices into {@code ids}.
@@ -94,23 +126,34 @@ public final class Suggested {
 
         Set<Integer> already = new LinkedHashSet<>();
 
-        for (String part : machineType.toLowerCase(Locale.US).split("/")) {
-            int index = mostSpecific(part, ids);
-            if (index >= 0) already.add(index);
+        String[] parts = machineType.toLowerCase(Locale.US).split("/");
+
+        // The whole value, not the part: "ZX81 16K/32K" says ZX81 once and
+        // then splits, so a part of it read alone is "32k" with nothing left
+        // to say which computer that is.
+        for (String said : NOT_A_SPECTRUM) {
+            if (machineType.toLowerCase(Locale.US).contains(said)) return found;
         }
+
+        for (String part : parts) mostSpecific(part, ids, already);
 
         found.addAll(already);
         return found;
     }
 
-    /** The first token in {@link #MACHINES} this part contains - the table is
-     *  ordered most specific first, so "+2a" is found before "+2" and "+2"
-     *  before "128". */
-    private static int mostSpecific(String part, String[] ids) {
-        for (String[] pair : MACHINES) {
-            if (part.contains(pair[0])) return indexOf(ids, pair[1]);
+    /** The first token in {@link #MACHINES} this part contains, and every id
+     *  it implies - the table is ordered most specific first, so "+2a" is
+     *  found before "+2" and "+2" before "128". */
+    private static void mostSpecific(String part, String[] ids, Set<Integer> into) {
+        for (String[] entry : MACHINES) {
+            if (!part.contains(entry[0])) continue;
+
+            for (int at = 1; at < entry.length; at++) {
+                int index = indexOf(ids, entry[at]);
+                if (index >= 0) into.add(index);
+            }
+            return;
         }
-        return -1;
     }
 
     // --- joysticks -------------------------------------------------------------------

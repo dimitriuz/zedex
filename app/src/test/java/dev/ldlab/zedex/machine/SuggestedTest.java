@@ -8,6 +8,7 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -229,6 +230,114 @@ public class SuggestedTest {
         assertFalse("a layout, but the game does not read the keys",
                     Suggested.keyboard(game("ZX-Spectrum 48K", "0:left = o", "Kempston Joystick")));
         assertFalse(Suggested.keyboard(null));
+    }
+
+    // --- against ZXDB's real vocabulary -------------------------------------------------
+
+    /**
+     * Every value ZXDB actually uses for {@code machinetype}, read from the
+     * service rather than imagined.
+     *
+     * {@code GET /v3/metadata/} answers with the whole list and how many
+     * entries carry each - fetched 2026-08-10, 32 values over 39,666 entries.
+     * Until that call was possible the table in {@code Suggested} was written
+     * from the handful of values seen in one collection, and it showed: it
+     * offered a 16K Spectrum for every ZX81 program in the database, which is
+     * the third commonest value there is.
+     *
+     * In descending order of how many entries carry each, so what matters most
+     * is at the top. Anything ZXDB adds later is simply not here, and the
+     * failure that causes is the right one: a machine nothing recognises is
+     * not offered.
+     */
+    private static final String[] ZXDB_MACHINE_TYPES = {
+        "ZX-Spectrum 48K",        // 24804
+        "ZX-Spectrum 16K",        //  4137
+        "ZX81 16K",               //  3096
+        "ZX-Spectrum 128K",       //  2223
+        "ZX-Spectrum 48K/128K",   //  1931
+        "ZX-Spectrum 16K/48K",    //   556
+        "ZX-Spectrum 128 +3",     //   482
+        "Sinclair QL",            //   424
+        "ZX81 1K",                //   420
+        "SAM Coupé",              //   302
+        "ZX-Spectrum Next",       //   280
+        "Timex Tx2068",           //   211
+        "Pentagon 128",           //   203
+        "ZX81 2K",                //   178
+        "ZX80",                   //   163
+        "ATM",                    //    62
+        "Jupiter ACE",            //    56
+        "Lambda 8300",            //    22
+        "ZX-Spectrum 128 +2A/+3", //    20
+        "Timex TC2048",           //    18
+        "ZX81 32K",               //    15
+        "ZX-Spectrum 128 +2",     //    12
+        "Cambridge Z88",          //    11
+        "AT Computer System",     //    10
+        "ZX-Evolution",           //     7
+        "Timex TC2048/Tx2068",    //     5
+        "ZX81 64K",               //     4
+        "ZX-UNO",                 //     4
+        "ZX-Spectrum 128 +2B",    //     4
+        "Scorpion",               //     3
+        "ZX81 16K/32K",           //     2
+        "Baltic",                 //     1
+    };
+
+    /** The ones Fuse can be, and so the ones that have to come back with
+     *  something. Everything else in the list above is a different computer. */
+    private static final String[] FUSE_CAN_RUN = {
+        "ZX-Spectrum 48K", "ZX-Spectrum 16K", "ZX-Spectrum 128K",
+        "ZX-Spectrum 48K/128K", "ZX-Spectrum 16K/48K", "ZX-Spectrum 128 +3",
+        "ZX-Spectrum 128 +2", "ZX-Spectrum 128 +2A/+3", "ZX-Spectrum 128 +2B",
+        "Timex Tx2068", "Timex TC2048", "Timex TC2048/Tx2068",
+        "Pentagon 128", "Scorpion",
+    };
+
+    @Test
+    public void everyMachineZxdbNamesThatFuseHasIsSuggested() {
+        for (String said : FUSE_CAN_RUN) {
+            assertFalse(said + " is a machine Fuse has and nothing is offered for it",
+                        machines(said).isEmpty());
+        }
+    }
+
+    /**
+     * <b>A ZX81 is not a 16K Spectrum.</b>
+     *
+     * "ZX81 16K" contains "16", and the table matched on substrings, so 3,096
+     * entries - more than every Pentagon, Timex and Scorpion value in the
+     * database put together - offered to run a ZX81 program on a Spectrum.
+     * A wrong suggestion is worse than none: nothing offered reads as the
+     * database not knowing, and a machine offered reads as the database
+     * saying so.
+     */
+    @Test
+    public void nomachineIsSuggestedForAcomputerFuseCannotBe() {
+        List<String> others = new ArrayList<>(Arrays.asList(ZXDB_MACHINE_TYPES));
+        others.removeAll(Arrays.asList(FUSE_CAN_RUN));
+
+        for (String said : others) {
+            assertTrue(said + " is not a Spectrum, and " + ids(machines(said))
+                       + " was offered for it", machines(said).isEmpty());
+        }
+    }
+
+    /** ZXDB writes the two Timex 2068s as one value, so both of Fuse's are
+     *  offered and the person decides - the same answer 48K/128K gets. */
+    @Test
+    public void thetimexUmbrellaOffersBothOfFusesTwo() {
+        assertEquals(Arrays.asList("ts2068", "2068"), ids(machines("Timex Tx2068")));
+        assertEquals(Arrays.asList("2048", "ts2068", "2068"),
+                     ids(machines("Timex TC2048/Tx2068")));
+    }
+
+    /** The +2B is a late +2A and not a +2: same ROM, same disk-less shell. */
+    @Test
+    public void theplusTwoBisAplusTwoA() {
+        assertEquals(Collections.singletonList("plus2a"),
+                     ids(machines("ZX-Spectrum 128 +2B")));
     }
 
     // --- the choices offered, which are not Fuse's list ---------------------------------
