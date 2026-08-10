@@ -12,10 +12,18 @@ a persisted SAF grant in `contentTree` — shown as a list or a grid, with folde
 and `.zip` archives you can enter. Opening a file loads it into the machine if
 it is a type the emulator supports; anything else is not shown at all.
 
-Three tabs: **Browse**, **Favorites**, **Recents**. It opens on Browse, because
-the folder tree is what the library is for and it is the same every time; a
-screen that changes under you depending on what you played last is harder to
-learn, and Recents is one tap away.
+Four tabs: **Browse**, **Favorites**, **Recents** and **Catalogue**. It opens on
+Browse, because the folder tree is what the library is for and it is the same
+every time; a screen that changes under you depending on what you played last is
+harder to learn, and Recents is one tap away.
+
+The first three are three views of what you have. **Catalogue** is the one that
+is not: it browses a service — ZXInfo's ~40,000 entries, by search, by letter,
+by category or by what arrived most recently — and imports a title into the
+content folder with its cover and details already attached. It came later than
+the rest of this document (see *The catalogue tab*, below) and it is built only
+when there is a catalogue to browse, so a build with none shows three tabs and
+says nothing about a fourth.
 
 Beside all of it, eventually, a pane of metadata and artwork for whatever is
 selected.
@@ -132,15 +140,17 @@ Browse and launch, and nothing else:
 - opening a file loads it into the machine;
 - sort, and a search box that filters as you type — a folder of two thousand
   tapes is the case this screen exists for;
-- all three tabs: Browse, Favorites, Recents;
+- all the tabs it had then — Browse, Favorites, Recents; Catalogue came later
+  and is described at the foot of this document;
 - the setting, its content-folder gate, and the migration that leaves existing
   installs alone.
 
 Favourites need a store of their own now — paths and their hashes, in the data
 folder — which the metadata PR then absorbs rather than leaves behind. It is
-worth the small duplication: three tabs from the start settle the layout before
-any artwork arrives, and Recents costs almost nothing because the list is
-already there.
+worth the small duplication: having every tab from the start settles the layout
+before any artwork arrives, and Recents costs almost nothing because the list is
+already there. That bet paid: the fourth tab, two pull requests later, needed no
+change to any of it.
 
 The metadata pane, artwork and video are the second pull request, on
 `feature/library-metadata`. The layout was designed with the pane in it and
@@ -225,10 +235,68 @@ see what is actually on the disk.
   path.** `am start` in the scripts and docs, and the ES-DE hand-off, both
   address it directly; none of that may break.
 
+## The fourth tab: the catalogue
+
+Every other tab is a view of what somebody already has. This one is a view of
+what they have not, and it is the reason the library is worth opening on a phone
+with an empty folder.
+
+**A catalogue is not a scraper, and the seam says so.** `Provider` answers "here
+is a file — what do you know about it?", and every one of its methods assumes
+the file exists. `Catalogue` answers the other question. A service may implement
+one, the other or both; ScreenScraper implements only `Provider` and is never
+asked to be browsable.
+
+**A way in is data, not a method.** A catalogue declares its shelves — Search,
+A–Z, Categories, Newest, Surprise me — and the tab renders what it is handed, so
+a second catalogue never owes an answer it has not got. A shelf whose children
+have to be fetched declares itself and yields the rest as **sub-shelves inside a
+page**: that is how a category tree and a twenty-six letter alphabet fit through
+a seam with a method for neither, and it is what keeps `shelves()` requestless
+and safe to call while the tab is being built.
+
+**Nothing is fetched speculatively** — a page when the grid reaches it, a cover
+when its row is on screen, and nothing at all until a shelf is opened. This
+app's address has been blocked once for looking like a crawler, and pacing is
+counted per *host* rather than per object for the same reason: a provider
+scraping and a catalogue browsing are two objects and one address.
+
+**The pane looks like `DetailPane` and is not it.** `DetailPane` and
+`EntryAdapter` are written throughout in terms of `Entry` — a `Uri`, a size, a
+modified time, a path inside an archive — and a catalogue item has none of the
+four. So `CatalogueAdapter` and `CataloguePane` are classes of their own that sit
+in the same places and draw the same way. The sharing is of appearance, not of
+code.
+
+**An import goes to `Downloaded/<kind>/` inside the content folder**, never to
+its root — without that there is no telling afterwards what the app added from
+what somebody put there themselves. The kind is the catalogue's own word mapped
+into seven folders of ours (`Kinds`), with one inversion: a **recording** is
+filed by the file's kind rather than the entry's, because a recording of Bomb
+Jack in the Games folder is not Bomb Jack. It opens itself when it arrives, since
+that is what the button offered.
+
+**Importing needs write access, and the content folder has never had it.** Every
+grant this app took on that folder was read-only, correctly, until there was
+something to write. A grant cannot be widened in place, so the ask happens at the
+first import rather than at startup: it names the folder, opens the picker at it,
+and carries on with the import that prompted it. Somebody who only browses is
+never asked.
+
+**Details come from the catalogue's own service.** The entry id goes straight
+through to `Provider.fetch` as an already-matched candidate — certain against the
+service that issued it and meaningless to any other — so the provider is chosen
+by matching the catalogue's name, and where nothing matches the file is imported
+with no details rather than with somebody else's.
+
 ## Still open
 
 - Whether the grid, with no artwork scraped, shows anything better than a name
   and an icon by type.
+- zxart, the second catalogue. It shaped the seam — the category tree is why a
+  page carries sub-shelves — and is not built.
+- Bulk import. One thing at a time; a queue is a different feature with
+  different manners.
 - Whether the library should be built focus-first now, since it is the obvious
   Android TV home screen — see `docs/ANDROID-TV.md`.
 - What a favourite means for a folder, or for a zip full of games, as opposed to
