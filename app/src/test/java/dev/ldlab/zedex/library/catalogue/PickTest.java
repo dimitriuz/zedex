@@ -72,7 +72,7 @@ public class PickTest {
      * order, because "earlier index wins" would still hold either way.
      * That is a real property of {@link Pick#forGame} worth pinning, but it
      * is not the same claim as "the order is the right one" - for that see
-     * {@link #atapeBeatsAnyDiskBeatsAnySnapshot}, which hard-codes its
+     * {@link #theWholeOrderIsWhatThisAppIntends}, which hard-codes its
      * expectations independently of the array and so would catch exactly
      * the reordering this test cannot.
      */
@@ -98,45 +98,61 @@ public class PickTest {
     private static final String[] DISKS = { "trd", "scl", "dsk", "mgt", "img", "udi" };
     private static final String[] SNAPSHOTS = { "szx", "z80", "sna" };
 
-    /**
-     * Tape beats disk beats snapshot, asserted as the domain rule rather than
-     * as a copy of the array.
+    private static String[] concat(String[]... groups) {
+        List<String> all = new ArrayList<>();
+        for (String[] group : groups) all.addAll(Arrays.asList(group));
+        return all.toArray(new String[0]);
+    }
+
+    /** The order this app intends, written out independently of the constant
+     *  under test - which is the whole point. A change to {@link
+     *  Pick#PREFERENCE} that is not also made here fails, and that is the
+     *  guard.
      *
-     * A tape image carries the loading scheme and the custom loader that a
-     * snapshot has already thrown away, and half of what a Spectrum game is
-     * remembered for happens while it loads - a disk falls in between for
-     * the same reason, one step further from the original medium. Written
-     * this way so that reversing {@link Pick#PREFERENCE} fails it, which
-     * {@link #theScanHonoursTheDeclaredOrderWhateverItIs} cannot.
+     *  Yes, this restates the order {@code PREFERENCE} declares. Deliberately:
+     *  the order encodes domain decisions expensive to rediscover - see
+     *  {@link Pick#PREFERENCE}'s own javadoc - so writing it down twice, once
+     *  as the constant the code reads and once as the expectation the test
+     *  asserts with the reasoning attached, is what makes a casual reordering
+     *  fail rather than pass quietly. */
+    private static final String[] EXPECTED = concat(TAPES, DISKS, SNAPSHOTS);
+
+    /**
+     * The whole order, pairwise, pinned against {@link #EXPECTED} rather than
+     * against {@link Pick#PREFERENCE} itself.
+     *
+     * Subsumes "tape beats disk beats snapshot": a tape image carries the
+     * loading scheme and the custom loader that a snapshot has already thrown
+     * away, and half of what a Spectrum game is remembered for happens while
+     * it loads - a disk falls in between for the same reason, one step
+     * further from the original medium. But it goes further than that
+     * three-group shape - every entry has to beat every one that comes after
+     * it in {@code EXPECTED}, including two entries in the same group, so
+     * swapping {@code udi} and {@code trd} inside the disk run fails this
+     * exactly as a full reversal does. {@link
+     * #theScanHonoursTheDeclaredOrderWhateverItIs} cannot catch either, since
+     * it derives its own expectations from {@code PREFERENCE}.
      */
     @Test
-    public void atapeBeatsAnyDiskBeatsAnySnapshot() {
-        for (String tape : TAPES) {
-            for (String disk : DISKS) {
-                assertEquals(tape + " lost to " + disk, tape,
-                             Pick.forGame(version(null, file(disk), file(tape))).format());
-            }
-        }
+    public void theWholeOrderIsWhatThisAppIntends() {
+        for (int first = 0; first < EXPECTED.length; first++) {
+            for (int second = first + 1; second < EXPECTED.length; second++) {
+                Catalogue.Download chosen = Pick.forGame(
+                        version(null, file(EXPECTED[second]), file(EXPECTED[first])));
 
-        for (String disk : DISKS) {
-            for (String snapshot : SNAPSHOTS) {
-                assertEquals(disk + " lost to " + snapshot, disk,
-                             Pick.forGame(version(null, file(snapshot), file(disk))).format());
+                assertEquals(EXPECTED[first] + " lost to " + EXPECTED[second],
+                             EXPECTED[first], chosen.format());
             }
         }
     }
 
     /** {@link #TAPES}, {@link #DISKS} and {@link #SNAPSHOTS} have to add up
      *  to the whole of {@link Pick#PREFERENCE} - otherwise a format added to
-     *  the array later sits outside {@link #atapeBeatsAnyDiskBeatsAnySnapshot}'s
+     *  the array later sits outside {@link #theWholeOrderIsWhatThisAppIntends}'s
      *  guarantee with nothing here to say so. */
     @Test
     public void theGroupsAccountForEveryDeclaredFormat() {
-        List<String> grouped = new ArrayList<>();
-        grouped.addAll(Arrays.asList(TAPES));
-        grouped.addAll(Arrays.asList(DISKS));
-        grouped.addAll(Arrays.asList(SNAPSHOTS));
-
+        List<String> grouped = Arrays.asList(EXPECTED);
         List<String> declared = Arrays.asList(Pick.PREFERENCE);
 
         assertEquals(declared.size(), grouped.size());
