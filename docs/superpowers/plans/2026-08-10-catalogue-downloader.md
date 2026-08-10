@@ -3408,7 +3408,9 @@ with a retry under it, so what already arrived stays."
 
 - [ ] **Step 2: Write the failing test**
 
-`ImportFlowTest`: search, tap a result, tap Import, and assert the file appears under `Downloaded/Games/`. Skip on no network, on the fact. Clear leftovers on the way **in** as well as out.
+`ImportFlowTest`: search, tap a result, tap Import, and assert the file appears under `Downloaded/Games/`. **Does not skip** — see Task 10: a green skip would hide the host blocking this address again, which is the second of the two reasons it could fail and the one worth knowing about. Fail with a message naming both.
+
+**Fixtures are stamped and only what this run made is removed.** `nanoTime` in every name, a teardown that deletes the documents it created and never a `Downloaded/<kind>/` folder — that folder is somebody's imported games on a real device. `ImportsTest` already does this; follow it exactly rather than inventing a second discipline.
 
 - [ ] **Step 3: Write `CataloguePane`**
 
