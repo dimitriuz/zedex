@@ -103,6 +103,11 @@ public final class Artwork {
     private static final String POKE_FOLDER = "pokes";
     private static final String POKE_EXTENSION = "pok";
 
+    /** The game's own music, as the driver that plays it - see {@code
+     *  media.AyFile}. Unzipped by {@code Downloads} as it arrives. */
+    private static final String MUSIC_FOLDER = "music";
+    private static final String MUSIC_EXTENSION = "ay";
+
     /** A cached miss, so the map can tell "not looked up" from "looked up, nothing there". */
     private static final Uri MISS = Uri.EMPTY;
 
@@ -249,12 +254,26 @@ public final class Artwork {
      * somebody opens the cheats page.
      */
     public static File pokes(Context context, String relativePath) {
+        return ours(context, POKE_FOLDER, POKE_EXTENSION, relativePath);
+    }
+
+    /** One of this app's own files for a game, or null when there is none -
+     *  the shared half of {@link #pokes} and {@link #music}. */
+    private static File ours(Context context, String folder, String extension,
+                             String relativePath) {
         if (relativePath == null) return null;
 
-        File file = new File(new File(Storage.mediaDirectory(context), POKE_FOLDER),
-                             withoutExtension(relativePath) + "." + POKE_EXTENSION);
+        File file = new File(new File(Storage.mediaDirectory(context), folder),
+                             withoutExtension(relativePath) + "." + extension);
 
         return file.canRead() && file.length() > 0 ? file : null;
+    }
+
+    /** The {@code .ay} fetched for this game, or null. A {@code File} for the
+     *  same reasons {@link #pokes} is one: only ever ours, and read rather
+     *  than opened. */
+    public static File music(Context context, String relativePath) {
+        return ours(context, MUSIC_FOLDER, MUSIC_EXTENSION, relativePath);
     }
 
     /** The current media root, clearing every cache first if it has changed since last time. */

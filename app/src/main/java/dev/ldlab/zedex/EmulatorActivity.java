@@ -19,6 +19,8 @@ import dev.ldlab.zedex.media.Media;
 import dev.ldlab.zedex.media.Recorder;
 import dev.ldlab.zedex.menu.Capture;
 import dev.ldlab.zedex.menu.ControlsUi;
+import dev.ldlab.zedex.media.Music;
+import dev.ldlab.zedex.menu.MusicUi;
 import dev.ldlab.zedex.menu.SetupUi;
 import dev.ldlab.zedex.menu.PokesUi;
 import dev.ldlab.zedex.menu.StatesUi;
@@ -223,6 +225,9 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     /** Offers what a scraped record says about how to run a game. */
     private SetupUi setupUi;
 
+    /** The game's own music, played by the machine itself. */
+    private MusicUi music;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -327,6 +332,8 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         // In onCreate rather than as a field initialiser: those run first and
         // would be handed a null preferences. See CLAUDE.md.
+        music = new MusicUi(this);
+
         setupUi = new SetupUi(this, new SetupUi.Host() {
             @Override
             public void reopenCurrentGame() {
@@ -734,6 +741,13 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             // The cheats page reads a scraped .pok beside the game, which it
             // can only find by the store's own key - see PokesUi.forGame.
             pokes.forGame(path);
+            music.forGame(path);
+
+            // Whatever was being listened to belonged to the last game, and
+            // the machine it was saved from has just been replaced by this
+            // one - so there is nothing to go back to any more.
+            Music.forget(EmulatorActivity.this);
+
             setupUi.offer(path);
         });
     }
@@ -1523,6 +1537,14 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                              states::fill);
             sheet.addSubmenu(getString(R.string.menu_pokes), R.drawable.ic_poke,
                              pokes::fill);
+
+            // Only for a game a tune was fetched for, which is a small
+            // minority - a row that is nearly always an empty page is worse
+            // than no row.
+            if (music.anything()) {
+                sheet.addSubmenu(getString(R.string.music_title),
+                                 R.drawable.ic_play, music.page());
+            }
             // The page's own heading, which sits over the tape rows: the
             // drives that follow have DRIVES of their own.
             sheet.addSubmenu(getString(R.string.menu_media),
@@ -1785,6 +1807,13 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     protected void onStop() {
         super.onStop();
         panels.close();
+
+        // Somebody who has left the app has finished with the music, not with
+        // the game - so the machine comes back now rather than being left as a
+        // tune nobody is listening to, and coming back to a game that is
+        // where it was is the whole point of putting it aside. Does nothing
+        // when no music was playing.
+        Music.stop(this);
     }
 
     /**

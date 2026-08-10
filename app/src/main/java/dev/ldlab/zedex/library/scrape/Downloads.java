@@ -7,8 +7,12 @@ import android.content.Context;
 import android.util.Log;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 /**
  * Media onto disk, and the checking that makes it safe to keep.
@@ -117,6 +121,60 @@ public final class Downloads {
         }
     }
 
+    /** Music arrives zipped, always - the archive keeps it that way. */
+    private static boolean isZippedMusic(Medium medium) {
+        return "music".equals(medium.folder) && "zip".equalsIgnoreCase(medium.extension);
+    }
+
+    /**
+     * Takes the tune out of the zip it arrived in.
+     *
+     * One file out of possibly several: a zip may hold a tune per ripper or
+     * per version, and there is nowhere to put a second - the media folder
+     * holds one file per game per folder, the same as every picture. The
+     * first is taken, which for these is the one named after the game.
+     *
+     * The zip goes either way. Unpacked it has served its purpose; unpacked
+     * to nothing it was not what it claimed, and leaving it would have {@code
+     * Artwork} resolving a file the music reader cannot read.
+     */
+    private static boolean unzip(Context context, String relativePath,
+                                 String folder, File zip) {
+        File into = Artwork.fileFor(context, relativePath, folder, "ay");
+        boolean taken = false;
+
+        try (ZipInputStream in = new ZipInputStream(new FileInputStream(zip))) {
+            for (ZipEntry entry; (entry = in.getNextEntry()) != null; ) {
+                if (entry.isDirectory()
+                        || !entry.getName().toLowerCase(java.util.Locale.US)
+                                 .endsWith(".ay")) {
+                    continue;
+                }
+
+                try (FileOutputStream out = new FileOutputStream(into)) {
+                    byte[] buffer = new byte[8192];
+                    for (int read; (read = in.read(buffer)) != -1; ) {
+                        out.write(buffer, 0, read);
+                    }
+                }
+
+                taken = true;
+                break;
+            }
+        } catch (IOException e) {
+            Log.w(TAG, "cannot unpack " + zip.getName(), e);
+        }
+
+        delete(zip);
+
+        if (!taken) {
+            Log.w(TAG, "no tune inside " + zip.getName());
+            delete(into);
+        }
+
+        return taken;
+    }
+
     /** The one medium that arrives in a format only a Spectrum understands. */
     private static boolean isScreenDump(Medium medium) {
         return "scr".equalsIgnoreCase(medium.extension);
@@ -179,6 +237,10 @@ public final class Downloads {
             if (ScreenPicture.EXTENSION.equals(medium.extension)) return true;
             if (isScreenDump(medium)) {
                 return convert(context, relativePath, medium.folder, into);
+            }
+
+            if (isZippedMusic(medium)) {
+                return unzip(context, relativePath, medium.folder, into);
             }
 
             return true;

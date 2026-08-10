@@ -579,6 +579,11 @@ public final class ZxInfo implements Provider {
         // about a third of a collection - so this is what tops it up.
         folders.put("POK pokes file", "pokes");
 
+        // Nor is this: the game's own music driver, which the machine plays
+        // by running it. On 2.2% of entries, and served zipped - Downloads
+        // unpacks it as it lands. See media/AyFile.
+        folders.put("Ripped in-game/theme music in AY format", "music");
+
         return Collections.unmodifiableMap(folders);
     }
 
@@ -655,6 +660,10 @@ public final class ZxInfo implements Provider {
             return "pdf".equals(extension) || "txt".equals(extension);
         }
         if ("pokes".equals(folder)) return "pok".equals(extension);
+
+        // Zipped, always: the archive keeps these as .ay.zip, and one zip can
+        // hold several tunes for the same game.
+        if ("music".equals(folder)) return "zip".equals(extension);
         if ("scr".equals(extension)) return "titlescreens".equals(folder);
 
         return "png".equals(extension) || "jpg".equals(extension)

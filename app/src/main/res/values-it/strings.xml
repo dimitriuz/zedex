@@ -589,6 +589,14 @@
     <string name="library_manual">Manuale</string>
     <string name="instructions_title">Istruzioni</string>
     <string name="instructions_unreadable">Impossibile leggere il file.</string>
+    <string name="music_title">Musica…</string>
+    <string name="music_playing">In riproduzione %1$s</string>
+    <string name="music_stop">Ferma la musica</string>
+    <string name="music_stopped">Fermata — il gioco è tornato</string>
+    <string name="music_unplayable">%1$s non si può riprodurre</string>
+    <string name="music_unnamed">Brano %1$d</string>
+    <string name="music_none">Nessuna musica per questo gioco</string>
+    <string name="music_hint">È la macchina a suonarle, quindi il gioco viene messo da parte durante la riproduzione e torna alla fine.</string>
     <string name="library_open">Apri</string>
     <string name="library_nothing_selected">Seleziona un gioco per vedere cosa si sa di esso.</string>
     <string name="library_up">Su</string>

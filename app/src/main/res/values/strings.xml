@@ -689,6 +689,14 @@
     <string name="library_manual">Manual</string>
     <string name="instructions_title">Instructions</string>
     <string name="instructions_unreadable">That file cannot be read.</string>
+    <string name="music_title">Music…</string>
+    <string name="music_playing">Playing %1$s</string>
+    <string name="music_stop">Stop the music</string>
+    <string name="music_stopped">Stopped — the game is back</string>
+    <string name="music_unplayable">%1$s will not play</string>
+    <string name="music_unnamed">Tune %1$d</string>
+    <string name="music_none">No music for this game</string>
+    <string name="music_hint">The machine plays these itself, so the game is set aside while one runs and comes back when it stops.</string>
     <!-- The pane's own button, when the selection is a folder or an archive
          rather than a game - see LibraryActivity.updatePane. Matches
          menu_open's own word for the same action, minus its ellipsis: this

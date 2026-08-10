@@ -589,6 +589,14 @@
     <string name="library_manual">Manuel</string>
     <string name="instructions_title">Instructions</string>
     <string name="instructions_unreadable">Ce fichier ne peut pas être lu.</string>
+    <string name="music_title">Musique…</string>
+    <string name="music_playing">Lecture de %1$s</string>
+    <string name="music_stop">Arrêter la musique</string>
+    <string name="music_stopped">Arrêtée — le jeu est de retour</string>
+    <string name="music_unplayable">%1$s ne peut pas être joué</string>
+    <string name="music_unnamed">Morceau %1$d</string>
+    <string name="music_none">Pas de musique pour ce jeu</string>
+    <string name="music_hint">La machine les joue elle-même : le jeu est mis de côté pendant la lecture et revient à l\'arrêt.</string>
     <string name="library_open">Ouvrir</string>
     <string name="library_nothing_selected">Sélectionnez un jeu pour voir ce que l\'on en sait.</string>
     <string name="library_up">Remonter</string>

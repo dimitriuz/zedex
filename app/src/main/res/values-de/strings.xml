@@ -589,6 +589,14 @@
     <string name="library_manual">Handbuch</string>
     <string name="instructions_title">Anleitung</string>
     <string name="instructions_unreadable">Diese Datei kann nicht gelesen werden.</string>
+    <string name="music_title">Musik…</string>
+    <string name="music_playing">%1$s läuft</string>
+    <string name="music_stop">Musik anhalten</string>
+    <string name="music_stopped">Angehalten — das Spiel ist zurück</string>
+    <string name="music_unplayable">%1$s lässt sich nicht abspielen</string>
+    <string name="music_unnamed">Stück %1$d</string>
+    <string name="music_none">Keine Musik für dieses Spiel</string>
+    <string name="music_hint">Der Rechner spielt sie selbst, daher wird das Spiel währenddessen beiseitegelegt und kehrt danach zurück.</string>
     <string name="library_open">Öffnen</string>
     <string name="library_nothing_selected">Wähle ein Spiel, um zu sehen, was darüber bekannt ist.</string>
     <string name="library_up">Nach oben</string>

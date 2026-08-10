@@ -591,6 +591,14 @@
     <string name="library_manual">Інструкція</string>
     <string name="instructions_title">Інструкція</string>
     <string name="instructions_unreadable">Не вдалося прочитати файл.</string>
+    <string name="music_title">Музика…</string>
+    <string name="music_playing">Грає %1$s</string>
+    <string name="music_stop">Зупинити музику</string>
+    <string name="music_stopped">Зупинено — гра повернулася</string>
+    <string name="music_unplayable">%1$s не відтворюється</string>
+    <string name="music_unnamed">Трек %1$d</string>
+    <string name="music_none">Для цієї гри немає музики</string>
+    <string name="music_hint">Їх грає сама машина, тож гру відкладено на час відтворення, і вона повертається після зупинки.</string>
     <string name="library_open">Відкрити</string>
     <string name="library_nothing_selected">Виберіть гру, щоб побачити, що про неї відомо.</string>
     <string name="library_up">Вгору</string>
