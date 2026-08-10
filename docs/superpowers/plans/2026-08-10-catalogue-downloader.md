@@ -2563,19 +2563,25 @@ import java.util.zip.ZipOutputStream;
  * writes a zip this test built, with exactly the awkward contents worth asking
  * about - which is not something a real archive can be relied on to have.
  *
- * The test writes under a folder of its own and clears it on the way IN as
- * well as out, because a run killed by hand never reaches its @After and
- * MediaStore does not overwrite: asked for a name that is taken it makes
- * "Game (1).tap", and the next run fails on what reads like a naming bug in
- * the app.
+ * <b>Every fixture is named uniquely and only its own documents are removed.</b>
+ * The obvious tidy-up - delete Downloaded/Games/ and start clean - deletes
+ * real games on any bench that has imported one by hand, and a test that can
+ * destroy the collection it is run against is not a test anybody will run
+ * twice. So each run stamps its names with nanoTime and the @After deletes
+ * the uris this run created, which also fixes the other half of the problem:
+ * a run killed by hand never reaches its @After, and a leftover under a
+ * unique name collides with nothing.
  */
 @RunWith(AndroidJUnit4.class)
 public class ImportsTest {
 
-    private static final String SCRATCH = "zedex-import-test";
+    /** New every run, so a killed run's leftovers collide with nothing and
+     *  nothing this test deletes was ever somebody's own. */
+    private final String stamp = "zedex-" + System.nanoTime();
 
     private Context context;
     private Uri tree;
+    private final List<Uri> made = new ArrayList<>();
 
     /** Writes a zip of whatever it was told to hold, in place of a download. */
     private final class Zipped implements Http {
@@ -2621,13 +2627,25 @@ public class ImportsTest {
         context = ApplicationProvider.getApplicationContext();
         tree = Storage.contentFolder(context);
         assumeNotNull("no content folder granted on this device", tree);
-
-        clearScratch();
     }
 
+    /**
+     * Removes what this run made, and nothing else.
+     *
+     * Never the kind folders themselves - Downloaded/Games is the feature's
+     * own folder and may hold games somebody imported on purpose.
+     */
     @After
     public void tidyUp() {
-        if (tree != null) clearScratch();
+        for (Uri document : made) {
+            try {
+                android.provider.DocumentsContract.deleteDocument(
+                        context.getContentResolver(), document);
+            } catch (Exception ignored) {
+                // A leftover under a nanoTime name collides with nothing;
+                // untidy is not a failure.
+            }
+        }
     }
 
     // --- the ordinary case --------------------------------------------------------------
@@ -2807,26 +2825,19 @@ public class ImportsTest {
                    left == null || left.length == 0);
     }
 
-    private void clearScratch() {
-        Uri downloaded = Tree.find(context, Tree.folder(context, tree), "Downloaded");
-        if (downloaded == null) return;
-
-        for (String folder : Kinds.ALL) {
-            Uri at = Tree.find(context, downloaded, folder);
-            if (at == null) continue;
-
-            try {
-                android.provider.DocumentsContract.deleteDocument(
-                        context.getContentResolver(), at);
-            } catch (Exception ignored) {
-                // Untidy, not a failure.
-            }
+    /** Remembers what a call wrote, so tidyUp removes that and only that. */
+    private Imports.Result kept(Imports.Result result) {
+        if (result != null && result.documentUri != null && !result.alreadyThere) {
+            made.add(result.documentUri);
         }
+        return result;
     }
 }
 ```
 
-> **Read this before running it.** `clearScratch` deletes `Downloaded/<kind>/` under the granted content folder. On a bench that has imported real games by hand, that is real data. Point the bench at a scratch content folder for this class, or accept that `Downloaded/` is the app's own and is what this feature creates.
+Every `Imports.game(...)` / `Imports.recording(...)` call in the tests above is wrapped in `kept(...)`, and every fixture name is built from `stamp` — `stamp + "-HeadOverHeels.tzx"` rather than the bare name. Adjust the assertions to match: they assert on `result.displayName` and on `Tree.find(..., stamp + "-…")`, not on a fixed string.
+
+The one test that needs a name twice is `asecondImportOfTheSameThingSaysSo` — it uses the same `stamp`-prefixed name for both calls, which is the point of it.
 
 - [ ] **Step 2: Run it and watch it fail**
 
