@@ -650,6 +650,8 @@
     <string name="edit_metadata_subgenre">Піджанр</string>
     <string name="edit_metadata_released">Рік</string>
     <string name="edit_metadata_players">Гравці</string>
+    <string name="edit_metadata_machine">Комп\'ютер</string>
+    <string name="edit_metadata_controls">Керування</string>
     <string name="edit_metadata_rating">Оцінка з 5</string>
     <string name="edit_metadata_empty">Не задано</string>
     <string name="edit_metadata_save">Зберегти</string>

@@ -650,6 +650,8 @@
     <string name="edit_metadata_subgenre">Podgatunek</string>
     <string name="edit_metadata_released">Rok</string>
     <string name="edit_metadata_players">Gracze</string>
+    <string name="edit_metadata_machine">Komputer</string>
+    <string name="edit_metadata_controls">Sterowanie</string>
     <string name="edit_metadata_rating">Ocena na 5</string>
     <string name="edit_metadata_empty">Nie ustawiono</string>
     <string name="edit_metadata_save">Zapisz</string>

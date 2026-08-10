@@ -271,8 +271,31 @@ public final class Meta {
                 case RELEASED:  return released(value);
                 case PLAYERS:   return players(value);
                 case RATING:    return rating(value);
+                case MACHINE:   return machine(value);
+                case INPUTS:    return inputs(listOf(value));
                 default:        return this;
             }
+        }
+
+        /**
+         * A typed line of controls as the list it stands for.
+         *
+         * Split on commas, trimmed, and the empties dropped - the line was
+         * typed by a person, so the spacing is theirs and "Kempston,, Cursor,"
+         * means two controls rather than four. An empty result is an empty
+         * list, which is how the record says nothing rather than saying
+         * nothing in particular.
+         */
+        private static List<String> listOf(String line) {
+            List<String> values = new ArrayList<>();
+            if (line == null) return values;
+
+            for (String one : line.split(",")) {
+                String trimmed = one.trim();
+                if (!trimmed.isEmpty()) values.add(trimmed);
+            }
+
+            return values;
         }
 
         public Meta build() {
@@ -291,9 +314,22 @@ public final class Meta {
      * walking it: a field added here appears on the screen without the screen
      * being told, which is the failure mode a hand-written list has.
      */
+    /**
+     * The fields somebody can fill in by hand, in the order the editor shows
+     * them - it walks this rather than listing them, so a field added here
+     * appears there.
+     *
+     * {@link #MACHINE} and {@link #INPUTS} are last because they are the two a
+     * person is here for rather than correcting: the setup dialog offers what
+     * they say, and plenty of games are in no database that knows.
+     */
     public enum Field {
-        NAME, DESC, DEVELOPER, PUBLISHER, GENRE, SUBGENRE, RELEASED, PLAYERS, RATING
+        NAME, DESC, DEVELOPER, PUBLISHER, GENRE, SUBGENRE, RELEASED, PLAYERS,
+        RATING, MACHINE, INPUTS
     }
+
+    /** How a list of controls is written on one line, and split back up. */
+    private static final String INPUT_SEPARATOR = ", ";
 
     /** What this game has in {@code field}, or null. */
     public String get(Field field) {
@@ -307,6 +343,9 @@ public final class Meta {
             case RELEASED:  return released;
             case PLAYERS:   return players;
             case RATING:    return rating;
+            case MACHINE:   return machine;
+            case INPUTS:    return inputs.isEmpty() ? null
+                                                    : String.join(INPUT_SEPARATOR, inputs);
             default:        return null;
         }
     }

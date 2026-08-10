@@ -650,6 +650,8 @@
     <string name="edit_metadata_subgenre">Поджанр</string>
     <string name="edit_metadata_released">Год</string>
     <string name="edit_metadata_players">Игроки</string>
+    <string name="edit_metadata_machine">Компьютер</string>
+    <string name="edit_metadata_controls">Управление</string>
     <string name="edit_metadata_rating">Оценка из 5</string>
     <string name="edit_metadata_empty">Не задано</string>
     <string name="edit_metadata_save">Сохранить</string>

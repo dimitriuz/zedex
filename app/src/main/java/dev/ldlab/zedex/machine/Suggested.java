@@ -279,6 +279,65 @@ public final class Suggested {
         return found;
     }
 
+    // --- the words themselves, for somebody filling them in by hand --------------------
+
+    /**
+     * The machines ZXDB names that Fuse can be, in its own words.
+     *
+     * Suggestions and not a closed list: the edit screen offers these so
+     * nobody has to guess how the database spells a Spectrum, and typing past
+     * them still works, because the matching above is by substring and a
+     * value this app has never seen is refused rather than mistaken.
+     *
+     * Every value here comes from {@code GET /v3/metadata/}, which answers
+     * with the whole vocabulary - so these are the exact strings a scraped
+     * record would carry, and a hand-filled game reads the same as a scraped
+     * one everywhere downstream. Ordered as somebody would look for them
+     * rather than by how many entries carry each.
+     */
+    public static final String[] MACHINE_WORDS = {
+        "ZX-Spectrum 16K",
+        "ZX-Spectrum 48K",
+        "ZX-Spectrum 16K/48K",
+        "ZX-Spectrum 48K/128K",
+        "ZX-Spectrum 128K",
+        "ZX-Spectrum 128 +2",
+        "ZX-Spectrum 128 +2A/+3",
+        "ZX-Spectrum 128 +2B",
+        "ZX-Spectrum 128 +3",
+        "Pentagon 128",
+        "Scorpion",
+        "Timex TC2048",
+        "Timex Tx2068",
+        "Timex TC2048/Tx2068",
+    };
+
+    /**
+     * The controls a Spectrum game can be listed as reading.
+     *
+     * <b>Not verified against the service.</b> {@code /metadata/} answers with
+     * the machine types, the genres and the features, and not with these -
+     * so unlike {@link #MACHINE_WORDS} these are this app's spelling of what
+     * ZXDB's own pages show. It costs little: they are suggestions in a box
+     * somebody can type past, and every one of them is a phrase {@link
+     * #INPUTS} matches, which is the part that has to be true.
+     *
+     * "Redefineable keys" is ZXDB's own spelling, and is the one that makes
+     * the keyboard offerable at all - see {@link #keyboard}.
+     */
+    public static final String[] INPUT_WORDS = {
+        "Kempston Joystick",
+        "Cursor",
+        "Protek",
+        "Sinclair Joystick",
+        "Interface 2 (left)",
+        "Interface 2 (right)",
+        "Fuller Joystick",
+        "Timex 1 Joystick",
+        "Timex 2 Joystick",
+        "Redefineable keys",
+    };
+
     /** Whether there is anything at all worth asking about. */
     public static boolean anything(Meta meta, String[] machineIds, String[] joystickNames) {
         if (meta == null) return false;

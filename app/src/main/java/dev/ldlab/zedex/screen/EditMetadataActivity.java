@@ -5,6 +5,7 @@ import dev.ldlab.zedex.library.Facets;
 import dev.ldlab.zedex.library.Filters;
 import dev.ldlab.zedex.library.meta.Meta;
 import dev.ldlab.zedex.library.meta.Metadata;
+import dev.ldlab.zedex.machine.Suggested;
 import dev.ldlab.zedex.view.Palette;
 
 import android.app.Activity;
@@ -19,6 +20,7 @@ import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.MultiAutoCompleteTextView;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -174,6 +176,24 @@ public final class EditMetadataActivity extends ZedexActivity {
      * genre has to be enterable.
      */
     private EditText boxFor(Meta.Field field) {
+        // The two a person is most often here to supply rather than correct,
+        // and the two whose suggestions come from the database's vocabulary
+        // instead of from this collection - most collections hold neither
+        // value yet, so there is nothing here to suggest from.
+        if (field == Meta.Field.MACHINE) {
+            return offering(new AutoCompleteTextView(this), Suggested.MACHINE_WORDS);
+        }
+
+        if (field == Meta.Field.INPUTS) {
+            // A list on one line, so the suggestions complete a word rather
+            // than the box: a game listing three interfaces is three values
+            // separated by commas, and that is what Meta splits on.
+            MultiAutoCompleteTextView box = new MultiAutoCompleteTextView(this);
+            box.setTokenizer(new MultiAutoCompleteTextView.CommaTokenizer());
+
+            return offering(box, Suggested.INPUT_WORDS);
+        }
+
         Filters.Field suggesting = suggestionsFor(field);
 
         if (suggesting != null) {
@@ -211,6 +231,31 @@ public final class EditMetadataActivity extends ZedexActivity {
         return box;
     }
 
+    /**
+     * A box offering a fixed vocabulary.
+     *
+     * <b>The two kinds of box are two kinds and not one.</b> A {@code
+     * MultiAutoCompleteTextView} is an {@code AutoCompleteTextView} with a
+     * tokenizer, so it looks like one class would do for both by simply not
+     * setting one - and it does not: {@code enoughToFilter} answers false
+     * when the tokenizer is null, so a box with no tokenizer never filters
+     * and never drops down. Measured on a device, where the machine field
+     * took the typing and offered nothing.
+     *
+     * The threshold is lower than the collection's own lists get: these are a
+     * dozen values somebody is choosing between, not two hundred and
+     * seventy-seven, so the first letter is a useful narrowing rather than a
+     * wall.
+     */
+    private AutoCompleteTextView offering(AutoCompleteTextView box, String[] words) {
+        box.setThreshold(1);
+        box.setAdapter(new ArrayAdapter<>(this,
+                android.R.layout.simple_dropdown_item_1line, words));
+        box.setSingleLine(true);
+
+        return box;
+    }
+
     /** Which of the filter's own value lists a field can be suggested from,
      *  or null where there is nothing to suggest - a name and a description
      *  are the game's own, and a year is a number. */
@@ -244,7 +289,9 @@ public final class EditMetadataActivity extends ZedexActivity {
             case SUBGENRE:  return R.string.edit_metadata_subgenre;
             case RELEASED:  return R.string.edit_metadata_released;
             case PLAYERS:   return R.string.edit_metadata_players;
-            default:        return R.string.edit_metadata_rating;
+            case RATING:    return R.string.edit_metadata_rating;
+            case MACHINE:   return R.string.edit_metadata_machine;
+            default:        return R.string.edit_metadata_controls;
         }
     }
 

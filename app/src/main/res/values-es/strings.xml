@@ -645,6 +645,8 @@
     <string name="edit_metadata_subgenre">Subgénero</string>
     <string name="edit_metadata_released">Año</string>
     <string name="edit_metadata_players">Jugadores</string>
+    <string name="edit_metadata_machine">Máquina</string>
+    <string name="edit_metadata_controls">Controles</string>
     <string name="edit_metadata_rating">Valoración sobre 5</string>
     <string name="edit_metadata_empty">Sin definir</string>
     <string name="edit_metadata_save">Guardar</string>
