@@ -1,6 +1,7 @@
 package dev.ldlab.zedex.machine;
 
 import dev.ldlab.zedex.input.Controls;
+import dev.ldlab.zedex.input.Keymap;
 import dev.ldlab.zedex.library.meta.Meta;
 
 import java.util.ArrayList;
@@ -229,9 +230,14 @@ public final class Suggested {
      *
      * The two come from different services, which is the first place in this
      * app where scraping from both is worth more than scraping from either.
+     *
+     * <b>A layout that cannot be read is not a layout.</b> {@link Keymap} is
+     * asked, not just whether the field is filled: p2k can name keypads,
+     * function keys and a second player's pad, and a file made entirely of
+     * those would otherwise offer the keyboard and then change nothing.
      */
     public static boolean keyboard(Meta meta) {
-        if (meta == null || meta.keymap == null || meta.keymap.isEmpty()) return false;
+        if (meta == null || !Keymap.readable(meta.keymap)) return false;
 
         for (String input : meta.inputs) {
             if (input == null) continue;

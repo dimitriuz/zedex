@@ -17,6 +17,7 @@ import android.app.Activity;
 import android.content.SharedPreferences;
 import android.widget.EditText;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -262,6 +263,53 @@ public final class ControlsUi {
                 });
             }
         };
+    }
+
+    /**
+     * Chooses an interface, and the keys to send when that interface is the
+     * keyboard.
+     *
+     * The two together because they are one decision: "play this with the
+     * keyboard" means nothing without saying which keys, and a scraped layout
+     * arrives with the choice that needs it. The layout is installed first, so
+     * that by the time the pad is laid out again it is being laid out from the
+     * right profile.
+     *
+     * @param layout a profile to install and select, or null to leave the key
+     *               profiles alone - which is every choice but the keyboard's
+     */
+    public void chooseControl(int type, ControlProfiles.Profile layout) {
+        if (layout != null) install(layout);
+
+        chooseJoystickType(type);
+    }
+
+    /**
+     * Puts a profile in the list and selects it, replacing one of the same
+     * name.
+     *
+     * By name, because these are named after games: opening the same game
+     * twice must not leave two profiles called "Batman", and re-scraping it
+     * must update the one that is there rather than adding a second. The list
+     * is the user's own, so nothing else in it is touched.
+     */
+    private void install(ControlProfiles.Profile layout) {
+        List<ControlProfiles.Profile> profiles =
+                new ArrayList<>(ControlProfiles.all(preferences));
+
+        int at = -1;
+        for (int i = 0; i < profiles.size(); i++) {
+            if (profiles.get(i).name.equals(layout.name)) { at = i; break; }
+        }
+
+        if (at < 0) {
+            profiles.add(layout);
+            at = profiles.size() - 1;
+        } else {
+            profiles.set(at, layout);
+        }
+
+        ControlProfiles.store(preferences, profiles, at);
     }
 
     /**

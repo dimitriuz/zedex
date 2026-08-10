@@ -7,6 +7,11 @@ import static org.junit.Assume.assumeFalse;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
+import dev.ldlab.zedex.input.ControlProfiles;
+import dev.ldlab.zedex.storage.Prefs;
+
+import android.content.SharedPreferences;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -14,6 +19,7 @@ import org.junit.runner.RunWith;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 
 /**
  * The on-screen joystick, from a finger to the emulated machine and back.
@@ -78,6 +84,9 @@ public class JoystickTest {
 
     private final Emulator emulator = new Emulator();
 
+    /** The profile that was in use before this test picked its own. */
+    private int theirProfile;
+
     @Before
     public void setUp() {
         emulator.useDataFolder();
@@ -88,11 +97,49 @@ public class JoystickTest {
         // the arrangement whose picture starts there.
         emulator.portrait();
         show(true);
+        useQaopm();
     }
 
     @After
     public void tearDown() {
         emulator.releaseOrientation();
+        preferences().edit()
+                .putInt(ControlProfiles.KEY_CURRENT, theirProfile).commit();
+    }
+
+    /**
+     * QAOPM, because that is the profile this class asserts against.
+     *
+     * It used to read whichever profile the bench happened to be on, and got
+     * away with it while every profile was one of the built-in ones and QAOPM
+     * was first. The setup dialog changed that: applying a scraped keyboard
+     * layout adds a profile named after the game and <b>selects it</b>, so a
+     * bench where anybody has ever done that answers "up is the profile's Q"
+     * with whatever that game used - here, a K. A test sets the world it needs.
+     */
+    private void useQaopm() {
+        SharedPreferences preferences = preferences();
+        theirProfile = preferences.getInt(ControlProfiles.KEY_CURRENT, 0);
+
+        List<ControlProfiles.Profile> profiles = ControlProfiles.all(preferences);
+
+        for (int at = 0; at < profiles.size(); at++) {
+            if (!ControlProfiles.QAOPM_NAME.equals(profiles.get(at).name)) continue;
+
+            preferences.edit().putInt(ControlProfiles.KEY_CURRENT, at).commit();
+            return;
+        }
+
+        // Nothing called QAOPM: put one back rather than testing against a
+        // list somebody has renamed out from under this.
+        profiles.add(new ControlProfiles.Profile(ControlProfiles.QAOPM_NAME,
+                                                 ControlProfiles.QAOPM));
+        ControlProfiles.store(preferences, profiles, profiles.size() - 1);
+    }
+
+    private SharedPreferences preferences() {
+        return emulator.context().getSharedPreferences(
+                Prefs.PREFS, android.content.Context.MODE_PRIVATE);
     }
 
     @Test

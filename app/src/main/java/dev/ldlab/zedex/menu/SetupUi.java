@@ -1,12 +1,15 @@
 package dev.ldlab.zedex.menu;
 
 import dev.ldlab.zedex.FuseNative;
+import dev.ldlab.zedex.input.ControlProfiles;
 import dev.ldlab.zedex.input.Controls;
+import dev.ldlab.zedex.input.Keymap;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.library.Setup;
 import dev.ldlab.zedex.library.meta.Meta;
 import dev.ldlab.zedex.library.meta.Metadata;
 import dev.ldlab.zedex.machine.Suggested;
+import dev.ldlab.zedex.storage.Storage;
 import dev.ldlab.zedex.view.Palette;
 
 import android.app.Activity;
@@ -82,14 +85,18 @@ public final class SetupUi {
 
         /**
          * Put the pad on this interface - a Fuse joystick index, or {@code
-         * Controls.JOYSTICK_KEYBOARD}.
+         * Controls.JOYSTICK_KEYBOARD} - sending {@code layout}'s keys if it
+         * is the keyboard.
          *
          * Asked of the screen rather than done here, because choosing an
-         * interface is three things at once and {@code ControlsUi} already
-         * owns all three. Doing two of them here is how the dialog would come
-         * to set a joystick the on-screen pad had not been told about.
+         * interface is three things at once, installing a key profile is a
+         * fourth, and {@code ControlsUi} already owns all four. Doing some of
+         * them here is how the dialog would come to set a joystick the
+         * on-screen pad had not been told about.
+         *
+         * @param layout null for every choice but the keyboard's
          */
-        void chooseJoystickType(int type);
+        void chooseControl(int type, ControlProfiles.Profile layout);
     }
 
     private final Activity activity;
@@ -164,15 +171,21 @@ public final class SetupUi {
     }
 
     private void consider(String path) {
+        // Before the remembered branch as well as after it: replaying an
+        // answer that names the keyboard means building the game's key
+        // profile again, which is read from the record rather than stored
+        // in the answer - see Setup, and why the answer is not the place for
+        // a copy of the scraped layout.
+        Meta meta = Metadata.forPath(activity, path);
+
         Setup.Answer remembered = Setup.remembered(activity, path);
         if (remembered != null) {
-            if (remembered.anything()) apply(remembered, false);
+            if (remembered.anything()) apply(remembered, meta, path, false);
             return;
         }
 
         if (!asked.add(path)) return;
 
-        Meta meta = Metadata.forPath(activity, path);
         String[] machineIds = FuseNative.machineIds();
         String[] joystickNames = FuseNative.joystickTypeNames();
 
@@ -222,7 +235,7 @@ public final class SetupUi {
                             pickedControl(controlChoice, joystickNames, controls));
 
                     if (remember.isChecked()) Setup.remember(activity, path, answer);
-                    apply(answer, true);
+                    apply(answer, meta, path, true);
                 })
                 // Skip is an answer too, and remembering it is the difference
                 // between declining once and declining every time.
@@ -333,8 +346,8 @@ public final class SetupUi {
      *                 a game that was answered about weeks ago should just
      *                 work rather than explaining itself every launch
      */
-    private void apply(Setup.Answer answer, boolean announce) {
-        if (answer.joystick != null) applyJoystick(answer.joystick);
+    private void apply(Setup.Answer answer, Meta meta, String path, boolean announce) {
+        if (answer.joystick != null) applyJoystick(answer.joystick, meta, path);
 
         if (answer.machine == null) {
             if (announce) host.note(R.string.suggest_applied);
@@ -370,12 +383,20 @@ public final class SetupUi {
      *
      * {@link Setup#KEYBOARD} is not one of Fuse's and never will be - it is
      * the pad sending the game's own keys - so it is recognised here rather
-     * than looked for in a list it cannot be in. Everything the choice then
-     * involves belongs to {@code ControlsUi}, which is asked to do it.
+     * than looked for in a list it cannot be in, and it is the one choice that
+     * carries something with it: the game's own layout, read out of the record
+     * by {@link Keymap} and named after the game.
+     *
+     * A layout that will not read is not a reason to refuse the choice. The
+     * dialog only offers the keyboard when one will (see {@code
+     * Suggested.keyboard}), but a remembered answer can outlive the record it
+     * was made against - a re-scrape from a provider with no {@code sp2kcfg}
+     * leaves the game with the keys it had, which is better than the pad
+     * changing under somebody who never asked it to.
      */
-    private void applyJoystick(String name) {
+    private void applyJoystick(String name, Meta meta, String path) {
         if (Setup.KEYBOARD.equals(name)) {
-            host.chooseJoystickType(Controls.JOYSTICK_KEYBOARD);
+            host.chooseControl(Controls.JOYSTICK_KEYBOARD, layoutFor(meta, path));
             return;
         }
 
@@ -385,7 +406,18 @@ public final class SetupUi {
             return;
         }
 
-        host.chooseJoystickType(index);
+        host.chooseControl(index, null);
+    }
+
+    /** The game's keys as a profile, under the game's own name - or the
+     *  file's, for a record that never got one. */
+    private static ControlProfiles.Profile layoutFor(Meta meta, String path) {
+        if (meta == null) return null;
+
+        String name = meta.name == null || meta.name.isEmpty()
+                ? Storage.withoutExtension(Storage.filename(path)) : meta.name;
+
+        return Keymap.profile(name, meta.keymap);
     }
 
     private static int indexOf(String[] values, String wanted) {

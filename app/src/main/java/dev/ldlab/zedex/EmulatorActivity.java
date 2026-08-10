@@ -339,8 +339,9 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             }
 
             @Override
-            public void chooseJoystickType(int type) {
-                controls.chooseJoystickType(type);
+            public void chooseControl(int type,
+                                      dev.ldlab.zedex.input.ControlProfiles.Profile layout) {
+                controls.chooseControl(type, layout);
             }
         });
 

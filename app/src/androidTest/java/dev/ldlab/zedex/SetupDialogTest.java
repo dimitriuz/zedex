@@ -1,8 +1,11 @@
 package dev.ldlab.zedex;
 
+import dev.ldlab.zedex.input.ControlProfiles;
+import dev.ldlab.zedex.input.Controls;
 import dev.ldlab.zedex.library.meta.Meta;
 import dev.ldlab.zedex.machine.Suggested;
 import dev.ldlab.zedex.library.meta.Metadata;
+import dev.ldlab.zedex.storage.Prefs;
 import dev.ldlab.zedex.storage.Storage;
 
 import static org.junit.Assert.assertEquals;
@@ -13,10 +16,12 @@ import static org.junit.Assume.assumeTrue;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Environment;
 import android.os.SystemClock;
 import android.provider.MediaStore;
+import android.view.KeyEvent;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.uiautomator.By;
@@ -82,7 +87,10 @@ public class SetupDialogTest {
      *  in ZXDB and the one that makes the question worth asking; the keymap
      *  because without one the keyboard is deliberately not offered. */
     private static final String MACHINE = "ZX-Spectrum 48K/128K";
-    private static final String KEYMAP = "0:left = o";
+    /** A real p2k layout, shaped like the one recorded from ScreenScraper:
+     *  four directions, a fire button and a start key. */
+    private static final String KEYMAP = "# Setup Test\\n0:left = z ;; left\\n"
+            + "0:right = x\\n0:up = k\\n0:down = m\\n0:a = space\\n0:start = 1";
 
     /** Long enough for Fuse to start, the tape to be staged and the question
      *  to be asked - polled for rather than waited out. */
@@ -102,6 +110,11 @@ public class SetupDialogTest {
     private byte[] theirStore;
     private File answers;
     private byte[] theirAnswers;
+
+    /** The profile list is the user's own, and applying the keyboard adds to
+     *  it and selects what it added. */
+    private String theirProfiles;
+    private int theirCurrent;
 
     /**
      * <b>Nothing is launched here, and that is deliberate.</b>
@@ -140,6 +153,10 @@ public class SetupDialogTest {
 
         writeStore();
 
+        SharedPreferences preferences = preferences();
+        theirProfiles = preferences.getString(ControlProfiles.KEY_PROFILES, null);
+        theirCurrent = preferences.getInt(ControlProfiles.KEY_CURRENT, 0);
+
         document = publish();
     }
 
@@ -151,6 +168,16 @@ public class SetupDialogTest {
 
         restore(store, theirStore);
         restore(answers, theirAnswers);
+
+        if (context != null) {
+            SharedPreferences.Editor editor = preferences().edit()
+                    .putInt(ControlProfiles.KEY_CURRENT, theirCurrent);
+
+            if (theirProfiles == null) editor.remove(ControlProfiles.KEY_PROFILES);
+            else editor.putString(ControlProfiles.KEY_PROFILES, theirProfiles);
+
+            editor.commit();
+        }
 
         // The in-memory copy has to be told, or whatever runs next in this
         // process reads this test's one game instead of the bench's.
@@ -208,21 +235,27 @@ public class SetupDialogTest {
     }
 
     /**
-     * Both halves of the record become choices, the record is quoted, and the
-     * machines read as machines.
+     * The whole journey: the record becomes a question, and the answer sticks.
      *
-     * One test rather than three because the question is asked once per game
-     * per session - a Skip that is not remembered still stops it being asked
-     * again, or applying a machine, which reopens the game, would ask it again
-     * the moment it was answered.
+     * <b>One test and not three, because the question is asked once per game
+     * per session.</b> A Skip that is not remembered still stops it being
+     * asked again - it has to, or applying a machine, which reopens the game,
+     * would ask it again the moment it was answered. A second test method
+     * against the same game therefore sees no dialog at all, which is the
+     * guard working and looks exactly like the feature broken.
      *
-     * The two machines are the point: "48K/128K" is ZXDB saying either, so
-     * both are offered and neither is applied. They are labelled with Fuse's
-     * own names - what every other screen calls them - while the answer that
-     * gets written down is the id.
+     * The two machines are the point of the first half: "48K/128K" is ZXDB
+     * saying either, so both are offered and neither is applied. They are
+     * labelled with Fuse's own names - what every other screen calls them -
+     * while the answer that gets written down is the id.
+     *
+     * The second half is the one that was missing when the keyboard option
+     * first appeared: it selected keyboard mode and left the pad on whatever
+     * profile was last used, so the layout the record carried - the only
+     * reason the option is offered at all - was never read.
      */
     @Test
-    public void therecordBecomesAquestionWithBothHalves() {
+    public void therecordBecomesAquestionAndTheAnswerSticks() {
         view(document);
 
         // Waited for on the record's own words rather than on the word
@@ -253,7 +286,45 @@ public class SetupDialogTest {
         assertTrue("the keyboard is not offered, though the record has a keymap",
                    offers(text(R.string.joystick_keyboard)));
 
-        emulator.tap(text(R.string.suggest_skip));
+        emulator.tap(text(R.string.joystick_keyboard));
+        emulator.tap(text(R.string.suggest_apply));
+
+        ControlProfiles.Profile now = awaitProfile("Setup Test");
+        assertNotNull("no profile was made for the game: "
+                      + preferences().getString(ControlProfiles.KEY_PROFILES, "none"),
+                      now);
+
+        assertEquals("left", KeyEvent.KEYCODE_Z, now.keys[FuseNative.JOYSTICK_LEFT]);
+        assertEquals("right", KeyEvent.KEYCODE_X, now.keys[FuseNative.JOYSTICK_RIGHT]);
+        assertEquals("up", KeyEvent.KEYCODE_K, now.keys[FuseNative.JOYSTICK_UP]);
+        assertEquals("down", KeyEvent.KEYCODE_M, now.keys[FuseNative.JOYSTICK_DOWN]);
+        assertEquals("fire", KeyEvent.KEYCODE_SPACE, now.keys[FuseNative.JOYSTICK_FIRE]);
+        assertEquals("start", KeyEvent.KEYCODE_1, now.keys[ControlProfiles.BUTTON_1]);
+
+        // What the layout says nothing about keeps the default it had.
+        assertEquals("the third button was not left alone",
+                     ControlProfiles.QAOPM[ControlProfiles.BUTTON_3],
+                     now.keys[ControlProfiles.BUTTON_3]);
+
+        assertEquals("the pad was not put on the keyboard",
+                     Controls.JOYSTICK_KEYBOARD,
+                     preferences().getInt(Prefs.KEY_JOYSTICK_TYPE, -1));
+    }
+
+    /** The profile in use, once it is the game's - applying goes through the
+     *  dialog's own button and the write that follows is not instant. */
+    private ControlProfiles.Profile awaitProfile(String named) {
+        for (long waited = 0; waited < 10 * Emulator.SECOND; waited += LOOK) {
+            ControlProfiles.Profile current = ControlProfiles.current(preferences());
+            if (named.equals(current.name)) return current;
+
+            SystemClock.sleep(LOOK);
+        }
+        return null;
+    }
+
+    private SharedPreferences preferences() {
+        return context.getSharedPreferences(Prefs.PREFS, Context.MODE_PRIVATE);
     }
 
     // --- the world this needs ------------------------------------------------
