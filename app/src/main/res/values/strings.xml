@@ -953,4 +953,14 @@
     <string name="suggest_apply">Apply</string>
     <string name="suggest_skip">Skip</string>
     <string name="suggest_applied">Applied</string>
+    <!-- The catalogue tab: a fourth way into the library that browses an
+         online database rather than the phone's own folder - see
+         library/ui/CatalogueView. The shelves' own names ("Search", "A-Z",
+         "Newest") are the service's words and are not here; these five are
+         this app's own. -->
+    <string name="library_tab_catalogue">Catalogue</string>
+    <string name="catalogue_search_hint">Search the catalogue</string>
+    <string name="catalogue_empty">Nothing here.</string>
+    <string name="catalogue_failed">That did not arrive.</string>
+    <string name="catalogue_retry">Try again</string>
 </resources>

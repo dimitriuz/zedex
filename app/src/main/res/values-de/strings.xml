@@ -770,4 +770,9 @@
     <string name="suggest_apply">Anwenden</string>
     <string name="suggest_skip">Überspringen</string>
     <string name="suggest_applied">Angewendet</string>
+    <string name="library_tab_catalogue">Katalog</string>
+    <string name="catalogue_search_hint">Katalog durchsuchen</string>
+    <string name="catalogue_empty">Nichts hier.</string>
+    <string name="catalogue_failed">Das kam nicht an.</string>
+    <string name="catalogue_retry">Erneut versuchen</string>
 </resources>

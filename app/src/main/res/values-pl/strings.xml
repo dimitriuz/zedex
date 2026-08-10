@@ -789,4 +789,9 @@
     <string name="suggest_apply">Zastosuj</string>
     <string name="suggest_skip">Pomiń</string>
     <string name="suggest_applied">Zastosowano</string>
+    <string name="library_tab_catalogue">Katalog</string>
+    <string name="catalogue_search_hint">Szukaj w katalogu</string>
+    <string name="catalogue_empty">Nic tu nie ma.</string>
+    <string name="catalogue_failed">Nie udało się pobrać.</string>
+    <string name="catalogue_retry">Spróbuj ponownie</string>
 </resources>

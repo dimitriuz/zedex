@@ -770,4 +770,9 @@
     <string name="suggest_apply">Applica</string>
     <string name="suggest_skip">Salta</string>
     <string name="suggest_applied">Applicato</string>
+    <string name="library_tab_catalogue">Catalogo</string>
+    <string name="catalogue_search_hint">Cerca nel catalogo</string>
+    <string name="catalogue_empty">Niente qui.</string>
+    <string name="catalogue_failed">Non è arrivato.</string>
+    <string name="catalogue_retry">Riprova</string>
 </resources>

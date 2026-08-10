@@ -789,4 +789,9 @@
     <string name="suggest_apply">Применить</string>
     <string name="suggest_skip">Пропустить</string>
     <string name="suggest_applied">Применено</string>
+    <string name="library_tab_catalogue">Каталог</string>
+    <string name="catalogue_search_hint">Поиск по каталогу</string>
+    <string name="catalogue_empty">Здесь ничего нет.</string>
+    <string name="catalogue_failed">Не удалось получить.</string>
+    <string name="catalogue_retry">Повторить</string>
 </resources>

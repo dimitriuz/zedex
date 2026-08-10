@@ -789,4 +789,9 @@
     <string name="suggest_apply">Použít</string>
     <string name="suggest_skip">Přeskočit</string>
     <string name="suggest_applied">Použito</string>
+    <string name="library_tab_catalogue">Katalog</string>
+    <string name="catalogue_search_hint">Hledat v katalogu</string>
+    <string name="catalogue_empty">Nic tu není.</string>
+    <string name="catalogue_failed">Nepodařilo se načíst.</string>
+    <string name="catalogue_retry">Zkusit znovu</string>
 </resources>

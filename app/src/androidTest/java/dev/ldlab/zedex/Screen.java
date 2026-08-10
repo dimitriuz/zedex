@@ -34,8 +34,12 @@ import androidx.test.runner.lifecycle.Stage;
  * worth a class: it failed as a wrong border colour forty seconds later in one
  * suite, and as a filter that changed no rows in another, neither of them
  * saying anything about a display.
+ *
+ * Public because the suite has tests in sub-packages now - {@code
+ * library.catalogue.CatalogueScreenTest} is the first - and package-private
+ * stops at that boundary. The same rule the app's own layers already follow.
  */
-final class Screen {
+public final class Screen {
 
     private Screen() {
     }
@@ -44,7 +48,7 @@ final class Screen {
      * Launch options that put the activity where this test can see it. Pass
      * to {@code startActivity(intent, Screen.here())}.
      */
-    static Bundle here() {
+    public static Bundle here() {
         ActivityOptions options = ActivityOptions.makeBasic();
         options.setLaunchDisplayId(Display.DEFAULT_DISPLAY);
         return options.toBundle();
@@ -54,7 +58,7 @@ final class Screen {
      * That the app did come up here. Call once the screen is up, since a
      * resumed activity is what this can ask about.
      */
-    static void assertHere() {
+    public static void assertHere() {
         int[] where = { Display.INVALID_DISPLAY };
 
         InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
