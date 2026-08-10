@@ -239,6 +239,38 @@ public final class Scraped {
         });
     }
 
+    /** Told whether this game has music - see {@link #loadMusic}. */
+    public interface MusicCallback {
+        void onReady(boolean any);
+    }
+
+    /**
+     * Whether a tune was fetched for this game, answered off the UI thread.
+     *
+     * The same shape as {@link #loadManual} and for the same reason: looking
+     * in the media folder is a filesystem round trip, and on a device where
+     * that folder is reached through a document tree it is a provider one -
+     * never safe to make just to decide whether to draw a button.
+     */
+    public void loadMusic(Context context, String relativePath, MusicCallback callback) {
+        int atGeneration = generation;
+        Context app = context.getApplicationContext();
+
+        executor.execute(() -> {
+            boolean any;
+            try {
+                any = Artwork.music(app, relativePath) != null;
+            } catch (Exception e) {
+                any = false;
+            }
+
+            if (atGeneration != generation) return; // the folder moved on
+
+            boolean result = any;
+            main.post(() -> callback.onReady(result));
+        });
+    }
+
     /**
      * The content folder changed - a resolve already in flight is answering
      * a question that no longer applies, so its own answer is dropped

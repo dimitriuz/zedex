@@ -137,6 +137,16 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      */
     public static final String EXTRA_LIBRARY_PATH = "dev.ldlab.zedex.extra.LIBRARY_PATH";
 
+    /**
+     * A game whose music to offer, by the store's own key.
+     *
+     * Sent by the library's own Music button. It carries no document, because
+     * there is nothing to load: a tune is played by this screen, on this
+     * machine, and whatever is already running is put aside for it - see
+     * {@code media.Music}.
+     */
+    public static final String EXTRA_MUSIC = "dev.ldlab.zedex.extra.MUSIC";
+
 
     private SharedPreferences preferences;
     private JoystickView[] keyButtons = new JoystickView[0];
@@ -608,6 +618,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         layout.post(controls::applySystemKeyboard);
 
         handleViewIntent(getIntent());
+        handleMusicIntent(getIntent());
     }
 
     @Override
@@ -615,6 +626,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         super.onNewIntent(intent);
         setIntent(intent);
         handleViewIntent(intent);
+        handleMusicIntent(intent);
     }
 
     /**
@@ -681,6 +693,29 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         } else {
             Work.run("open", () -> media.stageAndOpen(uri));
         }
+    }
+
+    /**
+     * The library asking for a game's music.
+     *
+     * Opens the sheet on the tune list rather than playing anything: a file
+     * usually holds several and the person tapped "music", not a tune. Posted
+     * because the sheet cannot be shown before the window it lives in has
+     * been laid out, which on a cold start is after this runs.
+     */
+    private void handleMusicIntent(Intent intent) {
+        if (intent == null) return;
+
+        String path = intent.getStringExtra(EXTRA_MUSIC);
+        if (path == null) return;
+
+        // Once only: this activity is long-lived and the intent that started
+        // it is remembered, so without this every return to the screen would
+        // reopen the menu over whatever the person was doing.
+        intent.removeExtra(EXTRA_MUSIC);
+
+        music.forGame(path);
+        layout.post(() -> menu.go(getString(R.string.music_title), music.page()));
     }
 
     /**
@@ -1543,7 +1578,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             // than no row.
             if (music.anything()) {
                 sheet.addSubmenu(getString(R.string.music_title),
-                                 R.drawable.ic_play, music.page());
+                                 R.drawable.ic_music, music.page());
             }
             // The page's own heading, which sits over the tape rows: the
             // drives that follow have DRIVES of their own.

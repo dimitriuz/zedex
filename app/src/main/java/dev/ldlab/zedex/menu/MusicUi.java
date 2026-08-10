@@ -84,7 +84,7 @@ public final class MusicUi {
                 String label = song.name == null || song.name.isEmpty()
                         ? text(R.string.music_unnamed, at + 1) : song.name;
 
-                page.addItem(label, R.drawable.ic_play, () -> play(song, label));
+                page.addItem(label, R.drawable.ic_music, () -> play(song, label));
             }
 
             page.addNote(text(R.string.music_hint));

@@ -135,6 +135,9 @@ public final class DetailPane extends FrameLayout {
      *  to {@link Scraped#loadManual} answers that this selection has one. */
     private ImageButton manualButton;
 
+    /** Beside it, for a game a tune was fetched for. */
+    private ImageButton musicButton;
+
     /** Plays a file, or opens a folder or an archive - see {@link #show},
      *  which is the one place that decides which. */
     private Button actionButton;
@@ -415,8 +418,39 @@ public final class DetailPane extends FrameLayout {
         actions.addView(manualButton, new LinearLayout.LayoutParams(
                 pixels(48), LinearLayout.LayoutParams.MATCH_PARENT));
 
+        // And the music, on the same terms: hidden until something says there
+        // is any, which for these is a scraped .ay - a tune belongs to about
+        // one game in fifty. Tapping it hands the game to the machine, which
+        // is the only thing that can play one.
+        musicButton = new ImageButton(context);
+        musicButton.setImageResource(R.drawable.ic_music);
+        musicButton.setColorFilter(Palette.MUTED);
+        musicButton.setBackground(Ripple.make(density));
+        musicButton.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
+        musicButton.setContentDescription(context.getString(R.string.music_title));
+        musicButton.setVisibility(View.GONE);
+        actions.addView(musicButton, new LinearLayout.LayoutParams(
+                pixels(48), LinearLayout.LayoutParams.MATCH_PARENT));
+
         column.addView(actions, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+    }
+
+    /**
+     * Hands the game's music to the machine.
+     *
+     * The emulator screen, because a tune is the Spectrum running the game's
+     * own driver - so it plays where the Spectrum is, and whatever was loaded
+     * there is put aside and given back. See {@code media.Music}.
+     */
+    private void openMusic(String relativePath) {
+        getContext().startActivity(
+                new android.content.Intent(getContext(),
+                                           dev.ldlab.zedex.EmulatorActivity.class)
+                        .putExtra(dev.ldlab.zedex.EmulatorActivity.EXTRA_MUSIC,
+                                  relativePath)
+                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                                | android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP));
     }
 
     // --- what the screen tells it ---------------------------------------------
@@ -464,6 +498,7 @@ public final class DetailPane extends FrameLayout {
         // this selection - covers every early return below the same way
         // gallery.clear() does, without repeating it at each one.
         manualButton.setVisibility(View.GONE);
+        musicButton.setVisibility(View.GONE);
 
         boolean have = entry != null;
 
@@ -512,6 +547,15 @@ public final class DetailPane extends FrameLayout {
                     manual != null ? v -> Manuals.open(getContext(), manual) : null);
         });
 
+        // The same shape, and off the UI thread for the same reason: this is
+        // a look at the media folder, which is a SAF query on some devices.
+        scraped.loadMusic(getContext(), relativePath, any -> {
+            if (forThis != token) return;
+
+            musicButton.setVisibility(any ? View.VISIBLE : View.GONE);
+            musicButton.setOnClickListener(any ? v -> openMusic(relativePath) : null);
+        });
+
         gallery.load(relativePath);
 
         // Off, the video is still there to swipe to and still plays once
@@ -547,6 +591,7 @@ public final class DetailPane extends FrameLayout {
         handler.removeCallbacksAndMessages(videoToken);
         userSwiped = false;
         manualButton.setVisibility(View.GONE);
+        musicButton.setVisibility(View.GONE);
 
         gallery.clear();
     }

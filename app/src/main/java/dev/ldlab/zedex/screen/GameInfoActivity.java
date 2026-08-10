@@ -68,6 +68,9 @@ public final class GameInfoActivity extends ZedexActivity {
      *  Shown only once {@link #loadManualButton} answers this game has one. */
     private ImageButton manualButton;
 
+    /** Under it, and only for a game a tune was fetched for. */
+    private ImageButton musicButton;
+
     /** The path this screen was opened with - kept so a tap on a page can
      *  open {@link MediaViewerActivity} against the same game, rather than
      *  the intent extra being read a second time. */
@@ -106,6 +109,7 @@ public final class GameInfoActivity extends ZedexActivity {
             load(path);
             gallery.load(path);
             loadManualButton(path);
+        loadMusicButton(path);
         }
     }
 
@@ -200,6 +204,22 @@ public final class GameInfoActivity extends ZedexActivity {
         buttonParams.rightMargin = pixels(16);
         box.addView(manualButton, buttonParams);
 
+        musicButton = new ImageButton(this);
+        musicButton.setImageResource(R.drawable.ic_music);
+        musicButton.setBackgroundColor(0x80000000);
+        musicButton.setColorFilter(0xffffffff);
+        musicButton.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
+        musicButton.setContentDescription(getString(R.string.music_title));
+        musicButton.setVisibility(View.GONE);
+
+        // Under the manual, as in the pane: two buttons across the top of a
+        // cover crowd the artwork somebody came to look at.
+        FrameLayout.LayoutParams musicParams = new FrameLayout.LayoutParams(
+                pixels(48), pixels(48), Gravity.TOP | Gravity.END);
+        musicParams.topMargin = pixels(16) + pixels(48) + pixels(8);
+        musicParams.rightMargin = pixels(16);
+        box.addView(musicButton, musicParams);
+
         return box;
     }
 
@@ -233,6 +253,36 @@ public final class GameInfoActivity extends ZedexActivity {
 
                 manualButton.setVisibility(View.VISIBLE);
                 manualButton.setOnClickListener(v -> Manuals.open(this, result));
+            });
+        });
+    }
+
+    /**
+     * Whether this game has music, and where tapping it goes.
+     *
+     * The emulator screen, because a tune is the Spectrum running the game's
+     * own driver and that is where the Spectrum is - see {@code media.Music},
+     * which puts whatever was loaded there aside and gives it back.
+     */
+    private void loadMusicButton(String path) {
+        Work.run("music", () -> {
+            java.io.File tune;
+            try {
+                tune = Artwork.music(this, path);
+            } catch (Exception e) {
+                tune = null;
+            }
+
+            boolean any = tune != null;
+            handler.post(() -> {
+                if (isFinishing() || isDestroyed() || !any) return;
+
+                musicButton.setVisibility(View.VISIBLE);
+                musicButton.setOnClickListener(v -> startActivity(
+                        new Intent(this, dev.ldlab.zedex.EmulatorActivity.class)
+                                .putExtra(dev.ldlab.zedex.EmulatorActivity.EXTRA_MUSIC, path)
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                                        | Intent.FLAG_ACTIVITY_CLEAR_TOP)));
             });
         });
     }
