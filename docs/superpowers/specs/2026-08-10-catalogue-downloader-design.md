@@ -32,8 +32,8 @@ is never asked to be browsable.
 ```java
 public interface Catalogue {
     String name();
-    List<Shelf> shelves();                                  // how it can be browsed
-    Page open(Shelf shelf, Query query, int page) throws ScrapeException;
+    List<Shelf> shelves();                                  // the ways in, declared, no request
+    Page open(Shelf shelf, Query query, int page) throws ScrapeException;   // items, sub-shelves, or both
     Item item(String id) throws ScrapeException;            // versions and their files
     ScrapeException refusalFor(int status);                 // as Provider already does
 }
@@ -57,16 +57,39 @@ This is the whole of what makes the seam universal. A browsing mode is data, so
 a catalogue never owes an answer it has not got, and adding one later does not
 widen the interface for everybody else.
 
+### A shelf can hold shelves as well as items
+
+zxart's primary way in is not a search box but a **category tree**:
+`filter:zxProdCategoryAll` returns the whole thing, and a category is then
+opened by its id (`filter:zxProdCategory=92177` is Games). Free text exists —
+`zxProdTitleSearch` — but a person who does not already know a title has
+nothing to type, and the tree is what the site itself puts in front of them.
+
+So a `Page` carries **sub-shelves as well as items**, either of which may be
+empty. Opening *Categories* yields shelves; opening one of those yields items,
+or more shelves. ZXInfo uses the same mechanism for its genre and machine
+lists, which its `/metadata/` endpoint already publishes.
+
+This costs nothing at the seam — `shelves()` still returns the declared roots
+and still makes no request, because the tree arrives through `open` like
+anything else — and it costs nothing on screen, because the Browse tab already
+draws a list of folders you can descend into.
+
 ### Everything is paged, because both sites are
 
 ZXInfo takes `size` and `offset`; zxart takes `limit` and `start` and returns
-`totalAmount`. `Page` is the items, the total where the catalogue gives one, and
-whether there is more.
+`totalAmount`. `Page` is the items, the sub-shelves, the total where the
+catalogue gives one, and whether there is more.
 
 ### An Item is a title with versions; a version has files
 
 The shape both sites really have — ZXDB's `releases[]` each with `files[]`,
-zxart's `releasesIds` fetched separately. An `Item` also carries:
+zxart's releases as entries of their own. **How many requests that costs is the
+catalogue's business, not the seam's**: ZXInfo answers with one `/games/{id}`,
+and zxart takes `types:zxProd,zxRelease` on a single call and returns the
+product and its releases together. `item(id)` is one method either way.
+
+An `Item` also carries:
 
 - the catalogue's **own word for what it is** (`genreType` on ZXInfo,
   `categoriesString` on zxart), untouched — see *Where imports land*;
@@ -255,6 +278,8 @@ silently — you get *a* file in *a* folder either way.
 | A `Catalogue` seam beside `Provider` | Extending `Provider` | `search(Game)` and `search(text, page)` are different questions; `Provider` is already seven methods and ScreenScraper is not browsable |
 | | One method, everything a query | Pushes provider vocabulary into a map of strings and makes the UI guess what a query means |
 | Shelves declared as data | A method per browsing mode | A second catalogue would owe answers it has not got |
+| A page holds sub-shelves too | A `categories()` method | zxart's tree is its main way in and ZXInfo's genre lists are the same shape; a sixth method would serve one site and be dead in ScreenScraper |
+| | Flattening the tree into filters | Loses the site's own arrangement, and a person browsing does not know the filter names either |
 | Anything openable | Games only | Discards most of what zxart is for, and makes us map and maintain a genre vocabulary to decide |
 | | Openable plus standalone media | The library cannot hold things that are not programs |
 | Search + A–Z + curated lists | Any one of them | Asked for; the seam supports all three without owing any |
@@ -268,11 +293,29 @@ silently — you get *a* file in *a* folder either way.
 ## Not in this piece
 
 - **A second catalogue.** zxart shapes the seam and is not implemented here.
-  Its API is confirmed to work and to differ: `action:filter/export:zxProd`,
-  paged by `start`/`limit`, `totalAmount` in the reply, releases as separate
-  ids, and its own filter vocabulary — my first guessed filter name was ignored
-  and returned all 58,032 entries, which is the argument for the seam in one
+  Its API is confirmed to work and to differ in every particular: not query
+  parameters but path segments, `key:value` joined by `/`; `export:zxProd`
+  naming the entity; paging as `start:`/`limit:` with `totalAmount` in the
+  reply, which is wrapped in `responseStatus`/`responseData`; sorting as
+  `order:date,desc`; a `preset:apiShort` that trims the fields; and filters as
+  one `filter:` segment of `name=value` pairs joined by `;`, each name being
+  the entity followed by the capitalised filter — `zxProdTitleSearch`,
+  `zxProdCategory`, `zxProdYear`, `zxProdTagsInclude`, `zxProdMinRating` —
+  except the handful that are not, such as `authorId`.
+
+  That vocabulary is read off the site's own published client rather than
+  guessed, which matters: **an unrecognised filter is ignored rather than
+  refused**, so my first guessed name returned all 58,032 entries and looked
+  like a search that had simply matched everything. A catalogue that answers
+  wrong questions with a plausible reply is the argument for the seam in one
   line.
+
+- **Noticing what changed.** zxart takes `structureDateModified=<timestamp>` as
+  a filter, so a client that remembered when it last looked could ask only for
+  what has moved since. That is a sync, with state to keep and staleness to get
+  wrong, and this piece has no use for it — browsing asks the catalogue fresh
+  every time. Recorded because it is the thing to reach for if a cached
+  catalogue is ever wanted, and it would be a shame to build one by polling.
 - **Downloading anything that is not a program** — the music and pictures a
   catalogue holds are reachable through scraping already.
 - **Bulk import.** One thing at a time; a queue is a different feature with
