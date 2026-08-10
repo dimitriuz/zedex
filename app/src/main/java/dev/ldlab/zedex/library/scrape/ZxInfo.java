@@ -143,11 +143,15 @@ public final class ZxInfo implements Provider {
      * A round trip is a couple of hundred milliseconds anyway, so the real
      * cost of it is far less than it looks.
      *
-     * <b>Enforced here rather than by the caller.</b> This class is the only
-     * thing that knows when it last asked anything, and it is asked from two
-     * places - one game from the popup and eight hundred from a sweep - so a
-     * caller-side delay would have to be got right twice and would still miss
-     * the second request each game makes.
+     * <b>The number lives here; the counting does not.</b> This is ZXInfo's
+     * own number, arrived at from what happened to this app on this service,
+     * so it belongs on this provider. But it is asked from two places - one
+     * game from the popup and eight hundred from a sweep - and, since this
+     * class was written, from a catalogue browsing the same host beside it;
+     * counting per instance would let two of those wait independently and
+     * halve the real spacing between them. {@link Pace} counts per host
+     * instead, because the thing being spaced is the traffic arriving at
+     * ZXInfo, which is not a property of whichever object here sent it.
      */
     static final long MINIMUM_INTERVAL_MS = 500;
 

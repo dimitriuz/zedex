@@ -5,6 +5,9 @@ import static org.junit.Assert.assertTrue;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+
 /**
  * How long ago this host was last asked.
  *
@@ -72,6 +75,48 @@ public class PaceTest {
         Pace.before("api.example", 0);
 
         assertTrue(elapsedMs(began) < 100);
+    }
+
+    /**
+     * <b>The other half of the whole point: a host asleep must not hold up a
+     * different one.</b>
+     *
+     * A single lock around the whole of {@code before} - reservation and
+     * sleep together - would pace every host through one queue, which fails
+     * this class's own purpose one level up: a catalogue waiting on
+     * spectrumcomputing while the provider sleeps out ZXInfo's interval is
+     * indistinguishable from the one shared 500ms this class was written to
+     * get rid of.
+     *
+     * Ordering, not a duration measured against a guess: host A is put to
+     * sleep for two seconds, then host B is asked for the first time on its
+     * own thread. A latch stands in for "host B's call returned" so the
+     * assertion is "did that happen soon", not an arithmetic comparison that
+     * could pass by chance on a slow run.
+     */
+    @Test
+    public void adifferentHostsCallIsNotBlockedByAnotherHostsSleep() throws InterruptedException {
+        Pace.before("host-a", 100); // stamps host A so the next call has something to wait behind
+
+        Thread sleeping = new Thread(() -> Pace.before("host-a", 2000));
+        sleeping.start();
+        Thread.sleep(50); // let host A take its reservation and start sleeping
+
+        CountDownLatch otherHostReturned = new CountDownLatch(1);
+        Thread other = new Thread(() -> {
+            Pace.before("host-b", 2000);
+            otherHostReturned.countDown();
+        });
+        other.start();
+
+        // Two seconds away if host B ever waits on host A's sleep; near
+        // instant if the lock host B meets is only ever held for arithmetic.
+        assertTrue("a different host waited on host A's sleep",
+                otherHostReturned.await(500, TimeUnit.MILLISECONDS));
+
+        sleeping.interrupt();
+        sleeping.join(3000);
+        other.join(1000);
     }
 
     private static long elapsedMs(long began) {

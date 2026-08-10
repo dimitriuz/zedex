@@ -15,6 +15,22 @@ import java.util.Map;
  * send it. A provider scraping and a catalogue browsing are two objects and
  * one address.
  *
+ * <b>The lock only reserves a slot; it never sleeps.</b> A first version of
+ * this held one lock for the whole of {@link #before}, sleep included -
+ * which paced every host through a single queue rather than one each, so a
+ * call for one host sat behind another host's sleep and the two blocked each
+ * other exactly as badly as the per-instance pacing this class replaced.
+ * What has to happen atomically is small: read this host's next free slot,
+ * take the later of "now" and "the previous slot plus the minimum interval",
+ * and write that back. Arithmetic, not I/O - so the lock is held for that and
+ * released before anyone sleeps. Reserving the *slot* rather than recording
+ * "the time last asked" is what keeps two callers for the <em>same</em> host
+ * correctly queued despite the short lock: a second caller who reads the
+ * reservation while the first is still sleeping sees a slot already pushed
+ * out far enough, and cannot read "nothing to wait for" and fire alongside
+ * it. A caller for a different host never meets that lock for longer than
+ * the arithmetic takes, sleep or no sleep.
+ *
  * Static state, deliberately. There is one network and one of each host, and
  * an instance per caller is exactly the arrangement this replaces.
  *
@@ -25,7 +41,10 @@ import java.util.Map;
  */
 public final class Pace {
 
-    private static final Map<String, Long> lastAsked = new HashMap<>();
+    /** Each host's next free slot, in {@link #nowMs} terms - not "the last
+     *  time asked". A slot can be reserved before the wait behind it has
+     *  actually elapsed; see the class comment. */
+    private static final Map<String, Long> nextSlot = new HashMap<>();
 
     private Pace() {
     }
@@ -42,31 +61,37 @@ public final class Pace {
      * the one thing that legitimately interrupts a paced request is the
      * screen that started it going away.
      */
-    public static synchronized void before(String host, long minimumMs) {
+    public static void before(String host, long minimumMs) {
         if (minimumMs <= 0) return;
 
-        Long previous = lastAsked.get(host);
-        long now = System.nanoTime() / 1_000_000L;
+        long wait;
 
-        if (previous != null) {
-            long since = now - previous;
+        synchronized (Pace.class) {
+            long now = nowMs();
+            Long reserved = nextSlot.get(host);
+            long earliest = reserved == null ? now : reserved + minimumMs;
+            long slot = Math.max(now, earliest);
 
-            if (since < minimumMs) {
-                try {
-                    Thread.sleep(minimumMs - since);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-                now = System.nanoTime() / 1_000_000L;
-            }
+            wait = slot - now;
+            nextSlot.put(host, slot);
         }
 
-        lastAsked.put(host, now);
+        if (wait > 0) {
+            try {
+                Thread.sleep(wait);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 
     /** Tests only: forget every host, so one test's pacing is not the next
      *  test's wait. */
     public static synchronized void forget() {
-        lastAsked.clear();
+        nextSlot.clear();
+    }
+
+    private static long nowMs() {
+        return System.nanoTime() / 1_000_000L;
     }
 }
