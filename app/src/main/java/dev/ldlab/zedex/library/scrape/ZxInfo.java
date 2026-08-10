@@ -170,15 +170,16 @@ public final class ZxInfo implements Provider {
      * {@code /filecheck/{hash}} - the whole reason this provider can fill a
      * collection in unattended.
      *
-     * <b>The shape of the reply is not verified.</b> The specification says it
-     * "returns id and title for found entry" and the service has been
-     * unreachable from here since before this was written, so what is parsed
-     * below is read off that sentence: an object carrying an id, possibly
-     * wrapped in an array the way their search results are. It is deliberately
-     * lenient about which, and answers null rather than throwing when it finds
-     * neither - a hash that cannot be understood should fall through to the
-     * name search, which is what would happen if the hash simply were not
-     * known.
+     * <b>The reply is a flat object keyed {@code entry_id}</b> - verified
+     * against the service, and recorded in {@code ZxInfoTest.BY_HASH}. The
+     * specification only promises "id and title for found entry"; what arrives
+     * carries the machine type, the genre, the publishers and the TOSEC
+     * filename as well, which a later version of this could read instead of
+     * spending a {@code /games} call on. The leniency about which key holds
+     * the id is kept: it costs nothing, it is what made this right before
+     * anybody could check, and answering null rather than throwing lets an
+     * unreadable reply fall through to the name search exactly as an unknown
+     * hash does.
      */
     private Candidate byHash(String md5) throws ScrapeException {
         JSONObject found = object(ask("filecheck/" + Uri.encode(md5)));

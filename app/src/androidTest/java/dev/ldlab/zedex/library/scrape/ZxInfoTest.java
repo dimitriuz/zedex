@@ -28,12 +28,14 @@ import java.util.List;
  * which is the point: a parser tested against JSON somebody wrote to make the
  * parser pass proves only that the two agree.
  *
- * <b>One thing here is not from a recording.</b> The reply to
- * {@code /filecheck} is written from the specification's sentence - "returns
- * id and title for found entry" - because the service has been unreachable
- * since before this was written. The tests below say so where it matters, and
- * the parser is deliberately lenient about which of two plausible shapes it
- * gets. That is the one part of this class a live run could still contradict.
+ * <b>{@code /filecheck} is a recording now too.</b> It used to be written
+ * from the specification's sentence - "returns id and title for found entry" -
+ * because the service was unreachable from here, and it was the one part of
+ * this class a live call could still have contradicted. It did not: the real
+ * reply is below, taken 2026-08-10, and it is a flat object keyed
+ * {@code entry_id} rather than {@code id}, carrying rather more than the
+ * sentence promised. The parser was lenient about which key it found, so it
+ * had been right all along - by luck, and now on the record.
  */
 @RunWith(AndroidJUnit4.class)
 public class ZxInfoTest {
@@ -131,7 +133,25 @@ public class ZxInfoTest {
     private static final String NO_HITS = "{\"hits\":{\"total\":{\"value\":0},\"hits\":[]}}";
 
     /** Written from the specification, not recorded - see the class comment. */
-    private static final String BY_HASH = "{\"id\":\"0002259\",\"title\":\"Head over Heels\"}";
+    /**
+     * The real thing: {@code GET /v3/filecheck/dc93198d211b845a1977b0b38506ce50},
+     * the md5 of a TOSEC copy of Arkanoid, answered 2026-08-10.
+     *
+     * Unaltered but for the {@code sha512}, which is cut short because its
+     * length is all this cares about. Note what it is <em>not</em>: not an
+     * array, not keyed "id", and not two fields - it carries the machine type
+     * and genre as well, which a future version of this provider could read
+     * rather than spending a second call on.
+     */
+    private static final String BY_HASH = "{\"entry_id\":\"0000255\","
+            + "\"title\":\"Arkanoid\",\"zxinfoVersion\":\"1.0.239\","
+            + "\"contentType\":\"SOFTWARE\",\"originalYearOfRelease\":1987,"
+            + "\"machineType\":\"ZX-Spectrum 48K\",\"genre\":\"Arcade Game: Action\","
+            + "\"genreType\":\"Arcade Game\",\"genreSubType\":\"Action\","
+            + "\"publishers\":[{\"name\":\"Imagine Software Ltd\"}],"
+            + "\"file\":[{\"filename\":\"Arkanoid (1987)(Imagine).tzx\","
+            + "\"md5\":\"dc93198d211b845a1977b0b38506ce50\","
+            + "\"sha512\":\"1654b6c6aafc503f\",\"source\":\"TOSEC 2023\"}]}";
 
     // --- what a filename is worth searching for -------------------------------------------
 
@@ -175,16 +195,17 @@ public class ZxInfoTest {
     @Test
     public void ahashMatchIsTheOneCertainAnswer() throws Exception {
         Canned http = new Canned().then(200, BY_HASH);
-        List<Candidate> found = new ZxInfo(http).search(new AGame("a550220f26615e452d"
-                                                                 + "2e27384801cd18"));
+        List<Candidate> found = new ZxInfo(http).search(
+                new AGame("dc93198d211b845a1977b0b38506ce50"));
 
         assertEquals(1, found.size());
         assertTrue("a hash match must be exact, or nothing scrapes unattended",
                    found.get(0).exact);
-        assertEquals("0002259", found.get(0).handle);
+        assertEquals("the id is under entry_id, not id - see BY_HASH",
+                     "0000255", found.get(0).handle);
 
         assertTrue("it did not ask filecheck: " + http.asked.get(0),
-                   http.asked.get(0).contains("/filecheck/a550220f"));
+                   http.asked.get(0).contains("/filecheck/dc93198d"));
     }
 
     /**
