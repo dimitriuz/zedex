@@ -116,6 +116,16 @@
 
         <!-- Everything known about one game, opened from the library's pane -
              see screen/GameInfoActivity.java. -->
+        <!-- The instructions, when what a provider had was a transcription
+             rather than a PDF: shown here because not every phone has
+             anything for text/plain, and the ones that do wrap it to the
+             window - see screen/InstructionsActivity.java. -->
+        <activity
+            android:name=".screen.InstructionsActivity"
+            android:label="@string/instructions_title"
+            android:theme="@android:style/Theme.DeviceDefault"
+            android:exported="false" />
+
         <activity
             android:name=".screen.GameInfoActivity"
             android:label="@string/library_info"

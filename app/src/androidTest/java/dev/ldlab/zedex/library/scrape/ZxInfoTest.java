@@ -674,14 +674,42 @@ public class ZxInfoTest {
                      "scr", scraped.media.get(0).extension);
     }
 
-    /** Instructions come as PDF and as text, and the manual viewer reads
-     *  PDFs. */
+    /**
+     * Instructions come as PDF and as text, and the PDF is the better one.
+     *
+     * A scan or a typeset manual against somebody's plain-text transcription
+     * of it. The PDF is listed first in a record and a folder keeps the first
+     * thing it is given, so this is the existing order rather than a new rule
+     * - what changed is that the text is no longer thrown away when it is all
+     * there is.
+     */
     @Test
-    public void onlyThePdfInstructionsAreTakenAsAManual() throws Exception {
+    public void thepdfInstructionsAreTakenBeforeTheText() throws Exception {
         String manual = urlIn(fetched(Provider.Wanted.of("manuals")).media, "manuals");
 
-        assertTrue("the text instructions were taken as a manual: " + manual,
+        assertTrue("the text was taken while a PDF was on offer: " + manual,
                    manual.endsWith(".pdf"));
+    }
+
+    /**
+     * And where the text is all there is, it is taken.
+     *
+     * The commoner case by some way: ZXDB has 6,945 text files against 3,723
+     * PDFs, so an app that took only the PDF had no manual at all for most of
+     * the games that have one. {@code InstructionsActivity} is what reads it.
+     */
+    @Test
+    public void thetextInstructionsAreTakenWhenThereIsNoPdf() throws Exception {
+        String noPdf = RECORD.replace("\"format\":\"Document (PDF)\"",
+                                      "\"format\":\"Nothing anybody wants\"")
+                             .replace("HeadOverHeels(EN).pdf", "HeadOverHeels(EN).xyz");
+
+        Provider.Scraped scraped = new ZxInfo(new Canned().then(200, noPdf))
+                .fetch(new Candidate("1", "x", null, null, true),
+                       Provider.Wanted.of("manuals"));
+
+        assertEquals(1, scraped.media.size());
+        assertEquals("txt", scraped.media.get(0).extension);
     }
 
     /**

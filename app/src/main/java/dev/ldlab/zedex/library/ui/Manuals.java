@@ -1,6 +1,7 @@
 package dev.ldlab.zedex.library.ui;
 
 import dev.ldlab.zedex.R;
+import dev.ldlab.zedex.screen.InstructionsActivity;
 
 import android.app.ActivityOptions;
 import android.content.ActivityNotFoundException;
@@ -31,6 +32,48 @@ public final class Manuals {
     private static final String TAG = "Zedex";
 
     private Manuals() {
+    }
+
+    /** Which of the two kinds of manual this is - see {@code
+     *  Artwork.MANUAL_EXTENSIONS}, which resolves either. */
+    private static boolean isText(Uri manual) {
+        String path = manual.getPath();
+        return path != null && path.toLowerCase(java.util.Locale.US).endsWith(".txt");
+    }
+
+    /**
+     * The app's own reader, on the display that asked for it.
+     *
+     * The same display dance as the PDF below and for the same reason - a
+     * manual opened from the second screen belongs on the second screen - but
+     * without any of the granting: this is one of the app's own screens
+     * reading a file the app can already read, so there is nobody to grant
+     * anything to.
+     */
+    private static void showText(Context context, Uri manual, Display display,
+                                 Runnable onDisplay) {
+        Intent intent = new Intent(context, InstructionsActivity.class)
+                .putExtra(InstructionsActivity.EXTRA_FILE, manual.toString())
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+        if (display != null) {
+            try {
+                ActivityOptions options = ActivityOptions.makeBasic();
+                options.setLaunchDisplayId(display.getDisplayId());
+
+                context.startActivity(intent, options.toBundle());
+                if (onDisplay != null) onDisplay.run();
+                return;
+            } catch (RuntimeException e) {
+                // The display refused it, or has gone. The main screen is
+                // better than nothing at all, which is what the PDF path
+                // below decided too.
+                Log.w(TAG, "cannot open the instructions on display "
+                           + display.getDisplayId(), e);
+            }
+        }
+
+        context.startActivity(intent);
     }
 
     /** {@link #open(Context, Uri, Display)} with no display to ask for - the
@@ -78,6 +121,15 @@ public final class Manuals {
      */
     public static void open(Context context, Uri manual, Display display, Runnable onDisplay) {
         if (manual == null) return;
+
+        // A transcription rather than a PDF: shown here rather than handed
+        // out. See InstructionsActivity for why - not every phone has
+        // anything for text/plain, and the ones that do wrap it to the
+        // window, which is the one thing these documents cannot survive.
+        if (isText(manual)) {
+            showText(context, manual, display, onDisplay);
+            return;
+        }
 
         Uri shareable = manual;
 

@@ -237,6 +237,37 @@ public class OwnMediaTest {
         assertEquals(written.getAbsolutePath(), Artwork.manual(context, GAME).getPath());
     }
 
+    /**
+     * A transcription counts as a manual too.
+     *
+     * ZXDB has half again as many text instructions as PDFs - 6,945 files
+     * against 3,723 - so resolving only the PDF meant no manual at all for
+     * most of the games that have one. The button says Manual either way;
+     * {@code Manuals.open} is what decides which viewer by the extension.
+     */
+    @Test
+    public void atextManualIsFoundToo() throws IOException {
+        File written = put("manuals", "txt");
+
+        assertEquals(written.getAbsolutePath(), Artwork.manual(context, GAME).getPath());
+    }
+
+    /**
+     * And the PDF wins when there are both.
+     *
+     * A scan or a typeset manual beats somebody's plain-text version of it,
+     * and the order here is the only thing that says so.
+     */
+    @Test
+    public void thepdfIsPreferredToTheTranscription() throws IOException {
+        put("manuals", "txt");
+        File pdf = put("manuals", "pdf");
+
+        Artwork.forget();
+
+        assertEquals(pdf.getAbsolutePath(), Artwork.manual(context, GAME).getPath());
+    }
+
     /** A game with nothing has nothing, in all four answers - most of a
      *  collection, and the answer this is asked for most often. */
     @Test

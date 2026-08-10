@@ -648,7 +648,12 @@ public final class ZxInfo implements Provider {
     private static boolean usable(String folder, String format, String path) {
         String extension = extensionOf(path);
 
-        if ("manuals".equals(folder)) return "pdf".equals(extension);
+        // Both kinds of manual, the PDF preferred: it comes first in a record
+        // and a folder keeps the first thing it is given. Text is the commoner
+        // of the two all the same - see Artwork.MANUAL_EXTENSIONS.
+        if ("manuals".equals(folder)) {
+            return "pdf".equals(extension) || "txt".equals(extension);
+        }
         if ("pokes".equals(folder)) return "pok".equals(extension);
         if ("scr".equals(extension)) return "titlescreens".equals(folder);
 

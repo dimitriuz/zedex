@@ -589,6 +589,8 @@
     <string name="library_play">Hrát</string>
     <string name="library_info">Podrobnosti o hře</string>
     <string name="library_manual">Návod</string>
+    <string name="instructions_title">Návod</string>
+    <string name="instructions_unreadable">Tento soubor nelze přečíst.</string>
     <string name="library_open">Otevřít</string>
     <string name="library_nothing_selected">Vyberte hru a zobrazí se, co je o ní známo.</string>
     <string name="library_up">Nahoru</string>

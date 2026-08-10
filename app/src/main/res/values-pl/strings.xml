@@ -589,6 +589,8 @@
     <string name="library_play">Graj</string>
     <string name="library_info">Szczegóły gry</string>
     <string name="library_manual">Instrukcja</string>
+    <string name="instructions_title">Instrukcja</string>
+    <string name="instructions_unreadable">Nie można odczytać tego pliku.</string>
     <string name="library_open">Otwórz</string>
     <string name="library_nothing_selected">Wybierz grę, aby zobaczyć, co o niej wiadomo.</string>
     <string name="library_up">W górę</string>

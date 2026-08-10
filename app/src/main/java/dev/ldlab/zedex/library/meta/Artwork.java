@@ -75,7 +75,21 @@ public final class Artwork {
      * BitmapFactory}, which cannot read one at all.
      */
     private static final String MANUAL_FOLDER = "manuals";
-    private static final String MANUAL_EXTENSION = "pdf";
+
+    /**
+     * A PDF first, then a transcription.
+     *
+     * ES-DE only ever has the PDF, and where a provider offers both the PDF
+     * is the better document - a scan or a typeset manual against somebody's
+     * plain-text version of it. But rather more of what ZXDB carries is text
+     * than PDF, 6,945 files against 3,723, so taking only the first meant
+     * having no manual for most of the games that have one.
+     *
+     * Two extensions and one folder, because it is one thing to the person
+     * looking at it: the button says Manual either way, and {@code Manuals}
+     * decides which viewer by what it is handed.
+     */
+    private static final String[] MANUAL_EXTENSIONS = { "pdf", "txt" };
 
     /**
      * The cheats a provider found for one game.
@@ -208,9 +222,17 @@ public final class Artwork {
         Uri cached = manualCache.get(relativePath);
         if (cached != null) return cached == MISS ? null : cached;
 
-        String name = withoutExtension(relativePath) + "." + MANUAL_EXTENSION;
-        Uri found = ours(context, MANUAL_FOLDER, name);
-        if (found == null && root != null) found = resolve(context, root, MANUAL_FOLDER, name);
+        Uri found = null;
+
+        for (String extension : MANUAL_EXTENSIONS) {
+            String name = withoutExtension(relativePath) + "." + extension;
+
+            found = ours(context, MANUAL_FOLDER, name);
+            if (found == null && root != null) {
+                found = resolve(context, root, MANUAL_FOLDER, name);
+            }
+            if (found != null) break;
+        }
 
         manualCache.put(relativePath, found == null ? MISS : found);
         return found;

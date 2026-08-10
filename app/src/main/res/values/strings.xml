@@ -687,6 +687,8 @@
          yes; see LibraryActivity and GameInfoActivity. Tapping it opens the
          PDF in whatever app the phone has for one. -->
     <string name="library_manual">Manual</string>
+    <string name="instructions_title">Instructions</string>
+    <string name="instructions_unreadable">That file cannot be read.</string>
     <!-- The pane's own button, when the selection is a folder or an archive
          rather than a game - see LibraryActivity.updatePane. Matches
          menu_open's own word for the same action, minus its ellipsis: this

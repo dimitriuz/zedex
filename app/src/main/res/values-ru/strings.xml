@@ -589,6 +589,8 @@
     <string name="library_play">Играть</string>
     <string name="library_info">Об игре</string>
     <string name="library_manual">Инструкция</string>
+    <string name="instructions_title">Инструкция</string>
+    <string name="instructions_unreadable">Не удалось прочитать файл.</string>
     <string name="library_open">Открыть</string>
     <string name="library_nothing_selected">Выберите игру, чтобы увидеть, что о ней известно.</string>
     <string name="library_up">Вверх</string>
