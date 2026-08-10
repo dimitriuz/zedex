@@ -28,13 +28,39 @@ import java.util.zip.ZipInputStream;
  * then does anything reach SAF. SAF writes are not atomic and a half-written
  * {@code .tap} is indistinguishable from a real one - the emulator's refusal
  * to load it reads as a broken download of a working game, not as what it
- * is. Every path out of {@link #bring} deletes whatever it put in the cache,
- * so a failed import leaves nothing behind, including there.
+ * is.
+ *
+ * <b>The cache keeps nothing afterwards, including what a failure only got
+ * halfway through.</b> {@link #bring}'s {@code extracted} list is handed
+ * into {@link #unzip} and filled as each entry is written, rather than
+ * assembled separately and only adopted on success - so a zip that extracts
+ * three files cleanly and then goes corrupt on the fourth still has all
+ * three, and the partial fourth, in the list the {@code finally} below
+ * cleans up. Building the list only where {@code unzip} could hand it back
+ * whole was tried first and was wrong: an exception thrown partway through
+ * discarded everything {@code unzip} had made so far along with it, and
+ * {@code bring}'s {@code finally} saw an empty list and deleted nothing.
  */
 public final class Imports {
 
     private static final String TAG = "Zedex";
     private static final String DOWNLOADED = "Downloaded";
+
+    /**
+     * A generous ceiling on what a genuine download can expand to.
+     *
+     * These archives come from the public internet and nothing upstream
+     * bounds them, so without a limit a small, deliberately hostile zip
+     * could fill the cache partition before {@link #bring}'s {@code finally}
+     * ever runs. A real Spectrum file is kilobytes and a generous
+     * multi-load - several tape sides, a handful of disks - is a few
+     * megabytes, so this can be tight enough to mean something: eight
+     * entries' worth of headroom past that, and a cap on the entry count
+     * too, since a bomb can just as easily be a million empty names as one
+     * huge one.
+     */
+    private static final long MAX_EXTRACTED_BYTES = 8L * 1024 * 1024;
+    private static final int MAX_ENTRIES = 64;
 
     private Imports() {
     }
@@ -112,9 +138,7 @@ public final class Imports {
             try {
                 http.save(file.url(), zip);
             } catch (Http.Refused refused) {
-                return new Result(null, null, null, false, new ScrapeException(
-                        ScrapeException.Kind.NETWORK,
-                        "the server answered " + refused.status, refused));
+                return new Result(null, null, null, false, refusalFor(refused.status));
             } catch (IOException e) {
                 return new Result(null, null, null, false, new ScrapeException(
                         ScrapeException.Kind.NETWORK, "cannot fetch " + file.url(), e));
@@ -130,15 +154,32 @@ public final class Imports {
             // Step 3: unzip, keeping only what the emulator can open. A
             // .rzx import keeps the .rzx - Types.openable already contains
             // it - and a readme or a cover sitting beside the game is left
-            // in the zip rather than copied into somebody's library.
+            // in the zip rather than copied into somebody's library. `extracted`
+            // is filled as each entry is written rather than returned whole, so
+            // whatever a later failure - corrupt data, the caps above - leaves
+            // half-finished is still in the list the `finally` below cleans up.
             try {
-                extracted.addAll(unzip(zip, cache));
+                unzip(zip, cache, extracted);
+            } catch (TooLarge too) {
+                return new Result(null, null, null, false, new ScrapeException(
+                        ScrapeException.Kind.MALFORMED, too.getMessage()));
             } catch (IOException e) {
                 return new Result(null, null, null, false, new ScrapeException(
                         ScrapeException.Kind.MALFORMED, "not a zip: " + file.url(), e));
             }
 
-            // Step 4: one file, several, or none.
+            // Step 4: one file, several, or none. ZipInputStream.getNextEntry()
+            // returns null rather than throwing for a file that was never a
+            // zip at all - a plain .tap, or a .gz, which Types.openable already
+            // covers since libspectrum decompresses it itself - so an empty
+            // extraction is not necessarily a bad archive. Before deciding
+            // there is nothing usable, try the download itself as the file,
+            // named from the url it came from.
+            if (extracted.isEmpty()) {
+                String bare = basenameOf(file.url());
+                if (Types.openable(bare)) extracted.add(new Extracted(bare, zip));
+            }
+
             if (extracted.isEmpty()) {
                 return new Result(null, null, null, false, new ScrapeException(
                         ScrapeException.Kind.MALFORMED,
@@ -257,14 +298,32 @@ public final class Imports {
      * Each is written under a name of its own in the cache; what it is
      * called once it reaches SAF is a separate decision the caller makes
      * from {@link Extracted#name}, not from this file's name on disk.
+     *
+     * <b>Writes into {@code found} as it goes</b>, not into a list of its
+     * own returned at the end - a corrupt archive can throw after several
+     * entries have already landed on disk, and a caller that only sees the
+     * whole return value on success never learns those existed, which is
+     * exactly how they used to leak past the cache-emptying {@code finally}
+     * in {@link #bring}. Each entry is added to {@code found} before its
+     * bytes are written, for the same reason: a size-cap trip mid-entry
+     * still leaves that entry's half-written file where the caller can find
+     * and delete it.
+     *
+     * @throws TooLarge if the archive holds more than {@link #MAX_ENTRIES}
+     *         entries or would extract past {@link #MAX_EXTRACTED_BYTES} -
+     *         these are untrusted downloads and nothing upstream bounds them.
      */
-    private static List<Extracted> unzip(File zip, File cache) throws IOException {
-        List<Extracted> found = new ArrayList<>();
-        int index = 0;
+    private static void unzip(File zip, File cache, List<Extracted> found) throws IOException {
+        long totalBytes = 0;
+        int count = 0;
 
         try (ZipInputStream in = new ZipInputStream(new FileInputStream(zip))) {
             for (ZipEntry entry; (entry = in.getNextEntry()) != null; ) {
                 if (entry.isDirectory()) continue;
+
+                if (++count > MAX_ENTRIES) {
+                    throw new TooLarge("more than " + MAX_ENTRIES + " entries inside");
+                }
 
                 String raw = entry.getName();
                 int slash = raw.lastIndexOf('/');
@@ -272,19 +331,66 @@ public final class Imports {
 
                 if (!Types.openable(name)) continue;
 
-                File target = new File(cache, "zedex-" + System.nanoTime() + "-" + (index++));
+                File target = new File(cache, "zedex-" + System.nanoTime() + "-" + count);
+                // Tracked before a byte is written: a size-cap trip partway
+                // through this entry still leaves a file behind, and it has
+                // to be in the caller's list to be cleaned up.
+                found.add(new Extracted(name, target));
+
                 try (FileOutputStream out = new FileOutputStream(target)) {
                     byte[] buffer = new byte[8192];
                     for (int read; (read = in.read(buffer)) != -1; ) {
+                        totalBytes += read;
+                        if (totalBytes > MAX_EXTRACTED_BYTES) {
+                            throw new TooLarge("extracted past " + MAX_EXTRACTED_BYTES
+                                    + " bytes");
+                        }
                         out.write(buffer, 0, read);
                     }
                 }
-
-                found.add(new Extracted(name, target));
             }
         }
+    }
 
-        return found;
+    /** Raised past {@link #MAX_ENTRIES} or {@link #MAX_EXTRACTED_BYTES} -
+     *  kept apart from a plain {@link IOException} so {@link #bring} can
+     *  report why rather than folding it into "not a zip". */
+    private static final class TooLarge extends IOException {
+        TooLarge(String message) {
+            super(message);
+        }
+    }
+
+    /**
+     * What a bare HTTP refusal means, split by status the way {@code
+     * ZxInfoCatalogue.refusalFor} already does - only the status says
+     * whether asking again could ever help, and treating every refusal as a
+     * hiccup tells somebody to retry a permanent 404 forever.
+     */
+    private static ScrapeException refusalFor(int status) {
+        if (status == 429 || status == 403) {
+            return new ScrapeException(ScrapeException.Kind.CLOSED,
+                    "the server answered " + status + ", which usually means an address"
+                            + " has been asking too often");
+        }
+
+        if (status >= 500) {
+            return new ScrapeException(ScrapeException.Kind.NETWORK,
+                                       "the server answered " + status);
+        }
+
+        return new ScrapeException(ScrapeException.Kind.MALFORMED,
+                                   "the server answered " + status);
+    }
+
+    /** The last path segment of a url, ignoring any query string - what a
+     *  download is called when nothing more specific is on offer. */
+    private static String basenameOf(String url) {
+        if (url == null) return "";
+
+        String noQuery = url.contains("?") ? url.substring(0, url.indexOf('?')) : url;
+        int slash = noQuery.lastIndexOf('/');
+        return slash >= 0 ? noQuery.substring(slash + 1) : noQuery;
     }
 
     private static void delete(File file) {

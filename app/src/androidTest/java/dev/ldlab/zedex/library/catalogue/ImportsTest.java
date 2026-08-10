@@ -75,12 +75,21 @@ public class ImportsTest {
      *
      * <b>Stored, never deflated.</b> {@code Deflater.NO_COMPRESSION} keeps
      * the padding's own bytes from being compressed away - repeated filler
-     * is exactly what a real {@code Deflater} shrinks best, and letting that
-     * happen made the finished zip's actual size depend on how well a
-     * handful of padding bytes happened to compress, which is what made an
-     * "ordinary" test's outcome flicker between runs on nothing more than
-     * incidental stamp-length noise. Whoever next touches this fixture:
-     * keep the level pinned, or the flicker comes back.
+     * is exactly what a real {@code Deflater} shrinks best, and a finished
+     * zip whose actual size depends on how compressible its own padding
+     * happened to be is a fixture that could pass or fail depending on
+     * nothing this test controls. (The flicker actually observed while this
+     * fixture was being built came earlier than that, and for a different
+     * reason: before padding existed at all, the fake's real byte count
+     * came only from a few dozen bytes of literal content plus zip
+     * overhead, which shifted slightly with how many digits a `stamp`'s
+     * {@code nanoTime} happened to have that run - enough, on one occasion,
+     * to land on either side of a stated size the check compared it
+     * against. Padding removes that dependency outright; the compression
+     * hazard here is a second, separate one worth closing at the same
+     * time.) Whoever next touches this fixture: keep the level pinned to
+     * {@code NO_COMPRESSION}, or a new flicker of this second kind becomes
+     * possible.
      */
     private final class Zipped implements Http {
         private final long padTo;
@@ -121,22 +130,79 @@ public class ImportsTest {
 
                 for (String name : names) {
                     zip.putNextEntry(new ZipEntry(name));
-                    zip.write(padded(("contents of " + name).getBytes(StandardCharsets.US_ASCII)));
+                    zip.write(padded(("contents of " + name).getBytes(StandardCharsets.US_ASCII),
+                                      padTo));
                     zip.closeEntry();
                 }
             }
             return "00000000000000000000000000000000";
         }
+    }
 
-        /** {@code content}, followed by zero bytes out to {@code padTo} -
-         *  untouched when {@code content} already reaches it. */
-        private byte[] padded(byte[] content) {
-            if (content.length >= padTo) return content;
+    /**
+     * Delivers a real zip that stops partway through, in place of a
+     * download that broke off mid-transfer.
+     *
+     * Two entries, each padded well past a single buffer's worth, and only
+     * the first two thirds of the finished bytes are ever written to disk -
+     * enough for the first entry to extract whole and the second to fail
+     * mid-stream (a truncated {@code Inflater} input throws rather than
+     * quietly returning less), which is exactly the shape that once leaked
+     * the first entry's cache file: {@code Imports.unzip} only handed its
+     * findings back at the very end, so an exception partway through took
+     * everything found so far down with it before {@code Imports.bring}'s
+     * cleanup ever saw it.
+     *
+     * No stated size, deliberately - see {@code
+     * acorruptZipLeaksNothingIntoTheCache} for why rule 2's length check
+     * must not be the thing that catches this.
+     */
+    private final class Truncated implements Http {
+        private final String[] names;
 
-            byte[] out = new byte[(int) padTo];
-            System.arraycopy(content, 0, out, 0, content.length);
-            return out;
+        Truncated(String... names) {
+            this.names = names;
         }
+
+        @Override
+        public Reply get(String url) {
+            throw new UnsupportedOperationException("not this test's business");
+        }
+
+        @Override
+        public String save(String url, File into) throws java.io.IOException {
+            java.io.ByteArrayOutputStream whole = new java.io.ByteArrayOutputStream();
+
+            try (ZipOutputStream zip = new ZipOutputStream(whole)) {
+                zip.setLevel(Deflater.NO_COMPRESSION);
+
+                for (String name : names) {
+                    zip.putNextEntry(new ZipEntry(name));
+                    zip.write(padded(("contents of " + name).getBytes(StandardCharsets.US_ASCII),
+                                      5000));
+                    zip.closeEntry();
+                }
+            }
+
+            byte[] bytes = whole.toByteArray();
+            try (FileOutputStream out = new FileOutputStream(into)) {
+                out.write(bytes, 0, bytes.length * 2 / 3);
+            }
+            return "00000000000000000000000000000000";
+        }
+    }
+
+    /** {@code content}, followed by zero bytes out to {@code padTo} -
+     *  untouched when {@code content} already reaches it. Shared by both
+     *  fakes above, since a truncated archive still needs entries big
+     *  enough for the cut to land inside one rather than neatly between
+     *  them. */
+    private static byte[] padded(byte[] content, long padTo) {
+        if (content.length >= padTo) return content;
+
+        byte[] out = new byte[(int) padTo];
+        System.arraycopy(content, 0, out, 0, content.length);
+        return out;
     }
 
     /** The title carries the stamp too: the several-files test names the
@@ -354,6 +420,35 @@ public class ImportsTest {
 
         kept(Imports.game(context, new Zipped(41232, stamp + "-readme.txt"),
                      item("Arcade Game", download("tzx", 41232)), download("tzx", 41232)));
+
+        File[] left = cache.listFiles();
+        assertTrue("the cache kept " + (left == null ? 0 : left.length) + " files",
+                   left == null || left.length == 0);
+    }
+
+    /**
+     * A corrupt or truncated archive must not leak whatever it managed to
+     * extract before it gave out.
+     *
+     * No stated size, deliberately: rule 2's length check only ever sees the
+     * whole zip's own byte count, and this fake's truncated file is smaller
+     * than nothing it claims to be - stating a size here would mean the
+     * length check catches it first and this test would never reach {@code
+     * unzip} at all, which is the code path this test exists to cover. The
+     * failure has to come from a corrupt archive breaking apart mid-read,
+     * after its first entry already landed a real file in the cache.
+     */
+    @Test
+    public void acorruptZipLeaksNothingIntoTheCache() {
+        File cache = new File(context.getCacheDir(), "imports");
+
+        Imports.Result result = kept(Imports.game(
+                context, new Truncated(stamp + "-Robocop - Side 1.tap",
+                                       stamp + "-Robocop - Side 2.tap"),
+                item("Arcade Game", download("tap", -1)), download("tap", -1)));
+
+        assertNotNull("a truncated archive was accepted", result.failure);
+        assertNull(result.documentUri);
 
         File[] left = cache.listFiles();
         assertTrue("the cache kept " + (left == null ? 0 : left.length) + " files",
