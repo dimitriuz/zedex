@@ -1128,7 +1128,7 @@ public class KindsTest {
         assertEquals("the ordering catches this one first",
                      Kinds.APPLICATIONS, Kinds.folderFor("Gameboy Emulator"));
         assertEquals("and this one",
-                     Kinds.MAGAZINES, Kinds.folderFor("Game Magazine"));
+                     Kinds.MAGAZINES, Kinds.folderFor("Electronic Magazine Game"));
     }
 
     /** Matching is case-insensitive, since a second catalogue's vocabulary is
