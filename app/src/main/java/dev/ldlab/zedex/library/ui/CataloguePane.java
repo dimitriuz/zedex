@@ -9,6 +9,7 @@ import dev.ldlab.zedex.library.catalogue.Pick;
 import dev.ldlab.zedex.library.catalogue.Thumbnails;
 import dev.ldlab.zedex.library.meta.Metadata;
 import dev.ldlab.zedex.library.scrape.Http;
+import dev.ldlab.zedex.library.scrape.Provider;
 import dev.ldlab.zedex.library.scrape.ScrapeException;
 import dev.ldlab.zedex.library.scrape.Scrapers;
 import dev.ldlab.zedex.storage.Prefs;
@@ -542,11 +543,12 @@ public final class CataloguePane extends FrameLayout {
      *
      * <b>The pane resolves the collaborators.</b> {@code Imports.describe}
      * takes a {@code Provider} and an {@code Http} rather than fetching them,
-     * because {@code Scrapers.preferred} builds real services on a real {@code
+     * because {@code Scrapers.all} builds real services on a real {@code
      * Http.Real} with no seam - so a {@code describe} that resolved its own
-     * would make every test of it a live network call. A null provider is not a
-     * failure here: the file is imported either way and the details are the
-     * extra.
+     * would make every test of it a live network call. See {@link #providerFor}
+     * for which provider is chosen and why it is never {@code
+     * Scrapers.preferred}. A null provider is not a failure here: the file is
+     * imported either way and the details are the extra.
      *
      * @param file may be null - a version with nothing openable in it, which
      *             is an ordinary thing to find and says so rather than starting
@@ -584,7 +586,7 @@ public final class CataloguePane extends FrameLayout {
                 // something already there has already been described, and a
                 // scrape is a request against somebody's allowance.
                 if (result.failure == null && !result.alreadyThere) {
-                    Imports.describe(context, Scrapers.preferred(context), http, result, item);
+                    Imports.describe(context, providerFor(context), http, result, item);
                 }
             } catch (RuntimeException e) {
                 Log.w(TAG, "the import of " + item.title() + " went wrong", e);
@@ -594,6 +596,42 @@ public final class CataloguePane extends FrameLayout {
             Imports.Result answered = result;
             Work.onMain(() -> importFinished(forThis, answered, recording));
         });
+    }
+
+    /**
+     * The provider whose id {@link Imports#describe} can trust - the one whose
+     * {@link Provider#name()} matches this pane's own {@link
+     * Catalogue#name()} - or null when this build has no such provider.
+     *
+     * <b>Not {@code Scrapers.preferred}.</b> {@code catalogue.item(id)} is
+     * fetched by <em>this</em> catalogue's id, from <em>this</em> catalogue's
+     * service - ZXInfo, here - and {@code Imports.describe} hands that same id
+     * straight to {@code Provider#fetch} as an already-matched candidate,
+     * which is the whole point of going through the catalogue rather than a
+     * name-and-year guess. An id is only certain against the service that
+     * issued it: {@code Scrapers.preferred} answers whichever scraper the
+     * user chose for ordinary scraping - ScreenScraper by default, since
+     * credentials are baked into the build - and handing a ZXInfo id to
+     * ScreenScraper is not a lookup, it is a coincidence waiting to happen. At
+     * best {@code fetch} refuses it outright (it did, every time, until this
+     * was found); at worst two services that both number their entries from 1
+     * agree on a number that means two different games, and the import
+     * silently gets somebody else's cover - one of this codebase's worst
+     * outcomes. So: match by name, and if nothing matches, describe with
+     * null rather than guess - {@code Imports.describe} already treats a null
+     * provider as "no details", which is a clean, honest outcome, unlike a
+     * wrong one.
+     *
+     * Zxart, the next catalogue this plan adds, is planned to implement both
+     * {@link Catalogue} and {@link Provider} under one shared name, which is
+     * exactly the shape this match relies on - nothing here needs to change
+     * for it.
+     */
+    private Provider providerFor(Context context) {
+        for (Provider provider : Scrapers.all(context)) {
+            if (provider.name().equals(catalogue.name())) return provider;
+        }
+        return null;
     }
 
     /**
