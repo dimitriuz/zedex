@@ -535,16 +535,64 @@ public final class ZxInfoCatalogue implements Catalogue {
         List<Version> found = new ArrayList<>();
         JSONArray releases = source.optJSONArray("releases");
 
+        // A recording is not a release, and this record says so: measured over
+        // every captured reply that has one, an rzx is in additionalDownloads
+        // and never in a release's files - six of them, none the other way.
+        // Read only from the releases, Pick.recording was null for every entry
+        // in the database, exactly as Pick.forGame was; the fixture that hid it
+        // put the rzx in a release because it was written from memory. They are
+        // hung off the first version rather than one of their own, since Pick
+        // looks across all of them and a version of nothing but a recording
+        // would draw as a release nobody published.
+        List<Download> recordings = recordings(source);
+
         for (int at = 0; releases != null && at < releases.length(); at++) {
             JSONObject release = releases.optJSONObject(at);
             if (release == null) continue;
 
+            List<Download> files = files(release);
+            if (found.isEmpty()) files.addAll(recordings);
+
             // The publisher is what tells two releases apart here. ZXDB does
-            // carry alternative titles, but under a key nobody has recorded
-            // from a live reply, and a field name taken from a specification
-            // rather than an answer is how this app came to believe /filecheck
-            // said "id" when it says "entry_id".
-            found.add(new Version(publisher(release), releaseYear(release), files(release)));
+            // carry alternative titles - under releaseTitles, and most releases
+            // have none - but a label that is empty for four rows of five tells
+            // nothing apart, so the publisher stays.
+            found.add(new Version(publisher(release), releaseYear(release), files));
+        }
+
+        // Nothing to hang them off: an entry with a recording and no release at
+        // all is a thing ZXDB holds, and losing the recording there would be
+        // silent.
+        if (found.isEmpty() && !recordings.isEmpty()) {
+            found.add(new Version(null, null, recordings));
+        }
+
+        return found;
+    }
+
+    /**
+     * The playthroughs, out of the entry's own downloads.
+     *
+     * {@code additionalDownloads} is mostly pictures, manuals, pokes and
+     * music, which are the scraping provider's business and not a catalogue's
+     * - what this takes from it is the one thing there that can be handed to
+     * the emulator. Told by {@link Pick#isRecording}, so what counts as one is
+     * defined in a single place.
+     */
+    private static List<Download> recordings(JSONObject source) {
+        List<Download> found = new ArrayList<>();
+        JSONArray downloads = source.optJSONArray("additionalDownloads");
+
+        for (int at = 0; downloads != null && at < downloads.length(); at++) {
+            JSONObject file = downloads.optJSONObject(at);
+            String path = file == null ? null : text(file, "path");
+
+            if (path == null) continue;
+
+            Download download = new Download(urlFor(path), formatOf(file, path),
+                                             file.optLong("size", -1));
+
+            if (Pick.isRecording(download)) found.add(download);
         }
 
         return found;
@@ -582,16 +630,62 @@ public final class ZxInfoCatalogue implements Catalogue {
     /**
      * What is inside, not what it is wrapped in.
      *
-     * The record's own {@code format} is right for nearly everything - "TZX",
-     * "Z80", "RZX" - and useless where it says "ZIP", which is the wrapper
-     * every one of these is served in. There the path answers instead:
-     * {@code HeadOverHeels.tzx.zip} is a tzx.
+     * <b>{@code format} is a human phrase and never a bare extension.</b>
+     * Measured over captured replies, every value it takes: {@code Perfect
+     * tape (TZX)}, {@code Tape (TAP)}, {@code TR-DOS disk (TRD)}, {@code
+     * TR-DOS disk (SCL)}, {@code ROM image dump (ROM)}, {@code Game recording
+     * (RZX)}, {@code Screen dump (SCR)}, {@code Document (PDF)}, {@code
+     * Document (TXT)}, {@code Pokes (POK)}, {@code Music (AY)}, {@code Music
+     * (MP3)}, {@code Picture (JPG)}, {@code Picture (PNG)}, {@code Picture
+     * (GIF)} and a bare {@code Picture}. Returning it as it stands - which
+     * this did, pinned by a fixture that said {@code "format":"TZX"} because
+     * it was written from memory - makes every format {@code Pick.PREFERENCE}
+     * matches with {@code equals} unmatchable, so nothing in the database can
+     * be imported and every record reads as one the Spectrum cannot open. The
+     * whole feature was inert and every test passed.
+     *
+     * So the parenthesised code is what is read, and where there is none - the
+     * bare {@code Picture} above - the path answers, which is exactly what
+     * {@code ZxInfo.extensionOf} next door does with the same vocabulary and
+     * says so in its own comment: it "says 'Picture' for a png and 'Picture
+     * (JPG)' for a jpg". The two must not disagree about this service's words.
+     *
+     * The path is also what answers where the stated code is a wrapper, since
+     * what decides whether this app can open a file is what is inside it:
+     * {@code HeadOverHeels.tzx.zip} is a tzx. The stated code is preferred
+     * over the path rather than the other way about because a path here can be
+     * a whole url that need not end in a file name - see {@link #extensionOf}.
+     * Every path in every captured reply is in fact relative and named, so
+     * that ordering costs nothing measurable either way; it is the cheaper way
+     * round for a record where the path cannot answer.
      */
     private static String formatOf(JSONObject file, String path) {
-        String format = text(file, "format");
-        format = format == null ? "" : format.toLowerCase(Locale.ROOT);
+        String stated = code(text(file, "format"));
 
-        return format.isEmpty() || WRAPPERS.contains(format) ? inner(path) : format;
+        return stated == null || WRAPPERS.contains(stated) ? inner(path) : stated;
+    }
+
+    /**
+     * The code out of a stated format - "Perfect tape (TZX)" is a tzx.
+     *
+     * Null rather than a guess where the phrase carries no code, so
+     * {@link #formatOf} falls through to the path. What is accepted is
+     * deliberately narrow: one parenthesised word with no space in it. A
+     * phrase whose brackets hold prose is not an extension, and answering one
+     * would be worse than answering nothing - {@code Pick} would look for it
+     * in {@code PREFERENCE}, not find it, and the file would be dropped
+     * silently.
+     */
+    private static String code(String format) {
+        if (format == null) return null;
+
+        int open = format.lastIndexOf('(');
+        int close = format.lastIndexOf(')');
+        if (open < 0 || close < open) return null;
+
+        String code = format.substring(open + 1, close).trim().toLowerCase(Locale.ROOT);
+
+        return code.isEmpty() || code.contains(" ") ? null : code;
     }
 
     /** The extension under one wrapper, or the extension itself. */
@@ -634,8 +728,18 @@ public final class ZxInfoCatalogue implements Catalogue {
         return year > 0 ? Integer.toString(year) : null;
     }
 
+    /**
+     * A release's year.
+     *
+     * <b>{@code yearOfRelease}, measured.</b> This read {@code releaseYear},
+     * which appears nowhere in a live record - so every version this class
+     * ever answered with had a null year, and the list somebody chooses a
+     * version from showed none. The old name came from the same fixture that
+     * invented {@code "format":"TZX"}; it is not kept as a second guess,
+     * because it was never something the service sent.
+     */
     private static String releaseYear(JSONObject release) {
-        int year = release.optInt("releaseYear", 0);
+        int year = release.optInt("yearOfRelease", 0);
         return year > 0 ? Integer.toString(year) : null;
     }
 

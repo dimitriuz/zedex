@@ -28,11 +28,16 @@ import java.util.List;
  * Every body below is meant to be one the service actually sent, trimmed to
  * what is asserted on - and each says which it is. Writing one from memory is
  * how a client comes to believe a field name the service does not use, which
- * this app has been caught by twice: /filecheck answers entry_id where the
- * specification says id, and {@link #METADATA} below claimed a genretype array
- * where the service sends genretypes, so the parser and the fixture agreed with
- * each other and both disagreed with the service. That one is kept, marked, as
- * the reason {@link #METADATA_LIVE} exists.
+ * this app has now been caught by three times: /filecheck answers entry_id
+ * where the specification says id; {@link #METADATA} below claimed a genretype
+ * array where the service sends genretypes; and the body {@link #RECORD}
+ * replaced said {@code "format":"TZX"} where every live record says
+ * {@code "Perfect tape (TZX)"}, which made {@code Pick.forGame} answer null for
+ * <b>every entry in the database</b> - a whole feature inert, with this file
+ * green. Each time the parser and the fixture agreed with each other and both
+ * disagreed with the service, which is the one class of mistake a canned test
+ * cannot catch unless the can was filled from a reply. {@link #METADATA} is
+ * kept, marked, as the reason {@link #METADATA_LIVE} exists.
  *
  * <b>What a canned body cannot attest to is the URL.</b> A wrong parameter name
  * is ignored rather than refused by this service - it answers 200 with a full
@@ -81,23 +86,133 @@ public class ZxInfoCatalogueTest {
             + "     \"publishers\":[]}}"
             + "]}}";
 
-    /** {@code /games/0002259?mode=compact}, trimmed to one release and its
-     *  files - including the recording, which is on archive.org. */
+    /**
+     * {@code /games/0002259?mode=compact}, <b>recorded</b>, trimmed to two of
+     * its five releases and the fields read here.
+     *
+     * Every phrase in it is the service's own. The one this replaced said
+     * {@code "format":"TZX"} and {@code "releaseYear":1987}, both written from
+     * memory, and both wrong in a way that could only be seen against a live
+     * reply: the field holds <b>a human phrase</b> - {@code Perfect tape
+     * (TZX)}, {@code Tape (TAP)}, {@code Screen dump (SCR)} - and the year is
+     * under {@code yearOfRelease}. The first of those made
+     * {@code Pick.forGame} answer null for every entry in the database, so
+     * nothing could be imported at all, and this file passed either way.
+     *
+     * The screens are kept because they carry the two-host rule inside one
+     * record: the rendered loading screen is under {@code /zxscreens/} and the
+     * running screen under {@code /pub/}, in the same array.
+     */
     private static final String RECORD = "{"
-            + "\"_id\":\"0002259\",\"found\":true,\"_source\":{"
+            + "\"_index\":\"zxinfo-20260723-075659\",\"_id\":\"0002259\",\"found\":true,"
+            + "\"_source\":{"
             + "  \"title\":\"Head over Heels\",\"originalYearOfRelease\":1987,"
-            + "  \"genreType\":\"Arcade Game\",\"availability\":\"Available\","
-            + "  \"publishers\":[{\"name\":\"Ocean Software Ltd\"}],"
-            + "  \"releases\":[{\"releaseSeq\":0,\"releaseYear\":1987,"
-            + "    \"publishers\":[{\"name\":\"Ocean Software Ltd\"}],"
-            + "    \"files\":["
-            + "      {\"type\":\"Tape image\",\"format\":\"TZX\",\"size\":41232,"
-            + "       \"path\":\"/pub/sinclair/games/h/HeadOverHeels.tzx.zip\"},"
-            + "      {\"type\":\"Snapshot image\",\"format\":\"Z80\",\"size\":38104,"
-            + "       \"path\":\"/pub/sinclair/games/h/HeadOverHeels.z80.zip\"},"
-            + "      {\"type\":\"RZX recording\",\"format\":\"RZX\",\"size\":190222,"
-            + "       \"path\":\"https://archive.org/download/zx_rzx/HeadOverHeels.rzx.zip\"}"
-            + "  ]}]}}";
+            + "  \"machineType\":\"ZX-Spectrum 48K/128K\","
+            + "  \"genre\":\"Arcade Game: Adventure\",\"genreType\":\"Arcade Game\","
+            + "  \"availability\":\"Available\","
+            + "  \"publishers\":[{\"publisherSeq\":1,\"name\":\"Ocean Software Ltd\","
+            + "                   \"country\":\"UK\"}],"
+            + "  \"releases\":["
+            + "    {\"releaseSeq\":0,"
+            + "     \"publishers\":[{\"publisherSeq\":1,\"name\":\"Ocean Software Ltd\"}],"
+            + "     \"releaseTitles\":[\"Foot and Mouth\"],\"yearOfRelease\":1987,"
+            + "     \"files\":["
+            + "       {\"path\":\"/pub/sinclair/games/h/HeadOverHeels.tap.zip\","
+            + "        \"size\":37132,\"type\":\"Tape image\",\"format\":\"Tape (TAP)\","
+            + "        \"origin\":null,\"encodingScheme\":\"Undetermined\"},"
+            + "       {\"path\":\"/pub/sinclair/games/h/HeadOverHeels.tzx.zip\","
+            + "        \"size\":38570,\"type\":\"Tape image\","
+            + "        \"format\":\"Perfect tape (TZX)\","
+            + "        \"origin\":\"Original release (O)\",\"encodingScheme\":\"SpeedLock 2\"},"
+            + "       {\"path\":\"/zxdb/sinclair/entries/0002259/HeadOverHeels(ULAplus).tap.zip\","
+            + "        \"size\":37240,\"type\":\"Tape image\",\"format\":\"Tape (TAP)\","
+            + "        \"comments\":\"ULAplus version\",\"encodingScheme\":\"None\"}"
+            + "    ]},"
+            + "    {\"releaseSeq\":4,"
+            + "     \"publishers\":[{\"publisherSeq\":1,\"name\":\"The Hit Squad\"}],"
+            + "     \"releaseTitles\":[\"ARCADE COLLECTION 12: Head over Heels\"],"
+            + "     \"yearOfRelease\":1990,\"code\":\"AC12\",\"barcode\":\"5013156410802\","
+            + "     \"files\":["
+            + "       {\"path\":\"/pub/sinclair/games/h/HeadOverHeels(TheHitSquad).tzx.zip\","
+            + "        \"size\":38504,\"type\":\"Tape image\","
+            + "        \"format\":\"Perfect tape (TZX)\","
+            + "        \"origin\":\"Re-release (R)\",\"encodingScheme\":\"SpeedLock 2\"}"
+            + "    ]}],"
+            + "  \"additionalDownloads\":["
+            + "    {\"path\":\"/zxdb/sinclair/entries/0002259/HeadOverHeels(EN).pdf\","
+            + "     \"size\":1061210,\"type\":\"Instructions\",\"format\":\"Document (PDF)\","
+            + "     \"language\":\"English\"},"
+            + "    {\"path\":\"/pub/sinclair/screens/load/h/scr/HeadOverHeels.scr\","
+            + "     \"size\":6912,\"type\":\"Loading screen\",\"format\":\"Screen dump (SCR)\","
+            + "     \"language\":null},"
+            + "    {\"path\":\"/pub/sinclair/music/ay/games/h/HeadOverHeels.ay.zip\","
+            + "     \"size\":2404,\"type\":\"Ripped in-game/theme music in AY format\","
+            + "     \"format\":\"Music (AY)\",\"language\":null}"
+            + "  ],"
+            + "  \"screens\":["
+            + "    {\"filename\":\"HeadOverHeels-load.png\","
+            + "     \"url\":\"/zxscreens/0002259/HeadOverHeels-load.png\","
+            + "     \"scrUrl\":\"/pub/sinclair/screens/load/h/scr/HeadOverHeels.scr\","
+            + "     \"size\":8491,\"type\":\"Loading screen\",\"format\":\"Picture\"},"
+            + "    {\"filename\":\"HeadOverHeels.gif\","
+            + "     \"url\":\"/pub/sinclair/screens/in-game/h/HeadOverHeels.gif\","
+            + "     \"size\":6878,\"type\":\"Running screen\",\"format\":\"Picture (GIF)\"}"
+            + "  ]}}";
+
+    /**
+     * An entry that <b>has a recording</b> - 0009305, Atic Atac - and the one
+     * thing it proves that {@link #RECORD} cannot.
+     *
+     * <b>Recorded, with one honest join:</b> the {@code _source} is the one a
+     * compact <em>search</em> answered with for this entry, wrapped in the
+     * {@code /games} envelope. A compact search's releases carry only
+     * {@code publishers} and {@code files} - no {@code yearOfRelease}, no
+     * {@code releaseSeq} - so this fixture is evidence about the recording and
+     * about {@code Distribution denied}, and {@link #RECORD} is the evidence
+     * about a release's fields.
+     *
+     * <b>The rzx is in {@code additionalDownloads}, where the service puts
+     * it.</b> Measured over every captured reply that carries one: six
+     * recordings, every one of them there and none in a release's files. The
+     * body this replaced invented one inside a release, which is why
+     * {@code Pick.recording} could answer for the fixture and never for the
+     * service.
+     */
+    private static final String RECORD_WITH_RECORDING = "{"
+            + "\"_id\":\"0009305\",\"found\":true,\"_source\":{"
+            + "  \"title\":\"Atic Atac\",\"originalYearOfRelease\":1983,"
+            + "  \"genreType\":\"Arcade Game\",\"availability\":\"Distribution denied\","
+            + "  \"publishers\":[{\"publisherSeq\":1,\"name\":\"Ultimate Play The Game\"}],"
+            + "  \"releases\":["
+            + "    {\"publishers\":[{\"publisherSeq\":1,\"name\":\"Ultimate Play The Game\"}],"
+            + "     \"files\":[{\"path\":\"/denied/entries/0009305/AticAtac.tzx.zip\","
+            + "                \"size\":24495,\"type\":\"Tape image\","
+            + "                \"format\":\"Perfect tape (TZX)\",\"encodingScheme\":\"None\"}]},"
+            + "    {\"publishers\":[{\"publisherSeq\":1,\"name\":\"Microbyte [ES]\"}],"
+            + "     \"files\":[]}],"
+            + "  \"additionalDownloads\":["
+            + "    {\"path\":\"/denied/entries/0009305/AticAtac.rzx.zip\",\"size\":75857,"
+            + "     \"type\":\"RZX playback file\",\"format\":\"Game recording (RZX)\","
+            + "     \"language\":null}"
+            + "  ]}}";
+
+    /**
+     * <b>Not a recording.</b> No captured reply holds an absolute path in a
+     * release's files or in {@code additionalDownloads} - every one of them is
+     * relative, under {@code /pub/}, {@code /zxdb/} or {@code /denied/}. This
+     * body exists to pin {@code urlFor}'s passthrough, which is there because
+     * ZXDB is said to keep some recordings on archive.org; that claim is this
+     * project's own and is <b>unverified</b>. Joining such a path onto a base
+     * would make a url with an https:// in the middle of it, so the
+     * passthrough is worth keeping and worth labelling.
+     */
+    private static final String RECORD_WITH_AN_ABSOLUTE_PATH = "{"
+            + "\"_id\":\"0009305\",\"found\":true,\"_source\":{"
+            + "  \"title\":\"Atic Atac\","
+            + "  \"releases\":[{\"publishers\":[{\"name\":\"Ultimate Play The Game\"}],"
+            + "    \"files\":[{\"type\":\"RZX playback file\","
+            + "               \"format\":\"Game recording (RZX)\",\"size\":75857,"
+            + "               \"path\":\"https://archive.org/download/zx_rzx/AticAtac.rzx.zip\"}]}]}}";
 
     /**
      * {@code /metadata/} as this class first believed it - <b>written from
@@ -249,58 +364,148 @@ public class ZxInfoCatalogueTest {
 
         Catalogue.Item game = new ZxInfoCatalogue(http).item("0002259");
 
-        assertEquals(1, game.versions().size());
+        assertEquals(2, game.versions().size());
         assertEquals(3, game.versions().get(0).files().size());
         assertEquals("one request, not two", 1, http.asked.size());
     }
 
     /**
-     * <b>A record's paths are relative to two different hosts, and one is
-     * neither.</b>
+     * <b>A record's paths are relative to two different hosts</b>, and both
+     * turn up in the same record.
      *
-     * /pub/ is on spectrumcomputing.co.uk; ZXDB's own recordings are on
-     * archive.org and arrive as whole urls already. Joining every path onto
-     * one base is how every loading screen this app offered was fetched from
-     * the wrong host and discarded as a 404 - which looks exactly like a game
-     * that has none.
+     * {@code /pub/} and {@code /zxdb/} are on spectrumcomputing.co.uk; every
+     * rendered loading screen is under {@code /zxscreens/} on zxinfo.dk/media
+     * and 404s on the archive. They arrive inside the same {@code screens}
+     * array, so the array is no guide and the prefix is the only thing that
+     * decides - this is how every loading screen this app offered came to be
+     * fetched from the wrong host and discarded, which looks exactly like a
+     * game that has none.
      */
     @Test
-    public void everyFileUrlIsAbsoluteAndOnItsOwnHost() throws Exception {
-        Canned http = new Canned().then(200, RECORD);
-
-        List<Catalogue.Download> files =
-                new ZxInfoCatalogue(http).item("0002259").versions().get(0).files();
-
-        assertEquals("https://spectrumcomputing.co.uk/pub/sinclair/games/h/HeadOverHeels.tzx.zip",
-                     files.get(0).url());
-        assertEquals("https://archive.org/download/zx_rzx/HeadOverHeels.rzx.zip",
-                     files.get(2).url());
-    }
-
-    /** The format is the inner one, not "zip" - what decides whether this app
-     *  can open it is what is inside. */
-    @Test
-    public void theformatIsWhatIsInsideTheZip() throws Exception {
-        Canned http = new Canned().then(200, RECORD);
-
-        List<Catalogue.Download> files =
-                new ZxInfoCatalogue(http).item("0002259").versions().get(0).files();
-
-        assertEquals("tzx", files.get(0).format());
-        assertEquals("z80", files.get(1).format());
-        assertEquals("rzx", files.get(2).format());
-        assertEquals(41232, files.get(0).size());
-    }
-
-    /** And the two decisions built on that, end to end. */
-    @Test
-    public void thetapeIsTheGameAndTherzxIsTheRecording() throws Exception {
+    public void everyUrlIsAbsoluteAndOnItsOwnHost() throws Exception {
         Canned http = new Canned().then(200, RECORD);
 
         Catalogue.Item game = new ZxInfoCatalogue(http).item("0002259");
+        List<Catalogue.Download> files = game.versions().get(0).files();
 
+        assertEquals("https://spectrumcomputing.co.uk/pub/sinclair/games/h/HeadOverHeels.tap.zip",
+                     files.get(0).url());
+        assertEquals("https://zxinfo.dk/media/zxscreens/0002259/HeadOverHeels-load.png",
+                     game.pictureUrl());
+    }
+
+    /** A path that is already a url is left alone - see the fixture, which
+     *  says why that is not something this app has read from a reply. */
+    @Test
+    public void apathThatIsAlreadyAurlIsUsedAsItIs() throws Exception {
+        Canned http = new Canned().then(200, RECORD_WITH_AN_ABSOLUTE_PATH);
+
+        List<Catalogue.Download> files =
+                new ZxInfoCatalogue(http).item("0009305").versions().get(0).files();
+
+        assertEquals("https://archive.org/download/zx_rzx/AticAtac.rzx.zip", files.get(0).url());
+        assertEquals("rzx", files.get(0).format());
+    }
+
+    /**
+     * <b>The stated format is a human phrase, and the code in it is the
+     * format.</b>
+     *
+     * "Perfect tape (TZX)" is a tzx. Handing that phrase on as it stood is
+     * what made {@code Pick.PREFERENCE}, which matches with {@code equals},
+     * match nothing at all - so no entry in the database could be imported and
+     * every record read as one the Spectrum cannot open, with every test in
+     * two tasks passing. The fixture that hid it said {@code "format":"TZX"},
+     * which is a value the service does not send.
+     *
+     * The size is the zip's, since that is what arrives.
+     */
+    @Test
+    public void thehumanPhraseIsReadDownToTheFormatItNames() throws Exception {
+        Canned http = new Canned().then(200, RECORD);
+
+        List<Catalogue.Download> files =
+                new ZxInfoCatalogue(http).item("0002259").versions().get(0).files();
+
+        assertEquals("tap", files.get(0).format());
+        assertEquals("tzx", files.get(1).format());
+        assertEquals("tap", files.get(2).format());
+        assertEquals(37132, files.get(0).size());
+    }
+
+    /**
+     * <b>The assertion whose absence let an inert feature ship.</b>
+     *
+     * Every file in a real record is stated in that vocabulary, so a parser
+     * that cannot read it leaves {@code Pick.forGame} answering null for
+     * everything - which is not a corner case, it is the whole catalogue. What
+     * comes back here is asserted to be a real file and the right one: the
+     * original release's tape, in preference to the tap beside it.
+     */
+    @Test
+    public void arecordInTheServicesOwnWordsYieldsAfileToImport() throws Exception {
+        Canned http = new Canned().then(200, RECORD);
+
+        Catalogue.Download tape = Pick.forGame(new ZxInfoCatalogue(http).item("0002259"));
+
+        assertNotNull("nothing in a live record could be imported", tape);
+        assertEquals("tzx", tape.format());
+        assertEquals("https://spectrumcomputing.co.uk/pub/sinclair/games/h/HeadOverHeels.tzx.zip",
+                     tape.url());
+    }
+
+    /** A release's year is {@code yearOfRelease}. Read as {@code releaseYear},
+     *  a key no live record carries, every version this class answered with
+     *  had no year and the list somebody chooses one from showed none. */
+    @Test
+    public void aversionCarriesTheYearTheServiceStates() throws Exception {
+        Canned http = new Canned().then(200, RECORD);
+
+        List<Catalogue.Version> versions = new ZxInfoCatalogue(http).item("0002259").versions();
+
+        assertEquals("1987", versions.get(0).year());
+        assertEquals("1990", versions.get(1).year());
+        assertEquals("The Hit Squad", versions.get(1).label());
+    }
+
+    /**
+     * <b>A recording is not a release.</b>
+     *
+     * ZXDB hangs an rzx off the entry, in {@code additionalDownloads}, and
+     * never off a release - six captured recordings, every one of them there.
+     * Read only from the releases, as the invented fixture encouraged,
+     * {@code Pick.recording} answered null for every entry in the database and
+     * "Play the recording" was a button nothing could ever show.
+     */
+    @Test
+    public void therecordingComesFromTheEntrysOwnDownloads() throws Exception {
+        Canned http = new Canned().then(200, RECORD_WITH_RECORDING);
+
+        Catalogue.Item game = new ZxInfoCatalogue(http).item("0009305");
+
+        Catalogue.Download recording = Pick.recording(game);
+        assertNotNull("no entry in the database has a recording", recording);
+        assertEquals("rzx", recording.format());
+        assertEquals("https://spectrumcomputing.co.uk/denied/entries/0009305/AticAtac.rzx.zip",
+                     recording.url());
+
+        // And it is not mistaken for the game: the tape is still what a tap
+        // means, and the recording is never in PREFERENCE.
         assertEquals("tzx", Pick.forGame(game).format());
-        assertEquals("rzx", Pick.recording(game).format());
+    }
+
+    /** Nothing else in {@code additionalDownloads} becomes a download: the
+     *  pictures, manuals, pokes and music there are the scraping provider's
+     *  business, and a catalogue offering a PDF as something to load would be
+     *  offering the emulator a manual. */
+    @Test
+    public void theentrysOtherDownloadsAreNotThingsToLoad() throws Exception {
+        Canned http = new Canned().then(200, RECORD);
+
+        List<Catalogue.Download> files =
+                new ZxInfoCatalogue(http).item("0002259").versions().get(0).files();
+
+        assertEquals("the entry's manuals and music became loadable files", 3, files.size());
     }
 
     // --- sub-shelves ----------------------------------------------------------------------
