@@ -552,4 +552,41 @@ public class MetadataStoreTest {
 
         assertEquals(layout, Metadata.forPath(context, "./a.tap").keymap);
     }
+
+    // --- the fields that are not strings ------------------------------------------------
+
+    /**
+     * A list survives the round trip, which the old format could not have
+     * managed without inventing a separator.
+     *
+     * {@code inputs} is the first field here that is not a single string, and
+     * the concrete reason the store stopped borrowing ES-DE's schema: in XML
+     * this needed a convention for joining them and a rule for a value that
+     * contained the joining character.
+     */
+    @Test
+    public void alistOfInputsSurvivesBeingWrittenAndReadBack() {
+        java.util.List<String> inputs =
+                java.util.Arrays.asList("Kempston Joystick", "Cursor", "Redefineable keys");
+
+        Metadata.put(context, Meta.at("./a.tap").name("A")
+                .machine("ZX-Spectrum 48K/128K").inputs(inputs)
+                .source("ZXInfo").build());
+        Metadata.refresh(context);
+
+        Meta back = Metadata.forPath(context, "./a.tap");
+
+        assertEquals(inputs, back.inputs);
+        assertEquals("ZX-Spectrum 48K/128K", back.machine);
+    }
+
+    /** And nothing stored gives an empty list rather than null, so no caller
+     *  has to remember which. */
+    @Test
+    public void agameWithNoInputsReadsBackAsAnEmptyList() {
+        Metadata.put(context, Meta.at("./a.tap").name("A").source(Meta.ESDE).build());
+        Metadata.refresh(context);
+
+        assertTrue(Metadata.forPath(context, "./a.tap").inputs.isEmpty());
+    }
 }

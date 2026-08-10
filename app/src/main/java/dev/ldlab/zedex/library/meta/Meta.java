@@ -1,5 +1,9 @@
 package dev.ldlab.zedex.library.meta;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 /**
  * One game's facts, as the library stores them.
  *
@@ -123,6 +127,35 @@ public final class Meta {
      */
     public final String keymap;
 
+    /**
+     * Which machine the game wants, in the provider's own words, or null.
+     *
+     * ZXInfo's {@code machineType} - {@code ZX-Spectrum 48K}, {@code
+     * ZX-Spectrum 48K/128K}, {@code Pentagon}. Kept verbatim rather than
+     * mapped onto one of Fuse's fourteen here, because the mapping is a
+     * decision about behaviour and this is a store: several of their values
+     * name two machines at once, and which of the two to start is a question
+     * about what somebody wants rather than about what the record says.
+     */
+    public final String machine;
+
+    /**
+     * Which input devices the game accepts, or empty.
+     *
+     * ZXInfo's {@code controls} - {@code Kempston Joystick}, {@code Cursor},
+     * {@code Interface 2 (right)}, {@code Redefineable keys}. <b>Not the same
+     * thing as {@link #keymap}</b>, which is one provider's idea of what each
+     * pad button should send; this is the game's own list of what it will
+     * listen to. One picks the joystick interface, the other lays out the
+     * buttons.
+     *
+     * Empty rather than null when there is none, unlike every other field
+     * here. A list is iterated at every call site and a null check is the
+     * thing that gets forgotten; nothing is gained by making absent and empty
+     * different for a list nobody can distinguish them in.
+     */
+    public final List<String> inputs;
+
     private Meta(Builder from) {
         this.path = from.path;
         this.name = from.name;
@@ -136,6 +169,10 @@ public final class Meta {
         this.rating = from.rating;
         this.source = from.source;
         this.keymap = from.keymap;
+        this.machine = from.machine;
+        this.inputs = from.inputs == null
+                ? Collections.emptyList()
+                : Collections.unmodifiableList(new ArrayList<>(from.inputs));
     }
 
     /** Whether somebody typed this one in by hand. */
@@ -171,7 +208,8 @@ public final class Meta {
                 .developer(developer).publisher(publisher)
                 .genre(genre).subgenre(subgenre)
                 .released(released).players(players).rating(rating)
-                .source(source).keymap(keymap);
+                .source(source).keymap(keymap)
+                .machine(machine).inputs(inputs);
     }
 
     /**
@@ -189,7 +227,9 @@ public final class Meta {
     public static final class Builder {
 
         private String path, name, desc, developer, publisher, genre, subgenre,
-                released, players, rating, source, keymap;
+                released, players, rating, source, keymap, machine;
+
+        private List<String> inputs;
 
         /** Empty means absent. Every caller here is either a parser reading a
          *  file or a screen reading a text box, and both produce "" for a
@@ -211,6 +251,13 @@ public final class Meta {
         public Builder rating(String v)    { rating = orNull(v);       return this; }
         public Builder source(String v)    { source = orNull(v);       return this; }
         public Builder keymap(String v)    { keymap = orNull(v);       return this; }
+        public Builder machine(String v)   { machine = orNull(v);      return this; }
+
+        /** Copied, and empty is the same as none. */
+        public Builder inputs(List<String> v) {
+            inputs = v == null || v.isEmpty() ? null : new ArrayList<>(v);
+            return this;
+        }
 
         /** By {@link Field}, for the editor and for {@link Meta#with}. */
         public Builder set(Field field, String value) {

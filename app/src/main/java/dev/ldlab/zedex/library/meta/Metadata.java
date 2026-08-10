@@ -536,12 +536,27 @@ public final class Metadata {
             field(writer, "rating", game.rating);
             field(writer, "source", game.source);
             field(writer, "keymap", game.keymap);
+            field(writer, "machine", game.machine);
+            list(writer, "inputs", game.inputs);
             writer.endObject();
         }
 
         writer.endObject();
         writer.endObject();
         writer.flush();
+    }
+
+    /** The first field here that is a list rather than a string, and the
+     *  reason a format of our own was worth the change: in the gamelist this
+     *  would have needed a separator convention and a rule about what to do
+     *  when a value contained it. */
+    private static void list(JsonWriter writer, String name, List<String> values)
+            throws IOException {
+        if (values == null || values.isEmpty()) return;
+
+        writer.name(name).beginArray();
+        for (String value : values) writer.value(value);
+        writer.endArray();
     }
 
     /** Only when there is something to say: an absent field is left out
@@ -744,11 +759,33 @@ public final class Metadata {
                 case "rating":    building.rating(reader.nextString());    break;
                 case "source":    building.source(reader.nextString());    break;
                 case "keymap":    building.keymap(reader.nextString());    break;
+                case "machine":   building.machine(reader.nextString());   break;
+                case "inputs":    building.inputs(strings(reader));        break;
                 default:          reader.skipValue();                      break;
             }
         }
 
         reader.endObject();
         return building.build();
+    }
+
+    /**
+     * An array of strings, skipping anything in it that is not one.
+     *
+     * A store is a file people open and edit, and one bad element should cost
+     * that element rather than the game it belongs to - the same reason an
+     * unknown key is skipped rather than refused.
+     */
+    private static List<String> strings(JsonReader reader) throws IOException {
+        List<String> values = new ArrayList<>();
+
+        reader.beginArray();
+        while (reader.hasNext()) {
+            if (reader.peek() == JsonToken.STRING) values.add(reader.nextString());
+            else reader.skipValue();
+        }
+        reader.endArray();
+
+        return values;
     }
 }

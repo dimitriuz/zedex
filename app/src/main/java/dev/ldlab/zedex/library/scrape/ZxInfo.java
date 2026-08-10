@@ -299,6 +299,8 @@ public final class ZxInfo implements Provider {
                 .released(released(game))
                 .players(players(game))
                 .rating(rating(game))
+                .machine(text(game, "machineType"))
+                .inputs(inputs(game))
                 .build();
     }
 
@@ -328,6 +330,29 @@ public final class ZxInfo implements Provider {
         if (outOf10 < 0) return null;
 
         return String.format(java.util.Locale.US, "%.4f", outOf10 / 10.0);
+    }
+
+    /**
+     * Which input devices the game accepts.
+     *
+     * ZXDB keeps these as objects with one key, so this flattens them - the
+     * shape carries nothing the list does not. What they are <em>for</em> is
+     * choosing the joystick interface, which is a separate piece of work; this
+     * only records what the record says.
+     */
+    private static List<String> inputs(JSONObject game) {
+        JSONArray controls = game.optJSONArray("controls");
+        if (controls == null) return Collections.emptyList();
+
+        List<String> found = new ArrayList<>();
+
+        for (int at = 0; at < controls.length(); at++) {
+            JSONObject one = controls.optJSONObject(at);
+            String control = one == null ? null : text(one, "control");
+            if (control != null) found.add(control);
+        }
+
+        return found;
     }
 
     private static String firstAuthor(JSONObject game) {

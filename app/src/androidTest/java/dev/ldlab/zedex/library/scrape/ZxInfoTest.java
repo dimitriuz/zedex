@@ -4,6 +4,7 @@ import dev.ldlab.zedex.library.meta.Meta;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -327,6 +328,34 @@ public class ZxInfoTest {
 
         assertEquals("Jon Ritman", meta.developer);
         assertFalse(meta.developer.equals(meta.publisher));
+    }
+
+    /**
+     * The two that will change what the app does, rather than what it shows.
+     *
+     * Kept verbatim, in the provider's own words. Turning
+     * "ZX-Spectrum 48K/128K" into one of Fuse's fourteen machines is a
+     * decision about what somebody wants - that value names two - and belongs
+     * where the machine gets switched, not in a store.
+     */
+    @Test
+    public void themachineAndTheInputsAreRecordedAsTheServiceStatesThem() throws Exception {
+        Meta meta = fetched(Provider.Wanted.nothing()).meta;
+
+        assertEquals("ZX-Spectrum 48K/128K", meta.machine);
+        assertEquals(java.util.Arrays.asList("Cursor", "Kempston Joystick"), meta.inputs);
+    }
+
+    /** And a record with no controls gives an empty list, never null - the
+     *  one field here that is iterated at every call site. */
+    @Test
+    public void arecordWithNoControlsGivesAnEmptyListRatherThanNull() throws Exception {
+        Provider.Scraped scraped = new ZxInfo(new Canned().then(200, ONLY_A_SCR))
+                .fetch(new Candidate("1", "Something", null, null, true),
+                       Provider.Wanted.nothing());
+
+        assertNotNull(scraped.meta.inputs);
+        assertTrue(scraped.meta.inputs.isEmpty());
     }
 
     /** Nothing invents a source or a path: both belong to whoever asked. */
