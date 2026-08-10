@@ -2678,11 +2678,24 @@ public class ImportsTest {
     private Uri tree;
     private final List<Uri> made = new ArrayList<>();
 
-    /** Writes a zip of whatever it was told to hold, in place of a download. */
+    /**
+     * Writes a zip of whatever it was told to hold, in place of a download.
+     *
+     * <b>Padded to a size the test chooses, and never compressed.</b> The
+     * bytes delivered have to be a property the test controls, separate from
+     * the size the {@code Download} states - otherwise "ordinary" and "short"
+     * are the same fixture and rule 2's length check fires on every test.
+     * Stored rather than deflated because padding that compresses makes the
+     * finished length depend on how well a few hundred bytes of filler
+     * happened to squeeze, which flickers between runs: a test whose result
+     * turns on the compressibility of its own filler is not a test.
+     */
     private final class Zipped implements Http {
+        private final long deliver;
         private final String[] names;
 
-        Zipped(String... names) {
+        Zipped(long deliver, String... names) {
+            this.deliver = deliver;
             this.names = names;
         }
 
