@@ -57,7 +57,7 @@ public final class ZxInfo implements Provider {
 
     private static final String TAG = "Zedex";
 
-    static final String API = "https://api.zxinfo.dk/v3/";
+    public static final String API = "https://api.zxinfo.dk/v3/";
 
     /** Where the files themselves live. Most of what a record names is
      *  relative to this, and none of it is an API call. */
@@ -153,7 +153,7 @@ public final class ZxInfo implements Provider {
      * instead, because the thing being spaced is the traffic arriving at
      * ZXInfo, which is not a property of whichever object here sent it.
      */
-    static final long MINIMUM_INTERVAL_MS = 500;
+    public static final long MINIMUM_INTERVAL_MS = 500;
 
     // --- finding a game ------------------------------------------------------------
 
@@ -658,8 +658,18 @@ public final class ZxInfo implements Provider {
                 || "jpeg".equals(extension) || "gif".equals(extension);
     }
 
-    /** Which of the two hosts a path is relative to - see {@link #SCREENS}. */
-    private static String hostOf(String path) {
+    /**
+     * Which of the two hosts a path is relative to - see {@link #SCREENS}.
+     *
+     * <b>Public, and shared with the catalogue in the layer above.</b> This is
+     * a measured fact about how ZXDB stores its paths, not a policy of this
+     * class, and it was measured the expensive way; a second copy of it next
+     * door is a second place for it to be wrong, and the one that was wrong
+     * would look exactly like a game with no loading screen. The constants
+     * behind it stay package-private, so the rule can only be applied and not
+     * re-derived.
+     */
+    public static String hostOf(String path) {
         return path.startsWith(SCREENS_PREFIX) ? SCREENS : FILES;
     }
 
