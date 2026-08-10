@@ -191,8 +191,13 @@ public final class StartPanel {
             }
 
             if (tree != null && request == REQUEST_CONTENT_TREE) {
+                // Write too, now that importing a game means writing into
+                // this same folder - see Tree.canWrite. An existing grant
+                // made before this cannot be upgraded in place; Task 11's
+                // import flow is what asks a read-only grant to be re-picked.
                 Storage.keepAccessTo(activity, tree,
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
                 activity.getSharedPreferences(Prefs.PREFS,
                                               Activity.MODE_PRIVATE)
                         .edit().putString(Storage.KEY_CONTENT_TREE, tree.toString())

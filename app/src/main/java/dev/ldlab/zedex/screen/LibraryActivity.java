@@ -2592,8 +2592,12 @@ public final class LibraryActivity extends ZedexActivity {
         Uri tree = data.getData();
 
         // Without this the grant dies with this activity, exactly as
-        // SettingsActivity's own picker takes care to avoid.
-        Storage.keepAccessTo(this, tree, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        // SettingsActivity's own picker takes care to avoid. Write too, now
+        // that importing a game means writing into this same folder - see
+        // Tree.canWrite; Task 11's import flow re-asks when an existing
+        // grant is read-only, since a grant already taken cannot be upgraded.
+        Storage.keepAccessTo(this, tree, Intent.FLAG_GRANT_READ_URI_PERMISSION
+                | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
 
         preferences.edit().putString(Storage.KEY_CONTENT_TREE, tree.toString()).apply();
 
