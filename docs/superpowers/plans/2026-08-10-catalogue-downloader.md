@@ -3589,7 +3589,11 @@ Under the hard rules, only the ones that are expensive to rediscover and are not
 - **SAF's uniqueness is the document id, not the display name** — find before create, or somebody gets `Games` and `Games (1)`.
 - **An unrecognised zxart filter is ignored rather than refused** — a guessed name returned all 58,032 entries and read as a search that matched everything.
 
-- [ ] **Step 4: One line in the README and a paragraph in `INTERNALS.md`**
+- [ ] **Step 4: `docs/LIBRARY.md` says "Three tabs"**
+
+It says so in three places, and there are four now. Correct them, and add the catalogue tab to whatever that document says about how the library is arranged. It was missing from this plan's own file list, which is why it is being said here rather than assumed.
+
+- [ ] **Step 5: One line in the README and a paragraph in `INTERNALS.md`**
 
 The README gets a line or two, never paragraphs — reasoning goes in `INTERNALS.md`. Say what the feature does and, if any part is unverified, say so.
 
