@@ -84,20 +84,33 @@ public class KindsTest {
     }
 
     /**
-     * The bare "game" catch-all is deliberately greedy, and that is not the
-     * ZX81 mistake repeating.
+     * The catch-all takes any game, and the ordering protects the rest.
      *
-     * There, "16" matched inside "ZX81 16K" - a numeric fragment matching
-     * across an unrelated machine. Here "game" is a whole word of the domain
-     * matching something that genuinely is one: a holographic game, a board
-     * game and an educational game are all games. Pin this so a later reader
-     * does not mistake the greediness for a bug and narrow the match.
+     * The bare "game" keyword is deliberately greedy, and that is not the
+     * ZX81 mistake repeating: there, "16" matched inside "ZX81 16K" - a
+     * numeric fragment matching across an unrelated machine. Here "game" is a
+     * whole word of the domain matching something that genuinely is one - a
+     * holographic game, a board game and an educational game are all games -
+     * so pin it deliberately, or a later reader mistakes the greediness for a
+     * bug and narrows the match.
+     *
+     * But greedy only works because two rows are tried first: "Gameboy
+     * Emulator" and "Electronic Magazine Game" both contain "game" too, and
+     * both have to keep landing in Applications and Magazines rather than
+     * being swallowed by it. Without asserting these here, moving the GAMES
+     * row to the top of the table would silently break them while every
+     * other assertion in this method kept passing.
      */
     @Test
-    public void anyGenreEndingInGameIsAgame() {
+    public void thecatchAllTakesAnyGameAndTheOrderingProtectsTheRest() {
         assertEquals(Kinds.GAMES, Kinds.folderFor("Holographic Game"));
         assertEquals(Kinds.GAMES, Kinds.folderFor("Board Game"));
         assertEquals(Kinds.GAMES, Kinds.folderFor("Educational Game"));
+
+        assertEquals("the ordering catches this one first",
+                     Kinds.APPLICATIONS, Kinds.folderFor("Gameboy Emulator"));
+        assertEquals("and this one",
+                     Kinds.MAGAZINES, Kinds.folderFor("Electronic Magazine Game"));
     }
 
     // --- both directions --------------------------------------------------------------

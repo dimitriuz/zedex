@@ -1108,19 +1108,25 @@ public class KindsTest {
     }
 
     /**
-     * And the catch-all is greedy on purpose.
+     * The catch-all takes any game, and the ordering protects the rest.
      *
-     * The bare "game" keyword swallows any "&lt;something&gt; Game", which is what
-     * makes a genre added upstream next year land somewhere sensible instead
-     * of in Other. Pinned so that nobody later reads it as the ZX81 bug
-     * repeating and "fixes" it: there, "16" matched inside "ZX81 16K", a
-     * numeric fragment matching across an unrelated machine. Here it is a
-     * whole word of the domain matching something that genuinely is one, and
-     * the ordering tries "emulator" and "magazine" first so the near misses
-     * go where they belong.
+     * The bare "game" keyword is deliberately greedy, and that is not the
+     * ZX81 mistake repeating: there, "16" matched inside "ZX81 16K" - a
+     * numeric fragment matching across an unrelated machine. Here "game" is a
+     * whole word of the domain matching something that genuinely is one - a
+     * holographic game, a board game and an educational game are all games -
+     * so pin it deliberately, or a later reader mistakes the greediness for a
+     * bug and narrows the match.
+     *
+     * But greedy only works because two rows are tried first: "Gameboy
+     * Emulator" and "Electronic Magazine Game" both contain "game" too, and
+     * both have to keep landing in Applications and Magazines rather than
+     * being swallowed by it. Without asserting these here, moving the GAMES
+     * row to the top of the table would silently break them while every
+     * other assertion in this method kept passing.
      */
     @Test
-    public void anyGenreEndingInGameIsAgame() {
+    public void thecatchAllTakesAnyGameAndTheOrderingProtectsTheRest() {
         assertEquals(Kinds.GAMES, Kinds.folderFor("Holographic Game"));
         assertEquals(Kinds.GAMES, Kinds.folderFor("Board Game"));
         assertEquals(Kinds.GAMES, Kinds.folderFor("Educational Game"));
