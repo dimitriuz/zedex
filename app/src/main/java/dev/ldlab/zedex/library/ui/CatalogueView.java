@@ -12,6 +12,7 @@ import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewParent;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
 import android.widget.FrameLayout;
@@ -384,6 +385,119 @@ public final class CatalogueView extends FrameLayout {
      */
     public boolean onActivityResult(int request, int result, android.content.Intent data) {
         return pane.onActivityResult(request, result, data);
+    }
+
+    // --- a controller ---------------------------------------------------------------
+
+    /**
+     * A pad's direction, as a move of the framework's own focus.
+     *
+     * <b>Focus, not a cursor of this view's own.</b> Every row here is
+     * clickable and therefore focusable, {@link Ripple} already draws the
+     * focused one with a cyan ring, and {@link RecyclerView} already scrolls a
+     * list to reveal the row a focus search ran off the end of - so a second
+     * idea of "where the pad is", with its own highlight and its own scrolling,
+     * would be three things to keep in step where the platform offers one.
+     * That is also why this is not {@code LibraryActivity}'s own {@code
+     * moveCursor}: that one moves a <em>selection</em>, which is a different
+     * fact - a selected row fills a pane - and this view has no selection.
+     *
+     * <b>Why the pad reaches this at all, rather than falling through to the
+     * view tree.</b> {@code LibraryActivity.dispatchKeyEvent} claims pad input
+     * before any view sees it, and it has to: on many pads a D-pad push arrives
+     * as a hat <em>axis</em> rather than as a key, and Android turns no axis
+     * into a focus move. Letting the keys through would leave those pads dead
+     * on this screen while working on others, which is the worst of the three
+     * outcomes.
+     *
+     * @param direction one of {@code View.FOCUS_UP}, {@code DOWN}, {@code
+     *                  LEFT}, {@code RIGHT}.
+     * @return whether the focus actually moved.
+     */
+    public boolean moveFocus(int direction) {
+        View focused = findFocus();
+
+        if (focused == null) {
+            // Nothing has it yet - the first row on screen, rather than the
+            // first focusable, which is the search field: a pad pressing down
+            // means the list.
+            View first = recycler.getChildCount() > 0 ? recycler.getChildAt(0) : null;
+            return first != null && first.requestFocus();
+        }
+
+        // focusSearch and not FocusFinder over this view: it goes up through
+        // RecyclerView's own override, which is what scrolls the list and lays
+        // out one more row when the search runs off the end of what is on
+        // screen. FocusFinder within this view would simply answer null there,
+        // and a long shelf would be unwalkable past its first screenful.
+        View next = focused.focusSearch(direction);
+
+        // That same search does not stop at this view's edge, so it can answer
+        // with the rail beside us - focus leaving the catalogue for the tab
+        // buttons on a press meant for the list. Refused here rather than
+        // relied on not to happen.
+        if (next == null || next == focused || !holds(next)) return false;
+
+        return next.requestFocus(direction);
+    }
+
+    /** The focused row, pressed - A on a pad. The framework's own click, so a
+     *  row, a shelf, the retry button and the pane's buttons all answer to it
+     *  without this knowing which is which. */
+    public boolean activateFocused() {
+        View focused = findFocus();
+
+        return focused != null && holds(focused) && focused.performClick();
+    }
+
+    /**
+     * B, with the search field focused: the keyboard goes and the focus drops
+     * back to the list, without leaving the shelf.
+     *
+     * The same answer {@code LibraryActivity} gives for its own search field,
+     * and asked before Back means anything else - typing and then pressing B
+     * to get out of the field must not also pop a shelf on the same press.
+     *
+     * @return whether the field had the focus, so a caller can go on to its own
+     *         idea of Back.
+     */
+    public boolean releaseSearchField() {
+        if (!searchField.hasFocus()) return false;
+
+        android.view.inputmethod.InputMethodManager imm =
+                (android.view.inputmethod.InputMethodManager)
+                        getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+        if (imm != null) imm.hideSoftInputFromWindow(searchField.getWindowToken(), 0);
+
+        searchField.clearFocus();
+
+        View first = recycler.getChildCount() > 0 ? recycler.getChildAt(0) : null;
+        if (first != null) first.requestFocus();
+
+        return true;
+    }
+
+    /** X: the search field, focused, with the keyboard up - the same thing the
+     *  button does on the library's own three tabs, aimed at this view's field
+     *  rather than at the one hidden behind it. */
+    public void focusSearchField() {
+        searchField.requestFocus();
+
+        android.view.inputmethod.InputMethodManager imm =
+                (android.view.inputmethod.InputMethodManager)
+                        getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+        if (imm != null) {
+            imm.showSoftInput(searchField,
+                    android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+        }
+    }
+
+    /** Whether a view is inside this one - the bound on where focus may go. */
+    private boolean holds(View view) {
+        for (ViewParent parent = view.getParent(); parent != null; parent = parent.getParent()) {
+            if (parent == this) return true;
+        }
+        return false;
     }
 
     // --- where a person is ---------------------------------------------------------

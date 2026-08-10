@@ -76,8 +76,11 @@ import java.util.List;
  * <b>The write grant is asked for here and nowhere else.</b> A content folder
  * chosen before this feature existed is granted read-only - measured, {@code
  * dumpsys} shows {@code mode=0x1} - and {@code createDocument} against it throws
- * a {@code SecurityException} that {@code Storage.keepAccessTo} swallows, so an
- * import would fail with nothing on screen to explain it. The permission is for
+ * a {@code SecurityException} that {@code Tree.create} catches, logging "cannot
+ * create" and answering null, so an import would fail with nothing on screen to
+ * explain it. (A different swallow lives in {@code Storage.keepAccessTo}, which
+ * catches the one {@code takePersistableUriPermission} throws when a grant
+ * cannot be persisted - the two are not the same one.) The permission is for
  * importing, so importing is the moment it is worth interrupting somebody:
  * never at startup, never on opening the tab, and never for anybody who browses
  * and imports nothing. See {@link #beginImport} and {@link #onActivityResult}.

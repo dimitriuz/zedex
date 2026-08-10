@@ -35,13 +35,15 @@ import java.util.function.IntPredicate;
  * The catalogue on screen: its shelves, its Back, and a search that brings
  * rows back from the live service.
  *
- * <b>Why this drives the view directly rather than tapping a tab.</b> The
- * fourth library tab is Task 12 of this plan and does not exist yet, so there
- * is nothing to tap. What does exist is the view itself, and putting it into a
- * real activity on the real display exercises everything this task is
- * responsible for: the shelf list, the stack, the search field, the fetch off
- * the UI thread and the rows it produces. The tab that opens it is covered
- * where it is written.
+ * <b>Why this drives the view directly rather than tapping a tab.</b> It was
+ * written before the fourth library tab existed, when there was nothing to
+ * tap; it stays this way now that there is, because putting the view into a
+ * real activity on the real display is what exercises the view itself - the
+ * shelf list, the stack, the search field, the fetch off the UI thread and the
+ * rows it produces - without a rail, a tab or an activity's own Back in the
+ * way. The door that opens it is {@code CatalogueTabTest}, which cannot use
+ * this shape for the opposite reason: {@code setContentView} here destroys the
+ * rail that test is about.
  *
  * <b>There is no skip, on purpose.</b> The obvious one - "no network, so pass
  * quietly" - would hide the failure this project most needs to hear about.

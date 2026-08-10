@@ -957,25 +957,43 @@ public final class LibraryActivity extends ZedexActivity {
                 // dispatchKeyEvent.
                 if (searchField.isFocused()) return;
 
-                // And on the catalogue tab the list underneath is hidden:
-                // moving a cursor nobody can see would leave a selection that
-                // activate() could then open, which is a game started by a
-                // press that appeared to do nothing. Left-and-right across the
-                // rail, below, is what a pad can still do here.
-                if (tab == Tab.CATALOGUE) return;
+                // On the catalogue tab the list this would move a cursor
+                // through is hidden, and the one on screen is the catalogue's
+                // own - which navigates by the framework's focus rather than
+                // by a selection, since nothing there has a pane to fill. See
+                // CatalogueView.moveFocus, and why the pad reaches it here
+                // rather than falling through to the view tree.
+                if (tab == Tab.CATALOGUE) {
+                    if (catalogueView != null) catalogueView.moveFocus(focusDirection(dx, dy));
+                    return;
+                }
 
                 moveCursor(dx, dy);
             }
 
             @Override
             public void page(int rows) {
-                if (searchField.isFocused() || tab == Tab.CATALOGUE) return;
+                if (searchField.isFocused()) return;
+
+                // The triggers stay inert on the catalogue: a page is a jump
+                // of the selection this screen keeps, and moving focus a
+                // screenful at a time through a list that fetches its next
+                // page as you reach the bottom is a different question than
+                // this one - left undone rather than done badly. The D-pad
+                // walks it, and holding a direction repeats.
+                if (tab == Tab.CATALOGUE) return;
+
                 pageCursor(rows);
             }
 
             @Override
             public void activate() {
-                if (selected == null || tab == Tab.CATALOGUE) return;
+                if (tab == Tab.CATALOGUE) {
+                    if (catalogueView != null) catalogueView.activateFocused();
+                    return;
+                }
+
+                if (selected == null) return;
                 open(selected);
             }
 
@@ -989,6 +1007,16 @@ public final class LibraryActivity extends ZedexActivity {
                     dismissKeyboard();
                     return;
                 }
+
+                // And the catalogue's own field, which is a different view
+                // this one knows nothing about - without asking it, B typed
+                // into a search would pop a shelf instead of putting the
+                // keyboard away.
+                if (tab == Tab.CATALOGUE && catalogueView != null
+                        && catalogueView.releaseSearchField()) {
+                    return;
+                }
+
                 if (catalogueBack()) return;
 
                 popStack();
@@ -1018,14 +1046,38 @@ public final class LibraryActivity extends ZedexActivity {
 
             @Override
             public void search() {
+                // Each tab's own field. Aimed at this screen's while the
+                // catalogue is showing, X would bring the keyboard up over a
+                // field nobody can see and type into the library's search.
+                if (tab == Tab.CATALOGUE) {
+                    if (catalogueView != null) catalogueView.focusSearchField();
+                    return;
+                }
+
                 focusSearchField();
             }
 
             @Override
             public void options() {
+                // Sort, list-or-grid, the filter, scrape this game: every row
+                // in that dialog is about the library's own list, which is not
+                // what is on screen here - and its filter does not apply to
+                // the catalogue at all; see filtering(). Nothing to offer is
+                // better than a dialog acting on the tab behind this one.
+                if (tab == Tab.CATALOGUE) return;
+
                 optionsDialog.show(sortFieldIndex(sort), sortDescending, grid);
             }
         };
+    }
+
+    /** A pad direction as a focus direction - what the catalogue navigates by;
+     *  see {@link CatalogueView#moveFocus}. Never both axes at once, by {@link
+     *  GamepadCursor.Nav#move}'s own contract. */
+    private static int focusDirection(int dx, int dy) {
+        if (dx < 0) return View.FOCUS_LEFT;
+        if (dx > 0) return View.FOCUS_RIGHT;
+        return dy < 0 ? View.FOCUS_UP : View.FOCUS_DOWN;
     }
 
     /**
@@ -2799,11 +2851,27 @@ public final class LibraryActivity extends ZedexActivity {
         // own, and every request code that is not this screen's belongs to it.
         // Without this a content folder granted read-only before importing
         // existed loses both the grant it was just given and the import that
-        // prompted the ask, silently - createDocument throws a SecurityException
-        // that Storage.keepAccessTo swallows. See CataloguePane.onActivityResult,
-        // which answers whether the request was its own.
-        if (catalogueView != null && catalogueView.onActivityResult(request, result, data)) {
-            return;
+        // prompted the ask, silently - createDocument's SecurityException is
+        // caught by Tree.create, which logs and answers null. See
+        // CataloguePane.onActivityResult, which answers whether the request was
+        // its own, and persists the grant and the preference itself.
+        if (catalogueView != null) {
+            String before = preferences.getString(Storage.KEY_CONTENT_TREE, null);
+
+            if (catalogueView.onActivityResult(request, result, data)) {
+                // It may have chosen a *different* folder, which is a folder
+                // change like any other: the pane writes the preference, and
+                // nothing else would re-root Browse, so its stack would go on
+                // pointing at the old one and the file just imported would be
+                // nowhere until this activity was recreated. Only on a real
+                // change - re-rooting after the same folder, or a cancelled
+                // picker, would silently throw away the folder Browse was
+                // standing in.
+                String after = preferences.getString(Storage.KEY_CONTENT_TREE, null);
+                if (after != null && !after.equals(before)) contentFolderChanged();
+
+                return;
+            }
         }
 
         if (request != REQUEST_CONTENT_TREE || result != RESULT_OK
@@ -2823,9 +2891,25 @@ public final class LibraryActivity extends ZedexActivity {
 
         preferences.edit().putString(Storage.KEY_CONTENT_TREE, tree.toString()).apply();
 
+        contentFolderChanged();
+    }
+
+    /**
+     * Everything that follows from {@link Storage#KEY_CONTENT_TREE} now naming
+     * a different folder: Browse starts again at its root, nothing stays
+     * selected or searched for from the folder that has gone, and the walk a
+     * filter reads from is dropped since it was of the old tree.
+     *
+     * One method, because there are two pickers that can write that
+     * preference now - this screen's own, and the catalogue pane's write-grant
+     * ask - and the second one was silently missing all of this.
+     */
+    private void contentFolderChanged() {
         pushRoot();
         clearSelection();
         clearSearch();
+        forgetFlattened();
+
         if (tab == Tab.BROWSE) load();
     }
 
