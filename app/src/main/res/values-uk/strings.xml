@@ -765,6 +765,8 @@
     <string name="scrape_media_miximages">Комбіноване зображення</string>
     <string name="scrape_media_videos">Відео — близько 1 МБ кожне</string>
     <string name="scrape_media_manuals">Посібник (PDF)</string>
+    <string name="scrape_media_maps">Карта гри</string>
+    <string name="scrape_media_adverts">Реклама</string>
     <string name="scrape_many_fetching">Що завантажувати</string>
     <!-- How to run a game, from a scraped record. -->
     <string name="suggest_title">Як це запускати</string>

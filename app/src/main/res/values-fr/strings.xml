@@ -746,6 +746,8 @@
     <string name="scrape_media_miximages">Image composite</string>
     <string name="scrape_media_videos">Vidéo — environ 1 Mo chacune</string>
     <string name="scrape_media_manuals">Manuel (PDF)</string>
+    <string name="scrape_media_maps">Carte du jeu</string>
+    <string name="scrape_media_adverts">Publicité</string>
     <string name="scrape_many_fetching">Que récupérer</string>
     <!-- How to run a game, from a scraped record. -->
     <string name="suggest_title">Comment le lancer</string>

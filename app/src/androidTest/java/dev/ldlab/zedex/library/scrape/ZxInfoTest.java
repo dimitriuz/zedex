@@ -118,7 +118,18 @@ public class ZxInfoTest {
             + "    {\"type\":\"Instructions\",\"format\":\"Document (TXT)\","
             + "     \"path\":\"/pub/sinclair/games-info/h/HeadOverHeels.txt\"},"
             + "    {\"type\":\"Game map\",\"format\":\"Picture (JPG)\","
-            + "     \"path\":\"/pub/sinclair/games-maps/h/HeadOverHeels.jpg\"}"
+            + "     \"path\":\"/pub/sinclair/games-maps/h/HeadOverHeels.jpg\"},"
+            // Four maps and three scans on the real record; two of each here,
+            // because "the first wins" is only worth asserting against a
+            // second. Paths verbatim.
+            + "    {\"type\":\"Game map\",\"format\":\"Picture (JPG)\","
+            + "     \"path\":\"/pub/sinclair/games-maps/h/HeadOverHeels_2.jpg\"},"
+            + "    {\"type\":\"Advertisement\",\"format\":\"Picture (JPG)\","
+            + "     \"path\":\"/pub/sinclair/games-adverts/h/HeadOverHeels.jpg\"},"
+            + "    {\"type\":\"Media scan\",\"format\":\"Picture (JPG)\","
+            + "     \"path\":\"/zxdb/sinclair/entries/0002259/HeadOverHeels_Media.jpg\"},"
+            + "    {\"type\":\"Media scan\",\"format\":\"Picture (JPG)\","
+            + "     \"path\":\"/zxdb/sinclair/entries/0002259/HeadOverHeels_Media_2.jpg\"}"
             + "  ]"
             + "}}";
 
@@ -464,6 +475,49 @@ public class ZxInfoTest {
         assertTrue(urlIn(media, "covers").endsWith("/HeadOverHeels.jpg"));
         assertTrue(urlIn(media, "screenshots").endsWith("/HeadOverHeels.gif"));
         assertTrue(urlIn(media, "titlescreens").endsWith("/HeadOverHeels-load.png"));
+    }
+
+    /**
+     * The three the app now has folders for, from a real record.
+     *
+     * A media scan is a photograph of the cassette or the disk, which is
+     * exactly what ES-DE's {@code physicalmedia} already meant, so it needed
+     * no folder of its own. A map and an advertisement did: ES-DE has neither.
+     * Worth having, over the whole of ZXDB - a scan is on 11.8% of Spectrum
+     * entries, a map on 5.3%, an advertisement on 4.0%.
+     */
+    @Test
+    public void thethreeExtraKindsLandInTheirOwnFolders() throws Exception {
+        List<Medium> media = fetched(
+                Provider.Wanted.of("physicalmedia", "maps", "adverts")).media;
+
+        assertEquals(3, media.size());
+        assertTrue(urlIn(media, "physicalmedia").endsWith("/HeadOverHeels_Media.jpg"));
+        assertTrue(urlIn(media, "maps").endsWith("/HeadOverHeels.jpg"));
+        assertTrue(urlIn(media, "adverts").endsWith("/HeadOverHeels.jpg"));
+
+        assertTrue("a map is on the file host like everything else",
+                   urlIn(media, "maps").contains("/games-maps/"));
+    }
+
+    /**
+     * One per folder, even where the record has four.
+     *
+     * Head over Heels has four maps and three media scans, and the store
+     * keeps one file per folder per game - {@code maps/HeadOverHeels.jpg} and
+     * nowhere to put a second. The first wins, which is the same rule every
+     * other folder here follows; showing all four would mean teaching {@code
+     * Artwork} to enumerate a folder rather than resolve a name, and that is
+     * a different piece of work.
+     */
+    @Test
+    public void onlyTheFirstOfSeveralMapsIsTaken() throws Exception {
+        List<Medium> media = fetched(Provider.Wanted.of("maps")).media;
+
+        assertEquals(1, media.size());
+        assertTrue("the first map in the record is the one taken: "
+                   + media.get(0).url,
+                   media.get(0).url.endsWith("/HeadOverHeels.jpg"));
     }
 
     /** Off spectrumcomputing.co.uk, not the API: these are static files and

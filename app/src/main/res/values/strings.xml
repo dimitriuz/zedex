@@ -870,6 +870,8 @@
     <string name="scrape_media_miximages">Mixed image</string>
     <string name="scrape_media_videos">Video — about 1 MB each</string>
     <string name="scrape_media_manuals">Manual (PDF)</string>
+    <string name="scrape_media_maps">Game map</string>
+    <string name="scrape_media_adverts">Advertisement</string>
     <!-- The list a person ticks, in the order the pane shows them.
 
          translatable="false" on an array of visible labels looks wrong and is
@@ -888,6 +890,8 @@
         <item>@string/scrape_media_miximages</item>
         <item>@string/scrape_media_videos</item>
         <item>@string/scrape_media_manuals</item>
+        <item>@string/scrape_media_maps</item>
+        <item>@string/scrape_media_adverts</item>
     </string-array>
     <!-- ES-DE's own folder names, which is what Provider.Wanted is addressed
          by and what lands in the media folder. Never translated: these are
@@ -901,6 +905,8 @@
         <item>miximages</item>
         <item>videos</item>
         <item>manuals</item>
+        <item>maps</item>
+        <item>adverts</item>
     </string-array>
     <!-- What is ticked before anybody has chosen: the three this app draws
          everywhere, matching Provider.Wanted.usual.

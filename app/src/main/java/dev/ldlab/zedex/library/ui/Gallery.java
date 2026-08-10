@@ -197,6 +197,9 @@ public final class Gallery extends LinearLayout {
      *  matters if one of them stops. */
     private int targetPx;
 
+    /** Whether a picture can be pinched into - see {@link #setZoomable}. */
+    private boolean zoomable;
+
     /**
      * The recycler's own measured width, in pixels - {@code 0} until it is
      * known, which is before the first layout pass this view has been
@@ -459,6 +462,21 @@ public final class Gallery extends LinearLayout {
      */
     public void setPictureTargetPx(int targetPx) {
         this.targetPx = targetPx;
+    }
+
+    /**
+     * Lets pictures be pinched into. Off everywhere but the full-screen
+     * viewer.
+     *
+     * The pane's own gallery is a small box somebody flicks through, and a
+     * pinch there would fight the pager for every gesture for no gain - the
+     * box is a couple of inches across. Full screen it is the point: a game
+     * map is two thousand pixels wide and unreadable otherwise. Set before
+     * the first {@link #load}, the same as {@link #setPictureTargetPx}: it is
+     * read when a page's view is made.
+     */
+    public void setZoomable(boolean zoomable) {
+        this.zoomable = zoomable;
     }
 
     public void setOnPageTapped(OnPageTapped listener) {
@@ -1092,10 +1110,10 @@ public final class Gallery extends LinearLayout {
     }
 
     private static final class PictureHolder extends RecyclerView.ViewHolder {
-        final ImageView image;
+        final ZoomableImageView image;
         int bindToken;
 
-        PictureHolder(ImageView view) {
+        PictureHolder(ZoomableImageView view) {
             super(view);
             image = view;
         }
@@ -1193,7 +1211,8 @@ public final class Gallery extends LinearLayout {
                 return new VideoHolder(frame, view);
             }
 
-            ImageView view = new ImageView(getContext());
+            ZoomableImageView view = new ZoomableImageView(getContext());
+            view.setZoomable(zoomable);
 
             // FIT_CENTER, not CENTER_CROP: this is the one place a person
             // looks straight at a picture rather than past it on the way to

@@ -48,7 +48,16 @@ public final class Artwork {
      */
     private static final String[] PICTURE_FOLDERS = {
         "covers", "backcovers", "physicalmedia", "miximages", "screenshots", "titlescreens",
+        "maps", "adverts",
     };
+
+    /*
+     * The last two are not ES-DE's - it has no folder for either, and a map
+     * and an advertisement are worth having - so they are this app's own, and
+     * they go last on purpose. This list is a preference order as well as a
+     * gallery: the first that exists is what every row and tile draws, and a
+     * game map is a poor thumbnail for a game that also has a cover.
+     */
 
     /**
      * Both cases, because {@link EsdeLink#read} copies whatever extension
