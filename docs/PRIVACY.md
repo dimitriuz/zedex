@@ -25,7 +25,7 @@ Uninstalling removes the settings. Your folder stays.
 
 ## When Zedex uses the internet
 
-Four times, and never otherwise. Three of them only if you ask.
+Five times, and never otherwise. Four of them only if you ask.
 
 **1. Checking for a new version** — the version from GitHub only, at startup. It
 asks two things: which release is newest, and the small checksum file published
@@ -54,8 +54,13 @@ GitHub and is passed to Android's installer, which asks you before installing.
 *Scrape this game…* or *Scrape many games…* in the library. Nothing is
 scraped in the background and nothing is scraped automatically.
 
-The service is `screenscraper.fr`, run in France by its own community, and
-its privacy policy applies to what it receives. What Zedex sends, per game:
+There are two services to choose between, in *Settings › Library › Scrape
+from*, and each is covered below.
+
+### screenscraper.fr
+
+Run in France by its own community, and its privacy policy applies to what it
+receives. What Zedex sends, per game:
 
 - the file's name, and its MD5 checksum — the checksum is how a game is
   recognised exactly rather than guessed at from its name;
@@ -71,6 +76,38 @@ screenscraper.fr sees your IP address, as any website does.
 
 What comes back — names, descriptions, cover art, screenshots, videos and
 manuals — is written into your own folder and nowhere else.
+
+### ZXInfo
+
+The database behind World of Spectrum. There is no account and nothing to set
+up, so there is nothing of yours to send. What Zedex sends, per game, is the
+file's MD5 checksum — or, if that finds nothing, its title. Nothing else.
+
+```
+api.zxinfo.dk          the lookup itself
+spectrumcomputing.co.uk  the pictures, manuals and files it names
+zxinfo.dk              the loading screens it renders
+```
+
+Every request carries `Zedex/<version>` and nothing more, so the service can
+tell one program from another. That name is asked for by ZXInfo's own
+documentation; there is no identifier for your device, your installation or
+you, because none exists. Each of those sites sees your IP address, as any
+website does.
+
+**5. Browsing the catalogue, and importing from it** — only if you open the
+*Catalogue* tab in the library. Nothing is fetched until you open a shelf, a
+cover is fetched only when its row is on screen, and a game is downloaded only
+when you tap Import.
+
+The same three addresses as above, and the same `Zedex/<version>` and nothing
+else. What Zedex sends is what you asked for: the text you typed, or the letter
+or category you tapped, or the identifier of an entry you opened. A file may be
+named on some other host, and Zedex will follow that name to fetch it — the
+same header goes with it.
+
+What comes back — the game, and its details and artwork — is written into your
+own folder and nowhere else.
 
 **The version from Google Play does neither 1 nor 2.** It cannot install updates;
 Play updates it instead.
@@ -100,7 +137,8 @@ Tapping one opens your browser, and that site's privacy policy applies:
 | The Tipshop cheat search | the name of the program you have loaded |
 | github.com/dimitriuz/zedex | nothing but the request |
 
-Zedex itself talks to `screenscraper.fr`, and only when you ask it to — see
+Zedex itself talks to `screenscraper.fr`, `api.zxinfo.dk`,
+`spectrumcomputing.co.uk` and `zxinfo.dk`, and only when you ask it to — see
 *When Zedex uses the internet* above.
 
 ## Permissions

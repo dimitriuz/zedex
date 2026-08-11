@@ -134,11 +134,13 @@ the first key button are its buttons. Sensitivity is a setting.
 
 <a href="docs/screenshots/cheats.jpg"><img src="docs/screenshots/cheats.jpg" width="400" alt="Cheats for what is loaded"></a>
 
-Cheats for 3,682 games are built in, matched by the file's fingerprint or by
-name. Ones that take a number ask for it. Pokes of your own can be fired once or
+Cheats for 3,682 games are built in, matched by the file's own fingerprint — or
+find a game by name yourself, when it loaded under a different one. Ones that
+take a number ask for it. Pokes of your own can be fired once or
 kept on a list; decimal, or hex after `0x`, `$` or `#`. A scrape can add more:
 the built-in database answers first, because it matches on the file itself, and
-anything scraped tops it up rather than replacing it.
+anything scraped tops it up rather than replacing it. Nothing for your game? A
+link opens a search on The Tipshop, which is where the database came from.
 
 
 ## Capture
@@ -186,8 +188,8 @@ file identifies itself, and the machine switches when the media needs one — a
 
 <a href="docs/screenshots/settings-tape.jpg"><img src="docs/screenshots/settings-tape.jpg" width="400" alt="Tape settings"></a>
 
-**First start** asks for two folders; both can be changed later in *Settings ›
-App*.
+**First start** asks for two folders. The data folder can be changed later in
+*Settings › App*, the content folder in *Settings › Library*.
 
 Files the app writes there are yours to open, copy and delete. Files you copy
 *in* are a different matter: Android hands an app only what it wrote itself, so
@@ -287,6 +289,11 @@ Where the database knows what a game wants, opening it offers to set the
 machine and the joystick to match — once, with a box to remember the answer for
 that game. *Skip* leaves everything alone.
 
+Where the game was scraped from ScreenScraper and came with a pad layout, the
+same dialog can offer its keys instead of a joystick, as a profile named after
+the game. That is a different fact from a different service: which keys a pad
+sends, rather than which interface the game listens to.
+
 
 ## Getting around
 
@@ -306,8 +313,10 @@ picture to bring it back; it fades after three seconds.
 
 <a href="docs/screenshots/main-menu.jpg"><img src="docs/screenshots/main-menu.jpg" width="400" alt="The main menu"></a>
 
-**☰** has *Open file…*, *Open recent…*, *Machine…*, *States…*, *Pokes…*,
-*Media…*, *Capture…*, *Controls…*, *Settings…* and *Quit*. **Back** never
+**☰** has *Library*, *Open file…*, *Open recent…*, *Machine…*, *States…*,
+*Pokes…*, *Music…*, *Media…*, *Capture…*, *Controls…*, *Settings…*, *About
+Zedex* and *Quit*. *Library…*, *Open recent…* and *Music…* appear when there is
+something for them to show. **Back** never
 exits: it leaves fullscreen, or goes up a menu page, or opens ☰. *Quit* warns
 about unsaved disks first.
 
@@ -368,10 +377,12 @@ browser. Changes are written back once a second and whenever the app is paused.
 ## No ads, no tracking
 
 No advertising, no analytics library, no accounts, and nothing stored about you
-anywhere. The whole app carries a single library, for one settings screen.
-Internet access is used for three things and all are yours to ask for: fetching a
-ROM set, asking GitHub whether there is a newer release than the one you are
-running, and looking a game up when you scrape it.
+anywhere. The whole app carries two libraries, one for the settings screen and
+one for the library's own list. Internet access is used for four things and all
+are yours to ask for: fetching a ROM set, asking GitHub whether there is a newer
+release than the one you are running, looking a game up when you scrape it, and
+browsing the catalogue when you open that tab. Scraping and the catalogue send
+nothing but what you asked about and the app's own name and version.
 
 That second one is counted, and it is the only measure of use this project has:
 the check fetches the small checksum file published beside your version's
