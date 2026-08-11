@@ -754,7 +754,7 @@ public final class CatalogueView extends FrameLayout {
      * there is one of these rather than an argument per kind.
      *
      * <b>No catalogue this app ships asks for a letter this way.</b> ZXInfo's
-     * A-Z opens onto twenty-six sub-shelves and carries the letter in each
+     * A-Z opens onto twenty-seven sub-shelves and carries the letter in each
      * shelf's own id, so nothing here has to know that letters exist - which
      * is the right shape, and why this screen grew no letter picker. The
      * branch stays because the seam declares the kind: a catalogue that asks

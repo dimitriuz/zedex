@@ -102,9 +102,11 @@ public final class CataloguePane extends FrameLayout {
     /**
      * What the pane cannot do for itself.
      *
-     * Deliberately one method, and the test for whether that is the right seam
-     * is CLAUDE.md's own - a {@code Host} wider than about four means the seam
-     * has moved. The pane starts the emulator itself, exactly as {@code
+     * Two methods, and the test for whether that is still the right seam is
+     * CLAUDE.md's own - a {@code Host} wider than about four means the seam has
+     * moved. It was one until {@link #openShelf} joined it, which is worth
+     * saying rather than quietly renumbering: the budget is four and half of it
+     * is now spent. The pane starts the emulator itself, exactly as {@code
      * DetailPane.openMusic} does, and launches the folder picker through the
      * activity it is already inside; the one thing it cannot know is what else
      * in the app is showing a list that a new file belongs in.

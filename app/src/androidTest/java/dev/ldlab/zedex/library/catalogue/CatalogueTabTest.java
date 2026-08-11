@@ -41,7 +41,7 @@ import org.junit.runner.RunWith;
  * this tests the door.
  *
  * <b>No request is made by any of this.</b> {@code Catalogue.shelves()} is
- * declared data, and ZXInfo's A-Z answers its twenty-six letters without asking
+ * declared data, and ZXInfo's A-Z answers its twenty-seven shelves without asking
  * anything either - see {@code ZxInfoCatalogue.letters}. That is deliberate:
  * this class is about the tab, and a test of the tab that fails when a server
  * in another country is slow is a test of the wrong thing. The live half is
@@ -135,8 +135,8 @@ public class CatalogueTabTest {
         assertNotNull("the catalogue's shelves never appeared", letters);
         letters.click();
 
-        // Twenty-six sub-shelves, and no request behind them - see the class
-        // comment. "B" and not "Z": all twenty-six are in the list, but only
+        // Twenty-seven sub-shelves, and no request behind them - see the class
+        // comment. "B" and not "Z": all of them are in the list, but only
         // the first few are on screen, and a selector only sees what is drawn -
         // asking for the last letter failed here for a shelf that had opened
         // perfectly.

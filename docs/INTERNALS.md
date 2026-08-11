@@ -1031,7 +1031,7 @@ hide its tab rather than offer something that can only fail.
 **A way in is data.** `shelves()` makes no request — which is what lets it run
 on the UI thread while the tab is built — and a shelf whose children have to be
 fetched yields them as sub-shelves *inside a page*, which is how Categories and a
-twenty-six letter A–Z fit through a seam with a method for neither. `Query` is
+twenty-seven shelf A–Z fit through a seam with a method for neither. `Query` is
 one object rather than an argument per kind, and a shelf ignores what it does not
 use.
 
@@ -1043,6 +1043,19 @@ re-asks the host that just refused. `abandon()` invalidates the token before it
 decides anything, and `deliver()` returns on a token mismatch before touching
 any state, so a disowned fetch can neither land under the new shelf's header nor
 clobber its paging.
+
+**A shelf nothing can end needs a bound of its own.** *Surprise me* resamples, so
+it has no total and never returns an empty page — `hasMore` would answer true for
+ever. `ZxInfoCatalogue.RANDOM_PAGES` stops it at ten pages, three hundred games,
+as a guard in `open()` returning the empty page the unpaged shelves already end
+with; `Page.hasMore` is untouched. The cost being bounded is not one request per
+fling but about thirty-one — a page is one paced API call plus up to thirty
+unpaced cover fetches, and on this shelf every draw is new, so `Thumbnails`
+misses by construction. Every other shelf has a floor already (a broad search
+334 pages, the Z shelf 57); this was the only list in the app that could be
+scrolled all night, which is the crawler shape that cost this app its address
+once. Nothing is remembered between openings, so backing out and opening the
+shelf again draws a fresh three hundred.
 
 **An import is `Imports`, not `Downloads`.** They share four verbs and no
 destination: `Downloads` writes into the app's *media* folder keyed by a game's

@@ -219,11 +219,11 @@ the two either way.
 - Or scrape them yourself from ScreenScraper: one game from its menu, or a
   whole folder at a time, choosing which pictures you want
 - A page per game: every picture ES-DE has for it, the video, and the manual
-- A **Catalogue** tab that browses ZXInfo's ~40,000 entries — search, A–Z,
-  category or newest — and imports one into your folder with its cover and
-  details already on. A recording plays itself back when it arrives. Checked on
-  an emulator; a game that arrives as several files, and *Surprise me*, have not
-  been tried on a device
+- A **Catalogue** tab that browses ZXInfo's ~40,000 entries — search, A–Z, 0–9,
+  category, newest, *Surprise me* or games like the one you're looking at — and
+  imports one into your folder with its cover and details already on. A recording
+  plays itself back when it arrives. Checked on an emulator; a game that arrives
+  as several files has not been tried on a device
 - A controller drives all of it: the stick moves, **A** plays, **B** goes up,
   **Y** favourites, **L1/R1** change tab, **L2/R2** page, **X** searches and
   **Select** opens View, Sort and Filter

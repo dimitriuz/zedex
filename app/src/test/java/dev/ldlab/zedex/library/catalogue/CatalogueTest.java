@@ -188,8 +188,9 @@ public class CatalogueTest {
         assertNull(new BareCatalogue().similarTo(anItem("0002259"), "Games like this"));
     }
 
-    /** The least a catalogue can be: the four methods the seam actually
-     *  requires, and none of the ones it offers a default for. */
+    /** The least a catalogue can be: the six methods the seam actually
+     *  requires - name, configured, shelves, open, item, refusalFor - and none
+     *  of the ones it offers a default for. */
     private static final class BareCatalogue implements Catalogue {
         @Override
         public String name() {

@@ -258,7 +258,7 @@ asked to be browsable.
 A–Z, Categories, Newest, Surprise me — and the tab renders what it is handed, so
 a second catalogue never owes an answer it has not got. A shelf whose children
 have to be fetched declares itself and yields the rest as **sub-shelves inside a
-page**: that is how a category tree and a twenty-six letter alphabet fit through
+page**: that is how a category tree and a twenty-seven shelf A–Z fit through
 a seam with a method for neither, and it is what keeps `shelves()` requestless
 and safe to call while the tab is being built.
 
