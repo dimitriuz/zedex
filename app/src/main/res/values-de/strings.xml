@@ -274,6 +274,8 @@
     <string name="about_cheats">Cheats: %1$s Spiele, %2$s davon.</string>
     <string name="about_cheats_source">Cheats von The Tipshop (the-tipshop.co.uk, betrieben von Gerard Sweeney), als AllTipshopPokes von Lady Eklipse gesammelt und mit ZX Pokemaster verteilt. Dateiprüfsummen aus ZXDB.</string>
     <string name="about_licence">Freie Software unter der GNU General Public License, Version 2 oder später. Fuse und libspectrum sind unverändert und stehen unter ihrem eigenen Urheberrecht.</string>
+    <string name="about_catalogue">Spieldaten, Bilder und der Katalog stammen aus ZXDB — einer offenen Datenbank, die Einar Saukas aus dem ursprünglichen World of Spectrum und weiteren Sammlungen aufgebaut hat — über die ZXInfo-API. Die Dateien liefert Spectrum Computing.</string>
+    <string name="about_support">Den Entwickler unterstützen</string>
     <string name="menu_settings">Einstellungen…</string>
 
     <string name="settings_title">Einstellungen</string>

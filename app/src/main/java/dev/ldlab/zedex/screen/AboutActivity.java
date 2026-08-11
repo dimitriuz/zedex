@@ -36,6 +36,17 @@ public final class AboutActivity extends ZedexActivity {
 
     private static final String SOURCE = "https://github.com/dimitriuz/zedex";
 
+    /**
+     * Where to put something in the hat, if this was worth anything to you.
+     *
+     * Two of them because the two services reach different people - one of them
+     * is unavailable in whole countries - and because neither is asked for
+     * anywhere else in the app. Nothing here is gated behind them, nothing is
+     * counted, and this screen is the only place they appear.
+     */
+    private static final String KO_FI = "https://ko-fi.com/W3Q224VFOR";
+    private static final String COFFEE = "https://www.buymeacoffee.com/dmitriileshchenko";
+
     private static final int LINK = 0xff00b0c8;
 
     @Override
@@ -79,8 +90,12 @@ public final class AboutActivity extends ZedexActivity {
         column.addView(text(build(), 14, Palette.MUTED, pixels(20)));
         column.addView(text(getString(R.string.about_licence), 13, Palette.MUTED, pixels(16)));
         column.addView(text(cheats(), 13, Palette.MUTED, pixels(16)));
+        column.addView(text(getString(R.string.about_catalogue), 13, Palette.MUTED, pixels(16)));
         column.addView(feedback());
-        column.addView(link());
+        column.addView(text(getString(R.string.about_support), 15, Palette.TEXT, pixels(24)));
+        column.addView(opens("Ko-fi", KO_FI, pixels(8)));
+        column.addView(opens("Buy Me a Coffee", COFFEE, pixels(4)));
+        column.addView(opens(SOURCE, SOURCE, pixels(20)));
 
         return column;
     }
@@ -145,16 +160,24 @@ public final class AboutActivity extends ZedexActivity {
         return view;
     }
 
-    /** The source, which the licence obliges and curiosity wants. */
-    private View link() {
-        TextView view = text(SOURCE, 15, LINK, pixels(20));
+    /**
+     * A line that opens a page: the source, which the licence obliges and
+     * curiosity wants, and the two places to leave a tip.
+     *
+     * The address is shown rather than hidden behind the words wherever the
+     * words would not say where you are going - the source link is its own url
+     * for that reason, and Ko-fi and Buy Me a Coffee are named because their
+     * names are the destination.
+     */
+    private View opens(String words, String url, int above) {
+        TextView view = text(words, 15, LINK, above);
 
         view.setOnClickListener(v -> {
             try {
-                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(SOURCE)));
+                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
             } catch (android.content.ActivityNotFoundException e) {
                 // A device with no browser at all; saying so beats doing nothing.
-                Toast.makeText(this, SOURCE, Toast.LENGTH_LONG).show();
+                Toast.makeText(this, url, Toast.LENGTH_LONG).show();
             }
         });
 

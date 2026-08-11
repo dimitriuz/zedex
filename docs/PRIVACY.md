@@ -137,6 +137,12 @@ Tapping one opens your browser, and that site's privacy policy applies:
 | The Internet Archive | nothing but the request |
 | The Tipshop cheat search | the name of the program you have loaded |
 | github.com/dimitriuz/zedex | nothing but the request |
+| Ko-fi, from *About Zedex* | nothing but the request |
+| Buy Me a Coffee, from *About Zedex* | nothing but the request |
+
+The last two are there if you want to leave the developer a tip. Nothing in
+Zedex is behind them, nothing counts whether you tapped one, and the app never
+learns whether you did.
 
 Zedex itself talks to `screenscraper.fr`, `api.zxinfo.dk`,
 `spectrumcomputing.co.uk` and `zxinfo.dk`, and only when you ask it to — see
