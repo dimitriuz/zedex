@@ -623,8 +623,8 @@ public class BlendTest {
      *  findings. */
     @Test
     public void aleftoverFromAKilledRunIsClearedOnTheWayIn() throws IOException {
-        write(Artwork.stagingFileFor(context, PATH, "covers/Ghost", "png"),
-              "from a run that died");
+        File ghost = Artwork.stagingFileFor(context, PATH, "covers/Ghost", "png");
+        write(ghost, "from a run that died");
 
         Fakes.Fake only = new Fakes.Fake("Only");
         only.media = Collections.singletonList(picture("covers", "http://only/cover"));
@@ -635,6 +635,14 @@ public class BlendTest {
 
         assertEquals(1, result.staged.size());
         assertEquals("Only", result.staged.get(0).source);
+
+        // The two assertions above hold whether or not the ghost was cleared -
+        // Blend.stage never scans the staging tree, it only writes into
+        // covers/Only/, a different subfolder from covers/Ghost/. This is the
+        // one that actually proves the leftover is gone.
+        assertFalse("last run's leftover is still in the staging area, and would be "
+                    + "offered as though this run had fetched it",
+                    ghost.isFile());
     }
 
     private static void write(File file, String text) throws IOException {
