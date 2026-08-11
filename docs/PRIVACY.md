@@ -1,6 +1,6 @@
 # Privacy policy
 
-**Zedex** · 9 August 2026
+**Zedex** · 11 August 2026
 
 **Zedex collects no personal data.** No account, no analytics, no advertising, no
 crash reporting, and no server belonging to the developer.
@@ -146,7 +146,7 @@ Zedex itself talks to `screenscraper.fr`, `api.zxinfo.dk`,
 
 | Permission | Used for | In the Play version |
 | --- | --- | --- |
-| `INTERNET` | the three uses above | yes |
+| `INTERNET` | the five uses above | yes |
 | `MANAGE_EXTERNAL_STORAGE` | keeping your folder where a file manager can open it. Optional — the app works without it | no |
 | `REQUEST_INSTALL_PACKAGES` | passing a downloaded version to Android's installer | no |
 

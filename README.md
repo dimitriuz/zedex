@@ -236,7 +236,7 @@ and what to fetch.
 
 | | |
 | --- | --- |
-| **ZXInfo** | The database behind World of Spectrum. No account, nothing to set up, and its pictures are ordinary files rather than requests, so fetching them costs nothing against any allowance. Matches on the file's own hash first, which is exact, and on the name only if that misses |
+| **ZXInfo** | The database behind SpectrumComputing. No account, nothing to set up. Matches on the file's own hash first, which is exact, and on the name only if that misses |
 | **ScreenScraper** | Covers, screenshots, video and manuals for far more than the Spectrum. Everyone using the app shares one daily allowance, and every picture spends a piece of it — *Settings › Library › ScreenScraper username* is optional and buys a much larger one of your own |
 
 You can also type the details in yourself, and scraping a game you have edited
