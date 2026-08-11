@@ -108,22 +108,73 @@ public class MergeTest {
         }
     }
 
+    /**
+     * Every field, in the right direction.
+     *
+     * The companion to {@link #everyFieldIsMerged}, and the half that one
+     * cannot do: it builds an empty base, so "base wins unless null" and
+     * "addition always wins" produce identical output for every field and only
+     * presence is proved. This gives both sides a distinct value, so a field
+     * whose arguments are the wrong way round is caught.
+     */
+    @Test
+    public void everyFieldKeepsTheBasesOwnValue() throws Exception {
+        Meta base = everythingSet("mine");
+        Meta addition = everythingSet("theirs");
+
+        Meta merged = Merge.of(base, addition);
+
+        for (Field field : Meta.class.getDeclaredFields()) {
+            if (!Modifier.isPublic(field.getModifiers())
+                    || Modifier.isStatic(field.getModifiers())) {
+                continue;
+            }
+            if (field.getName().equals("path") || field.getName().equals("source")) continue;
+
+            assertEquals("Merge.of takes " + field.getName() + " from the addition; "
+                         + "the base's own value must win",
+                         field.get(base), field.get(merged));
+        }
+    }
+
+    @Test
+    public void nullAdditionAnswersBaseUnchanged() {
+        Meta base = Meta.at("./A.tap").name("Manic Miner").build();
+        Meta merged = Merge.of(base, null);
+
+        assertEquals(base, merged);
+    }
+
+    @Test
+    public void nullBaseAnswersAddition() {
+        Meta addition = Meta.at("./B.tap").name("Jet Set Willy").build();
+        Meta merged = Merge.of(null, addition);
+
+        assertEquals(addition, merged);
+    }
+
     /** Every field of Meta with something in it. Kept beside the test that
      *  uses it so that adding a field here is the obvious fix when the test
      *  above says one is missing. */
     private static Meta everythingSet() {
+        return everythingSet("");
+    }
+
+    /** Every field of Meta with something in it, tagged for distinctness. */
+    private static Meta everythingSet(String tag) {
+        String suffix = tag.isEmpty() ? "" : " " + tag;
         return Meta.at(null)
-                .name("Manic Miner").desc("A miner.")
-                .developer("Matthew Smith").publisher("Bug-Byte")
-                .genre("Arcade Game").subgenre("Platform")
-                .released("19831001T000000").players("1").rating("0.9")
-                .keymap("0:left = q").machine("ZX-Spectrum 48K")
-                .inputs(Collections.singletonList("Cursor"))
-                .authors(Collections.singletonList("Matthew Smith"))
-                .price("£5.95").series("Miner Willy")
-                .seriesGames(Collections.singletonList(new Meta.Link("2", "Jet Set Willy")))
-                .compilations(Collections.singletonList(new Meta.Link("3", "They Sold a Million")))
-                .contents(Collections.singletonList(new Meta.Link("4", "Something")))
+                .name("Manic Miner" + suffix).desc("A miner." + suffix)
+                .developer("Matthew Smith" + suffix).publisher("Bug-Byte" + suffix)
+                .genre("Arcade Game" + suffix).subgenre("Platform" + suffix)
+                .released("19831001T000000" + suffix).players("1" + suffix).rating("0.9" + suffix)
+                .keymap("0:left = q" + suffix).machine("ZX-Spectrum 48K" + suffix)
+                .inputs(Collections.singletonList("Cursor" + suffix))
+                .authors(Collections.singletonList("Matthew Smith" + suffix))
+                .price("£5.95" + suffix).series("Miner Willy" + suffix)
+                .seriesGames(Collections.singletonList(new Meta.Link("2", "Jet Set Willy" + suffix)))
+                .compilations(Collections.singletonList(new Meta.Link("3", "They Sold a Million" + suffix)))
+                .contents(Collections.singletonList(new Meta.Link("4", "Something" + suffix)))
                 .build();
     }
 }
