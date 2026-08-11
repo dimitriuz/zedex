@@ -407,9 +407,14 @@ Play build has none of this, as above.
 
 ## Not yet
 
-- Looking a game up ourselves — ZXDB and the archives behind it — rather than
-  taking in what ES-DE has already scraped
-- Editing a game's details by hand
+- A second catalogue. zxart.ee shaped the seam this one goes through and is not
+  wired up yet
+- Importing more than one thing at a time. A queue is a different feature with
+  different manners
+- Suggestions as you type in the catalogue. The archive asks to be asked
+  gently, and a request per keystroke is the opposite of that
+- Narrowing the catalogue to tapes or disks, which the archive supports and the
+  tab has nowhere to put yet
 - A debugger, which the core supports and nothing yet exposes
 
 
