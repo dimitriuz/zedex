@@ -2405,8 +2405,14 @@ public final class LibraryActivity extends ZedexActivity {
     private void applyFilterSort() {
         noFolderView.setVisibility(View.GONE);
 
+        // The same preference the adapter draws by: a list has to be ordered
+        // by the string it is showing, or a game scraped as "Star Inheritance"
+        // goes on sitting under Z with its filename.
+        boolean scrapedNames = preferences.getBoolean(KEY_LIBRARY_NAMES, true);
+
         List<Entry> shown = Shortlist.of(
-                loaded, query, filters, filtering(), sort, sortDescending, this::metaOf);
+                loaded, query, filters, filtering(), sort, sortDescending, scrapedNames,
+                this::metaOf);
 
         adapter.setEntries(shown);
 

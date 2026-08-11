@@ -59,7 +59,7 @@ public class ShortlistTest {
     /** Unfiltered, unsearched, sorted by name: what the screen opens on. */
     private static List<Entry> plain(List<Entry> loaded) {
         return Shortlist.of(loaded, "", new Filters(), false,
-                            Sorting.NAME, false, NOTHING_SCRAPED);
+                            Sorting.NAME, false, true, NOTHING_SCRAPED);
     }
 
     // --- the search box --------------------------------------------------------
@@ -74,7 +74,7 @@ public class ShortlistTest {
         // capitalised one does not lead simply for being capitalised.
         assertEquals(Arrays.asList("Manic Miner.tap", "MINER 2049er.tap"),
                      names(Shortlist.of(loaded, "miner", new Filters(), false,
-                                        Sorting.NAME, false, NOTHING_SCRAPED)));
+                                        Sorting.NAME, false, true, NOTHING_SCRAPED)));
     }
 
     /** An empty box narrows nothing - it is not a search for the empty
@@ -94,7 +94,7 @@ public class ShortlistTest {
         Sorting.Lookup scraped = entry -> meta("Platform", "Ocean", "1984");
 
         assertEquals(0, Shortlist.of(loaded, "Ocean", new Filters(), false,
-                                     Sorting.NAME, false, scraped).size());
+                                     Sorting.NAME, false, true, scraped).size());
     }
 
     // --- folders ---------------------------------------------------------------
@@ -108,7 +108,7 @@ public class ShortlistTest {
 
         assertEquals(Arrays.asList("alpha", "Zeta", "big.tap", "small.tap"),
                      names(Shortlist.of(loaded, "", new Filters(), false,
-                                        Sorting.SIZE, true, NOTHING_SCRAPED)));
+                                        Sorting.SIZE, true, true, NOTHING_SCRAPED)));
     }
 
     /** A flattened list has no folders to hold apart, so nothing is held
@@ -126,7 +126,7 @@ public class ShortlistTest {
         // together.
         assertEquals(Arrays.asList("a.tap", "alpha", "Zeta"),
                      names(Shortlist.of(loaded, "", filters, true,
-                                        Sorting.NAME, false, NOTHING_SCRAPED)));
+                                        Sorting.NAME, false, true, NOTHING_SCRAPED)));
     }
 
     // --- the filter ------------------------------------------------------------
@@ -145,7 +145,7 @@ public class ShortlistTest {
 
         assertEquals(Arrays.asList("platformer.tap"),
                      names(Shortlist.of(loaded, "", filters, true,
-                                        Sorting.NAME, false, e -> store.get(e.name))));
+                                        Sorting.NAME, false, true, e -> store.get(e.name))));
     }
 
     /**
@@ -161,7 +161,7 @@ public class ShortlistTest {
         List<Entry> loaded = Arrays.asList(file("racer.tap", 1));
 
         assertEquals(1, Shortlist.of(loaded, "", filters, false,
-                                     Sorting.NAME, false,
+                                     Sorting.NAME, false, true,
                                      e -> meta("Racing", null, null)).size());
     }
 
@@ -176,7 +176,7 @@ public class ShortlistTest {
 
         assertEquals(Arrays.asList("manic.tap"),
                      names(Shortlist.of(loaded, "manic", filters, true,
-                                        Sorting.NAME, false, NOTHING_SCRAPED)));
+                                        Sorting.NAME, false, true, NOTHING_SCRAPED)));
     }
 
     // --- what it costs ---------------------------------------------------------
@@ -207,7 +207,7 @@ public class ShortlistTest {
         // comparison - NAME and SIZE never ask at all, and would prove
         // nothing about the cache.
         List<Entry> shown = Shortlist.of(loaded, "", filters, true,
-                                         Sorting.RELEASED, false, entry -> {
+                                         Sorting.RELEASED, false, true, entry -> {
             asked.merge(entry, 1, Integer::sum);
             return meta("Platform", null, "198" + (entry.size % 10));
         });

@@ -28,19 +28,115 @@ public class SortingTest {
                 .build());
     }
 
+    /**
+     * As the app is shipped: scraped names shown.
+     *
+     * Safe for every test that uses it, because {@link #scrape} names a game
+     * after its own file - so the shown name and the filename are the same
+     * string and the ordering is whatever it was. The tests that care about
+     * the two differing say so, by taking the flag explicitly.
+     */
     private List<String> sorted(String field, boolean descending, Entry... entries) {
-        List<Entry> list = new ArrayList<>(Arrays.asList(entries));
-        Collections.sort(list, Sorting.comparator(field, descending, e -> store.get(e.name)));
-
-        List<String> names = new ArrayList<>();
-        for (Entry entry : list) names.add(entry.name);
-        return names;
+        return sorted(field, descending, true, entries);
     }
 
     @Test
     public void byNameIsCaseInsensitive() {
         assertEquals(Arrays.asList("apple", "Banana", "cherry"),
                 sorted(Sorting.NAME, false, file("Banana", 1), file("cherry", 1), file("apple", 1)));
+    }
+
+    /** A scraped title under a different letter from the file it came from. */
+    private void titled(String filename, String title) {
+        store.put(filename, Meta.at("./" + filename).name(title).source("ZXInfo").build());
+    }
+
+    /**
+     * A game sorts under the name the row shows, not the one on disk.
+     *
+     * The whole of the bug this covers: a Russian release lands as
+     * zvezdnoenasledie.trd, a scrape identifies it as "Star Inheritance", the
+     * row draws that title - and the list went on filing it under Z, where
+     * nobody looking for it would ever go. Neither re-listing nor restarting
+     * helped, because nothing was stale: the list simply ordered by one string
+     * and drew another.
+     */
+    @Test
+    public void byNameUsesTheScrapedTitleWhereThereIsOne() {
+        titled("zvezdnoenasledie.trd", "Star Inheritance");
+
+        assertEquals(Arrays.asList("aaa.tap", "zvezdnoenasledie.trd", "Tornado.tap"),
+                sorted(Sorting.NAME, false, showingScrapedNames(),
+                       file("Tornado.tap", 1), file("zvezdnoenasledie.trd", 1),
+                       file("aaa.tap", 1)));
+    }
+
+    /**
+     * And under the filename when scraped names are turned off.
+     *
+     * Sorting by a name the row is not showing would be worse than the bug:
+     * the letters would be right for a title nobody can see.
+     */
+    @Test
+    public void byNameUsesTheFilenameWhenScrapedNamesAreNotShown() {
+        titled("zvezdnoenasledie.trd", "Star Inheritance");
+
+        assertEquals(Arrays.asList("aaa.tap", "Tornado.tap", "zvezdnoenasledie.trd"),
+                sorted(Sorting.NAME, false, showingFilenames(),
+                       file("Tornado.tap", 1), file("zvezdnoenasledie.trd", 1),
+                       file("aaa.tap", 1)));
+    }
+
+    /** An unscraped row beside a scraped one still sorts by what it shows,
+     *  which for it is the filename. */
+    @Test
+    public void ascrapedAndAnUnscrapedRowAreOrderedByWhatEachShows() {
+        titled("zvezdnoenasledie.trd", "Star Inheritance");
+
+        assertEquals(Arrays.asList("Rick Dangerous.tap", "zvezdnoenasledie.trd"),
+                sorted(Sorting.NAME, false, showingScrapedNames(),
+                       file("zvezdnoenasledie.trd", 1), file("Rick Dangerous.tap", 1)));
+    }
+
+    /** An empty scraped name is not a name - it must not sort everything
+     *  scraped-but-unnamed to the top. */
+    @Test
+    public void anEmptyScrapedNameFallsBackToTheFilename() {
+        store.put("beta.tap", Meta.at("./beta.tap").name("").source("ZXInfo").build());
+
+        assertEquals(Arrays.asList("alpha.tap", "beta.tap", "gamma.tap"),
+                sorted(Sorting.NAME, false, showingScrapedNames(),
+                       file("gamma.tap", 1), file("beta.tap", 1), file("alpha.tap", 1)));
+    }
+
+    /** The scraped title is the tie-break too, not just the field. */
+    @Test
+    public void thescrapedTitleBreaksTiesOnAnotherField() {
+        titled("zvezdnoenasledie.trd", "Star Inheritance");
+        titled("bbb.tap", "Zulu Warrior");
+
+        assertEquals(Arrays.asList("zvezdnoenasledie.trd", "bbb.tap"),
+                sorted(Sorting.SIZE, false, showingScrapedNames(),
+                       file("bbb.tap", 100), file("zvezdnoenasledie.trd", 100)));
+    }
+
+    private static boolean showingScrapedNames() {
+        return true;
+    }
+
+    private static boolean showingFilenames() {
+        return false;
+    }
+
+    private List<String> sorted(String field, boolean descending, boolean scrapedNames,
+                                Entry... entries) {
+        List<Entry> list = new ArrayList<>(Arrays.asList(entries));
+        Collections.sort(list, Sorting.comparator(field, descending, scrapedNames,
+                                                  e -> store.get(e.name)));
+
+        List<String> names = new ArrayList<>();
+        for (Entry entry : list) names.add(entry.name);
+        return names;
     }
 
     @Test

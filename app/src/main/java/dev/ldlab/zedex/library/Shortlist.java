@@ -58,7 +58,7 @@ public final class Shortlist {
      */
     public static List<Entry> of(List<Entry> loaded, String query, Filters filters,
                                  boolean flat, String sort, boolean descending,
-                                 Sorting.Lookup lookup) {
+                                 boolean scrapedNames, Sorting.Lookup lookup) {
         // Keyed by the row itself, not by Entry#key(): Entry declares no
         // equals, so this is identity, which is exactly the question being
         // asked - one listing hands out one object per row, and what the
@@ -77,7 +77,7 @@ public final class Shortlist {
         };
 
         List<Entry> shown = narrow(loaded, query, filters, flat, cached);
-        sort(shown, flat, sort, descending, cached);
+        sort(shown, flat, sort, descending, scrapedNames, cached);
 
         return shown;
     }
@@ -124,9 +124,11 @@ public final class Shortlist {
      * hold apart from the rest.
      */
     private static void sort(List<Entry> list, boolean flat, String field,
-                             boolean descending, Sorting.Lookup lookup) {
+                             boolean descending, boolean scrapedNames,
+                             Sorting.Lookup lookup) {
         if (flat) {
-            Collections.sort(list, Sorting.comparator(field, descending, lookup));
+            Collections.sort(list, Sorting.comparator(field, descending, scrapedNames,
+                                                      lookup));
             return;
         }
 
@@ -138,7 +140,8 @@ public final class Shortlist {
         }
 
         folders.sort((a, b) -> a.name.compareToIgnoreCase(b.name));
-        Collections.sort(rest, Sorting.comparator(field, descending, lookup));
+        Collections.sort(rest, Sorting.comparator(field, descending, scrapedNames,
+                                                 lookup));
 
         list.clear();
         list.addAll(folders);
