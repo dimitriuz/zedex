@@ -43,9 +43,19 @@ import java.util.Locale;
  *
  * <h3>What each shelf actually asks for</h3>
  *
- * The specification was not fetched to write this - a bare request to that
- * host is what lost this app its address the first time - so each shelf is
- * built from something already proven or is written down here as unproven:
+ * <b>The specification is a static document and reading it is free.</b> This
+ * class was written without it, on the grounds that a bare request to that
+ * host is what lost this app its address the first time - which confused two
+ * different things. The address was lost to unidentified calls against the
+ * <em>API</em>; {@code swagger_v3.yaml} is a document, not a call against it,
+ * and fetching it costs nothing and tells you what every parameter here is
+ * worth. Guessing instead shipped an A-Z built out of a search because an
+ * endpoint "that may or may not exist" was judged not worth looking up. It
+ * existed. Look it up first; measure what it does after.
+ *
+ * Each shelf below therefore says what the specification states and what has
+ * actually been seen from the live service, which are not the same thing - a
+ * parameter this service does not know is <em>ignored</em>, not refused:
  *
  * <ul>
  *   <li><b>Search</b> is {@code search?query=&mode=compact&size=&offset=}.
@@ -63,20 +73,23 @@ import java.util.Locale;
  *       and this class had been sending a row number. See {@link
  *       #searchFor}.</li>
  *   <li><b>A-Z</b> opens onto twenty-six sub-shelves, one per letter, and each
- *       of those is that same search with its letter as the query and a title
- *       sort, rather than a path of its own. Sub-shelves rather than a letter
- *       picker of the screen's own: a page may carry shelves, {@link #genres}
- *       already works that way, and the tab already knows how to descend into
- *       one - a shelf needing a widget nothing else needs is a seam in the
- *       wrong place. <b>A shelf is data, and one implemented a different way
- *       is still the same shelf</b> - nothing above
- *       this interface can tell, and a by-letter endpoint that may or may not
- *       exist is not worth a request to find out. <b>{@code sort=title_asc} is
- *       a guessed value and is unverified</b> - the parameter itself is proven,
- *       since {@code date_desc} was checked on the same one, but nothing has
- *       confirmed the service knows this value. It fails gently: an unrecognised
- *       sort leaves the shelf in relevance order rather than alphabetical, which
- *       is a worse A-Z and not a wrong one.</li>
+ *       of those asks <b>{@code games/byletter/{letter}}</b> - an endpoint of
+ *       the service's own. Sub-shelves rather than a letter picker of the
+ *       screen's own: a page may carry shelves, {@link #genres} already works
+ *       that way, and the tab already knows how to descend into one - a shelf
+ *       needing a widget nothing else needs is a seam in the wrong place.
+ *       <b>This was a search until the specification was read.</b> It sent
+ *       {@code query=<letter>&sort=title_asc} on a guess that the endpoint
+ *       "may or may not exist". It does, and it was in the documentation all
+ *       along. The guess that mattered was {@code query=}, which is a
+ *       <em>full-text</em> match over the whole record and not "title begins
+ *       with" - so the Q shelf was every entry mentioning a Q anywhere, in an
+ *       order chosen by relevance. Worth being exact about the other one:
+ *       {@code title_asc} turns out to be a real value, one of the six the
+ *       {@code sort} enum lists, so that guess was right. It being right did
+ *       not help - a correct sort over the wrong rows is still the wrong
+ *       shelf, and it is why this looked like it worked. The endpoint needs no
+ *       sort at all: it comes back alphabetical. See {@link #letterFor}.</li>
  *   <li><b>Newest</b> asks for {@code sort=date_desc}, and <b>the sort is
  *       honoured</b> - verified 2026-08-10, because an ignored sort parameter
  *       answers 200 with plausible rows and looks exactly like one that
@@ -282,8 +295,7 @@ public final class ZxInfoCatalogue implements Catalogue {
         }
 
         if (id.startsWith(LETTER_PREFIX)) {
-            return searchFor("query=" + Uri.encode(id.substring(LETTER_PREFIX.length()))
-                             + "&sort=title_asc", page);
+            return letterFor(id.substring(LETTER_PREFIX.length()), page);
         }
 
         if (SHELF_NEWEST.equals(id)) {
@@ -303,10 +315,12 @@ public final class ZxInfoCatalogue implements Catalogue {
     /**
      * The one search shape, with whatever distinguishes a shelf in front of it.
      *
-     * Every shelf goes through here so that {@code mode=compact} and the
-     * absence of a filter are stated once. There is no {@code machinetype} and
-     * no {@code contenttype} anywhere in this file, and that is asserted on the
-     * URL in the test because no reply would ever reveal it.
+     * Every shelf that <em>is</em> a search goes through here; A-Z is not one
+     * and goes through {@link #letterFor}. Both end in {@link #paged}, which is
+     * where {@code mode=compact} and the page size are stated once. There is no
+     * {@code machinetype} and no {@code contenttype} anywhere in this file, and
+     * that is asserted on the URL in the test because no reply would ever
+     * reveal it.
      *
      * <b>{@code offset} is a page number, not a row number - measured.</b> The
      * specification calls it "the page offset for pagination", which reads
@@ -322,7 +336,68 @@ public final class ZxInfoCatalogue implements Catalogue {
      * thirty more, sharing no id with the first.
      */
     private static String searchFor(String criterion, int page) {
-        return "search?" + criterion + "&mode=compact&size=" + PAGE_SIZE + "&offset=" + page;
+        return paged("search", criterion, page);
+    }
+
+    /**
+     * One letter of A-Z, which is an endpoint of its own and not a search.
+     *
+     * <b>{@code GET /games/byletter/{letter}} - the letter is in the path.</b>
+     * The specification calls it "a-z - or # for numbers (case insensitive)"
+     * and summarises the operation as "Fetches list of entries starting with a
+     * specific letter", which is the thing a search could never be asked to
+     * promise: {@code query=Q} is a full-text match and would have answered
+     * with every record mentioning a Q anywhere in it. Nothing here sorts,
+     * either - the rows arrive alphabetical, so the {@code sort=title_asc} the
+     * search carried is not needed here rather than not allowed.
+     *
+     * <b>It takes the same {@code mode}, {@code size} and {@code offset} as
+     * {@code /search}</b>, so this shares {@link #paged} with it - but its
+     * {@code mode} <b>defaults to {@code tiny}, where {@code /search} defaults
+     * to {@code compact}</b>, and tiny has no controls. So asking for compact
+     * explicitly is load-bearing on this endpoint in a way it never was on the
+     * search: leaving it off here would quietly change what comes back.
+     *
+     * The reply is the same {@code hits.hits[]._source} envelope a search
+     * answers with, which is why {@link #rows} reads both without knowing
+     * which it asked.
+     *
+     * <b>Measured live, 2026-08-11, two requests.</b> {@code letter=Z} answered
+     * {@code total=1701} - a real count, well inside the 10,000 cap - with
+     * thirty rows every one of whose titles begins with Z, and in alphabetical
+     * order with nothing having asked for one. {@code offset} is a <b>page
+     * number</b> here too, which had to be measured rather than assumed: the
+     * specification's wording is the same "the page offset for pagination" that
+     * read either way on {@code /search} and was wrong there. Page 1 shared
+     * <em>no</em> id with page 0 and opened on {@code Z80 CPU Microprocessor
+     * Instant Reference Card}, which follows page 0's last row {@code Z80
+     * COLOSS} - where a row offset of 1 would have opened on page 0's
+     * <em>second</em> row instead. Both readings were asked at once, so one
+     * pair of requests settled it.
+     *
+     * {@code #} is the specification's own name for the entries whose titles
+     * start with a digit, and this app does not offer it - {@link #ALPHABET} is
+     * twenty-six letters. A shelf for it would be a good thing to add and is
+     * not a correction to this.
+     */
+    private static String letterFor(String letter, int page) {
+        // Encoded although a letter never needs it: what arrives here is a
+        // substring of a shelf id, and the one way this can go wrong is the
+        // LETTER_PREFIX leaking into the path.
+        return paged("games/byletter/" + Uri.encode(letter), "", page);
+    }
+
+    /**
+     * The tail every paged shelf shares: compact, thirty, and which page.
+     *
+     * One place so that a shelf cannot quietly acquire a different page size
+     * or drop {@code mode=compact} - and so the two shapes above differ only
+     * in what they are asking, never in how they are read. The two unpaged
+     * calls, {@code item} and {@link #genres}, build their own short paths.
+     */
+    private static String paged(String path, String criterion, int page) {
+        return path + "?" + (criterion.isEmpty() ? "" : criterion + "&")
+                + "mode=compact&size=" + PAGE_SIZE + "&offset=" + page;
     }
 
     // --- reading a page ------------------------------------------------------------------

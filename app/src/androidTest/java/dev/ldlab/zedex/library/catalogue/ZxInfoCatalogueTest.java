@@ -103,6 +103,38 @@ public class ZxInfoCatalogueTest {
             + "]}}";
 
     /**
+     * {@code /games/byletter/Z?mode=compact&size=30&offset=0}, trimmed to two
+     * of its thirty hits and the fields a row draws.
+     *
+     * <b>Values recorded, envelope assembled - and nothing in it is here that
+     * was not seen.</b> The two ids, the two titles and the total are the
+     * service's own, read off a live reply on 2026-08-11; that request is the
+     * one that proved this endpoint returns titles beginning with the letter,
+     * and it is written down here so the next person need not spend it again.
+     * What is this test's rather than the service's is only the trimming - to
+     * two of thirty hits, and to the fields that live run actually reported.
+     *
+     * A year, a genre and an availability would all have made this look more
+     * like a real reply, and every one of them would have been written from
+     * memory. Three defects on this branch came from exactly that, so the
+     * fields nobody recorded are absent rather than plausible: a row draws
+     * fine without them, which is itself worth pinning.
+     *
+     * The total is 1,701 because that is what came back for Z. It matters that
+     * it is a real number: it is well inside the 10,000 cap, so a letter shelf
+     * is one of the shelves that can honestly report a count.
+     *
+     * The envelope is deliberately the same shape as {@link #SEARCH} - that is
+     * the measured fact this endpoint is read on, and if it ever stops being
+     * true, {@code aletterShelfReadsItsRowsAndItsTotal} is what says so.
+     */
+    private static final String BY_LETTER = "{"
+            + "\"hits\":{\"total\":{\"value\":1701},\"hits\":["
+            + "  {\"_id\":\"0005858\",\"_source\":{\"title\":\"Z-Man\"}},"
+            + "  {\"_id\":\"0031886\",\"_source\":{\"title\":\"Z-Xtricator\"}}"
+            + "]}}";
+
+    /**
      * {@code /games/0002259?mode=compact}, <b>recorded</b>, trimmed to two of
      * its five releases and the fields read here.
      *
@@ -737,16 +769,30 @@ public class ZxInfoCatalogueTest {
     }
 
     /**
-     * The letter is the query, and the shelf is alphabetical - which is the
-     * whole difference between A-Z and Search.
+     * A letter asks the by-letter endpoint, and is not a search.
+     *
+     * <b>This pinned the wrong URL until the specification was read.</b> It
+     * asserted {@code search?query=Q&sort=title_asc} - and so pinned the guess
+     * that {@code query=} means "title begins with", when it is a full-text
+     * match over the whole record. {@code GET /games/byletter/{letter}} is the
+     * service's own endpoint for this and comes back alphabetical with nothing
+     * asked - see the live figures on {@code ZxInfoCatalogue.letterFor}.
+     *
+     * A test can pin a URL and prove nothing about whether it is the right
+     * question. This one passed for the whole of the branch.
      *
      * Reached the way the screen reaches it: down into the letter's own
      * sub-shelf. Nothing hands this shelf a {@link Catalogue.Query} any more,
      * so a test that built one would be testing a path the app does not take.
+     *
+     * The sort is asserted <em>absent</em> rather than left unmentioned: a
+     * parameter this service does not know is ignored rather than refused, so
+     * a {@code sort=} surviving here would never show up as a failure anywhere
+     * else.
      */
     @Test
-    public void aletterSubShelfSearchesForThatLetterInTitleOrder() throws Exception {
-        Canned http = new Canned().then(200, SEARCH);
+    public void aletterSubShelfAsksTheByLetterEndpointForThatLetter() throws Exception {
+        Canned http = new Canned().then(200, BY_LETTER);
         ZxInfoCatalogue catalogue = new ZxInfoCatalogue(http);
 
         Catalogue.Shelf q = catalogue.open(shelf(http, "letter"),
@@ -756,16 +802,73 @@ public class ZxInfoCatalogueTest {
         catalogue.open(q, Catalogue.Query.none(), 0);
 
         String url = http.asked.get(0);
-        assertTrue(url, url.startsWith(ZxInfo.API + "search?"));
-        assertTrue(url, url.contains("query=Q"));
-        assertTrue(url, url.contains("sort=title_asc"));
+        assertTrue(url, url.startsWith(ZxInfo.API + "games/byletter/Q?"));
+        assertTrue(url, url.contains("mode=compact"));
+        assertTrue(url, url.contains("size=30"));
+
+        assertFalse("a letter is not a search: " + url, url.contains("search?"));
+        assertFalse("the letter went as a query as well as a path: " + url,
+                    url.contains("query="));
+        assertFalse("a guessed sort value came back: " + url, url.contains("sort="));
 
         // The prefix is the catalogue's own and means nothing to anyone else -
-        // leaking "letter:" into the query would search for a phrase no title
-        // contains, which this service answers with a plausible empty shelf.
+        // leaking "letter:" into the path asks for a letter that is not one,
+        // which this endpoint answers 400 for.
         assertFalse("the shelf id's prefix went out in the request: " + url,
                     url.contains("%3A"));
         assertNoFilter(url);
+    }
+
+    /**
+     * A letter's rows are read exactly as a search's are.
+     *
+     * Worth its own assertion because the two now come from different
+     * endpoints: the envelope is the same {@code hits.hits[]._source} either
+     * way, and this is what would fail if that stopped being true.
+     */
+    @Test
+    public void aletterShelfReadsItsRowsAndItsTotal() throws Exception {
+        Canned http = new Canned().then(200, BY_LETTER);
+        ZxInfoCatalogue catalogue = new ZxInfoCatalogue(http);
+
+        Catalogue.Shelf z = catalogue.open(shelf(http, "letter"),
+                                           Catalogue.Query.none(), 0).shelves().get(25);
+        assertEquals("Z", z.label());
+
+        Catalogue.Page page = catalogue.open(z, Catalogue.Query.none(), 0);
+
+        assertEquals(2, page.items().size());
+        assertEquals("Z-Man", page.items().get(0).title());
+        assertEquals("0005858", page.items().get(0).id());
+        assertEquals(1701, page.total());
+    }
+
+    /**
+     * The by-letter endpoint's {@code offset} is a page number too - measured,
+     * not inherited from {@code /search}.
+     *
+     * The specification gives it the same words on both ({@code "Specifies the
+     * page offset for pagination"}), which is exactly the wording that read
+     * either way on {@code /search} and was wrong there for the whole of this
+     * branch. So it was asked: page 1 of {@code Z} shared no id with page 0 and
+     * opened on {@code Z80 CPU Microprocessor Instant Reference Card}, which
+     * follows page 0's last row {@code Z80 COLOSS} - where a row offset of 1
+     * would have opened on page 0's second row.
+     */
+    @Test
+    public void aletterSsecondPageAsksForPageTwoAndNotForRowThirty() throws Exception {
+        Canned http = new Canned().then(200, BY_LETTER);
+        ZxInfoCatalogue catalogue = new ZxInfoCatalogue(http);
+
+        Catalogue.Shelf z = catalogue.open(shelf(http, "letter"),
+                                           Catalogue.Query.none(), 0).shelves().get(25);
+        catalogue.open(z, Catalogue.Query.none(), 1);
+
+        String url = http.asked.get(0);
+        assertTrue("the second page did not ask for page 1: " + url,
+                   url.contains("offset=1&") || url.endsWith("offset=1"));
+        assertFalse("offset is a page number, not a row number: " + url,
+                    url.contains("offset=30"));
     }
 
     /**
