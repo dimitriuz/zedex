@@ -364,17 +364,24 @@ has only one source, as it is today.
 
 ## Tests
 
-**JVM (`app/src/test`)**, against the existing fake `Provider` and `Http`, no
-network:
+**JVM (`app/src/test`)** — only what has no `Context` in it, which is why
+`Merge` is a class of its own:
 
-- `BlendTest` — the merge rule; the reflective every-field-is-merged test;
-  stopping early; a later source taking a single exact title match without a
-  dialog and asking when there are three; contested detection, including the
-  identical-bytes case that must *not* ask.
+- `MetaSourcesTest` — the contributor list and the three predicates that read
+  it.
+- `MergeTest` — the merge rule, and the reflective every-field-is-merged test
+  that walks `Meta` so a field added there cannot be forgotten here.
+
+**Instrumentation (`app/src/androidTest`)** — everything else. `Metadata`,
+`Artwork` and `Prefs` all take a `Context`, which is why nearly the whole
+scrape package's tests already live here. Against the existing fake `Provider`
+and `Http`, no network:
+
+- `BlendTest` — the loop; stopping early; a later source taking a single exact
+  title match without a dialog and asking when there are three; contested
+  detection, including the identical-bytes case that must *not* ask.
 - `ScrapersTest` — order, enabling and disabling, and the migration from
   `KEY_SCRAPER` in both directions (a stored single name; nothing stored).
-
-**Instrumentation (`app/src/androidTest`)**:
 
 - `ArtworkChoiceTest` — a contested cover, choosing the new one, asserting the
   file on disk changed *and* that the old extension is gone; and that Save with
