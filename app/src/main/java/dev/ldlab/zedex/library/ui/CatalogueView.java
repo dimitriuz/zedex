@@ -329,7 +329,21 @@ public final class CatalogueView extends FrameLayout {
         // until somebody taps a title. That is the one place this differs from
         // DetailPane, which is present whether or not anything is selected -
         // see CataloguePane's own class comment for why.
-        pane = new CataloguePane(context, landscape, catalogue, http, host::imported);
+        // Two methods now, so no longer a method reference: the pane can also
+        // hand back a shelf to descend into, which is this view's business
+        // because the stack of shelves and Back are.
+        pane = new CataloguePane(context, landscape, catalogue, http,
+                new CataloguePane.Host() {
+                    @Override
+                    public void imported() {
+                        host.imported();
+                    }
+
+                    @Override
+                    public void openShelf(Catalogue.Shelf shelf) {
+                        open(shelf);
+                    }
+                });
         pane.setVisibility(View.GONE);
         outer.addView(pane, new LinearLayout.LayoutParams(
                 landscape ? 0 : LinearLayout.LayoutParams.MATCH_PARENT,

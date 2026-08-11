@@ -2,6 +2,7 @@ package dev.ldlab.zedex.library.catalogue;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
@@ -168,6 +169,58 @@ public class CatalogueTest {
         assertTrue(search.accepts(Catalogue.Shelf.Accepts.TEXT));
         assertTrue(letters.accepts(Catalogue.Shelf.Accepts.LETTER));
         assertFalse(letters.accepts(Catalogue.Shelf.Accepts.TEXT));
+    }
+
+    /**
+     * A catalogue with no notion of one game being like another owes nobody an
+     * answer about it.
+     *
+     * The same bargain the rest of this seam makes - a way in is data, and a
+     * site that has not got one says so by not having one. The default is null
+     * and not an empty shelf, because an empty shelf is a button that opens
+     * onto nothing; whatever offers the way in offers it only when there is
+     * one. This is the assertion that would fail if {@code similarTo} were ever
+     * made abstract, which would make every future catalogue implement a
+     * method most of them have no endpoint for.
+     */
+    @Test
+    public void acatalogueThatKnowsOfNothingSimilarSaysSo() {
+        assertNull(new BareCatalogue().similarTo(anItem("0002259"), "Games like this"));
+    }
+
+    /** The least a catalogue can be: the four methods the seam actually
+     *  requires, and none of the ones it offers a default for. */
+    private static final class BareCatalogue implements Catalogue {
+        @Override
+        public String name() {
+            return "Bare";
+        }
+
+        @Override
+        public boolean configured() {
+            return true;
+        }
+
+        @Override
+        public List<Catalogue.Shelf> shelves() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public Catalogue.Page open(Catalogue.Shelf shelf, Catalogue.Query query, int page) {
+            return new Catalogue.Page(null, null, 0, Catalogue.Page.UNKNOWN_TOTAL);
+        }
+
+        @Override
+        public Catalogue.Item item(String id) {
+            return null;
+        }
+
+        @Override
+        public dev.ldlab.zedex.library.scrape.ScrapeException refusalFor(int status) {
+            return new dev.ldlab.zedex.library.scrape.ScrapeException(
+                    dev.ldlab.zedex.library.scrape.ScrapeException.Kind.MALFORMED, "no");
+        }
     }
 
     // --- availability ----------------------------------------------------------------

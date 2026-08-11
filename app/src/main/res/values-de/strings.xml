@@ -784,6 +784,8 @@
     <string name="catalogue_imported">%1$s importiert</string>
     <string name="catalogue_already">%1$s ist bereits in der Bibliothek</string>
     <string name="catalogue_nothing_to_get">Nichts, was der Spectrum öffnen kann.</string>
+    <string name="catalogue_similar">Ähnliche Spiele</string>
+    <string name="catalogue_similar_to">Spiele wie %1$s</string>
     <string name="catalogue_needs_write">Zedex braucht die Berechtigung, Spiele zu %1$s hinzuzufügen.</string>
     <string name="catalogue_choose_folder">Auswählen</string>
 </resources>

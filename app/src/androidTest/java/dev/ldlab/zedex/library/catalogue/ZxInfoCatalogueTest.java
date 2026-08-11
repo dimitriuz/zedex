@@ -201,6 +201,43 @@ public class ZxInfoCatalogueTest {
             + "]}}";
 
     /**
+     * {@code /games/morelikethis/0002259?mode=compact&size=30} - games like
+     * Head over Heels - <b>recorded</b>, trimmed to two of its thirty hits.
+     *
+     * Read off the live reply on 2026-08-11. Both hits are arcade adventures,
+     * which is what the endpoint is for, and both carry the same {@code _score}
+     * - the rows come back ordered by it, 8.185992 at the top of 1,858.
+     *
+     * <b>1,858 is a real count and this shelf still refuses to print it</b>, so
+     * the number is here to make that refusal testable: the endpoint takes a
+     * size and no offset, so thirty is all there is to see and a count beside
+     * the shelf's name would be a number the list can never reach.
+     *
+     * The top match being {@code Never released} is the service's own doing and
+     * is kept: it is the greyed-row case turning up at the head of a shelf
+     * somebody will actually open.
+     */
+    private static final String MORE_LIKE_THIS = "{"
+            + "\"hits\":{\"total\":{\"value\":1858,\"relation\":\"eq\"},"
+            + "          \"max_score\":8.185992,\"hits\":["
+            + "  {\"_id\":\"0024427\",\"_score\":8.185992,\"_source\":{"
+            + "     \"title\":\"Slightly Spooky\",\"originalYearOfRelease\":null,"
+            + "     \"machineType\":\"ZX-Spectrum 48K/128K\","
+            + "     \"genre\":\"Arcade Game: Adventure\",\"genreType\":\"Arcade Game\","
+            + "     \"availability\":\"Never released\","
+            + "     \"publishers\":[{\"publisherSeq\":1,\"name\":\"Code Masters Ltd\","
+            + "                      \"country\":\"UK\"}]}},"
+            + "  {\"_id\":\"0014541\",\"_score\":8.185992,\"_source\":{"
+            + "     \"title\":\"Pedro v strašidelnom zámku\","
+            + "     \"originalYearOfRelease\":1993,"
+            + "     \"machineType\":\"ZX-Spectrum 48K/128K\","
+            + "     \"genre\":\"Arcade Game: Adventure\",\"genreType\":\"Arcade Game\","
+            + "     \"availability\":\"Available\","
+            + "     \"publishers\":[{\"publisherSeq\":1,\"name\":\"Ultrasoft [SK]\","
+            + "                      \"country\":\"Slovakia\"}]}}"
+            + "]}}";
+
+    /**
      * {@code /games/0002259?mode=compact}, <b>recorded</b>, trimmed to two of
      * its five releases and the fields read here.
      *
@@ -1159,6 +1196,129 @@ public class ZxInfoCatalogueTest {
         assertNoFilter(url);
     }
 
+    // --- games like this one -----------------------------------------------------------------
+
+    /**
+     * A way in built from an entry, and it costs nothing to build.
+     *
+     * <b>The same mechanism the letters and the genres use</b> - an id carrying
+     * an id - which is the whole reason the screen needed no new idea for this:
+     * what comes back is an ordinary shelf, opened by an ordinary {@code open}.
+     * The label is the caller's, already translated, because there is nothing
+     * off the wire to call this shelf and a catalogue has no {@code Context}.
+     *
+     * The request is asserted absent as well: a way in that fetched a page
+     * while a pane was being laid out would be a request nobody asked for, on a
+     * host that blocks on behaviour patterns.
+     */
+    @Test
+    public void similarToAnEntryIsAshelfCarryingItsIdAndCostsNothing() {
+        Canned http = new Canned();
+
+        Catalogue.Shelf shelf = new ZxInfoCatalogue(http)
+                .similarTo(anItem("0002259"), "Games like Head over Heels");
+
+        assertNotNull(shelf);
+        assertEquals("building a way in cost a request", 0, http.asked.size());
+        assertEquals("Games like Head over Heels", shelf.label());
+        assertTrue("the entry id is not in the shelf id: " + shelf.id(),
+                   shelf.id().contains("0002259"));
+        assertFalse("a shelf about one game asked for text",
+                    shelf.accepts(Catalogue.Shelf.Accepts.TEXT));
+    }
+
+    /** Nothing to be like: an entry with no id would send {@code
+     *  games/morelikethis/} with nothing on the end of it, which is a request
+     *  worth not making. */
+    @Test
+    public void similarToNothingIsNoShelf() {
+        ZxInfoCatalogue catalogue = new ZxInfoCatalogue(new Canned());
+
+        assertEquals(null, catalogue.similarTo(null, "x"));
+        assertEquals(null, catalogue.similarTo(anItem(null), "x"));
+        assertEquals(null, catalogue.similarTo(anItem(""), "x"));
+    }
+
+    /**
+     * Opening it asks {@code games/morelikethis/{game-id}}.
+     *
+     * <b>The id is in the path and the prefix stays behind.</b> A shelf id is
+     * this catalogue's own; {@code more:} leaking into the path asks for an
+     * entry that does not exist. And there is no {@code offset} to send - that
+     * endpoint has none - so a leftover one would be silently ignored by this
+     * service and would say, wrongly, that this shelf can be paged.
+     */
+    @Test
+    public void asimilarShelfAsksTheMoreLikeThisEndpoint() throws Exception {
+        Canned http = new Canned().then(200, MORE_LIKE_THIS);
+        ZxInfoCatalogue catalogue = new ZxInfoCatalogue(http);
+
+        catalogue.open(catalogue.similarTo(anItem("0002259"), "Games like Head over Heels"),
+                       Catalogue.Query.none(), 0);
+
+        String url = http.asked.get(0);
+        assertEquals(ZxInfo.API + "games/morelikethis/0002259?mode=compact&size=30", url);
+        assertFalse("the shelf id's prefix went out in the request: " + url,
+                    url.contains("%3A"));
+        assertNoFilter(url);
+    }
+
+    /**
+     * Its rows are read like any other page, and it counts nothing.
+     *
+     * The envelope is the same {@code hits.hits[]._source} a search answers
+     * with, which is a measured fact about this endpoint and not an assumption
+     * - this is what would fail if it stopped being true.
+     *
+     * The total it sends is real (1,858, {@code "relation":"eq"}) and is still
+     * not printed: thirty is all this shelf can ever show, so a count beside
+     * its name is a number the list cannot reach, which reads as a shelf that
+     * stopped early.
+     */
+    @Test
+    public void asimilarShelfReadsItsRowsAndPrintsNoCount() throws Exception {
+        Canned http = new Canned().then(200, MORE_LIKE_THIS);
+        ZxInfoCatalogue catalogue = new ZxInfoCatalogue(http);
+
+        Catalogue.Page page = catalogue.open(
+                catalogue.similarTo(anItem("0002259"), "Games like Head over Heels"),
+                Catalogue.Query.none(), 0);
+
+        assertEquals(2, page.items().size());
+        assertEquals("Slightly Spooky", page.items().get(0).title());
+        assertEquals("0024427", page.items().get(0).id());
+        assertEquals("Arcade Game", page.items().get(0).kind());
+
+        // The top match is one the row draws greyed, with the reason - which is
+        // the service's own answer here and not this fixture's invention.
+        assertFalse(page.items().get(0).available());
+
+        assertEquals("the shelf printed a count it can never reach",
+                     Catalogue.Page.UNKNOWN_TOTAL, page.total());
+    }
+
+    /**
+     * And it is one page: the endpoint takes a size and no offset.
+     *
+     * The second page is empty and costs nothing - this returns before a path
+     * is built, so a fling at the bottom of the shelf sends no request. Ended
+     * here rather than in {@code Page.hasMore}, whose contract the paging
+     * shelves depend on.
+     */
+    @Test
+    public void asimilarShelfDoesNotPageOn() throws Exception {
+        Canned http = new Canned().then(200, MORE_LIKE_THIS);
+        ZxInfoCatalogue catalogue = new ZxInfoCatalogue(http);
+
+        Catalogue.Page second = catalogue.open(
+                catalogue.similarTo(anItem("0002259"), "Games like Head over Heels"),
+                Catalogue.Query.none(), 1);
+
+        assertEquals("a second page of similar games cost a request", 0, http.asked.size());
+        assertTrue("a second page of similar games brought rows", second.items().isEmpty());
+        assertFalse("the similar shelf pages for ever", second.hasMore());
+    }
+
     // --- refusals --------------------------------------------------------------------------
 
     /** Told apart by kind, so the screen can say "in a minute" rather than
@@ -1215,6 +1375,13 @@ public class ZxInfoCatalogueTest {
     private static void assertNoFilter(String url) {
         assertFalse("a machine filter was applied: " + url, url.contains("machinetype"));
         assertFalse("a content filter was applied: " + url, url.contains("contenttype"));
+    }
+
+    /** A row as a list hands one over - id and title and nothing that matters
+     *  here, since what a similar-games shelf is built from is the id. */
+    private static Catalogue.Item anItem(String id) {
+        return new Catalogue.Item(id, "Head over Heels", "1987", "Ocean Software Ltd",
+                                  "Arcade Game", "Available", null, null);
     }
 
     private static Catalogue.Shelf shelfNamed(String id) {

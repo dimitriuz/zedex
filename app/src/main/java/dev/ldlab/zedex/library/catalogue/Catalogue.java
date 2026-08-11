@@ -74,6 +74,38 @@ public interface Catalogue {
     Item item(String id) throws ScrapeException;
 
     /**
+     * A way in to whatever this catalogue thinks is like one of its items, or
+     * null where it has no such notion.
+     *
+     * <b>A shelf, so nothing new has to be understood by anybody.</b> "Games
+     * like this one" is the same shape as a letter or a genre: an id that
+     * carries an entry id, opened through {@link #open} like any other, drawn
+     * by a screen that already knows how to descend into one. That is why this
+     * answers with a {@link Shelf} rather than with a list of items - a page of
+     * results would have needed a request made before anybody asked for it, and
+     * a way in costs nothing until it is opened.
+     *
+     * <b>Default null, so a catalogue owes nothing it has not got.</b> The same
+     * bargain the rest of this interface makes: a site with no notion of
+     * similarity says so by not overriding this, and whatever offers the way in
+     * simply does not offer it.
+     *
+     * <b>The label comes from the caller, and that is deliberate.</b>
+     * Everywhere else a shelf's words are the service's own - a genre's name
+     * comes off the wire, a letter is a letter - and there is nothing off the
+     * wire to call this one. What a person reads here is a sentence in their
+     * own language about a game ("Games like Head over Heels"), and translation
+     * lives on the app's side of this seam: a catalogue has no {@code Context}
+     * and must not grow one for a caption. The id and {@link Shelf.Accepts}
+     * stay the catalogue's, which is what the caller cannot know.
+     *
+     * @param label what to call the shelf, already translated.
+     */
+    default Shelf similarTo(Item item, String label) {
+        return null;
+    }
+
+    /**
      * What a bare HTTP status from this service means.
      *
      * Borrowed unchanged from {@code Provider}: only the service knows whether

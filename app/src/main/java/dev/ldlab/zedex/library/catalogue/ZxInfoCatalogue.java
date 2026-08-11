@@ -111,6 +111,13 @@ import java.util.Locale;
  *       - the total that comes back is the 10,000 cap, and nothing here is
  *       walking through an ordering to be counted against - so nothing
  *       measures anything with this shelf either. See {@link #randomFor}.</li>
+ *   <li><b>Similar games</b> is not a declared shelf at all: it is built on
+ *       demand from an entry's id by {@link #similarTo}, offered by whatever
+ *       has that entry in front of somebody, and asks
+ *       <b>{@code games/morelikethis/{game-id}}</b>. One page of thirty, since
+ *       that endpoint takes a size and no offset. The same mechanism as a
+ *       letter and a genre - an id carrying an id - which is why nothing on the
+ *       screen had to learn anything new. See {@link #likeFor}.</li>
  *   <li><b>Categories</b> reads {@code metadata/} and hands the genres back as
  *       sub-shelves. Verified 2026-08-10, and it corrected the name: the array
  *       is <b>{@code genretypes}</b>, plural, beside {@code machinetypes} and
@@ -170,6 +177,10 @@ public final class ZxInfoCatalogue implements Catalogue {
      *  is the id behind this, so {@link #open} can tell "the A-Z shelf" from
      *  "the letter Q" without a second field. */
     private static final String LETTER_PREFIX = "letter:";
+
+    /** And again for {@link #similarTo}, whose id carries the entry every row
+     *  on the shelf is meant to be like. */
+    private static final String MORE_PREFIX = "more:";
 
     /** What A-Z opens onto. Latin only, and deliberately: this is a search
      *  term handed to a service whose titles are indexed in it, not an
@@ -253,10 +264,35 @@ public final class ZxInfoCatalogue implements Catalogue {
         // since zxart's whole category tree will.
         if (SHELF_LETTER.equals(shelf.id())) return letters();
 
-        // A random shelf cannot count: every page is an independent draw, so
-        // the total the service reports - which is Elasticsearch's 10,000 cap
-        // anyway - says nothing about how much of anything this list has seen.
-        boolean countable = !SHELF_RANDOM.equals(shelf.id());
+        // More like this is one page, and the second one is empty on purpose.
+        //
+        // The endpoint takes a size and no offset - it answers with the best
+        // matches and there is no way to ask for the next ones - so page two of
+        // this shelf would be page one again, the same thirty rows appended to
+        // the thirty already on screen. And nothing stops it, because the total
+        // is unknown and Page.hasMore reads unknown-plus-non-empty as "there is
+        // more": an endless grid of duplicates, one paced request per fling,
+        // against the host that blocked this app once already.
+        //
+        // Ended here rather than in hasMore, whose contract is right and which
+        // other shelves depend on. The only honest thing to do with a shelf
+        // that cannot page is to stop after the first one; the total stays
+        // UNKNOWN_TOTAL because there genuinely is no count, and it is the
+        // empty second page that ends the list. It costs no request: this
+        // returns before pathFor is reached.
+        if (shelf.id().startsWith(MORE_PREFIX) && page > 0) {
+            return new Page(null, null, page * PAGE_SIZE, Page.UNKNOWN_TOTAL);
+        }
+
+        // Two shelves cannot count. A random one because the rows are drawn
+        // afresh every time, so nothing the service reports says how much of it
+        // this list has seen - what comes back is Elasticsearch's 10,000 cap
+        // anyway; a more-like-this one because it hands back one page of the
+        // best matches, and a count of everything Elasticsearch thought similar
+        // is a number the list can never reach - drawn beside the shelf's name
+        // it reads as a shelf that stopped early.
+        boolean countable = !SHELF_RANDOM.equals(shelf.id())
+                && !shelf.id().startsWith(MORE_PREFIX);
 
         return rows(pathFor(shelf, query, page), page * PAGE_SIZE, countable);
     }
@@ -267,6 +303,27 @@ public final class ZxInfoCatalogue implements Catalogue {
         JSONObject source = reply == null ? null : reply.optJSONObject("_source");
 
         return source == null ? null : itemFrom(id, source, true);
+    }
+
+    /**
+     * The way in to "games like this one", built round the entry's own id.
+     *
+     * Nothing is fetched here - a shelf is a way in, and the request happens
+     * when somebody opens it, which is what lets this be called while a pane is
+     * being laid out. The id travels inside the shelf's own id, exactly as a
+     * letter and a genre do, so the screen that opens it needs to know nothing
+     * new.
+     *
+     * Null for an entry with no id, which is not a shape the service sends -
+     * every hit carries {@code _id} and {@link #rows} drops the ones that do
+     * not - but is cheaper to refuse than to send {@code games/morelikethis/}
+     * with nothing on the end of it.
+     */
+    @Override
+    public Shelf similarTo(Item item, String label) {
+        if (item == null || item.id() == null || item.id().isEmpty()) return null;
+
+        return new Shelf(MORE_PREFIX + item.id(), label, Shelf.Accepts.NOTHING);
     }
 
     @Override
@@ -308,6 +365,10 @@ public final class ZxInfoCatalogue implements Catalogue {
 
         if (id.startsWith(LETTER_PREFIX)) {
             return letterFor(id.substring(LETTER_PREFIX.length()), page);
+        }
+
+        if (id.startsWith(MORE_PREFIX)) {
+            return likeFor(id.substring(MORE_PREFIX.length()));
         }
 
         if (SHELF_NEWEST.equals(id)) {
@@ -449,6 +510,48 @@ public final class ZxInfoCatalogue implements Catalogue {
      */
     private static String randomFor() {
         return "games/random/" + PAGE_SIZE + "?mode=compact";
+    }
+
+    /**
+     * Games like one game, which is an endpoint of its own too.
+     *
+     * <b>{@code GET /games/morelikethis/{game-id}}</b> - "Fetches list of
+     * similar entries", Elasticsearch's own {@code more_like_this} over
+     * machine type, genre type, genre sub-type and content type. It takes
+     * {@code mode} and {@code size} and, like {@link #randomFor}, <b>no {@code
+     * offset}</b>: it answers with one page of the best matches and there is no
+     * second page to ask for, which is why {@link #open} ends the shelf after
+     * the first.
+     *
+     * <b>Measured live, 2026-08-11, three requests.</b> {@code
+     * morelikethis/0002259} - Head over Heels - answered 200 with the same
+     * {@code hits.hits[]._source} envelope, thirty rows in descending {@code
+     * _score} (8.19 at the top) out of a stated total of <b>1,858</b>, and
+     * {@code "relation":"eq"} rather than the {@code "gte"} that marks a capped
+     * count. It is deterministic: the same call at {@code mode=tiny} came back
+     * with the same thirty ids in the same order, at 60,283 bytes against
+     * compact's 104,386 - so the order is the query's rather than chance, and
+     * {@code mode} is honoured here too.
+     *
+     * <b>The id in the path is what decides, proven with one that could have
+     * been wrong.</b> A shelf built from the right game and a shelf built from
+     * nothing would look equally plausible on screen, so a second entry was
+     * asked for: {@code morelikethis/0027393} - "007 BEEP Copier", a utility -
+     * answered thirty tape and disk copiers ({@code Kopykat 3}, {@code Fast
+     * Copy}, {@code Wild Disk Copier}) with <b>no id in common</b> with Head
+     * over Heels' thirty, which were Dizzy games and arcade adventures.
+     *
+     * <b>The 1,858 is not printed</b> - see {@link #open}, which keeps this
+     * shelf uncountable. Thirty of them are shown and the next thirty cannot be
+     * asked for, so a count beside the shelf's own name is a number the list
+     * can never reach, which reads as a shelf that stopped early.
+     *
+     * The id is encoded for the same reason a letter is - what arrives here is
+     * a substring of a shelf id, and the one way this goes wrong is the prefix
+     * leaking into the path.
+     */
+    private static String likeFor(String id) {
+        return "games/morelikethis/" + Uri.encode(id) + "?mode=compact&size=" + PAGE_SIZE;
     }
 
     /**

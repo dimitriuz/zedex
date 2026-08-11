@@ -116,6 +116,18 @@ public final class CataloguePane extends FrameLayout {
          *  caches - has to be told, because a listing is keyed by path and
          *  knows nothing about a file it did not list. */
         void imported();
+
+        /**
+         * Somewhere to go, opened.
+         *
+         * The pane can build a shelf - {@link Catalogue#similarTo} answers with
+         * one and makes no request doing it - and it is the list behind the
+         * pane that descends into shelves, keeps the stack of them and knows
+         * what Back means. Handing the shelf over rather than growing a second
+         * list here is the same division {@link CatalogueView} already makes
+         * with the letters and the genres.
+         */
+        void openShelf(Catalogue.Shelf shelf);
     }
 
     /**
@@ -162,6 +174,18 @@ public final class CataloguePane extends FrameLayout {
     private final Button versionsButton;
     private final Button recordingButton;
 
+    /**
+     * Games like this one, on a shelf of their own.
+     *
+     * <b>The one button here that does not wait for {@link Catalogue#item}.</b>
+     * Where it leads is built from the entry's id, which the row that was
+     * tapped already carries, so it needs nothing fetched - and that is worth
+     * having on its own account: a record this app cannot read is still a
+     * record you can go somewhere from, which is exactly the moment somebody
+     * wants another way on.
+     */
+    private final Button similarButton;
+
     /** Beside {@link #status} when the folder needs re-granting, and only
      *  then - see {@link #askForWriteAccess}. */
     private final Button chooseButton;
@@ -171,6 +195,11 @@ public final class CataloguePane extends FrameLayout {
      * {@link Catalogue#item} answers, which is what the three buttons wait for.
      */
     private Catalogue.Item showing;
+
+    /** Where {@link #similarButton} goes, or null where this catalogue has no
+     *  notion of one game being like another. Built in {@link #show} from the
+     *  row's own id, so it is ready before anything has been fetched. */
+    private Catalogue.Shelf similar;
 
     /**
      * Bumped by every {@link #show}, before anything asynchronous is asked
@@ -346,6 +375,10 @@ public final class CataloguePane extends FrameLayout {
         recordingButton.setOnClickListener(v -> importTheRecording());
         words.addView(recordingButton, wrap());
 
+        similarButton = button(R.string.catalogue_similar);
+        similarButton.setOnClickListener(v -> openSimilar());
+        words.addView(similarButton, wrap());
+
         addView(column, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
     }
@@ -393,6 +426,12 @@ public final class CataloguePane extends FrameLayout {
 
         versionsButton.setVisibility(View.GONE);
         recordingButton.setVisibility(View.GONE);
+
+        // The one button that is decided here rather than when the record
+        // arrives: where it goes is built from the id the row already carries,
+        // and Catalogue.similarTo makes no request - see similarButton.
+        similar = catalogue.similarTo(item, likeLabel(item));
+        similarButton.setVisibility(similar != null ? View.VISIBLE : View.GONE);
 
         showCover(forThis, item.pictureUrl());
 
@@ -540,6 +579,40 @@ public final class CataloguePane extends FrameLayout {
         if (item == null) return;
 
         beginImport(item, Pick.recording(item), true);
+    }
+
+    /**
+     * The Similar games button: the shelf, handed to the list behind this pane.
+     *
+     * The pane does not open it itself - descending into a shelf is where a
+     * person is, and where a person is belongs to the list and its stack, which
+     * is what makes Back work afterwards. Opening it closes this pane, since it
+     * is about a title that is no longer on the list behind it.
+     */
+    private void openSimilar() {
+        Catalogue.Shelf shelf = similar;
+        if (shelf == null) return;
+
+        host.openShelf(shelf);
+    }
+
+    /**
+     * What the shelf is called: "Games like Head over Heels".
+     *
+     * The catalogue is handed the words rather than inventing them - see
+     * {@link Catalogue#similarTo}. An entry with no title falls back to the
+     * button's own phrase, which says the true thing rather than "Games like
+     * null"; nothing measured has a titleless entry, and the fallback costs one
+     * line.
+     */
+    private String likeLabel(Catalogue.Item item) {
+        String title = item.title();
+
+        if (title == null || title.isEmpty()) {
+            return getContext().getString(R.string.catalogue_similar);
+        }
+
+        return getContext().getString(R.string.catalogue_similar_to, title);
     }
 
     /**
