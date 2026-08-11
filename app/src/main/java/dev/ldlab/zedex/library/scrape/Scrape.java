@@ -1,6 +1,7 @@
 package dev.ldlab.zedex.library.scrape;
 
 import dev.ldlab.zedex.library.Entry;
+import dev.ldlab.zedex.library.meta.Artwork;
 import dev.ldlab.zedex.library.meta.Meta;
 import dev.ldlab.zedex.library.meta.Metadata;
 
@@ -80,7 +81,17 @@ public final class Scrape {
 
         Metadata.put(context, owned(scraped.meta, path, provider.name()));
 
-        return Downloads.fetch(context, http, provider, path, scraped.media);
+        try {
+            return Downloads.fetch(context, http, provider, path, scraped.media,
+                                   Downloads.into(context, path));
+        } finally {
+            // Whatever went wrong, what did arrive has to become visible - a
+            // scrape stopped by a spent quota still fetched the covers it got
+            // to, and leaving them behind a cached miss would waste them.
+            // Downloads used to do this and cannot any more: it no longer
+            // knows whether it wrote where anybody looks.
+            Artwork.forget(path);
+        }
     }
 
     /**

@@ -374,6 +374,101 @@ public final class Artwork {
     }
 
     /**
+     * Where a scrape puts a picture nobody has chosen yet.
+     *
+     * A folder of the media folder's own, so a staged cover is under the same
+     * root and a move into place is a rename rather than a copy across
+     * filesystems. Nothing reads it: {@link #PICTURE_FOLDERS} names the
+     * folders it looks in, and this is not one of them, so a staged file is
+     * invisible to every part of the app until it is committed.
+     */
+    private static final String STAGING = ".staging";
+
+    public static File stagingRoot(Context context) {
+        return new File(Storage.mediaDirectory(context), STAGING);
+    }
+
+    /** {@link #fileFor}, but in the staging area. */
+    public static File stagingFileFor(Context context, String relativePath,
+                                      String folder, String extension) {
+        File file = new File(new File(stagingRoot(context), folder),
+                             withoutExtension(relativePath) + "." + extension);
+
+        File parent = file.getParentFile();
+        if (parent != null && !parent.isDirectory() && !parent.mkdirs()) {
+            Log.w(TAG, "cannot make " + parent);
+        }
+        return file;
+    }
+
+    /**
+     * Empties the staging area.
+     *
+     * <b>Called on the way in, not on the way out.</b> A scrape killed
+     * mid-flight - the activity gone, the process gone, somebody pressing
+     * Back - never reaches its own cleanup, and a leftover from last time
+     * would be offered as though this run had fetched it. The same lesson
+     * {@code RecentsTest.dropAnyLeftOver} is in the suite for.
+     */
+    public static void clearStaging(Context context) {
+        deleteTree(stagingRoot(context));
+    }
+
+    private static void deleteTree(File file) {
+        File[] children = file.listFiles();
+        if (children != null) for (File child : children) deleteTree(child);
+
+        if (file.exists() && !file.delete()) Log.w(TAG, "cannot remove " + file);
+    }
+
+    /**
+     * Removes this game's other files in one folder, keeping the extension
+     * named.
+     *
+     * A cover replaced by one from another service is often a different
+     * format, and {@link #PICTURE_EXTENSIONS} resolves png before jpg - so a
+     * new {@code covers/X.jpg} written beside an old {@code covers/X.png}
+     * leaves the old one on screen and the choice looking as though it did
+     * nothing at all.
+     */
+    public static void removeOthers(Context context, String relativePath,
+                                    String folder, String keepExtension) {
+        for (String extension : allExtensions()) {
+            if (extension.equalsIgnoreCase(keepExtension)) continue;
+
+            File other = new File(new File(Storage.mediaDirectory(context), folder),
+                                  withoutExtension(relativePath) + "." + extension);
+            if (other.isFile() && !other.delete()) Log.w(TAG, "cannot remove " + other);
+        }
+    }
+
+    /**
+     * Every extension anything under the media folder is ever written with,
+     * so that replacing one file removes the others that would outrank it.
+     *
+     * Built from the folders' own constants rather than repeated here -
+     * {@link #PICTURE_EXTENSIONS} and {@link #MANUAL_EXTENSIONS} are arrays
+     * because {@link #inFolder} and {@link #manual} try them in a stated
+     * order, and duplicating that order as literal strings here is exactly
+     * the way this list would quietly stop matching the one those methods
+     * actually use. {@link ScreenPicture#EXTENSION} is named too, even
+     * though it is {@code png} and already in {@link #PICTURE_EXTENSIONS} -
+     * a downloaded screen dump is converted to a picture in a picture
+     * folder, so it is a picture extension by the same reasoning, not a
+     * new kind of file.
+     */
+    private static String[] allExtensions() {
+        List<String> extensions = new ArrayList<>();
+        Collections.addAll(extensions, PICTURE_EXTENSIONS);
+        extensions.add(VIDEO_EXTENSION);
+        Collections.addAll(extensions, MANUAL_EXTENSIONS);
+        extensions.add(POKE_EXTENSION);
+        extensions.add(MUSIC_EXTENSION);
+        extensions.add(ScreenPicture.EXTENSION);
+        return extensions.toArray(new String[0]);
+    }
+
+    /**
      * Drops what was remembered about one game.
      *
      * For a scrape that has just written this game's cover: {@link #forget()}
