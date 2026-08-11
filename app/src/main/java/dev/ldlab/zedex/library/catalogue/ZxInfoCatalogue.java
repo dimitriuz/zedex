@@ -32,10 +32,23 @@ import java.util.Locale;
  * was blocked once at the network layer for "behaviour patterns" and it took
  * an email to lift.
  *
- * <b>Filtered by nothing.</b> PENTAGON is a sibling of ZXSPECTRUM in ZXInfo's
- * scheme rather than a variant of it, so a machine filter silently drops the
- * Pentagon demoscene - most of what arrives as .trd and .scl. Every filter can
- * only lose the right answer.
+ * <b>Nothing this class sends narrows a search.</b> PENTAGON is a sibling of
+ * ZXSPECTRUM in ZXInfo's scheme rather than a variant of it, so a machine filter
+ * silently drops the Pentagon demoscene - most of what arrives as .trd and .scl.
+ * Every filter can only lose the right answer. {@code ZxInfoCatalogueTest}'s
+ * {@code assertNoFilter} greps the URL of every shelf for one.
+ *
+ * <b>One shelf is filtered anyway, and no URL says so.</b> Surprise me asks
+ * {@code games/random/{total}}, whose own documentation says it draws from six
+ * genre categories - adventure, arcade, casual, game, sport and strategy - and
+ * only from entries carrying both a loading and an in-game screen. That is
+ * baked into the endpoint, so nothing is sent and nothing can be asserted: it is
+ * written down here because it cannot be tested. It costs a real behaviour this
+ * shelf used to have - a surprise can no longer be a utility, a demo, or
+ * anything with no picture, where the old whole-database draw could be all
+ * three. Taken as the trade for an endpoint that genuinely resamples, since
+ * a surprise that answers the same ten entries twice is not one. Every other
+ * shelf still reaches the whole database.
  *
  * <b>mode=compact.</b> Measured on one game: 10,286 bytes against full's
  * 45,318, with every field this app reads byte-identical. tiny has no
@@ -176,9 +189,9 @@ public final class ZxInfoCatalogue implements Catalogue {
      *  shelf without a second field. */
     private static final String GENRE_PREFIX = "genre:";
 
-    /** The same trick for {@link #SHELF_LETTER}'s own twenty-six: the letter
-     *  is the id behind this, so {@link #open} can tell "the A-Z shelf" from
-     *  "the letter Q" without a second field. */
+    /** The same trick for {@link #SHELF_LETTER}'s own twenty-seven: the
+     *  letter is the id behind this, so {@link #open} can tell "the A-Z shelf"
+     *  from "the letter Q" without a second field. */
     private static final String LETTER_PREFIX = "letter:";
 
     /** And again for {@link #similarTo}, whose id carries the entry every row
@@ -283,7 +296,7 @@ public final class ZxInfoCatalogue implements Catalogue {
         return Arrays.asList(
                 new Shelf(SHELF_SEARCH, "Search", Shelf.Accepts.TEXT),
                 // Takes nothing: the letter is chosen by descending into one
-                // of the twenty-six shelves this yields, not by handing it a
+                // of the twenty-seven shelves this yields, not by handing it a
                 // query. See open().
                 new Shelf(SHELF_LETTER, "A-Z", Shelf.Accepts.NOTHING),
                 new Shelf(SHELF_GENRES, "Categories", Shelf.Accepts.NOTHING),
@@ -619,8 +632,10 @@ public final class ZxInfoCatalogue implements Catalogue {
      *
      * One place so that a shelf cannot quietly acquire a different page size
      * or drop {@code mode=compact} - and so the two shapes above differ only
-     * in what they are asking, never in how they are read. The two unpaged
-     * calls, {@code item} and {@link #genres}, build their own short paths.
+     * in what they are asking, never in how they are read. The four paths
+     * that are not paged build their own: {@code item} and {@link #genres},
+     * which ask about one thing each, and {@link #randomFor} and {@link
+     * #likeFor}, whose endpoints take no {@code offset} at all.
      */
     private static String paged(String path, String criterion, int page) {
         return path + "?" + (criterion.isEmpty() ? "" : criterion + "&")
@@ -670,10 +685,10 @@ public final class ZxInfoCatalogue implements Catalogue {
      * behind {@link #LETTER_PREFIX}, what the search is built from.
      *
      * {@link #ALPHABET} is Latin and only Latin, deliberately - see its own
-     * comment. Twenty-six shelves are built here every time this is called
-     * rather than once into a constant: it is twenty-six small objects on a
-     * tap, and a shared mutable list handed out through {@link Page} is a
-     * worse thing to own.
+     * comment. The shelves are built here every time this is called rather
+     * than once into a constant: it is twenty-seven small objects on a tap, and
+     * a shared mutable list handed out through {@link Page} is a worse thing to
+     * own.
      *
      * <b>Twenty-seven, and the last one is {@link #DIGITS}.</b> The endpoint
      * takes {@code #} for the titles that start with a digit, so leaving it out
