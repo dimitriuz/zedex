@@ -82,7 +82,10 @@ public final class Imports {
      * ZipInputStream.getNextEntry} reads through each entry's data to reach
      * the next, so an archive can be expensive without a byte of it ever
      * being kept. Four thousand is nowhere near any real archive and stops
-     * that walk while it is still cheap.
+     * that walk while it is still cheap. It counts <b>every entry the walk
+     * visits, directories included</b>: a million empty names <em>is</em> a
+     * million directory entries, so a cap that skipped those before counting
+     * would be a cap that missed the case it was written for.
      */
     private static final int MAX_ENTRIES = 64;
     private static final int MAX_SCANNED = 4096;
@@ -481,11 +484,17 @@ public final class Imports {
 
         try (ZipInputStream in = new ZipInputStream(new FileInputStream(zip))) {
             for (ZipEntry entry; (entry = in.getNextEntry()) != null; ) {
-                if (entry.isDirectory()) continue;
-
+                // Counted before anything is skipped, because the walk has
+                // already paid for this entry by the time we can see what it
+                // is. Counting after the directory skip left the one case
+                // this cap is named for entirely unbounded: an archive of a
+                // million empty names is an archive of a million directory
+                // entries, and none of them were ever counted.
                 if (++scanned > MAX_SCANNED) {
                     throw new TooLarge("more than " + MAX_SCANNED + " entries inside");
                 }
+
+                if (entry.isDirectory()) continue;
 
                 String raw = entry.getName();
                 int slash = raw.lastIndexOf('/');

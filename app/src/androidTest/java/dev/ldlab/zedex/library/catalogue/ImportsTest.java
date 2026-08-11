@@ -130,8 +130,16 @@ public class ImportsTest {
 
                 for (String name : names) {
                     zip.putNextEntry(new ZipEntry(name));
-                    zip.write(padded(("contents of " + name).getBytes(StandardCharsets.US_ASCII),
-                                      padTo));
+
+                    // A name ending in "/" is a directory entry: no bytes and
+                    // no padding, which is exactly what makes an archive of a
+                    // million of them cheap to build and expensive to walk.
+                    // See thewalkCapCountsDirectoriesToo.
+                    if (!name.endsWith("/")) {
+                        zip.write(padded(
+                                ("contents of " + name).getBytes(StandardCharsets.US_ASCII),
+                                padTo));
+                    }
                     zip.closeEntry();
                 }
             }
@@ -365,6 +373,40 @@ public class ImportsTest {
 
         assertNull("seventy pictures beside one tape was refused", result.failure);
         assertEquals(stamp + "-HeadOverHeels.tzx", result.displayName);
+    }
+
+    /**
+     * <b>And the walk cap counts every entry, directories included.</b>
+     *
+     * The cap above bounds what is kept; this one bounds what is read, and
+     * the case it is written for is "a bomb of a million empty names". A
+     * million empty names <em>is</em> a million directory entries - so a
+     * walk that skipped directories before counting them left that exact
+     * case unbounded while its comment claimed otherwise. The test above
+     * never comes near either cap (seventy-one entries against four
+     * thousand), so nothing here reached the boundary before this.
+     *
+     * Four thousand and ninety-seven directories, then a perfectly good
+     * tape that the walk must never get to. Both caps are private, so the
+     * number is written out; if {@code MAX_SCANNED} moves, this moves with
+     * it - the message is asserted so a refusal for some other reason
+     * cannot pass as this one.
+     */
+    @Test
+    public void thewalkCapCountsDirectoriesToo() {
+        String[] names = new String[4098];
+        for (int at = 0; at < 4097; at++) names[at] = stamp + "-empty-" + at + "/";
+        names[4097] = stamp + "-HeadOverHeels.tzx";
+
+        Imports.Result result = kept(Imports.game(
+                context, new Zipped(names),
+                item("Arcade Game", download("tzx", -1)), download("tzx", -1)));
+
+        assertNotNull("an archive of four thousand empty names was walked to the end",
+                      result.failure);
+        assertTrue("refused for some other reason: " + result.failure.getMessage(),
+                   result.failure.getMessage().contains("entries inside"));
+        assertNull(result.documentUri);
     }
 
     /** A zip with nothing usable in it is a failure with a reason, not a
