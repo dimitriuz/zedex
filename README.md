@@ -9,7 +9,7 @@ A ZX Spectrum that behaves like a modern console.
 Save at any moment, put the
 picture through the CRT you remember, pick up a controller and play.
 
-<a href="docs/screenshots/demo-fullscreen.jpg"><img src="docs/screenshots/demo-fullscreen.jpg" width="720" alt="Zedex running its own demo tape, fullscreen"></a>
+<a href="docs/screenshots/demo.png"><img src="docs/screenshots/demo.png" width="720" alt="Zedex running its own demo tape, fullscreen"></a>
 
 Android 11 and later. The emulation is
 [Fuse](http://fuse-emulator.sourceforge.net/), unmodified; the front end is
