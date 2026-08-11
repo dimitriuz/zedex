@@ -135,6 +135,41 @@ public class ZxInfoCatalogueTest {
             + "]}}";
 
     /**
+     * {@code /games/byletter/%23?mode=compact&size=30&offset=0} - the digit
+     * shelf - <b>recorded</b>, trimmed to two of its thirty hits and the fields
+     * a row draws.
+     *
+     * Read off a live reply on 2026-08-11, the one that proved {@code #} is a
+     * letter this endpoint takes: every id, title, year, genre, availability
+     * and publisher below was in that reply, beside the one after it, and the
+     * only thing this test did to it was drop the twenty-eight further hits and
+     * the fields nothing here reads.
+     *
+     * <b>839 is the real count</b>, {@code "relation":"eq"} rather than the
+     * {@code "gte"} that marks Elasticsearch's cap - so this shelf reports an
+     * honest total, and 839 entries were unreachable from A-Z until it existed.
+     *
+     * The two rows are utilities because the titles that begin with a digit
+     * mostly are: the shelf opens on twenty-odd tape copiers named after James
+     * Bond.
+     */
+    private static final String BY_DIGIT = "{"
+            + "\"hits\":{\"total\":{\"value\":839,\"relation\":\"eq\"},\"hits\":["
+            + "  {\"_id\":\"0027393\",\"_source\":{"
+            + "     \"title\":\"007 BEEP Copier\",\"originalYearOfRelease\":1985,"
+            + "     \"genreType\":\"Utility\",\"availability\":\"Available\","
+            + "     \"publishers\":[{\"publisherSeq\":1,\"name\":\"ZX-Guaranteed\","
+            + "                      \"country\":\"UK\"}]},"
+            + "   \"sort\":[\"007 BEEP Copier\"]},"
+            + "  {\"_id\":\"0007869\",\"_source\":{"
+            + "     \"title\":\"007 Copier\",\"originalYearOfRelease\":1985,"
+            + "     \"genreType\":\"Utility\",\"availability\":\"Available\","
+            + "     \"publishers\":[{\"publisherSeq\":1,\"name\":\"ZX-Guaranteed\","
+            + "                      \"country\":\"UK\"}]},"
+            + "   \"sort\":[\"007 Copier\"]}"
+            + "]}}";
+
+    /**
      * {@code /games/random/30?mode=compact}, <b>recorded</b>, trimmed to the
      * first of its thirty hits.
      *
@@ -927,11 +962,84 @@ public class ZxInfoCatalogueTest {
                 shelf(http, "letter"), Catalogue.Query.none(), 0);
 
         assertEquals("the alphabet cost a request", 0, http.asked.size());
-        assertEquals(26, page.shelves().size());
+        assertEquals(27, page.shelves().size());
         assertTrue("A-Z brought items", page.items().isEmpty());
         assertEquals("A", page.shelves().get(0).label());
         assertEquals("Z", page.shelves().get(25).label());
         assertFalse("a page of shelves must not page on", page.hasMore());
+    }
+
+    /**
+     * The twenty-seventh shelf, and what a person reads on it.
+     *
+     * {@code #} is the specification's own argument for "titles that start with
+     * a digit" and it is a punctuation mark to everybody else, so the label is
+     * {@code 0-9} and the {@code #} stays in the path. Both are asserted here
+     * because they are two different things that a single constant could easily
+     * have made one: sending {@code 0-9} is a 400, and drawing {@code #} on a
+     * row is a shelf nobody will open.
+     */
+    @Test
+    public void thedigitShelfIsTheTwentySeventhAndReadsAsZeroToNine() throws Exception {
+        Canned http = new Canned();
+
+        Catalogue.Page page = new ZxInfoCatalogue(http).open(
+                shelf(http, "letter"), Catalogue.Query.none(), 0);
+
+        assertEquals("0-9", page.shelves().get(26).label());
+    }
+
+    /**
+     * And it asks for {@code #}, encoded.
+     *
+     * <b>{@code %23} and not a bare {@code #}</b>: a raw one in a URL is a
+     * fragment marker, so everything after it - the mode, the size, the page -
+     * would never leave the phone, and the request that did go out would be for
+     * a letter with this app's own default mode behind it. That is {@code
+     * Uri.encode}'s doing, which is also why this test class runs on a device.
+     */
+    @Test
+    public void thedigitShelfAsksForHashInThePath() throws Exception {
+        Canned http = new Canned().then(200, BY_DIGIT);
+        ZxInfoCatalogue catalogue = new ZxInfoCatalogue(http);
+
+        Catalogue.Shelf digits = catalogue.open(shelf(http, "letter"),
+                                                Catalogue.Query.none(), 0).shelves().get(26);
+        catalogue.open(digits, Catalogue.Query.none(), 0);
+
+        String url = http.asked.get(0);
+        assertTrue(url, url.startsWith(ZxInfo.API + "games/byletter/%23?"));
+        assertTrue(url, url.contains("mode=compact"));
+        assertTrue(url, url.contains("size=30"));
+
+        assertFalse("a raw # went into the URL, which would cut it short: " + url,
+                    url.contains("#"));
+        assertFalse("the shelf id's prefix went out in the request: " + url,
+                    url.contains("%3A"));
+        assertNoFilter(url);
+    }
+
+    /**
+     * Its rows and its total, which is a real one.
+     *
+     * 839 came back with {@code "relation":"eq"}, so unlike the broad shelves
+     * this one may print what it says - and those 839 entries were in the
+     * database and out of the app for as long as A-Z had twenty-six shelves.
+     */
+    @Test
+    public void thedigitShelfReadsItsRowsAndItsRealTotal() throws Exception {
+        Canned http = new Canned().then(200, BY_DIGIT);
+        ZxInfoCatalogue catalogue = new ZxInfoCatalogue(http);
+
+        Catalogue.Shelf digits = catalogue.open(shelf(http, "letter"),
+                                                Catalogue.Query.none(), 0).shelves().get(26);
+
+        Catalogue.Page page = catalogue.open(digits, Catalogue.Query.none(), 0);
+
+        assertEquals(2, page.items().size());
+        assertEquals("007 BEEP Copier", page.items().get(0).title());
+        assertEquals("0027393", page.items().get(0).id());
+        assertEquals(839, page.total());
     }
 
     @Test

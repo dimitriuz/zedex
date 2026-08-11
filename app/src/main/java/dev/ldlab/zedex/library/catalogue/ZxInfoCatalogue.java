@@ -72,8 +72,13 @@ import java.util.Locale;
  *       whatever about {@code offset}. Asked later: it is a <b>page number</b>
  *       and this class had been sending a row number. See {@link
  *       #searchFor}.</li>
- *   <li><b>A-Z</b> opens onto twenty-six sub-shelves, one per letter, and each
- *       of those asks <b>{@code games/byletter/{letter}}</b> - an endpoint of
+ *   <li><b>A-Z</b> opens onto twenty-seven sub-shelves - one per letter, and
+ *       one for {@code #}, which is this service's own argument for the titles
+ *       that begin with a digit and which is drawn as {@code 0-9}. There are
+ *       839 of those, measured, and until the twenty-seventh shelf existed
+ *       every one of them was in the database and out of the app: A-Z was a
+ *       twenty-six-way partition of a set with twenty-seven parts. Each shelf
+ *       asks <b>{@code games/byletter/{letter}}</b> - an endpoint of
  *       the service's own. Sub-shelves rather than a letter picker of the
  *       screen's own: a page may carry shelves, {@link #genres} already works
  *       that way, and the tab already knows how to descend into one - a shelf
@@ -170,6 +175,28 @@ public final class ZxInfoCatalogue implements Catalogue {
      *  term handed to a service whose titles are indexed in it, not an
      *  alphabet for the phone's language. */
     private static final String ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+    /**
+     * The twenty-seventh shelf, and the service's own name for it.
+     *
+     * {@code GET /games/byletter/{letter}} documents its argument as "a-z - or
+     * # for numbers (case insensitive)", so a title beginning with a digit is
+     * reachable by exactly one character and by no letter at all. Without this
+     * shelf those entries are in the database and out of the app: A-Z is a
+     * twenty-six-way partition of a set that has twenty-seven parts.
+     */
+    private static final String DIGITS = "#";
+
+    /**
+     * What that shelf is called on screen.
+     *
+     * {@code #} is what the path takes and not what a person reads - it is a
+     * punctuation mark that means "number" to a programmer and nothing to
+     * anybody else. Not a string resource, for the same reason the letters are
+     * not: digits are digits in every language this app speaks, and a shelf
+     * label is the catalogue's own word rather than the app's.
+     */
+    private static final String DIGITS_LABEL = "0-9";
 
     /**
      * Wrappers rather than formats - what a file is inside one of these is
@@ -357,10 +384,20 @@ public final class ZxInfoCatalogue implements Catalogue {
      * <em>second</em> row instead. Both readings were asked at once, so one
      * pair of requests settled it.
      *
-     * {@code #} is the specification's own name for the entries whose titles
-     * start with a digit, and this app does not offer it - {@link #ALPHABET} is
-     * twenty-six letters. A shelf for it would be a good thing to add and is
-     * not a correction to this.
+     * <b>{@code #} is the twenty-seventh argument and it works</b> - see
+     * {@link #DIGITS}. Measured the same way, 2026-08-11, two requests: {@code
+     * games/byletter/%23} answered {@code total=839}, {@code "relation":"eq"},
+     * with thirty rows every one of whose titles begins with a digit ({@code
+     * 007 BEEP Copier}, {@code 0Score}, {@code 1 Line 3D Maze}), and page 1
+     * shared no id with page 0 and opened on {@code 1 Line Action}, following
+     * page 0's last row {@code 1 Line 3D Mazes}. So the digit shelf pages by
+     * page number exactly as the letters do, and 839 entries were unreachable
+     * from A-Z before it existed.
+     *
+     * The {@code #} is encoded to {@code %23} by the same {@link Uri#encode}
+     * call the letters go through - which is the other reason it is encoded at
+     * all: a raw {@code #} in a URL is a fragment marker, and everything after
+     * it would never leave the phone.
      */
     private static String letterFor(String letter, int page) {
         // Encoded although a letter never needs it: what arrives here is a
@@ -474,14 +511,23 @@ public final class ZxInfoCatalogue implements Catalogue {
      * rather than once into a constant: it is twenty-six small objects on a
      * tap, and a shared mutable list handed out through {@link Page} is a
      * worse thing to own.
+     *
+     * <b>Twenty-seven, and the last one is {@link #DIGITS}.</b> The endpoint
+     * takes {@code #} for the titles that start with a digit, so leaving it out
+     * put part of the database beyond every way into it. It goes after Z rather
+     * than before A because the shelf above is called A-Z: the letters keep the
+     * positions somebody reaching for one expects, and the extra shelf follows
+     * them.
      */
     private Page letters() {
-        List<Shelf> found = new ArrayList<>(ALPHABET.length());
+        List<Shelf> found = new ArrayList<>(ALPHABET.length() + 1);
 
         for (int at = 0; at < ALPHABET.length(); at++) {
             String letter = String.valueOf(ALPHABET.charAt(at));
             found.add(new Shelf(LETTER_PREFIX + letter, letter, Shelf.Accepts.NOTHING));
         }
+
+        found.add(new Shelf(LETTER_PREFIX + DIGITS, DIGITS_LABEL, Shelf.Accepts.NOTHING));
 
         return new Page(null, found, 0, Page.UNKNOWN_TOTAL);
     }
