@@ -752,9 +752,26 @@ public final class CataloguePane extends FrameLayout {
      * turning requests away and a folder that cannot be written to. The kinds
      * exist precisely so those are told apart: {@code Imports.refusalFor}
      * splits a bare HTTP refusal by status for this reason and nothing was
-     * reading the answer. The same shape and the same four branches as {@code
-     * ScrapeOneGame.reasonFor}, which is this codebase's existing way of
-     * saying it.
+     * reading the answer.
+     *
+     * <b>The same shape as {@code ScrapeOneGame.reasonFor} - a switch on
+     * {@code kind} with a default - and deliberately not the same
+     * branches.</b> That one splits QUOTA_EXCEEDED from CLOSED, because a
+     * spent day and a closed service are different advice for a scrape, and
+     * has a BAD_CREDENTIALS branch, because a scrape has credentials to get
+     * wrong; an import has neither, and has NOT_CONFIGURED instead, because
+     * the one thing an import needs and a scrape does not is a folder to
+     * write into. Two methods answering the same question about different
+     * failures, not one copied from the other.
+     *
+     * THREAD_LIMIT and QUOTA_EXCEEDED are here for a provider that could
+     * raise them, and nothing raises them today: {@code Imports} produces
+     * only MALFORMED, NETWORK, CLOSED and NOT_CONFIGURED, since {@code
+     * Imports.describe} swallows its own {@code ScrapeException} rather than
+     * failing an import that already succeeded. They are kept rather than
+     * dropped because the alternative is a spent quota falling into the
+     * default and reading as "that did not arrive", which is the very shrug
+     * this method was written to stop.
      *
      * What is left under the default is what genuinely reads the same way -
      * a 404, a download that came up short, an archive too big to be real,
