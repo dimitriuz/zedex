@@ -79,8 +79,9 @@ manuals — is written into your own folder and nowhere else.
 
 ### ZXInfo
 
-The database behind World of Spectrum. There is no account and nothing to set
-up, so there is nothing of yours to send. What Zedex sends, per game, is the
+The open API over [ZXDB](https://github.com/zxdb/ZXDB), the database behind
+World of Spectrum. There is no account and nothing to set up, so there is
+nothing of yours to send. What Zedex sends, per game, is the
 file's MD5 checksum — or, if that finds nothing, its title. Nothing else.
 
 ```

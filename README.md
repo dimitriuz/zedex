@@ -470,3 +470,20 @@ under **CC-BY 3.0**, used with attribution and otherwise unchanged.
 machine-readable form is *AllTipshopPokes*, gathered by Lady Eklipse and
 distributed with
 [ZX Pokemaster](https://github.com/eklipse2009/all-tipshop-pokes).
+
+**The catalogue is not ours either.** Every name, description, screen, cover,
+manual and file the library scrapes or imports from ZXInfo comes out of
+[ZXDB](https://github.com/zxdb/ZXDB) — an open database created by **Einar
+Saukas**, built from **Martijn van der Heide**'s original World of Spectrum,
+**Jim Grimwood**'s SPOT/SPEX/TTFn, **Daren Pearcy**'s RZX Archive and **Chris
+Bourne**'s ZXSR, all imported with their consent, and corrected and extended by
+many hands since. Zedex reaches it through the open API at
+[ZXInfo](https://zxinfo.dk/), and the files it names are served by
+[Spectrum Computing](https://spectrumcomputing.co.uk/).
+
+ZXDB asks only that anyone using it says so, which is what this paragraph is
+for; its formal model is the
+[Open Database License](https://en.wikipedia.org/wiki/Open_Database_License)
+(ODbL 1.0). It also records, per entry, whether the copyright holder allowed
+free distribution — where one has not, the entry stays on the list with that
+reason shown against it, and the archive does not serve the file.
