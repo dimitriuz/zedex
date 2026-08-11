@@ -9,6 +9,7 @@ import android.graphics.BitmapFactory;
 import android.util.LruCache;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -84,17 +85,29 @@ public final class Thumbnails {
     };
 
     /**
-     * Urls that were asked for and answered with nothing - a 404, a
-     * timeout, a file {@code BitmapFactory} could not decode - remembered
-     * so that scrolling the same row off screen and back does not repeat a
-     * request already known to fail. The same shape {@code Artwork} uses,
-     * caching a miss as {@code Uri.EMPTY} rather than re-deriving it every
-     * time it is asked; see CLAUDE.md on this very address having been
-     * blocked once for exactly this pattern of repeated requests for
-     * nothing. Bounded by entry count rather than by heap fraction the way
-     * {@link #cache} is - a remembered failure costs a few bytes, not a
-     * decoded bitmap, so sizing it off memory pressure would answer a
-     * question this map does not raise.
+     * Urls the service <b>answered</b>, with something that is not a
+     * picture - a 404, a 410, a file {@code BitmapFactory} could not decode
+     * - remembered so that scrolling the same row off screen and back does
+     * not repeat a request already known to fail. The same shape {@code
+     * Artwork} uses, caching a miss as {@code Uri.EMPTY} rather than
+     * re-deriving it every time it is asked; see CLAUDE.md on this very
+     * address having been blocked once for exactly this pattern of repeated
+     * requests for nothing. Bounded by entry count rather than by heap
+     * fraction the way {@link #cache} is - a remembered failure costs a few
+     * bytes, not a decoded bitmap, so sizing it off memory pressure would
+     * answer a question this map does not raise.
+     *
+     * <b>Only an answer goes in here, never a failure to get one.</b> The
+     * justification above - "a request already known to fail" - is true of a
+     * 404 and false of a timeout: a phone that lost its tunnel for one
+     * moment used to have that whole screenful of covers blacklisted for the
+     * life of the process, since nothing in the app calls {@link #forget}
+     * and {@code CatalogueView.retry()} re-asks for the <em>page</em> rather
+     * than for its covers. So the rule is where the failure happened and not
+     * how it was thrown: the request got a reply and the reply was not a
+     * picture, which nothing but a new file upstream will change; or nothing
+     * came back at all, which the next scroll may well fix, and that is not
+     * remembered. See {@link #answered}.
      */
     private static final LruCache<String, Boolean> failed = new LruCache<>(512);
 
@@ -157,10 +170,11 @@ public final class Thumbnails {
      * A null or empty {@code url} is not a request - plenty of catalogue
      * entries have no picture at all, and those rows are text rows; asking
      * for nothing here would only be a wasted round trip through {@link
-     * Work}. A url already known to answer with nothing - see {@link
-     * #failed} - is not re-requested either, for the same reason: a row
-     * scrolling back on screen must not repeat a request already known to
-     * fail.
+     * Work}. A url the host has already answered with something that is not
+     * a picture - see {@link #failed} - is not re-requested either, for the
+     * same reason: a row scrolling back on screen must not repeat a request
+     * already known to fail. A url that could not be <em>reached</em> is a
+     * different thing and is asked again.
      *
      * A cache hit, or a known failure, answers {@code listener} at once, on
      * the calling thread, exactly as {@code Scraped.picture} already does
@@ -234,6 +248,11 @@ public final class Thumbnails {
      * memory pressure would be its honest caller - there is no such caller
      * yet. Leaving it uncalled leaks nothing: {@link #cache} is bounded by a
      * fraction of the heap and evicts its own least-recently-used entry.
+     *
+     * <b>And no screen needs it to undo a bad moment.</b> A retry button that
+     * had to call this to work would mean {@link #failed} was remembering
+     * things it should not: what goes in there is only what the host itself
+     * answered, so there is nothing for a person's second attempt to clear.
      */
     public static void forget() {
         synchronized (inFlight) {
@@ -246,6 +265,12 @@ public final class Thumbnails {
         Bitmap picture = null;
         File file = new File(context.getCacheDir(), "thumbnail-" + System.nanoTime());
 
+        // Whether the host said anything at all. A failure with this still
+        // false is not remembered - see failed's own comment. It starts true
+        // because the ordinary end of this method is a decode that either
+        // worked or did not, neither of which is a failure to reach anybody.
+        boolean answered = true;
+
         try {
             try {
                 http.save(url, file);
@@ -253,26 +278,50 @@ public final class Thumbnails {
             } finally {
                 file.delete();
             }
+        } catch (Http.Refused refused) {
+            // A reply, and a refusal. Most of them are permanent - a 404 for
+            // a picture ZXDB does not have is the commonest thing here - but
+            // two are the host asking for a moment rather than saying no:
+            // 408 is its own timeout and 429 is "not so fast", and
+            // blacklisting a url over either would punish a row for the state
+            // of the queue when it happened to scroll past.
+            answered = permanent(refused.status);
+            picture = null;
+        } catch (IOException e) {
+            // Nothing came back: a timeout, a lost tunnel, a name that did
+            // not resolve. Says nothing whatever about the url, so it is not
+            // remembered and the next bind asks again.
+            answered = false;
+            picture = null;
         } catch (Throwable t) {
-            // A 404, a timeout, a corrupt file, a format BitmapFactory does
-            // not know, or a decode too large to fit in memory - an
-            // OutOfMemoryError, not an Exception; PictureCache.decodeFresh
-            // catches the same width for the same reason. Any of them means
-            // "no picture", never "leave this url in flight for ever": the
-            // outer finally below always runs regardless of what was thrown
-            // here, so every listener that joined is still told and no
-            // future load() for this url is left joining a fetch that can
-            // never finish.
+            // The bytes arrived and could not be made into a picture: a
+            // corrupt file, a format BitmapFactory does not know, or a decode
+            // too large to fit in memory - an OutOfMemoryError, not an
+            // Exception; PictureCache.decodeFresh catches the same width for
+            // the same reason. Any of them means "no picture", never "leave
+            // this url in flight for ever": the outer finally below always
+            // runs regardless of what was thrown here, so every listener that
+            // joined is still told and no future load() for this url is left
+            // joining a fetch that can never finish.
             picture = null;
         } finally {
-            // Reached on every path out of the try above - success, the
-            // caught failure, or anything this method did not anticipate -
-            // which is what makes finish() run exactly once per fetch
+            // Reached on every path out of the try above - success, any of
+            // the caught failures, or anything this method did not anticipate
+            // - which is what makes finish() run exactly once per fetch
             // rather than a catch clause hoped to be wide enough. See
             // inFlight's own comment for why that is what guarantees every
             // listener is told exactly once.
-            finish(url, picture);
+            finish(url, picture, answered);
         }
+    }
+
+    /** Whether a status the host actually sent means "and it will say the
+     *  same tomorrow". Everything it did not answer at all is decided by
+     *  {@link #fetch}'s own {@code answered}, not here. */
+    private static boolean permanent(int status) {
+        if (status == 408 || status == 429) return false;
+
+        return status < 500;
     }
 
     /**
@@ -281,14 +330,17 @@ public final class Thumbnails {
      * to it, atomically with {@link #load}'s hit / known-failure / join /
      * start decision - see {@link #inFlight}'s comment for why that
      * atomicity is what guarantees every listener is told exactly once.
+     *
+     * @param answered whether the host replied. A url is only remembered as
+     *                 a failure when it did: see {@link #failed}.
      */
-    private static void finish(String url, Bitmap picture) {
+    private static void finish(String url, Bitmap picture, boolean answered) {
         List<Listener> waiting;
 
         synchronized (inFlight) {
             if (picture != null) {
                 cache.put(url, picture);
-            } else {
+            } else if (answered) {
                 failed.put(url, Boolean.TRUE);
             }
             waiting = inFlight.remove(url);

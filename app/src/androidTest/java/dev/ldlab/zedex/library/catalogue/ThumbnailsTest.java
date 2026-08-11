@@ -111,8 +111,37 @@ public class ThumbnailsTest {
         }
     }
 
-    /** Throws, the way a 404 or a timeout would. */
-    private static final class Failing implements Http {
+    /**
+     * Refuses, the way a host with no such picture does.
+     *
+     * A {@link Http.Refused} and not a bare {@link IOException}, and the
+     * difference is the whole of what {@link Thumbnails} decides by: this is
+     * the host <em>answering</em>, which nothing but a new file upstream will
+     * change. See {@link Unreachable}, which is the other thing.
+     */
+    private static final class Refusing implements Http {
+        final List<String> asked = new ArrayList<>();
+        private final int status;
+
+        Refusing(int status) {
+            this.status = status;
+        }
+
+        @Override
+        public Reply get(String url) {
+            throw new UnsupportedOperationException("not this test's business");
+        }
+
+        @Override
+        public synchronized String save(String url, File into) throws IOException {
+            asked.add(url);
+            throw new Refused(status);
+        }
+    }
+
+    /** Never gets there at all - a timeout, a lost tunnel, a name that did not
+     *  resolve. Says nothing whatever about the url. */
+    private static final class Unreachable implements Http {
         final List<String> asked = new ArrayList<>();
 
         @Override
@@ -123,7 +152,7 @@ public class ThumbnailsTest {
         @Override
         public synchronized String save(String url, File into) throws IOException {
             asked.add(url);
-            throw new IOException("404");
+            throw new IOException("failed to connect");
         }
     }
 
@@ -239,14 +268,14 @@ public class ThumbnailsTest {
     }
 
     /**
-     * A url known to answer with nothing is not asked again until {@link
-     * Thumbnails#forget()} - a row scrolling back on screen must not repeat
-     * a request already known to fail, the same pattern that got this
-     * app's address blocked once.
+     * A url the host <b>answered</b> with something that is not a picture is
+     * not asked again until {@link Thumbnails#forget()} - a row scrolling back
+     * on screen must not repeat a request already known to fail, the same
+     * pattern that got this app's address blocked once.
      */
     @Test
     public void aknownFailureIsNotRetriedUntilForget() throws Exception {
-        Failing http = new Failing();
+        Refusing http = new Refusing(404);
 
         CountDownLatch missed = new CountDownLatch(1);
         Thumbnails.load(context, http, URL, (url, picture) -> missed.countDown());
@@ -266,5 +295,66 @@ public class ThumbnailsTest {
         assertEquals("forget() did not clear the remembered failure", true,
                      retried.await(10, TimeUnit.SECONDS));
         assertEquals("forget() should allow exactly one retry", 2, http.asked.size());
+    }
+
+    /**
+     * <b>A moment offline is not a url that will never work.</b>
+     *
+     * Nothing in the app calls {@link Thumbnails#forget()} and {@code
+     * CatalogueView.retry()} re-asks for the <em>page</em> rather than for its
+     * covers, so a failure remembered here is remembered for the life of the
+     * process. That is right for a 404, whose justification - "a request
+     * already known to fail" - is exactly true, and wrong for a phone that
+     * lost its tunnel for one second while a screenful of rows bound: those
+     * covers used to be blacklisted until the app was killed.
+     *
+     * So the rule is whether the host answered, not how the failure was
+     * thrown. Here nothing came back at all, and the next bind asks again.
+     */
+    @Test
+    public void aurlThatCouldNotBeReachedIsAskedAgain() throws Exception {
+        Unreachable lost = new Unreachable();
+
+        CountDownLatch missed = new CountDownLatch(1);
+        Thumbnails.load(context, lost, URL, (url, picture) -> missed.countDown());
+        assertEquals("the miss was never reported", true,
+                     missed.await(10, TimeUnit.SECONDS));
+        assertNull("nothing should have been cached", Thumbnails.get(URL));
+
+        // The tunnel is back, and nothing has called forget().
+        OnePixel back = new OnePixel();
+        CountDownLatch arrived = new CountDownLatch(1);
+        Thumbnails.load(context, back, URL, (url, picture) -> arrived.countDown());
+
+        assertEquals("the second caller was not told", true,
+                     arrived.await(10, TimeUnit.SECONDS));
+        assertEquals("a url that was never reached was blacklisted", 1, back.asked.size());
+        assertNotNull("the retry did not land", Thumbnails.get(URL));
+    }
+
+    /**
+     * And nor is a host asking for a moment.
+     *
+     * 429 is "not so fast" and 408 is the host's own timeout - both are
+     * answers, and neither is one about this url. Blacklisting a cover over
+     * either would punish a row for the state of the queue when it happened
+     * to scroll past.
+     */
+    @Test
+    public void abusyHostIsAskedAgain() throws Exception {
+        Refusing busy = new Refusing(429);
+
+        CountDownLatch missed = new CountDownLatch(1);
+        Thumbnails.load(context, busy, URL, (url, picture) -> missed.countDown());
+        assertEquals("the miss was never reported", true,
+                     missed.await(10, TimeUnit.SECONDS));
+
+        OnePixel later = new OnePixel();
+        CountDownLatch arrived = new CountDownLatch(1);
+        Thumbnails.load(context, later, URL, (url, picture) -> arrived.countDown());
+
+        assertEquals("the second caller was not told", true,
+                     arrived.await(10, TimeUnit.SECONDS));
+        assertEquals("a 429 was treated as permanent", 1, later.asked.size());
     }
 }
