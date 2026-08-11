@@ -76,20 +76,20 @@ public final class Shortlist {
             return cache.get(entry);
         };
 
-        List<Entry> shown = narrow(loaded, query, filters, flat, cached);
+        List<Entry> shown = narrow(loaded, query, filters, flat, scrapedNames, cached);
         sort(shown, flat, sort, descending, scrapedNames, cached);
 
         return shown;
     }
 
     private static List<Entry> narrow(List<Entry> loaded, String query, Filters filters,
-                                      boolean flat, Sorting.Lookup lookup) {
+                                      boolean flat, boolean scrapedNames,
+                                      Sorting.Lookup lookup) {
         List<Entry> shown = new ArrayList<>();
         String needle = query.toLowerCase(Locale.ROOT);
 
         for (Entry entry : loaded) {
-            if (!needle.isEmpty()
-                    && !entry.name.toLowerCase(Locale.ROOT).contains(needle)) {
+            if (!needle.isEmpty() && !matchesName(entry, needle, scrapedNames, lookup)) {
                 continue;
             }
 
@@ -113,6 +113,34 @@ public final class Shortlist {
             shown.add(entry);
         }
         return shown;
+    }
+
+    /**
+     * Whether the name this row is showing contains what was typed.
+     *
+     * The file's own name, and the scraped title as well while rows are
+     * drawing them - because that title is the name on the row, and a search
+     * box that cannot find a game by the one name it is displaying is worse
+     * than an odd sort order: there is no scrolling round it.
+     *
+     * <b>The filename is asked first, and a hit stops there.</b> This runs
+     * over the whole folder on every keystroke, and the metadata lookup was
+     * deliberately kept off that path once already - so typing something that
+     * is on the file costs exactly what it did before, and only the rows the
+     * filename did not answer for are looked up.
+     *
+     * Only the name. A publisher, a genre and a year are what the filter is
+     * for; a search box that quietly matched those would answer "Ocean" with
+     * eighty games nobody typed the name of.
+     */
+    private static boolean matchesName(Entry entry, String needle, boolean scrapedNames,
+                                       Sorting.Lookup lookup) {
+        if (entry.name.toLowerCase(Locale.ROOT).contains(needle)) return true;
+        if (!scrapedNames || entry.kind == Entry.Kind.FOLDER) return false;
+
+        Meta meta = lookup.of(entry);
+        return meta != null && meta.name != null
+                && meta.name.toLowerCase(Locale.ROOT).contains(needle);
     }
 
     /**

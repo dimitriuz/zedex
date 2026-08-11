@@ -86,15 +86,101 @@ public class ShortlistTest {
         assertEquals(2, plain(loaded).size());
     }
 
-    /** The search reads the name, never the folder a row came from or
-     *  anything scraped about it. */
+    /**
+     * The search reads a name, and only a name.
+     *
+     * Not the folder a row came from, and not the rest of what was scraped: a
+     * publisher, a genre and a year are what the filter is for, and a search
+     * box that quietly matched them would make "Ocean" answer with eighty
+     * games nobody typed the name of. The scraped <em>title</em> is the one
+     * exception, and only because it is the name on the row - see below.
+     */
     @Test
-    public void theSearchDoesNotReadMetadata() {
+    public void theSearchDoesNotReadTheRestOfTheMetadata() {
         List<Entry> loaded = Arrays.asList(file("xyz.tap", 1));
         Sorting.Lookup scraped = entry -> meta("Platform", "Ocean", "1984");
 
         assertEquals(0, Shortlist.of(loaded, "Ocean", new Filters(), false,
                                      Sorting.NAME, false, true, scraped).size());
+    }
+
+    /** A row whose scraped title is nothing like its filename. */
+    private static Sorting.Lookup titled(String title) {
+        return entry -> Meta.at("./g.tap").name(title).source("ZXInfo").build();
+    }
+
+    /**
+     * A game is found by the name the row is showing.
+     *
+     * The other half of sorting by it: zvezdnoenasledie.trd draws "Star
+     * Inheritance", so typing that has to find it. It did not - the search
+     * read the filename alone, so the one name on screen was the one name
+     * that would not find the game, which is worse than an odd sort order
+     * because there is no scrolling round it.
+     */
+    @Test
+    public void theSearchMatchesTheScrapedTitleTheRowIsShowing() {
+        List<Entry> loaded = Arrays.asList(file("zvezdnoenasledie.trd", 1));
+
+        assertEquals(Arrays.asList("zvezdnoenasledie.trd"),
+                     names(Shortlist.of(loaded, "star inherit", new Filters(), false,
+                                        Sorting.NAME, false, true,
+                                        titled("Star Inheritance"))));
+    }
+
+    /** And by its filename still - somebody who knows the file must not lose
+     *  the ability to type it. */
+    @Test
+    public void theSearchStillMatchesTheFilenameOfAScrapedGame() {
+        List<Entry> loaded = Arrays.asList(file("zvezdnoenasledie.trd", 1));
+
+        assertEquals(Arrays.asList("zvezdnoenasledie.trd"),
+                     names(Shortlist.of(loaded, "zvezd", new Filters(), false,
+                                        Sorting.NAME, false, true,
+                                        titled("Star Inheritance"))));
+    }
+
+    /**
+     * With scraped names turned off, the title is not on screen and is not
+     * searched.
+     *
+     * The same rule as the sort: match what the row shows. A hit on a string
+     * nobody can see is a row that appears for no visible reason.
+     */
+    @Test
+    public void theScrapedTitleIsNotSearchedWhenItIsNotShown() {
+        List<Entry> loaded = Arrays.asList(file("zvezdnoenasledie.trd", 1));
+
+        assertEquals(0, Shortlist.of(loaded, "star inherit", new Filters(), false,
+                                     Sorting.NAME, false, false,
+                                     titled("Star Inheritance")).size());
+    }
+
+    /**
+     * A row that matches by filename costs no metadata lookup at all.
+     *
+     * The search box runs this on every keystroke over the whole folder, and
+     * the lookup was deliberately kept off that path once before. Asking only
+     * about rows the filename did not already answer for keeps the common
+     * case - typing a name that is on the file - exactly as cheap as it was.
+     */
+    @Test
+    public void amatchOnTheFilenameDoesNotAskAboutTheMetadata() {
+        List<Entry> loaded = Arrays.asList(file("Manic Miner.tap", 1));
+
+        List<Entry> asked = new ArrayList<>();
+        Sorting.Lookup counting = entry -> {
+            asked.add(entry);
+            return Meta.at("./g.tap").name("Something Else").source("ZXInfo").build();
+        };
+
+        assertEquals(1, Shortlist.of(loaded, "manic", new Filters(), false,
+                                     Sorting.NAME, false, true, counting).size());
+
+        // Nothing was asked at all: the filename answered the search, and a
+        // one-row list makes no comparisons for the sort to ask about either.
+        // One would mean the filename match went and looked anyway.
+        assertEquals(0, asked.size());
     }
 
     // --- folders ---------------------------------------------------------------
