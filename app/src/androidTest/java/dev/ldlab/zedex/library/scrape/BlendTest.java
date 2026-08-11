@@ -1,0 +1,363 @@
+package dev.ldlab.zedex.library.scrape;
+
+import dev.ldlab.zedex.library.Entry;
+import dev.ldlab.zedex.library.meta.Artwork;
+import dev.ldlab.zedex.library.meta.Meta;
+import dev.ldlab.zedex.library.meta.Metadata;
+import dev.ldlab.zedex.storage.Storage;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeTrue;
+
+import android.content.Context;
+
+import androidx.test.core.app.ApplicationProvider;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
+
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
+/**
+ * One game across several sources, in order.
+ *
+ * The rule under test throughout: a source may fill a gap and may never
+ * overwrite. Everything else here - the title search, stopping early, which
+ * folders a later source is asked for - follows from it.
+ */
+@RunWith(AndroidJUnit4.class)
+public class BlendTest {
+
+    private static final String PATH = "./zedex-blend-test/Game.tap";
+
+    private Context context;
+    private File store;
+    private byte[] theirs;
+
+    @Before
+    public void setUp() throws IOException {
+        context = ApplicationProvider.getApplicationContext();
+
+        File root = Storage.root(context);
+        assumeTrue("the data folder is not usable on this device: " + root,
+                   root.isDirectory() && Storage.isWritable(root));
+
+        store = new File(Storage.libraryDirectory(context), "metadata.json");
+        theirs = store.isFile() ? Files.readAllBytes(store.toPath()) : null;
+
+        Metadata.clear(context);
+        Artwork.clearStaging(context);
+        clearMediaFor(PATH);
+    }
+
+    @After
+    public void putItBack() throws IOException {
+        Artwork.clearStaging(context);
+        clearMediaFor(PATH);
+
+        if (store == null) return;
+
+        if (theirs == null) {
+            store.delete();
+        } else {
+            try (FileOutputStream out = new FileOutputStream(store)) {
+                out.write(theirs);
+            }
+        }
+        Metadata.clear(context);
+    }
+
+    private void clearMediaFor(String path) {
+        for (String folder : Arrays.asList("covers", "screenshots", "titlescreens")) {
+            for (String extension : Arrays.asList("png", "jpg")) {
+                File file = Artwork.fileFor(context, path, folder, extension);
+                if (file.isFile()) file.delete();
+            }
+        }
+        Artwork.forget(path);
+    }
+
+    /**
+     * A row with no document behind it.
+     *
+     * Entry is immutable and takes all six at once. The uri is null on
+     * purpose: Blend is handed the path as an argument and never resolves one
+     * itself, and the only thing that would open the document is
+     * {@code Provider.Game.md5()}, which no fake here ever asks for.
+     */
+    private static Entry game(String name) {
+        return new Entry(Entry.Kind.FILE, name, null, null, 4096, 0);
+    }
+
+    private Blend.Result run(List<Provider> sources, Http http, Blend.Media media,
+                             Provider.Wanted wanted, Blend.Chooser chooser) {
+        return Blend.run(context, sources, http, game("Game.tap"), PATH,
+                         wanted, media, chooser, () -> false);
+    }
+
+    /** Asks for nothing and answers nothing: the tests that must not be asked
+     *  assert on this having been left alone. */
+    private static final class NeverAsked implements Blend.Chooser {
+        int asked;
+
+        @Override
+        public Candidate choose(String sourceName, List<Candidate> found, String game) {
+            asked++;
+            return null;
+        }
+    }
+
+    // --- the merge, end to end ----------------------------------------------------
+
+    /**
+     * The second source fills what the first left out and touches nothing
+     * else.
+     */
+    @Test
+    public void alaterSourceFillsGapsAndOverwritesNothing() {
+        Fakes.Fake first = new Fakes.Fake("First");
+        first.facts = candidate -> Meta.at(null).name("Manic Miner").genre("Arcade").build();
+
+        Fakes.Fake second = new Fakes.Fake("Second");
+        second.facts = candidate -> Meta.at(null)
+                .name("MANIC MINER").genre("Platform").publisher("Bug-Byte").build();
+
+        Blend.Result result = run(Arrays.asList(first, second), new Fakes.NoHttp(),
+                                  Blend.Media.FILL_GAPS, Provider.Wanted.nothing(),
+                                  new NeverAsked());
+
+        assertEquals("Manic Miner", result.meta.name);
+        assertEquals("Arcade", result.meta.genre);
+        assertEquals("Bug-Byte", result.meta.publisher);
+        assertEquals(Arrays.asList("First", "Second"), result.meta.sources());
+    }
+
+    /** And the store has it, not just the answer. */
+    @Test
+    public void theMergedRowIsStored() {
+        Fakes.Fake only = new Fakes.Fake("Only");
+
+        run(Collections.singletonList(only), new Fakes.NoHttp(),
+            Blend.Media.FILL_GAPS, Provider.Wanted.nothing(), new NeverAsked());
+
+        Meta stored = Metadata.forPath(context, PATH);
+        assertNotNull("nothing was written to the store", stored);
+        assertEquals(PATH, stored.path);
+        assertEquals(Collections.singletonList("Only"), stored.sources());
+    }
+
+    /** A source that contributed nothing is not listed as a contributor. */
+    @Test
+    public void aSourceThatKnewNothingIsNotAContributor() {
+        Fakes.Fake first = new Fakes.Fake("First");
+        Fakes.Fake silent = new Fakes.Fake("Silent");
+        silent.answer = gameAsked -> Collections.emptyList();
+
+        Blend.Result result = run(Arrays.asList(first, silent), new Fakes.NoHttp(),
+                                  Blend.Media.FILL_GAPS, Provider.Wanted.nothing(),
+                                  new NeverAsked());
+
+        assertEquals(Collections.singletonList("First"), result.meta.sources());
+    }
+
+    // --- which game a later source thinks it is -----------------------------------
+
+    /**
+     * A later source is asked about the title, not the filename.
+     *
+     * Which is what most of them match well on: "MANICM~1.tap" is a filename,
+     * and "Manic Miner" is what is in a database.
+     */
+    @Test
+    public void alaterSourceIsAskedAboutTheTitleTheFirstGave() {
+        Fakes.Fake first = new Fakes.Fake("First");
+        first.facts = candidate -> Meta.at(null).name("Manic Miner").build();
+
+        Fakes.Fake second = new Fakes.Fake("Second");
+
+        run(Arrays.asList(first, second), new Fakes.NoHttp(),
+            Blend.Media.FILL_GAPS, Provider.Wanted.nothing(), new NeverAsked());
+
+        assertEquals(Collections.singletonList("Game.tap"), first.searched);
+        assertEquals(Collections.singletonList("Manic Miner"), second.searched);
+    }
+
+    /** One guess whose title is the known one needs nobody. */
+    @Test
+    public void oneExactTitleMatchIsCertainEnough() {
+        Fakes.Fake first = new Fakes.Fake("First");
+        first.facts = candidate -> Meta.at(null).name("Manic Miner").build();
+
+        Fakes.Fake second = new Fakes.Fake("Second");
+        second.answer = gameAsked ->
+                Collections.singletonList(Fakes.guess("  manic miner  "));
+
+        NeverAsked chooser = new NeverAsked();
+
+        Blend.Result result = run(Arrays.asList(first, second), new Fakes.NoHttp(),
+                                  Blend.Media.FILL_GAPS, Provider.Wanted.nothing(),
+                                  chooser);
+
+        assertEquals("nobody should have been asked", 0, chooser.asked);
+        assertEquals(Arrays.asList("First", "Second"), result.meta.sources());
+    }
+
+    /** Three guesses is a question, however close one of them looks. */
+    @Test
+    public void severalGuessesAreAskedAbout() {
+        Fakes.Fake first = new Fakes.Fake("First");
+        first.facts = candidate -> Meta.at(null).name("Manic Miner").build();
+
+        Fakes.Fake second = new Fakes.Fake("Second");
+        second.answer = gameAsked -> Arrays.asList(
+                Fakes.guess("Manic Miner"), Fakes.guess("Manic Miner 2"),
+                Fakes.guess("Mining"));
+
+        NeverAsked chooser = new NeverAsked();
+
+        Blend.Result result = run(Arrays.asList(first, second), new Fakes.NoHttp(),
+                                  Blend.Media.FILL_GAPS, Provider.Wanted.nothing(),
+                                  chooser);
+
+        assertEquals(1, chooser.asked);
+
+        // Asked and unanswered is not the same as never heard of: a sweep
+        // counts the two separately, because one is an afternoon with the
+        // chooser and the other is the service's coverage.
+        assertTrue(result.ambiguous);
+    }
+
+    @Test
+    public void nothingFoundIsNotAmbiguous() {
+        Fakes.Fake silent = new Fakes.Fake("Silent");
+        silent.answer = gameAsked -> Collections.emptyList();
+
+        Blend.Result result = run(Collections.singletonList(silent), new Fakes.NoHttp(),
+                                  Blend.Media.FILL_GAPS, Provider.Wanted.nothing(),
+                                  new NeverAsked());
+
+        assertFalse(result.ambiguous);
+    }
+
+    /** A hash is the file itself; a title is what somebody typed on a shelf. */
+    @Test
+    public void aCertainMatchWinsEvenWhenItsTitleDisagrees() {
+        Fakes.Fake first = new Fakes.Fake("First");
+        first.facts = candidate -> Meta.at(null).name("Manic Miner").build();
+
+        Fakes.Fake second = new Fakes.Fake("Second");
+        second.answer = gameAsked ->
+                Collections.singletonList(Fakes.exact("Wanted: Monty Mole"));
+        second.facts = candidate -> Meta.at(null).publisher("Gremlin").build();
+
+        NeverAsked chooser = new NeverAsked();
+
+        Blend.Result result = run(Arrays.asList(first, second), new Fakes.NoHttp(),
+                                  Blend.Media.FILL_GAPS, Provider.Wanted.nothing(),
+                                  chooser);
+
+        assertEquals(0, chooser.asked);
+        assertEquals("Manic Miner", result.meta.name);
+        assertEquals("Gremlin", result.meta.publisher);
+    }
+
+    // --- what a sweep costs -------------------------------------------------------
+
+    /**
+     * A source is never asked for a folder that already has a picture.
+     *
+     * The whole of "do not rewrite artwork we already have", and the reason it
+     * costs nothing: a ScreenScraper cover is a mediaJeu.php call against the
+     * day's allowance.
+     */
+    @Test
+    public void alaterSourceIsAskedOnlyForTheFoldersStillEmpty() throws IOException {
+        write(Artwork.fileFor(context, PATH, "covers", "png"), "a cover already here");
+        Artwork.forget(PATH);
+
+        Fakes.Fake only = new Fakes.Fake("Only");
+
+        run(Collections.singletonList(only), new Fakes.NoHttp(), Blend.Media.FILL_GAPS,
+            Provider.Wanted.of("covers", "screenshots"), new NeverAsked());
+
+        assertEquals(1, only.wantedOf.size());
+        assertEquals(Collections.singleton("screenshots"), only.wantedOf.get(0));
+    }
+
+    /** Nothing left to gain is not asked at all. */
+    @Test
+    public void asourceIsNotConsultedWhenThereIsNothingItCouldAdd() throws IOException {
+        Metadata.put(context, everythingKnown());
+        write(Artwork.fileFor(context, PATH, "covers", "png"), "a cover already here");
+        Artwork.forget(PATH);
+
+        Fakes.Fake first = new Fakes.Fake("First");
+
+        run(Collections.singletonList(first), new Fakes.NoHttp(), Blend.Media.FILL_GAPS,
+            Provider.Wanted.of("covers"), new NeverAsked());
+
+        assertTrue("a source was asked with nothing to gain", first.searched.isEmpty());
+    }
+
+    /** Every field Meta carries, so that "nothing left to gain" is true. */
+    private Meta everythingKnown() {
+        return Meta.at(PATH)
+                .name("Manic Miner").desc("A miner.")
+                .developer("Matthew Smith").publisher("Bug-Byte")
+                .genre("Arcade Game").subgenre("Platform")
+                .released("19831001T000000").players("1").rating("0.9")
+                .keymap("0:left = q").machine("ZX-Spectrum 48K")
+                .inputs(Collections.singletonList("Cursor"))
+                .authors(Collections.singletonList("Matthew Smith"))
+                .price("£5.95").series("Miner Willy")
+                .seriesGames(Collections.singletonList(new Meta.Link("2", "Jet Set Willy")))
+                .compilations(Collections.singletonList(new Meta.Link("3", "Compilation")))
+                .contents(Collections.singletonList(new Meta.Link("4", "Something")))
+                .contributor("Someone")
+                .build();
+    }
+
+    // --- one source failing is not the game failing -------------------------------
+
+    @Test
+    public void asourceThatThrowsIsRecordedAndTheRestAreStillAsked() {
+        Fakes.Fake broken = new Fakes.Fake("Broken");
+        broken.answer = gameAsked -> {
+            throw new ScrapeException(ScrapeException.Kind.QUOTA_EXCEEDED, "spent");
+        };
+
+        Fakes.Fake working = new Fakes.Fake("Working");
+
+        Blend.Result result = run(Arrays.asList(broken, working), new Fakes.NoHttp(),
+                                  Blend.Media.FILL_GAPS, Provider.Wanted.nothing(),
+                                  new NeverAsked());
+
+        assertEquals(1, result.failures.size());
+        assertEquals("Broken", result.failures.get(0).source);
+        assertEquals(ScrapeException.Kind.QUOTA_EXCEEDED, result.failures.get(0).why.kind);
+
+        assertEquals(Collections.singletonList("Working"), result.meta.sources());
+    }
+
+    private static void write(File file, String text) throws IOException {
+        File parent = file.getParentFile();
+        if (parent != null) parent.mkdirs();
+
+        try (FileOutputStream out = new FileOutputStream(file)) {
+            out.write(text.getBytes("UTF-8"));
+        }
+    }
+}
