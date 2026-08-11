@@ -5,6 +5,7 @@ import dev.ldlab.zedex.library.scrape.Blend;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import android.app.Activity;
@@ -272,5 +273,78 @@ public class ArtworkChoiceTest {
         cancel.click();
 
         assertTrue(done.await(TIMEOUT_MS, TimeUnit.MILLISECONDS));
+    }
+    /**
+     * A manual has no picture, so it is not drawn as one.
+     *
+     * BitmapFactory answers null for a PDF, an mp4, a .pok and a .ay alike, so
+     * the tile that used to be built for them was a 128dp square of nothing -
+     * which reads as artwork that failed to load rather than as a file with no
+     * picture in it, and four such folders filled a dialog that has to fit on
+     * a phone in landscape with a keyboard under it.
+     */
+    @Test
+    public void afolderWithNothingToShowIsNamedRatherThanDrawn() throws Exception {
+        File mine = write(Artwork.fileFor(context, PATH, "manuals", "pdf"), "an older manual");
+        File theirs = write(Artwork.stagingFileFor(context, PATH, "manuals/ZXInfo", "pdf"),
+                            "a newer manual");
+
+        List<Blend.Staged> staged = Collections.singletonList(
+                Blend.staged("manuals", "pdf", "ZXInfo", theirs, true, mine));
+
+        CountDownLatch done = new CountDownLatch(1);
+        activity.runOnUiThread(() -> ArtworkChoice.show(
+                activity, "Game.tap", staged, taken -> done.countDown()));
+
+        // Named: the source is on screen, and so is what is already there.
+        for (String who : Arrays.asList(yours(), "ZXInfo")) {
+            assertTrue("nothing on screen is described " + who,
+                       device.wait(Until.findObject(By.desc(who)), TIMEOUT_MS) != null);
+        }
+
+        // Not drawn: no picture tile carries either name. A subclassed
+        // ImageView still answers android.widget.ImageView, so this is the
+        // selector that would find one if it were there.
+        for (String who : Arrays.asList(yours(), "ZXInfo")) {
+            assertNull("a manual was drawn as a picture, which is a square of "
+                       + "nothing - " + who,
+                       device.findObject(By.clazz("android.widget.ImageView").desc(who)));
+        }
+
+        UiObject2 cancel = device.wait(
+                Until.findObject(By.text(context.getString(android.R.string.cancel))),
+                TIMEOUT_MS);
+        assertTrue("no Cancel button", cancel != null);
+        cancel.click();
+
+        assertTrue(done.await(TIMEOUT_MS, TimeUnit.MILLISECONDS));
+    }
+
+    /** And it is still a choice - tapping the source's name and saving takes
+     *  it, exactly as tapping a tile would. */
+    @Test
+    public void anamedFolderIsStillChosenByTapping() throws Exception {
+        File mine = write(Artwork.fileFor(context, PATH, "manuals", "pdf"), "an older manual");
+        File theirs = write(Artwork.stagingFileFor(context, PATH, "manuals/ZXInfo", "pdf"),
+                            "a newer manual");
+
+        List<Blend.Staged> staged = Collections.singletonList(
+                Blend.staged("manuals", "pdf", "ZXInfo", theirs, true, mine));
+
+        List<Blend.Staged> chosen = showAndTap(staged, "ZXInfo", save());
+
+        assertEquals(1, chosen.size());
+        assertEquals("ZXInfo", chosen.get(0).source);
+    }
+
+    /** Writes a file and answers it, for the media that are not pictures. */
+    private File write(File into, String text) throws IOException {
+        File parent = into.getParentFile();
+        if (parent != null) parent.mkdirs();
+
+        try (java.io.FileOutputStream out = new java.io.FileOutputStream(into)) {
+            out.write(text.getBytes("UTF-8"));
+        }
+        return into;
     }
 }

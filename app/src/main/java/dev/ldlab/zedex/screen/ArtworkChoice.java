@@ -81,8 +81,7 @@ final class ArtworkChoice {
             // there is nothing to lose. Something there: it stays.
             selected.put(folder, existing == null ? entry.getValue().get(0) : null);
 
-            rows.addView(label(activity, nameOf(activity, folder)));
-            rows.addView(strip(activity, folder, entry.getValue(), existing, selected));
+            rows.addView(row(activity, folder, entry.getValue(), existing, selected));
         }
 
         ScrollView scrolling = new ScrollView(activity);
@@ -108,28 +107,82 @@ final class ArtworkChoice {
                 .show();
     }
 
-    /** One folder's choices, side by side. */
+    /**
+     * One folder: what it is, and what there is to choose from.
+     *
+     * Stacked for pictures, because a 128dp tile needs the width and its
+     * caption sits under it. Side by side for everything else - a manual or a
+     * video is a folder name and two words, and giving that a heading of its
+     * own turns four such folders into eight lines of a dialog that has to
+     * fit on a phone in landscape with a keyboard under it.
+     */
+    private static View row(Activity activity, String folder, List<Blend.Staged> offers,
+                            File existing, Map<String, Blend.Staged> selected) {
+        View choices = strip(activity, folder, offers, existing, selected);
+        TextView name = label(activity, nameOf(activity, folder));
+
+        if (canBeDrawn(offers.get(0).extension)) {
+            LinearLayout stacked = new LinearLayout(activity);
+            stacked.setOrientation(LinearLayout.VERTICAL);
+            stacked.addView(name);
+            stacked.addView(choices);
+            return stacked;
+        }
+
+        LinearLayout inline = new LinearLayout(activity);
+        inline.setOrientation(LinearLayout.HORIZONTAL);
+        inline.setGravity(Gravity.CENTER_VERTICAL);
+
+        // The name takes what the choices do not, so two folders' worth of
+        // chips start at the same place however long their names are.
+        name.setLayoutParams(new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        inline.addView(name);
+        inline.addView(choices);
+        return inline;
+    }
+
+    /**
+     * One folder's choices, side by side.
+     *
+     * Pictures are drawn; everything else is named. A video, a manual, a poke
+     * file and a tune have nothing to show at this size - {@code
+     * BitmapFactory} answers null for every one of them - and a row of empty
+     * squares is worse than no squares: it reads as artwork that failed to
+     * load rather than as a file with no picture in it. Those folders get a
+     * line of names instead, which is all there was to say about them.
+     */
     private static View strip(Activity activity, String folder, List<Blend.Staged> offers,
                               File existing, Map<String, Blend.Staged> selected) {
+        boolean drawable = canBeDrawn(offers.get(0).extension);
+
         LinearLayout tiles = new LinearLayout(activity);
         tiles.setOrientation(LinearLayout.HORIZONTAL);
+        tiles.setGravity(Gravity.CENTER_VERTICAL);
 
         List<View> all = new ArrayList<>();
 
         if (existing != null) {
-            View yours = tile(activity, existing,
-                              activity.getString(R.string.artwork_new_yours),
-                              () -> selected.put(folder, null), all);
+            String yoursLabel = activity.getString(R.string.artwork_new_yours);
+
+            View yours = drawable
+                    ? tile(activity, existing, yoursLabel,
+                           () -> selected.put(folder, null), all)
+                    : chip(activity, yoursLabel, () -> selected.put(folder, null), all);
+
             all.add(yours);
-            tiles.addView(container(activity, yours,
-                                    activity.getString(R.string.artwork_new_yours)));
+            tiles.addView(drawable ? container(activity, yours, yoursLabel) : yours);
         }
 
         for (Blend.Staged offer : offers) {
-            View tile = tile(activity, offer.file, offer.source,
-                             () -> selected.put(folder, offer), all);
-            all.add(tile);
-            tiles.addView(container(activity, tile, offer.source));
+            View one = drawable
+                    ? tile(activity, offer.file, offer.source,
+                           () -> selected.put(folder, offer), all)
+                    : chip(activity, offer.source, () -> selected.put(folder, offer), all);
+
+            all.add(one);
+            tiles.addView(drawable ? container(activity, one, offer.source) : one);
         }
 
         // all.get(0) is always the tile the row above already decided on:
@@ -143,6 +196,56 @@ final class ArtworkChoice {
         HorizontalScrollView scrolling = new HorizontalScrollView(activity);
         scrolling.addView(tiles);
         return scrolling;
+    }
+
+    /**
+     * Whether this is something the sheet can actually show.
+     *
+     * By extension rather than by folder name, because the folder is not the
+     * question - {@code Artwork} keeps a video in {@code videos}, a manual in
+     * {@code manuals} as either a PDF or a transcription, a poke file in
+     * {@code pokes} and a tune in {@code music}, and not one of those decodes
+     * into a bitmap. The two that do are the two {@code
+     * Artwork.PICTURE_EXTENSIONS} names, which is where a screen dump has
+     * already become a png by the time it reaches here.
+     */
+    private static boolean canBeDrawn(String extension) {
+        return "png".equalsIgnoreCase(extension) || "jpg".equalsIgnoreCase(extension);
+    }
+
+    /**
+     * One name, for a file with no picture in it.
+     *
+     * The same three jobs the tile does - carry the description, take the tap,
+     * show whether it is the chosen one - in a line of text, because a video
+     * or a manual has nothing to draw and a 128dp square of nothing is a
+     * failed download to anybody looking at it.
+     *
+     * Description and click on the same view, for the reason the tile's own
+     * comment gives, and set once at build time so the accessibility tree
+     * settles.
+     */
+    private static View chip(Activity activity, String from, Runnable choose,
+                             List<View> all) {
+        TextView name = new TextView(activity);
+        name.setText(from);
+        name.setContentDescription(from);
+
+        int side = dp(activity, 12);
+        int ends = dp(activity, 6);
+        name.setPadding(side, ends, side, ends);
+
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        params.rightMargin = dp(activity, 8);
+        name.setLayoutParams(params);
+
+        name.setOnClickListener(view -> {
+            choose.run();
+            mark(all, view);
+        });
+        return name;
     }
 
     /**
