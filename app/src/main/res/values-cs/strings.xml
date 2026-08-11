@@ -679,15 +679,17 @@
     <string name="edit_metadata_forgotten">Úpravy zapomenuty</string>
     <string name="scrape_menu">Stáhnout údaje…</string>
     <string name="scrape_working">Vyhledávání…</string>
-    <string name="scrape_choose">Která hra to je?</string>
+    <string name="scrape_choose_from">Která hra, podle %1$s?</string>
     <string name="scrape_nothing">Pro tuto hru se nic nenašlo</string>
     <string name="scrape_done">Staženo</string>
     <string name="scrape_done_media">Staženo, obrázků: %1$d</string>
-    <string name="scrape_overwrite">Údaje této hry jste upravili ručně. Stažení je nahradí.</string>
     <string name="scrape_failed_quota">Dnes už nezbývají žádné dotazy</string>
     <string name="scrape_failed_login">Přihlášení ke službě bylo odmítnuto</string>
     <string name="scrape_failed_network">Službu se nepodařilo kontaktovat</string>
     <string name="scrape_failed_closed">Služba je pro tento účet uzavřena</string>
+    <string name="artwork_new_title">Nová grafika pro %1$s</string>
+    <string name="artwork_new_yours">Vaše</string>
+    <string name="artwork_new_save">Uložit</string>
     <!-- Scraping a whole collection - ScrapeManyActivity. -->
     <string name="scrape_many_menu">Načíst data k více hrám…</string>
     <string name="scrape_many_title">Načtení dat k více hrám</string>
@@ -707,10 +709,10 @@
     <string name="scrape_many_counting">Počítání…</string>
     <string name="scrape_many_cannot_list">Tuto složku nelze přečíst</string>
     <plurals name="scrape_many_estimate">
-        <item quantity="one">%1$d hra · přibližně %2$d požadavků</item>
-        <item quantity="few">%1$d hry · přibližně %2$d požadavků</item>
-        <item quantity="many">%1$d her · přibližně %2$d požadavků</item>
-        <item quantity="other">%1$d her · přibližně %2$d požadavků</item>
+        <item quantity="one">%1$d hra · nejvýše %2$d požadavků</item>
+        <item quantity="few">%1$d hry · nejvýše %2$d požadavků</item>
+        <item quantity="many">%1$d her · nejvýše %2$d požadavků</item>
+        <item quantity="other">%1$d her · nejvýše %2$d požadavků</item>
     </plurals>
     <string name="scrape_many_quota">Dnes zbývá %1$d požadavků</string>
     <string name="scrape_many_start">Spustit</string>
@@ -745,12 +747,6 @@
         <item quantity="many">%1$d nenalezeno</item>
         <item quantity="other">%1$d nenalezeno</item>
     </plurals>
-    <plurals name="scrape_many_yours">
-        <item quantity="one">%1$d ponechána — upravili jste ji ručně</item>
-        <item quantity="few">%1$d ponechány — upravili jste je ručně</item>
-        <item quantity="many">%1$d ponecháno — upravili jste je ručně</item>
-        <item quantity="other">%1$d ponecháno — upravili jste je ručně</item>
-    </plurals>
     <plurals name="scrape_many_failed">
         <item quantity="one">%1$d selhala</item>
         <item quantity="few">%1$d selhaly</item>
@@ -761,6 +757,10 @@
     <!-- An optional ScreenScraper account of the user's own. -->
     <string name="settings_group_scraper">Účet scraperu</string>
     <string name="settings_scraper">Zdroj dat</string>
+    <string name="settings_scrapers_order">V pořadí: %1$s</string>
+    <string name="settings_scrapers_none">Nic nevybráno — stahování je vypnuté</string>
+    <string name="settings_scrapers_up">Posunout nahoru</string>
+    <string name="settings_scrapers_down">Posunout dolů</string>
     <string name="settings_scraper_user">Uživatelské jméno ScreenScraper</string>
     <string name="settings_scraper_user_summary">Nepovinné. Vlastní účet má mnohem větší denní limit než ten, který sdílejí všichni uživatelé této aplikace.</string>
     <string name="settings_scraper_password">Heslo ScreenScraper</string>

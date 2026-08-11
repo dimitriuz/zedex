@@ -1998,27 +1998,38 @@ public class SettingsActivity extends AppCompatActivity
              * chosen out of how many there are.
              */
             /*
-             * Which service answers, from the providers this build actually
-             * has - ZXInfo always, ScreenScraper only when the build carries
-             * credentials. Filled in here rather than in XML for that reason:
-             * a static list would offer one that cannot work and then fail
-             * with nothing on screen to explain it.
+             * Which services answer, and in what order - the order is the
+             * priority, since the first to answer about a field keeps it.
              *
-             * The whole row is hidden when there is only one, because a
-             * choice between one thing is a question with no answer.
+             * Checkboxes and arrows rather than drag: with two or three
+             * entries drag buys nothing, and arrows are reachable by a pad and
+             * by a screen reader, which drag is not.
+             *
+             * The whole row is hidden when there is only one, because an order
+             * of one thing is a question with no answer.
              */
-            androidx.preference.ListPreference scraper =
-                    findPreference(Prefs.KEY_SCRAPER);
-            if (scraper != null) {
-                java.util.List<String> names = Scrapers.names(getActivity());
-                CharSequence[] entries = names.toArray(new CharSequence[0]);
+            Preference scrapers = findPreference(Prefs.KEY_SCRAPERS);
+            if (scrapers != null) {
+                java.util.List<String> available = Scrapers.names(getActivity());
+                scrapers.setVisible(available.size() > 1);
 
-                scraper.setEntries(entries);
-                scraper.setEntryValues(entries);
-                scraper.setVisible(names.size() > 1);
+                java.util.List<String> using = new java.util.ArrayList<>();
+                for (Provider provider : Scrapers.enabled(getActivity())) {
+                    using.add(provider.name());
+                }
 
-                Provider using = Scrapers.preferred(getActivity());
-                scraper.setSummary(using == null ? "" : using.name());
+                scrapers.setSummary(using.isEmpty()
+                        ? getString(R.string.settings_scrapers_none)
+                        : getString(R.string.settings_scrapers_order,
+                                    String.join(", ", using)));
+
+                scrapers.setOnPreferenceClickListener(preference -> {
+                    ScraperOrder.show(getActivity(), available, using, chosen -> {
+                        Scrapers.save(getActivity(), chosen);
+                        updateSummaries();
+                    });
+                    return true;
+                });
             }
 
             Preference scrapeMedia = findPreference(Prefs.KEY_SCRAPE_MEDIA);

@@ -674,15 +674,17 @@
     <string name="edit_metadata_forgotten">Änderungen verworfen</string>
     <string name="scrape_menu">Daten abrufen…</string>
     <string name="scrape_working">Wird gesucht…</string>
-    <string name="scrape_choose">Welches Spiel ist das?</string>
+    <string name="scrape_choose_from">Welches Spiel, laut %1$s?</string>
     <string name="scrape_nothing">Dazu wurde nichts gefunden</string>
     <string name="scrape_done">Abgerufen</string>
     <string name="scrape_done_media">Abgerufen, %1$d Bild(er)</string>
-    <string name="scrape_overwrite">Die Angaben zu diesem Spiel wurden von Hand bearbeitet. Ein Abruf ersetzt sie.</string>
     <string name="scrape_failed_quota">Heute sind keine Anfragen mehr übrig</string>
     <string name="scrape_failed_login">Die Anmeldung wurde abgelehnt</string>
     <string name="scrape_failed_network">Der Dienst war nicht erreichbar</string>
     <string name="scrape_failed_closed">Der Dienst ist für dieses Konto geschlossen</string>
+    <string name="artwork_new_title">Neue Bilder für %1$s</string>
+    <string name="artwork_new_yours">Ihre</string>
+    <string name="artwork_new_save">Speichern</string>
     <!-- Scraping a whole collection - ScrapeManyActivity. -->
     <string name="scrape_many_menu">Daten für viele Spiele abrufen…</string>
     <string name="scrape_many_title">Daten für viele Spiele</string>
@@ -702,8 +704,8 @@
     <string name="scrape_many_counting">Wird gezählt…</string>
     <string name="scrape_many_cannot_list">Dieser Ordner ließ sich nicht lesen</string>
     <plurals name="scrape_many_estimate">
-        <item quantity="one">%1$d Spiel · etwa %2$d Anfragen</item>
-        <item quantity="other">%1$d Spiele · etwa %2$d Anfragen</item>
+        <item quantity="one">%1$d Spiel · höchstens %2$d Anfragen</item>
+        <item quantity="other">%1$d Spiele · höchstens %2$d Anfragen</item>
     </plurals>
     <string name="scrape_many_quota">Heute noch %1$d Anfragen übrig</string>
     <string name="scrape_many_start">Starten</string>
@@ -730,10 +732,6 @@
         <item quantity="one">%1$d nicht gefunden</item>
         <item quantity="other">%1$d nicht gefunden</item>
     </plurals>
-    <plurals name="scrape_many_yours">
-        <item quantity="one">%1$d ausgelassen — von Hand bearbeitet</item>
-        <item quantity="other">%1$d ausgelassen — von Hand bearbeitet</item>
-    </plurals>
     <plurals name="scrape_many_failed">
         <item quantity="one">%1$d fehlgeschlagen</item>
         <item quantity="other">%1$d fehlgeschlagen</item>
@@ -742,6 +740,10 @@
     <!-- An optional ScreenScraper account of the user's own. -->
     <string name="settings_group_scraper">Scraper-Konto</string>
     <string name="settings_scraper">Daten abrufen von</string>
+    <string name="settings_scrapers_order">Reihenfolge: %1$s</string>
+    <string name="settings_scrapers_none">Nichts ausgewählt – Scraping ist aus</string>
+    <string name="settings_scrapers_up">Nach oben</string>
+    <string name="settings_scrapers_down">Nach unten</string>
     <string name="settings_scraper_user">ScreenScraper-Benutzername</string>
     <string name="settings_scraper_user_summary">Optional. Ein eigenes Konto hat ein viel größeres Tageskontingent als das, das sich alle Nutzer dieser App teilen.</string>
     <string name="settings_scraper_password">ScreenScraper-Passwort</string>

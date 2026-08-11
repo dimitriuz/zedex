@@ -174,7 +174,8 @@ public class DownloadsTest {
      *  the cases that are not about refusals. */
     private Downloads.Result fetch(Http http, String path, java.util.List<Medium> media) {
         try {
-            return Downloads.fetch(context, http, classifier(), path, media);
+            return Downloads.fetch(context, http, classifier(), path, media,
+                                   Downloads.into(context, path));
         } catch (ScrapeException e) {
             throw new AssertionError("unexpected refusal: " + e.kind, e);
         }
@@ -201,22 +202,26 @@ public class DownloadsTest {
     }
 
     /**
-     * And the caches are told, or the cover stays invisible.
+     * Downloads no longer forgets the game on the caller's behalf.
      *
-     * A miss is remembered - see {@code OwnMediaTest} - so a scrape that wrote
-     * a cover and did not forget the game would leave the library showing
-     * nothing until something unrelated cleared the cache.
+     * That is the one behaviour this refactor moved: a miss is cached - see
+     * {@code OwnMediaTest} - and it used to be cleared here, but a staged file
+     * (task 5) is not where anything looks, and forgetting on its account
+     * would throw away five hundred games' worth of lookups for nothing.
+     * {@code Scrape.apply} does it now, in a {@code finally}, at the point a
+     * write actually lands in the media folder.
      */
     @Test
-    public void thegameIsForgottenSoTheNewCoverIsSeen() {
+    public void downloadsLeavesForgettingToTheCaller() {
         assertNull("nothing yet", Artwork.picture(context, GAME));   // caches the miss
 
         String body = "a picture";
         fetch(new Bytes(body), GAME,
                 Collections.singletonList(cover(md5Of(body.getBytes(StandardCharsets.UTF_8)))));
 
-        assertNotNull("the miss was never forgotten, so the cover is invisible",
-                      Artwork.picture(context, GAME));
+        assertNull("Downloads must not forget the game itself any more - "
+                   + "that is the caller's job now",
+                   Artwork.picture(context, GAME));
     }
 
     /** Several media, several files, one count. */
@@ -362,7 +367,7 @@ public class DownloadsTest {
     public void aspentQuotaWhileDownloadingStopsRatherThanCountingAsAMissingPicture() {
         try {
             Downloads.fetch(context, new Refusing(429), classifier(), GAME,
-                            Collections.singletonList(cover(null)));
+                            Collections.singletonList(cover(null)), Downloads.into(context, GAME));
             fail("a spent quota was swallowed as a missing picture");
         } catch (ScrapeException e) {
             assertEquals(ScrapeException.Kind.QUOTA_EXCEEDED, e.kind);
@@ -375,7 +380,7 @@ public class DownloadsTest {
     public void refusedCredentialsWhileDownloadingStopToo() {
         try {
             Downloads.fetch(context, new Refusing(401), classifier(), GAME,
-                            Collections.singletonList(cover(null)));
+                            Collections.singletonList(cover(null)), Downloads.into(context, GAME));
             fail("refused credentials were swallowed");
         } catch (ScrapeException e) {
             assertEquals(ScrapeException.Kind.BAD_CREDENTIALS, e.kind);
@@ -392,7 +397,7 @@ public class DownloadsTest {
     @Test
     public void amissingPictureIsNotAReasonToStop() throws Exception {
         Downloads.Result result = Downloads.fetch(context, new Refusing(404), classifier(),
-                GAME, Collections.singletonList(cover(null)));
+                GAME, Collections.singletonList(cover(null)), Downloads.into(context, GAME));
 
         assertEquals(0, result.saved);
         assertEquals(1, result.failed);
@@ -402,7 +407,7 @@ public class DownloadsTest {
     @Test
     public void aserverHiccupIsNotAReasonToStop() throws Exception {
         Downloads.Result result = Downloads.fetch(context, new Refusing(500), classifier(),
-                GAME, Collections.singletonList(cover(null)));
+                GAME, Collections.singletonList(cover(null)), Downloads.into(context, GAME));
 
         assertEquals(1, result.failed);
     }
@@ -412,7 +417,7 @@ public class DownloadsTest {
     public void arefusalLeavesNoFile() {
         try {
             Downloads.fetch(context, new Refusing(429), classifier(), GAME,
-                            Collections.singletonList(cover(null)));
+                            Collections.singletonList(cover(null)), Downloads.into(context, GAME));
         } catch (ScrapeException expected) {
             // the point is what is on disk
         }
@@ -422,16 +427,17 @@ public class DownloadsTest {
     }
 
     /**
-     * What arrived before the refusal is still made visible.
+     * What arrived before the refusal is still on disk, not thrown away.
      *
-     * A scrape stopped halfway still fetched the covers it got to, and leaving
-     * them behind a cached miss would throw away work already paid for out of
-     * the day's allowance.
+     * A scrape stopped halfway still fetched the covers it got to. This checks
+     * the file directly rather than through {@code Artwork}'s cache now -
+     * making that cached cover <em>visible</em> is the caller's job since
+     * Downloads stopped forgetting the game itself (see {@code
+     * downloadsLeavesForgettingToTheCaller}), and asserting through the cache
+     * here would fail on a fact this method never claimed to own.
      */
     @Test
     public void whatArrivedBeforeTheRefusalIsNotWasted() {
-        assertNull("nothing yet", Artwork.picture(context, GAME));   // caches the miss
-
         String body = "a picture";
         String hash = md5Of(body.getBytes(StandardCharsets.UTF_8));
 
@@ -457,14 +463,15 @@ public class DownloadsTest {
         try {
             Downloads.fetch(context, mixed, classifier(), GAME, Arrays.asList(
                     new Medium("covers", "https://x/a.png", "png", hash),
-                    new Medium("screenshots", "https://x/b.png", "png", hash)));
+                    new Medium("screenshots", "https://x/b.png", "png", hash)),
+                    Downloads.into(context, GAME));
             fail("the quota refusal should have come out");
         } catch (ScrapeException e) {
             assertEquals(ScrapeException.Kind.QUOTA_EXCEEDED, e.kind);
         }
 
-        assertNotNull("the cover that did arrive was left behind a cached miss",
-                      Artwork.picture(context, GAME));
+        assertTrue("the cover that did arrive was lost",
+                   Artwork.fileFor(context, GAME, "covers", "png").isFile());
     }
 
     // --- the one medium that is not a picture when it arrives -------------------------
@@ -543,5 +550,85 @@ public class DownloadsTest {
         for (File made : this.made) {
             assertFalse("something was left behind: " + made, made.isFile());
         }
+    }
+
+    // --- where it lands is the caller's decision ---------------------------------------
+
+    /**
+     * A download goes where the caller says, not where Downloads assumes.
+     *
+     * The seam a staged scrape needs: a one-game scrape fetches every source's
+     * pictures before anybody chooses between them, so they cannot land on top
+     * of what is already on disk on the way past.
+     */
+    @Test
+    public void mediaLandWhereTheDestinationSays() throws Exception {
+        File elsewhere = new File(context.getCacheDir(), "downloads-test-" + System.nanoTime());
+        assertTrue(elsewhere.mkdirs());
+
+        try {
+            Downloads.Destination into = (folder, extension) -> {
+                File file = new File(new File(elsewhere, folder), "Game." + extension);
+                File parent = file.getParentFile();
+                if (parent != null) parent.mkdirs();
+                return file;
+            };
+
+            // Medium is (folder, url, extension, md5) - the url comes second.
+            Medium cover = new Medium("covers", "http://example.invalid/cover.png", "png", null);
+
+            Downloads.Result result = Downloads.fetch(
+                    context, new WritesBytes("a cover".getBytes()), new NoRefusals(),
+                    "./Game.tap", Collections.singletonList(cover), into);
+
+            assertEquals(1, result.saved);
+            assertTrue(new File(new File(elsewhere, "covers"), "Game.png").isFile());
+            // And nothing at all in the media folder, which is the whole point.
+            assertFalse(Artwork.fileFor(context, "./Game.tap", "covers", "png").isFile());
+        } finally {
+            deleteTree(elsewhere);
+        }
+    }
+
+    /** An Http that writes the same bytes for every url. */
+    private static final class WritesBytes implements Http {
+        private final byte[] bytes;
+
+        WritesBytes(byte[] bytes) {
+            this.bytes = bytes;
+        }
+
+        @Override public Reply get(String url) {
+            throw new AssertionError("no page should be fetched");
+        }
+
+        @Override public String save(String url, File into) throws IOException {
+            File parent = into.getParentFile();
+            if (parent != null) parent.mkdirs();
+
+            try (java.io.FileOutputStream out = new java.io.FileOutputStream(into)) {
+                out.write(bytes);
+            }
+            return null;   // no hash offered, which is ZXInfo's ordinary case
+        }
+    }
+
+    private static final class NoRefusals implements Provider {
+        @Override public String name() { return "Fake"; }
+        @Override public boolean configured() { return true; }
+        @Override public java.util.List<Candidate> search(Game game) { return null; }
+        @Override public Scraped fetch(Candidate candidate, Wanted wanted) { return null; }
+        @Override public Quota quota() { return Quota.unknown(); }
+        @Override public int costPerGame(Wanted wanted) { return 1; }
+
+        @Override public ScrapeException refusalFor(int status) {
+            return new ScrapeException(ScrapeException.Kind.NETWORK, "status " + status);
+        }
+    }
+
+    private static void deleteTree(File file) {
+        File[] children = file.listFiles();
+        if (children != null) for (File child : children) deleteTree(child);
+        file.delete();
     }
 }

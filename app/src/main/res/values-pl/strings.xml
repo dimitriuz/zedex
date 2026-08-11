@@ -679,15 +679,17 @@
     <string name="edit_metadata_forgotten">Zmiany zapomniane</string>
     <string name="scrape_menu">Pobierz dane…</string>
     <string name="scrape_working">Wyszukiwanie…</string>
-    <string name="scrape_choose">Która to gra?</string>
+    <string name="scrape_choose_from">Która gra, według %1$s?</string>
     <string name="scrape_nothing">Nic nie znaleziono dla tej gry</string>
     <string name="scrape_done">Pobrano</string>
     <string name="scrape_done_media">Pobrano, obrazów: %1$d</string>
-    <string name="scrape_overwrite">Dane tej gry zostały zmienione ręcznie. Pobranie je zastąpi.</string>
     <string name="scrape_failed_quota">Na dziś nie ma już zapytań</string>
     <string name="scrape_failed_login">Odrzucono logowanie do usługi</string>
     <string name="scrape_failed_network">Nie udało się połączyć z usługą</string>
     <string name="scrape_failed_closed">Usługa jest zamknięta dla tego konta</string>
+    <string name="artwork_new_title">Nowe grafiki dla %1$s</string>
+    <string name="artwork_new_yours">Twoje</string>
+    <string name="artwork_new_save">Zapisz</string>
     <!-- Scraping a whole collection - ScrapeManyActivity. -->
     <string name="scrape_many_menu">Pobierz dane wielu gier…</string>
     <string name="scrape_many_title">Dane wielu gier</string>
@@ -707,10 +709,10 @@
     <string name="scrape_many_counting">Liczenie…</string>
     <string name="scrape_many_cannot_list">Nie udało się odczytać tego folderu</string>
     <plurals name="scrape_many_estimate">
-        <item quantity="one">%1$d gra · około %2$d żądań</item>
-        <item quantity="few">%1$d gry · około %2$d żądań</item>
-        <item quantity="many">%1$d gier · około %2$d żądań</item>
-        <item quantity="other">%1$d gry · około %2$d żądań</item>
+        <item quantity="one">%1$d gra · najwyżej %2$d żądań</item>
+        <item quantity="few">%1$d gry · najwyżej %2$d żądań</item>
+        <item quantity="many">%1$d gier · najwyżej %2$d żądań</item>
+        <item quantity="other">%1$d gry · najwyżej %2$d żądań</item>
     </plurals>
     <string name="scrape_many_quota">Dziś zostało %1$d żądań</string>
     <string name="scrape_many_start">Rozpocznij</string>
@@ -745,12 +747,6 @@
         <item quantity="many">%1$d nie znaleziono</item>
         <item quantity="other">%1$d nie znaleziono</item>
     </plurals>
-    <plurals name="scrape_many_yours">
-        <item quantity="one">%1$d pominięta — edytowana ręcznie</item>
-        <item quantity="few">%1$d pominięte — edytowane ręcznie</item>
-        <item quantity="many">%1$d pominiętych — edytowanych ręcznie</item>
-        <item quantity="other">%1$d pominiętych — edytowanych ręcznie</item>
-    </plurals>
     <plurals name="scrape_many_failed">
         <item quantity="one">%1$d nie powiodła się</item>
         <item quantity="few">%1$d nie powiodły się</item>
@@ -761,6 +757,10 @@
     <!-- An optional ScreenScraper account of the user's own. -->
     <string name="settings_group_scraper">Konto scrapera</string>
     <string name="settings_scraper">Pobieraj z</string>
+    <string name="settings_scrapers_order">W kolejności: %1$s</string>
+    <string name="settings_scrapers_none">Nie wybrano żadnego — pobieranie jest wyłączone</string>
+    <string name="settings_scrapers_up">Przenieś w górę</string>
+    <string name="settings_scrapers_down">Przenieś w dół</string>
     <string name="settings_scraper_user">Nazwa użytkownika ScreenScraper</string>
     <string name="settings_scraper_user_summary">Opcjonalne. Własne konto ma znacznie większy dzienny limit niż to współdzielone przez wszystkich użytkowników tej aplikacji.</string>
     <string name="settings_scraper_password">Hasło ScreenScraper</string>

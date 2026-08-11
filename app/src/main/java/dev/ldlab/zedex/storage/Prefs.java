@@ -174,6 +174,28 @@ public final class Prefs {
      */
     public static final String KEY_SCRAPE_MEDIA = "scrapeMedia";
     /**
+     * Which services a scrape asks, by {@code Provider.name()}, in the order
+     * it asks them - one per line.
+     *
+     * A {@code String} and not a {@code StringSet}, although it is a set of
+     * choices, because a set has no order and the order <em>is</em> the
+     * feature: the first source to answer about a field keeps it, and every
+     * later one may only fill what is still missing.
+     *
+     * A new key rather than a reuse of {@link #KEY_SCRAPER}, which held a
+     * single name written by a {@code ListPreference}. The two must never
+     * disagree about what they hold - see {@code scripts/check-prefs.py} for
+     * why a key with two types is a crash that survives every test on a fresh
+     * install.
+     *
+     * <b>Absent is not empty.</b> Nothing stored means nobody has chosen and
+     * every source this build has is used; an empty value means somebody
+     * deliberately turned them all off, which switches scraping off and is a
+     * real thing to want. The same distinction {@link #KEY_SCRAPE_MEDIA}
+     * turns on, and it is lost the moment the two are collapsed.
+     */
+    public static final String KEY_SCRAPERS = "scrapers";
+    /**
      * Which service a scrape asks, by {@code Provider.name()}.
      *
      * A name rather than an index, so that adding or reordering providers
@@ -181,10 +203,10 @@ public final class Prefs {
      * so a value this build does not recognise falls back to the default
      * rather than to whatever happens to be second in a list.
      *
-     * Absent means the default, which is whichever {@code Scrapers} prefers.
-     * One service answers everything; merging fields from two was considered
-     * and rejected, because two sources disagreeing about a name or a year
-     * needs a rule per field and every conflict is silent when it goes wrong.
+     * <b>Superseded by {@link #KEY_SCRAPERS}</b>, which holds several names in
+     * priority order. This is read once to migrate a choice made by an older
+     * build - faithfully, meaning that one name becomes that one source and
+     * the others off - and never written again.
      */
     public static final String KEY_SCRAPER = "scraper";
     /**

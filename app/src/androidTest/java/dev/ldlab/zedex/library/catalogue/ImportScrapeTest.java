@@ -51,7 +51,7 @@ import java.util.List;
  * back through a dialog asking somebody to confirm the game they just chose.
  *
  * <b>No network.</b> {@code describe} takes the {@link Provider} as a
- * parameter rather than resolving one itself via {@code Scrapers.preferred} -
+ * parameter rather than resolving one itself via {@code Scrapers.enabled} -
  * see the class comment on {@link Imports#describe} - so the fake below is
  * handed straight in, the same way {@code SweepTest.Fake} is handed to
  * {@code Sweep.run}. Nothing here touches a socket.

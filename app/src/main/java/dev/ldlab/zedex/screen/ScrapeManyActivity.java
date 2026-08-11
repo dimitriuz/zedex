@@ -88,13 +88,13 @@ public final class ScrapeManyActivity extends ZedexActivity {
     private Sweep.Conflicts conflicts = Sweep.Conflicts.SKIP;
 
     /**
-     * One provider for the life of the screen, not one per game.
+     * The sources for the life of the screen, not one per game.
      *
-     * The quota counters live on the instance - every reply updates them - so
-     * a fresh provider per request would forget the day's count between games
-     * and the pacing would have nothing to pace against.
+     * The quota counters live on each instance - every reply updates them -
+     * so a fresh provider per request would forget the day's count between
+     * games and the pacing would have nothing to pace against.
      */
-    private Provider provider;
+    private List<Provider> sources;
 
     /** What each scope came to, so that flipping between filters does not
      *  walk the tree again. The walk is the slow part; {@code Sweep.select}
@@ -139,13 +139,13 @@ public final class ScrapeManyActivity extends ZedexActivity {
     protected void onCreate(Bundle state) {
         super.onCreate(state);
 
-        provider = Scrapers.withAccount(this);
+        sources = Scrapers.enabled(this);
 
         String uri = getIntent().getStringExtra(EXTRA_FOLDER);
         folder = uri == null ? null : Uri.parse(uri);
         folderName = getIntent().getStringExtra(EXTRA_FOLDER_NAME);
 
-        if (provider == null || folder == null) {
+        if (sources.isEmpty() || folder == null) {
             // Only reachable from an Intent built somewhere other than the row
             // that offers this, which checks both.
             finish();
@@ -470,9 +470,21 @@ public final class ScrapeManyActivity extends ZedexActivity {
         });
     }
 
+    /**
+     * The count, and the cost of asking every source about every one of them.
+     *
+     * An upper bound rather than a prediction: {@link Blend} stops asking a
+     * source once nothing is left for it to add, so a run against a
+     * collection that already carries one source's name will usually cost
+     * less than this - and there is no honest way to say how much less before
+     * it has actually been asked.
+     */
     private void showEstimate() {
         int games = chosen.size();
-        int requests = games * provider.costPerGame(Scrapers.wanted(this));
+
+        int perGame = 0;
+        for (Provider source : sources) perGame += source.costPerGame(Scrapers.wanted(this));
+        int requests = games * perGame;
 
         estimate.setText(getResources().getQuantityString(
                 R.plurals.scrape_many_estimate, games, games, requests));
@@ -482,23 +494,28 @@ public final class ScrapeManyActivity extends ZedexActivity {
     }
 
     /**
-     * What is left of the day, when the service has said.
+     * What is left of the day, for whichever source has said.
      *
-     * It has not before the first reply of the session - the counters arrive
-     * with an answer, not before one - so this is hidden rather than showing
-     * an honest but useless "unknown", and appears once the run is under way.
+     * The first that has an answer, not every one of them - a screen naming a
+     * number per source is task 9's, and one number is enough to tell
+     * somebody a run is about to be cut short. Nothing has said before the
+     * first reply of the session - the counters arrive with an answer, not
+     * before one - so this is hidden rather than showing an honest but
+     * useless "unknown", and appears once the run is under way.
      */
     private void showQuota() {
-        Quota quota = provider.quota();
-        int left = quota == null ? -1 : quota.left();
+        for (Provider source : sources) {
+            Quota quota = source.quota();
+            int left = quota == null ? -1 : quota.left();
 
-        if (left < 0) {
-            quotaLine.setVisibility(View.GONE);
-            return;
+            if (left >= 0) {
+                quotaLine.setText(getString(R.string.scrape_many_quota, left));
+                quotaLine.setVisibility(View.VISIBLE);
+                return;
+            }
         }
 
-        quotaLine.setText(getString(R.string.scrape_many_quota, left));
-        quotaLine.setVisibility(View.VISIBLE);
+        quotaLine.setVisibility(View.GONE);
     }
 
     private List<Entry> entriesFor(Scope scope) throws IOException {
@@ -547,7 +564,7 @@ public final class ScrapeManyActivity extends ZedexActivity {
         // Work.alone rather than the pool: this is twenty minutes and would
         // hold a lane the short work wants.
         Work.alone("scrape-many", () -> {
-            Sweep.Tally tally = Sweep.run(this, provider, new Http.Real(this), entries,
+            Sweep.Tally tally = Sweep.run(this, sources, new Http.Real(this), entries,
                                           Scrapers.wanted(this), conflicts, watcher);
 
             runOnUiThread(() -> finished(tally));
@@ -579,8 +596,8 @@ public final class ScrapeManyActivity extends ZedexActivity {
         }
 
         @Override
-        public Sweep.Choice chooseFrom(List<Candidate> found, String game) {
-            return ask(found, game);
+        public Sweep.Choice chooseFrom(String sourceName, List<Candidate> found, String game) {
+            return ask(sourceName, found, game);
         }
     };
 
@@ -596,7 +613,7 @@ public final class ScrapeManyActivity extends ZedexActivity {
      * A queue rather than a latch and a field, because it carries the answer
      * as well as the fact of one and needs no synchronisation of its own.
      */
-    private Sweep.Choice ask(List<Candidate> found, String game) {
+    private Sweep.Choice ask(String sourceName, List<Candidate> found, String game) {
         BlockingQueue<Sweep.Choice> answer = new ArrayBlockingQueue<>(1);
 
         runOnUiThread(() -> {
@@ -604,7 +621,7 @@ public final class ScrapeManyActivity extends ZedexActivity {
                 answer.offer(Sweep.Choice.skipTheRest());
                 return;
             }
-            chooser(found, game, answer).show();
+            chooser(sourceName, found, game, answer).show();
         });
 
         try {
@@ -629,14 +646,26 @@ public final class ScrapeManyActivity extends ZedexActivity {
      *  cancelled underneath it. */
     private static final long CHOICE_POLL_MS = 200;
 
-    private AlertDialog chooser(List<Candidate> found, String game,
+    /**
+     * The title carries both facts a sweep needs here: which file this is -
+     * first, since a run asking about hundreds of games needs that to stay
+     * the thing the eye lands on - and which service is offering the list
+     * below it, since the same file can turn up a different list from each
+     * source now that there is more than one. An AlertDialog ignores
+     * setMessage once setItems is in play, so the source has nowhere to go
+     * but the title; joined with " · ", the separator this codebase already
+     * uses for two facts about one thing (see Candidate.describe).
+     */
+    private AlertDialog chooser(String sourceName, List<Candidate> found, String game,
                                 BlockingQueue<Sweep.Choice> answer) {
         List<String> labels = new ArrayList<>();
         for (Candidate candidate : found) labels.add(candidate.describe());
 
+        String title = game + " · " + getString(R.string.scrape_choose_from, sourceName);
+
         AlertDialog dialog = new AlertDialog.Builder(
                 this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(game)
+                .setTitle(title)
                 .setItems(labels.toArray(new String[0]),
                           (d, which) -> answer.offer(Sweep.Choice.of(found.get(which))))
                 .setNegativeButton(R.string.scrape_many_skip_one,
@@ -672,9 +701,9 @@ public final class ScrapeManyActivity extends ZedexActivity {
     }
 
     /**
-     * The five numbers, and why it ended if it did not simply end.
+     * The four numbers, and why it ended if it did not simply end.
      *
-     * Five rather than done-and-not-done because five different things happen
+     * Four rather than done-and-not-done because four different things happen
      * to a collection: a hundred unknown games is the service's coverage, a
      * hundred ambiguous ones is an afternoon with the chooser, and a hundred
      * failures is something wrong. Lumping them together would hide which.
@@ -696,7 +725,6 @@ public final class ScrapeManyActivity extends ZedexActivity {
         if (tally.media > 0) line(text, R.plurals.scrape_many_media, tally.media);
         if (tally.ambiguous > 0) line(text, R.plurals.scrape_many_ambiguous, tally.ambiguous);
         if (tally.unknown > 0) line(text, R.plurals.scrape_many_unknown, tally.unknown);
-        if (tally.yours > 0) line(text, R.plurals.scrape_many_yours, tally.yours);
         if (tally.failed > 0) line(text, R.plurals.scrape_many_failed, tally.failed);
 
         // Anything left undone is found again by "not scraped yet", which is

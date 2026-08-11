@@ -58,37 +58,51 @@ public final class Downloads {
     }
 
     /**
-     * Fetches every medium for one game into this app's own media folder.
+     * Where one game's media should be written.
      *
-     * The game is forgotten from {@code Artwork}'s caches afterwards and only
-     * if something arrived: a miss is cached, so without this the cover just
-     * written stays invisible until something else happens to clear it - and
-     * forgetting one game rather than all five hundred is why {@link
-     * Artwork#forget(String)} takes a path.
+     * Here rather than assumed, because a one-game scrape fetches from every
+     * source before anybody chooses between them: those files must not land on
+     * top of what is already on disk on the way past. A sweep passes {@link
+     * #into} and writes straight to the media folder, since it only ever asks
+     * for folders that are empty and so has nothing to protect.
+     */
+    public interface Destination {
+        File fileFor(String folder, String extension);
+    }
+
+    /** The media folder itself - what a scrape that has nothing to choose
+     *  between writes to. */
+    public static Destination into(Context context, String relativePath) {
+        return (folder, extension) -> Artwork.fileFor(context, relativePath, folder, extension);
+    }
+
+    /**
+     * Fetches every medium for one game into {@code destination}.
+     *
+     * <b>The caller forgets the game from {@code Artwork}'s caches, not this
+     * method.</b> A miss is cached, so a cover just written stays invisible
+     * until something clears it - but a staged file is not where anything
+     * looks, and forgetting on its account would throw away the lookups for
+     * nothing. {@code Scrape.apply} and {@code Blend.commit} each do it at the
+     * point the files actually become visible.
      *
      * @param relativePath the game's own key, {@code ./folder/Game.tap}
      */
     public static Result fetch(Context context, Http http, Provider provider,
-                               String relativePath, List<Medium> media)
+                               String relativePath, List<Medium> media,
+                               Destination destination)
             throws ScrapeException {
         int saved = 0;
         int failed = 0;
 
-        try {
-            for (Medium medium : media) {
-                try {
-                    if (save(context, http, relativePath, medium)) saved++;
-                    else failed++;
-                } catch (Http.Refused refused) {
-                    stopIfHopeless(provider, refused);
-                    failed++;
-                }
+        for (Medium medium : media) {
+            try {
+                if (save(context, http, relativePath, medium, destination)) saved++;
+                else failed++;
+            } catch (Http.Refused refused) {
+                stopIfHopeless(provider, refused);
+                failed++;
             }
-        } finally {
-            // Whatever went wrong, what did arrive has to become visible - a
-            // scrape stopped by a spent quota still fetched the covers it got
-            // to, and leaving them behind a cached miss would waste them.
-            if (saved > 0) Artwork.forget(relativePath);
         }
 
         return new Result(saved, failed);
@@ -139,8 +153,8 @@ public final class Downloads {
      * Artwork} resolving a file the music reader cannot read.
      */
     private static boolean unzip(Context context, String relativePath,
-                                 String folder, File zip) {
-        File into = Artwork.fileFor(context, relativePath, folder, "ay");
+                                 String folder, File zip, Destination destination) {
+        File into = destination.fileFor(folder, "ay");
         boolean taken = false;
 
         try (ZipInputStream in = new ZipInputStream(new FileInputStream(zip))) {
@@ -189,15 +203,14 @@ public final class Downloads {
      * keeping it would leave {@code Artwork} resolving a file it cannot draw.
      */
     private static boolean convert(Context context, String relativePath,
-                                   String folder, File dump) {
+                                   String folder, File dump, Destination destination) {
         // The folder is passed rather than read back off the file, which was
         // the first attempt and was wrong for every game in a subfolder: what
         // a downloaded file's parent directory is called is the game's own
         // folder - "titlescreens/GOTY 2021/Angels.scr" - and not the media
         // folder at all. It put the picture where nothing looks, for exactly
         // the collections that are organised.
-        File into = Artwork.fileFor(context, relativePath, folder,
-                                    ScreenPicture.EXTENSION);
+        File into = destination.fileFor(folder, ScreenPicture.EXTENSION);
 
         boolean converted = ScreenPicture.convert(dump, into);
         delete(dump);
@@ -211,8 +224,8 @@ public final class Downloads {
     }
 
     private static boolean save(Context context, Http http, String relativePath,
-                                Medium medium) throws Http.Refused {
-        File into = Artwork.fileFor(context, relativePath, medium.folder, medium.extension);
+                                Medium medium, Destination destination) throws Http.Refused {
+        File into = destination.fileFor(medium.folder, medium.extension);
 
         try {
             String got = http.save(medium.url, into);
@@ -236,11 +249,11 @@ public final class Downloads {
             // so nothing downstream ever meets one - see ScreenPicture.
             if (ScreenPicture.EXTENSION.equals(medium.extension)) return true;
             if (isScreenDump(medium)) {
-                return convert(context, relativePath, medium.folder, into);
+                return convert(context, relativePath, medium.folder, into, destination);
             }
 
             if (isZippedMusic(medium)) {
-                return unzip(context, relativePath, medium.folder, into);
+                return unzip(context, relativePath, medium.folder, into, destination);
             }
 
             return true;

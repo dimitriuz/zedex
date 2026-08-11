@@ -10,48 +10,75 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Which provider a scrape uses.
+ * Which providers a scrape uses, and in what order.
  *
  * The one place that knows there is more than one, so no entry point grows its
  * own {@code new ScreenScraper(...)} and its own idea of what to do when none
  * is configured.
  *
- * <b>One service answers everything.</b> Whichever is chosen does the searching
- * and the fetching for every scrape. Merging fields from two was considered and
- * rejected: two sources disagreeing about a name or a year needs a rule per
- * field, ownership stops being one provider name, and every conflict is
- * invisible when it goes wrong.
+ * <b>Several services answer, in a priority order.</b> This used to say the
+ * opposite - that one service answered everything, and that merging two was
+ * rejected because "two sources disagreeing about a name or a year needs a
+ * rule per field, ownership stops being one provider name, and every conflict
+ * is invisible when it goes wrong". Each of those is answered rather than
+ * overridden:
  *
- * Rows keep carrying the name of whoever wrote them, so switching provider and
- * running <em>Everything, again</em> re-scrapes cleanly, and
- * {@code Sweep.Only.NOT_SCRAPED} still means "not scraped by this app" rather
- * than "not scraped by the one currently selected" - which is the right answer,
- * since having already scraped a game is having already scraped it.
+ * <ul>
+ * <li>There is one rule for every field, not a rule per field: a source may
+ *     fill a gap and may never overwrite ({@link Merge}). The order decides
+ *     who gets the gap.</li>
+ * <li>Ownership is still legible; it is plural. {@code Meta.source} is a list
+ *     of contributors, and the two predicates that read it generalised
+ *     cleanly - a link owns a row only when ES-DE is its sole contributor.</li>
+ * <li>The only conflict anybody can lose something to is a picture, and a
+ *     picture is the one thing that can be shown. A sweep never replaces one;
+ *     a one-game scrape puts the alternatives on screen side by side.</li>
+ * </ul>
+ *
+ * Rows keep carrying the names of whoever wrote them, so {@code
+ * Sweep.Only.NOT_SCRAPED} still means "not scraped by this app" rather than
+ * "not scraped by whichever is currently first".
  */
 public final class Scrapers {
 
     private Scrapers() {
     }
 
+    /** One per line - a service name has spaces in it and could one day have
+     *  a comma, and a newline is the one character it will not have. */
+    private static final String SEPARATOR = "\n";
+
     /**
      * Every provider this build can offer, best first.
      *
      * ZXInfo needs no credentials at all, so it is always here; ScreenScraper
      * is only here when the build was given a developer id and password, which
-     * a source clone was not. That ordering is also the fallback order - see
-     * {@link #preferred}.
-     *
-     * ScreenScraper first, and only because it came first and is what existing
-     * rows were scraped from. For a Spectrum collection specifically ZXInfo is
-     * the better answer - it hash-matches like ScreenScraper does, its ratings
-     * come from hundreds of votes rather than a handful, and its media cost
-     * nothing against a daily allowance - so this default is worth revisiting
-     * once there is more than one person's collection to judge it on.
+     * a source clone was not. That ordering is the default priority order for
+     * anybody who has never chosen.
      */
     public static List<Provider> all(Context context) {
+        return all(context, null, null);
+    }
+
+    /**
+     * Every provider, with the user's own ScreenScraper account when they have
+     * set one.
+     *
+     * Their login buys a real daily allowance and is the only mitigation
+     * available for the fact that the shared developer credentials are in the
+     * APK and readable - see {@code Prefs.KEY_SCRAPER_USER}. It does not
+     * replace the developer id, which identifies the application and is sent
+     * either way.
+     *
+     * The account is ScreenScraper's alone. ZXInfo has no accounts, so a login
+     * set here changes nothing for it - worth knowing rather than surprising.
+     */
+    private static List<Provider> all(Context context, String user, String password) {
         List<Provider> providers = new ArrayList<>();
 
-        Provider screenScraper = new ScreenScraper(context, new Http.Real(context));
+        Provider screenScraper = user == null
+                ? new ScreenScraper(context, new Http.Real(context))
+                : new ScreenScraper(context, new Http.Real(context), user, password);
         if (screenScraper.configured()) providers.add(screenScraper);
 
         providers.add(new ZxInfo(new Http.Real(context)));
@@ -59,8 +86,8 @@ public final class Scrapers {
         return providers;
     }
 
-    /** The names, for a settings list. Not translated: they are the services'
-     *  own names. */
+    /** The names, for the settings list. Not translated: they are the
+     *  services' own names. */
     public static List<String> names(Context context) {
         List<String> names = new ArrayList<>();
         for (Provider provider : all(context)) names.add(provider.name());
@@ -68,78 +95,110 @@ public final class Scrapers {
     }
 
     /**
-     * The one to use, or null when this build can scrape from nothing.
+     * The sources to ask, in the order to ask them, with the user's own
+     * account applied.
      *
-     * A stored name that no longer matches anything - a provider removed, or a
-     * build without the credentials the choice was made against - falls back to
-     * the first available rather than to nothing. Losing the ability to scrape
-     * because a preference went stale would be a worse answer than quietly
-     * using the other service.
+     * Empty when this build can scrape from nothing, and empty when somebody
+     * has turned every source off - which is a choice and not a fault.
+     *
+     * A stored name this build does not have - a provider removed, or a build
+     * without the credentials the choice was made against - is skipped rather
+     * than failing the lot.
      */
-    public static Provider preferred(Context context) {
-        return chosen(context, all(context));
-    }
-
-    /**
-     * The one to use, with the user's own ScreenScraper account when they have
-     * set one.
-     *
-     * Their login buys a real daily allowance and is the only mitigation
-     * available for the fact that the shared developer credentials are in the
-     * APK and readable - see {@code Prefs.KEY_SCRAPER_USER}. It does not
-     * replace the developer id, which identifies the application and is sent
-     * either way; it is an extra pair of fields on the same request.
-     *
-     * An empty name means no account, and an empty password with a name set
-     * means the same: half a login is a request that authenticates as nobody
-     * and is refused, which reads to the user as the service being broken.
-     *
-     * The account is ScreenScraper's alone. ZXInfo has no accounts, so a login
-     * set here changes nothing when it is the chosen provider - which is worth
-     * knowing rather than surprising.
-     */
-    public static Provider withAccount(Context context) {
+    public static List<Provider> enabled(Context context) {
         SharedPreferences preferences =
                 context.getSharedPreferences(Prefs.PREFS, Context.MODE_PRIVATE);
 
         String user = preferences.getString(Prefs.KEY_SCRAPER_USER, "");
         String password = preferences.getString(Prefs.KEY_SCRAPER_PASSWORD, "");
 
+        // Half a login is a request that authenticates as nobody and is
+        // refused, which reads to the user as the service being broken.
         boolean hasAccount = user != null && !user.trim().isEmpty()
                 && password != null && !password.isEmpty();
-        if (!hasAccount) return preferred(context);
 
-        List<Provider> providers = new ArrayList<>();
+        List<Provider> available = hasAccount
+                ? all(context, user.trim(), password)
+                : all(context);
 
-        Provider screenScraper =
-                new ScreenScraper(context, new Http.Real(context), user.trim(), password);
-        if (screenScraper.configured()) providers.add(screenScraper);
+        List<String> wanted = order(preferences, available);
 
-        providers.add(new ZxInfo(new Http.Real(context)));
-
-        return chosen(context, providers);
-    }
-
-    private static Provider chosen(Context context, List<Provider> providers) {
-        if (providers.isEmpty()) return null;
-
-        String wanted = context.getSharedPreferences(Prefs.PREFS, Context.MODE_PRIVATE)
-                .getString(Prefs.KEY_SCRAPER, null);
-
-        if (wanted != null) {
-            for (Provider provider : providers) {
-                if (provider.name().equals(wanted)) return provider;
+        List<Provider> chosen = new ArrayList<>();
+        for (String name : wanted) {
+            for (Provider provider : available) {
+                if (provider.name().equals(name)) {
+                    chosen.add(provider);
+                    break;
+                }
             }
         }
-
-        return providers.get(0);
+        return chosen;
     }
 
-    /** Whether anything can be scraped from at all. Always true now that one
-     *  provider needs no credentials, and asked anyway: a build could yet ship
-     *  without it, and every menu row checks this before offering itself. */
+    /**
+     * The stored order, or what to do when there is none.
+     *
+     * <b>Absent is not empty.</b> Nothing stored means nobody has chosen and
+     * everything is used; an empty value means somebody turned them all off.
+     * {@code getString} answers null for the first and "" for the second, and
+     * collapsing the two would make "none" unselectable - the same trap
+     * {@code Prefs.KEY_SCRAPE_MEDIA} carries a warning about.
+     */
+    private static List<String> order(SharedPreferences preferences,
+                                      List<Provider> available) {
+        String stored = preferences.getString(Prefs.KEY_SCRAPERS, null);
+
+        if (stored == null) return migrated(preferences, available);
+        if (stored.isEmpty()) return new ArrayList<>();
+
+        List<String> names = new ArrayList<>();
+        for (String line : stored.split(SEPARATOR)) {
+            String trimmed = line.trim();
+            if (!trimmed.isEmpty()) names.add(trimmed);
+        }
+        return names;
+    }
+
+    /**
+     * What an older build's single choice becomes.
+     *
+     * <b>Faithfully, not generously:</b> one stored name becomes that one
+     * source and every other off. Widening what the app fetches - and what it
+     * spends a ScreenScraper allowance on - because a feature arrived is not a
+     * decision to make on somebody's behalf. Nothing stored at all means
+     * nobody ever chose, and that gets the new default: everything, in
+     * {@link #all}'s order.
+     *
+     * Not written back. Reading it every time costs one string lookup, and
+     * writing it would turn "the user has never chosen" into "the user chose
+     * exactly this", which is a lie that cannot be undone.
+     */
+    private static List<String> migrated(SharedPreferences preferences,
+                                         List<Provider> available) {
+        String single = preferences.getString(Prefs.KEY_SCRAPER, null);
+
+        if (single != null && !single.isEmpty()) {
+            return new ArrayList<>(java.util.Collections.singletonList(single));
+        }
+
+        List<String> everything = new ArrayList<>();
+        for (Provider provider : available) everything.add(provider.name());
+        return everything;
+    }
+
+    /** Stores the sources to use, in order. An empty list is stored as an
+     *  empty value, which is "none" and not "nobody has chosen". */
+    public static void save(Context context, List<String> namesInOrder) {
+        context.getSharedPreferences(Prefs.PREFS, Context.MODE_PRIVATE)
+                .edit()
+                .putString(Prefs.KEY_SCRAPERS, String.join(SEPARATOR, namesInOrder))
+                .apply();
+    }
+
+    /** Whether anything can be scraped from at all. Every menu row checks this
+     *  before offering itself. */
     public static boolean any(Context context) {
-        return preferred(context) != null;
+        return !enabled(context).isEmpty();
     }
 
     /**
@@ -147,14 +206,10 @@ public final class Scrapers {
      *
      * One place, read by both entry points - the popup's one-game scrape and
      * the sweep - so that the two cannot disagree about what a scrape takes.
-     * The sweep's own screen can edit it, but it edits <em>this</em> key
-     * rather than keeping a second answer of its own.
      *
      * <b>Absent is not empty.</b> Nothing stored means nobody has chosen and
      * the default applies; an empty set means somebody deliberately chose
      * metadata only, which is legitimate and the cheapest scrape there is.
-     * {@code getStringSet} returns null for the first and an empty set for
-     * the second, and collapsing the two would make "none" unselectable.
      */
     public static Provider.Wanted wanted(Context context) {
         Set<String> chosen = context

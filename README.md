@@ -250,8 +250,10 @@ and what to fetch.
 | **ZXInfo** | The database behind SpectrumComputing. No account, nothing to set up. Matches on the file's own hash first, which is exact, and on the name only if that misses |
 | **ScreenScraper** | Covers, screenshots, video and manuals for far more than the Spectrum. Everyone using the app shares one daily allowance, and every picture spends a piece of it — *Settings › Library › ScreenScraper username* is optional and buys a much larger one of your own |
 
-You can also type the details in yourself, and scraping a game you have edited
-by hand says so first and waits for an answer.
+Both, in whichever order you pick, each filling in what the other left out —
+and where they offer different pictures for the same game, you choose. You
+can also type the details in yourself; a scrape only ever fills in what you
+left blank and never replaces what you typed.
 
 A scrape brings more than pictures. ZXInfo carries the manual, extra pokes for
 the cheats page, and the game's own music — where somebody has ripped the AY

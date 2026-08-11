@@ -785,15 +785,17 @@
     <string name="edit_metadata_forgotten">Edits forgotten</string>
     <string name="scrape_menu">Scrape this game…</string>
     <string name="scrape_working">Looking it up…</string>
-    <string name="scrape_choose">Which game is this?</string>
+    <string name="scrape_choose_from">Which game, according to %1$s?</string>
     <string name="scrape_nothing">Nothing found for this one</string>
     <string name="scrape_done">Scraped</string>
     <string name="scrape_done_media">Scraped, with %1$d picture(s)</string>
-    <string name="scrape_overwrite">You edited this game\'s details by hand. Scraping will replace them.</string>
     <string name="scrape_failed_quota">No requests left today</string>
     <string name="scrape_failed_login">The scraper\'s login was refused</string>
     <string name="scrape_failed_network">Could not reach the scraper</string>
     <string name="scrape_failed_closed">The scraper is closed to this account</string>
+    <string name="artwork_new_title">New artwork for %1$s</string>
+    <string name="artwork_new_yours">Yours</string>
+    <string name="artwork_new_save">Save</string>
     <!-- Scraping a whole collection - ScrapeManyActivity. The three settings
          are chosen once, before the run, which is the difference between this
          and doing it a game at a time from the popup. -->
@@ -818,8 +820,8 @@
     <string name="scrape_many_counting">Counting…</string>
     <string name="scrape_many_cannot_list">Could not read that folder</string>
     <plurals name="scrape_many_estimate">
-        <item quantity="one">%1$d game · about %2$d requests</item>
-        <item quantity="other">%1$d games · about %2$d requests</item>
+        <item quantity="one">%1$d game · at most %2$d requests</item>
+        <item quantity="other">%1$d games · at most %2$d requests</item>
     </plurals>
     <string name="scrape_many_quota">%1$d requests left today</string>
     <string name="scrape_many_start">Start</string>
@@ -846,10 +848,6 @@
         <item quantity="one">%1$d not found</item>
         <item quantity="other">%1$d not found</item>
     </plurals>
-    <plurals name="scrape_many_yours">
-        <item quantity="one">%1$d left alone — you edited it by hand</item>
-        <item quantity="other">%1$d left alone — you edited them by hand</item>
-    </plurals>
     <plurals name="scrape_many_failed">
         <item quantity="one">%1$d failed</item>
         <item quantity="other">%1$d failed</item>
@@ -862,6 +860,10 @@
          point of is a login nobody sets. -->
     <string name="settings_group_scraper">Scraper account</string>
     <string name="settings_scraper">Scrape from</string>
+    <string name="settings_scrapers_order">In order: %1$s</string>
+    <string name="settings_scrapers_none">None chosen — scraping is off</string>
+    <string name="settings_scrapers_up">Move up</string>
+    <string name="settings_scrapers_down">Move down</string>
     <string name="settings_scraper_user">ScreenScraper username</string>
     <string name="settings_scraper_user_summary">Optional. Your own account gets a much larger daily allowance than the one shared by everyone using this app.</string>
     <string name="settings_scraper_password">ScreenScraper password</string>

@@ -187,21 +187,27 @@ public final class Imports {
      * somebody to confirm the game they have just chosen off a list.
      *
      * <b>{@code provider} arrives as a parameter rather than this calling
-     * {@code Scrapers} itself.</b> Every other caller of {@link Scrape#apply}
-     * - {@code ScrapeOneGame}, {@code Sweep} - is handed a concrete {@link
-     * Provider} rather than resolving one internally, and for the same
-     * reason here: {@code Scrapers} always wraps a real service in a real
-     * {@code Http.Real}, so resolving it from inside this method would make
-     * every test of it a live network call.
+     * {@code Scrapers} itself.</b> {@link Scrape#apply} has exactly one
+     * caller left, and this is it - {@code ScrapeOneGame} and {@code Sweep}
+     * both used to call it directly and have since moved to {@code
+     * Blend.run}, which merges rather than replaces (see {@code ScrapeTest}'s
+     * own class doc for why that changed and why this call site did not).
+     * Both the old callers and {@code Blend} share the same shape this one
+     * does, for the same reason: a concrete {@link Provider} - or list of
+     * them - is handed in rather than resolved internally, because {@code
+     * Scrapers} always wraps a real service in a real {@code Http.Real}, so
+     * resolving it from inside this method would make every test of it a
+     * live network call.
      *
-     * <b>It must not be {@code Scrapers.preferred(context)}, and never was
-     * meant to be.</b> The whole reason {@code item.id()} goes straight
-     * through as an already-matched {@link Candidate} is that it is the
-     * catalogue's own id - certain against the service that issued it, and
-     * meaningless to any other. {@code Scrapers.preferred} answers whichever
-     * scraper the user picked for ordinary scraping, which need not be, and
-     * by default on a build with ScreenScraper credentials baked in is not,
-     * the service this id came from; handing a ZXInfo id to ScreenScraper is
+     * <b>It must not be the first of {@code Scrapers.enabled(context)}, and
+     * never was meant to be.</b> The whole reason {@code item.id()} goes
+     * straight through as an already-matched {@link Candidate} is that it is
+     * the catalogue's own id - certain against the service that issued it,
+     * and meaningless to any other. {@code Scrapers.enabled} answers
+     * whichever scrapers the user picked for ordinary scraping, in whatever
+     * order, which need not put, and by default on a build with ScreenScraper
+     * credentials baked in does not put, the service this id came from;
+     * handing a ZXInfo id to ScreenScraper is
      * not a lookup, it is a coincidence waiting to happen - at best {@link
      * Provider#fetch} refuses it outright, at worst it is answered by
      * whatever that other service's own numbering happens to mean by the

@@ -1,6 +1,7 @@
 package dev.ldlab.zedex.library.scrape;
 
 import dev.ldlab.zedex.library.Entry;
+import dev.ldlab.zedex.library.meta.Artwork;
 import dev.ldlab.zedex.library.meta.Meta;
 import dev.ldlab.zedex.library.meta.Metadata;
 
@@ -17,10 +18,9 @@ import java.util.List;
  *
  * Everything between "this row" and "the store and the media folder have it":
  * turning an {@link Entry} into something a provider can be asked about,
- * asking, writing what comes back. What is <em>not</em> here is any decision a
- * person has to make - which of several candidates, whether to overwrite a
- * hand edit - because those need a screen and this needs to be testable
- * without one.
+ * asking, writing what comes back. What is <em>not</em> here is the one
+ * decision a person still has to make - which of several candidates -
+ * because that needs a screen and this needs to be testable without one.
  *
  * So the shape is deliberately two calls: {@link #candidates} answers with
  * what was found, the caller decides, and {@link #apply} writes the one that
@@ -45,7 +45,26 @@ public final class Scrape {
     public static List<Candidate> candidates(Context context, Provider provider,
                                              Entry entry, String path)
             throws ScrapeException {
-        return provider.search(gameOf(context, entry, path));
+        return candidates(provider, entry, path, () -> md5Of(context, entry));
+    }
+
+    /**
+     * The same question, with the hash supplied rather than read here.
+     *
+     * For a caller asking several services about one file: every one of them
+     * wants the same hash, and it cannot have changed between one and the
+     * next, so reading it once and handing it round saves reading the whole
+     * file through the documents provider per service. {@code Blend} passes a
+     * supplier that remembers - see {@code Blend.Once}.
+     *
+     * Still lazy either way: the supplier is only asked when a provider
+     * actually reaches for the hash, and one that matches on the name alone
+     * never makes it read anything.
+     */
+    public static List<Candidate> candidates(Provider provider, Entry entry, String path,
+                                             java.util.function.Supplier<String> hash)
+            throws ScrapeException {
+        return provider.search(gameOf(entry, path, hash));
     }
 
     /**
@@ -80,7 +99,17 @@ public final class Scrape {
 
         Metadata.put(context, owned(scraped.meta, path, provider.name()));
 
-        return Downloads.fetch(context, http, provider, path, scraped.media);
+        try {
+            return Downloads.fetch(context, http, provider, path, scraped.media,
+                                   Downloads.into(context, path));
+        } finally {
+            // Whatever went wrong, what did arrive has to become visible - a
+            // scrape stopped by a spent quota still fetched the covers it got
+            // to, and leaving them behind a cached miss would waste them.
+            // Downloads used to do this and cannot any more: it no longer
+            // knows whether it wrote where anybody looks.
+            Artwork.forget(path);
+        }
     }
 
     /**
@@ -98,22 +127,10 @@ public final class Scrape {
         return from.but().path(path).source(providerName).build();
     }
 
-    /**
-     * Whether this row already carries something a person typed.
-     *
-     * Asked before a scrape overwrites it. Rare, and the case where losing
-     * work is most annoying, so it earns a confirmation rather than a silent
-     * replacement - the hand editor shipped for exactly the corrections this
-     * would discard.
-     */
-    public static boolean wouldOverwriteAHandEdit(Context context, String path) {
-        Meta existing = Metadata.forPath(context, path);
-        return existing != null && existing.isMine();
-    }
-
     // --- turning a row into a question ------------------------------------------------
 
-    private static Provider.Game gameOf(Context context, Entry entry, String path) {
+    private static Provider.Game gameOf(Entry entry, String path,
+                                        java.util.function.Supplier<String> hash) {
         return new Provider.Game() {
             @Override public String path() { return path; }
             @Override public String filename() { return entry.name; }
@@ -121,7 +138,7 @@ public final class Scrape {
 
             @Override
             public String md5() {
-                return md5Of(context, entry);
+                return hash.get();
             }
         };
     }
