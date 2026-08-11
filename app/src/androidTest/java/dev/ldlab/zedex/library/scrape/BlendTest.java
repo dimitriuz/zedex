@@ -462,6 +462,181 @@ public class BlendTest {
         assertEquals(Collections.singletonList("Working"), result.meta.sources());
     }
 
+    // --- offering alternatives ----------------------------------------------------
+
+    /** Medium is (folder, url, extension, md5) - the url comes second, which
+     *  is easy to get backwards and compiles either way. */
+    private static Medium picture(String folder, String url) {
+        return new Medium(folder, url, "png", null);
+    }
+
+    /** Nothing on disk: a picture is taken, and it is nobody's question. */
+    @Test
+    public void afreshPictureIsStagedAndIsNotContested() {
+        Fakes.Fake only = new Fakes.Fake("Only");
+        only.media = Collections.singletonList(picture("covers", "http://only/cover"));
+
+        Blend.Result result = run(Collections.singletonList(only), new Fakes.WritesTheUrl(),
+                                  Blend.Media.OFFER_ALTERNATIVES,
+                                  Provider.Wanted.of("covers"), new NeverAsked());
+
+        assertEquals(1, result.staged.size());
+        assertEquals("covers", result.staged.get(0).folder);
+        assertEquals("Only", result.staged.get(0).source);
+        assertFalse(result.staged.get(0).contested);
+        assertFalse("nothing may be installed before commit",
+                    Artwork.fileFor(context, PATH, "covers", "png").isFile());
+    }
+
+    /** Different bytes over something already there is the question the sheet
+     *  exists to ask. */
+    @Test
+    public void adifferentPictureOverOneWeHaveIsContested() throws IOException {
+        write(Artwork.fileFor(context, PATH, "covers", "png"), "an older cover");
+        Artwork.forget(PATH);
+
+        Fakes.Fake only = new Fakes.Fake("Only");
+        only.media = Collections.singletonList(picture("covers", "http://only/cover"));
+
+        Blend.Result result = run(Collections.singletonList(only), new Fakes.WritesTheUrl(),
+                                  Blend.Media.OFFER_ALTERNATIVES,
+                                  Provider.Wanted.of("covers"), new NeverAsked());
+
+        assertEquals(1, result.staged.size());
+        assertTrue(result.staged.get(0).contested);
+        assertTrue(result.anythingContested());
+    }
+
+    /**
+     * The same picture is not a question.
+     *
+     * Two services carrying the same scan is common, and asking about it would
+     * be asking somebody to choose between a picture and itself.
+     */
+    @Test
+    public void thesamePictureIsNotContested() throws IOException {
+        write(Artwork.fileFor(context, PATH, "covers", "png"), "http://only/cover");
+        Artwork.forget(PATH);
+
+        Fakes.Fake only = new Fakes.Fake("Only");
+        only.media = Collections.singletonList(picture("covers", "http://only/cover"));
+
+        Blend.Result result = run(Collections.singletonList(only), new Fakes.WritesTheUrl(),
+                                  Blend.Media.OFFER_ALTERNATIVES,
+                                  Provider.Wanted.of("covers"), new NeverAsked());
+
+        assertEquals(1, result.staged.size());
+        assertFalse(result.staged.get(0).contested);
+        assertFalse(result.anythingContested());
+    }
+
+    /** Two sources, one folder, two files - neither on top of the other. */
+    @Test
+    public void twoSourcesEachKeepTheirOwnCover() {
+        Fakes.Fake first = new Fakes.Fake("First");
+        first.media = Collections.singletonList(picture("covers", "http://first/cover"));
+
+        Fakes.Fake second = new Fakes.Fake("Second");
+        second.media = Collections.singletonList(picture("covers", "http://second/cover"));
+
+        Blend.Result result = run(Arrays.asList(first, second), new Fakes.WritesTheUrl(),
+                                  Blend.Media.OFFER_ALTERNATIVES,
+                                  Provider.Wanted.of("covers"), new NeverAsked());
+
+        assertEquals(2, result.staged.size());
+
+        List<String> offered = new ArrayList<>();
+        for (Blend.Staged one : result.staged) offered.add(one.source);
+        assertEquals(Arrays.asList("First", "Second"), offered);
+
+        assertFalse("the two staged covers are the same file",
+                    result.staged.get(0).file.equals(result.staged.get(1).file));
+    }
+
+    // --- committing ---------------------------------------------------------------
+
+    @Test
+    public void committingInstallsTheChosenPictureAndEmptiesTheStagingArea() {
+        Fakes.Fake only = new Fakes.Fake("Only");
+        only.media = Collections.singletonList(picture("covers", "http://only/cover"));
+
+        Blend.Result result = run(Collections.singletonList(only), new Fakes.WritesTheUrl(),
+                                  Blend.Media.OFFER_ALTERNATIVES,
+                                  Provider.Wanted.of("covers"), new NeverAsked());
+
+        assertEquals(1, Blend.commit(context, PATH, result.staged));
+
+        File installed = Artwork.fileFor(context, PATH, "covers", "png");
+        assertTrue(installed.isFile());
+        assertFalse("the staging area was left behind",
+                    Artwork.stagingRoot(context).exists());
+    }
+
+    @Test
+    public void committingNothingChangesNothing() throws IOException {
+        write(Artwork.fileFor(context, PATH, "covers", "png"), "an older cover");
+        Artwork.forget(PATH);
+
+        Fakes.Fake only = new Fakes.Fake("Only");
+        only.media = Collections.singletonList(picture("covers", "http://only/cover"));
+
+        run(Collections.singletonList(only), new Fakes.WritesTheUrl(),
+            Blend.Media.OFFER_ALTERNATIVES, Provider.Wanted.of("covers"),
+            new NeverAsked());
+
+        assertEquals(0, Blend.commit(context, PATH, Collections.emptyList()));
+
+        assertEquals("an older cover",
+                     new String(Files.readAllBytes(
+                             Artwork.fileFor(context, PATH, "covers", "png").toPath()),
+                                "UTF-8"));
+    }
+
+    /**
+     * The loser goes, not merely stays unwritten.
+     *
+     * png outranks jpg in Artwork's own order, so a chosen jpg written beside
+     * an unchosen png leaves the png on screen - and the choice looks exactly
+     * as though it did nothing.
+     */
+    @Test
+    public void installingOneExtensionRemovesTheOther() throws IOException {
+        write(Artwork.fileFor(context, PATH, "covers", "png"), "an older png cover");
+        Artwork.forget(PATH);
+
+        Fakes.Fake only = new Fakes.Fake("Only");
+        only.media = Collections.singletonList(
+                new Medium("covers", "http://only/cover", "jpg", null));
+
+        Blend.Result result = run(Collections.singletonList(only), new Fakes.WritesTheUrl(),
+                                  Blend.Media.OFFER_ALTERNATIVES,
+                                  Provider.Wanted.of("covers"), new NeverAsked());
+
+        assertEquals(1, Blend.commit(context, PATH, result.staged));
+
+        assertTrue(Artwork.fileFor(context, PATH, "covers", "jpg").isFile());
+        assertFalse("the png it replaced is still there and still outranks it",
+                    Artwork.fileFor(context, PATH, "covers", "png").isFile());
+    }
+
+    /** A run killed last time must not offer its leftovers as this run's
+     *  findings. */
+    @Test
+    public void aleftoverFromAKilledRunIsClearedOnTheWayIn() throws IOException {
+        write(Artwork.stagingFileFor(context, PATH, "covers/Ghost", "png"),
+              "from a run that died");
+
+        Fakes.Fake only = new Fakes.Fake("Only");
+        only.media = Collections.singletonList(picture("covers", "http://only/cover"));
+
+        Blend.Result result = run(Collections.singletonList(only), new Fakes.WritesTheUrl(),
+                                  Blend.Media.OFFER_ALTERNATIVES,
+                                  Provider.Wanted.of("covers"), new NeverAsked());
+
+        assertEquals(1, result.staged.size());
+        assertEquals("Only", result.staged.get(0).source);
+    }
+
     private static void write(File file, String text) throws IOException {
         File parent = file.getParentFile();
         if (parent != null) parent.mkdirs();
