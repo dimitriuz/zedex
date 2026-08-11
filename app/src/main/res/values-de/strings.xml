@@ -675,6 +675,7 @@
     <string name="scrape_menu">Daten abrufen…</string>
     <string name="scrape_working">Wird gesucht…</string>
     <string name="scrape_choose">Welches Spiel ist das?</string>
+    <string name="scrape_choose_from">Welches Spiel, laut %1$s?</string>
     <string name="scrape_nothing">Dazu wurde nichts gefunden</string>
     <string name="scrape_done">Abgerufen</string>
     <string name="scrape_done_media">Abgerufen, %1$d Bild(er)</string>
@@ -683,6 +684,9 @@
     <string name="scrape_failed_login">Die Anmeldung wurde abgelehnt</string>
     <string name="scrape_failed_network">Der Dienst war nicht erreichbar</string>
     <string name="scrape_failed_closed">Der Dienst ist für dieses Konto geschlossen</string>
+    <string name="artwork_new_title">Neue Bilder für %1$s</string>
+    <string name="artwork_new_yours">Ihre</string>
+    <string name="artwork_new_save">Speichern</string>
     <!-- Scraping a whole collection - ScrapeManyActivity. -->
     <string name="scrape_many_menu">Daten für viele Spiele abrufen…</string>
     <string name="scrape_many_title">Daten für viele Spiele</string>

@@ -36,9 +36,15 @@ import java.util.List;
  * The part of a scrape that needs no screen: what is certain, what is written,
  * and who ends up owning it.
  *
- * The one decision a person still makes - which of several candidates - lives
- * in {@code ScrapeOneGame} because it needs a dialog. Everything else is
- * here, which is what makes it checkable.
+ * {@code ScrapeOneGame} no longer calls any of this - it runs the multi-source
+ * loop in {@code Blend}, which merges rather than replaces. {@link
+ * Scrape#apply} has exactly one caller left, {@code Imports.describe}, for a
+ * catalogue import: there the candidate is not a guess but the entry the
+ * catalogue itself just fetched, so there is nobody to ask and nothing to
+ * merge against - the row is new. {@code owned()}'s replace-the-row shape is
+ * still correct there for the same reason it stopped being correct for a
+ * one-game scrape of an existing row: nothing has been typed into a game that
+ * did not exist a moment ago.
  *
  * The bench's real store is moved aside and put back: it is somebody's whole
  * scraped collection.

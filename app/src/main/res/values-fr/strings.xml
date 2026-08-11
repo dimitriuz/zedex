@@ -675,6 +675,7 @@
     <string name="scrape_menu">Récupérer les données…</string>
     <string name="scrape_working">Recherche…</string>
     <string name="scrape_choose">Quel jeu est-ce ?</string>
+    <string name="scrape_choose_from">Quel jeu, selon %1$s ?</string>
     <string name="scrape_nothing">Rien trouvé pour ce jeu</string>
     <string name="scrape_done">Données récupérées</string>
     <string name="scrape_done_media">Données récupérées, %1$d image(s)</string>
@@ -683,6 +684,9 @@
     <string name="scrape_failed_login">La connexion au service a été refusée</string>
     <string name="scrape_failed_network">Service injoignable</string>
     <string name="scrape_failed_closed">Le service est fermé à ce compte</string>
+    <string name="artwork_new_title">Nouvelles images pour %1$s</string>
+    <string name="artwork_new_yours">Les vôtres</string>
+    <string name="artwork_new_save">Enregistrer</string>
     <!-- Scraping a whole collection - ScrapeManyActivity. -->
     <string name="scrape_many_menu">Récupérer les données de plusieurs jeux…</string>
     <string name="scrape_many_title">Données de plusieurs jeux</string>

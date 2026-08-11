@@ -786,6 +786,7 @@
     <string name="scrape_menu">Scrape this game…</string>
     <string name="scrape_working">Looking it up…</string>
     <string name="scrape_choose">Which game is this?</string>
+    <string name="scrape_choose_from">Which game, according to %1$s?</string>
     <string name="scrape_nothing">Nothing found for this one</string>
     <string name="scrape_done">Scraped</string>
     <string name="scrape_done_media">Scraped, with %1$d picture(s)</string>
@@ -794,6 +795,9 @@
     <string name="scrape_failed_login">The scraper\'s login was refused</string>
     <string name="scrape_failed_network">Could not reach the scraper</string>
     <string name="scrape_failed_closed">The scraper is closed to this account</string>
+    <string name="artwork_new_title">New artwork for %1$s</string>
+    <string name="artwork_new_yours">Yours</string>
+    <string name="artwork_new_save">Save</string>
     <!-- Scraping a whole collection - ScrapeManyActivity. The three settings
          are chosen once, before the run, which is the difference between this
          and doing it a game at a time from the popup. -->

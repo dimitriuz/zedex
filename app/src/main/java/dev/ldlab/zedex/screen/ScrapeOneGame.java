@@ -4,10 +4,9 @@ import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.library.Entry;
 import dev.ldlab.zedex.library.meta.Metadata;
 import dev.ldlab.zedex.library.scrape.Candidate;
-import dev.ldlab.zedex.library.scrape.Downloads;
 import dev.ldlab.zedex.library.scrape.Http;
 import dev.ldlab.zedex.library.scrape.Provider;
-import dev.ldlab.zedex.library.scrape.Scrape;
+import dev.ldlab.zedex.library.scrape.Blend;
 import dev.ldlab.zedex.library.scrape.ScrapeException;
 import dev.ldlab.zedex.library.scrape.Scrapers;
 import dev.ldlab.zedex.work.Work;
@@ -15,7 +14,6 @@ import dev.ldlab.zedex.work.Work;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
-import android.content.Context;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -24,16 +22,28 @@ import java.util.List;
 /**
  * Scraping one game, with the parts that need a person.
  *
- * {@code Scrape} does everything that does not - build the question, ask it,
- * write the answer - and stops short of the one decision left: which of
- * several candidates. That needs a screen, so it is here, and keeping it
- * apart is what lets the rest be tested without one.
+ * {@code Blend} runs the whole multi-source loop and stops short of the two
+ * decisions left: which of several candidates a source found, and which of
+ * several pictures to keep when sources disagree. Both need a screen, so they
+ * are here, and keeping them apart is what lets the loop be tested without
+ * one.
+ *
+ * <b>A scrape fills gaps and cannot overwrite - see {@link Blend} - which is
+ * why there is no confirmation dialog before it runs any more.</b> There used
+ * to be one, asking whether to replace a hand-edited row; it existed only
+ * because this class called {@code Scrape.apply}, whose {@code owned()}
+ * rebuilds the row from the provider's own {@code Meta} and so replaced every
+ * field a person had typed, including turning {@code isMine()} off. {@code
+ * Blend.run} merges with {@code Merge.of}, which fills what is missing and
+ * never touches what is already there, so the question the dialog used to ask
+ * no longer has an unsafe answer to guard against.
  *
  * The whole thing is one pass off the UI thread. A search is a round trip to
  * France and each picture is another - a cover is a {@code mediaJeu.php} call
- * exactly like a search is - so with the usual three that is four, and none of
- * them belongs on the main thread. {@code Work.alone} rather than the pool:
- * this is seconds to a minute and would hold a lane the short work wants.
+ * exactly like a search is - and now there may be several sources, so the
+ * total is larger than it used to be and still none of it belongs on the main
+ * thread. {@code Work.alone} rather than the pool: this is seconds to a
+ * minute and would hold a lane the short work wants.
  */
 final class ScrapeOneGame {
 
@@ -48,113 +58,134 @@ final class ScrapeOneGame {
     /**
      * The whole of it, from a selected row.
      *
-     * Everything that can stop it does so before any work: no provider, no
-     * path of its own.
+     * Everything that can stop it does so before any work: no source
+     * enabled, no path of its own.
      */
     void scrape(Entry entry) {
         List<Provider> sources = Scrapers.enabled(activity);
         if (sources.isEmpty()) return;
-        Provider provider = sources.get(0);
 
         String path = Metadata.relativePath(activity, entry.uri);
         if (path == null) return;
 
-        look(provider, entry, path);
+        // No hand-edit confirmation any more: a scrape fills gaps and cannot
+        // overwrite a typed value, so there is nothing to warn about.
+        look(sources, entry, path);
     }
 
-    /** The search, and whatever the answer turns out to need. */
-    private void look(Provider provider, Entry entry, String path) {
+    /**
+     * Every source in turn, off the UI thread, then the result is shown.
+     *
+     * Package-private rather than private so {@code
+     * ScrapeOneGameHandEditTest} can drive the merge directly, with a fake
+     * source list and no dialog: {@code scrape(Entry)} itself calls {@code
+     * Scrapers.enabled}, which is a real, network-backed source for this
+     * build, and a hand-edit-survival test must not depend on a live service
+     * answering in a particular way.
+     */
+    void look(List<Provider> sources, Entry entry, String path) {
         ProgressDialog waiting = waiting();
 
         Work.alone("scrape", () -> {
-            List<Candidate> found;
-
-            try {
-                found = Scrape.candidates(activity, provider, entry, path);
-            } catch (ScrapeException e) {
-                activity.runOnUiThread(() -> {
-                    dismiss(waiting);
-                    say(reasonFor(e));
-                });
-                return;
-            }
-
-            // One the provider is sure of needs nobody: that is what matching
-            // on the file's own hash buys, and asking anyway would be a dialog
-            // with one button.
-            if (Scrape.certain(found)) {
-                write(provider, found.get(0), path, waiting);
-                return;
-            }
+            Blend.Result result = Blend.run(activity, sources, new Http.Real(activity),
+                                            entry, path, Scrapers.wanted(activity),
+                                            Blend.Media.OFFER_ALTERNATIVES,
+                                            this::askOnTheUiThread,
+                                            // Nothing to cancel: one game is
+                                            // seconds, and the only escape
+                                            // offered is the chooser's own.
+                                            () -> false);
 
             activity.runOnUiThread(() -> {
                 dismiss(waiting);
-
-                if (found.isEmpty()) {
-                    say(activity.getString(R.string.scrape_nothing));
-                    return;
-                }
-                choose(provider, found, path);
+                finish(result, entry, path);
             });
         });
     }
 
     /**
-     * Which of several, or whether the single uncertain one is right.
+     * Nothing to ask about goes straight in; anything contested gets the
+     * sheet.
      *
-     * A guess acted on silently is one game's cover on another for ever, so
-     * even one candidate gets asked about when the provider is not sure - it
-     * found it by the filename, which on a Spectrum collection is as often
-     * wrong as right.
+     * The facts are already stored either way - Blend writes them before this
+     * is reached, and for the same reason a sweep's fill does: a scrape that
+     * got the metadata has still improved the row, whatever happens to the
+     * pictures next.
      */
-    private void choose(Provider provider, List<Candidate> found, String path) {
+    private void finish(Blend.Result result, Entry entry, String path) {
+        if (result.staged.isEmpty()) {
+            say(reasonFor(result));
+            activity.metadataChanged();
+            return;
+        }
+
+        if (!result.anythingContested()) {
+            commit(result.staged, path, result);
+            return;
+        }
+
+        ArtworkChoice.show(activity, entry.name, result.staged,
+                           chosen -> commit(chosen, path, result));
+    }
+
+    private void commit(List<Blend.Staged> chosen, String path, Blend.Result result) {
+        Work.alone("scrape-commit", () -> {
+            int installed = Blend.commit(activity, path, chosen);
+
+            activity.runOnUiThread(() -> {
+                say(installed > 0
+                        ? activity.getString(R.string.scrape_done_media, installed)
+                        : reasonFor(result));
+                activity.metadataChanged();
+            });
+        });
+    }
+
+    /**
+     * Which of several, on the UI thread, with the worker parked behind a
+     * latch.
+     *
+     * The same shape {@code Sweep.Watcher.chooseFrom} already uses and for the
+     * same reason: the loop cannot go on until somebody says which game this
+     * is, and a timeout that guessed would be one game's cover on another for
+     * ever.
+     */
+    private Candidate askOnTheUiThread(String sourceName, List<Candidate> found,
+                                       String game) {
+        final java.util.concurrent.CountDownLatch answered =
+                new java.util.concurrent.CountDownLatch(1);
+        final Candidate[] chosen = new Candidate[1];
+
         String[] labels = new String[found.size()];
         for (int at = 0; at < found.size(); at++) labels[at] = found.get(at).describe();
 
-        new AlertDialog.Builder(activity, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(R.string.scrape_choose)
+        activity.runOnUiThread(() -> new AlertDialog.Builder(
+                        activity, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(activity.getString(R.string.scrape_choose_from, sourceName))
                 .setItems(labels, (dialog, which) -> {
-                    ProgressDialog waiting = waiting();
-                    Work.alone("scrape-chosen",
-                               () -> write(provider, found.get(which), path, waiting));
+                    chosen[0] = found.get(which);
+                    answered.countDown();
                 })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
-    }
-
-    /** Off the UI thread in both callers. */
-    private void write(Provider provider, Candidate candidate, String path,
-                       ProgressDialog waiting) {
-        Downloads.Result result = null;
-        ScrapeException failure = null;
+                .setOnCancelListener(dialog -> answered.countDown())
+                .setNegativeButton(android.R.string.cancel,
+                                   (dialog, which) -> answered.countDown())
+                .show());
 
         try {
-            result = Scrape.apply(activity, provider, new Http.Real(activity), candidate, path,
-                                  Scrapers.wanted(activity));
-        } catch (ScrapeException e) {
-            failure = e;
+            answered.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
+        return chosen[0];
+    }
 
-        Downloads.Result finished = result;
-        ScrapeException why = failure;
+    /** What to tell somebody when no picture arrived: the first source that
+     *  refused, or that nothing was found. */
+    private String reasonFor(Blend.Result result) {
+        if (!result.failures.isEmpty()) return reasonFor(result.failures.get(0).why);
+        if (result.consulted.isEmpty()) return activity.getString(R.string.scrape_nothing);
 
-        activity.runOnUiThread(() -> {
-            dismiss(waiting);
-
-            if (why != null) {
-                // The facts may well have been written before the pictures
-                // were refused - Scrape.apply stores them first on purpose -
-                // so this says what went wrong rather than "it failed".
-                say(reasonFor(why));
-            } else if (finished.saved > 0) {
-                say(activity.getString(R.string.scrape_done_media, finished.saved));
-            } else {
-                say(activity.getString(R.string.scrape_done));
-            }
-
-            // Either way the row may have changed, and the pane is showing it.
-            activity.metadataChanged();
-        });
+        return activity.getString(R.string.scrape_done);
     }
 
     /**

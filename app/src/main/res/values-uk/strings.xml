@@ -680,6 +680,7 @@
     <string name="scrape_menu">Завантажити дані…</string>
     <string name="scrape_working">Триває пошук…</string>
     <string name="scrape_choose">Що це за гра?</string>
+    <string name="scrape_choose_from">Яка гра, за даними %1$s?</string>
     <string name="scrape_nothing">Нічого не знайдено для цієї гри</string>
     <string name="scrape_done">Завантажено</string>
     <string name="scrape_done_media">Завантажено, зображень: %1$d</string>
@@ -688,6 +689,9 @@
     <string name="scrape_failed_login">Служба відхилила вхід</string>
     <string name="scrape_failed_network">Не вдалося зв’язатися зі службою</string>
     <string name="scrape_failed_closed">Служба закрита для цього облікового запису</string>
+    <string name="artwork_new_title">Нові зображення для %1$s</string>
+    <string name="artwork_new_yours">Ваше</string>
+    <string name="artwork_new_save">Зберегти</string>
     <!-- Scraping a whole collection - ScrapeManyActivity. -->
     <string name="scrape_many_menu">Завантажити дані для багатьох ігор…</string>
     <string name="scrape_many_title">Дані для багатьох ігор</string>
