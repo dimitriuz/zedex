@@ -170,6 +170,48 @@ public class ArtworkChoiceTest {
         assertTrue("something was committed without being chosen", chosen.isEmpty());
     }
 
+    /**
+     * The existing picture is the one drawn selected when there is one -
+     * matching {@code savingWithoutChoosingKeepsThePictureAlreadyThere} above,
+     * which is the promise this checks from the other side: what is drawn as
+     * chosen and what Save actually keeps have to be the same tile.
+     *
+     * {@code isSelected()} rather than {@code contentDescription}, which
+     * {@code ArtworkChoice.mark} explains: a description that changed on
+     * every tap would be exactly the kind of continuous change that makes the
+     * accessibility tree never settle.
+     */
+    @Test
+    public void theExistingPictureStartsSelectedWhenThereIsOne() throws Exception {
+        File mine = picture(Artwork.fileFor(context, PATH, "covers", "png"), Color.GREEN);
+        File theirs = picture(Artwork.stagingFileFor(context, PATH, "covers/ZXInfo", "png"),
+                              Color.RED);
+
+        List<Blend.Staged> staged = Collections.singletonList(
+                Blend.staged("covers", "png", "ZXInfo", theirs, true, mine));
+
+        CountDownLatch done = new CountDownLatch(1);
+        activity.runOnUiThread(() -> ArtworkChoice.show(
+                activity, "Game.tap", staged, taken -> done.countDown()));
+
+        UiObject2 yours = device.wait(Until.findObject(By.desc(yours())), TIMEOUT_MS);
+        assertTrue("no tile described " + yours(), yours != null);
+        assertTrue("the existing picture must start selected - Save with "
+                   + "nothing touched has to keep it", yours.isSelected());
+
+        UiObject2 offer = device.wait(Until.findObject(By.desc("ZXInfo")), TIMEOUT_MS);
+        assertTrue("no tile described ZXInfo", offer != null);
+        assertFalse("only one tile may be selected at a time", offer.isSelected());
+
+        UiObject2 cancel = device.wait(
+                Until.findObject(By.text(context.getString(android.R.string.cancel))),
+                TIMEOUT_MS);
+        assertTrue("no Cancel button", cancel != null);
+        cancel.click();
+
+        assertTrue(done.await(TIMEOUT_MS, TimeUnit.MILLISECONDS));
+    }
+
     /** Choosing the new one installs it, and the old extension goes with it. */
     @Test
     public void choosingTheNewPictureReplacesTheOldOneAndItsExtension() throws Exception {

@@ -18,6 +18,8 @@ import android.util.Log;
 import android.widget.Toast;
 
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Scraping one game, with the parts that need a person.
@@ -92,8 +94,16 @@ final class ScrapeOneGame {
                                             Blend.Media.OFFER_ALTERNATIVES,
                                             this::askOnTheUiThread,
                                             // Nothing to cancel: one game is
-                                            // seconds, and the only escape
-                                            // offered is the chooser's own.
+                                            // seconds. Cancel in the
+                                            // per-source chooser already lets
+                                            // one source be skipped - see
+                                            // askOnTheUiThread - but that
+                                            // moves the loop on to the next
+                                            // source rather than stopping the
+                                            // scrape, and there is
+                                            // deliberately no separate
+                                            // "stop everything" escape for a
+                                            // run this short.
                                             () -> false);
 
             activity.runOnUiThread(() -> {
@@ -141,51 +151,89 @@ final class ScrapeOneGame {
         });
     }
 
+    /** How often the wait for an answer looks up to see whether the activity
+     *  it was posted to is still there to answer it. The same 200ms {@code
+     *  ScrapeManyActivity.CHOICE_POLL_MS} and {@code Blend.CANCEL_POLL_MS}
+     *  both use. */
+    private static final long ANSWER_POLL_MS = 200;
+
     /**
      * Which of several, on the UI thread, with the worker parked behind a
      * latch.
      *
-     * The same shape {@code Sweep.Watcher.chooseFrom} already uses and for the
-     * same reason: the loop cannot go on until somebody says which game this
-     * is, and a timeout that guessed would be one game's cover on another for
-     * ever.
+     * The same shape {@code Sweep.Watcher.chooseFrom} already uses, but this
+     * follows {@code ScrapeManyActivity.ask} rather than that one, and for its
+     * reason rather than {@code chooseFrom}'s: an {@code AlertDialog} fires
+     * {@code setOnCancelListener} on a cancel, but not when the activity that
+     * owns it is torn down underneath it - destroying the library while this
+     * dialog is up used to block this {@code Work.alone} thread for the rest
+     * of the process, holding a destroyed {@code Activity}. The check inside
+     * the posted lambda covers the same activity already being gone by the
+     * time the lambda runs at all, in which case nothing is shown and the
+     * latch is freed at once - the old code, before there was a dialog to
+     * park behind, simply returned from the worker in that case, and this
+     * restores that.
      */
     private Candidate askOnTheUiThread(String sourceName, List<Candidate> found,
                                        String game) {
-        final java.util.concurrent.CountDownLatch answered =
-                new java.util.concurrent.CountDownLatch(1);
+        final CountDownLatch answered = new CountDownLatch(1);
         final Candidate[] chosen = new Candidate[1];
 
         String[] labels = new String[found.size()];
         for (int at = 0; at < found.size(); at++) labels[at] = found.get(at).describe();
 
-        activity.runOnUiThread(() -> new AlertDialog.Builder(
-                        activity, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(activity.getString(R.string.scrape_choose_from, sourceName))
-                .setItems(labels, (dialog, which) -> {
-                    chosen[0] = found.get(which);
-                    answered.countDown();
-                })
-                .setOnCancelListener(dialog -> answered.countDown())
-                .setNegativeButton(android.R.string.cancel,
-                                   (dialog, which) -> answered.countDown())
-                .show());
+        activity.runOnUiThread(() -> {
+            if (activity.isFinishing() || activity.isDestroyed()) {
+                answered.countDown();
+                return;
+            }
+
+            new AlertDialog.Builder(
+                            activity, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                    .setTitle(activity.getString(R.string.scrape_choose_from, sourceName))
+                    .setItems(labels, (dialog, which) -> {
+                        chosen[0] = found.get(which);
+                        answered.countDown();
+                    })
+                    .setOnCancelListener(dialog -> answered.countDown())
+                    .setNegativeButton(android.R.string.cancel,
+                                       (dialog, which) -> answered.countDown())
+                    .show();
+        });
 
         try {
-            answered.await();
+            // Polled rather than a single indefinite await - see the class
+            // doc above. isFinishing()/isDestroyed() is this class's
+            // equivalent of ScrapeManyActivity's own "cancelled" field: there
+            // is nothing else here that could free this thread early.
+            while (!answered.await(ANSWER_POLL_MS, TimeUnit.MILLISECONDS)) {
+                if (activity.isFinishing() || activity.isDestroyed()) return null;
+            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            return null;
         }
         return chosen[0];
     }
 
-    /** What to tell somebody when no picture arrived: the first source that
-     *  refused, or that nothing was found. */
+    /**
+     * What to tell somebody when there is no picture to speak for the run:
+     * whether anybody actually improved the row, and only when nobody did,
+     * why not.
+     *
+     * Consulted wins over failures, not the other way around. A game two
+     * sources were asked about - one filling in a fact, the other's quota
+     * spent - has still been improved, and reporting the failed source's
+     * reason as though it were the outcome would be a true fact about the
+     * wrong source. Under one source these two were the same question;
+     * they stopped being the same question the moment there could be more
+     * than one answer.
+     */
     private String reasonFor(Blend.Result result) {
+        if (!result.consulted.isEmpty()) return activity.getString(R.string.scrape_done);
         if (!result.failures.isEmpty()) return reasonFor(result.failures.get(0).why);
-        if (result.consulted.isEmpty()) return activity.getString(R.string.scrape_nothing);
 
-        return activity.getString(R.string.scrape_done);
+        return activity.getString(R.string.scrape_nothing);
     }
 
     /**

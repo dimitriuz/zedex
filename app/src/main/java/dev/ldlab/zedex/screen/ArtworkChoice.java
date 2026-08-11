@@ -126,7 +126,13 @@ final class ArtworkChoice {
             tiles.addView(container(activity, tile, offer.source));
         }
 
-        mark(all, existing == null ? all.get(0) : all.get(all.size() - offers.size()));
+        // all.get(0) is always the tile the row above already decided on:
+        // "yours" when it exists (added first, just above), or else the
+        // first offer. There used to be a second branch here that picked
+        // the first *offer* instead whenever "yours" existed - the sheet
+        // drew the provider's picture at full opacity and the user's own
+        // dimmed, then did the opposite of what it drew on Save.
+        mark(all, all.get(0));
 
         HorizontalScrollView scrolling = new HorizontalScrollView(activity);
         scrolling.addView(tiles);
@@ -178,9 +184,26 @@ final class ArtworkChoice {
         return column;
     }
 
-    /** Which tile is chosen, shown by the only means that needs no drawable. */
+    /**
+     * Which tile is chosen: dimmed for a sighted person, and {@code
+     * View.isSelected()} for anything else that has to answer the same
+     * question.
+     *
+     * Not a {@code contentDescription} suffix - that changes with every tap
+     * exactly the way this codebase's own rule warns against ("nothing on
+     * screen may change its contentDescription after layout" made a whole
+     * suite fail once already), where {@code isSelected()} is a state
+     * Android already has a slot for and a test can read with {@code
+     * UiObject2.isSelected()} - see {@code CatalogueTabTest}'s own use of it.
+     * It only ever changes here, called at build and once per explicit tap,
+     * never on a timer or a layout pass.
+     */
     private static void mark(List<View> all, View chosen) {
-        for (View one : all) one.setAlpha(one == chosen ? 1f : 0.4f);
+        for (View one : all) {
+            boolean isChosen = one == chosen;
+            one.setAlpha(isChosen ? 1f : 0.4f);
+            one.setSelected(isChosen);
+        }
     }
 
     private static TextView label(Activity activity, String text) {
