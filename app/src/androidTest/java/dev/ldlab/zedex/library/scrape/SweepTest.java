@@ -383,6 +383,38 @@ public class SweepTest {
         assertEquals(ScrapeException.Kind.QUOTA_EXCEEDED, tally.stopped.kind);
     }
 
+    /**
+     * A source is dropped by its own quota, not the whole list's.
+     *
+     * Every other quota test here uses one provider, where "drop the source"
+     * and "stop the run" cannot be told apart. This is the one that would
+     * catch dropping every live source whenever any one of them runs out -
+     * {@code Quota.unknown()}, which is every {@code Fakes.Fake}'s default,
+     * has {@code left() == -1} and drops nothing on its own, so a two-source
+     * exception test proves nothing here that a one-source test did not.
+     */
+    @Test
+    public void aspentSourceIsDroppedByItsOwnQuotaAndAFreeOneKeepsGoing() {
+        Fakes.Fake spent = new Fakes.Fake("Spent");
+        spent.quota = new Quota(9998, 10000, 1);   // left() == 2
+
+        Fakes.Fake free = new Fakes.Fake("Free");   // Quota.unknown(): left() == -1
+
+        // usual() costs 4 a game (1 + three folders), so Spent's 2 left is not
+        // enough for one - it must never be asked, not even once.
+        Sweep.Tally tally = Sweep.run(context, Arrays.asList(spent, free), new Fakes.NoHttp(),
+                                      games("A.tap", "B.tap", "C.tap"),
+                                      Provider.Wanted.usual(), Sweep.Conflicts.SKIP,
+                                      new Watching());
+
+        assertTrue("a source without enough left must never be asked",
+                   spent.searched.isEmpty());
+        assertEquals("an allowance nobody else shares must not stop it",
+                     3, free.searched.size());
+        assertNull("one source running dry must not be the whole run stopping",
+                   tally.stopped);
+    }
+
     // --- somebody's own work ------------------------------------------------------------
 
     /**
@@ -635,11 +667,14 @@ public class SweepTest {
      * as giving up after three real attempts would - but nothing here proves
      * the source would not have answered on the retry that never got to run,
      * only that nobody waited to see. Counting it as a failure would be
-     * reporting one that may not have happened, and - now that a hopeless
-     * failure drops the source that made it - could drop a source for
-     * nothing. This used to assert {@code tally.failed == 1}, which was true
-     * of the single-provider loop this replaced but stopped being the right
-     * answer once a failure could cost a source its place in the run.
+     * reporting one that may not have happened. (It could not, today, also
+     * drop the source for nothing: the only kinds a cut-short retry can throw
+     * are {@code THREAD_LIMIT} and {@code NETWORK}, neither of which is
+     * hopeless - skipping the failure here is a hedge against that changing,
+     * not a present risk.) This used to assert {@code tally.failed == 1},
+     * which was true of the single-provider loop this replaced but stopped
+     * being the right answer once a failure could cost a source its place in
+     * the run.
      */
     @Test
     public void cancelIsNoticedWhileBackingOff() {

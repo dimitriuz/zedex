@@ -418,14 +418,15 @@ public final class Blend {
      * comes back. Everything else is thrown at once, because trying a refused
      * password three times is three refusals.
      *
-     * <b>{@code Sweep} still carries an identical copy of this - {@code
-     * Step}, this method, {@link #pause} and the three constants below -
-     * which a later task retires once this one is the only caller left.</b>
-     * The retry has to sit inside the per-source loop or a wobble at one
-     * service ends that game at every service - and it is per <em>step</em>
-     * rather than per source, so a fetch that failed after its search
-     * succeeded is re-fetched and not re-searched. Re-searching would cost an
-     * extra request against the day's allowance every single time.
+     * <b>{@code Sweep}'s own copy of this - {@code Step}, this method, {@link
+     * #pause} and the three constants below - is gone; this is the only one
+     * left.</b> It has to live here rather than there: the retry has to sit
+     * inside the per-source loop or a wobble at one service ends that game at
+     * every service, and {@code Sweep} does not have one of those to put it
+     * in. It is per <em>step</em> rather than per source, so a fetch that
+     * failed after its search succeeded is re-fetched and not re-searched.
+     * Re-searching would cost an extra request against the day's allowance
+     * every single time.
      */
     private static <T> T attempt(Step<T> step, Cancellable cancel) throws ScrapeException {
         ScrapeException last = null;

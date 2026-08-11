@@ -84,7 +84,7 @@ public final class Sweep {
     }
 
     /**
-     * What to do when the provider answers with more than one game, or with
+     * What to do when a source answers with more than one game, or with
      * one it is not certain of.
      *
      * Asked once at the start rather than once per game, which is the
@@ -98,7 +98,7 @@ public final class Sweep {
         SKIP,
 
         /**
-         * The provider's own first answer, used unasked.
+         * The source's own first answer, used unasked.
          *
          * <b>Not a judgement this app makes</b> - it is ScreenScraper's
          * relevance order and nothing more. On a Spectrum collection the
@@ -183,7 +183,7 @@ public final class Sweep {
         /** Written: the facts stored, and whatever media arrived. */
         public int scraped;
 
-        /** Several candidates, or one the provider was unsure of, and the
+        /** Several candidates, or one a source was unsure of, and the
          *  policy was {@link Conflicts#SKIP}. */
         public int ambiguous;
 
@@ -316,7 +316,7 @@ public final class Sweep {
             if (live.isEmpty()) {
                 tally.stopped = last != null ? last : new ScrapeException(
                         ScrapeException.Kind.QUOTA_EXCEEDED,
-                        "every source is out of allowance");
+                        "every source is out of allowance: " + allowanceSummary(sources, wanted));
                 return tally;
             }
 
@@ -400,9 +400,15 @@ public final class Sweep {
             // interrupted - the wait was cut short, not refused, and that
             // source may well have answered on a fourth try that never
             // happened. Acting on it here would report a failure that never
-            // really occurred and could drop a source for nothing; only a
-            // genuine success - already written by Blend.run itself - is
-            // trusted once cancel has been seen.
+            // really occurred; only a genuine success - already written by
+            // Blend.run itself - is trusted once cancel has been seen.
+            //
+            // In practice this cannot also drop a source for nothing: the
+            // only kind Blend can manufacture this way is one of the two
+            // Blend.attempt retries (THREAD_LIMIT, NETWORK), and neither is
+            // among isHopeless's four. Skipping outcome.failures here anyway
+            // is a hedge against that no longer being true - a kind added to
+            // one list and forgotten in the other - not a present risk.
             if (!result.consulted.isEmpty()) {
                 tally.scraped++;
                 tally.media += result.installed;
@@ -423,6 +429,14 @@ public final class Sweep {
             // that has never heard of the game.
             tally.ambiguous++;
         } else {
+            // Nobody answered and nobody refused either - the ordinary
+            // "never heard of it", but also what a fully-described row under
+            // Only.EVERYTHING looks like: Blend.nothingLeftToGain breaks its
+            // loop before asking anyone, so consulted, failures and ambiguous
+            // are all empty here too. Counted as unknown rather than a fifth
+            // tally field for "already had everything" - re-scraping a
+            // complete row is the rare case EVERYTHING exists for, not the
+            // ordinary one, and the row itself is unharmed either way.
             tally.unknown++;
         }
 
@@ -455,6 +469,36 @@ public final class Sweep {
                 each.remove();
             }
         }
+    }
+
+    /**
+     * Every source's name and quota, for the message logcat shows when a run
+     * stops early with nobody left standing.
+     *
+     * Named and counted rather than "every source is out of allowance": that
+     * line is read after the fact, by somebody who was not watching the run,
+     * and "ScreenScraper 0 left, ZXInfo no stated allowance" says which
+     * source did what where the old wording said nothing at all.
+     */
+    private static String allowanceSummary(List<Provider> sources, Provider.Wanted wanted) {
+        StringBuilder text = new StringBuilder();
+
+        for (Provider source : sources) {
+            if (text.length() > 0) text.append(", ");
+
+            Quota quota = source.quota();
+            int left = quota == null ? -1 : quota.left();
+
+            text.append(source.name()).append(' ');
+            if (left < 0) {
+                text.append("no stated allowance");
+            } else {
+                text.append(left).append(" left, a game costs ")
+                    .append(source.costPerGame(wanted));
+            }
+        }
+
+        return text.toString();
     }
 
     /** Drops one source by name, for the rest of the run. */
