@@ -85,10 +85,20 @@ public interface Catalogue {
      * results would have needed a request made before anybody asked for it, and
      * a way in costs nothing until it is opened.
      *
-     * <b>Default null, so a catalogue owes nothing it has not got.</b> The same
-     * bargain the rest of this interface makes: a site with no notion of
-     * similarity says so by not overriding this, and whatever offers the way in
-     * simply does not offer it.
+     * <b>Makes no request.</b> The same duty {@link #shelves()} states, and for
+     * the same reason: {@code CataloguePane.show()} calls this while a pane is
+     * being laid out, on the UI thread, to decide whether the button appears at
+     * all. A catalogue that implemented it with a lookup would hang the pane on
+     * every tap and ANR on a slow network. A shelf is a way in and costs nothing
+     * until somebody opens it - the request belongs in {@link #open}.
+     *
+     * <b>Default null, so a catalogue owes nothing it has not got.</b> This is
+     * the only default here; everything else is abstract, and that is not an
+     * accident being extended. What the seam actually promises is the line at
+     * the top of this file - <em>a way in is data</em> - and this keeps it: a
+     * site with no notion of similarity says so by not overriding this, whatever
+     * offers the way in simply does not offer it, and no future catalogue is
+     * made to implement a method most of them have no endpoint for.
      *
      * <b>The label comes from the caller, and that is deliberate.</b>
      * Everywhere else a shelf's words are the service's own - a genre's name
