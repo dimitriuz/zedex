@@ -209,24 +209,68 @@ The app can open on your games instead of the machine — *Settings › Library 
 Start in the library*, which needs a content folder to browse. ☰ goes between
 the two either way.
 
+<a href="docs/screenshots/library-grid.jpg"><img src="docs/screenshots/library-grid.jpg" width="400" alt="The library as a grid of covers, one game selected and its details beside it"></a>
+<a href="docs/screenshots/library-list.jpg"><img src="docs/screenshots/library-list.jpg" width="400" alt="The same library as a list, with year and format down the right"></a>
+
 - The content folder as a list or a grid; zip archives open like folders
 - Favourites and Recent beside Browse; search, sort by name, size, release
   date, format or rating
 - Filter by format, genre, rating, developer or publisher — narrows the whole
   collection, not just the folder you're browsing; from the toolbar's
   **Options** button or the pad's Select
-- Names, descriptions, artwork and manuals from an ES-DE scrape — see below
-- Or scrape them yourself from ScreenScraper: one game from its menu, or a
-  whole folder at a time, choosing which pictures you want
-- A page per game: every picture ES-DE has for it, the video, and the manual
-- A **Catalogue** tab that browses ZXInfo's ~40,000 entries — search, A–Z, 0–9,
-  category, newest, *Surprise me* or games like the one you're looking at — and
-  imports one into your folder with its cover and details already on. A recording
-  plays itself back when it arrives. Checked on an emulator; a game that arrives
-  as several files has not been tried on a device
 - A controller drives all of it: the stick moves, **A** plays, **B** goes up,
   **Y** favourites, **L1/R1** change tab, **L2/R2** page, **X** searches and
   **Select** opens View, Sort and Filter
+
+<a href="docs/screenshots/library-options.jpg"><img src="docs/screenshots/library-options.jpg" width="400" alt="The Options menu: view, sort, filter, edit metadata and the two scrape actions"></a>
+<a href="docs/screenshots/library-edit.jpg"><img src="docs/screenshots/library-edit.jpg" width="400" alt="Editing a game's name and description by hand"></a>
+
+Names, descriptions, artwork and manuals come from an ES-DE scrape if you have
+one — or scrape them yourself: one game from its menu, or a whole folder at a
+time, choosing which pictures you want. You can also type them in yourself, and
+scraping a game you have edited by hand says so first and waits for an answer.
+
+<a href="docs/screenshots/game-details.jpg"><img src="docs/screenshots/game-details.jpg" width="400" alt="A game's page: the full description, and its cassette scan in a gallery"></a>
+<a href="docs/screenshots/manual.jpg"><img src="docs/screenshots/manual.jpg" width="400" alt="A game's manual, opened from its page"></a>
+
+A page per game holds every picture there is for it — cover, loading screen,
+in-game shot, the cassette or disk itself, a map — plus the video and the
+manual. Manuals come as a PDF or as somebody's typed-up transcription, and the
+transcriptions open in the app, monospaced and never re-wrapped, because that
+is the only way the ASCII tables in them survive.
+
+
+### The catalogue
+
+<a href="docs/screenshots/catalogue.jpg"><img src="docs/screenshots/catalogue.jpg" width="400" alt="The catalogue tab: search, A-Z, categories, newest and Surprise me"></a>
+<a href="docs/screenshots/catalogue-category.jpg"><img src="docs/screenshots/catalogue-category.jpg" width="400" alt="The Demoscene category, 1,403 entries, each with its loading screen"></a>
+
+A fourth tab browses ZXInfo's ~40,000 entries and imports what you choose into
+your own folder.
+
+- Search, A–Z, 0–9, by category, newest first, *Surprise me*, or games like the
+  one you are looking at
+- An import lands in `Downloaded/Games`, `Applications`, `Demoscene` and so on,
+  so what the app fetched stays separate from what you put there
+- It arrives with its cover and description already on, because the catalogue's
+  own entry is handed to the scraper rather than the file being looked up again
+  by name
+- A recording plays itself back when it arrives
+- Entries the archive cannot distribute stay on the list, greyed, with the
+  reason — a game that was announced and cancelled is worth knowing about
+
+Checked on a device. A game that arrives as several files has not been tried
+there, and the recordings ZXInfo hosts elsewhere do not appear to be offered
+through it at all.
+
+
+### When a game wants a particular machine
+
+<a href="docs/screenshots/setup-dialog.jpg"><img src="docs/screenshots/setup-dialog.jpg" width="400" alt="Arkanoid asking whether to switch to 48K and Kempston, with a box to remember it"></a>
+
+Where the database knows what a game wants, opening it offers to set the
+machine and the joystick to match — once, with a box to remember the answer for
+that game. *Skip* leaves everything alone.
 
 
 ## Getting around
