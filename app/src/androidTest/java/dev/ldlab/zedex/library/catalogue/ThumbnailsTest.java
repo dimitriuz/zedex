@@ -308,8 +308,10 @@ public class ThumbnailsTest {
      * lost its tunnel for one second while a screenful of rows bound: those
      * covers used to be blacklisted until the app was killed.
      *
-     * So the rule is whether the host answered, not how the failure was
+     * So the rule is what the failure says about the url, not how it was
      * thrown. Here nothing came back at all, and the next bind asks again.
+     * <em>That</em> next bind, and no more than that until a cooldown has
+     * passed - see {@link #arebindingRowCannotFloodAhostItCannotReach}.
      */
     @Test
     public void aurlThatCouldNotBeReachedIsAskedAgain() throws Exception {
@@ -333,15 +335,20 @@ public class ThumbnailsTest {
     }
 
     /**
-     * And nor is a host asking for a moment.
+     * And nor is a host asking for a moment - but it is asked again when
+     * <em>it</em> is ready, not on the next bind.
      *
      * 429 is "not so fast" and 408 is the host's own timeout - both are
-     * answers, and neither is one about this url. Blacklisting a cover over
-     * either would punish a row for the state of the queue when it happened
-     * to scroll past.
+     * answers, and neither is one about this url, so blacklisting a cover
+     * over either would punish a row for the state of the queue when it
+     * happened to scroll past. What it does buy is a cooldown, from the
+     * first refusal: an immediate re-ask is the behaviour a 429 complained
+     * about. So this waits the cooldown out rather than asserting a retry on
+     * the very next call, and asserts the cover then lands by itself - no
+     * {@link Thumbnails#forget()}, nobody killing the app.
      */
     @Test
-    public void abusyHostIsAskedAgain() throws Exception {
+    public void abusyHostIsAskedAgainOnceItsCooldownHasPassed() throws Exception {
         Refusing busy = new Refusing(429);
 
         CountDownLatch missed = new CountDownLatch(1);
@@ -349,12 +356,76 @@ public class ThumbnailsTest {
         assertEquals("the miss was never reported", true,
                      missed.await(10, TimeUnit.SECONDS));
 
+        // Polled rather than slept through: the cooldown is a duration by
+        // construction, but how promptly the pool gets to the retry is not,
+        // and ten seconds is far past the first wait without pinning the
+        // test to it.
         OnePixel later = new OnePixel();
-        CountDownLatch arrived = new CountDownLatch(1);
-        Thumbnails.load(context, later, URL, (url, picture) -> arrived.countDown());
+        long deadline = System.currentTimeMillis() + 10_000;
+        while (Thumbnails.get(URL) == null && System.currentTimeMillis() < deadline) {
+            CountDownLatch bound = new CountDownLatch(1);
+            Thumbnails.load(context, later, URL, (url, picture) -> bound.countDown());
+            bound.await(10, TimeUnit.SECONDS);
 
-        assertEquals("the second caller was not told", true,
-                     arrived.await(10, TimeUnit.SECONDS));
-        assertEquals("a 429 was treated as permanent", 1, later.asked.size());
+            if (Thumbnails.get(URL) == null) Thread.sleep(100);
+        }
+
+        assertNotNull("a 429 was treated as permanent", Thumbnails.get(URL));
+        assertEquals("the cooldown let more than one request through",
+                     1, later.asked.size());
+    }
+
+    /**
+     * <b>Retryable is not unbounded, and a 429 is where that matters most.</b>
+     *
+     * A grid does not bind once: a scroll, a rotation and every {@code
+     * setRows} rebind every row on screen. With a transient failure simply
+     * unremembered, each of those rebinds starts another fetch - so a host
+     * turning requests away gets a fresh request per bind, for ever, on the
+     * shared pool {@code CatalogueView.fetch()} and its own <b>Try again</b>
+     * button queue behind. Against an address that was once blocked at the
+     * network layer for behaviour patterns, answering "not so fast" with
+     * more traffic is the worst thing this class could do.
+     *
+     * Fifty rebinds, each waited out so none of them merely joins the fetch
+     * before it: one request. Against a bound of nothing this reads fifty.
+     */
+    @Test
+    public void arebindingRowCannotFloodAhostThatIsRefusing() throws Exception {
+        Refusing busy = new Refusing(429);
+
+        for (int bind = 0; bind < 50; bind++) {
+            CountDownLatch told = new CountDownLatch(1);
+            Thumbnails.load(context, busy, URL, (url, picture) -> told.countDown());
+            assertEquals("a bind was never answered", true,
+                         told.await(10, TimeUnit.SECONDS));
+        }
+
+        assertEquals("a rebinding row asked a refusing host again and again",
+                     1, busy.asked.size());
+    }
+
+    /**
+     * The same bound from the other side: a phone with no network at all.
+     *
+     * Nothing came back, which says nothing about the url and troubles
+     * nobody, so the very next bind is allowed to ask again - that is the
+     * moment-offline case this class must not blacklist. What it must not do
+     * is keep allowing it: the second consecutive failure starts a cooldown
+     * like any other, so fifty rebinds cost two requests rather than fifty.
+     */
+    @Test
+    public void arebindingRowCannotFloodAhostItCannotReach() throws Exception {
+        Unreachable lost = new Unreachable();
+
+        for (int bind = 0; bind < 50; bind++) {
+            CountDownLatch told = new CountDownLatch(1);
+            Thumbnails.load(context, lost, URL, (url, picture) -> told.countDown());
+            assertEquals("a bind was never answered", true,
+                         told.await(10, TimeUnit.SECONDS));
+        }
+
+        assertEquals("an offline phone rebound its way into a flood",
+                     2, lost.asked.size());
     }
 }

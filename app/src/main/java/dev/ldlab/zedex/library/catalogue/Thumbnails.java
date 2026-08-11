@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Covers for the rows of the catalogue that are on screen, and only those.
@@ -97,19 +98,115 @@ public final class Thumbnails {
      * bytes, not a decoded bitmap, so sizing it off memory pressure would
      * answer a question this map does not raise.
      *
-     * <b>Only an answer goes in here, never a failure to get one.</b> The
-     * justification above - "a request already known to fail" - is true of a
-     * 404 and false of a timeout: a phone that lost its tunnel for one
-     * moment used to have that whole screenful of covers blacklisted for the
-     * life of the process, since nothing in the app calls {@link #forget}
-     * and {@code CatalogueView.retry()} re-asks for the <em>page</em> rather
-     * than for its covers. So the rule is where the failure happened and not
+     * <b>Only a permanent answer goes in here, never a failure to get one
+     * and never a "not now".</b> The justification above - "a request
+     * already known to fail" - is true of a 404 and false of a timeout: a
+     * phone that lost its tunnel for one moment used to have that whole
+     * screenful of covers blacklisted for the life of the process, since
+     * nothing in the app calls {@link #forget} and {@code
+     * CatalogueView.retry()} re-asks for the <em>page</em> rather than for
+     * its covers. So the rule is what the failure says about the url and not
      * how it was thrown: the request got a reply and the reply was not a
-     * picture, which nothing but a new file upstream will change; or nothing
-     * came back at all, which the next scroll may well fix, and that is not
-     * remembered. See {@link #answered}.
+     * picture, which nothing but a new file upstream will change; or the url
+     * is fine and the moment was not, which is {@link #cooling}'s business.
      */
     private static final LruCache<String, Boolean> failed = new LruCache<>(512);
+
+    /**
+     * The other half of a failure: urls that may well work, but not yet, and
+     * the earliest moment each may be asked again.
+     *
+     * <b>Why this exists at all.</b> Making transient failures retryable
+     * without this makes them retryable <em>without limit</em>: nothing
+     * remembers the attempt, so every rebind of a visible row starts another
+     * fetch. A grid does not bind once - a scroll, a rotation, a {@code
+     * setRows} all rebind every row on screen - so an offline phone or a
+     * host that is turning requests away gets a fresh screenful of requests
+     * per bind, on the shared {@code Work} pool, with {@code
+     * CatalogueView.fetch()} and its own <b>Try again</b> button queued
+     * behind them. The old blanket blacklist was wrong, but it did bound
+     * this at one attempt per url per process, and nothing replaced that
+     * bound.
+     *
+     * <b>The bound.</b> After a transient failure a url is not asked again
+     * until its cooldown has passed, and the cooldown doubles with each
+     * consecutive failure up to {@link #MAX_COOLDOWN_MS}. So a row rebinding
+     * in a loop cannot make more than one request per cooldown per url, and
+     * the rate falls away to one a minute rather than climbing - which is
+     * the property that matters, since it holds however often the row is
+     * rebound and however long the phone stays offline. Nothing here is ever
+     * permanent: when the tunnel comes back the next bind after the current
+     * cooldown fetches the cover, with nobody having to kill the app.
+     *
+     * <b>Why a 429 waits from the very first one.</b> 429 is the host
+     * explicitly asking for less traffic, and this app's own address has
+     * been blocked once at the network layer for "behaviour patterns" - see
+     * CLAUDE.md. Answering that with an immediate re-ask is the behaviour it
+     * complained about, so a refusal the host <em>sent</em> - 429, 408, a
+     * 5xx - starts its cooldown at {@link #FIRST_COOLDOWN_MS} straight away.
+     * A failure to reach anybody is different: nobody was troubled by it and
+     * it says nothing about the url, so the first one costs no wait at all
+     * and only a second consecutive one starts the cooldown. That is the
+     * whole difference between the two, and it is one line in {@link
+     * Outcome}.
+     *
+     * Bounded by entry count for the same reason {@link #failed} is - a
+     * deferred url costs a long and an int, not a bitmap.
+     */
+    private static final LruCache<String, Cooldown> cooling = new LruCache<>(512);
+
+    /** How long a url has been failing transiently, and until when it must
+     *  not be asked. Mutated only under the {@link #inFlight} lock. */
+    private static final class Cooldown {
+        /** Consecutive transient failures, reset by a picture arriving. */
+        int failures;
+
+        /** {@code System.nanoTime()} before which no request may be made. */
+        long until;
+    }
+
+    /** The first wait after a refusal the host sent, and the first after a
+     *  second consecutive failure to reach it - long enough that a row
+     *  rebinding as fast as a grid can lay out makes one request rather than
+     *  hundreds, short enough that somebody watching a blank cover does not
+     *  notice the wait when the network comes back. */
+    private static final long FIRST_COOLDOWN_MS = 1_000;
+
+    /** Where the doubling stops. A cover nobody has managed to fetch eight
+     *  times running is not worth more than one request a minute, and a
+     *  minute is short enough that a phone reconnecting recovers by itself
+     *  rather than needing the app killed. */
+    private static final long MAX_COOLDOWN_MS = 60_000;
+
+    /**
+     * What a fetch came to, which is the only thing {@link #finish} needs to
+     * know to file it.
+     *
+     * The field is the wait the <em>first</em> failure of that kind buys;
+     * each consecutive one doubles it. See {@link #cooling} for why the two
+     * transient kinds differ in exactly this and nothing else.
+     */
+    private enum Outcome {
+        /** The host answered, and will answer the same tomorrow: a 404, a
+         *  410, bytes {@code BitmapFactory} cannot decode. Remembered in
+         *  {@link #failed} and never asked again. */
+        PERMANENT(-1),
+
+        /** The host answered and asked for less - 429, 408, a 5xx. Its own
+         *  request, so it is honoured from the first one. */
+        TOLD_TO_WAIT(FIRST_COOLDOWN_MS),
+
+        /** Nothing came back at all: a timeout, a lost tunnel, a name that
+         *  did not resolve. Troubled nobody and says nothing about the url,
+         *  so the very next bind may ask again. */
+        UNREACHABLE(0);
+
+        final long firstCooldownMs;
+
+        Outcome(long firstCooldownMs) {
+            this.firstCooldownMs = firstCooldownMs;
+        }
+    }
 
     /**
      * Every url a fetch is currently running for, and who is waiting to be
@@ -117,14 +214,15 @@ public final class Thumbnails {
      *
      * <p>The key's presence is the only fact that decides "start a fetch"
      * from "join the one already running", so {@link #load} makes that
-     * decision - together with the {@link #cache} and {@link #failed}
-     * lookups, since a caller must tell all three apart in one look - inside
-     * a single block synchronized on this map, never as separate steps a
-     * second caller could land between.
+     * decision - together with the {@link #cache}, {@link #failed} and
+     * {@link #cooling} lookups, since a caller must tell all four apart in
+     * one look - inside a single block synchronized on this map, never as
+     * separate steps a second caller could land between.
      *
      * <p>The same lock guards the other end: {@link #finish} files the
-     * answer (into {@link #cache} on a picture, {@link #failed} on nothing)
-     * and removes this map's entry inside one more synchronized block, so a
+     * answer (into {@link #cache} on a picture, {@link #failed} on a
+     * permanent refusal, {@link #cooling} on a transient one) and removes
+     * this map's entry inside one more synchronized block, so a
      * caller can never observe "not cached, not a known failure, and nobody
      * is fetching it" while an answer is on its way in but not yet filed -
      * the one interleaving that would let a second, needless fetch start.
@@ -173,14 +271,16 @@ public final class Thumbnails {
      * Work}. A url the host has already answered with something that is not
      * a picture - see {@link #failed} - is not re-requested either, for the
      * same reason: a row scrolling back on screen must not repeat a request
-     * already known to fail. A url that could not be <em>reached</em> is a
-     * different thing and is asked again.
+     * already known to fail. A url whose last attempt failed
+     * <em>transiently</em> is asked again, but not before its cooldown has
+     * passed - see {@link #cooling} for what that bounds, and for why a 429
+     * in particular buys one from the very first refusal.
      *
-     * A cache hit, or a known failure, answers {@code listener} at once, on
-     * the calling thread, exactly as {@code Scraped.picture} already does
-     * for its own cache hit; an actual miss fetches on {@link Work#run} and
-     * answers through {@link Work#onMain}, so a caller never has to guess
-     * which thread it will be told on.
+     * A cache hit, a known failure, or a url still cooling down answers
+     * {@code listener} at once, on the calling thread, exactly as {@code
+     * Scraped.picture} already does for its own cache hit; an actual miss
+     * fetches on {@link Work#run} and answers through {@link Work#onMain},
+     * so a caller never has to guess which thread it will be told on.
      */
     public static void load(Context context, Http http, String url, Listener listener) {
         if (url == null || url.isEmpty()) return;
@@ -192,7 +292,10 @@ public final class Thumbnails {
         synchronized (inFlight) {
             cached = cache.get(url);
             if (cached == null) {
-                if (Boolean.TRUE.equals(failed.get(url))) {
+                // Both mean "no picture, and make no request": one because
+                // asking again can never help, the other because asking
+                // again this soon is the flood cooling exists to stop.
+                if (Boolean.TRUE.equals(failed.get(url)) || tooSoon(url)) {
                     knownFailure = true;
                 } else {
                     List<Listener> waiting = inFlight.get(url);
@@ -252,12 +355,18 @@ public final class Thumbnails {
      * <b>And no screen needs it to undo a bad moment.</b> A retry button that
      * had to call this to work would mean {@link #failed} was remembering
      * things it should not: what goes in there is only what the host itself
-     * answered, so there is nothing for a person's second attempt to clear.
+     * answered permanently, so there is nothing for a person's second
+     * attempt to clear. A cover still inside a {@link #cooling} wait is not
+     * re-asked by that tap either, and deliberately: a person tapping <b>Try
+     * again</b> twice must not be a way round a bound that exists to stop
+     * this app flooding a host that asked it not to. The wait is seconds,
+     * and the covers land by themselves.
      */
     public static void forget() {
         synchronized (inFlight) {
             cache.evictAll();
             failed.evictAll();
+            cooling.evictAll();
         }
     }
 
@@ -265,11 +374,11 @@ public final class Thumbnails {
         Bitmap picture = null;
         File file = new File(context.getCacheDir(), "thumbnail-" + System.nanoTime());
 
-        // Whether the host said anything at all. A failure with this still
-        // false is not remembered - see failed's own comment. It starts true
-        // because the ordinary end of this method is a decode that either
-        // worked or did not, neither of which is a failure to reach anybody.
-        boolean answered = true;
+        // How this ended, which decides whether the url is remembered, made
+        // to wait, or neither. It starts PERMANENT because the ordinary end
+        // of this method is a decode that either worked or did not, and a
+        // decode that did not is the host's final answer about this url.
+        Outcome outcome = Outcome.PERMANENT;
 
         try {
             try {
@@ -284,14 +393,18 @@ public final class Thumbnails {
             // two are the host asking for a moment rather than saying no:
             // 408 is its own timeout and 429 is "not so fast", and
             // blacklisting a url over either would punish a row for the state
-            // of the queue when it happened to scroll past.
-            answered = permanent(refused.status);
+            // of the queue when it happened to scroll past. They do not
+            // buy an immediate re-ask, though: a host that said 429 asked
+            // for less traffic, so its cooldown starts at once. See cooling.
+            outcome = permanent(refused.status) ? Outcome.PERMANENT : Outcome.TOLD_TO_WAIT;
             picture = null;
         } catch (IOException e) {
             // Nothing came back: a timeout, a lost tunnel, a name that did
-            // not resolve. Says nothing whatever about the url, so it is not
-            // remembered and the next bind asks again.
-            answered = false;
+            // not resolve. Says nothing whatever about the url and troubled
+            // nobody, so it is not remembered and the next bind asks again -
+            // once. A second failure in a row starts a cooldown like any
+            // other, or an offline phone rebinds its way into a flood.
+            outcome = Outcome.UNREACHABLE;
             picture = null;
         } catch (Throwable t) {
             // The bytes arrived and could not be made into a picture: a
@@ -311,17 +424,60 @@ public final class Thumbnails {
             // rather than a catch clause hoped to be wide enough. See
             // inFlight's own comment for why that is what guarantees every
             // listener is told exactly once.
-            finish(url, picture, answered);
+            finish(url, picture, outcome);
         }
     }
 
     /** Whether a status the host actually sent means "and it will say the
      *  same tomorrow". Everything it did not answer at all is decided by
-     *  {@link #fetch}'s own {@code answered}, not here. */
+     *  {@link #fetch}'s own {@code outcome}, not here. */
     private static boolean permanent(int status) {
         if (status == 408 || status == 429) return false;
 
         return status < 500;
+    }
+
+    /**
+     * Whether {@code url} is inside a cooldown a transient failure gave it.
+     *
+     * Called from {@link #load} with the {@link #inFlight} lock already
+     * held, together with the {@link #cache} and {@link #failed} lookups -
+     * a caller must tell all of them apart in one look, or two rebinds can
+     * both decide to fetch. Compared by subtraction rather than by {@code
+     * <}, since {@code nanoTime} is only meaningful as a difference.
+     */
+    private static boolean tooSoon(String url) {
+        Cooldown held = cooling.get(url);
+        return held != null && System.nanoTime() - held.until < 0;
+    }
+
+    /**
+     * Puts {@code url} out of reach until its cooldown has passed, doubling
+     * the wait for each consecutive transient failure up to {@link
+     * #MAX_COOLDOWN_MS}.
+     *
+     * The doubling is the bound: however often a row rebinds, the url can be
+     * asked at most once per wait, and the wait grows while the failures
+     * keep coming. Called with the {@link #inFlight} lock held.
+     */
+    private static void defer(String url, Outcome outcome) {
+        Cooldown held = cooling.get(url);
+        if (held == null) {
+            held = new Cooldown();
+            cooling.put(url, held);
+        }
+        held.failures++;
+
+        long ms = outcome.firstCooldownMs;
+        for (int failure = held.failures; failure > 1 && ms < MAX_COOLDOWN_MS; failure--) {
+            // A first wait of zero - what UNREACHABLE buys - has to reach
+            // FIRST_COOLDOWN_MS on the second failure rather than doubling
+            // zero into zero for ever.
+            ms = ms == 0 ? FIRST_COOLDOWN_MS : ms * 2;
+        }
+
+        held.until = System.nanoTime()
+                + TimeUnit.MILLISECONDS.toNanos(Math.min(ms, MAX_COOLDOWN_MS));
     }
 
     /**
@@ -331,17 +487,26 @@ public final class Thumbnails {
      * start decision - see {@link #inFlight}'s comment for why that
      * atomicity is what guarantees every listener is told exactly once.
      *
-     * @param answered whether the host replied. A url is only remembered as
-     *                 a failure when it did: see {@link #failed}.
+     * @param outcome what the fetch came to. Only {@link Outcome#PERMANENT}
+     *                is remembered in {@link #failed}; the other two defer
+     *                the url instead - see {@link #cooling}.
      */
-    private static void finish(String url, Bitmap picture, boolean answered) {
+    private static void finish(String url, Bitmap picture, Outcome outcome) {
         List<Listener> waiting;
 
         synchronized (inFlight) {
             if (picture != null) {
+                // A cover that arrived clears the url's failure history
+                // outright: the next transient failure starts from the
+                // shortest wait rather than from wherever the last bad
+                // afternoon left it.
                 cache.put(url, picture);
-            } else if (answered) {
+                cooling.remove(url);
+            } else if (outcome == Outcome.PERMANENT) {
                 failed.put(url, Boolean.TRUE);
+                cooling.remove(url);
+            } else {
+                defer(url, outcome);
             }
             waiting = inFlight.remove(url);
         }
