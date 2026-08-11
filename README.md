@@ -1,5 +1,9 @@
-# Zedex
 
+## Support the developer
+<a href="https://ko-fi.com/W3Q224VFOR" target="_blank"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="ko-fi"></a>
+<a href="https://www.buymeacoffee.com/dmitriileshchenko" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" style="height: 30px !important;width: 140px !important;" ></a>
+
+# Zedex
 <a href="docs/screenshots/demo-fullscreen.jpg"><img src="docs/screenshots/demo-fullscreen.jpg" width="720" alt="Zedex running its own demo tape, fullscreen"></a>
 
 A ZX Spectrum that behaves like a modern console. Save at any moment, put the
