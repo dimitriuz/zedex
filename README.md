@@ -1,23 +1,27 @@
 
-## Support the developer
+**Support the developer:**
 <a href="https://ko-fi.com/W3Q224VFOR" target="_blank"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="ko-fi"></a>
 <a href="https://www.buymeacoffee.com/dmitriileshchenko" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" style="height: 30px !important;width: 140px !important;" ></a>
 
-# Zedex
-<a href="docs/screenshots/demo-fullscreen.jpg"><img src="docs/screenshots/demo-fullscreen.jpg" width="720" alt="Zedex running its own demo tape, fullscreen"></a>
+# Overview
+<a href="store/feature-graphic-1024x500.png"><img src="store/feature-graphic-1024x500.png" alt="Zedex running its own demo tape, fullscreen"></a>
+A ZX Spectrum that behaves like a modern console. 
+Save at any moment, put the
+picture through the CRT you remember, pick up a controller and play.
 
-A ZX Spectrum that behaves like a modern console. Save at any moment, put the
-picture through the CRT you remember, pick up a controller and play. Nothing to
-set up — every machine boots the moment you open the app.
+<a href="docs/screenshots/demo-fullscreen.jpg"><img src="docs/screenshots/demo-fullscreen.jpg" width="720" alt="Zedex running its own demo tape, fullscreen"></a>
 
 Android 11 and later. The emulation is
 [Fuse](http://fuse-emulator.sourceforge.net/), unmodified; the front end is
-native. Most of the code was written by Claude, directed and reviewed by a
+native. 
+
+Most of the code was written by Claude, directed and reviewed by a
 professional software developer.
 
 Building, testing and releases: [docs/DEVELOPING.md](docs/DEVELOPING.md).
 How Fuse is wired in: [docs/INTERNALS.md](docs/INTERNALS.md).
 
+# Features
 
 ## Save states
 
@@ -28,7 +32,6 @@ holds, renamed and deleted on the card itself. Quick save and quick load sit on
 the shoulder buttons — **Select + R1** and **Select + L1** — and are named after
 whatever is running, so every game keeps its own pair. Written as SZX, Z80 or
 SNA.
-
 
 ## Shaders
 
@@ -43,7 +46,6 @@ SNA.
 Scaling runs on the GPU — fitted to the screen, or at a whole number of device
 pixels per emulated pixel. Border in full, slimmed to a quarter, or cropped
 away. Fullscreen leaves nothing but the picture and your thumbs.
-
 
 ## Dual screen
 
@@ -61,7 +63,6 @@ Android decides which display an input method appears on, so the *Android
 keyboard* skin usually opens over the machine. It still types into the Spectrum.
 
 <!-- ![Both panels of a dual-screen handheld](docs/screenshots/dual-screen.jpg) — the picture alone above, controls and lamps below -->
-
 
 ## Controllers
 
@@ -91,8 +92,6 @@ own. Twenty-two actions to bind; nine out of the box:
 Fast forward runs at 500% and stays silent. Rebind in ☰ *Controls… ›
 Controller hotkeys…*: tap a row, press the button.
 
-
-
 ## Profiles
 
 <a href="docs/screenshots/key-profile.jpg"><img src="docs/screenshots/key-profile.jpg" width="400" alt="The key profile editor"></a>
@@ -106,7 +105,6 @@ want.
 
 Interface, profile, keyboard and mouse all change from the bar across the top of
 the window, mid-game.
-
 
 ## Touch
 
@@ -133,7 +131,6 @@ and a stick at once can have both.
 **Kempston mouse** — a mode. While on, a drag moves the pointer, and fire and
 the first key button are its buttons. Sensitivity is a setting.
 
-
 ## Cheats
 
 <a href="docs/screenshots/cheats.jpg"><img src="docs/screenshots/cheats.jpg" width="400" alt="Cheats for what is loaded"></a>
@@ -146,12 +143,10 @@ the built-in database answers first, because it matches on the file itself, and
 anything scraped tops it up rather than replacing it. Nothing for your game? A
 link opens a search on The Tipshop, which is where the database came from.
 
-
 ## Capture
 
 Screenshots as PNG, and recording to GIF or MP4. All three go to
 `Pictures/Zedex` and show up in your gallery, named after whatever is running.
-
 
 ## The machines
 
@@ -174,7 +169,6 @@ Screenshots as PNG, and recording to GIF or MP4. All three go to
 - Kempston mouse
 
 <a href="docs/screenshots/media.jpg"><img src="docs/screenshots/media.jpg" width="400" alt="The tape deck and every drive the machine has"></a>
-
 
 ## Files
 
@@ -210,8 +204,21 @@ because Play does not allow that permission to an app that works without it.
 
 <!-- ![First run](docs/screenshots/first-run.jpg) — the two folder cards and the note about the demo tape -->
 
+## The memory card
 
-## Library
+A DivMMC with esxDOS on it. Two things are yours to bring:
+
+1. **Firmware.** `ESXMMC.BIN`, the 8K DivMMC build, from
+   [esxdos.org](http://www.esxdos.org/). *Settings › Machine › DivMMC firmware*.
+2. **A card image.** ☰ *Media… › Insert card…*. An `.hdf`, or a raw image such
+   as a MiSTer `.vhd`, which gets an HDF header written for it. It needs
+   esxDOS's own `BIN` and `SYS` folders on it.
+
+Switch on *DivMMC interface* in the same place; the machine resets. Then `.ls`
+lists the card, `.` commands are esxDOS's, and ☰ *Machine… › NMI* opens its file
+browser. Changes are written back once a second and whenever the app is paused.
+
+# Library
 
 The app can open on your games instead of the machine — *Settings › Library ›
 Start in the library*, which needs a content folder to browse. ☰ goes between
@@ -261,7 +268,7 @@ transcriptions open in the app, monospaced and never re-wrapped, because that
 is the only way the ASCII tables in them survive.
 
 
-### The catalogue
+## Online catalog
 
 <a href="docs/screenshots/catalogue.jpg"><img src="docs/screenshots/catalogue.jpg" width="400" alt="The catalogue tab: search, A-Z, categories, newest and Surprise me"></a>
 <a href="docs/screenshots/catalogue-category.jpg"><img src="docs/screenshots/catalogue-category.jpg" width="400" alt="The Demoscene category, 1,403 entries, each with its loading screen"></a>
@@ -285,7 +292,7 @@ there, and the recordings ZXInfo hosts elsewhere do not appear to be offered
 through it at all.
 
 
-### When a game wants a particular machine
+## When a game wants a particular machine
 
 <a href="docs/screenshots/setup-dialog.jpg"><img src="docs/screenshots/setup-dialog.jpg" width="400" alt="Arkanoid asking whether to switch to 48K and Kempston, with a box to remember it"></a>
 
@@ -299,7 +306,7 @@ the game. That is a different fact from a different service: which keys a pad
 sends, rather than which interface the game listens to.
 
 
-## Getting around
+# Getting around
 
 **The quick bar** — a strip across the top of the window, either way up. Tap the
 picture to bring it back; it fades after three seconds.
@@ -339,7 +346,6 @@ where the strip itself would be — under the picture upright, beside it sideway
 for as long as a drive is turning and not a moment longer. It is the lamp that answers "is it safe to close this yet".
 Turning the indicators off in *Settings › Display* turns that off too.
 
-
 ## ES-DE
 
 If you use [ES-DE](https://es-de.org) as your frontend, *Settings › App › Add to
@@ -355,7 +361,6 @@ names, descriptions, artwork, videos and manuals — becomes Zedex's own library
 Only the words are copied; the pictures stay where ES-DE keeps them. Press it
 again to take in what has changed since.
 
-
 ## Languages
 
 English, German, Spanish, French, Italian, Polish, Czech, Russian and
@@ -363,22 +368,7 @@ Ukrainian. It follows the phone's language, and *Settings › App › App langua
 overrides it for Zedex alone.
 
 
-## The memory card
-
-A DivMMC with esxDOS on it. Two things are yours to bring:
-
-1. **Firmware.** `ESXMMC.BIN`, the 8K DivMMC build, from
-   [esxdos.org](http://www.esxdos.org/). *Settings › Machine › DivMMC firmware*.
-2. **A card image.** ☰ *Media… › Insert card…*. An `.hdf`, or a raw image such
-   as a MiSTer `.vhd`, which gets an HDF header written for it. It needs
-   esxDOS's own `BIN` and `SYS` folders on it.
-
-Switch on *DivMMC interface* in the same place; the machine resets. Then `.ls`
-lists the card, `.` commands are esxDOS's, and ☰ *Machine… › NMI* opens its file
-browser. Changes are written back once a second and whenever the app is paused.
-
-
-## No ads, no tracking
+# No ads, no tracking
 
 No advertising, no analytics library, no accounts, and nothing stored about you
 anywhere. The whole app carries two libraries, one for the settings screen and
@@ -395,8 +385,7 @@ is started and which versions are still in use. A total, and nobody in it who ca
 be picked out. *Settings › App › Check for
 updates* stops it. The full account is in [docs/PRIVACY.md](docs/PRIVACY.md).
 
-
-## Reporting a problem
+# Reporting a problem
 
 *About Zedex › Report a problem* writes down the version, the device, the Android
 version, where your files are and the settings that change what the app does —
@@ -404,8 +393,7 @@ and the crash, if it stopped last time. You see all of it, can edit any of it,
 and it goes by your own mail app. Nothing is collected in the background and
 nothing is sent unless you send it.
 
-
-## What the Google Play version does not do
+# What the Google Play version does not do
 
 The Play build is the same emulator — same core, same machines, same settings —
 but Play does not allow it two permissions, and two things go with them.
@@ -424,8 +412,7 @@ The build from [Releases](https://github.com/dimitriuz/zedex/releases) does both
 Either build can be granted nothing at all and still work; the difference is only
 what it may ask for.
 
-
-## Keeping it up to date
+# Keeping it up to date
 
 The build from Releases here offers to update itself: one question to GitHub when
 the app starts, and if there is a newer release, a note saying so. Say yes and it
@@ -434,8 +421,7 @@ hands it to Android's installer — which will ask you to allow Zedex to install
 apps, once. *Settings › App › Check for updates* turns the whole thing off. The
 Play build has none of this, as above.
 
-
-## Not yet
+# Not yet
 
 - A second catalogue. zxart.ee shaped the seam this one goes through and is not
   wired up yet
@@ -447,8 +433,7 @@ Play build has none of this, as above.
   tab has nowhere to put yet
 - A debugger, which the core supports and nothing yet exposes
 
-
-## Licence
+# Licence
 
 Zedex is free software under the **GNU General Public License, version 2 or (at
 your option) any later version**. The full text is in [LICENSE](LICENSE).
