@@ -94,6 +94,18 @@ public final class Meta {
     public static final String USER = "user";
 
     /**
+     * How the contributors are joined into the one field that has always
+     * held this.
+     *
+     * A row is written by more than one thing now - a link, a hand edit and
+     * any number of providers, each filling in what the ones before left out
+     * - and this stays a single string so that a store written by an older
+     * build still reads: one name is a one-element list, which is exactly
+     * what it always meant.
+     */
+    private static final String SOURCE_SEPARATOR = ", ";
+
+    /**
      * How this game's own keys are laid out, as the provider wrote it, or
      * null.
      *
@@ -268,22 +280,43 @@ public final class Meta {
                               : Collections.unmodifiableList(new ArrayList<>(values));
     }
 
-    /** Whether somebody typed this one in by hand. */
+    /** Everyone who has written something into this row, in the order they
+     *  did. Empty when nothing has. */
+    public List<String> sources() {
+        if (source == null || source.isEmpty()) return Collections.emptyList();
+
+        List<String> names = new ArrayList<>();
+        for (String one : source.split(",")) {
+            String trimmed = one.trim();
+            if (!trimmed.isEmpty()) names.add(trimmed);
+        }
+        return Collections.unmodifiableList(names);
+    }
+
+    /**
+     * Whether somebody typed something into this row.
+     *
+     * <b>Among the contributors, not the only one.</b> A row a provider
+     * scraped and a person then corrected is still theirs, and the whole
+     * point of a scrape that only fills gaps is that the two can share a row
+     * without either losing anything.
+     */
     public boolean isMine() {
-        return USER.equals(source);
+        return sources().contains(USER);
     }
 
     /**
      * Whether an ES-DE link owns this row and may replace it.
      *
-     * The rule is "a link replaces only what ES-DE brought over", not "a link
-     * keeps hand edits" - those were the same thing until this app could
-     * scrape for itself, and then they were not: a row fetched from a
-     * provider carries that provider's name, is nobody's hand edit, and must
-     * survive a link every bit as much as one that was typed.
+     * <b>Only when ES-DE is the only contributor.</b> The rule was "a link
+     * replaces only what ES-DE brought over", and with several contributors
+     * per row that has to mean "brought over all of it": a row a link started
+     * and a provider then filled in is no longer ES-DE's to replace, or
+     * relinking would throw away the scrape.
      */
     public boolean isEsde() {
-        return source == null || ESDE.equals(source);
+        List<String> who = sources();
+        return who.isEmpty() || (who.size() == 1 && ESDE.equals(who.get(0)));
     }
 
     // --- building ------------------------------------------------------------------
@@ -317,7 +350,7 @@ public final class Meta {
      * meaning it.
      */
     public Meta with(Field field, String value) {
-        return but().set(field, value).source(USER).build();
+        return but().set(field, value).contributor(USER).build();
     }
 
     public static final class Builder {
@@ -347,6 +380,32 @@ public final class Meta {
         public Builder players(String v)   { players = orNull(v);      return this; }
         public Builder rating(String v)    { rating = orNull(v);       return this; }
         public Builder source(String v)    { source = orNull(v);       return this; }
+
+        /**
+         * Adds one contributor, if it is not already listed.
+         *
+         * Appended rather than prepended: the order is the order they
+         * contributed, and under a priority scrape that is also the order of
+         * priority - which is worth being able to read back even though
+         * nothing does yet. Adding one twice is a no-op, so re-scraping from
+         * the same service does not grow the field for ever.
+         */
+        public Builder contributor(String name) {
+            if (name == null || name.isEmpty()) return this;
+
+            List<String> who = new ArrayList<>();
+            if (source != null && !source.isEmpty()) {
+                for (String one : source.split(",")) {
+                    String trimmed = one.trim();
+                    if (!trimmed.isEmpty()) who.add(trimmed);
+                }
+            }
+
+            if (!who.contains(name)) who.add(name);
+
+            return source(String.join(SOURCE_SEPARATOR, who));
+        }
+
         public Builder keymap(String v)    { keymap = orNull(v);       return this; }
         public Builder price(String v)     { price = orNull(v);        return this; }
         public Builder series(String v)    { series = orNull(v);       return this; }
