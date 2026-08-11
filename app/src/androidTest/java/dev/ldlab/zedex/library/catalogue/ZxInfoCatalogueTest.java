@@ -1127,13 +1127,75 @@ public class ZxInfoCatalogueTest {
         Catalogue.Page second = new ZxInfoCatalogue(http).open(
                 shelf(http, "random"), Catalogue.Query.none(), 1);
 
-        assertEquals("a second surprise page made no request", 1, http.asked.size());
+        assertEquals("a second surprise page cost something other than one request",
+                     1, http.asked.size());
         assertEquals(1, second.items().size());
         assertTrue("the surprise shelf stopped after one page", second.hasMore());
 
         // The same question, asked again: there is no page to ask for and the
         // answer is different anyway.
         assertEquals(ZxInfo.API + "games/random/30?mode=compact", http.asked.get(0));
+    }
+
+    /**
+     * And it stops at ten of them.
+     *
+     * The one shelf in the app nothing in a reply can end - it resamples, so
+     * there is no total and no page ever comes back empty - which left {@code
+     * Page.hasMore} answering true for ever and a grid that could be flung all
+     * night. Each of those flings is one paced API call <em>and</em> up to thirty
+     * unpaced cover fetches that cannot hit the cache, against an address this
+     * app has already had taken away for looking like a crawler once. See
+     * {@code ZxInfoCatalogue.RANDOM_PAGES}.
+     *
+     * Both sides are asserted, because only the pair says where the bound is:
+     * page nine still costs a request, and page ten costs none and comes back
+     * empty. Without the guard the second half of this fails - the request goes
+     * out and thirty rows come back - which is what it is here for.
+     */
+    @Test
+    public void thesurpriseShelfStopsAtTenPages() throws Exception {
+        Canned http = new Canned().then(200, RANDOM).then(200, RANDOM);
+        ZxInfoCatalogue catalogue = new ZxInfoCatalogue(http);
+        Catalogue.Shelf random = shelf(http, "random");
+
+        Catalogue.Page ninth = catalogue.open(random, Catalogue.Query.none(), 9);
+
+        assertEquals("the tenth page is inside the bound and was not asked for",
+                     1, http.asked.size());
+        assertTrue("the shelf ended before its three hundredth game", ninth.hasMore());
+
+        Catalogue.Page past = catalogue.open(random, Catalogue.Query.none(), 10);
+
+        assertEquals("the eleventh page went out as a request", 1, http.asked.size());
+        assertTrue("the eleventh page came back with rows on it", past.items().isEmpty());
+        assertFalse("nothing ended the surprise shelf", past.hasMore());
+    }
+
+    /**
+     * The bound is on the page number, so the shelf can be opened again.
+     *
+     * That is what makes three hundred honest rather than a shelf somebody has
+     * used up: backing out to the roots and tapping Surprise me draws a fresh
+     * three hundred, because {@code CatalogueView.restart()} sets the page back
+     * to zero for every descent and this endpoint resamples. Nothing is
+     * remembered between openings and nothing resumes. An endless scroll is a
+     * crawler; a deliberate act repeated is a client.
+     */
+    @Test
+    public void thesurpriseShelfCanBeOpenedAgainOnceItsBoundIsReached() throws Exception {
+        Canned http = new Canned().then(200, RANDOM);
+        ZxInfoCatalogue catalogue = new ZxInfoCatalogue(http);
+        Catalogue.Shelf random = shelf(http, "random");
+
+        catalogue.open(random, Catalogue.Query.none(), 10);
+        assertTrue("the bound cost a request", http.asked.isEmpty());
+
+        Catalogue.Page again = catalogue.open(random, Catalogue.Query.none(), 0);
+
+        assertEquals("opening the shelf again asked for nothing", 1, http.asked.size());
+        assertEquals(ZxInfo.API + "games/random/30?mode=compact", http.asked.get(0));
+        assertEquals(1, again.items().size());
     }
 
     /**

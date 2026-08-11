@@ -106,11 +106,14 @@ import java.util.Locale;
  *       endpoint of the service's own, and <b>it resamples</b> - two identical
  *       requests answered thirty entries each with not one id in common. It
  *       used to send {@code search?offset=random}, which returned the identical
- *       ten twice and had to be capped at one page for that reason; the cap is
- *       gone with the search. Its page still reports {@link Page#UNKNOWN_TOTAL}
- *       - the total that comes back is the 10,000 cap, and nothing here is
- *       walking through an ordering to be counted against - so nothing
- *       measures anything with this shelf either. See {@link #randomFor}.</li>
+ *       ten twice and had to be capped at one page for that reason. That cap
+ *       went with the search and a different one took its place: this shelf
+ *       stops at {@link #RANDOM_PAGES} pages, three hundred games, because a
+ *       list nothing ever ends is the crawler shape that lost this app its
+ *       address once. Its page reports {@link Page#UNKNOWN_TOTAL} - the total
+ *       that comes back is the 10,000 cap, and nothing here is walking through
+ *       an ordering to be counted against - so nothing measures anything with
+ *       this shelf either. See {@link #randomFor}.</li>
  *   <li><b>Similar games</b> is not a declared shelf at all: it is built on
  *       demand from an entry's id by {@link #similarTo}, offered by whatever
  *       has that entry in front of somebody, and asks
@@ -181,6 +184,40 @@ public final class ZxInfoCatalogue implements Catalogue {
     /** And again for {@link #similarTo}, whose id carries the entry every row
      *  on the shelf is meant to be like. */
     private static final String MORE_PREFIX = "more:";
+
+    /**
+     * How far Surprise me goes: ten pages, three hundred games.
+     *
+     * <b>An endless scroll is a crawler; a deliberate act repeated is a
+     * client.</b> {@code games/random/30} resamples, so nothing in the service's
+     * answers ever ends this shelf - no total, and no page that can come back
+     * empty. Left alone it pages for ever, one paced request per fling, against
+     * an address that was blocked once at the network layer for "behaviour
+     * patterns" rather than for volume. Every other shelf here has a visible
+     * floor: a broad search stops at page 334, the Z shelf at 57. This one is
+     * the only list in the app that could be scrolled all night, which is
+     * exactly the shape that got the address taken away. Backing out and tapping
+     * the shelf again draws a fresh three hundred, and that is a person asking
+     * rather than a fling continuing.
+     *
+     * <b>The API request is the small half of a page.</b> Thirty rows are one
+     * paced call <em>and up to thirty unpaced thumbnail fetches</em> against the
+     * media hosts - {@code Thumbnails} is deliberately not a {@link Pace}
+     * client, on the grounds that a cover is a static file rather than an API
+     * call. That reasoning holds for a shelf somebody revisits, where the covers
+     * are already decoded; on this one every draw is new, so the cache misses by
+     * construction and the real cost of a fling is about thirty-one requests
+     * rather than one.
+     *
+     * <b>Ten pages is a choice and not a measurement</b>, because the
+     * measurement cannot be had: this endpoint draws only from six genre
+     * categories and only from entries carrying both screens, so the pool is
+     * smaller than the database and nobody has counted it. Somewhere past a few
+     * hundred rows a person is being surprised by games they have already been
+     * shown. Three hundred is more than anybody scrolls in one sitting and small
+     * enough that the pool's unknown size does not matter.
+     */
+    private static final int RANDOM_PAGES = 10;
 
     /** What A-Z opens onto. Latin only, and deliberately: this is a search
      *  term handed to a service whose titles are indexed in it, not an
@@ -281,6 +318,22 @@ public final class ZxInfoCatalogue implements Catalogue {
         // empty second page that ends the list. It costs no request: this
         // returns before pathFor is reached.
         if (shelf.id().startsWith(MORE_PREFIX) && page > 0) {
+            return new Page(null, null, page * PAGE_SIZE, Page.UNKNOWN_TOTAL);
+        }
+
+        // And Surprise me stops at three hundred - see RANDOM_PAGES for why
+        // there is a bound at all and why it is this one.
+        //
+        // The same mechanism as the guard above and for the same reason: an
+        // empty page is what every unpaged shelf here ends with, Page.hasMore
+        // reads it as the end whatever a total claims, and that contract is
+        // right and is not being touched. It costs no request either - this
+        // returns before pathFor is reached. The bound is on the page number
+        // rather than on anything remembered, so backing out to the roots and
+        // opening the shelf again starts at page zero and draws a fresh three
+        // hundred: CatalogueView.restart() sets page to 0 for every descent,
+        // and this endpoint resamples, so re-opening resumes nothing.
+        if (SHELF_RANDOM.equals(shelf.id()) && page >= RANDOM_PAGES) {
             return new Page(null, null, page * PAGE_SIZE, Page.UNKNOWN_TOTAL);
         }
 
@@ -501,12 +554,19 @@ public final class ZxInfoCatalogue implements Catalogue {
      * byletter}'s is {@code tiny}, which would have quietly dropped {@code
      * controls} had it been left off there.
      *
-     * <b>Nothing ends this shelf, and that is what it is for.</b> With no total
-     * and a page that is never empty, {@code Page.hasMore} answers true for
-     * ever - one paced request per fling, which is the same bargain every other
-     * shelf makes at ten thousand rows, except that this one has no bottom. Two
-     * pages may share a game by chance, since each is an independent draw from
-     * 39,666; that is what "surprise me" means and not a fault to correct.
+     * <b>Nothing in the service's answers ends this shelf</b>, which is why
+     * {@link #open} does: with no total and a page that is never empty, {@code
+     * Page.hasMore} would answer true for ever. It stops at {@link
+     * #RANDOM_PAGES}, ten pages, and that constant carries the reasons - the
+     * thirty unpaced thumbnail fetches behind each paced request, the fact that
+     * every other shelf in the app has a floor and this one would not, and the
+     * pool this endpoint actually draws from.
+     *
+     * <b>The pool is not the database.</b> Six genre categories, and only
+     * entries with both screens: how many that is has not been counted, so
+     * nothing here says. Two pages may share a game by chance, each being an
+     * independent draw from it; that is what "surprise me" means and not a fault
+     * to correct.
      */
     private static String randomFor() {
         return "games/random/" + PAGE_SIZE + "?mode=compact";
