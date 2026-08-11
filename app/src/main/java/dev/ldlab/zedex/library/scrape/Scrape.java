@@ -45,7 +45,26 @@ public final class Scrape {
     public static List<Candidate> candidates(Context context, Provider provider,
                                              Entry entry, String path)
             throws ScrapeException {
-        return provider.search(gameOf(context, entry, path));
+        return candidates(provider, entry, path, () -> md5Of(context, entry));
+    }
+
+    /**
+     * The same question, with the hash supplied rather than read here.
+     *
+     * For a caller asking several services about one file: every one of them
+     * wants the same hash, and it cannot have changed between one and the
+     * next, so reading it once and handing it round saves reading the whole
+     * file through the documents provider per service. {@code Blend} passes a
+     * supplier that remembers - see {@code Blend.Once}.
+     *
+     * Still lazy either way: the supplier is only asked when a provider
+     * actually reaches for the hash, and one that matches on the name alone
+     * never makes it read anything.
+     */
+    public static List<Candidate> candidates(Provider provider, Entry entry, String path,
+                                             java.util.function.Supplier<String> hash)
+            throws ScrapeException {
+        return provider.search(gameOf(entry, path, hash));
     }
 
     /**
@@ -110,7 +129,8 @@ public final class Scrape {
 
     // --- turning a row into a question ------------------------------------------------
 
-    private static Provider.Game gameOf(Context context, Entry entry, String path) {
+    private static Provider.Game gameOf(Entry entry, String path,
+                                        java.util.function.Supplier<String> hash) {
         return new Provider.Game() {
             @Override public String path() { return path; }
             @Override public String filename() { return entry.name; }
@@ -118,7 +138,7 @@ public final class Scrape {
 
             @Override
             public String md5() {
-                return md5Of(context, entry);
+                return hash.get();
             }
         };
     }

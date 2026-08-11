@@ -280,6 +280,81 @@ public class BlendTest {
         }
     }
 
+    /**
+     * The file is read once for the whole game, not once per source.
+     *
+     * Both real providers reach for the hash at the top of their own search,
+     * so without sharing it a two-source sweep reads all eight hundred files
+     * twice through the documents provider - for an answer that cannot have
+     * changed between one source and the next.
+     */
+    @Test
+    public void everySourceIsOfferedTheSameHashAndTheFileIsReadOnce() throws IOException {
+        File file = new File(context.getCacheDir(), "blend-shared-hash-test.tap");
+        write(file, "fixed bytes to hash");
+
+        try {
+            Entry entry = new Entry(Entry.Kind.FILE, "Game.tap", Uri.fromFile(file),
+                                    null, file.length(), 0);
+
+            Fakes.Fake first = new Fakes.Fake("First");
+            Fakes.Fake second = new Fakes.Fake("Second");
+
+            Blend.run(context, Arrays.asList(first, second), new Fakes.NoHttp(),
+                      entry, PATH, Provider.Wanted.nothing(), Blend.Media.FILL_GAPS,
+                      new NeverAsked(), () -> false);
+
+            assertEquals(1, first.md5Asked.size());
+            assertEquals(1, second.md5Asked.size());
+
+            assertNotNull(first.md5Asked.get(0));
+            assertEquals("the two sources were handed different hashes for one file",
+                         first.md5Asked.get(0), second.md5Asked.get(0));
+        } finally {
+            file.delete();
+        }
+    }
+
+    /** The memo itself: asked twice, reads once. */
+    @Test
+    public void onceReadsItsSourceAtMostOnce() {
+        int[] reads = { 0 };
+
+        Blend.Once hash = new Blend.Once(() -> {
+            reads[0]++;
+            return "abcdef";
+        });
+
+        assertEquals("abcdef", hash.get());
+        assertEquals("abcdef", hash.get());
+        assertEquals("abcdef", hash.get());
+
+        assertEquals("the file was read more than once", 1, reads[0]);
+    }
+
+    /**
+     * And a file that cannot be read is remembered as unreadable.
+     *
+     * Without this it would be re-attempted, and re-logged, once per source
+     * for every unreadable file in a collection - and null is the answer that
+     * falls back to the name search, which is the right outcome to reach
+     * quickly rather than repeatedly.
+     */
+    @Test
+    public void onceRemembersThatThereWasNothingToRead() {
+        int[] reads = { 0 };
+
+        Blend.Once hash = new Blend.Once(() -> {
+            reads[0]++;
+            return null;
+        });
+
+        assertNull(hash.get());
+        assertNull(hash.get());
+
+        assertEquals("an unreadable file was read again", 1, reads[0]);
+    }
+
     /** One guess whose title is the known one needs nobody. */
     @Test
     public void oneExactTitleMatchIsCertainEnough() {

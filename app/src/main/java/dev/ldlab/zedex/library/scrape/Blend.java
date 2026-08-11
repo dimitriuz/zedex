@@ -226,6 +226,11 @@ public final class Blend {
         int installed = 0;
         boolean ambiguous = false;
 
+        // One read of the file for the whole game, however many sources ask
+        // about it - see Once. Built here rather than per source, which is the
+        // whole point of it.
+        Once hash = new Once(() -> Scrape.md5Of(context, entry));
+
         if (media == Media.OFFER_ALTERNATIVES) {
             // On the way in, not on the way out: a scrape killed mid-flight
             // never reaches its own cleanup, and last run's leftover would be
@@ -246,7 +251,7 @@ public final class Blend {
                 // or the retry costs an extra request against the day's
                 // allowance every time.
                 Identified who = attempt(
-                        () -> identify(context, source, entry, path, soFar, chooser),
+                        () -> identify(source, entry, path, soFar, chooser, hash),
                         cancel);
 
                 if (who.chosen == null) {
@@ -370,14 +375,15 @@ public final class Blend {
      * where a title is what somebody typed on a shelf. The earlier name is
      * kept anyway - that source had priority.
      */
-    private static Identified identify(Context context, Provider source, Entry entry,
-                                       String path, Meta known, Chooser chooser)
+    private static Identified identify(Provider source, Entry entry, String path,
+                                       Meta known, Chooser chooser,
+                                       java.util.function.Supplier<String> hash)
             throws ScrapeException {
         String title = known.name;
 
         List<Candidate> found = title == null
-                ? Scrape.candidates(context, source, entry, path)
-                : source.search(byTitle(context, entry, path, title));
+                ? Scrape.candidates(source, entry, path, hash)
+                : source.search(byTitle(entry, path, title, hash));
 
         if (found.isEmpty()) return new Identified(null, false);
         if (Scrape.certain(found)) return new Identified(found.get(0), true);
@@ -481,14 +487,52 @@ public final class Blend {
      * first-source search already pays for, rather than answering null and
      * throwing away the one thing a title search cannot offer.
      */
-    private static Provider.Game byTitle(Context context, Entry entry, String path,
-                                         String title) {
+    private static Provider.Game byTitle(Entry entry, String path, String title,
+                                         java.util.function.Supplier<String> hash) {
         return new Provider.Game() {
             @Override public String path() { return path; }
             @Override public String filename() { return title; }
             @Override public long size() { return entry.size; }
-            @Override public String md5() { return Scrape.md5Of(context, entry); }
+            @Override public String md5() { return hash.get(); }
         };
+    }
+
+    /**
+     * A value read at most once, however many times it is asked for.
+     *
+     * Every source in a run is asked about the same file, and both real
+     * providers reach for the hash at the top of their own {@code search} - so
+     * without this, a two-source sweep reads all eight hundred files twice
+     * through the documents provider, and a three-source one three times, for
+     * an answer that cannot have changed between one source and the next.
+     *
+     * <b>A null is remembered too.</b> A file that cannot be read answers null
+     * and falls back to the name search, which is the right outcome - but
+     * without the flag it would be re-attempted, and re-logged, once per
+     * source for every unreadable file in the collection.
+     *
+     * Still lazy: nothing is read until a provider actually asks, so a service
+     * that matches on the name alone still costs nothing.
+     */
+    static final class Once implements java.util.function.Supplier<String> {
+
+        private final java.util.function.Supplier<String> read;
+
+        private boolean taken;
+        private String value;
+
+        Once(java.util.function.Supplier<String> read) {
+            this.read = read;
+        }
+
+        @Override
+        public String get() {
+            if (!taken) {
+                value = read.get();
+                taken = true;
+            }
+            return value;
+        }
     }
 
     /** Case and surrounding space, and nothing more. Anything fuzzier is a
