@@ -385,10 +385,12 @@ public final class Meta {
          * Adds one contributor, if it is not already listed.
          *
          * Appended rather than prepended: the order is the order they
-         * contributed, and under a priority scrape that is also the order of
-         * priority - which is worth being able to read back even though
-         * nothing does yet. Adding one twice is a no-op, so re-scraping from
-         * the same service does not grow the field for ever.
+         * answered - not necessarily the order they changed anything, since
+         * {@code Blend} lists a source here once it has replied at all - and
+         * under a priority scrape that is also the order of priority, which
+         * is worth being able to read back even though nothing does yet.
+         * Adding one twice is a no-op, so re-scraping from the same service
+         * does not grow the field for ever.
          */
         public Builder contributor(String name) {
             if (name == null || name.isEmpty()) return this;

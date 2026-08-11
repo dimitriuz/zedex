@@ -10,7 +10,6 @@ import android.util.Log;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.IOException;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -157,7 +156,16 @@ public final class Blend {
          *  only. */
         public final List<Staged> staged;
 
-        /** The sources that contributed something. */
+        /**
+         * The sources that answered - not that contributed.
+         *
+         * A source whose facts merged into nothing still counts: it really
+         * was asked and really did reply, and telling that apart from a
+         * source with no candidates at all is what {@link #ambiguous} is for.
+         * Comparing what actually changed would need a field-by-field method
+         * that could rot the way {@code nothingLeftToGain} almost did, for no
+         * behaviour anything here relies on.
+         */
         public final List<String> consulted;
 
         public final List<Failure> failures;
@@ -203,6 +211,12 @@ public final class Blend {
     public static Result run(Context context, List<Provider> sources, Http http,
                              Entry entry, String path, Provider.Wanted wanted,
                              Media media, Chooser chooser, Cancellable cancel) {
+        // The store does not read itself - a caller reaching this before the
+        // library has run in this process would find an empty cache and read
+        // every already-scraped game as unscraped, which on a cold start
+        // would overwrite the whole file down to this one row.
+        Metadata.ensureLoaded(context);
+
         Meta known = Metadata.forPath(context, path);
         if (known == null) known = Meta.at(path).build();
 
@@ -220,7 +234,7 @@ public final class Blend {
         }
 
         for (Provider source : sources) {
-            Provider.Wanted mine = wantedFrom(context, path, wanted, media, staged);
+            Provider.Wanted mine = wantedFrom(context, path, wanted, media);
 
             if (media == Media.FILL_GAPS && nothingLeftToGain(known, mine)) break;
 
@@ -265,6 +279,16 @@ public final class Blend {
                 Log.w(TAG, source.name() + " could not answer about " + path, e);
                 failures.add(new Failure(source.name(), e));
             }
+        }
+
+        if (consulted.isEmpty() && installed == 0 && staged.isEmpty()) {
+            // Nothing was learned. Metadata.put rewrites the whole store, and
+            // a sweep of a real collection asks about far more games nobody
+            // has heard of than it scrapes - writing every one of those
+            // would be hundreds of megabytes of flash for rows that say
+            // nothing, and each would then read back as "scraped" and never
+            // be offered to a later source again.
+            return new Result(known, installed, staged, consulted, failures, ambiguous);
         }
 
         Meta.Builder built = known.but().path(path);
@@ -318,20 +342,6 @@ public final class Blend {
 
     // --- which game is it ---------------------------------------------------------
 
-    /**
-     * Which entry this source thinks the file is, or null to leave it out.
-     *
-     * The first source is asked about the filename, because that is all
-     * anybody knows. Every later one is asked about the <em>title</em> an
-     * earlier source gave, which is what most services match well on - and a
-     * single answer whose title is that title needs nobody, since it is the
-     * same fact from two directions.
-     *
-     * <b>A hash still beats a title.</b> A source certain of its answer is
-     * used even when the title disagrees: a hash match is the file itself,
-     * where a title is what somebody typed on a shelf. The earlier name is
-     * kept anyway - that source had priority.
-     */
     /** What a search came to: which entry, and whether there was anything to
      *  choose between. The second is why this is not just a {@link Candidate} -
      *  "nobody chose" and "nothing was found" are different outcomes and a
@@ -346,6 +356,20 @@ public final class Blend {
         }
     }
 
+    /**
+     * Which entry this source thinks the file is, or null to leave it out.
+     *
+     * The first source is asked about the filename, because that is all
+     * anybody knows. Every later one is asked about the <em>title</em> an
+     * earlier source gave, which is what most services match well on - and a
+     * single answer whose title is that title needs nobody, since it is the
+     * same fact from two directions.
+     *
+     * <b>A hash still beats a title.</b> A source certain of its answer is
+     * used even when the title disagrees: a hash match is the file itself,
+     * where a title is what somebody typed on a shelf. The earlier name is
+     * kept anyway - that source had priority.
+     */
     private static Identified identify(Context context, Provider source, Entry entry,
                                        String path, Meta known, Chooser chooser)
             throws ScrapeException {
@@ -394,12 +418,14 @@ public final class Blend {
      * comes back. Everything else is thrown at once, because trying a refused
      * password three times is three refusals.
      *
-     * <b>Here rather than in {@code Sweep}, where it used to be.</b> The retry
-     * has to sit inside the per-source loop or a wobble at one service ends
-     * that game at every service - and it is per <em>step</em> rather than per
-     * source, so a fetch that failed after its search succeeded is re-fetched
-     * and not re-searched. Re-searching would cost an extra request against
-     * the day's allowance every single time.
+     * <b>{@code Sweep} still carries an identical copy of this - {@code
+     * Step}, this method, {@link #pause} and the three constants below -
+     * which a later task retires once this one is the only caller left.</b>
+     * The retry has to sit inside the per-source loop or a wobble at one
+     * service ends that game at every service - and it is per <em>step</em>
+     * rather than per source, so a fetch that failed after its search
+     * succeeded is re-fetched and not re-searched. Re-searching would cost an
+     * extra request against the day's allowance every single time.
      */
     private static <T> T attempt(Step<T> step, Cancellable cancel) throws ScrapeException {
         ScrapeException last = null;
@@ -477,28 +503,18 @@ public final class Blend {
      *
      * Under {@link Media#OFFER_ALTERNATIVES}, all of them: the sheet cannot
      * offer a choice it did not fetch. Under {@link Media#FILL_GAPS}, only the
-     * folders with nothing in them - including nothing staged by an earlier
-     * source in this same run.
+     * folders with nothing in them.
      */
     private static Provider.Wanted wantedFrom(Context context, String path,
-                                              Provider.Wanted wanted, Media media,
-                                              List<Staged> staged) {
+                                              Provider.Wanted wanted, Media media) {
         if (media == Media.OFFER_ALTERNATIVES) return wanted;
 
         Set<String> empty = new LinkedHashSet<>();
 
         for (String folder : wanted.folders()) {
-            if (!hasSomething(context, path, folder, staged)) empty.add(folder);
+            if (existing(context, path, folder) == null) empty.add(folder);
         }
         return Provider.Wanted.of(empty);
-    }
-
-    private static boolean hasSomething(Context context, String path, String folder,
-                                        List<Staged> staged) {
-        for (Staged one : staged) {
-            if (one.folder.equals(folder)) return true;
-        }
-        return existing(context, path, folder) != null;
     }
 
     /**
@@ -508,8 +524,13 @@ public final class Blend {
      * supply, and every wanted folder. In practice it almost never triggers,
      * which is the honest answer - a second source usually does have something
      * to add, and pretending otherwise would only hide the cost.
+     *
+     * Package-private so {@code BlendTest.everyMissingFieldIsSomethingLeftToGain}
+     * can walk it field by field: a field added to {@link Meta} and forgotten
+     * here means a source is silently never asked about it, with nothing on
+     * screen to say the answer is thinner than it should be.
      */
-    private static boolean nothingLeftToGain(Meta known, Provider.Wanted stillWanted) {
+    static boolean nothingLeftToGain(Meta known, Provider.Wanted stillWanted) {
         if (stillWanted.any()) return false;
 
         for (Meta.Field field : Meta.Field.values()) {

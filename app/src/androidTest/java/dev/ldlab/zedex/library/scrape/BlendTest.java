@@ -9,6 +9,7 @@ import dev.ldlab.zedex.storage.Storage;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
@@ -159,9 +160,9 @@ public class BlendTest {
         assertEquals(Collections.singletonList("Only"), stored.sources());
     }
 
-    /** A source that contributed nothing is not listed as a contributor. */
+    /** A source with no candidates at all is not listed - it never answered. */
     @Test
-    public void aSourceThatKnewNothingIsNotAContributor() {
+    public void aSourceThatFoundNothingIsNotListed() {
         Fakes.Fake first = new Fakes.Fake("First");
         Fakes.Fake silent = new Fakes.Fake("Silent");
         silent.answer = gameAsked -> Collections.emptyList();
@@ -171,6 +172,47 @@ public class BlendTest {
                                   new NeverAsked());
 
         assertEquals(Collections.singletonList("First"), result.meta.sources());
+    }
+
+    /**
+     * Answered but had nothing to add is still listed - that is a real
+     * reply, and different from the source above that was never asked
+     * anything at all. Documented rather than left to be rediscovered as a
+     * bug: {@code Result.consulted} means "answered", not "changed the row".
+     */
+    @Test
+    public void asourceThatAnswersWithNothingIsStillListed() {
+        Fakes.Fake first = new Fakes.Fake("First");
+        first.facts = candidate -> Meta.at(null).name("Manic Miner").build();
+
+        Fakes.Fake empty = new Fakes.Fake("Empty");
+        empty.facts = candidate -> Meta.at(null).build();
+
+        Blend.Result result = run(Arrays.asList(first, empty), new Fakes.NoHttp(),
+                                  Blend.Media.FILL_GAPS, Provider.Wanted.nothing(),
+                                  new NeverAsked());
+
+        assertEquals(Arrays.asList("First", "Empty"), result.meta.sources());
+    }
+
+    /**
+     * A game no source has heard of must not rewrite the store.
+     *
+     * Metadata.put serialises and renames the whole file; writing an empty
+     * row for a game nobody answered about would cost a full store rewrite
+     * per unknown game across a sweep of a real collection, for a row that
+     * says nothing and would then read back as "already scraped".
+     */
+    @Test
+    public void agameNobodyHasHeardOfLeavesTheStoreUntouched() {
+        Fakes.Fake silent = new Fakes.Fake("Silent");
+        silent.answer = gameAsked -> Collections.emptyList();
+
+        run(Collections.singletonList(silent), new Fakes.NoHttp(),
+            Blend.Media.FILL_GAPS, Provider.Wanted.nothing(), new NeverAsked());
+
+        assertNull("nothing was learned, so nothing should have been written",
+                   Metadata.forPath(context, PATH));
     }
 
     // --- which game a later source thinks it is -----------------------------------
@@ -274,6 +316,37 @@ public class BlendTest {
         assertEquals("Gremlin", result.meta.publisher);
     }
 
+    /**
+     * A single guess whose title disagrees with the known one is a question,
+     * not an answer.
+     *
+     * The branch {@code sameTitle} exists to guard: {@link
+     * #oneExactTitleMatchIsCertainEnough} only proves the title-matches case,
+     * and {@link #aCertainMatchWinsEvenWhenItsTitleDisagrees} never reaches
+     * this branch at all because a hash match short-circuits first. Without
+     * this test, making {@code sameTitle} answer true unconditionally - which
+     * would accept every mismatched guess silently, one game's cover on
+     * another for ever - broke nothing else in this class.
+     */
+    @Test
+    public void aguessWhoseTitleDisagreesIsAskedAboutRatherThanAccepted() {
+        Fakes.Fake first = new Fakes.Fake("First");
+        first.facts = candidate -> Meta.at(null).name("Manic Miner").build();
+
+        Fakes.Fake second = new Fakes.Fake("Second");
+        second.answer = gameAsked ->
+                Collections.singletonList(Fakes.guess("Wanted: Monty Mole"));
+
+        NeverAsked chooser = new NeverAsked();
+
+        Blend.Result result = run(Arrays.asList(first, second), new Fakes.NoHttp(),
+                                  Blend.Media.FILL_GAPS, Provider.Wanted.nothing(),
+                                  chooser);
+
+        assertEquals(1, chooser.asked);
+        assertTrue(result.ambiguous);
+    }
+
     // --- what a sweep costs -------------------------------------------------------
 
     /**
@@ -328,6 +401,43 @@ public class BlendTest {
                 .contents(Collections.singletonList(new Meta.Link("4", "Something")))
                 .contributor("Someone")
                 .build();
+    }
+
+    /**
+     * Every field, or a source gets skipped for nothing.
+     *
+     * The companion to MergeTest.everyFieldIsMerged, and here for the same
+     * reason: this predicate decides whether a source is consulted at all, so
+     * a field added to Meta and forgotten here means a service silently never
+     * asked about it - and nothing on screen to say why the answer is thinner
+     * than it should be.
+     */
+    @Test
+    public void everyMissingFieldIsSomethingLeftToGain() throws Exception {
+        Meta everything = everythingKnown();
+
+        assertTrue("the fixture itself does not satisfy the predicate; fix it first",
+                   Blend.nothingLeftToGain(everything, Provider.Wanted.nothing()));
+
+        for (java.lang.reflect.Field field : Meta.class.getDeclaredFields()) {
+            if (!java.lang.reflect.Modifier.isPublic(field.getModifiers())
+                    || java.lang.reflect.Modifier.isStatic(field.getModifiers())) {
+                continue;
+            }
+            String name = field.getName();
+            if (name.equals("path") || name.equals("source")) continue;
+
+            Meta.Builder without = everything.but();
+            boolean isList = java.util.List.class.isAssignableFrom(field.getType());
+
+            without.getClass()
+                   .getMethod(name, isList ? java.util.List.class : String.class)
+                   .invoke(without, isList ? java.util.Collections.emptyList() : null);
+
+            assertFalse("nothingLeftToGain ignores " + name
+                        + " - a source that could supply it will never be asked",
+                        Blend.nothingLeftToGain(without.build(), Provider.Wanted.nothing()));
+        }
     }
 
     // --- one source failing is not the game failing -------------------------------
