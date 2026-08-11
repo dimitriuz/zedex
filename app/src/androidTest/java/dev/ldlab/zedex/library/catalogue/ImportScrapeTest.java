@@ -206,6 +206,47 @@ public class ImportScrapeTest {
         assertEquals("Ocean", stored.developer);
     }
 
+    /**
+     * <b>A multi-file import describes a file, never the folder.</b>
+     *
+     * {@code Imports.writeFolder} answers with the folder it made - which is
+     * what somebody sees and what the pane offers - and every test here until
+     * now handed {@code describe} a file-shaped result, which is why this
+     * survived. Keyed on the folder, the {@link Meta} and every picture the
+     * scrape downloaded land under {@code ./Downloaded/Games/<Title>}, and
+     * {@code EntryAdapter.onBind} returns before any metadata lookup for an
+     * {@code Entry.Kind.FOLDER}: nothing ever reads it, the multi-load game
+     * draws as a bare folder name, and the orphan is still counted by {@code
+     * Facets.of(Metadata.all(...))}, which then offers a filter value that
+     * selects nothing.
+     *
+     * So {@code describeUri} is what {@code describe} keys on, and for a
+     * folder import it is the first member.
+     */
+    @Test
+    public void afolderImportDescribesItsFirstMemberAndNotTheFolder() {
+        Fake provider = new Fake(Meta.at(null).name("Robocop").build());
+
+        Uri folder = documentFor("Robocop");
+        Uri side1 = documentFor("Robocop/Robocop - Side 1.tap");
+
+        Imports.Result result =
+                new Imports.Result(folder, side1, "Robocop", Kinds.GAMES, false, null);
+
+        Downloads.Result outcome =
+                Imports.describe(context, provider, new NoHttp(), result, item("1", "Robocop"));
+
+        assertNotNull("the folder import was never described", outcome);
+
+        String memberPath = Metadata.relativePath(context, side1);
+        assertNotNull("nothing was written under the member",
+                      Metadata.forPath(context, memberPath));
+
+        String folderPath = Metadata.relativePath(context, folder);
+        assertNull("the details were written where no row reads them",
+                   Metadata.forPath(context, folderPath));
+    }
+
     // --- what is not a failure ------------------------------------------------------------
 
     /** No configured provider is not a failure - the file is imported

@@ -58,33 +58,90 @@ public final class Imports {
      * These archives come from the public internet and nothing upstream
      * bounds them, so without a limit a small, deliberately hostile zip
      * could fill the cache partition before {@link #bring}'s {@code finally}
-     * ever runs. A real Spectrum file is kilobytes and a generous
-     * multi-load - several tape sides, a handful of disks - is a few
-     * megabytes, so this can be tight enough to mean something: eight
-     * entries' worth of headroom past that, and a cap on the entry count
-     * too, since a bomb can just as easily be a million empty names as one
-     * huge one.
+     * ever runs. A real Spectrum file is kilobytes - a 48K snapshot is 49,
+     * a tape image rarely more - and a generous multi-load of several tape
+     * sides or a handful of disks is a couple of megabytes, so eight is
+     * roomy for anything genuine and small enough to be worth having.
      */
     private static final long MAX_EXTRACTED_BYTES = 8L * 1024 * 1024;
+
+    /**
+     * How many files one import may put in front of somebody, and how many
+     * names it will read to find them. <b>Two numbers, because they answer
+     * two questions.</b>
+     *
+     * {@link #MAX_ENTRIES} bounds what is <em>kept</em> - counted after
+     * {@link Types#openable}, which is the correction that matters here: it
+     * used to count every entry the archive declared, so a perfectly
+     * ordinary release with seventy cover scans and one {@code .tap} in it
+     * was refused as a bomb. Sixty-four playable files is far past any real
+     * multi-load; nothing measured needs more than a dozen.
+     *
+     * {@link #MAX_SCANNED} bounds the <em>walk</em>, which is the thing a
+     * bomb of a million empty names actually costs - {@code
+     * ZipInputStream.getNextEntry} reads through each entry's data to reach
+     * the next, so an archive can be expensive without a byte of it ever
+     * being kept. Four thousand is nowhere near any real archive and stops
+     * that walk while it is still cheap.
+     */
     private static final int MAX_ENTRIES = 64;
+    private static final int MAX_SCANNED = 4096;
 
     private Imports() {
     }
 
     /**
      * What one import came to. A plain record, no logic: {@link #failure} is
-     * one of the three kinds a screen already knows how to explain, or null.
+     * one of the kinds a screen already knows how to explain, or null.
      */
     public static final class Result {
+
+        /** What was imported, as somebody would find it: the file, or - for a
+         *  multi-load - the folder holding its several files. */
         public final Uri documentUri;
+
+        /**
+         * Where the game's details and artwork belong, which is not always
+         * {@link #documentUri}.
+         *
+         * <b>A folder has no row that can draw them.</b> {@code
+         * EntryAdapter.onBind} returns before it looks anything up for an
+         * {@code Entry.Kind.FOLDER} - correctly, since a folder is not a game
+         * - so a {@code Meta} keyed on {@code ./Downloaded/Games/<Title>} is
+         * written where nothing will ever read it: the scrape request and
+         * every picture it downloaded are spent on a key no row uses, the
+         * multi-load game shows as a bare folder name, and the orphan is still
+         * counted by {@code Facets.of(Metadata.all(...))}, which then offers a
+         * filter value that can select nothing.
+         *
+         * So a folder import points this at its <b>first member</b> - first in
+         * the archive's own order, which for a multi-load is side one or disk
+         * one - and the details land on a row somebody can see, in the folder
+         * they will open to play it. The alternative considered was describing
+         * nothing at all and saying so, which spends no request but leaves the
+         * commonest multi-load arriving with no name, no cover and no details
+         * at all, against a README that promises otherwise.
+         *
+         * Equal to {@link #documentUri} for every single-file import, which is
+         * almost all of them.
+         */
+        public final Uri describeUri;
+
         public final String displayName;
         public final String folder;
         public final boolean alreadyThere;
         public final ScrapeException failure;
 
+        /** One file: the document is also where its details go. */
         public Result(Uri documentUri, String displayName, String folder,
                       boolean alreadyThere, ScrapeException failure) {
+            this(documentUri, documentUri, displayName, folder, alreadyThere, failure);
+        }
+
+        public Result(Uri documentUri, Uri describeUri, String displayName, String folder,
+                      boolean alreadyThere, ScrapeException failure) {
             this.documentUri = documentUri;
+            this.describeUri = describeUri;
             this.displayName = displayName;
             this.folder = folder;
             this.alreadyThere = alreadyThere;
@@ -170,12 +227,16 @@ public final class Imports {
         // thread.
         Metadata.ensureLoaded(context);
 
+        // describeUri, not documentUri: they are the same thing for a single
+        // file and, for a folder of several, this is the member a row can
+        // actually draw the answer on. See Result.describeUri.
+        //
         // relativePath answers null for anything outside the granted
         // content tree. An import is inside it by construction, but the one
         // way this can still happen is somebody re-granting a different
         // folder mid-import, and a crash there is worse than an uncovered
         // game.
-        String path = Metadata.relativePath(context, result.documentUri);
+        String path = Metadata.relativePath(context, result.describeUri);
         if (path == null) return null;
 
         Candidate candidate =
@@ -348,6 +409,13 @@ public final class Imports {
     /**
      * Several openable files, in a folder named after the item - the library
      * already browses folders, so that is where a multi-load game goes.
+     *
+     * <b>The first member is remembered, and it is not decoration.</b> The
+     * folder is what somebody sees and what {@link Result#documentUri} points
+     * at; the details have to go somewhere a row will read them, and a folder
+     * row never does - see {@link Result#describeUri}. First in the archive's
+     * own order, which nothing here re-sorts, so for a multi-load it is side
+     * one or disk one.
      */
     private static Result writeFolder(Context context, Uri destination, String title,
                                       List<Extracted> files, String folder) {
@@ -360,17 +428,24 @@ public final class Imports {
                     ScrapeException.Kind.MALFORMED, "cannot create " + title));
         }
 
+        Uri first = null;
+
         for (Extracted one : files) {
-            if (Tree.find(context, gameFolder, one.name) != null) continue;
+            Uri already = Tree.find(context, gameFolder, one.name);
+            if (already != null) {
+                if (first == null) first = already;
+                continue;
+            }
 
             Uri written = Tree.write(context, gameFolder, one.name, one.file);
             if (written == null) {
                 return new Result(null, null, null, false, new ScrapeException(
                         ScrapeException.Kind.MALFORMED, "cannot write " + one.name));
             }
+            if (first == null) first = written;
         }
 
-        return new Result(gameFolder, title, folder, alreadyThere, null);
+        return new Result(gameFolder, first, title, folder, alreadyThere, null);
     }
 
     /**
@@ -394,28 +469,38 @@ public final class Imports {
      * and delete it.
      *
      * @throws TooLarge if the archive holds more than {@link #MAX_ENTRIES}
-     *         entries or would extract past {@link #MAX_EXTRACTED_BYTES} -
-     *         these are untrusted downloads and nothing upstream bounds them.
+     *         files this app can open, declares more than {@link
+     *         #MAX_SCANNED} entries at all, or would extract past {@link
+     *         #MAX_EXTRACTED_BYTES} - these are untrusted downloads and
+     *         nothing upstream bounds them.
      */
     private static void unzip(File zip, File cache, List<Extracted> found) throws IOException {
         long totalBytes = 0;
-        int count = 0;
+        int scanned = 0;
+        int kept = 0;
 
         try (ZipInputStream in = new ZipInputStream(new FileInputStream(zip))) {
             for (ZipEntry entry; (entry = in.getNextEntry()) != null; ) {
                 if (entry.isDirectory()) continue;
 
-                if (++count > MAX_ENTRIES) {
-                    throw new TooLarge("more than " + MAX_ENTRIES + " entries inside");
+                if (++scanned > MAX_SCANNED) {
+                    throw new TooLarge("more than " + MAX_SCANNED + " entries inside");
                 }
 
                 String raw = entry.getName();
                 int slash = raw.lastIndexOf('/');
                 String name = slash >= 0 ? raw.substring(slash + 1) : raw;
 
+                // Counted here and not above: an archive is allowed to be
+                // full of things this app does not want. See MAX_ENTRIES.
                 if (!Types.openable(name)) continue;
 
-                File target = new File(cache, "zedex-" + System.nanoTime() + "-" + count);
+                if (++kept > MAX_ENTRIES) {
+                    throw new TooLarge("more than " + MAX_ENTRIES
+                            + " openable files inside");
+                }
+
+                File target = new File(cache, "zedex-" + System.nanoTime() + "-" + scanned);
                 // Tracked before a byte is written: a size-cap trip partway
                 // through this entry still leaves a file behind, and it has
                 // to be in the caller's list to be cleaned up.
@@ -436,7 +521,7 @@ public final class Imports {
         }
     }
 
-    /** Raised past {@link #MAX_ENTRIES} or {@link #MAX_EXTRACTED_BYTES} -
+    /** Raised past any of the three caps above -
      *  kept apart from a plain {@link IOException} so {@link #bring} can
      *  report why rather than folding it into "not a zip". */
     private static final class TooLarge extends IOException {

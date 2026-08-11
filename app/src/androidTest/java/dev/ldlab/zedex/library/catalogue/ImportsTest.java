@@ -308,6 +308,27 @@ public class ImportsTest {
         assertNotNull("no folder for the multi-load game", folder);
         assertNotNull(Tree.find(context, folder, stamp + "-Robocop - Side 1.tap"));
         assertNotNull(Tree.find(context, folder, stamp + "-Robocop - Side 2.tap"));
+
+        // And the details go to a member, not to the folder. A folder has no
+        // row that draws metadata - EntryAdapter returns before it looks
+        // anything up for one - so a Meta keyed on the folder is a scrape
+        // request and a download of artwork spent on a key nothing reads. See
+        // Imports.Result.describeUri.
+        assertEquals("a folder import must describe one of its members",
+                     Tree.find(context, folder, stamp + "-Robocop - Side 1.tap"),
+                     result.describeUri);
+    }
+
+    /** And a single file describes itself, which is almost every import - the
+     *  two uris are the same thing whenever there is only one. */
+    @Test
+    public void asingleFileDescribesItself() {
+        Imports.Result result = kept(Imports.game(
+                context, new Zipped(41232, stamp + "-HeadOverHeels.tzx"),
+                item("Arcade Game", download("tzx", 41232)), download("tzx", 41232)));
+
+        assertNull(result.failure);
+        assertEquals(result.documentUri, result.describeUri);
     }
 
     /** Anything in the zip that this app cannot open is left behind - a
@@ -319,6 +340,30 @@ public class ImportsTest {
                                     stamp + "-cover.jpg"),
                 item("Arcade Game", download("tzx", 41232)), download("tzx", 41232)));
 
+        assertEquals(stamp + "-HeadOverHeels.tzx", result.displayName);
+    }
+
+    /**
+     * <b>The entry cap counts what is kept, not what is declared.</b>
+     *
+     * A release with seventy cover scans and one tape in it is an ordinary
+     * thing to find in this archive, and it used to be refused as a zip bomb:
+     * the count was taken before {@code Types.openable} had a say, so
+     * seventy-one entries tripped a cap meant to bound how many <em>files</em>
+     * one import can put in front of somebody. What a bomb actually costs is
+     * the walk, and that has a cap of its own now.
+     */
+    @Test
+    public void anarchiveOfMostlyPicturesIsNotAbomb() {
+        String[] names = new String[71];
+        for (int at = 0; at < 70; at++) names[at] = stamp + "-scan-" + at + ".jpg";
+        names[70] = stamp + "-HeadOverHeels.tzx";
+
+        Imports.Result result = kept(Imports.game(
+                context, new Zipped(41232, names),
+                item("Arcade Game", download("tzx", 41232)), download("tzx", 41232)));
+
+        assertNull("seventy pictures beside one tape was refused", result.failure);
         assertEquals(stamp + "-HeadOverHeels.tzx", result.displayName);
     }
 
