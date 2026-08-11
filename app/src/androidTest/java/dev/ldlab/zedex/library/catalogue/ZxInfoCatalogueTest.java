@@ -70,10 +70,26 @@ public class ZxInfoCatalogueTest {
         }
     }
 
-    /** {@code /search?query=head+over+heels&mode=compact&size=2&offset=0},
-     *  trimmed to two hits and the fields a row draws. */
+    /**
+     * {@code /search?query=head+over+heels&mode=compact&size=2&offset=0},
+     * trimmed to two hits and the fields a row draws.
+     *
+     * <b>Assembled, not recorded</b> - and now stating that, where its
+     * neighbour {@link #RECORD} has always been marked as a real reply. Every
+     * field name and every value in it is copied from replies to that same
+     * query which were captured live; what is not the service's own is the
+     * trimming to two hits and the {@code size=2} that goes with it.
+     *
+     * The total is the one number here that could not be trimmed and had to
+     * be right: it said 37, which is a number nothing ever measured. The live
+     * answer for this query is <b>153</b> - counted twice, by Task 11's
+     * {@code ImportFlowTest} and again by the paging measurement - so that is
+     * what it says. It matters because a fixture is what somebody reads to
+     * learn what the service does, and a made-up count in one is how three
+     * separate defects on this branch survived two reviews each.
+     */
     private static final String SEARCH = "{"
-            + "\"hits\":{\"total\":{\"value\":37},\"hits\":["
+            + "\"hits\":{\"total\":{\"value\":153},\"hits\":["
             + "  {\"_id\":\"0002259\",\"_source\":{"
             + "     \"title\":\"Head over Heels\",\"originalYearOfRelease\":1987,"
             + "     \"genreType\":\"Arcade Game\",\"availability\":\"Available\","
@@ -197,14 +213,31 @@ public class ZxInfoCatalogueTest {
             + "  ]}}";
 
     /**
-     * <b>Not a recording.</b> No captured reply holds an absolute path in a
-     * release's files or in {@code additionalDownloads} - every one of them is
-     * relative, under {@code /pub/}, {@code /zxdb/} or {@code /denied/}. This
-     * body exists to pin {@code urlFor}'s passthrough, which is there because
-     * ZXDB is said to keep some recordings on archive.org; that claim is this
-     * project's own and is <b>unverified</b>. Joining such a path onto a base
-     * would make a url with an https:// in the middle of it, so the
-     * passthrough is worth keeping and worth labelling.
+     * <b>Invented in two places, and both are stated.</b> This body exists to
+     * pin {@code ZxInfo.urlFor}'s passthrough, and nothing captured from the
+     * live service could do it:
+     *
+     * <ul>
+     *   <li><b>The absolute path itself.</b> No captured reply holds one -
+     *       every path in every one of them is relative, under {@code /pub/},
+     *       {@code /zxdb/} or {@code /denied/}. That such rows exist at all is
+     *       read from the ZXDB dump, where 4,941 of 153,959 download links
+     *       start with {@code http}; whether this API ever surfaces one is
+     *       <b>unverified</b>, and the one probe there was suggests it may
+     *       not.</li>
+     *   <li><b>Where it sits.</b> The RZX is inside a release's {@code files}
+     *       here, and this branch established that a recording is never
+     *       there - six captured, every one of them in {@code
+     *       additionalDownloads}. So this is a shape the service does not
+     *       send, and it is here only because {@code urlFor} is called from
+     *       both arrays and this asserts the one no other fixture covers. It
+     *       must not be read as evidence about where recordings live; {@link
+     *       #RECORD_WITH_RECORDING} is.</li>
+     * </ul>
+     *
+     * Joining such a path onto a base would make a url with an https:// in
+     * the middle of it, so the passthrough is worth keeping and worth two
+     * labels.
      */
     private static final String RECORD_WITH_AN_ABSOLUTE_PATH = "{"
             + "\"_id\":\"0009305\",\"found\":true,\"_source\":{"
@@ -219,10 +252,17 @@ public class ZxInfoCatalogueTest {
      * memory, and wrong</b>. The array is {@code genretypes}; see
      * {@link #METADATA_LIVE}. Kept because the parser is deliberately lenient
      * about which of the two it finds, and this is what pins that leniency.
+     *
+     * <b>The key is what is wrong here; the counts are not.</b> This body
+     * originally gave Utility a {@code doc_count} of 5,731, which is a number
+     * nothing ever measured, and CLAUDE.md now lists that figure by name as
+     * one of three defects written from memory - so leaving it here to
+     * illustrate the rule was leaving the rule holed. Both counts now come
+     * from the numbers below.
      */
     private static final String METADATA = "{"
-            + "\"genretype\":[{\"key\":\"Arcade Game\",\"doc_count\":12184},"
-            + "               {\"key\":\"Utility\",\"doc_count\":5731}]}";
+            + "\"genretype\":[{\"key\":\"Arcade Game\",\"doc_count\":12451},"
+            + "               {\"key\":\"Utility\",\"doc_count\":6436}]}";
 
     /**
      * The same call, under the name the service actually uses.
@@ -235,16 +275,23 @@ public class ZxInfoCatalogueTest {
      * screen that failed to draw.
      *
      * The two arrays that are empty here are empty because they were not read,
-     * not because the service sent them so; and the buckets inside
-     * {@code genretypes} are carried over from the body above rather than
-     * measured, since the one request this was allowed established the array's
-     * name and not its contents. Both are honest gaps rather than inventions -
-     * see {@code ZxInfoCatalogue.keyOf}, which is lenient for that reason.
+     * not because the service sent them so - an honest gap rather than an
+     * invention, and {@code ZxInfoCatalogue.keyOf} is lenient for that reason.
+     *
+     * The two counts each have a source, since nothing here may be a
+     * remembered number. <b>Utility's 6,436 is the service's own</b>: the
+     * genre-filter check in Task 5 asked {@code /search?genretype=Utility} and
+     * got exactly that total, which is also what the offline ZXDB dump counts
+     * for the same genre - the two agreeing to the entry is the strongest
+     * evidence on this branch that the dump and the API describe one database.
+     * <b>Arcade Game's 12,451 is the dump's</b>, counted the same way and
+     * <em>not</em> confirmed against this call, which nothing has ever read the
+     * body of past its key names.
      */
     private static final String METADATA_LIVE = "{"
             + "\"machinetypes\":[],"
-            + "\"genretypes\":[{\"key\":\"Arcade Game\",\"doc_count\":12184},"
-            + "                {\"key\":\"Utility\",\"doc_count\":5731}],"
+            + "\"genretypes\":[{\"key\":\"Arcade Game\",\"doc_count\":12451},"
+            + "                {\"key\":\"Utility\",\"doc_count\":6436}],"
             + "\"features\":[]}";
 
     // --- the shelves --------------------------------------------------------------------
@@ -280,7 +327,7 @@ public class ZxInfoCatalogueTest {
                 shelf(http, "search"), Catalogue.Query.text("head over heels"), 0);
 
         assertEquals(2, page.items().size());
-        assertEquals(37, page.total());
+        assertEquals(153, page.total());
         assertTrue(page.hasMore());
 
         Catalogue.Item first = page.items().get(0);
@@ -327,18 +374,38 @@ public class ZxInfoCatalogueTest {
                            || http.asked.get(0).contains("head+over+heels"));
     }
 
-    /** The second page asks for the second page. An offset that does not move
-     *  is a grid that shows the first ten games for ever, which reads as a
-     *  catalogue with ten games in it. */
+    /**
+     * The second page asks for page two, and {@code offset} is a <b>page
+     * number</b>.
+     *
+     * <b>Measured, after this shipped sending a row number.</b> The
+     * specification calls the parameter "the page offset for pagination",
+     * which reads either way, and page zero - which is all the earlier live
+     * checks ever asked for - cannot tell the two apart, since {@code 0 * 30}
+     * is {@code 0}. Asked properly: a search stating {@code total=153} was
+     * given {@code size=30&offset=30} and answered <b>empty</b>. A row offset
+     * of 30 into 153 rows cannot be empty; the service had been asked for page
+     * thirty of five. So every shelf in the app stopped after its first thirty
+     * rows - a 200, a page of nothing, {@code Page.hasMore} correctly calling
+     * that the end - which on screen is a catalogue that has thirty of
+     * everything. With {@code offset=1} the same search's second page came
+     * back with thirty rows sharing no id with the first.
+     *
+     * Asserted as the exact string rather than as "not offset=0", which is
+     * what it used to say and which both readings pass.
+     */
     @Test
-    public void thesecondPageAsksForAnoffset() throws Exception {
+    public void thesecondPageAsksForPageTwoAndNotForRowThirty() throws Exception {
         Canned http = new Canned().then(200, SEARCH);
 
         new ZxInfoCatalogue(http).open(shelf(http, "search"),
                                        Catalogue.Query.text("x"), 1);
 
         String url = http.asked.get(0);
-        assertFalse("the second page asked for offset 0", url.contains("offset=0"));
+        assertTrue("the second page did not ask for page 1: " + url,
+                   url.contains("offset=1&") || url.endsWith("offset=1"));
+        assertFalse("offset is a page number, not a row number: " + url,
+                    url.contains("offset=30"));
     }
 
     /** An unavailable entry stays on the list, with the reason - "announced
@@ -808,6 +875,30 @@ public class ZxInfoCatalogueTest {
         assertNotNull(catalogue.refusalFor(429));
         assertNotNull(catalogue.refusalFor(503));
         assertNotNull(catalogue.refusalFor(404));
+    }
+
+    /**
+     * A 404 ends the shelf and says nothing about how big it is.
+     *
+     * A 404 from a search is "nothing here" rather than a failure - the same
+     * reading {@code ZxInfo.ask} gives it - so the page is empty and {@code
+     * hasMore} is false. But the count that goes with it must be {@code
+     * UNKNOWN_TOTAL} and not zero: nothing counted anything, and a zero is
+     * drawn beside the shelf's own name as "· 0", which states as a fact about
+     * the catalogue what is only this app failing to get an answer.
+     */
+    @Test
+    public void afourOhFourEndsTheShelfWithoutClaimingItIsEmpty() throws Exception {
+        Canned http = new Canned().then(404, "");
+
+        Catalogue.Page page = new ZxInfoCatalogue(http).open(
+                shelf(http, "search"), Catalogue.Query.text("nothing at all"), 0);
+
+        assertTrue("a 404 is not a failure, it is an empty shelf",
+                   page.items().isEmpty());
+        assertFalse("a 404 must not be paged past", page.hasMore());
+        assertEquals("a 404 counted the shelf at zero",
+                     Catalogue.Page.UNKNOWN_TOTAL, page.total());
     }
 
     // --- helpers ----------------------------------------------------------------------------

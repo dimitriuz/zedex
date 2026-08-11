@@ -57,7 +57,19 @@ public final class ZxInfo implements Provider {
 
     private static final String TAG = "Zedex";
 
-    public static final String API = "https://api.zxinfo.dk/v3/";
+    /**
+     * The one host every API call goes to, and the one {@link Pace} counts.
+     *
+     * <b>Written once and built into {@link #API} rather than spelled again
+     * at each {@code Pace.before}.</b> {@code Pace} keys on a host name it is
+     * told, so a call site that names a host the request does not go to is
+     * paced against nothing at all - and there is no way to notice, since the
+     * requests still work and only the spacing quietly disappears. Two files
+     * ask ZXInfo for things and both take the name from here.
+     */
+    public static final String API_HOST = "api.zxinfo.dk";
+
+    public static final String API = "https://" + API_HOST + "/v3/";
 
     /** Where the files themselves live. Most of what a record names is
      *  relative to this, and none of it is an API call. */
@@ -614,8 +626,7 @@ public final class ZxInfo implements Provider {
             String format = item.optString("format", "");
             if (!usable(folder, format, path)) continue;
 
-            into.put(folder, new Medium(folder, hostOf(path) + path,
-                                        extensionOf(path), null));
+            into.put(folder, new Medium(folder, urlFor(path), extensionOf(path), null));
         }
     }
 
@@ -659,18 +670,35 @@ public final class ZxInfo implements Provider {
     }
 
     /**
-     * Which of the two hosts a path is relative to - see {@link #SCREENS}.
+     * A record's path as something that can be fetched.
      *
-     * <b>Public, and shared with the catalogue in the layer above.</b> This is
-     * a measured fact about how ZXDB stores its paths, not a policy of this
-     * class, and it was measured the expensive way; a second copy of it next
-     * door is a second place for it to be wrong, and the one that was wrong
-     * would look exactly like a game with no loading screen. The constants
-     * behind it stay package-private, so the rule can only be applied and not
-     * re-derived.
+     * <b>Public, and shared with the catalogue in the layer above.</b> Both of
+     * the rules in here are measured facts about how ZXDB stores its paths
+     * rather than policies of this class, and both were measured the expensive
+     * way; a second copy next door is a second place for one of them to be
+     * wrong, and the one that was wrong would look exactly like a game with no
+     * loading screen. The constants behind it stay package-private, so the
+     * rules can only be applied and not re-derived.
+     *
+     * <b>Some paths are not paths.</b> Measured over the ZXDB dump, 4,941 of
+     * 153,959 download links are already absolute - 4,392 of them on
+     * archive.org, and for RZX recordings it is the majority - so joining one
+     * onto a base makes a url with an {@code https://} in the middle of it,
+     * which fetches nothing. The check belongs here, beside the two-host rule,
+     * and not at one of the two call sites: it lived in the catalogue's own
+     * copy for a while and this one, two files away, went without it.
+     *
+     * <b>And the rest are relative to two different hosts</b> - see {@link
+     * #SCREENS}. {@code /pub/} and {@code /zxdb/} are on the archive;
+     * {@code /zxscreens/}, which is every rendered loading screen, is on
+     * ZXInfo's own media host and 404s on the archive. Both arrive inside the
+     * same array, so the array is no guide and the prefix is the only thing
+     * that decides.
      */
-    public static String hostOf(String path) {
-        return path.startsWith(SCREENS_PREFIX) ? SCREENS : FILES;
+    public static String urlFor(String path) {
+        if (path.startsWith("http")) return path;
+
+        return (path.startsWith(SCREENS_PREFIX) ? SCREENS : FILES) + path;
     }
 
     /** From the path itself rather than the {@code format} text, which says
@@ -693,7 +721,7 @@ public final class ZxInfo implements Provider {
      * learned the expensive way, and it applies here identically.
      */
     private String ask(String path) throws ScrapeException {
-        Pace.before("api.zxinfo.dk", MINIMUM_INTERVAL_MS);
+        Pace.before(API_HOST, MINIMUM_INTERVAL_MS);
 
         try {
             Http.Reply reply = http.get(API + path);

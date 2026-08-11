@@ -48,12 +48,20 @@ import java.util.Locale;
  * built from something already proven or is written down here as unproven:
  *
  * <ul>
- *   <li><b>Search</b> is the shape {@code ZxInfo.byName} has been using
- *       against the live service: {@code search?query=&mode=compact&size=&offset=}.
- *       Proven, and proven again by the one live call this class was written
- *       with - 30 rows of a stated 153, and the two-host rule visible inside
- *       that single reply: one entry's picture came back under {@code /zxdb/}
- *       and the next two under {@code /zxscreens/}.</li>
+ *   <li><b>Search</b> is {@code search?query=&mode=compact&size=&offset=}.
+ *       <b>Three of those four are proven and the fourth was not.</b> {@code
+ *       query}, {@code mode=compact} and {@code size} are the shape {@code
+ *       ZxInfo.byName} has been using against the live service for as long as
+ *       there has been a ZXInfo provider - though not this exact string:
+ *       {@code byName} also sends {@code titlesonly=true}, which a catalogue
+ *       must not, and it asks for one page and so <b>sends no {@code offset}
+ *       at all</b>. This class's own first live call proved the reply's shape
+ *       - 30 rows of a stated 153, and the two-host rule visible inside that
+ *       single reply, one entry's picture under {@code /zxdb/} and the next
+ *       two under {@code /zxscreens/} - and, being page zero, said nothing
+ *       whatever about {@code offset}. Asked later: it is a <b>page number</b>
+ *       and this class had been sending a row number. See {@link
+ *       #searchFor}.</li>
  *   <li><b>A-Z</b> opens onto twenty-six sub-shelves, one per letter, and each
  *       of those is that same search with its letter as the query and a title
  *       sort, rather than a path of its own. Sub-shelves rather than a letter
@@ -106,11 +114,11 @@ import java.util.Locale;
  * page against, and {@code Page.hasMore} stops the list within a page of the
  * window rather than walking on for ever, which is why it is passed through
  * unaltered. Not exactly at it: thirty does not divide ten thousand, so the
- * last request this makes is {@code offset=9990&size=30}, which reaches a
- * little past the window and may be refused. One refusal at the bottom of ten
- * thousand rows is a good trade for arithmetic nobody has to maintain, and it
- * is written down here rather than guarded against because it has not been
- * seen. It is a lie as a result count, and the lie is worst on the broad
+ * last request this makes is {@code size=30&offset=333} - page 333, rows 9,990
+ * to 10,019 - which reaches a little past the window and may be refused. One
+ * refusal at the bottom of ten thousand rows is a good trade for arithmetic
+ * nobody has to maintain, and it is written down here rather than guarded
+ * against because it has not been seen. It is a lie as a result count, and the lie is worst on the broad
  * shelves where somebody is most likely to read one. Whatever draws these rows
  * must treat the cap as "at least this many" and not as "this many". A shelf
  * narrow enough to have a real total gets one: the search that proved this
@@ -266,21 +274,20 @@ public final class ZxInfoCatalogue implements Catalogue {
      * shelf whose id is not a constant here, since it came off the wire.
      */
     private static String pathFor(Shelf shelf, Query query, int page) {
-        int offset = page * PAGE_SIZE;
         String id = shelf.id();
 
         if (id.startsWith(GENRE_PREFIX)) {
             return searchFor("genretype=" + Uri.encode(id.substring(GENRE_PREFIX.length())),
-                             offset);
+                             page);
         }
 
         if (id.startsWith(LETTER_PREFIX)) {
             return searchFor("query=" + Uri.encode(id.substring(LETTER_PREFIX.length()))
-                             + "&sort=title_asc", offset);
+                             + "&sort=title_asc", page);
         }
 
         if (SHELF_NEWEST.equals(id)) {
-            return searchFor("sort=date_desc", offset);
+            return searchFor("sort=date_desc", page);
         }
 
         if (SHELF_RANDOM.equals(id)) {
@@ -290,7 +297,7 @@ public final class ZxInfoCatalogue implements Catalogue {
             return "search?mode=compact&size=" + PAGE_SIZE + "&offset=random";
         }
 
-        return searchFor("query=" + Uri.encode(query.text()), offset);
+        return searchFor("query=" + Uri.encode(query.text()), page);
     }
 
     /**
@@ -300,9 +307,22 @@ public final class ZxInfoCatalogue implements Catalogue {
      * absence of a filter are stated once. There is no {@code machinetype} and
      * no {@code contenttype} anywhere in this file, and that is asserted on the
      * URL in the test because no reply would ever reveal it.
+     *
+     * <b>{@code offset} is a page number, not a row number - measured.</b> The
+     * specification calls it "the page offset for pagination", which reads
+     * either way, and this sent {@code page * size} until somebody asked the
+     * live service for both readings at once: a search answering {@code
+     * total=153} was asked with {@code size=30&offset=30} and came back
+     * <em>empty</em>. A row offset of 30 into 153 rows cannot be empty, so the
+     * service had been asked for page thirty of five. Every shelf in this app
+     * therefore stopped dead after its first thirty rows - a 200, a page of
+     * nothing, {@code Page.hasMore} correctly reading an empty page as the end
+     * - which on screen is a catalogue that simply has thirty of everything.
+     * With {@code offset=page} the same search's second page came back with
+     * thirty more, sharing no id with the first.
      */
-    private static String searchFor(String criterion, int offset) {
-        return "search?" + criterion + "&mode=compact&size=" + PAGE_SIZE + "&offset=" + offset;
+    private static String searchFor(String criterion, int page) {
+        return "search?" + criterion + "&mode=compact&size=" + PAGE_SIZE + "&offset=" + page;
     }
 
     // --- reading a page ------------------------------------------------------------------
@@ -311,8 +331,13 @@ public final class ZxInfoCatalogue implements Catalogue {
         JSONObject reply = object(ask(path));
 
         // A 404 from a search is "nothing here", which ends the list rather
-        // than failing it - the same reading ZxInfo.ask gives it.
-        if (reply == null) return new Page(null, null, seenBefore, 0);
+        // than failing it - the same reading ZxInfo.ask gives it. The total is
+        // UNKNOWN_TOTAL and not zero: no count came back, and a zero here is
+        // drawn beside the shelf's own name as "· 0", which states as a fact
+        // about the catalogue what is only this app failing to get an answer.
+        // Either way the empty page ends the list, which is Page.hasMore's own
+        // rule and not this count's.
+        if (reply == null) return new Page(null, null, seenBefore, Page.UNKNOWN_TOTAL);
 
         List<Item> items = new ArrayList<>();
 
@@ -503,7 +528,7 @@ public final class ZxInfoCatalogue implements Catalogue {
      * The first screen that can be drawn, on whichever host it lives.
      *
      * <b>The two-host rule, and it is not this class's to restate</b> - see
-     * {@code ZxInfo.hostOf}. {@code /pub/} and {@code /zxdb/} are on the
+     * {@code ZxInfo.urlFor}. {@code /pub/} and {@code /zxdb/} are on the
      * archive; {@code /zxscreens/}, which is every rendered loading screen, is
      * on ZXInfo's own media host and 404s on the archive. Both arrive inside
      * the same array, so the array is no guide and the prefix is the only
@@ -618,13 +643,16 @@ public final class ZxInfoCatalogue implements Catalogue {
     /**
      * An absolute url from whatever the record holds.
      *
-     * <b>A path that is already a url is used as it is.</b> ZXDB's own RZX
-     * recordings live on archive.org and arrive whole; joining one onto a base
-     * makes a spectrumcomputing.co.uk url with an https:// in the middle of
-     * it, which 404s and looks exactly like a game with no recording.
+     * <b>Not this class's rule, and no longer this class's copy of it.</b>
+     * Which host a path is relative to, and the fact that some paths are
+     * already whole urls, are both measured facts about ZXDB rather than
+     * anything a catalogue decides - so they live in one place, {@code
+     * ZxInfo.urlFor}, and this only names it. The copy that used to be here
+     * was the one with the already-absolute check in it while {@code
+     * ZxInfo.collect}, two files away, went without.
      */
     private static String urlFor(String path) {
-        return path.startsWith("http") ? path : ZxInfo.hostOf(path) + path;
+        return ZxInfo.urlFor(path);
     }
 
     /**
@@ -768,7 +796,7 @@ public final class ZxInfoCatalogue implements Catalogue {
      * queue behind one another instead of halving the interval between them.
      */
     private String ask(String path) throws ScrapeException {
-        Pace.before("api.zxinfo.dk", ZxInfo.MINIMUM_INTERVAL_MS);
+        Pace.before(ZxInfo.API_HOST, ZxInfo.MINIMUM_INTERVAL_MS);
 
         try {
             Http.Reply reply = http.get(ZxInfo.API + path);
