@@ -174,10 +174,10 @@ public class SweepSelectionTest {
     /**
      * A hand-edited row is offered rather than filtered out.
      *
-     * It will be left alone - {@code Sweep} counts it under {@code yours} -
-     * and dropping it here instead would be quieter but would mean a person
-     * with a dozen corrections is never told they were skipped. Costs no
-     * request either way, since the check happens before the search.
+     * A fill-gaps scrape can only add to it, never undo the correction, so
+     * dropping it here instead would be quieter but would mean a source that
+     * has something new to add never gets the chance. Costs no request
+     * either way, since the check happens before the search.
      */
     @Test
     public void ahandEditedRowIsOfferedSoThatTheTallyCanMentionIt() {

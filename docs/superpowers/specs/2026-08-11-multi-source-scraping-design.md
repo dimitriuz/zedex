@@ -67,7 +67,7 @@ Three predicates read it, each generalised so its present meaning survives:
 |---|---|---|
 | `isEsde()` — may an ES-DE link replace this row? | `source == null \|\| "esde"` | ES-DE is the **only** contributor |
 | `isMine()` — did somebody type this? | `source == "user"` | `"user"` is **among** the contributors |
-| `Sweep.Only.NOT_SCRAPED` | `isEsde() \|\| isMine()` | **no provider name** among the contributors |
+| `Sweep.Only.NOT_SCRAPED` | `isEsde() \|\| isMine()` | nothing has scraped it, **or** a person has since hand-edited it — `isMine()` counts even with a provider's name also on the row |
 
 `Meta.with(Field, value)` prepends `"user"` rather than replacing the whole
 value, so a hand edit stops erasing the record of which services were asked.

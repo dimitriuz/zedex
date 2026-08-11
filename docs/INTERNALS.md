@@ -1103,10 +1103,16 @@ the ones before left out — and three predicates read it: `isEsde()` is true
 only when ES-DE is the *sole* contributor (so a link may replace a row only
 when nothing else has touched it since); `isMine()` is true when `user` is
 *among* the contributors, however many others are; `Sweep.Only.NOT_SCRAPED`
-is true when *no provider name* is among them. `replaceScraped` keeps
-everything that is not ES-DE's, so a link leaves both a hand edit and a
-scrape alone. The rule used to be "a link keeps hand edits", which was the
-same thing right up until the app could scrape from more than one place.
+is `isEsde() || isMine()` — true when nothing has scraped the row, *or* when
+a person has since hand-edited it, and the second half counts even with a
+provider's name also on the row, because `isMine()` asks whether `user` is
+among the contributors and not whether it is the only one. A row ZXInfo
+scraped and a person then corrected is still "not scraped" and gets
+re-offered — correctly, since a fill-gaps re-scrape can only add to a row
+and can never undo the correction. `replaceScraped` keeps everything that is
+not ES-DE's, so a link leaves both a hand edit and a scrape alone. The rule
+used to be "a link keeps hand edits", which was the same thing right up
+until the app could scrape from more than one place.
 
 **Several sources, each filling in a gap.** `Scrapers.enabled` holds the
 ordered, enabled list — one name per line in `Prefs.KEY_SCRAPERS`, a `String`
