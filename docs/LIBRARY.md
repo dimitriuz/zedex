@@ -223,6 +223,18 @@ which is the single biggest thing metadata buys a browser. It is a setting,
 defaulting to on, because a collection is somebody's own and some people want to
 see what is actually on the disk.
 
+**Fetching from an API of our own, promised above, ended up as more than one
+API.** A scrape now asks every source the user has enabled, in the order they
+chose, and each fills in only what the ones before it left out — one rule,
+fill a gap and never replace a value, rather than a rule per field to
+disagree about. A sweep of a whole folder never re-fetches artwork already
+on disk, so turning a second source on costs nothing for games the first
+already covered; scraping one game by hand fetches every source's pictures
+and, where they disagree, offers them side by side rather than guessing.
+Ownership of a row is now a list rather than a name for the same reason ES-DE
+linking above needed one: several things can write to a row without any of
+them losing what another wrote.
+
 ## Notes for building it
 
 - **Listing is `DocumentsContract`, not `File`.** The content folder is a tree

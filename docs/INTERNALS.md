@@ -1097,11 +1097,95 @@ one game without touching ES-DE's tree, and it is why the four early returns
 on "ES-DE is not installed" had to go: their tree being absent says nothing
 about what this app fetched for itself.
 
-**Three owners, and a link only overwrites one.** A row is ES-DE's, the
-user's, or a provider's — `Meta.source`. `replaceScraped` keeps everything
-that is not ES-DE's, so a link leaves both a hand edit and a scrape alone.
-The rule used to be "a link keeps hand edits", which was the same thing right
-up until the app could scrape for itself.
+**A row has contributors, not an owner.** `Meta.source` is a comma-joined
+list — a link, a hand edit and any number of providers, each filling in what
+the ones before left out — and three predicates read it: `isEsde()` is true
+only when ES-DE is the *sole* contributor (so a link may replace a row only
+when nothing else has touched it since); `isMine()` is true when `user` is
+*among* the contributors, however many others are; `Sweep.Only.NOT_SCRAPED`
+is true when *no provider name* is among them. `replaceScraped` keeps
+everything that is not ES-DE's, so a link leaves both a hand edit and a
+scrape alone. The rule used to be "a link keeps hand edits", which was the
+same thing right up until the app could scrape from more than one place.
+
+**Several sources, each filling in a gap.** `Scrapers.enabled` holds the
+ordered, enabled list — one name per line in `Prefs.KEY_SCRAPERS`, a `String`
+and not a `StringSet` because a set has no order and order is the feature.
+Absent means nobody has chosen and every source is used; empty means
+somebody turned them all off — the same absent-vs-empty trap
+`Prefs.KEY_SCRAPE_MEDIA` already carries a warning about. An older build's
+single `KEY_SCRAPER` choice migrates faithfully rather than generously: that
+one source enabled, every other off — widening what the app fetches, and
+what it spends a ScreenScraper allowance on, because a feature arrived is
+not the app's decision to make.
+
+`Blend.run` (`library/scrape`) is the plural counterpart to `Scrape`, same
+two-call shape: no screen anywhere in it, so the loop runs against fakes with
+no network and no dialog. It walks the ordered sources for one game, and for
+each: searches (the first source by filename, every later one by the
+*title* an earlier source gave — both providers already derive their search
+term from `Game.filename()`, so handing a later one the title costs no
+provider change), merges what comes back with `Merge.of`, and moves on. A
+single candidate carrying that same title is taken with no dialog — the same
+fact from two directions — but a hash match still wins over a title
+disagreement, because a hash is the file itself and a title is what somebody
+typed on a shelf; the earlier name is kept regardless, since that source had
+priority.
+
+**`Merge.of` is the whole rule: a gap may be filled, a value may never be
+replaced.** One method, in a class of its own (`library/scrape/Merge.java`)
+because it is the only part of the loop with no `Context` in it, so a JVM
+test can walk `Meta` by reflection and prove every field merges — a field
+added there and forgotten here would silently never merge, the exact failure
+`Meta`'s own class doc used to warn about. This is what answers the
+objection `Scrapers`' class doc used to record against merging at all: there
+is no rule *per field* to disagree about, because the priority order has
+already decided who gets asked first. It is also why the hand-edit
+confirmation dialog (`Scrape.wouldOverwriteAHandEdit`) is gone — a typed
+value is not a gap, so nothing can overwrite it, and the question the dialog
+used to ask no longer has an unsafe answer.
+
+**Two media policies, one loop.** `Blend.Media.FILL_GAPS` (a sweep) asks a
+source only for the folders still empty and writes straight to the media
+folder — no request for a cover that already exists, no staging, because
+there is nothing to protect and nothing to choose between. `OFFER_ALTERNATIVES`
+(a one-game scrape) asks every source for every wanted folder and writes
+everything under `<media>/.staging/<folder>/<source>/`, whether or not it
+turns out to differ from what is on disk — contested-or-not is only knowable
+once it has been downloaded. `Blend.commit` moves the chosen files into
+place and, per folder, calls `Artwork.removeOthers` — the loser has to be
+deleted, not merely left unwritten, or a new `covers/X.jpg` sits beside the
+old `covers/X.png` and `Artwork` (which resolves png before jpg) goes on
+showing the png, so the choice looks as though it did nothing.
+
+**The staging area is cleared on the way in, `Blend.run` calling
+`Artwork.clearStaging` before the first source is asked, not on the way out.**
+A run killed mid-flight — the activity gone, the process gone, Back pressed —
+never reaches its own cleanup, and a leftover from last time would be
+offered as though this run had fetched it; the same lesson
+`RecentsTest.dropAnyLeftOver` is in the suite for. "Contested" means
+something is already there and it is not the same bytes, compared by length
+then MD5 — identical bytes from two sources is common and not a question
+worth asking.
+
+**A refusal belongs to the source that made it, not to the run.** One
+source throwing is logged into `Blend.Result.failures` and the loop moves to
+the next source; a game with three sources' worth of facts and one refusal
+is better than no game at all. In a sweep, `Sweep.dropTheSpent` and
+`Sweep.drop` remove *that* source from the list still being asked — a spent
+ScreenScraper quota says nothing about ZXInfo, which has no quota to spend —
+and the run only stops when every source has run out.
+
+**`Scrape.apply` survives for exactly one caller now: `Imports.describe`.**
+Everywhere else has moved to `Blend.run`, which merges rather than replaces.
+The catalogue path keeps calling `apply` because a catalogue item's id is
+certain against the service that issued it and meaningless to any other —
+resolving `Scrapers.enabled(context).get(0)` there would hand a ZXInfo id to
+whatever the user happened to put first, which at best is refused and at
+worst is answered by a different game entirely under the same number.
+`CataloguePane.providerFor` resolves the one provider whose name matches the
+catalogue's own, or null, and `describe` treats null as the honest "nobody
+configured a matching source" outcome rather than a failure.
 
 **What gets fetched is a person's own choice.** Eight types, and the list is
 exactly what this app can display - `Provider`'s `MEDIA_FOLDERS` plus videos
@@ -1144,13 +1228,13 @@ worse than one refused request.
 without a subscription gets, and `forcelevel=30` does not change it. So the
 multi-scrape is a loop, not a pool.
 
-**Each half splits at the screen.** `Scrape` and `Sweep` hold everything a
-run does; `ScrapeOneGame` and `ScrapeManyActivity` hold only what needs a
-person — which of several candidates, and whether to replace something typed
-by hand. That is what makes the first two testable: `Provider` and `Http` are
-interfaces, so a spent quota, a refused password, a thread limit and a
-cancelled run are all things a fake produces on demand and none of them can
-be arranged against a live service.
+**Each half splits at the screen.** `Blend` and `Sweep` hold everything a run
+does; `ScrapeOneGame` and `ScrapeManyActivity` hold only what needs a person —
+which of several candidates, per source, and how to answer a folder several
+sources both offered a picture for. That is what makes the first two
+testable: `Provider` and `Http` are interfaces, so a spent quota, a refused
+password, a thread limit and a cancelled run are all things a fake produces
+on demand and none of them can be arranged against a live service.
 
 **A 404 is an answer.** Most of a Spectrum collection is obscure, so an
 unknown game is the common case. Throwing for it would stop a collection-wide
@@ -1164,11 +1248,14 @@ no metadata": on a linked collection the store is already mostly full, so
 that question would match almost nothing and resuming would silently do
 nothing.
 
-**A run cannot ask three hundred times**, so a hand-edited row is skipped and
-counted rather than confirmed one at a time, and the conflict policy is
-chosen once before the run. *Ask me each time* blocks the sweep thread on a
-dialog; the way out of a long tail of them is *Skip the rest*, which switches
-the rest of the run to skipping rather than cancelling it.
+**A run cannot ask three hundred times**, so the conflict policy is chosen
+once before the run rather than confirmed game by game. *Ask me each time*
+blocks the sweep thread on a dialog; the way out of a long tail of them is
+*Skip the rest*, which switches the rest of the run to skipping rather than
+cancelling it. A hand-edited row is no longer skipped, because it no longer
+needs to be: a scrape cannot overwrite a typed value, so the only thing
+skipping ever protected is now protected by `Merge.of` itself, and skipping
+would only have left the fields nobody typed empty for ever.
 
 **Credentials, and the fact that they cannot be hidden.** The developer id
 and password come from `local.properties` or the environment into `resValue`
@@ -1215,12 +1302,14 @@ too.
 Two things follow, and they are the whole mitigation:
 
 - **A user's own account.** `Prefs.KEY_SCRAPER_USER`/`KEY_SCRAPER_PASSWORD`,
-  two rows on the Library tab, passed through by `Scrapers.withAccount` as
-  `ssid`/`sspassword` alongside the developer id rather than instead of it.
-  It buys a real daily allowance, so anyone scraping a whole collection is
-  using their own quota and the shared account carries casual use only. Half
-  a login — a name with no password — is treated as none, since it would
-  authenticate as nobody and read as the service being broken.
+  two rows on the Library tab, passed through by `Scrapers.enabled` as
+  `ssid`/`sspassword` alongside the developer id rather than instead of it —
+  the account is ScreenScraper's alone, so setting one changes nothing for
+  ZXInfo, which has no accounts at all. It buys a real daily allowance, so
+  anyone scraping a whole collection is using their own quota and the shared
+  account carries casual use only. Half a login — a name with no password —
+  is treated as none, since it would authenticate as nobody and read as the
+  service being broken.
 - **The password never appears anywhere it could be read.** Not in the
   settings summary (`SettingsActivity` says *Set* or *Not set*), not in a bug
   report (`Diagnostics` names the keys it prints one at a time, and
