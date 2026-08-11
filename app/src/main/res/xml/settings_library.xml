@@ -112,15 +112,19 @@
             android:inputType="textPassword"
             android:singleLine="true" />
         <!--
-            Which service answers. Entries are filled in by SettingsActivity,
-            not listed here: which providers a build has depends on whether it
-            was given ScreenScraper credentials, and a hard-coded list would
-            offer one that cannot work.
+            Which services answer, and in what order.
+
+            Entries are filled in by SettingsActivity, not listed here: which
+            providers a build has depends on whether it was given ScreenScraper
+            credentials, and a hard-coded list would offer one that cannot
+            work.
+
+            A Preference and not a ListPreference: the choice is several
+            services in an order, and no built-in widget expresses that.
         -->
-        <ListPreference
-            android:key="scraper"
-            android:title="@string/settings_scraper"
-            android:dialogTitle="@string/settings_scraper" />
+        <Preference
+            android:key="scrapers"
+            android:title="@string/settings_scraper" />
         <!--
             What a scrape fetches, as ES-DE folder names - see
             Prefs.KEY_SCRAPE_MEDIA.

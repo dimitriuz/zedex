@@ -679,12 +679,10 @@
     <string name="edit_metadata_forgotten">Правки забуто</string>
     <string name="scrape_menu">Завантажити дані…</string>
     <string name="scrape_working">Триває пошук…</string>
-    <string name="scrape_choose">Що це за гра?</string>
     <string name="scrape_choose_from">Яка гра, за даними %1$s?</string>
     <string name="scrape_nothing">Нічого не знайдено для цієї гри</string>
     <string name="scrape_done">Завантажено</string>
     <string name="scrape_done_media">Завантажено, зображень: %1$d</string>
-    <string name="scrape_overwrite">Дані цієї гри ви редагували вручну. Завантаження їх замінить.</string>
     <string name="scrape_failed_quota">На сьогодні запити вичерпано</string>
     <string name="scrape_failed_login">Служба відхилила вхід</string>
     <string name="scrape_failed_network">Не вдалося зв’язатися зі службою</string>
@@ -711,10 +709,10 @@
     <string name="scrape_many_counting">Підрахунок…</string>
     <string name="scrape_many_cannot_list">Не вдалося прочитати цю теку</string>
     <plurals name="scrape_many_estimate">
-        <item quantity="one">%1$d гра · приблизно %2$d запитів</item>
-        <item quantity="few">%1$d гри · приблизно %2$d запитів</item>
-        <item quantity="many">%1$d ігор · приблизно %2$d запитів</item>
-        <item quantity="other">%1$d гри · приблизно %2$d запитів</item>
+        <item quantity="one">%1$d гра · не більше %2$d запитів</item>
+        <item quantity="few">%1$d гри · не більше %2$d запитів</item>
+        <item quantity="many">%1$d ігор · не більше %2$d запитів</item>
+        <item quantity="other">%1$d гри · не більше %2$d запитів</item>
     </plurals>
     <string name="scrape_many_quota">Сьогодні залишилося запитів: %1$d</string>
     <string name="scrape_many_start">Почати</string>
@@ -749,12 +747,6 @@
         <item quantity="many">%1$d не знайдено</item>
         <item quantity="other">%1$d не знайдено</item>
     </plurals>
-    <plurals name="scrape_many_yours">
-        <item quantity="one">%1$d залишено — ви редагували її вручну</item>
-        <item quantity="few">%1$d залишено — ви редагували їх вручну</item>
-        <item quantity="many">%1$d залишено — ви редагували їх вручну</item>
-        <item quantity="other">%1$d залишено — ви редагували їх вручну</item>
-    </plurals>
     <plurals name="scrape_many_failed">
         <item quantity="one">%1$d не вдалася</item>
         <item quantity="few">%1$d не вдалися</item>
@@ -765,6 +757,10 @@
     <!-- An optional ScreenScraper account of the user's own. -->
     <string name="settings_group_scraper">Обліковий запис служби</string>
     <string name="settings_scraper">Джерело даних</string>
+    <string name="settings_scrapers_order">За порядком: %1$s</string>
+    <string name="settings_scrapers_none">Нічого не вибрано — збір даних вимкнено</string>
+    <string name="settings_scrapers_up">Вгору</string>
+    <string name="settings_scrapers_down">Вниз</string>
     <string name="settings_scraper_user">Ім’я користувача ScreenScraper</string>
     <string name="settings_scraper_user_summary">Необов’язково. У власного облікового запису денний ліміт набагато більший, ніж у спільного для всіх користувачів застосунку.</string>
     <string name="settings_scraper_password">Пароль ScreenScraper</string>

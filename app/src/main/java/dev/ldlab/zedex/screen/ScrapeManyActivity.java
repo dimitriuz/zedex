@@ -597,10 +597,7 @@ public final class ScrapeManyActivity extends ZedexActivity {
 
         @Override
         public Sweep.Choice chooseFrom(String sourceName, List<Candidate> found, String game) {
-            // sourceName is not shown yet - naming the source in the dialog
-            // needs a string this task must not touch. The dialog reads the
-            // same as it did with one source until then.
-            return ask(found, game);
+            return ask(sourceName, found, game);
         }
     };
 
@@ -616,7 +613,7 @@ public final class ScrapeManyActivity extends ZedexActivity {
      * A queue rather than a latch and a field, because it carries the answer
      * as well as the fact of one and needs no synchronisation of its own.
      */
-    private Sweep.Choice ask(List<Candidate> found, String game) {
+    private Sweep.Choice ask(String sourceName, List<Candidate> found, String game) {
         BlockingQueue<Sweep.Choice> answer = new ArrayBlockingQueue<>(1);
 
         runOnUiThread(() -> {
@@ -624,7 +621,7 @@ public final class ScrapeManyActivity extends ZedexActivity {
                 answer.offer(Sweep.Choice.skipTheRest());
                 return;
             }
-            chooser(found, game, answer).show();
+            chooser(sourceName, found, game, answer).show();
         });
 
         try {
@@ -649,14 +646,26 @@ public final class ScrapeManyActivity extends ZedexActivity {
      *  cancelled underneath it. */
     private static final long CHOICE_POLL_MS = 200;
 
-    private AlertDialog chooser(List<Candidate> found, String game,
+    /**
+     * The title carries both facts a sweep needs here: which file this is -
+     * first, since a run asking about hundreds of games needs that to stay
+     * the thing the eye lands on - and which service is offering the list
+     * below it, since the same file can turn up a different list from each
+     * source now that there is more than one. An AlertDialog ignores
+     * setMessage once setItems is in play, so the source has nowhere to go
+     * but the title; joined with " · ", the separator this codebase already
+     * uses for two facts about one thing (see Candidate.describe).
+     */
+    private AlertDialog chooser(String sourceName, List<Candidate> found, String game,
                                 BlockingQueue<Sweep.Choice> answer) {
         List<String> labels = new ArrayList<>();
         for (Candidate candidate : found) labels.add(candidate.describe());
 
+        String title = game + " · " + getString(R.string.scrape_choose_from, sourceName);
+
         AlertDialog dialog = new AlertDialog.Builder(
                 this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(game)
+                .setTitle(title)
                 .setItems(labels.toArray(new String[0]),
                           (d, which) -> answer.offer(Sweep.Choice.of(found.get(which))))
                 .setNegativeButton(R.string.scrape_many_skip_one,
