@@ -5,7 +5,6 @@ import dev.ldlab.zedex.storage.Prefs;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeTrue;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -75,49 +74,22 @@ public class ScrapersTest {
         assertEquals(Scrapers.names(context), namesOf(Scrapers.enabled(context)));
     }
 
-    /**
-     * An older build stored one name, and that was a decision.
+    /*
+     * The three tests that used to sit here - the migration of an older single
+     * choice, the stored order being the order asked, and a source left out
+     * not being asked - have moved to ScrapersOrderTest in the JVM tier.
      *
-     * Migrated faithfully rather than generously: turning "ScreenScraper" into
-     * "both of them" would widen what the app fetches, and what it spends a
-     * ScreenScraper allowance on, because a feature arrived. That is not ours
-     * to decide.
+     * They needed this build to have two providers to say anything at all, and
+     * ScreenScraper is only present when the build was given credentials. On a
+     * source clone all three called assumeTrue and skipped, and JUnit prints OK
+     * for a skipped test exactly as it does for a passing one - so the class
+     * reported OK (4 tests) instead of OK (7) and nothing else said the rules
+     * had gone unchecked. That is a count CI reads as a pass.
+     *
+     * Scrapers.chosen is pure and takes names, so those rules are now asserted
+     * against made-up names on every build. What stays here is what genuinely
+     * needs a device: that the preference is really read and really written.
      */
-    @Test
-    public void anOlderSingleChoiceMigratesToThatOneAlone() {
-        List<String> available = Scrapers.names(context);
-        assumeTrue("this build has only one source", available.size() > 1);
-
-        stored(null, available.get(1));
-
-        assertEquals(Collections.singletonList(available.get(1)),
-                     namesOf(Scrapers.enabled(context)));
-    }
-
-    @Test
-    public void theStoredOrderIsTheOrderTheyAreAsked() {
-        List<String> available = Scrapers.names(context);
-        assumeTrue("this build has only one source", available.size() > 1);
-
-        List<String> backwards = new ArrayList<>(available);
-        Collections.reverse(backwards);
-
-        Scrapers.save(context, backwards);
-
-        assertEquals(backwards, namesOf(Scrapers.enabled(context)));
-    }
-
-    @Test
-    public void aSourceLeftOutIsNotAsked() {
-        List<String> available = Scrapers.names(context);
-        assumeTrue("this build has only one source", available.size() > 1);
-
-        Scrapers.save(context, Collections.singletonList(available.get(0)));
-
-        assertEquals(Collections.singletonList(available.get(0)),
-                     namesOf(Scrapers.enabled(context)));
-        assertTrue(Scrapers.any(context));
-    }
 
     /** Choosing none is a real choice, and it is not the same as never having
      *  chosen - which is exactly the trap the media setting beside this one

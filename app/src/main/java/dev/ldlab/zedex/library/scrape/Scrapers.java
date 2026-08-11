@@ -121,69 +121,77 @@ public final class Scrapers {
                 ? all(context, user.trim(), password)
                 : all(context);
 
-        List<String> wanted = order(preferences, available);
+        List<String> names = new ArrayList<>();
+        for (Provider provider : available) names.add(provider.name());
 
-        List<Provider> chosen = new ArrayList<>();
+        List<String> wanted = chosen(preferences.getString(Prefs.KEY_SCRAPERS, null),
+                                     preferences.getString(Prefs.KEY_SCRAPER, null),
+                                     names);
+
+        List<Provider> using = new ArrayList<>();
         for (String name : wanted) {
             for (Provider provider : available) {
                 if (provider.name().equals(name)) {
-                    chosen.add(provider);
+                    using.add(provider);
                     break;
                 }
             }
         }
-        return chosen;
+        return using;
     }
 
     /**
-     * The stored order, or what to do when there is none.
+     * Which sources to ask and in what order, from what is stored and what
+     * this build has - by name, and nothing else.
      *
-     * <b>Absent is not empty.</b> Nothing stored means nobody has chosen and
-     * everything is used; an empty value means somebody turned them all off.
-     * {@code getString} answers null for the first and "" for the second, and
-     * collapsing the two would make "none" unselectable - the same trap
-     * {@code Prefs.KEY_SCRAPE_MEDIA} carries a warning about.
+     * <b>Pure, and that is the point.</b> No {@code Context}, no {@code
+     * SharedPreferences}, no {@link Provider}: every rule that matters here is
+     * about names, so pulling it out means the rules can be tested against
+     * names that are made up rather than against whichever services this
+     * particular build was given credentials for.
+     *
+     * That is not tidiness. These rules were tested through {@link #enabled},
+     * which needs two real providers to say anything about ordering - so on a
+     * source clone, which has no ScreenScraper credentials, three of those
+     * tests skipped and the class still printed {@code OK}. A count that drops
+     * from seven to four with no other signal is one CI reads as a pass, which
+     * makes it a green tick over rules nothing checked.
+     *
+     * @param stored    {@code Prefs.KEY_SCRAPERS} - null when nobody has ever
+     *                  chosen, empty when somebody turned them all off
+     * @param single    {@code Prefs.KEY_SCRAPER}, an older build's one choice
+     * @param available the names this build actually has, in its own order
      */
-    private static List<String> order(SharedPreferences preferences,
-                                      List<Provider> available) {
-        String stored = preferences.getString(Prefs.KEY_SCRAPERS, null);
+    static List<String> chosen(String stored, String single, List<String> available) {
+        List<String> wanted;
 
-        if (stored == null) return migrated(preferences, available);
-        if (stored.isEmpty()) return new ArrayList<>();
-
-        List<String> names = new ArrayList<>();
-        for (String line : stored.split(SEPARATOR)) {
-            String trimmed = line.trim();
-            if (!trimmed.isEmpty()) names.add(trimmed);
-        }
-        return names;
-    }
-
-    /**
-     * What an older build's single choice becomes.
-     *
-     * <b>Faithfully, not generously:</b> one stored name becomes that one
-     * source and every other off. Widening what the app fetches - and what it
-     * spends a ScreenScraper allowance on - because a feature arrived is not a
-     * decision to make on somebody's behalf. Nothing stored at all means
-     * nobody ever chose, and that gets the new default: everything, in
-     * {@link #all}'s order.
-     *
-     * Not written back. Reading it every time costs one string lookup, and
-     * writing it would turn "the user has never chosen" into "the user chose
-     * exactly this", which is a lie that cannot be undone.
-     */
-    private static List<String> migrated(SharedPreferences preferences,
-                                         List<Provider> available) {
-        String single = preferences.getString(Prefs.KEY_SCRAPER, null);
-
-        if (single != null && !single.isEmpty()) {
-            return new ArrayList<>(java.util.Collections.singletonList(single));
+        if (stored == null) {
+            // Nobody has chosen. An older build's single name is a decision
+            // and is honoured; nothing at all gets the new default.
+            wanted = single != null && !single.isEmpty()
+                    ? new ArrayList<>(java.util.Collections.singletonList(single))
+                    : new ArrayList<>(available);
+        } else if (stored.isEmpty()) {
+            // Somebody turned them all off, which is a choice and not a fault.
+            wanted = new ArrayList<>();
+        } else {
+            wanted = new ArrayList<>();
+            for (String line : stored.split(SEPARATOR)) {
+                String trimmed = line.trim();
+                if (!trimmed.isEmpty()) wanted.add(trimmed);
+            }
         }
 
-        List<String> everything = new ArrayList<>();
-        for (Provider provider : available) everything.add(provider.name());
-        return everything;
+        // A stored name this build does not have - a provider removed, or a
+        // build without the credentials the choice was made against - is
+        // dropped rather than failing the lot. Duplicates go too: the settings
+        // list cannot make one, but a hand-edited preference file can, and
+        // asking one service twice about every game is a whole second sweep.
+        List<String> keeping = new ArrayList<>();
+        for (String name : wanted) {
+            if (available.contains(name) && !keeping.contains(name)) keeping.add(name);
+        }
+        return keeping;
     }
 
     /** Stores the sources to use, in order. An empty list is stored as an
