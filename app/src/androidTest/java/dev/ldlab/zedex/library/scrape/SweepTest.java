@@ -139,7 +139,7 @@ public class SweepTest {
         }
 
         @Override
-        public Sweep.Choice chooseFrom(List<Candidate> found, String game) {
+        public Sweep.Choice chooseFrom(String sourceName, List<Candidate> found, String game) {
             asked.add(game);
 
             int at = Math.min(asked.size() - 1, choices.size() - 1);
@@ -148,13 +148,15 @@ public class SweepTest {
     }
 
     private Sweep.Tally run(Fakes.Fake provider, Watching watcher, List<Entry> entries) {
-        return Sweep.run(context, provider, new Fakes.NoHttp(), entries,
+        return Sweep.run(context, Collections.singletonList((Provider) provider),
+                         new Fakes.NoHttp(), entries,
                          Provider.Wanted.nothing(), Sweep.Conflicts.SKIP, watcher);
     }
 
     private Sweep.Tally run(Fakes.Fake provider, Watching watcher, Sweep.Conflicts conflicts,
                             List<Entry> entries) {
-        return Sweep.run(context, provider, new Fakes.NoHttp(), entries,
+        return Sweep.run(context, Collections.singletonList((Provider) provider),
+                         new Fakes.NoHttp(), entries,
                          Provider.Wanted.nothing(), conflicts, watcher);
     }
 
@@ -312,32 +314,106 @@ public class SweepTest {
         assertTrue("stopping the questions must not stop the run", tally.complete());
     }
 
+    // --- several sources ------------------------------------------------------------------
+
+    /**
+     * Every source is asked about every game, in the order given.
+     *
+     * The order is the priority: whoever answers first about a field keeps it.
+     */
+    @Test
+    public void everySourceIsAskedAboutEveryGame() {
+        Fakes.Fake first = new Fakes.Fake("First");
+        Fakes.Fake second = new Fakes.Fake("Second");
+        Watching watcher = new Watching();
+
+        Sweep.Tally tally = Sweep.run(context, Arrays.asList(first, second),
+                                      new Fakes.NoHttp(), games("A.tap", "B.tap"),
+                                      Provider.Wanted.nothing(), Sweep.Conflicts.SKIP,
+                                      watcher);
+
+        assertEquals(Arrays.asList("A.tap", "B.tap"), first.searched);
+        assertEquals(2, second.searched.size());
+        assertEquals(2, tally.scraped);
+    }
+
+    /**
+     * A source that runs out is dropped; the rest of the run carries on.
+     *
+     * ZXInfo has no quota and no reason to stop because ScreenScraper ran out
+     * - which is the whole argument for isolating a refusal to the source that
+     * made it.
+     */
+    @Test
+    public void asourceThatRunsOutIsDroppedAndTheOthersCarryOn() {
+        Fakes.Fake spent = new Fakes.Fake("Spent");
+        spent.answer = game -> {
+            throw new ScrapeException(ScrapeException.Kind.QUOTA_EXCEEDED, "spent");
+        };
+
+        Fakes.Fake free = new Fakes.Fake("Free");
+        Watching watcher = new Watching();
+
+        Sweep.Tally tally = Sweep.run(context, Arrays.asList(spent, free),
+                                      new Fakes.NoHttp(),
+                                      games("A.tap", "B.tap", "C.tap"),
+                                      Provider.Wanted.nothing(), Sweep.Conflicts.SKIP,
+                                      watcher);
+
+        assertEquals("the spent source was asked more than once", 1, spent.searched.size());
+        assertEquals(3, free.searched.size());
+        assertNull("the run should not have stopped", tally.stopped);
+        assertEquals(3, tally.scraped);
+    }
+
+    /** When the last source goes, the run stops and says why. */
+    @Test
+    public void theRunStopsWhenNoSourceIsLeft() {
+        Fakes.Fake spent = new Fakes.Fake("Spent");
+        spent.answer = game -> {
+            throw new ScrapeException(ScrapeException.Kind.QUOTA_EXCEEDED, "spent");
+        };
+
+        Sweep.Tally tally = Sweep.run(context, Collections.singletonList((Provider) spent),
+                                      new Fakes.NoHttp(), games("A.tap", "B.tap"),
+                                      Provider.Wanted.nothing(), Sweep.Conflicts.SKIP,
+                                      new Watching());
+
+        assertNotNull(tally.stopped);
+        assertEquals(ScrapeException.Kind.QUOTA_EXCEEDED, tally.stopped.kind);
+    }
+
     // --- somebody's own work ------------------------------------------------------------
 
     /**
-     * A hand-edited row is left alone, and costs nothing to leave alone.
+     * A hand edit is no longer a reason to leave a game alone.
      *
-     * The one-game path asks before overwriting one. A run of three hundred
-     * cannot ask three hundred times, so it skips - and the check is local and
-     * happens <b>before the search</b>, which is the half worth asserting:
-     * asking the service about a game whose answer is going to be thrown away
-     * would spend the day's allowance on nothing.
+     * It cannot be overwritten - a typed value is not a gap - so skipping the
+     * game would only mean the fields the person did *not* type stay empty for
+     * ever.
      */
     @Test
-    public void ahandEditedRowIsLeftAloneWithoutSpendingARequest() {
-        Entry mine = game("Mine.tap");
-        Metadata.put(context,
-                     Meta.at(pathOf(mine)).name("What I called it").source(Meta.USER).build());
-        Metadata.refresh(context);
+    public void ahandEditedRowIsToppedUpRatherThanSkipped() {
+        // pathOf takes an Entry, so hold the one the run is given.
+        Entry mine = game("A.tap");
 
-        Fakes.Fake provider = new Fakes.Fake();
-        Sweep.Tally tally = run(provider, new Watching(), Arrays.asList(mine, game("B.tap")));
+        Metadata.put(context, Meta.at(pathOf(mine))
+                .genre("Puzzle").contributor(Meta.USER).build());
 
-        assertEquals(1, tally.yours);
+        Fakes.Fake source = new Fakes.Fake("Source");
+
+        Sweep.Tally tally = Sweep.run(context, Collections.singletonList((Provider) source),
+                                      new Fakes.NoHttp(),
+                                      Collections.singletonList(mine),
+                                      Provider.Wanted.nothing(), Sweep.Conflicts.SKIP,
+                                      new Watching());
+
         assertEquals(1, tally.scraped);
-        assertEquals("the hand-edited game should never have been asked about",
-                     Collections.singletonList("B.tap"), provider.searched);
-        assertEquals("What I called it", Metadata.forPath(context, pathOf(mine)).name);
+
+        Meta after = Metadata.forPath(context, pathOf(mine));
+        assertEquals("the hand-typed genre was overwritten", "Puzzle", after.genre);
+        assertNotNull("nothing was filled in around it", after.publisher);
+        assertTrue(after.isMine());
     }
 
     // --- stopping ---------------------------------------------------------------------------
@@ -387,7 +463,8 @@ public class SweepTest {
         Fakes.Fake provider = new Fakes.Fake();
         provider.quota = new Quota(9998, 10000, 1);
 
-        Sweep.Tally stopped = Sweep.run(context, provider, new Fakes.NoHttp(), games("A.tap"),
+        Sweep.Tally stopped = Sweep.run(context, Collections.singletonList((Provider) provider),
+                                        new Fakes.NoHttp(), games("A.tap"),
                                         Provider.Wanted.usual(), Sweep.Conflicts.SKIP,
                                         new Watching());
 
@@ -518,7 +595,8 @@ public class SweepTest {
         List<Entry> entries = games("A.tap", "B.tap");
 
         try {
-            Sweep.Tally tally = Sweep.run(context, provider, new Writes(), entries,
+            Sweep.Tally tally = Sweep.run(context, Collections.singletonList((Provider) provider),
+                                          new Writes(), entries,
                                           Provider.Wanted.of("covers"),
                                           Sweep.Conflicts.SKIP, new Watching());
 
@@ -548,8 +626,21 @@ public class SweepTest {
         }
     }
 
-    /** Cancel is noticed while backing off, not only between games - a wait of
-     *  six seconds that ignored it would make the button look broken. */
+    /**
+     * Cancel is noticed while backing off, not only between games - a wait of
+     * six seconds that ignored it would make the button look broken.
+     *
+     * <b>And the interrupted wait is not counted as a failure.</b> Cutting the
+     * back-off short throws the last {@code NETWORK} exception seen, exactly
+     * as giving up after three real attempts would - but nothing here proves
+     * the source would not have answered on the retry that never got to run,
+     * only that nobody waited to see. Counting it as a failure would be
+     * reporting one that may not have happened, and - now that a hopeless
+     * failure drops the source that made it - could drop a source for
+     * nothing. This used to assert {@code tally.failed == 1}, which was true
+     * of the single-provider loop this replaced but stopped being the right
+     * answer once a failure could cost a source its place in the run.
+     */
     @Test
     public void cancelIsNoticedWhileBackingOff() {
         Fakes.Fake provider = new Fakes.Fake();
@@ -569,6 +660,6 @@ public class SweepTest {
         assertEquals("it gave up waiting rather than serving out the back-off",
                      1, provider.searched.size());
         assertTrue("waited " + took + "ms; a served back-off would be 6000", took < 3000);
-        assertEquals(1, tally.failed);
+        assertEquals("a wait cut short by cancel is not a refusal", 0, tally.failed);
     }
 }

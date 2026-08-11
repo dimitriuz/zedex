@@ -6,10 +6,11 @@ import dev.ldlab.zedex.library.meta.Meta;
 import dev.ldlab.zedex.library.meta.Metadata;
 
 import android.content.Context;
-import android.os.SystemClock;
 import android.util.Log;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -66,7 +67,19 @@ public final class Sweep {
          *  the grid. */
         NO_PICTURE,
 
-        /** The lot, re-fetching what is already there. */
+        /**
+         * The lot, including games this app has already scraped.
+         *
+         * <b>It no longer re-fetches what is there.</b> Nothing does: a scrape
+         * fills gaps and never overwrites, so this differs from {@link
+         * #NOT_SCRAPED} only in also revisiting games that already carry a
+         * provider's name - which is worth having when a source has been added
+         * to the order since the last run, and is worth nothing otherwise.
+         *
+         * Kept rather than removed because people have used it, and because
+         * "ask the new source about everything" is exactly what somebody wants
+         * the first time they turn a second source on.
+         */
         EVERYTHING,
     }
 
@@ -108,8 +121,9 @@ public final class Sweep {
      *
      * Folders, archives and anything without a path of its own are dropped
      * here rather than counted and then skipped - they are not games and
-     * including them would make the total a lie. A hand-edited row is
-     * <em>not</em> dropped: see {@link Tally#yours}.
+     * including them would make the total a lie. A hand-edited row is not
+     * dropped either: a scrape can only fill in what nobody has typed, so
+     * there is nothing left to protect by skipping it.
      */
     public static List<Entry> select(Context context, List<Entry> entries, Only only) {
         List<Entry> chosen = new ArrayList<>();
@@ -148,7 +162,7 @@ public final class Sweep {
     /**
      * What a run came to.
      *
-     * Five outcomes rather than a done-and-not-done pair, because five
+     * Four outcomes rather than a done-and-not-done pair, because four
      * different things happen to a collection and "212 done, 79 not" hides
      * which of them somebody needs to act on: a hundred unknown games is the
      * service's coverage, a hundred ambiguous ones is an afternoon with the
@@ -173,12 +187,9 @@ public final class Sweep {
          *  policy was {@link Conflicts#SKIP}. */
         public int ambiguous;
 
-        /** The provider had never heard of it. The ordinary outcome for much
-         *  of a Spectrum collection, and not a failure. */
+        /** No source had ever heard of it. The ordinary outcome for much of a
+         *  Spectrum collection, and not a failure. */
         public int unknown;
-
-        /** Left alone because somebody had typed it by hand. */
-        public int yours;
 
         /** Something went wrong for that one game and the run carried on. */
         public int failed;
@@ -221,13 +232,18 @@ public final class Sweep {
         /**
          * Which of several, from a person.
          *
-         * Only called under {@link Conflicts#ASK}, and it <b>blocks the sweep
-         * thread until somebody answers</b> - the screen posts a dialog and
-         * waits on a latch. There is deliberately no timeout: a run that
-         * skipped a game because nobody was looking would be worse than one
-         * that waits, and Cancel is right there.
+         * {@code sourceName} because more than one service is asked about each
+         * game now, and "choose one of these five" without saying who is
+         * asking is a question with a fact missing - the same file matches
+         * differently at each service, and which one is offering these five is
+         * part of judging them.
+         *
+         * Called under {@link Conflicts#ASK} only, and it <b>blocks the sweep
+         * thread until somebody answers</b>. There is deliberately no timeout:
+         * a run that skipped a game because nobody was looking would be worse
+         * than one that waits, and Cancel is right there.
          */
-        Choice chooseFrom(List<Candidate> found, String game);
+        Choice chooseFrom(String sourceName, List<Candidate> found, String game);
     }
 
     /**
@@ -267,38 +283,27 @@ public final class Sweep {
 
     // --- the run --------------------------------------------------------------------
 
-    /** How many times a game whose failure is worth waiting out is tried. */
-    private static final int ATTEMPTS = 3;
-
-    /** Between attempts, multiplied by which attempt this is: two seconds,
-     *  then four. A thread limit clears in about that; longer would make a
-     *  wobble halfway through a collection cost minutes. */
-    private static final long BACKOFF_MS = 2000;
-
-    /** How often the back-off looks up to see whether Cancel was pressed.
-     *  Sleeping the whole two seconds would make Cancel appear broken. */
-    private static final long CANCEL_POLL_MS = 200;
-
     /**
-     * Scrapes every game in {@code entries}, one at a time.
+     * Scrapes every game in {@code entries}, one at a time, against every
+     * source in turn.
      *
-     * Runs until it finishes, is cancelled, or meets something there is no
-     * point carrying on past. Whichever of the three happened is in the
-     * {@link Tally}, which is always returned and never null.
+     * Runs until it finishes, is cancelled, or every source has run out.
+     * Whichever of the three happened is in the {@link Tally}, which is
+     * always returned and never null.
      *
      * @param entries what {@link #select} handed back
      */
-    public static Tally run(Context context, Provider provider, Http http,
+    public static Tally run(Context context, List<Provider> sources, Http http,
                             List<Entry> entries, Provider.Wanted wanted,
                             Conflicts conflicts, Watcher watcher) {
         Tally tally = new Tally();
         tally.total = entries.size();
 
-        // The cost of one game, and so how much has to be left before there
-        // is any point starting another. Only the provider can answer it: a
-        // ScreenScraper cover is a mediaJeu.php call and costs one, a ZXInfo
-        // cover is a static file and costs nothing.
-        int perGame = provider.costPerGame(wanted);
+        // Sources are dropped as they run out, so this shrinks. A quota or a
+        // refused password is every remaining game for *that* service and
+        // nothing at all for the others - ZXInfo has no allowance to spend.
+        List<Provider> live = new ArrayList<>(sources);
+        ScrapeException last = null;
 
         for (Entry entry : entries) {
             if (watcher.cancelled()) {
@@ -306,22 +311,25 @@ public final class Sweep {
                 return tally;
             }
 
-            if (spent(provider, perGame)) {
-                tally.stopped = new ScrapeException(
+            dropTheSpent(live, wanted);
+
+            if (live.isEmpty()) {
+                tally.stopped = last != null ? last : new ScrapeException(
                         ScrapeException.Kind.QUOTA_EXCEEDED,
-                        "the day's allowance is down to "
-                        + provider.quota().left() + ", and a game costs " + perGame);
+                        "every source is out of allowance");
                 return tally;
             }
 
             watcher.at(tally.done, tally.total, entry.name);
 
-            try {
-                conflicts = one(context, provider, http, entry, wanted, conflicts,
-                                watcher, tally);
-            } catch (ScrapeException fatal) {
-                tally.stopped = fatal;
-                return tally;
+            Outcome outcome = one(context, live, http, entry, wanted, conflicts, watcher, tally);
+            conflicts = outcome.conflicts;
+
+            for (Blend.Failure failure : outcome.failures) {
+                if (isHopeless(failure.why)) {
+                    last = failure.why;
+                    drop(live, failure.source);
+                }
             }
 
             tally.done++;
@@ -331,38 +339,31 @@ public final class Sweep {
     }
 
     /**
-     * Whether there is definitely not enough allowance left for another game.
+     * What one game came to, beyond the tally: which sources refused, so the
+     * run can drop them.
      *
-     * <b>Asked rather than waited for.</b> ScreenScraper does not refuse when
-     * an account is over its allowance - forcing the counter to 100000 against
-     * an allowance of 10000 still answered 200 with a real candidate - so the
-     * counters it puts in every reply are the only warning there is, and a run
-     * that waited to be refused would simply never be.
-     *
-     * Unknown does not stop anything. {@link Quota#left} answers -1 before the
-     * first reply and whenever the service did not say, and refusing to try on
-     * a guess is worse than one refused request.
+     * A holder rather than a field on {@code Sweep} itself - a static mutable
+     * is exactly the trap {@code Pace} documents, and {@link #run} is called
+     * from one thread at a time only by convention, not by anything that
+     * enforces it.
      */
-    private static boolean spent(Provider provider, int perGame) {
-        Quota quota = provider.quota();
-        if (quota == null) return false;
-
-        int left = quota.left();
-        return left >= 0 && left < perGame;
+    private static final class Outcome {
+        Conflicts conflicts;
+        List<Blend.Failure> failures = Collections.emptyList();
     }
 
     /**
-     * One game, returning the conflict policy the rest of the run should use -
-     * which is the one it was given, unless somebody asked to stop being
-     * asked.
+     * One game, against every source still live.
      *
-     * @throws ScrapeException only for the kinds there is no point carrying on
-     *                         past; everything else is counted in the tally
+     * @return what happened, so {@link #run} can carry the conflict policy
+     *         forward and drop whichever sources just refused
      */
-    private static Conflicts one(Context context, Provider provider, Http http,
-                                 Entry entry, Provider.Wanted wanted,
-                                 Conflicts conflicts, Watcher watcher, Tally tally)
-            throws ScrapeException {
+    private static Outcome one(Context context, List<Provider> live, Http http,
+                               Entry entry, Provider.Wanted wanted, Conflicts conflicts,
+                               Watcher watcher, Tally tally) {
+        Outcome outcome = new Outcome();
+        outcome.conflicts = conflicts;
+
         String path = Metadata.relativePath(context, entry.uri);
 
         if (path == null) {
@@ -370,156 +371,119 @@ public final class Sweep {
             // under the run. One game's worth of nothing, not a reason to
             // stop.
             tally.failed++;
-            return conflicts;
+            return outcome;
         }
 
-        // Before the search, not after: the check is local, and asking the
-        // service about a game whose answer is going to be thrown away would
-        // spend the allowance on nothing.
-        if (Scrape.wouldOverwriteAHandEdit(context, path)) {
-            tally.yours++;
-            return conflicts;
-        }
-
-        List<Candidate> found;
-
-        try {
-            found = attempt(() -> Scrape.candidates(context, provider, entry, path), watcher);
-        } catch (ScrapeException e) {
-            return carryOnOrStop(e, tally, conflicts);
-        }
-
-        if (found.isEmpty()) {
-            tally.unknown++;
-            return conflicts;
-        }
-
-        Candidate chosen;
-
-        if (Scrape.certain(found)) {
-            chosen = found.get(0);
-        } else {
-            switch (conflicts) {
+        Blend.Chooser chooser = (sourceName, found, game) -> {
+            switch (outcome.conflicts) {
                 case BEST:
-                    chosen = found.get(0);
-                    break;
+                    return found.get(0);
 
                 case ASK:
-                    Choice choice = watcher.chooseFrom(found, entry.name);
-                    if (choice.stopAsking) conflicts = Conflicts.SKIP;
-                    chosen = choice.candidate;
-                    break;
+                    Choice choice = watcher.chooseFrom(sourceName, found, game);
+                    if (choice.stopAsking) outcome.conflicts = Conflicts.SKIP;
+                    return choice.candidate;
 
                 case SKIP:
                 default:
-                    chosen = null;
-                    break;
+                    return null;
             }
+        };
+
+        Blend.Result result = Blend.run(context, live, http, entry, path, wanted,
+                                        Blend.Media.FILL_GAPS, chooser,
+                                        watcher::cancelled);
+
+        if (watcher.cancelled()) {
+            // Cancellation reaching Blend mid-back-off surfaces as a
+            // ScrapeException in result.failures for whichever source it
+            // interrupted - the wait was cut short, not refused, and that
+            // source may well have answered on a fourth try that never
+            // happened. Acting on it here would report a failure that never
+            // really occurred and could drop a source for nothing; only a
+            // genuine success - already written by Blend.run itself - is
+            // trusted once cancel has been seen.
+            if (!result.consulted.isEmpty()) {
+                tally.scraped++;
+                tally.media += result.installed;
+            }
+            return outcome;
         }
 
-        if (chosen == null) {
-            tally.ambiguous++;
-            return conflicts;
-        }
+        outcome.failures = result.failures;
 
-        try {
-            Downloads.Result result =
-                    attempt(() -> Scrape.apply(context, provider, http, chosen, path, wanted),
-                            watcher);
+        if (!result.consulted.isEmpty()) {
             tally.scraped++;
-            tally.media += result.saved;
-        } catch (ScrapeException e) {
-            // The facts may well have been stored before the pictures were
-            // refused - Scrape.apply writes them first on purpose - so this
-            // game is not necessarily untouched. It is still not a success.
-            return carryOnOrStop(e, tally, conflicts);
+            tally.media += result.installed;
+        } else if (!result.failures.isEmpty()) {
+            tally.failed++;
+        } else if (result.ambiguous) {
+            // Found, and nobody would say which. An afternoon with the
+            // chooser, which is a different thing to act on than a service
+            // that has never heard of the game.
+            tally.ambiguous++;
+        } else {
+            tally.unknown++;
         }
 
-        return conflicts;
+        return outcome;
     }
 
     /**
-     * Whether one game's failure is the whole run's.
+     * Drops any source that cannot afford another game.
      *
-     * The same line {@code Downloads} draws for one game's media, for the same
-     * reason and from the same enum: a spent quota or a refused password is
-     * every remaining game as well as this one, and there is no point
-     * discovering it eight hundred more times.
+     * <b>Asked rather than waited for.</b> ScreenScraper does not refuse when
+     * an account is over its allowance - forcing the counter to 100000 against
+     * an allowance of 10000 still answered 200 with a real candidate - so the
+     * counters it puts in every reply are the only warning there is.
+     *
+     * Unknown does not drop anything: {@link Quota#left} answers -1 before the
+     * first reply and whenever the service did not say, and refusing to try on
+     * a guess is worse than one refused request.
      */
-    private static Conflicts carryOnOrStop(ScrapeException e, Tally tally, Conflicts conflicts)
-            throws ScrapeException {
+    private static void dropTheSpent(List<Provider> live, Provider.Wanted wanted) {
+        for (Iterator<Provider> each = live.iterator(); each.hasNext(); ) {
+            Provider provider = each.next();
+
+            Quota quota = provider.quota();
+            if (quota == null) continue;
+
+            int left = quota.left();
+            if (left >= 0 && left < provider.costPerGame(wanted)) {
+                Log.w(TAG, provider.name() + " has " + left
+                           + " left and a game costs more; dropping it for this run");
+                each.remove();
+            }
+        }
+    }
+
+    /** Drops one source by name, for the rest of the run. */
+    private static void drop(List<Provider> live, String name) {
+        for (Iterator<Provider> each = live.iterator(); each.hasNext(); ) {
+            if (each.next().name().equals(name)) {
+                Log.w(TAG, "dropping " + name + " for the rest of the run");
+                each.remove();
+                return;
+            }
+        }
+    }
+
+    /**
+     * Whether a refusal is one that source will keep making.
+     *
+     * The same line {@code Downloads} draws for one game's media, from the
+     * same enum and for the same reason - and now drawn per source rather than
+     * per run, because one service running out says nothing about another.
+     */
+    private static boolean isHopeless(ScrapeException e) {
         switch (e.kind) {
             case QUOTA_EXCEEDED:
             case BAD_CREDENTIALS:
             case CLOSED:
             case NOT_CONFIGURED:
-                throw e;
-
+                return true;
             default:
-                Log.w(TAG, "carrying on past " + e.kind, e);
-                tally.failed++;
-                return conflicts;
-        }
-    }
-
-    // --- backing off ------------------------------------------------------------------
-
-    /** One request, so that {@link #attempt} can retry either half of a
-     *  scrape without knowing which it is holding. */
-    private interface Step<T> {
-        T run() throws ScrapeException;
-    }
-
-    /**
-     * Runs one step, waiting out the failures that are worth waiting out.
-     *
-     * Only the two {@link ScrapeException#worthWaiting} kinds are retried. A
-     * thread limit is the ordinary reason a loop this shape stumbles and
-     * clears by itself in a second or two; a network that went away often
-     * comes back. Everything else is thrown at once, because trying a refused
-     * password three times is three refusals.
-     *
-     * Retried per step rather than per game deliberately: a fetch that failed
-     * after its search succeeded is re-fetched, not re-searched, or the
-     * retry would cost an extra request against the day's allowance every
-     * time.
-     */
-    private static <T> T attempt(Step<T> step, Watcher watcher) throws ScrapeException {
-        ScrapeException last = null;
-
-        for (int attempt = 1; attempt <= ATTEMPTS; attempt++) {
-            if (attempt > 1 && !pause(BACKOFF_MS * (attempt - 1), watcher)) break;
-
-            try {
-                return step.run();
-            } catch (ScrapeException e) {
-                if (!e.worthWaiting()) throw e;
-
-                Log.w(TAG, "attempt " + attempt + " of " + ATTEMPTS + " met " + e.kind);
-                last = e;
-            }
-        }
-
-        throw last;
-    }
-
-    /** Waits, looking up often enough that Cancel still means something.
-     *  False if it was cancelled or interrupted, in which case the caller
-     *  should stop rather than try again. */
-    private static boolean pause(long millis, Watcher watcher) {
-        long until = SystemClock.uptimeMillis() + millis;
-
-        while (SystemClock.uptimeMillis() < until) {
-            if (watcher.cancelled()) return false;
-
-            try {
-                Thread.sleep(CANCEL_POLL_MS);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
                 return false;
-            }
         }
-
-        return !watcher.cancelled();
     }
 }

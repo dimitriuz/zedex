@@ -18,10 +18,9 @@ import java.util.List;
  *
  * Everything between "this row" and "the store and the media folder have it":
  * turning an {@link Entry} into something a provider can be asked about,
- * asking, writing what comes back. What is <em>not</em> here is any decision a
- * person has to make - which of several candidates, whether to overwrite a
- * hand edit - because those need a screen and this needs to be testable
- * without one.
+ * asking, writing what comes back. What is <em>not</em> here is the one
+ * decision a person still has to make - which of several candidates -
+ * because that needs a screen and this needs to be testable without one.
  *
  * So the shape is deliberately two calls: {@link #candidates} answers with
  * what was found, the caller decides, and {@link #apply} writes the one that
@@ -107,19 +106,6 @@ public final class Scrape {
      */
     static Meta owned(Meta from, String path, String providerName) {
         return from.but().path(path).source(providerName).build();
-    }
-
-    /**
-     * Whether this row already carries something a person typed.
-     *
-     * Asked before a scrape overwrites it. Rare, and the case where losing
-     * work is most annoying, so it earns a confirmation rather than a silent
-     * replacement - the hand editor shipped for exactly the corrections this
-     * would discard.
-     */
-    public static boolean wouldOverwriteAHandEdit(Context context, String path) {
-        Meta existing = Metadata.forPath(context, path);
-        return existing != null && existing.isMine();
     }
 
     // --- turning a row into a question ------------------------------------------------

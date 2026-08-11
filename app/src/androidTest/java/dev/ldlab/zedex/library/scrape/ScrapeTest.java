@@ -36,9 +36,9 @@ import java.util.List;
  * The part of a scrape that needs no screen: what is certain, what is written,
  * and who ends up owning it.
  *
- * The decisions a person makes - which of several candidates, whether to
- * replace a hand edit - live in {@code ScrapeOneGame} because they need a
- * dialog. Everything else is here, which is what makes it checkable.
+ * The one decision a person still makes - which of several candidates - lives
+ * in {@code ScrapeOneGame} because it needs a dialog. Everything else is
+ * here, which is what makes it checkable.
  *
  * The bench's real store is moved aside and put back: it is somebody's whole
  * scraped collection.
@@ -195,47 +195,6 @@ public class ScrapeTest {
         assertFalse("two certain answers are not one certain answer",
                     Scrape.certain(Arrays.asList(exact("A"), exact("B"))));
         assertFalse(Scrape.certain(Collections.emptyList()));
-    }
-
-    // --- somebody's own work ------------------------------------------------------------
-
-    /**
-     * A hand-edited row is noticed before it is replaced.
-     *
-     * Rare, and the case where losing work is most annoying: the editor
-     * shipped so that a wrong scrape could be corrected, and a scrape that
-     * silently undid the correction would make the pair of features fight.
-     */
-    @Test
-    public void ahandEditedRowIsRecognisedBeforeBeingOverwritten() {
-        Metadata.put(context,
-                     Meta.at(PATH).name("What I called it").source(Meta.USER).build());
-        Metadata.refresh(context);
-
-        assertTrue(Scrape.wouldOverwriteAHandEdit(context, PATH));
-    }
-
-    /** A scraped row is not somebody's work, so re-scraping it asks nothing. */
-    @Test
-    public void ascrapedRowIsNotTreatedAsSomebodysWork() {
-        Metadata.put(context, Scrape.owned(fromProvider(), PATH, "ScreenScraper"));
-        Metadata.refresh(context);
-
-        assertFalse(Scrape.wouldOverwriteAHandEdit(context, PATH));
-    }
-
-    /** Nor is an ES-DE row, nor a game nothing is known about. */
-    @Test
-    public void neitherIsAnEsDeRowOrAnUnknownGame() {
-        assertFalse("a game nothing is known about",
-                    Scrape.wouldOverwriteAHandEdit(context, PATH));
-
-        Metadata.replaceScraped(context, Collections.singletonList(
-                Meta.at(PATH).name("Theirs").source(Meta.ESDE).build()));
-        Metadata.refresh(context);
-
-        assertFalse("an ES-DE row is not somebody's own work",
-                    Scrape.wouldOverwriteAHandEdit(context, PATH));
     }
 
     // --- what a scrape costs -------------------------------------------------------------

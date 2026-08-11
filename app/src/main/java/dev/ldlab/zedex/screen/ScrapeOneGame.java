@@ -25,10 +25,9 @@ import java.util.List;
  * Scraping one game, with the parts that need a person.
  *
  * {@code Scrape} does everything that does not - build the question, ask it,
- * write the answer - and stops short of every decision: which of several
- * candidates, and whether to replace something typed by hand. Those need a
- * screen, so they are here, and keeping them apart is what lets the rest be
- * tested without one.
+ * write the answer - and stops short of the one decision left: which of
+ * several candidates. That needs a screen, so it is here, and keeping it
+ * apart is what lets the rest be tested without one.
  *
  * The whole thing is one pass off the UI thread. A search is a round trip to
  * France and each picture is another - a cover is a {@code mediaJeu.php} call
@@ -50,9 +49,7 @@ final class ScrapeOneGame {
      * The whole of it, from a selected row.
      *
      * Everything that can stop it does so before any work: no provider, no
-     * path of its own. The hand-edit question is asked before the search
-     * rather than after, so nobody waits for a lookup only to be told the
-     * result will be thrown away.
+     * path of its own.
      */
     void scrape(Entry entry) {
         List<Provider> sources = Scrapers.enabled(activity);
@@ -61,16 +58,6 @@ final class ScrapeOneGame {
 
         String path = Metadata.relativePath(activity, entry.uri);
         if (path == null) return;
-
-        if (Scrape.wouldOverwriteAHandEdit(activity, path)) {
-            new AlertDialog.Builder(activity, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                    .setMessage(R.string.scrape_overwrite)
-                    .setPositiveButton(R.string.scrape_menu,
-                                       (dialog, which) -> look(provider, entry, path))
-                    .setNegativeButton(android.R.string.cancel, null)
-                    .show();
-            return;
-        }
 
         look(provider, entry, path);
     }
