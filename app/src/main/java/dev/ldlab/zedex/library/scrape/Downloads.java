@@ -76,13 +76,6 @@ public final class Downloads {
         return (folder, extension) -> Artwork.fileFor(context, relativePath, folder, extension);
     }
 
-    /** The staging area, for media that will be chosen between before any of
-     *  them is kept. */
-    public static Destination staging(Context context, String relativePath) {
-        return (folder, extension) ->
-                Artwork.stagingFileFor(context, relativePath, folder, extension);
-    }
-
     /**
      * Fetches every medium for one game into {@code destination}.
      *

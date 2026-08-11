@@ -14,6 +14,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
 import android.content.Context;
+import android.net.Uri;
 
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -235,6 +236,48 @@ public class BlendTest {
 
         assertEquals(Collections.singletonList("Game.tap"), first.searched);
         assertEquals(Collections.singletonList("Manic Miner"), second.searched);
+    }
+
+    /**
+     * A game already named in the store - by an ES-DE link, a hand edit, or
+     * an earlier source this same run - is still asked by hash, not by name
+     * alone.
+     *
+     * {@code known.name} is set the moment anything has named the game, so
+     * the very first source in the loop takes the title path exactly as much
+     * as a later one does. {@code byTitle} used to answer {@code md5()} with
+     * a bare {@code null}, which meant no source could ever answer {@code
+     * exact} for a game that already had a name - every ES-DE-linked row,
+     * every re-run under {@code Only.EVERYTHING} - and identification fell
+     * back to a title comparison the default chooser could not resolve.
+     *
+     * Mutation-checked: reverting {@code Blend.byTitle}'s {@code md5()} to
+     * {@code return null} turns this red; restored afterwards.
+     */
+    @Test
+    public void asourceIsOfferedTheHashEvenWhenTheGameAlreadyHasAName() throws IOException {
+        File file = new File(context.getCacheDir(), "blend-hash-test.tap");
+        write(file, "fixed bytes to hash");
+
+        try {
+            Entry entry = new Entry(Entry.Kind.FILE, "Game.tap", Uri.fromFile(file),
+                                    null, file.length(), 0);
+
+            Metadata.put(context, Meta.at(PATH).name("Manic Miner").source(Meta.ESDE).build());
+
+            Fakes.Fake only = new Fakes.Fake("Only");
+
+            Blend.run(context, Collections.singletonList(only), new Fakes.NoHttp(),
+                     entry, PATH, Provider.Wanted.nothing(), Blend.Media.FILL_GAPS,
+                     new NeverAsked(), () -> false);
+
+            assertEquals(1, only.md5Asked.size());
+            assertNotNull("byTitle must still offer the hash to a source asked by "
+                          + "title - a source that can match on it should be able to",
+                          only.md5Asked.get(0));
+        } finally {
+            file.delete();
+        }
     }
 
     /** One guess whose title is the known one needs nobody. */

@@ -69,7 +69,7 @@ Three predicates read it, each generalised so its present meaning survives:
 | `isMine()` — did somebody type this? | `source == "user"` | `"user"` is **among** the contributors |
 | `Sweep.Only.NOT_SCRAPED` | `isEsde() \|\| isMine()` | nothing has scraped it, **or** a person has since hand-edited it — `isMine()` counts even with a provider's name also on the row |
 
-`Meta.with(Field, value)` prepends `"user"` rather than replacing the whole
+`Meta.with(Field, value)` appends `"user"` rather than replacing the whole
 value, so a hand edit stops erasing the record of which services were asked.
 
 ### Two consequences, accepted deliberately
@@ -163,8 +163,9 @@ final class Staged {
 known = the stored row for this path, or empty
 for each source, in priority order:
     if media == FILL_GAPS and nothing left to gain: stop
-    candidates = source.search(game)      first source: the filename
-                                          later sources: known.name, when there is one
+    candidates = source.search(game)      known.name, when the row already has one -
+                                          from an earlier source this run, an ES-DE
+                                          link, or a hand edit; the filename otherwise
     chosen =  certain(candidates)                                      -> use it
            |  exactly one candidate whose title equals known.name      -> use it, no dialog
            |  chooser.choose(source, candidates)                       -> may be null: skip
@@ -206,10 +207,13 @@ had priority.
 
 **Who writes `source`.** `Blend` does, at the end of the loop: the contributors
 already on the row, in the order they are already in, then each source that
-contributed something this time and is not already listed. So `"esde"` becomes
+*answered* this time and is not already listed. So `"esde"` becomes
 `"esde, ZXInfo"`, and a hand-edited row stays `"user, …"` with the new source
-appended. A source consulted that contributed nothing is not listed — the field
-records who wrote something, not who was asked.
+appended. A source consulted but that contributed nothing is listed too, the
+same as one that changed a field — telling "never heard of it" apart from
+"answered with nothing new" is worth keeping, and collapsing them into one
+list would lose it. `BlendTest.asourceThatAnswersWithNothingIsStillListed`
+pins this.
 
 ### The merge
 

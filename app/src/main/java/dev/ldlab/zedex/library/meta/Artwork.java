@@ -456,8 +456,12 @@ public final class Artwork {
      * a downloaded screen dump is converted to a picture in a picture
      * folder, so it is a picture extension by the same reasoning, not a
      * new kind of file.
+     *
+     * Public because {@code Blend.existing} reads it too, for the same
+     * reason this method exists at all: a second, hand-kept list there would
+     * be exactly the duplication this one was written to avoid.
      */
-    private static String[] allExtensions() {
+    public static String[] allExtensions() {
         List<String> extensions = new ArrayList<>();
         Collections.addAll(extensions, PICTURE_EXTENSIONS);
         extensions.add(VIDEO_EXTENSION);

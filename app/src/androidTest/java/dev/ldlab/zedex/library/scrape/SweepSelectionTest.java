@@ -180,7 +180,7 @@ public class SweepSelectionTest {
      * either way, since the check happens before the search.
      */
     @Test
-    public void ahandEditedRowIsOfferedSoThatTheTallyCanMentionIt() {
+    public void ahandEditedRowIsOfferedRatherThanFilteredOut() {
         Entry mine = game("Mine.tap");
         store(mine, Meta.USER);
 

@@ -377,7 +377,7 @@ public final class Blend {
 
         List<Candidate> found = title == null
                 ? Scrape.candidates(context, source, entry, path)
-                : source.search(byTitle(entry, path, title));
+                : source.search(byTitle(context, entry, path, title));
 
         if (found.isEmpty()) return new Identified(null, false);
         if (Scrape.certain(found)) return new Identified(found.get(0), true);
@@ -476,14 +476,18 @@ public final class Blend {
      * so handing them the title is all it takes.
      *
      * The hash is deliberately still offered: a later source that can match on
-     * it should, and reading it is what {@code Provider.Game} makes lazy.
+     * it should, and reading it is what {@code Provider.Game} makes lazy - so
+     * {@link #md5()} delegates to {@link Scrape#md5Of}, the same lazy read a
+     * first-source search already pays for, rather than answering null and
+     * throwing away the one thing a title search cannot offer.
      */
-    private static Provider.Game byTitle(Entry entry, String path, String title) {
+    private static Provider.Game byTitle(Context context, Entry entry, String path,
+                                         String title) {
         return new Provider.Game() {
             @Override public String path() { return path; }
             @Override public String filename() { return title; }
             @Override public long size() { return entry.size; }
-            @Override public String md5() { return null; }
+            @Override public String md5() { return Scrape.md5Of(context, entry); }
         };
     }
 
@@ -594,10 +598,15 @@ public final class Blend {
     }
 
     /** This game's file in one media folder, whatever extension it was written
-     *  with, or null. */
+     *  with, or null.
+     *
+     * {@link Artwork#allExtensions()} rather than a list of its own: that list
+     * exists precisely so nobody has to keep a second one in step with it, and
+     * a second one that drifted would make a picture the user already has
+     * invisible here - neither offered as contested nor kept, and deleted by
+     * {@link #commit}'s call to {@link Artwork#removeOthers}. */
     static File existing(Context context, String path, String folder) {
-        for (String extension : new String[] { "png", "jpg", "mp4", "pdf", "txt",
-                                               "pok", "ay" }) {
+        for (String extension : Artwork.allExtensions()) {
             File file = Artwork.fileFor(context, path, folder, extension);
             if (file.isFile() && file.length() > 0) return file;
         }

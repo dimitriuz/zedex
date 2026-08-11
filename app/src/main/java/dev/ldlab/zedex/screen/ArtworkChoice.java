@@ -5,6 +5,7 @@ import dev.ldlab.zedex.library.scrape.Blend;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.view.Gravity;
 import android.view.View;
@@ -99,6 +100,11 @@ final class ArtworkChoice {
                 })
                 .setNegativeButton(android.R.string.cancel,
                                    (dialog, which) -> onSave.take(new ArrayList<>()))
+                // Back, and a tap outside, cancel the dialog without firing
+                // either button - the spec's "Cancel discards the staging
+                // area" applies to both, or the sheet leaves a full set of
+                // downloaded media behind with no toast and no grid refresh.
+                .setOnCancelListener(dialog -> onSave.take(new ArrayList<>()))
                 .show();
     }
 
@@ -158,7 +164,7 @@ final class ArtworkChoice {
         image.setLayoutParams(new LinearLayout.LayoutParams(dp(activity, TILE_DP),
                                                             dp(activity, TILE_DP)));
         image.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        image.setImageBitmap(BitmapFactory.decodeFile(picture.getAbsolutePath()));
+        image.setImageBitmap(decode(picture, dp(activity, TILE_DP)));
         image.setContentDescription(from);
 
         image.setOnClickListener(view -> {
@@ -166,6 +172,45 @@ final class ArtworkChoice {
             mark(all, view);
         });
         return image;
+    }
+
+    /**
+     * A tile-sized bitmap, not the cover at its own resolution.
+     *
+     * Three folders times up to three sources of ~1500x2100 scraped covers,
+     * decoded synchronously while the dialog is built, is on the order of a
+     * hundred megabytes of {@code ARGB_8888} for a 128dp {@code ImageView} -
+     * the same shape of mistake {@code CLAUDE.md} records for a scrolling
+     * list of undecoded views. The same two-pass sample-then-decode {@code
+     * Thumbnails.decode} and {@code PictureCache.decodeFresh} already use,
+     * copied rather than shared because neither of those takes a bare
+     * {@code File} with no {@code Context} behind it.
+     */
+    private static Bitmap decode(File file, int targetPx) {
+        BitmapFactory.Options bounds = new BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(file.getAbsolutePath(), bounds);
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null;
+
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inSampleSize = sampleSize(bounds.outWidth, bounds.outHeight, targetPx);
+        return BitmapFactory.decodeFile(file.getAbsolutePath(), options);
+    }
+
+    /** Same reasoning as {@code Thumbnails.sampleSize} and {@code
+     *  PictureCache.sampleSize}: the largest power-of-two downsample that
+     *  still leaves at least {@code targetPx} on the shorter side, since
+     *  {@code BitmapFactory}'s own {@code inSampleSize} only understands
+     *  powers of two. */
+    private static int sampleSize(int width, int height, int targetPx) {
+        if (targetPx <= 0) return 1;
+
+        int shorter = Math.min(width, height);
+        int sample = 1;
+        while (shorter / (sample * 2) >= targetPx) {
+            sample *= 2;
+        }
+        return sample;
     }
 
     /** The picture with its source written under it. */

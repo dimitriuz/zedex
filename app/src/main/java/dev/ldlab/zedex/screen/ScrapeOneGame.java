@@ -134,6 +134,15 @@ final class ScrapeOneGame {
             return;
         }
 
+        // No configChanges on LibraryActivity, so rotating the phone mid-scrape
+        // destroys it while this worker is still running - the same hazard
+        // say() and dismiss() already guard against. Leaving the staged files
+        // rather than committing or clearing them is fine: the next
+        // OFFER_ALTERNATIVES run clears the staging area on its way in (see
+        // Artwork.clearStaging), so nothing lingers for ever, and the facts
+        // Blend.run already stored are not affected either way.
+        if (activity.isFinishing() || activity.isDestroyed()) return;
+
         ArtworkChoice.show(activity, entry.name, result.staged,
                            chosen -> commit(chosen, path, result));
     }

@@ -52,6 +52,11 @@ final class Fakes {
         final List<String> searched = new ArrayList<>();
         final List<String> fetched = new ArrayList<>();
 
+        /** What {@code game.md5()} answered, once per search - so a test can
+         *  tell whether the hash was offered at all, not just what the search
+         *  term was. */
+        final List<String> md5Asked = new ArrayList<>();
+
         /** Which folders it was asked to resolve, per fetch. */
         final List<java.util.Set<String>> wantedOf = new ArrayList<>();
 
@@ -87,6 +92,7 @@ final class Fakes {
         @Override
         public List<Candidate> search(Game game) throws ScrapeException {
             searched.add(game.filename());
+            md5Asked.add(game.md5());
             return answer.to(game);
         }
 
