@@ -17,9 +17,14 @@ import java.util.Set;
  * the machine table: written from one collection, it matched "16" inside "ZX81
  * 16K" and offered a 16K Spectrum for the third commonest value in the
  * database. So here the vocabulary is the recorded one - every genreType ZXDB
- * actually uses, 23 of them over 42,828 entries - and the test says both that
- * each known word lands where it should and that nothing outside the list can
- * reach a folder by accident.
+ * actually uses, 23 of them over the 42,828 entries that carry a genre - and
+ * the test says both that each known word lands where it should and that
+ * nothing outside the list can reach a folder by accident.
+ *
+ * That 42,828 is deliberately not the 39,666 the rest of this feature counts:
+ * of the dump's 44,215 entries, 39,666 carry a machine type and 42,828 carry a
+ * genre. See {@link Kinds}, which explains why more things have a kind than
+ * have a computer.
  */
 public class KindsTest {
 

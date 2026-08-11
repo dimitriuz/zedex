@@ -16,10 +16,14 @@ import org.junit.runner.RunWith;
 /**
  * The three rules a catalogue row is drawn by, pinned.
  *
- * All three are pure functions of one argument, and all three came out of live
- * requests in an earlier task - which is exactly why they are worth a test:
- * the measurement cost a request and cannot be repeated cheaply, and nothing
- * asserted them until now.
+ * All three are pure functions of one argument, and nothing asserted any of
+ * them until now. <b>Two of the three came out of live requests</b> - the
+ * counting cap, and the absent-availability field that {@code greyed} exists
+ * for - and those are worth a test because the measurement cost a request and
+ * cannot be repeated cheaply. The third, {@code facts}, is not a measurement
+ * at all: what a row prints under its name is a layout decision made here, and
+ * it is pinned only so that it and {@code Item.describe()} cannot quietly
+ * become the same string again.
  *
  * On a device rather than the JVM because {@link CatalogueAdapter} is a
  * {@code RecyclerView.Adapter} - loading it at all wants the real framework,

@@ -403,11 +403,14 @@ public final class CatalogueView extends FrameLayout {
      * fact - a selected row fills a pane - and this view has no selection.
      *
      * <b>Why the pad reaches this at all, rather than falling through to the
-     * view tree.</b> {@code LibraryActivity.dispatchKeyEvent} claims pad input
-     * before any view sees it, and it has to: on many pads a D-pad push arrives
-     * as a hat <em>axis</em> rather than as a key, and Android turns no axis
-     * into a focus move. Letting the keys through would leave those pads dead
-     * on this screen while working on others, which is the worst of the three
+     * view tree.</b> {@code LibraryActivity} claims pad input before any view
+     * sees it, in two places, and it has to: a literal {@code KeyEvent} is
+     * taken by {@code dispatchKeyEvent} through {@code GamepadCursor.key},
+     * and on many pads a D-pad push does not arrive as a key at all but as a
+     * hat <em>axis</em>, which reaches {@code onGenericMotionEvent} and
+     * {@code GamepadCursor.motion} - and which Android turns into no focus
+     * move whatever. Letting the keys through would leave those pads dead on
+     * this screen while working on others, which is the worst of the three
      * outcomes.
      *
      * @param direction one of {@code View.FOCUS_UP}, {@code DOWN}, {@code

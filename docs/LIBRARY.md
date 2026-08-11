@@ -21,7 +21,7 @@ The first three are three views of what you have. **Catalogue** is the one that
 is not: it browses a service — ZXInfo's ~40,000 entries, by search, by letter,
 by category or by what arrived most recently — and imports a title into the
 content folder with its cover and details already attached. It came later than
-the rest of this document (see *The catalogue tab*, below) and it is built only
+the rest of this document (see *The fourth tab: the catalogue*, below) and it is built only
 when there is a catalogue to browse, so a build with none shows three tabs and
 says nothing about a fourth.
 
@@ -152,8 +152,12 @@ before any artwork arrives, and Recents costs almost nothing because the list is
 already there. That bet paid for the tab bar and the list layout: the fourth
 tab, two pull requests later, reused both untouched. It did not pay for the pad
 — `LibraryActivity.buildPadNav`, built for a list, gained branches gated on
-`Tab.CATALOGUE` throughout (move, page, activate, back) once the catalogue tab
-arrived with a view of its own that a cursor cannot walk the same way.
+`Tab.CATALOGUE` in six of its methods (move, page, activate, back, search,
+options) once the catalogue tab arrived with a view of its own that a cursor
+cannot walk the same way. The last two are the ones somebody notices: without
+`search`, X brings the keyboard up over a field nobody can see and types into
+the library's own; without `options`, Select opens a dialog about the list
+behind the catalogue.
 
 The metadata pane, artwork and video are the second pull request, on
 `feature/library-metadata`. The layout was designed with the pane in it and

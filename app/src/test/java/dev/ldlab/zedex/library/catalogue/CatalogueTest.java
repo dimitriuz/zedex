@@ -91,10 +91,19 @@ public class CatalogueTest {
         assertFalse(page.hasMore());
     }
 
-    /** Sub-shelves count as arrival too: a page of categories and no items is
-     *  a page that worked. */
+    /**
+     * A page of categories and no items is the end of the paging, and still
+     * carries its shelves.
+     *
+     * <b>Not "sub-shelves count as arrival"</b>, which is what this was called
+     * and is the opposite of what it proves: {@link Catalogue.Page#hasMore}
+     * reads {@code items.isEmpty()} and nothing else, so a page of nothing but
+     * shelves ends the list exactly as an empty one does - which is right, and
+     * is why Categories and A-Z are one page each. What the shelves being there
+     * has to survive is the caller then <em>not</em> asking for another page.
+     */
     @Test
-    public void apageOfShelvesIsNotAnemptyPage() {
+    public void apageOfShelvesEndsThePagingAndKeepsItsShelves() {
         Catalogue.Page page = new Catalogue.Page(
                 Collections.<Catalogue.Item>emptyList(),
                 Arrays.asList(new Catalogue.Shelf("92177", "Games",

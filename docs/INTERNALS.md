@@ -997,10 +997,26 @@ The library's other three tabs are three views of what somebody has;
 `CatalogueView` is a view of what they have not. `Catalogues.any()` decides
 whether `LibraryActivity` builds the tab at all — one predicate, one question —
 and the tab is a `Tab.CATALOGUE` beside the other three, holding its own
-`CataloguePane` in the third of the window `DetailPane` takes elsewhere. Only
-two things cross the boundary: which of the two views is showing, and
-`CatalogueView.Host.imported()`, since a file that has just landed in the
-content folder is invisible to every listing keyed by path.
+`CataloguePane` in the third of the window `DetailPane` takes elsewhere. Four
+things cross the boundary, and a trim to two would delete two of them:
+
+- **which of the two views is showing** — the activity's whole share of the
+  layout question;
+- **`CatalogueView.Host.imported()`**, outward, since a file that has just
+  landed in the content folder is invisible to every listing keyed by path;
+- **Back**, inward — `catalogueView.onBack()` pops a pane, then a shelf, before
+  the activity's own stack sees the press;
+- **the folder picker's answer**, inward — a read-only content grant is
+  re-asked for at the import that needed it, and `onActivityResult` is where
+  that comes back. `LibraryActivity.onActivityResult` returns early for
+  anything but its own request code, so this forward is the only thing keeping
+  the write grant alive; deleting it makes an import on a read-only folder fail
+  silently for ever.
+
+The pad reaches in besides — `moveFocus`, `activateFocused`, `focusSearchField`
+and `releaseSearchField`, all gated on `Tab.CATALOGUE` — because the catalogue
+navigates by framework focus where the other three tabs move a selection. That
+is one mechanism arriving from one place, not four more facts crossing.
 
 **`Catalogue` is `Provider`'s opposite number, not an extension of it.** Every
 `Provider` method assumes the file already exists — `search` takes a local game,

@@ -12,6 +12,17 @@ import java.util.Locale;
  * Games ~22,000, Applications ~7,600, Compilations ~3,600, Magazines ~3,400,
  * Demoscene ~1,400, Other ~4,800.
  *
+ * <b>42,828 is not the 39,666 the rest of this feature counts, and neither is
+ * wrong.</b> They are two populations of one table: 44,215 entries in the
+ * dump, of which 39,666 carry a {@code machinetype_id} - the figure {@code
+ * /metadata/} reports and every comment about the size of the catalogue uses -
+ * and 42,828 carry a {@code genretype_id}, which is the only one that means
+ * anything here. More entries have a genre than a machine because a book, a
+ * piece of hardware or an advertisement is a kind of thing without being a
+ * kind of computer. Counted from the offline dump at github.com/zxdb/ZXDB;
+ * the coarse genre of each entry is its {@code genretypes.text} up to the
+ * colon, which is what collapses that table's 112 rows to the 23 below.
+ *
  * Three rules, all of them there to avoid repeating the machine table's
  * mistake - written from one collection, it matched "16" inside "ZX81 16K":
  *

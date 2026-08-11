@@ -299,14 +299,25 @@ public interface Catalogue {
         /**
          * Whether there is anything to download.
          *
-         * <b>Only "Available" means available.</b> Everything else is a fact
-         * worth reading - a game announced and cancelled is a real thing to
-         * find - so those rows stay on the list, greyed, with the service's
-         * own word as the reason. Judged by matching the one good value
-         * rather than by listing the bad ones, because a vocabulary that
-         * grows must not silently start reading as available: that is exactly
-         * how a substring match once offered a 16K Spectrum for every ZX81
-         * program in the database.
+         * <b>Only "Available" means available.</b> Judged by matching the one
+         * good value rather than by listing the bad ones, because a vocabulary
+         * that grows must not silently start reading as available: that is
+         * exactly how a substring match once offered a 16K Spectrum for every
+         * ZX81 program in the database.
+         *
+         * <b>This is not the greying rule, and using it as one is the defect
+         * that rule exists to prevent.</b> Everything that is not "Available"
+         * is a fact worth reading - a game announced and cancelled is a real
+         * thing to find - so those rows stay on the list, greyed, with the
+         * service's own word as the reason. But a record can state no
+         * availability at all: measured on a live reply, one row of three
+         * omitted the field entirely and it was a 2024 release, which this
+         * method answers false for, correctly, since it cannot promise there
+         * is something to download. Greying by that answer would tell somebody
+         * a game they can have is missing and give no reason, because a field
+         * was absent. The rule for the row is {@code CatalogueAdapter.greyed}
+         * - <em>stated</em> and not available - and it is a different question
+         * from this one.
          */
         public boolean available() {
             return availability != null
