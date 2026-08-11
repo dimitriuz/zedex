@@ -55,8 +55,9 @@ final class ScrapeOneGame {
      * result will be thrown away.
      */
     void scrape(Entry entry) {
-        Provider provider = Scrapers.withAccount(activity);
-        if (provider == null) return;
+        List<Provider> sources = Scrapers.enabled(activity);
+        if (sources.isEmpty()) return;
+        Provider provider = sources.get(0);
 
         String path = Metadata.relativePath(activity, entry.uri);
         if (path == null) return;

@@ -659,8 +659,8 @@ public final class CataloguePane extends FrameLayout {
      * because {@code Scrapers.all} builds real services on a real {@code
      * Http.Real} with no seam - so a {@code describe} that resolved its own
      * would make every test of it a live network call. See {@link #providerFor}
-     * for which provider is chosen and why it is never {@code
-     * Scrapers.preferred}. A null provider is not a failure here: the file is
+     * for which provider is chosen and why it is never the first of {@code
+     * Scrapers.enabled}. A null provider is not a failure here: the file is
      * imported either way and the details are the extra.
      *
      * @param file may be null - a version with nothing openable in it, which
@@ -724,15 +724,16 @@ public final class CataloguePane extends FrameLayout {
      * {@link Provider#name()} matches this pane's own {@link
      * Catalogue#name()} - or null when this build has no such provider.
      *
-     * <b>Not {@code Scrapers.preferred}.</b> {@code catalogue.item(id)} is
-     * fetched by <em>this</em> catalogue's id, from <em>this</em> catalogue's
-     * service - ZXInfo, here - and {@code Imports.describe} hands that same id
-     * straight to {@code Provider#fetch} as an already-matched candidate,
-     * which is the whole point of going through the catalogue rather than a
-     * name-and-year guess. An id is only certain against the service that
-     * issued it: {@code Scrapers.preferred} answers whichever scraper the
-     * user chose for ordinary scraping - ScreenScraper by default, since
-     * credentials are baked into the build - and handing a ZXInfo id to
+     * <b>Not the first of {@code Scrapers.enabled}.</b> {@code
+     * catalogue.item(id)} is fetched by <em>this</em> catalogue's id, from
+     * <em>this</em> catalogue's service - ZXInfo, here - and {@code
+     * Imports.describe} hands that same id straight to {@code
+     * Provider#fetch} as an already-matched candidate, which is the whole
+     * point of going through the catalogue rather than a name-and-year
+     * guess. An id is only certain against the service that issued it:
+     * {@code Scrapers.enabled} answers whichever scrapers the user chose for
+     * ordinary scraping, in whatever order - ScreenScraper first by default,
+     * since credentials are baked into the build - and handing a ZXInfo id to
      * ScreenScraper is not a lookup, it is a coincidence waiting to happen. At
      * best {@code fetch} refuses it outright (it did, every time, until this
      * was found); at worst two services that both number their entries from 1

@@ -139,7 +139,8 @@ public final class ScrapeManyActivity extends ZedexActivity {
     protected void onCreate(Bundle state) {
         super.onCreate(state);
 
-        provider = Scrapers.withAccount(this);
+        List<Provider> sources = Scrapers.enabled(this);
+        provider = sources.isEmpty() ? null : sources.get(0);
 
         String uri = getIntent().getStringExtra(EXTRA_FOLDER);
         folder = uri == null ? null : Uri.parse(uri);

@@ -2017,8 +2017,8 @@ public class SettingsActivity extends AppCompatActivity
                 scraper.setEntryValues(entries);
                 scraper.setVisible(names.size() > 1);
 
-                Provider using = Scrapers.preferred(getActivity());
-                scraper.setSummary(using == null ? "" : using.name());
+                java.util.List<Provider> using = Scrapers.enabled(getActivity());
+                scraper.setSummary(using.isEmpty() ? "" : using.get(0).name());
             }
 
             Preference scrapeMedia = findPreference(Prefs.KEY_SCRAPE_MEDIA);
