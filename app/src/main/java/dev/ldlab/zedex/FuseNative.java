@@ -50,6 +50,129 @@ public final class FuseNative {
         handler.post(() -> Toast.makeText(target, message, length).show());
     }
 
+    // --- "the disk has been modified" ---------------------------------------
+
+    /** Fuse's own {@code ui_confirm_save_t}, and these three numbers are its,
+     *  not ours - see {@code ui/ui.h}. */
+    public static final int SAVE = 0;
+    public static final int DONT_SAVE = 1;
+    public static final int CONFIRM_CANCEL = 2;
+
+    /**
+     * Whoever can put a dialog on the screen, when there is one.
+     *
+     * An {@code Activity}, in practice, and held rather than reached through
+     * {@link #context} because that is the application's and cannot host a
+     * dialog. Registered while the emulator screen is resumed and cleared when
+     * it is not, so a question asked with nothing on screen is answered rather
+     * than waited on.
+     */
+    public interface Confirmer {
+        /**
+         * On the UI thread. Puts the question up and calls {@code answer} with
+         * one of the three constants above once somebody has chosen.
+         *
+         * A callback rather than a return value because a dialog cannot answer
+         * on the thread that showed it - it is put up, and the reply arrives
+         * from a button a moment or a minute later. Answering more than once
+         * is harmless - the first reply is the one that counts, and
+         * {@code onConfirmSave} latches it so a dismissal following a button
+         * cannot turn a Save into a cancel.
+         */
+        void askAboutSaving(String message, Answer answer);
+    }
+
+    /** What a {@link Confirmer} replies with. */
+    public interface Answer {
+        void is(int choice);
+    }
+
+    private static volatile Confirmer confirmer;
+
+    public static void setConfirmer(Confirmer asking) {
+        confirmer = asking;
+    }
+
+    /**
+     * Fuse asking whether to save something it is about to throw away, called
+     * from the emulation thread.
+     *
+     * <b>This blocks that thread until somebody answers</b>, and it has to:
+     * Fuse asks in the middle of ejecting a disk and writes the file or does
+     * not according to the reply. The machine stops meanwhile, which is what
+     * the widget modal this replaces did too - it ran its own event loop over
+     * the emulated screen and would take nothing but Enter or Escape.
+     *
+     * It cannot deadlock: nothing on the UI thread waits on the emulation
+     * thread, since commands travel the other way through the queue this
+     * thread drains.
+     *
+     * <b>Cancel is the answer to everything that goes wrong</b> - no screen to
+     * ask on, a dialog outliving its activity, an interrupted wait. It is the
+     * one reply that loses nothing: the disk stays in the drive with its
+     * changes, and whoever wanted to insert another can ask again.
+     */
+    static int onConfirmSave(String message) {
+        Confirmer asking = confirmer;
+        Handler handler = ui;
+
+        if (asking == null || handler == null) return CONFIRM_CANCEL;
+
+        final int[] answer = { CONFIRM_CANCEL };
+        final java.util.concurrent.CountDownLatch answered =
+                new java.util.concurrent.CountDownLatch(1);
+
+        handler.post(() -> {
+            Confirmer still = confirmer;
+            if (still == null) {
+                answered.countDown();
+                return;
+            }
+
+            // Latched, so the first reply is the one that counts. A dialog
+            // answers twice more easily than it looks - a button both replies
+            // and dismisses, and a dismiss listener replies again - and
+            // without this the second overwrites the first, turning a Save
+            // somebody pressed into the cancel the dismissal meant.
+            final java.util.concurrent.atomic.AtomicBoolean once =
+                    new java.util.concurrent.atomic.AtomicBoolean();
+
+            try {
+                still.askAboutSaving(message, choice -> {
+                    if (!once.compareAndSet(false, true)) return;
+
+                    answer[0] = choice;
+                    answered.countDown();
+                });
+            } catch (RuntimeException e) {
+                // A Confirmer that throws must not leave the emulation thread
+                // waiting for an answer that is not coming - the machine would
+                // never run again.
+                answered.countDown();
+            }
+        });
+
+        // Polled rather than waited on outright, and the difference is a
+        // machine that never runs again: an activity destroyed while the
+        // dialog is up never answers, and a plain await() would block the
+        // emulation thread for the life of the process. The same shape, and
+        // the same reason, as ScrapeManyActivity's own chooser.
+        try {
+            while (!answered.await(ANSWER_POLL_MS, java.util.concurrent.TimeUnit.MILLISECONDS)) {
+                if (confirmer == null) return CONFIRM_CANCEL;
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return CONFIRM_CANCEL;
+        }
+
+        return answer[0];
+    }
+
+    /** How often the emulation thread looks up to see whether the screen that
+     *  was going to answer has gone. */
+    private static final long ANSWER_POLL_MS = 200;
+
     /**
      * Points the process at the folder Fuse should look in for ROMs, which it
      * searches before anywhere else. Call before {@link #start}.

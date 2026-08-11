@@ -809,4 +809,7 @@
     <string name="catalogue_similar_to">Игры вроде %1$s</string>
     <string name="catalogue_needs_write">Zedex нужно разрешение добавлять игры в %1$s.</string>
     <string name="catalogue_choose_folder">Выбрать</string>
+    <string name="disk_modified_title">Диск изменён</string>
+    <string name="disk_modified_save">Сохранить</string>
+    <string name="disk_modified_discard">Не сохранять</string>
 </resources>

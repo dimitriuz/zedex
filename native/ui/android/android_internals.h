@@ -130,6 +130,14 @@ int androidbridge_has_window( void );
    emulation thread. */
 void androidbridge_report_error( int severity, const char *message );
 
+/* Asks the person a save/discard/cancel question and waits for the answer.
+   Called on the emulation thread, which is exactly where it has to block:
+   Fuse asks this in the middle of ejecting a disk and uses the answer to
+   decide whether to write the file. Returns one of ui_confirm_save_t; on
+   anything going wrong - no activity, no Java side, an interrupted wait - it
+   answers cancel, which is the reply that loses nothing. */
+int androidbridge_confirm_save( const char *message );
+
 /* Offers the frame just drawn to whatever is recording or waiting for a
    screenshot. Does nothing, cheaply, when nothing is. Called from
    uidisplay_frame_end() on the emulation thread. */

@@ -78,3 +78,38 @@ ui_error_specific( ui_error_level severity, const char *message )
   androidbridge_report_error( severity, message );
   return 0;
 }
+
+/* --- "the disk has been modified" ------------------------------------- */
+
+/* The same argument as the error widget, and the same fix: ui/widget's
+   ui_confirm_save_specific draws a Spectrum-styled modal into the emulated
+   screen that only Enter or Escape dismisses, which on a touchscreen is a
+   dialog with no buttons anybody can press.
+
+   It is asked more often than it looks. Inserting a disk ejects the one
+   already in the drive, and drive_eject in uimedia.c asks this whenever that
+   disk is dirty - so on a .trd the game has written to, simply loading the
+   next one raises it.
+
+   The build weakens the widget's copy so this one wins, exactly as it does
+   for ui_error_specific and ui_statusbar_update. Note that widget.c's version
+   opens with a settings_current.confirm_actions check and returns "don't
+   save" when confirmations are off; that check belongs to the widget UI's own
+   idea of a confirmation, and this deliberately does not repeat it - the
+   question here is not a confirmation of something already chosen, it is the
+   only chance to keep work the machine is about to throw away. */
+
+ui_confirm_save_t
+ui_confirm_save_specific( const char *message )
+{
+  switch( androidbridge_confirm_save( message ) ) {
+
+  case UI_CONFIRM_SAVE_SAVE:     return UI_CONFIRM_SAVE_SAVE;
+  case UI_CONFIRM_SAVE_DONTSAVE: return UI_CONFIRM_SAVE_DONTSAVE;
+
+  /* Cancel for anything else, including whatever an older or newer Java side
+     might answer with: it is the reply that leaves the disk in the drive and
+     the changes in it. */
+  default:                       return UI_CONFIRM_SAVE_CANCEL;
+  }
+}

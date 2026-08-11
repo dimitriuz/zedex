@@ -994,4 +994,7 @@
     <string name="catalogue_similar_to">Games like %1$s</string>
     <string name="catalogue_needs_write">Zedex needs permission to add games to %1$s.</string>
     <string name="catalogue_choose_folder">Choose</string>
+    <string name="disk_modified_title">Disk modified</string>
+    <string name="disk_modified_save">Save</string>
+    <string name="disk_modified_discard">Discard</string>
 </resources>

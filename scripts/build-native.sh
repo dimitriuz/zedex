@@ -241,7 +241,16 @@ EOF
   # a stub that returns 0 and throws the news away; ours keeps it, so the app
   # can light a lamp when the tape or a disk is running. widget.c is the whole
   # widget framework and cannot be dropped either.
-  "$TOOLCHAIN/bin/llvm-objcopy" --weaken-symbol=ui_statusbar_update \
+  # And ui_confirm_save_specific, the third and last symbol taken from this
+  # file. The widget's version draws "… has been modified. Do you want to save
+  # it?" into the emulated screen, answerable only with Enter or Escape, which
+  # on a touchscreen is a dialog with no buttons anybody can press - and it is
+  # raised by simply loading a disk, since inserting one ejects whatever is in
+  # the drive and a .trd a game has written to is dirty. Ours asks with an
+  # Android dialog; see native/ui/android/android_ui.c.
+  "$TOOLCHAIN/bin/llvm-objcopy" \
+      --weaken-symbol=ui_statusbar_update \
+      --weaken-symbol=ui_confirm_save_specific \
       "$FUSE_BUILD/ui/widget/widget.o" "$FUSE_BUILD/android/widget_widget.o"
   FUSE_OBJS="$FUSE_OBJS android/widget_widget.o"
 

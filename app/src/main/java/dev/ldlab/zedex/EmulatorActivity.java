@@ -45,6 +45,7 @@ import dev.ldlab.zedex.view.Rows;
 import dev.ldlab.zedex.view.SpectrumKeyboardView;
 import dev.ldlab.zedex.view.SystemKeyboardView;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -860,6 +861,13 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     @Override
     protected void onResume() {
         super.onResume();
+
+        // While this screen is up it is what Fuse's "the disk has been
+        // modified" question is asked on. Registered here and dropped in
+        // onPause, so a question raised with nothing on screen is answered
+        // with cancel rather than left waiting - see FuseNative.onConfirmSave,
+        // which is blocking the emulation thread while it waits.
+        FuseNative.setConfirmer(this::askAboutSavingDisk);
 
         // Back from Settings, which may have changed the language. This screen
         // handles locale changes itself rather than being recreated for them
@@ -1815,6 +1823,10 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         super.onPause();
         machine.remember();
 
+        // Whatever Fuse is waiting to be told, it is not going to be told it
+        // here - and the emulation thread is blocked until somebody says so.
+        FuseNative.setConfirmer(null);
+
         InputManager input = getSystemService(InputManager.class);
         if (input != null) input.unregisterInputDeviceListener(devices);
 
@@ -2088,4 +2100,41 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         return gamepad.motion(event) || super.onGenericMotionEvent(event);
     }
 
+    /**
+     * Fuse asking whether to save something it is about to throw away.
+     *
+     * On the UI thread, with the emulation thread stopped inside
+     * {@code FuseNative.onConfirmSave} until this answers - so every path out
+     * of here has to answer, including the ones nobody presses a button on.
+     * Dismissing with Back, or a tap outside, is a cancel, which is the reply
+     * that leaves the disk in the drive with its changes.
+     *
+     * The message is Fuse's own and already says which drive and what happened
+     * ("Beta disk A: has been modified. Do you want to save it?"); it arrives
+     * in English because it is Fuse's string rather than ours, and it is shown
+     * as the body under a title of ours. Rewriting it here would mean parsing
+     * a sentence for a drive name, which is a worse bargain than one English
+     * line inside a dialog whose buttons are translated.
+     */
+    private void askAboutSavingDisk(String message, FuseNative.Answer answer) {
+        if (isFinishing() || isDestroyed()) {
+            answer.is(FuseNative.CONFIRM_CANCEL);
+            return;
+        }
+
+        // A single boolean rather than a dismiss listener doing the work: the
+        // buttons dismiss the dialog too, so a listener would answer twice -
+        // harmlessly, but only because the latch ignores the second.
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(R.string.disk_modified_title)
+                .setMessage(message)
+                .setPositiveButton(R.string.disk_modified_save,
+                                   (dialog, which) -> answer.is(FuseNative.SAVE))
+                .setNegativeButton(R.string.disk_modified_discard,
+                                   (dialog, which) -> answer.is(FuseNative.DONT_SAVE))
+                .setNeutralButton(android.R.string.cancel,
+                                  (dialog, which) -> answer.is(FuseNative.CONFIRM_CANCEL))
+                .setOnCancelListener(dialog -> answer.is(FuseNative.CONFIRM_CANCEL))
+                .show();
+    }
 }

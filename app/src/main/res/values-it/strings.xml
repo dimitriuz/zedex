@@ -792,4 +792,7 @@
     <string name="catalogue_similar_to">Giochi come %1$s</string>
     <string name="catalogue_needs_write">Zedex ha bisogno del permesso per aggiungere giochi a %1$s.</string>
     <string name="catalogue_choose_folder">Scegli</string>
+    <string name="disk_modified_title">Disco modificato</string>
+    <string name="disk_modified_save">Salva</string>
+    <string name="disk_modified_discard">Scarta</string>
 </resources>

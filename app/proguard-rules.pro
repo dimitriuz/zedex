@@ -11,7 +11,10 @@
 # malformed .sna produced "libspectrum_sna_identify: unknown length" on
 # screen, and a recording came out a 274-frame GIF. Those three are onError,
 # onFrame and onScreenshot respectively, and they are the whole point of this
-# file.
+# file. onConfirmSave joined them later, and loses more than a message if it
+# goes: the emulation thread blocks inside it waiting for an answer, so a
+# renamed one is a machine that stops the first time a modified disk is
+# ejected and never starts again.
 #
 # There are two ways to get it wrong and only one of them is obvious.
 #
@@ -41,6 +44,7 @@
     static void onError(int, java.lang.String);
     static void onFrame(int, int);
     static void onScreenshot(int, int);
+    static int onConfirmSave(java.lang.String);
 }
 
 # The class itself, for the FindClass above: keeping members does not stop the

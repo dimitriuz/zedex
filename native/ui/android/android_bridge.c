@@ -866,6 +866,7 @@ static jclass native_class;
 static jmethodID on_error_method;
 static jmethodID on_frame_method;
 static jmethodID on_screenshot_method;
+static jmethodID on_confirm_save_method;
 
 /* Read every frame by the emulation thread, written by the UI thread. */
 static volatile int recording;
@@ -932,6 +933,8 @@ JNI_OnLoad( JavaVM *vm, void *reserved )
                                                  "(II)V" );
     on_screenshot_method = (*env)->GetStaticMethodID( env, native_class,
                                                       "onScreenshot", "(II)V" );
+    on_confirm_save_method = (*env)->GetStaticMethodID(
+        env, native_class, "onConfirmSave", "(Ljava/lang/String;)I" );
     (*env)->DeleteLocalRef( env, local );
   }
 
@@ -941,10 +944,11 @@ JNI_OnLoad( JavaVM *vm, void *reserved )
      callback is skipped - but the exception itself still has to go.
 
      Getting here with one means the Java side is not what this was built
-     against: renamed, or stripped. R8 would remove onError, onFrame and
-     onScreenshot given the chance, since they are package-private statics that
-     nothing in Java calls - so turning minification on needs keep rules for
-     the three of them as well as for the class and its natives. */
+     against: renamed, or stripped. R8 would remove onError, onFrame,
+     onScreenshot and onConfirmSave given the chance, since they are
+     package-private statics that nothing in Java calls - so turning
+     minification on needs keep rules for the four of them as well as for the
+     class and its natives. */
   clear_pending( env );
 
   return JNI_VERSION_1_6;
@@ -970,6 +974,56 @@ androidbridge_report_error( int severity, const char *message )
                                 (jint) severity, text );
   clear_pending( env );
   (*env)->DeleteLocalRef( env, text );
+}
+
+/* Asks Java, and waits.
+
+   Unlike the three callbacks above this one has an answer, so it blocks the
+   emulation thread inside the JNI call until Java has one. That is the point
+   rather than a cost: Fuse asks in the middle of ejecting a disk and uses the
+   reply to decide whether the file is written, so there is nothing sensible
+   to do meanwhile. The machine stops for as long as the dialog is up, which
+   is what the widget modal this replaces did too.
+
+   It cannot deadlock against our own side: nothing on the UI thread waits on
+   the emulation thread - commands go the other way, posted into the queue
+   that this thread drains - so the UI thread is always free to put the dialog
+   up and answer it.
+
+   Every failure answers cancel, including the Java side being absent, because
+   cancel is the reply that leaves the disk in the drive with its changes. */
+
+int
+androidbridge_confirm_save( const char *message )
+{
+  JNIEnv *env;
+  jstring text;
+  jint answer;
+
+  if( !native_class || !on_confirm_save_method )
+    return UI_CONFIRM_SAVE_CANCEL;
+
+  env = attached_env();
+  if( !env ) return UI_CONFIRM_SAVE_CANCEL;
+
+  /* A null message is still a real question - Fuse only ever passes one, but
+     answering cancel on a formatting slip would be a disk nobody can eject. */
+  text = androidtext_to_java( env, message ? message : "" );
+  if( !text ) { clear_pending( env ); return UI_CONFIRM_SAVE_CANCEL; }
+
+  answer = (*env)->CallStaticIntMethod( env, native_class,
+                                        on_confirm_save_method, text );
+
+  /* An exception here leaves answer undefined, so it is cleared before the
+     value is read rather than after. */
+  if( (*env)->ExceptionCheck( env ) ) {
+    clear_pending( env );
+    answer = UI_CONFIRM_SAVE_CANCEL;
+  }
+
+  (*env)->DeleteLocalRef( env, text );
+
+  return (int) answer;
 }
 
 /* --- handing frames to Android ---------------------------------------- */

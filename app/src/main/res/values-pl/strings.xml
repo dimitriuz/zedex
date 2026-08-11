@@ -809,4 +809,7 @@
     <string name="catalogue_similar_to">Gry takie jak %1$s</string>
     <string name="catalogue_needs_write">Zedex potrzebuje uprawnienia, aby dodawać gry do %1$s.</string>
     <string name="catalogue_choose_folder">Wybierz</string>
+    <string name="disk_modified_title">Dysk zmieniony</string>
+    <string name="disk_modified_save">Zapisz</string>
+    <string name="disk_modified_discard">Odrzuć</string>
 </resources>
