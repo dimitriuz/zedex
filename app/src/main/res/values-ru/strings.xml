@@ -793,6 +793,8 @@
     <string name="catalogue_search_hint">Поиск по каталогу</string>
     <string name="catalogue_empty">Здесь ничего нет.</string>
     <string name="catalogue_failed">Не удалось получить.</string>
+    <string name="catalogue_failed_network">Не удалось связаться с архивом.</string>
+    <string name="catalogue_failed_busy">Архив сейчас отклоняет запросы.</string>
     <string name="catalogue_retry">Повторить</string>
     <string name="catalogue_import">Импортировать</string>
     <string name="catalogue_versions">Другие версии…</string>

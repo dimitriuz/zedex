@@ -793,6 +793,8 @@
     <string name="catalogue_search_hint">Hledat v katalogu</string>
     <string name="catalogue_empty">Nic tu není.</string>
     <string name="catalogue_failed">Nepodařilo se načíst.</string>
+    <string name="catalogue_failed_network">Archiv se nepodařilo kontaktovat.</string>
+    <string name="catalogue_failed_busy">Archiv teď požadavky odmítá.</string>
     <string name="catalogue_retry">Zkusit znovu</string>
     <string name="catalogue_import">Importovat</string>
     <string name="catalogue_versions">Další verze…</string>

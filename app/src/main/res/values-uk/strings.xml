@@ -793,6 +793,8 @@
     <string name="catalogue_search_hint">Пошук у каталозі</string>
     <string name="catalogue_empty">Тут нічого немає.</string>
     <string name="catalogue_failed">Не вдалося отримати.</string>
+    <string name="catalogue_failed_network">Не вдалося зв\'язатися з архівом.</string>
+    <string name="catalogue_failed_busy">Архів зараз відхиляє запити.</string>
     <string name="catalogue_retry">Повторити</string>
     <string name="catalogue_import">Імпортувати</string>
     <string name="catalogue_versions">Інші версії…</string>

@@ -774,6 +774,8 @@
     <string name="catalogue_search_hint">Katalog durchsuchen</string>
     <string name="catalogue_empty">Nichts hier.</string>
     <string name="catalogue_failed">Das kam nicht an.</string>
+    <string name="catalogue_failed_network">Das Archiv war nicht erreichbar.</string>
+    <string name="catalogue_failed_busy">Das Archiv weist Anfragen gerade ab.</string>
     <string name="catalogue_retry">Erneut versuchen</string>
     <string name="catalogue_import">Importieren</string>
     <string name="catalogue_versions">Andere Versionen…</string>

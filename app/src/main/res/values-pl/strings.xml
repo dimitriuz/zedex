@@ -793,6 +793,8 @@
     <string name="catalogue_search_hint">Szukaj w katalogu</string>
     <string name="catalogue_empty">Nic tu nie ma.</string>
     <string name="catalogue_failed">Nie udało się pobrać.</string>
+    <string name="catalogue_failed_network">Nie można połączyć się z archiwum.</string>
+    <string name="catalogue_failed_busy">Archiwum odrzuca teraz żądania.</string>
     <string name="catalogue_retry">Spróbuj ponownie</string>
     <string name="catalogue_import">Importuj</string>
     <string name="catalogue_versions">Inne wersje…</string>

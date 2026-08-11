@@ -774,6 +774,8 @@
     <string name="catalogue_search_hint">Buscar en el catálogo</string>
     <string name="catalogue_empty">No hay nada aquí.</string>
     <string name="catalogue_failed">No se ha recibido.</string>
+    <string name="catalogue_failed_network">No se ha podido conectar con el archivo.</string>
+    <string name="catalogue_failed_busy">El archivo está rechazando peticiones ahora mismo.</string>
     <string name="catalogue_retry">Reintentar</string>
     <string name="catalogue_import">Importar</string>
     <string name="catalogue_versions">Otras versiones…</string>

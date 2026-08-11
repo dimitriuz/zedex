@@ -49,8 +49,8 @@ import java.util.List;
  * catalogue item has none of the four. What is shared is the <em>appearance</em>
  * and the position: the same third of the window, beside the list in landscape
  * and beneath it in portrait, the same cover box over the same facts over the
- * same row of buttons. See the plan's "Two places this plan differs from the
- * spec".
+ * same row of buttons. See the plan's "Three places this plan differs from the
+ * spec", of which this is the second.
  *
  * <b>It is not always there, and that is the one deliberate difference.</b>
  * {@link DetailPane} is present whether or not anything is selected, because
@@ -65,13 +65,23 @@ import java.util.List;
  * a {@link Catalogue.Item} with an empty {@link Catalogue.Item#versions()} and
  * why the three buttons cannot be laid out until the answer lands.
  *
- * <b>The cover is the row's own 140dp thumbnail, at the row's own size.</b>
- * {@link Thumbnails} keys its cache on the url alone, so asking for a second
- * size would hand this pane a bitmap decoded for a row and call it a hit - see
- * {@link CatalogueAdapter}'s class comment, which records what a second size
- * would actually cost. The box here is the same {@link CatalogueAdapter#ROW_DP},
- * so a cover the list already fetched is drawn without being enlarged into
- * blur and without a second request.
+ * <b>The cover is the row's own 140dp thumbnail, and there is no second decode
+ * size.</b> {@link Thumbnails} keys its cache on the url alone, so asking for a
+ * second size would hand this pane a bitmap decoded for a row and call it a hit
+ * - see {@link CatalogueAdapter}'s class comment, which records what a second
+ * size would actually cost. So a cover the list already fetched is drawn
+ * without a second request.
+ *
+ * <b>Only in landscape is the box also that size.</b> The tall narrow pane
+ * gives its cover exactly {@link CatalogueAdapter#ROW_DP}, so the bitmap is
+ * drawn at the size it was decoded for. The wide portrait pane cannot: it
+ * splits its width two-against-three with the words and gives the box {@code
+ * MATCH_PARENT} height, which on any ordinary phone is more than 140dp - so a
+ * 140dp bitmap is scaled up, and a cover there is softer than the one beside
+ * the same picture in landscape. Deliberate, and the cheaper of the two: the
+ * alternative is a second decode of every cover somebody opens, keyed by a
+ * cache that has no room for a size in its key. {@code FIT_CENTER} keeps the
+ * proportions, so what it costs is sharpness and nothing else.
  *
  * <b>The write grant is asked for here and nowhere else.</b> A content folder
  * chosen before this feature existed is granted read-only - measured, {@code
@@ -182,9 +192,30 @@ public final class CataloguePane extends FrameLayout {
      */
     private Runnable pending;
 
-    /** Set while an import is running, so a second tap on the button does not
-     *  start a second download of the same file. */
+    /**
+     * Set while an import is running, so a second tap on the button does not
+     * start a second download of the same file.
+     *
+     * <b>An import outlives the pane's idea of what it is showing, so this is
+     * not cleared by {@link #show}.</b> It was, and that turned "a second tap
+     * cannot start a second import" into "a second tap on the same title
+     * cannot": tapping another row and coming back cleared this while the
+     * first {@link Work#alone} was still downloading, and the second one raced
+     * it to {@code Tree.find} and {@code Tree.write}. Both find nothing, both
+     * create, and SAF makes {@code HeadOverHeels (1).tzx} beside {@code
+     * HeadOverHeels.tzx} - the exact outcome {@code Imports} finds-before-it-
+     * creates to avoid. Cleared by {@link #importFinished} instead, before its
+     * own token check, since an import that has finished has finished whoever
+     * is looking.
+     */
     private boolean importing;
+
+    /**
+     * What {@link #status} was told while {@link #importing} - kept only so
+     * that an import finishing under a pane that has moved on can take its own
+     * line away without touching whatever the new title put there.
+     */
+    private String importingLine;
 
     /**
      * Builds the whole pane, in whichever of its two shapes.
@@ -336,7 +367,11 @@ public final class CataloguePane extends FrameLayout {
 
         showing = null;
         pending = null;
-        importing = false;
+
+        // importing is deliberately not cleared here - see its own comment.
+        // The line about it is carried across so that somebody who tapped
+        // another row mid-import can still see one is running, which is also
+        // the answer to why the Import button on this new title does nothing.
 
         title.setText(item.title());
         facts.setText(factsLine(item));
@@ -346,7 +381,7 @@ public final class CataloguePane extends FrameLayout {
         availability.setVisibility(stated ? View.VISIBLE : View.GONE);
 
         // Hidden until the answer says which of them this title can offer.
-        say(null);
+        say(importing ? importingLine : null);
         chooseButton.setVisibility(View.GONE);
         importButton.setVisibility(View.GONE);
 
@@ -558,7 +593,14 @@ public final class CataloguePane extends FrameLayout {
      *             an import of nothing.
      */
     private void beginImport(Catalogue.Item item, Catalogue.Download file, boolean recording) {
-        if (importing) return;
+        // One at a time, whichever title started it - two imports racing each
+        // other into the same folder is how SAF comes to write a second copy
+        // under a "(1)" name. Said rather than silently ignored: a button that
+        // does nothing is a button that looks broken.
+        if (importing) {
+            say(importingLine);
+            return;
+        }
 
         if (file == null) {
             say(getContext().getString(R.string.catalogue_nothing_to_get));
@@ -572,8 +614,9 @@ public final class CataloguePane extends FrameLayout {
         }
 
         importing = true;
+        importingLine = getContext().getString(R.string.catalogue_importing, item.title());
         chooseButton.setVisibility(View.GONE);
-        say(getContext().getString(R.string.catalogue_importing, item.title()));
+        say(importingLine);
 
         int forThis = token;
         Context context = getContext().getApplicationContext();
@@ -649,21 +692,35 @@ public final class CataloguePane extends FrameLayout {
      * writing {@code HeadOverHeels (1).tzx} beside the first - which is how a
      * collection acquires four of everything and how somebody comes to think
      * the first import failed.
+     *
+     * <b>{@link #importing} is cleared before the token check.</b> It says
+     * whether an import is running, which is a fact about this pane and not
+     * about whichever title it happens to be showing - leaving it set because
+     * somebody tapped another row would lock the button for the rest of the
+     * session.
      */
     private void importFinished(int forThis, Imports.Result result, boolean recording) {
         boolean landed = result != null && result.failure == null && result.documentUri != null;
 
         if (landed) host.imported();
 
-        if (forThis != token) return;   // another title was tapped meanwhile
-
         importing = false;
 
-        if (!landed) {
-            if (result != null && result.failure != null) {
-                Log.w(TAG, "the import failed: " + result.failure.kind, result.failure);
+        if (forThis != token) {   // another title was tapped meanwhile
+            // Its own line and nothing else: whatever the new title has put
+            // there - a refusal, "nothing here the Spectrum can open" - is
+            // about the title on screen and not this pane's to take away.
+            if (importingLine != null && importingLine.contentEquals(status.getText())) {
+                say(null);
             }
-            say(getContext().getString(R.string.catalogue_failed));
+            importingLine = null;
+            return;
+        }
+
+        importingLine = null;
+
+        if (!landed) {
+            say(reasonFor(result));
             return;
         }
 
@@ -684,6 +741,46 @@ public final class CataloguePane extends FrameLayout {
             label(importButton, R.string.library_play);
             importButton.setVisibility(View.VISIBLE);
             importButton.setOnClickListener(v -> open(result.documentUri));
+        }
+    }
+
+    /**
+     * Why an import did not happen, in words rather than a shrug.
+     *
+     * Every one of these used to be {@code catalogue_failed} - "That did not
+     * arrive." - which is true of a 404 and untrue of a spent tunnel, a host
+     * turning requests away and a folder that cannot be written to. The kinds
+     * exist precisely so those are told apart: {@code Imports.refusalFor}
+     * splits a bare HTTP refusal by status for this reason and nothing was
+     * reading the answer. The same shape and the same four branches as {@code
+     * ScrapeOneGame.reasonFor}, which is this codebase's existing way of
+     * saying it.
+     *
+     * What is left under the default is what genuinely reads the same way -
+     * a 404, a download that came up short, an archive too big to be real,
+     * a file this app cannot write - all of which mean "what arrived is not a
+     * game", and none of which asking again will fix.
+     */
+    private String reasonFor(Imports.Result result) {
+        if (result == null || result.failure == null) {
+            // The import threw something nobody anticipated; beginImport has
+            // already logged it with the stack that explains it.
+            return getContext().getString(R.string.catalogue_failed);
+        }
+
+        Log.w(TAG, "the import failed: " + result.failure.kind, result.failure);
+
+        switch (result.failure.kind) {
+            case NETWORK:
+            case THREAD_LIMIT:
+                return getContext().getString(R.string.catalogue_failed_network);
+            case CLOSED:
+            case QUOTA_EXCEEDED:
+                return getContext().getString(R.string.catalogue_failed_busy);
+            case NOT_CONFIGURED:
+                return getContext().getString(R.string.library_no_folder);
+            default:
+                return getContext().getString(R.string.catalogue_failed);
         }
     }
 
