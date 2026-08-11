@@ -1143,7 +1143,8 @@ Append to `app/src/androidTest/java/dev/ldlab/zedex/library/scrape/DownloadsTest
                 return file;
             };
 
-            Medium cover = new Medium("covers", "png", "http://example.invalid/cover.png", null);
+            // Medium is (folder, url, extension, md5) - the url comes second.
+            Medium cover = new Medium("covers", "http://example.invalid/cover.png", "png", null);
 
             Downloads.Result result = Downloads.fetch(
                     context, new WritesBytes("a cover".getBytes()), new NoRefusals(),
@@ -1773,14 +1774,16 @@ public class BlendTest {
         Artwork.forget(path);
     }
 
-    /** A row with no uri behind it: nothing here reads bytes, because no fake
-     *  ever asks for a hash. */
+    /**
+     * A row with no document behind it.
+     *
+     * Entry is immutable and takes all six at once. The uri is null on
+     * purpose: Blend is handed the path as an argument and never resolves one
+     * itself, and the only thing that would open the document is
+     * {@code Provider.Game.md5()}, which no fake here ever asks for.
+     */
     private static Entry game(String name) {
-        Entry entry = new Entry();
-        entry.name = name;
-        entry.kind = Entry.Kind.FILE;
-        entry.size = 4096;
-        return entry;
+        return new Entry(Entry.Kind.FILE, name, null, null, 4096, 0);
     }
 
     private Blend.Result run(List<Provider> sources, Http http, Blend.Media media,
@@ -2711,8 +2714,10 @@ Append to `BlendTest.java`:
 ```java
     // --- offering alternatives ----------------------------------------------------
 
+    /** Medium is (folder, url, extension, md5) - the url comes second, which
+     *  is easy to get backwards and compiles either way. */
     private static Medium picture(String folder, String url) {
-        return new Medium(folder, "png", url, null);
+        return new Medium(folder, url, "png", null);
     }
 
     /** Nothing on disk: a picture is taken, and it is nobody's question. */
@@ -2851,7 +2856,7 @@ Append to `BlendTest.java`:
 
         Fakes.Fake only = new Fakes.Fake("Only");
         only.media = Collections.singletonList(
-                new Medium("covers", "jpg", "http://only/cover", null));
+                new Medium("covers", "http://only/cover", "jpg", null));
 
         Blend.Result result = run(Collections.singletonList(only), new Fakes.WritesTheUrl(),
                                   Blend.Media.OFFER_ALTERNATIVES,
@@ -3031,26 +3036,30 @@ Add to `SweepTest.java`:
      */
     @Test
     public void ahandEditedRowIsToppedUpRatherThanSkipped() {
-        Metadata.put(context, Meta.at(pathOf("A.tap"))
+        // pathOf takes an Entry, so hold the one the run is given.
+        Entry mine = game("A.tap");
+
+        Metadata.put(context, Meta.at(pathOf(mine))
                 .genre("Puzzle").contributor(Meta.USER).build());
 
         Fakes.Fake source = new Fakes.Fake("Source");
 
         Sweep.Tally tally = Sweep.run(context, Collections.singletonList(source),
-                                      new Fakes.NoHttp(), games("A.tap"),
+                                      new Fakes.NoHttp(),
+                                      Collections.singletonList(mine),
                                       Provider.Wanted.nothing(), Sweep.Conflicts.SKIP,
                                       new Watching());
 
         assertEquals(1, tally.scraped);
 
-        Meta after = Metadata.forPath(context, pathOf("A.tap"));
+        Meta after = Metadata.forPath(context, pathOf(mine));
         assertEquals("the hand-typed genre was overwritten", "Puzzle", after.genre);
         assertNotNull("nothing was filled in around it", after.publisher);
         assertTrue(after.isMine());
     }
 ```
 
-`pathOf(String)` is a helper `SweepTest` will need if it does not have one — it builds the same key `Metadata.relativePath` gives for that fixture. Read how the existing tests build their entries and mirror it.
+`SweepTest` already has `game(String)`, `games(String...)` and `pathOf(Entry)` — use them; `pathOf` takes an `Entry`, not a name.
 
 Then update every existing call in `SweepTest`: `Sweep.run(context, provider, ...)` becomes `Sweep.run(context, Collections.singletonList(provider), ...)`, `Watching.chooseFrom` gains the leading `String sourceName`, and any assertion on `tally.yours` is deleted along with the test that only asserted it.
 
