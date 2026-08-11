@@ -136,7 +136,9 @@ the first key button are its buttons. Sensitivity is a setting.
 
 Cheats for 3,682 games are built in, matched by the file's fingerprint or by
 name. Ones that take a number ask for it. Pokes of your own can be fired once or
-kept on a list; decimal, or hex after `0x`, `$` or `#`.
+kept on a list; decimal, or hex after `0x`, `$` or `#`. A scrape can add more:
+the built-in database answers first, because it matches on the file itself, and
+anything scraped tops it up rather than replacing it.
 
 
 ## Capture
@@ -226,9 +228,22 @@ the two either way.
 <a href="docs/screenshots/library-edit.jpg"><img src="docs/screenshots/library-edit.jpg" width="400" alt="Editing a game's name and description by hand"></a>
 
 Names, descriptions, artwork and manuals come from an ES-DE scrape if you have
-one — or scrape them yourself: one game from its menu, or a whole folder at a
-time, choosing which pictures you want. You can also type them in yourself, and
-scraping a game you have edited by hand says so first and waits for an answer.
+one — or scrape them yourself, one game from its menu or a whole folder at a
+time, choosing which pictures you want. *Settings › Library* picks where from
+and what to fetch.
+
+| | |
+| --- | --- |
+| **ZXInfo** | The database behind World of Spectrum. No account, nothing to set up, and its pictures are ordinary files rather than requests, so fetching them costs nothing against any allowance. Matches on the file's own hash first, which is exact, and on the name only if that misses |
+| **ScreenScraper** | Covers, screenshots, video and manuals for far more than the Spectrum. Everyone using the app shares one daily allowance, and every picture spends a piece of it — *Settings › Library › ScreenScraper username* is optional and buys a much larger one of your own |
+
+You can also type the details in yourself, and scraping a game you have edited
+by hand says so first and waits for an answer.
+
+A scrape brings more than pictures. ZXInfo carries the manual, extra pokes for
+the cheats page, and the game's own music — where somebody has ripped the AY
+tunes out of it, *Music…* plays them and puts the machine back exactly where it
+was afterwards, mid-level and mid-jump.
 
 <a href="docs/screenshots/game-details.jpg"><img src="docs/screenshots/game-details.jpg" width="400" alt="A game's page: the full description, and its cassette scan in a gallery"></a>
 <a href="docs/screenshots/manual.jpg"><img src="docs/screenshots/manual.jpg" width="400" alt="A game's manual, opened from its page"></a>
