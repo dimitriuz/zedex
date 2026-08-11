@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.library.scrape;
 
+import dev.ldlab.zedex.library.meta.Artwork;
 import dev.ldlab.zedex.library.meta.Meta;
 import dev.ldlab.zedex.library.meta.Metadata;
 import dev.ldlab.zedex.storage.Storage;
@@ -9,6 +10,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
 import android.content.Context;
@@ -24,6 +26,7 @@ import org.junit.runner.RunWith;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Collections;
@@ -294,5 +297,152 @@ public class ScrapeTest {
         Metadata.refresh(context);
 
         assertEquals(LAYOUT, Metadata.forPath(context, PATH).keymap);
+    }
+
+    // --- apply() owns the half of the guarantee Downloads gave up ---------------------
+
+    /**
+     * The happy path: a fetched cover must not stay behind a cached miss.
+     *
+     * {@code Downloads.fetch} stopped forgetting the game on its own account -
+     * see its own javadoc - so this is entirely {@code apply}'s job now, and
+     * nothing before this test called {@code apply} at all to prove it still
+     * happens.
+     */
+    @Test
+    public void applyForgetsTheGameSoAFetchedCoverIsSeen() throws Exception {
+        assertNull("nothing yet", Artwork.picture(context, PATH));   // caches the miss
+
+        try {
+            Scrape.apply(context, new FetchesOneCover(), new WritesRealBytes(),
+                        exact("Arkanoid"), PATH, Provider.Wanted.of("covers"));
+
+            assertNotNull("the miss was never forgotten, so the cover is invisible",
+                          Artwork.picture(context, PATH));
+        } finally {
+            cleanUpMedia();
+        }
+    }
+
+    /**
+     * The one that matters: a refusal partway through must not strand what
+     * already arrived behind that same cached miss.
+     *
+     * A spent quota on the second medium throws out of {@code Downloads.fetch}
+     * before it ever returns, so the old shape - forgetting only on the way
+     * to a normal return - would skip the forget entirely on exactly the path
+     * where losing the cover already paid for matters most. The mutation
+     * check in the report moves the forget back to that shape and shows this
+     * test catching it.
+     */
+    @Test
+    public void applyForgetsWhatArrivedEvenWhenARefusalCutTheRestShort() throws Exception {
+        assertNull("nothing yet", Artwork.picture(context, PATH));   // caches the miss
+
+        try {
+            try {
+                Scrape.apply(context, new FetchesTwoMediaSecondRefused(),
+                            new WritesFirstThenRefusesSecond(), exact("Arkanoid"), PATH,
+                            Provider.Wanted.of("covers", "screenshots"));
+                fail("the quota refusal should have come out");
+            } catch (ScrapeException e) {
+                assertEquals(ScrapeException.Kind.QUOTA_EXCEEDED, e.kind);
+            }
+
+            assertNotNull("the cover that did arrive was left behind a cached miss",
+                          Artwork.picture(context, PATH));
+        } finally {
+            cleanUpMedia();
+        }
+    }
+
+    /** Whatever the two tests above wrote to disk, and the cache entries they
+     *  made for {@link #PATH} - the class's other tests never touch either. */
+    private void cleanUpMedia() {
+        Artwork.fileFor(context, PATH, "covers", "png").delete();
+        Artwork.fileFor(context, PATH, "screenshots", "png").delete();
+        Artwork.forget();
+    }
+
+    /** Answers one cover for whatever it is asked, ignoring the candidate and
+     *  the wanted set - the fakes below are about apply()'s wiring, not about
+     *  what a provider decides to fetch. */
+    private static final class FetchesOneCover implements Provider {
+        @Override public String name() { return "Fake"; }
+        @Override public boolean configured() { return true; }
+        @Override public List<Candidate> search(Game game) { return null; }
+
+        @Override public Scraped fetch(Candidate candidate, Wanted wanted) {
+            return new Scraped(fromProvider(), Collections.singletonList(
+                    new Medium("covers", "https://x/cover.png", "png", null)));
+        }
+
+        @Override public Quota quota() { return Quota.unknown(); }
+        @Override public int costPerGame(Wanted wanted) { return 1; }
+
+        @Override public ScrapeException refusalFor(int status) {
+            return new ScrapeException(ScrapeException.Kind.NETWORK, "status " + status);
+        }
+    }
+
+    /** Answers two media, and maps every status to a spent quota - the status
+     *  itself does not matter here, only that {@code Downloads.stopIfHopeless}
+     *  rethrows rather than counting the second medium as one missing
+     *  picture. */
+    private static final class FetchesTwoMediaSecondRefused implements Provider {
+        @Override public String name() { return "Fake"; }
+        @Override public boolean configured() { return true; }
+        @Override public List<Candidate> search(Game game) { return null; }
+
+        @Override public Scraped fetch(Candidate candidate, Wanted wanted) {
+            return new Scraped(fromProvider(), Arrays.asList(
+                    new Medium("covers", "https://x/a.png", "png", null),
+                    new Medium("screenshots", "https://x/b.png", "png", null)));
+        }
+
+        @Override public Quota quota() { return Quota.unknown(); }
+        @Override public int costPerGame(Wanted wanted) { return 2; }
+
+        @Override public ScrapeException refusalFor(int status) {
+            return new ScrapeException(ScrapeException.Kind.QUOTA_EXCEEDED, "status " + status);
+        }
+    }
+
+    /** Writes real bytes for whatever it is asked to save - no hash to check,
+     *  since these two tests are about visibility, not about a truncated
+     *  download. */
+    private static final class WritesRealBytes implements Http {
+        @Override public Reply get(String url) { throw new UnsupportedOperationException(); }
+
+        @Override public String save(String url, File into) throws IOException {
+            File parent = into.getParentFile();
+            if (parent != null) parent.mkdirs();
+
+            try (FileOutputStream out = new FileOutputStream(into)) {
+                out.write("a cover".getBytes(StandardCharsets.UTF_8));
+            }
+            return null;
+        }
+    }
+
+    /** The first medium arrives; the second is refused with a status the fake
+     *  provider above maps to a spent quota. */
+    private static final class WritesFirstThenRefusesSecond implements Http {
+        private int calls;
+
+        @Override public Reply get(String url) { throw new UnsupportedOperationException(); }
+
+        @Override public String save(String url, File into) throws IOException {
+            if (calls++ == 0) {
+                File parent = into.getParentFile();
+                if (parent != null) parent.mkdirs();
+
+                try (FileOutputStream out = new FileOutputStream(into)) {
+                    out.write("a cover".getBytes(StandardCharsets.UTF_8));
+                }
+                return null;
+            }
+            throw new Http.Refused(429);
+        }
     }
 }
