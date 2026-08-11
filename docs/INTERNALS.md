@@ -991,6 +991,100 @@ opened - so by the time anything asks, `getAll().isEmpty()` is already false,
 and every new install would read as an update and switch the library off for
 everybody it was meant for.
 
+### The catalogue tab
+
+The library's other three tabs are three views of what somebody has;
+`CatalogueView` is a view of what they have not. `Catalogues.any()` decides
+whether `LibraryActivity` builds the tab at all — one predicate, one question —
+and the tab is a `Tab.CATALOGUE` beside the other three, holding its own
+`CataloguePane` in the third of the window `DetailPane` takes elsewhere. Four
+things cross the boundary, and a trim to two would delete two of them:
+
+- **which of the two views is showing** — the activity's whole share of the
+  layout question;
+- **`CatalogueView.Host.imported()`**, outward, since a file that has just
+  landed in the content folder is invisible to every listing keyed by path;
+- **Back**, inward — `catalogueView.onBack()` pops a pane, then a shelf, before
+  the activity's own stack sees the press;
+- **the folder picker's answer**, inward — a read-only content grant is
+  re-asked for at the import that needed it, and `onActivityResult` is where
+  that comes back. `LibraryActivity.onActivityResult` returns early for
+  anything but its own request code, so this forward is the only thing keeping
+  the write grant alive; deleting it makes an import on a read-only folder fail
+  silently for ever.
+
+The pad reaches in besides — `moveFocus`, `activateFocused`, `focusSearchField`
+and `releaseSearchField`, all gated on `Tab.CATALOGUE` — because the catalogue
+navigates by framework focus where the other three tabs move a selection. That
+is one mechanism arriving from one place, not four more facts crossing.
+
+**`Catalogue` is `Provider`'s opposite number, not an extension of it.** Every
+`Provider` method assumes the file already exists — `search` takes a local game,
+`fetch` fills a row already in the store. So browsing gets six methods of its
+own (`name`, `configured`, `shelves`, `open`, `item`, `refusalFor`), and
+`Catalogues` mirrors `Scrapers` — `all`, `preferred`, `any`, a hand-written
+registration list whose order *is* the fallback order. `ZxInfoCatalogue` is the
+one implementation; ZXInfo needs no credentials, so `configured()` is
+unconditionally true and exists only so that a catalogue which does need them can
+hide its tab rather than offer something that can only fail.
+
+**A way in is data.** `shelves()` makes no request — which is what lets it run
+on the UI thread while the tab is built — and a shelf whose children have to be
+fetched yields them as sub-shelves *inside a page*, which is how Categories and a
+twenty-seven shelf A–Z fit through a seam with a method for neither. `Query` is
+one object rather than an argument per kind, and a shelf ignores what it does not
+use.
+
+**Paging has three guards and all three are load-bearing:** without `inFlight`
+one fling sends four identical requests, without `hasMore` the end of a shelf
+asks for ever, and without a separate `failed` flag the row a failed page leaves
+behind sits exactly where the prefetch trigger fires, so every downward scroll
+re-asks the host that just refused. `abandon()` invalidates the token before it
+decides anything, and `deliver()` returns on a token mismatch before touching
+any state, so a disowned fetch can neither land under the new shelf's header nor
+clobber its paging.
+
+**A shelf nothing can end needs a bound of its own.** *Surprise me* resamples, so
+it has no total and never returns an empty page — `hasMore` would answer true for
+ever. `ZxInfoCatalogue.RANDOM_PAGES` stops it at ten pages, three hundred games,
+as a guard in `open()` returning the empty page the unpaged shelves already end
+with; `Page.hasMore` is untouched. The cost being bounded is not one request per
+fling but about thirty-one — a page is one paced API call plus up to thirty
+unpaced cover fetches, and on this shelf every draw is new, so `Thumbnails`
+misses by construction. Every other shelf has a floor already (a broad search
+334 pages, the Z shelf 57); this was the only list in the app that could be
+scrolled all night, which is the crawler shape that cost this app its address
+once. Nothing is remembered between openings, so backing out and opening the
+shelf again draws a fresh three hundred.
+
+**An import is `Imports`, not `Downloads`.** They share four verbs and no
+destination: `Downloads` writes into the app's *media* folder keyed by a game's
+relative path, this writes into the *user's* content tree through SAF. The order
+is the design — into the cache, check the stated length, unzip, and only then
+reach SAF, because SAF writes are not atomic and a half-written `.tap` is
+indistinguishable from a real one. The cache keeps nothing afterwards, including
+what a failure only got halfway through, and the extraction is capped (8 MiB, 64
+entries) because these are archives off the public internet and nothing upstream
+bounds them. Files land in `Downloaded/<kind>/`; `Tree.find` runs before
+`Tree.write`, since SAF's uniqueness is the document id and creating over an
+existing display name makes `Games (1)` rather than failing.
+
+**Writing needs a grant the app never used to take.** Every content-folder grant
+was read-only until this existed, and `takePersistableUriPermission` cannot widen
+one in place, so `CataloguePane` checks `Tree.canWrite` before an import and, if
+it cannot, names the folder, opens the picker at it, persists read *and* write,
+and then runs the import that prompted the ask. `Tree.canWrite` matches on the
+tree's document id rather than `Uri.equals`: the persisted permission holds the
+tree uri and `Storage.contentFolder()` answers a document uri built from it, so
+the two are never equal.
+
+**Details come from the catalogue's own service.** `Imports.describe` hands
+`item.id()` to `Provider.fetch` as an already-matched `Candidate`, which is the
+whole point of arriving through a catalogue rather than a name-and-year guess —
+so the provider is resolved by matching `Provider.name()` against
+`Catalogue.name()`, and where nothing matches the file is imported undescribed
+rather than described from somebody else's numbering.
+
 ### Scraping
 
 Linking to ES-DE takes what ES-DE already scraped. Scraping asks a service

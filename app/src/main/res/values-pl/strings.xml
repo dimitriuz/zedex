@@ -789,4 +789,22 @@
     <string name="suggest_apply">Zastosuj</string>
     <string name="suggest_skip">Pomiń</string>
     <string name="suggest_applied">Zastosowano</string>
+    <string name="library_tab_catalogue">Katalog</string>
+    <string name="catalogue_search_hint">Szukaj w katalogu</string>
+    <string name="catalogue_empty">Nic tu nie ma.</string>
+    <string name="catalogue_failed">Nie udało się pobrać.</string>
+    <string name="catalogue_failed_network">Nie można połączyć się z archiwum.</string>
+    <string name="catalogue_failed_busy">Archiwum odrzuca teraz żądania.</string>
+    <string name="catalogue_retry">Spróbuj ponownie</string>
+    <string name="catalogue_import">Importuj</string>
+    <string name="catalogue_versions">Inne wersje…</string>
+    <string name="catalogue_recording">Odtwórz nagranie</string>
+    <string name="catalogue_importing">Importowanie %1$s…</string>
+    <string name="catalogue_imported">Zaimportowano %1$s</string>
+    <string name="catalogue_already">%1$s jest już w bibliotece</string>
+    <string name="catalogue_nothing_to_get">Nic, co Spectrum mógłby otworzyć.</string>
+    <string name="catalogue_similar">Podobne gry</string>
+    <string name="catalogue_similar_to">Gry takie jak %1$s</string>
+    <string name="catalogue_needs_write">Zedex potrzebuje uprawnienia, aby dodawać gry do %1$s.</string>
+    <string name="catalogue_choose_folder">Wybierz</string>
 </resources>

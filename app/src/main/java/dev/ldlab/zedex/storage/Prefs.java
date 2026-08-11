@@ -187,6 +187,18 @@ public final class Prefs {
      * needs a rule per field and every conflict is silent when it goes wrong.
      */
     public static final String KEY_SCRAPER = "scraper";
+    /**
+     * Which catalogue the library browses, by its own {@code name()}.
+     *
+     * A String, and read with {@code getString} always. The same reasoning as
+     * {@link #KEY_SCRAPER} beside it, for the same reason: a name rather than
+     * an index, and absent means whichever {@code Catalogues} prefers. Nothing
+     * writes it yet - there is one catalogue - which is why it reads as a
+     * default rather than as a choice; it is declared here now so that a
+     * settings row, when there is one to add, has a key to write rather than a
+     * name invented at the point of use.
+     */
+    public static final String KEY_CATALOGUE = "catalogueProvider";
     /* How big the picture is drawn, one per orientation: the number of device
        pixels per emulated pixel, or "0" to fill the space. Stored as strings
        because a ListPreference stores strings, and separate because the two

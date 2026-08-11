@@ -953,4 +953,41 @@
     <string name="suggest_apply">Apply</string>
     <string name="suggest_skip">Skip</string>
     <string name="suggest_applied">Applied</string>
+    <!-- The catalogue tab: a fourth way into the library that browses an
+         online database rather than the phone's own folder - see
+         library/ui/CatalogueView. The shelves' own names ("Search", "A-Z",
+         "Newest") are the service's words and are not here; these are this
+         app's own. The three catalogue_failed* say which failure it was:
+         one is worth trying again now, one in a while, and the plain one
+         never - see CataloguePane.reasonFor. -->
+    <string name="library_tab_catalogue">Catalogue</string>
+    <string name="catalogue_search_hint">Search the catalogue</string>
+    <string name="catalogue_empty">Nothing here.</string>
+    <string name="catalogue_failed">That did not arrive.</string>
+    <string name="catalogue_failed_network">Could not reach the archive.</string>
+    <string name="catalogue_failed_busy">The archive is turning requests away just now.</string>
+    <string name="catalogue_retry">Try again</string>
+    <!-- The catalogue's detail pane - what one title offers, and the button
+         that brings it in; see library/ui/CataloguePane. The service's own
+         words for the kind and the availability are not here, only this app's.
+         catalogue_needs_write names the content folder because the answer is
+         "which folder" and a message that does not say which one is a question
+         nobody can answer. -->
+    <string name="catalogue_import">Import</string>
+    <string name="catalogue_versions">Other versions…</string>
+    <string name="catalogue_recording">Play the recording</string>
+    <string name="catalogue_importing">Importing %1$s…</string>
+    <string name="catalogue_imported">%1$s imported</string>
+    <string name="catalogue_already">%1$s is already in your library</string>
+    <string name="catalogue_nothing_to_get">Nothing here the Spectrum can open.</string>
+    <!-- "Games like this one": the button on the pane, and the name of the
+         shelf it opens. Two strings and not one - the button is about the
+         title in front of you and the shelf is about the games it led to, so
+         the shelf names the game it came from or its header would say the same
+         thing on every game in the database. This is the one shelf whose label
+         is translated: every other one is the service's own word. -->
+    <string name="catalogue_similar">Similar games</string>
+    <string name="catalogue_similar_to">Games like %1$s</string>
+    <string name="catalogue_needs_write">Zedex needs permission to add games to %1$s.</string>
+    <string name="catalogue_choose_folder">Choose</string>
 </resources>

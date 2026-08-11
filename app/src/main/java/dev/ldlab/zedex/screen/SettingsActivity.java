@@ -1289,9 +1289,14 @@ public class SettingsActivity extends AppCompatActivity
 
             if (request != REQUEST_CONTENT_TREE) return;
 
-            // Without this the grant dies with the activity.
+            // Without this the grant dies with the activity. Write too, now
+            // that importing a game means writing into this same folder -
+            // see Tree.canWrite; Task 11's import flow re-asks when an
+            // existing grant is read-only, since a grant already taken
+            // cannot be upgraded in place.
             Storage.keepAccessTo(getActivity(), tree,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
 
             getPreferenceManager().getSharedPreferences().edit()
                     .putString(Storage.KEY_CONTENT_TREE, tree.toString()).apply();

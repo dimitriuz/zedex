@@ -38,7 +38,9 @@ import java.util.Map;
  *       onto the provider.</li>
  *   <li><b>There is no quota to pace against.</b> Nothing is reported, so
  *       this class paces itself - see {@code MINIMUM_INTERVAL_MS}, and note
- *       that it is not an optional courtesy.</li>
+ *       that it is not an optional courtesy. Paced through {@link Pace},
+ *       which counts per host rather than per object - see its own comment
+ *       for why that distinction is the whole of the manners here.</li>
  *   <li><b>No credentials at all</b>, so {@link #configured} is always true
  *       and this provider works in a build made from a clean clone.</li>
  * </ul>
@@ -55,11 +57,23 @@ public final class ZxInfo implements Provider {
 
     private static final String TAG = "Zedex";
 
-    private static final String BASE = "https://api.zxinfo.dk/v3/";
+    /**
+     * The one host every API call goes to, and the one {@link Pace} counts.
+     *
+     * <b>Written once and built into {@link #API} rather than spelled again
+     * at each {@code Pace.before}.</b> {@code Pace} keys on a host name it is
+     * told, so a call site that names a host the request does not go to is
+     * paced against nothing at all - and there is no way to notice, since the
+     * requests still work and only the spacing quietly disappears. Two files
+     * ask ZXInfo for things and both take the name from here.
+     */
+    public static final String API_HOST = "api.zxinfo.dk";
+
+    public static final String API = "https://" + API_HOST + "/v3/";
 
     /** Where the files themselves live. Most of what a record names is
      *  relative to this, and none of it is an API call. */
-    private static final String FILES = "https://spectrumcomputing.co.uk";
+    static final String FILES = "https://spectrumcomputing.co.uk";
 
     /**
      * And where the rest of it lives, which is not the same host.
@@ -76,10 +90,10 @@ public final class ZxInfo implements Provider {
      * fetched from the wrong host and quietly discarded as a 404, and the
      * failure looked exactly like a game that had none.
      */
-    private static final String SCREENS = "https://zxinfo.dk/media";
+    static final String SCREENS = "https://zxinfo.dk/media";
 
     /** The prefix that means ZXInfo's own host - see {@link #SCREENS}. */
-    private static final String SCREENS_PREFIX = "/zxscreens/";
+    static final String SCREENS_PREFIX = "/zxscreens/";
 
     /** How many candidates a name search offers. Enough to find the right one
      *  among re-releases and hacks, few enough to read in a dialog. */
@@ -141,31 +155,17 @@ public final class ZxInfo implements Provider {
      * A round trip is a couple of hundred milliseconds anyway, so the real
      * cost of it is far less than it looks.
      *
-     * <b>Enforced here rather than by the caller.</b> This class is the only
-     * thing that knows when it last asked anything, and it is asked from two
-     * places - one game from the popup and eight hundred from a sweep - so a
-     * caller-side delay would have to be got right twice and would still miss
-     * the second request each game makes.
+     * <b>The number lives here; the counting does not.</b> This is ZXInfo's
+     * own number, arrived at from what happened to this app on this service,
+     * so it belongs on this provider. But it is asked from two places - one
+     * game from the popup and eight hundred from a sweep - and, since this
+     * class was written, from a catalogue browsing the same host beside it;
+     * counting per instance would let two of those wait independently and
+     * halve the real spacing between them. {@link Pace} counts per host
+     * instead, because the thing being spaced is the traffic arriving at
+     * ZXInfo, which is not a property of whichever object here sent it.
      */
-    private static final long MINIMUM_INTERVAL_MS = 500;
-
-    /** When the last request went out, for {@link #pace}. Per instance, which
-     *  matches how it is used: one provider for the life of a sweep. */
-    private long lastAsked;
-
-    private void pace() {
-        long since = android.os.SystemClock.elapsedRealtime() - lastAsked;
-
-        if (lastAsked != 0 && since < MINIMUM_INTERVAL_MS) {
-            try {
-                Thread.sleep(MINIMUM_INTERVAL_MS - since);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }
-
-        lastAsked = android.os.SystemClock.elapsedRealtime();
-    }
+    public static final long MINIMUM_INTERVAL_MS = 500;
 
     // --- finding a game ------------------------------------------------------------
 
@@ -626,8 +626,7 @@ public final class ZxInfo implements Provider {
             String format = item.optString("format", "");
             if (!usable(folder, format, path)) continue;
 
-            into.put(folder, new Medium(folder, hostOf(path) + path,
-                                        extensionOf(path), null));
+            into.put(folder, new Medium(folder, urlFor(path), extensionOf(path), null));
         }
     }
 
@@ -670,9 +669,36 @@ public final class ZxInfo implements Provider {
                 || "jpeg".equals(extension) || "gif".equals(extension);
     }
 
-    /** Which of the two hosts a path is relative to - see {@link #SCREENS}. */
-    private static String hostOf(String path) {
-        return path.startsWith(SCREENS_PREFIX) ? SCREENS : FILES;
+    /**
+     * A record's path as something that can be fetched.
+     *
+     * <b>Public, and shared with the catalogue in the layer above.</b> Both of
+     * the rules in here are measured facts about how ZXDB stores its paths
+     * rather than policies of this class, and both were measured the expensive
+     * way; a second copy next door is a second place for one of them to be
+     * wrong, and the one that was wrong would look exactly like a game with no
+     * loading screen. The constants behind it stay package-private, so the
+     * rules can only be applied and not re-derived.
+     *
+     * <b>Some paths are not paths.</b> Measured over the ZXDB dump, 4,941 of
+     * 153,959 download links are already absolute - 4,392 of them on
+     * archive.org, and for RZX recordings it is the majority - so joining one
+     * onto a base makes a url with an {@code https://} in the middle of it,
+     * which fetches nothing. The check belongs here, beside the two-host rule,
+     * and not at one of the two call sites: it lived in the catalogue's own
+     * copy for a while and this one, two files away, went without it.
+     *
+     * <b>And the rest are relative to two different hosts</b> - see {@link
+     * #SCREENS}. {@code /pub/} and {@code /zxdb/} are on the archive;
+     * {@code /zxscreens/}, which is every rendered loading screen, is on
+     * ZXInfo's own media host and 404s on the archive. Both arrive inside the
+     * same array, so the array is no guide and the prefix is the only thing
+     * that decides.
+     */
+    public static String urlFor(String path) {
+        if (path.startsWith("http")) return path;
+
+        return (path.startsWith(SCREENS_PREFIX) ? SCREENS : FILES) + path;
     }
 
     /** From the path itself rather than the {@code format} text, which says
@@ -695,10 +721,10 @@ public final class ZxInfo implements Provider {
      * learned the expensive way, and it applies here identically.
      */
     private String ask(String path) throws ScrapeException {
-        pace();
+        Pace.before(API_HOST, MINIMUM_INTERVAL_MS);
 
         try {
-            Http.Reply reply = http.get(BASE + path);
+            Http.Reply reply = http.get(API + path);
 
             if (reply.status == 404) return null;
             if (!reply.ok()) throw refusalFor(reply.status);
