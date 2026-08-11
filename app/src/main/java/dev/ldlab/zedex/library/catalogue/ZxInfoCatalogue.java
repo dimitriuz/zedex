@@ -97,11 +97,15 @@ import java.util.Locale;
  *       descending ids. Read from the years rather than from a second
  *       unsorted request: a list whose first rows are all this year is
  *       sorted.</li>
- *   <li><b>Surprise me</b> is {@code offset=random}. Also the honest name for
- *       it: two successive requests with that offset returned the identical ten
- *       entries, so it is a shelf worth having and not a sampler worth
- *       trusting - which is why its page reports {@link Page#UNKNOWN_TOTAL}
- *       and why nothing measures anything with it.</li>
+ *   <li><b>Surprise me</b> asks <b>{@code games/random/{total}}</b>, an
+ *       endpoint of the service's own, and <b>it resamples</b> - two identical
+ *       requests answered thirty entries each with not one id in common. It
+ *       used to send {@code search?offset=random}, which returned the identical
+ *       ten twice and had to be capped at one page for that reason; the cap is
+ *       gone with the search. Its page still reports {@link Page#UNKNOWN_TOTAL}
+ *       - the total that comes back is the 10,000 cap, and nothing here is
+ *       walking through an ordering to be counted against - so nothing
+ *       measures anything with this shelf either. See {@link #randomFor}.</li>
  *   <li><b>Categories</b> reads {@code metadata/} and hands the genres back as
  *       sub-shelves. Verified 2026-08-10, and it corrected the name: the array
  *       is <b>{@code genretypes}</b>, plural, beside {@code machinetypes} and
@@ -222,28 +226,9 @@ public final class ZxInfoCatalogue implements Catalogue {
         // since zxart's whole category tree will.
         if (SHELF_LETTER.equals(shelf.id())) return letters();
 
-        // A surprise is one page, and the second one is empty on purpose.
-        //
-        // offset=random does not resample: two successive requests with it
-        // returned the identical ten entries. So page two of this shelf is
-        // page one again - the same URL, the same thirty rows, appended to the
-        // thirty already on screen. And nothing stops it, because the total is
-        // unknown and Page.hasMore reads unknown-plus-non-empty as "there is
-        // more": an endless grid of duplicates, one paced request per fling,
-        // against the host that blocked this app once already.
-        //
-        // Ended here rather than in hasMore, whose contract is right and which
-        // other shelves depend on. The only honest thing to do with a shelf
-        // that cannot page is to stop after the first one; the total stays
-        // UNKNOWN_TOTAL because there genuinely is no count, and it is the
-        // empty second page that ends the list.
-        if (SHELF_RANDOM.equals(shelf.id()) && page > 0) {
-            return new Page(null, null, page * PAGE_SIZE, Page.UNKNOWN_TOTAL);
-        }
-
-        // A random shelf cannot count either: the offset is not an index into
-        // anything, so the total the service reports says nothing about how
-        // much of it this list has seen.
+        // A random shelf cannot count: every page is an independent draw, so
+        // the total the service reports - which is Elasticsearch's 10,000 cap
+        // anyway - says nothing about how much of anything this list has seen.
         boolean countable = !SHELF_RANDOM.equals(shelf.id());
 
         return rows(pathFor(shelf, query, page), page * PAGE_SIZE, countable);
@@ -303,10 +288,7 @@ public final class ZxInfoCatalogue implements Catalogue {
         }
 
         if (SHELF_RANDOM.equals(id)) {
-            // Not paged, because there is nothing to page through: the offset
-            // is the whole of what makes it random. Asking for page two of it
-            // asks the same question again.
-            return "search?mode=compact&size=" + PAGE_SIZE + "&offset=random";
+            return randomFor();
         }
 
         return searchFor("query=" + Uri.encode(query.text()), page);
@@ -385,6 +367,51 @@ public final class ZxInfoCatalogue implements Catalogue {
         // substring of a shelf id, and the one way this can go wrong is the
         // LETTER_PREFIX leaking into the path.
         return paged("games/byletter/" + Uri.encode(letter), "", page);
+    }
+
+    /**
+     * Surprise me, on the endpoint whose whole job this is.
+     *
+     * <b>{@code GET /games/random/{total}} - the count is in the path, and
+     * there is no {@code offset} and no {@code size}.</b> "Fetches list of
+     * random entries", from the adventure, arcade, casual, game, sport and
+     * strategy categories, all of them with loading and in-game screens. So
+     * this asks for thirty of them and there is nothing else to say to it: no
+     * page to ask for, because a page number would mean an ordering, and a
+     * random list has none.
+     *
+     * <b>Measured live, 2026-08-11, three requests. It resamples</b>, which is
+     * the whole difference: two identical requests one after the other answered
+     * thirty entries each and shared <b>not one id</b>, where {@code
+     * search?offset=random} answered the identical ten twice. So the one-page
+     * cap this shelf used to carry is gone, and a fling brings thirty games
+     * nobody has seen rather than the thirty already on screen.
+     *
+     * The reply is the same {@code hits.hits[]._source} envelope a search
+     * answers with - 96,394 bytes for thirty compact entries - so {@link #rows}
+     * reads it without knowing which endpoint it asked. Its {@code hits.total}
+     * is {@code {"value":10000,"relation":"gte"}}: Elasticsearch's cap, not a
+     * count, and no count of anything this list is walking through, which is
+     * why the shelf stays uncountable in {@link #open}.
+     *
+     * <b>{@code mode} is honoured here</b> - the same call at {@code tiny}
+     * answered 49,998 bytes against compact's 96,394 - which had to be asked
+     * rather than assumed, since a parameter this service does not know is
+     * ignored rather than refused. It is sent although this endpoint's default
+     * is already {@code compact}, the one endpoint of the four whose default is
+     * what this app wants: a default is the service's to change, and {@code
+     * byletter}'s is {@code tiny}, which would have quietly dropped {@code
+     * controls} had it been left off there.
+     *
+     * <b>Nothing ends this shelf, and that is what it is for.</b> With no total
+     * and a page that is never empty, {@code Page.hasMore} answers true for
+     * ever - one paced request per fling, which is the same bargain every other
+     * shelf makes at ten thousand rows, except that this one has no bottom. Two
+     * pages may share a game by chance, since each is an independent draw from
+     * 39,666; that is what "surprise me" means and not a fault to correct.
+     */
+    private static String randomFor() {
+        return "games/random/" + PAGE_SIZE + "?mode=compact";
     }
 
     /**

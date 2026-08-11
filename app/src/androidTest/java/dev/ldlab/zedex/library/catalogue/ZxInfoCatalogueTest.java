@@ -135,6 +135,37 @@ public class ZxInfoCatalogueTest {
             + "]}}";
 
     /**
+     * {@code /games/random/30?mode=compact}, <b>recorded</b>, trimmed to the
+     * first of its thirty hits.
+     *
+     * The reply this came from is one of the two that proved the endpoint
+     * resamples: it and the identical request after it shared not one of their
+     * thirty ids. Everything below is that first hit's own - {@code 0031049},
+     * a 16K game from 2008 - including the loading screen, which is under
+     * {@code /zxscreens/} and so on the other host.
+     *
+     * <b>The total is the cap, and it is here on purpose.</b> {@code
+     * {"value":10000,"relation":"gte"}} is what this endpoint answers with -
+     * Elasticsearch counting no further rather than a count of anything - and
+     * {@code arandomShelfCountsNothing} is the assertion that the shelf refuses
+     * to print it. A fixture with a plausible total would have hidden that.
+     */
+    private static final String RANDOM = "{"
+            + "\"hits\":{\"total\":{\"value\":10000,\"relation\":\"gte\"},"
+            + "          \"max_score\":3.8814323,\"hits\":["
+            + "  {\"_id\":\"0031049\",\"_score\":3.8814323,\"_source\":{"
+            + "     \"title\":\"Game of the Yet to Come\",\"originalYearOfRelease\":2008,"
+            + "     \"machineType\":\"ZX-Spectrum 16K\","
+            + "     \"genreType\":\"Arcade Game\",\"availability\":\"Available\","
+            + "     \"publishers\":[{\"publisherSeq\":1,\"name\":\"Digital Prawn\","
+            + "                      \"country\":\"UK\"}],"
+            + "     \"screens\":[{\"filename\":\"0031049-load-1.png\","
+            + "                   \"url\":\"/zxscreens/0031049/0031049-load-1.png\","
+            + "                   \"size\":5526,\"type\":\"Loading screen\","
+            + "                   \"format\":\"Picture\"}]}}"
+            + "]}}";
+
+    /**
      * {@code /games/0002259?mode=compact}, <b>recorded</b>, trimmed to two of
      * its five releases and the fields read here.
      *
@@ -755,10 +786,19 @@ public class ZxInfoCatalogueTest {
 
             String url = urlOpening(shelf, Catalogue.Query.text("x"));
 
-            assertTrue(url, url.startsWith(ZxInfo.API + "search?"));
+            assertTrue(url, url.startsWith(ZxInfo.API));
             assertTrue(url, url.contains("mode=compact"));
-            assertTrue(url, url.contains("size=30"));
             assertNoFilter(url);
+
+            // Surprise me is an endpoint of the service's own, and the count it
+            // takes is in the path - so it says thirty in the one place it can.
+            // Everything else here is a search.
+            if ("random".equals(shelf.id())) {
+                assertTrue(url, url.startsWith(ZxInfo.API + "games/random/30?"));
+            } else {
+                assertTrue(url, url.startsWith(ZxInfo.API + "search?"));
+                assertTrue(url, url.contains("size=30"));
+            }
         }
     }
 
@@ -900,32 +940,76 @@ public class ZxInfoCatalogueTest {
                            .contains("sort=date_desc"));
     }
 
+    /**
+     * Surprise me asks the endpoint whose job that is, and not a search.
+     *
+     * <b>{@code GET /games/random/{total}}</b>, with the count in the path and
+     * no {@code offset} and no {@code size} to send. This was
+     * {@code search?offset=random} - a real thing to send, since the search's
+     * {@code offset} is typed as a string precisely to take that word, and it
+     * answered plausibly every time while returning the identical ten entries
+     * to two successive requests. So the assertion that matters is the one
+     * about what is <em>absent</em>: a leftover {@code offset=random} on the
+     * new path would be ignored by this service rather than refused, and
+     * nothing else would ever say so.
+     */
     @Test
-    public void thesurpriseShelfAsksForArandomOffset() throws Exception {
-        assertTrue(urlOpening(shelfNamed("random"), Catalogue.Query.none())
-                           .contains("offset=random"));
+    public void thesurpriseShelfAsksTheRandomEndpointForThirty() throws Exception {
+        String url = urlOpening(shelfNamed("random"), Catalogue.Query.none());
+
+        assertTrue(url, url.startsWith(ZxInfo.API + "games/random/30?"));
+        assertTrue(url, url.contains("mode=compact"));
+
+        assertFalse("a surprise is not a search: " + url, url.contains("search?"));
+        assertFalse("the old random offset came back: " + url, url.contains("offset="));
+        assertNoFilter(url);
     }
 
     /**
-     * A surprise is one page.
+     * And it pages on, <b>because it resamples</b>.
      *
-     * {@code offset=random} does not resample - two successive requests with it
-     * returned the identical ten entries - so a second page is the first page
-     * again, appended to itself. With no total to stop it that repeats for
-     * ever: an endless grid of duplicates, one paced request per fling, against
-     * a host that blocks on behaviour. Ended in the shelf rather than in
-     * {@code Page.hasMore}, whose contract the other shelves depend on.
+     * Measured 2026-08-11: two identical requests to {@code games/random/30}
+     * answered thirty entries each and shared not one id. That is the whole
+     * difference from {@code search?offset=random}, which answered the same ten
+     * twice and had to be stopped after one page or the grid filled with
+     * duplicates for ever. Here a second page is thirty games nobody has seen,
+     * so it costs a request and it is worth one.
      */
     @Test
-    public void thesurpriseShelfDoesNotPageOn() throws Exception {
-        Canned http = new Canned().then(200, SEARCH);
+    public void thesurpriseShelfPagesOnBecauseItResamples() throws Exception {
+        Canned http = new Canned().then(200, RANDOM);
 
         Catalogue.Page second = new ZxInfoCatalogue(http).open(
                 shelf(http, "random"), Catalogue.Query.none(), 1);
 
-        assertEquals("a second surprise page cost a request", 0, http.asked.size());
-        assertTrue("a second surprise page brought rows", second.items().isEmpty());
-        assertFalse("the surprise shelf pages for ever", second.hasMore());
+        assertEquals("a second surprise page made no request", 1, http.asked.size());
+        assertEquals(1, second.items().size());
+        assertTrue("the surprise shelf stopped after one page", second.hasMore());
+
+        // The same question, asked again: there is no page to ask for and the
+        // answer is different anyway.
+        assertEquals(ZxInfo.API + "games/random/30?mode=compact", http.asked.get(0));
+    }
+
+    /**
+     * A random shelf counts nothing, whatever the reply claims.
+     *
+     * The live reply's total is {@code {"value":10000,"relation":"gte"}} - the
+     * Elasticsearch cap rather than a count - and there is nothing to count
+     * anyway, since every page is an independent draw. Printed beside the
+     * shelf's own name it would read as "10,000 surprises", of which this list
+     * has seen thirty.
+     */
+    @Test
+    public void arandomShelfCountsNothing() throws Exception {
+        Canned http = new Canned().then(200, RANDOM);
+
+        Catalogue.Page page = new ZxInfoCatalogue(http).open(
+                shelf(http, "random"), Catalogue.Query.none(), 0);
+
+        assertEquals("the shelf printed Elasticsearch's cap as a count",
+                     Catalogue.Page.UNKNOWN_TOTAL, page.total());
+        assertEquals("Game of the Yet to Come", page.items().get(0).title());
     }
 
     @Test
