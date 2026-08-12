@@ -185,7 +185,14 @@ public final class GameInfoView extends LinearLayout {
         // A page somebody chose is a page they keep: without this the wait
         // would drag them to the video three seconds after they swiped away
         // from it.
-        gallery.setOnPageChanged(index -> userSwiped = true);
+        //
+        // setOnUserSwipe and not setOnPageChanged, which is what this was and
+        // why autoplay still did nothing: a page change fires when the gallery
+        // settles after a load as well as when a finger moves it, so the very
+        // first one marked the selection as swiped and cancelled the wait
+        // before it could run. The pane has always used this callback; the two
+        // now ask the same question.
+        gallery.setOnUserSwipe(() -> userSwiped = true);
         coverBox.addView(gallery, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
 
