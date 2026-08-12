@@ -184,6 +184,41 @@ public class ZoomGestureTest {
     }
 
     /**
+     * The pager is told the moment the second finger lands, not when the
+     * pinch is big enough to recognise.
+     *
+     * This is the test the first fix did not have and needed. Waiting for
+     * ScaleGestureDetector's onScaleBegin looks right and is far too late: it
+     * will not begin below getScaledMinimumScalingSpan - 446 pixels on the
+     * emulator here - while a horizontal RecyclerView calls the gesture a
+     * scroll after a few pixels of movement. The pager has already taken it
+     * and cancelled this view, so onScaleBegin never runs and zoom does
+     * nothing, which is exactly what shipped.
+     */
+    @Test
+    public void thepagerIsToldAsSoonAsASecondFingerLands() {
+        onMain(() -> {
+            long down = SystemClock.uptimeMillis();
+            float middle = WIDE / 2f;
+
+            picture.dispatchTouchEvent(oneFinger(down, down, MotionEvent.ACTION_DOWN, middle));
+
+            // Barely apart: nowhere near the detector's minimum span, which is
+            // the whole point - the pager must be warned off before a pinch is
+            // big enough for anything to recognise it as one.
+            int secondDown = MotionEvent.ACTION_POINTER_DOWN
+                    | (1 << MotionEvent.ACTION_POINTER_INDEX_SHIFT);
+            picture.dispatchTouchEvent(twoFingers(down, down + 10, secondDown,
+                                                  middle - 20, middle + 20));
+        });
+
+        assertTrue("the pager was not warned off until the pinch was already "
+                   + "big enough to recognise, by which time it has taken the "
+                   + "gesture and cancelled this view",
+                   Boolean.TRUE.equals(parent.lastAsked));
+    }
+
+    /**
      * A pinch has to be the picture's, not the pager's.
      *
      * The gallery is a horizontal RecyclerView, so at rest the picture hands

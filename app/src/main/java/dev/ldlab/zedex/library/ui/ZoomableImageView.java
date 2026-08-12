@@ -132,6 +132,21 @@ public final class ZoomableImageView extends ImageView {
     public boolean onTouchEvent(MotionEvent event) {
         if (!zoomable || getDrawable() == null) return super.onTouchEvent(event);
 
+        // A second finger means a pinch, and the pager has to be told now.
+        //
+        // Telling it in ScaleGestureDetector's onScaleBegin - which is where
+        // this was, and why zoom still did nothing after the first attempt at
+        // it - is far too late. The detector will not begin until the span
+        // passes getScaledMinimumScalingSpan, 446 pixels on one device here,
+        // and a horizontal RecyclerView calls a gesture a scroll as soon as
+        // one pointer moves past its touch slop, which is a few. The pager has
+        // taken the gesture and cancelled this view long before the pinch is
+        // wide enough to be recognised as one, so onScaleBegin never ran.
+        //
+        // The pointer count is the earliest honest signal there is: one finger
+        // could still become a flick and belongs to the pager, two never can.
+        if (event.getPointerCount() > 1) letThePagerHave(false);
+
         pinch.onTouchEvent(event);
         taps.onTouchEvent(event);
 
@@ -162,9 +177,10 @@ public final class ZoomableImageView extends ImageView {
          * passes its touch slop - from then on the child sees none of it, so
          * {@link #onScale} was never reached and the picture never grew.
          *
-         * Taken back here rather than in {@code onDown} because this is the
-         * first moment the two can be told apart: a finger going down could
-         * still become either.
+         * {@link ZoomableImageView#onTouchEvent} has already warned the pager
+         * off by the time this runs - it does it on the second pointer, which
+         * is far earlier - so this is belt and braces for a detector that
+         * begins some other way, not the thing that makes a pinch work.
          */
         @Override
         public boolean onScaleBegin(ScaleGestureDetector detector) {

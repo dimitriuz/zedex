@@ -2,6 +2,8 @@ package dev.ldlab.zedex.screen;
 
 import dev.ldlab.zedex.storage.Prefs;
 import android.app.Activity;
+import android.app.ActivityOptions;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.hardware.display.DisplayManager;
 import android.util.Log;
@@ -150,6 +152,46 @@ final class LibraryPanel {
 
         going.dismiss();
         host.panelChanged();
+    }
+
+    /**
+     * One of the app's own screens, on the panel when there is one.
+     *
+     * The same thing {@code Panels.openOwnScreen} does for the emulator, and
+     * here for the same reason: the library opened Settings with a plain
+     * {@code startActivity}, so it landed on the main screen, on top of this
+     * activity, in this activity's own task - and there was no way back from
+     * it. Opened from the emulator, where it already went through {@code
+     * Panels}, the same screen opens on the panel and Back works.
+     *
+     * A task of its own, because a task lives on one display: launched into
+     * the library's, the settings screen would take the library with it to the
+     * panel and leave the first screen empty - which is exactly the note
+     * {@code Panels.openOwnScreen} carries about the machine.
+     *
+     * The panel steps aside for it through the application's lifecycle
+     * callbacks, the same as for any other screen of ours.
+     */
+    void openOwnScreen(Intent intent) {
+        Display display = panel == null ? null : panel.getDisplay();
+
+        if (display == null) {
+            activity.startActivity(intent);
+            return;
+        }
+
+        ActivityOptions options = ActivityOptions.makeBasic();
+        options.setLaunchDisplayId(display.getDisplayId());
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+        try {
+            activity.startActivity(intent, options.toBundle());
+        } catch (RuntimeException e) {
+            // A display that will not host activities - then it goes where
+            // everything else does.
+            Log.w(TAG, "cannot open on the second screen", e);
+            activity.startActivity(new Intent(intent).setFlags(0));
+        }
     }
 
     /**

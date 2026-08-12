@@ -1732,7 +1732,10 @@ public final class LibraryActivity extends ZedexActivity {
      * where a page opened over the library belongs.
      */
     private void openSettings() {
-        startActivity(new Intent(this, SettingsActivity.class));
+        // Through the panel, so it lands where the emulator's own Settings
+        // does. A plain startActivity put it on the main screen on top of this
+        // activity, in this task, with no way back from it.
+        libraryPanel.openOwnScreen(new Intent(this, SettingsActivity.class));
     }
 
     /**
