@@ -551,6 +551,14 @@ public final class LibraryActivity extends ZedexActivity {
             }
         });
 
+        // The panel steps aside while any other screen of ours is up and comes
+        // back when it goes - Settings and the full-screen viewer both open in
+        // a task of their own on its display, and without this there is
+        // nothing left there when one of them finishes but Android's own
+        // launcher. The same registration EmulatorActivity makes for the
+        // emulator's panel; unregistered in onDestroy for the same reason.
+        getApplication().registerActivityLifecycleCallbacks(libraryPanel.lifecycle());
+
         setContentView(buildPage());
 
         // "Library" over a screen that is obviously the library earns
@@ -799,6 +807,7 @@ public final class LibraryActivity extends ZedexActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        getApplication().unregisterActivityLifecycleCallbacks(libraryPanel.lifecycle());
 
         if (!handedOver) {
             forgetFlattened();

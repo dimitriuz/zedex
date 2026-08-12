@@ -3,6 +3,8 @@ package dev.ldlab.zedex.screen;
 import dev.ldlab.zedex.storage.Prefs;
 import android.app.Activity;
 import android.app.ActivityOptions;
+import android.app.Application;
+import android.os.Bundle;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.hardware.display.DisplayManager;
@@ -201,8 +203,73 @@ final class LibraryPanel {
      */
     private void foreignScreenOpened() {
         foreignScreenUp = true;
-        if (panel != null) panel.hide();
+        updateStepAside();
     }
+
+    /**
+     * How many screens of the app's own are up over this one.
+     *
+     * Counted through the application's lifecycle callbacks, exactly as {@code
+     * Panels} counts them for the emulator, and for the reason this panel
+     * learned the hard way: Settings and the full-screen viewer both open in a
+     * task of their own on the panel's display, and when one of them finishes
+     * there is nothing left on that display at all - so the panel had to be
+     * put back, or what you get is Android's own launcher on the second
+     * screen. This panel only ever noticed foreign screens before, so it never
+     * put itself back after one of ours.
+     */
+    private int ownScreens;
+
+    /**
+     * The one place the panel is hidden or shown for something covering it,
+     * from both reasons together - the same shape as {@code
+     * Panels.updateStepAside}, so the two can never disagree about whether the
+     * panel should be up.
+     */
+    private void updateStepAside() {
+        if (panel == null) return;
+
+        if (ownScreens > 0 || foreignScreenUp) panel.hide();
+        else panel.show();
+    }
+
+    /**
+     * Every other screen of ours steps the panel aside while it is up, and
+     * puts it back when it goes.
+     *
+     * Registered by {@code LibraryActivity} for as long as it is running - see
+     * its onCreate and onDestroy, which is where {@code EmulatorActivity} does
+     * the same for the emulator's panel.
+     */
+    Application.ActivityLifecycleCallbacks lifecycle() {
+        return others;
+    }
+
+    private final Application.ActivityLifecycleCallbacks others =
+            new Application.ActivityLifecycleCallbacks() {
+
+        @Override
+        public void onActivityStarted(Activity started) {
+            if (started == activity) return;
+
+            ownScreens++;
+            updateStepAside();
+        }
+
+        @Override
+        public void onActivityStopped(Activity stopped) {
+            if (stopped == activity || ownScreens == 0) return;
+
+            ownScreens--;
+            updateStepAside();
+        }
+
+        @Override public void onActivityCreated(Activity created, Bundle state) { }
+        @Override public void onActivityResumed(Activity resumed) { }
+        @Override public void onActivityPaused(Activity paused) { }
+        @Override public void onActivitySaveInstanceState(Activity a, Bundle out) { }
+        @Override public void onActivityDestroyed(Activity destroyed) { }
+    };
 
     /**
      * {@code LibraryActivity}'s own {@code onTopResumedActivityChanged(true)}
@@ -218,7 +285,7 @@ final class LibraryPanel {
         if (!foreignScreenUp) return;
 
         foreignScreenUp = false;
-        if (panel != null) panel.show();
+        updateStepAside();
     }
 
     /**
