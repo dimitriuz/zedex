@@ -29,9 +29,9 @@ import android.view.WindowManager;
  * answer each time" {@link #apply}. See {@link Panels}'s own class comment
  * for the corners of Android this - and it - are built around, the fourth
  * of which ({@link #foreignScreenOpened}, {@link #topFocusReturned}) this
- * panel needs just as much as the emulator's own does, despite having no
- * {@code ownScreens} of its own: a manual is exactly as foreign to the
- * library as it is to the emulator.
+ * panel needs just as much as the emulator's own does: a manual is exactly as
+ * foreign to the library as it is to the emulator, and both ask {@link
+ * StepAside} the same question about their own display.
  */
 final class LibraryPanel {
 
@@ -70,14 +70,6 @@ final class LibraryPanel {
     /** The panel, or null while there is none - either because it is not
      *  wanted, or because there is nowhere to put it. */
     private SecondScreen panel;
-
-    /** Whether a manual is up on this panel's own display right now - see
-     *  {@link Panels}'s class comment, the fourth corner, which applies
-     *  here identically even though this panel has no {@code ownScreens}
-     *  of its own to combine it with: the library never opens one of its
-     *  own screens onto this display, so a manual is the only thing that
-     *  ever asks this panel to step aside. */
-    private boolean foreignScreenUp;
 
     /** Whatever {@link #setGameInfo} was last told, kept here as well as on
      *  the panel so one that appears later already knows; see {@link
@@ -152,6 +144,13 @@ final class LibraryPanel {
         panel.setOnForeignScreen(this::foreignScreenOpened);
         panel.setOnPlay(host::play);
         panel.setOnBack(host::back);
+
+        // A fresh panel always shows itself first, so a reason to be out of
+        // the way that is already true has to be applied straight away -
+        // a display replugged while one of our own screens is on it, say.
+        // The same line {@code Panels.apply} ends with, and missing here.
+        updateStepAside();
+
         host.panelChanged();
     }
 
@@ -162,8 +161,8 @@ final class LibraryPanel {
         panel = null;
 
         // Whatever this panel was waiting to come back from does not carry
-        // over to whatever replaces it - see foreignScreenUp's own comment.
-        foreignScreenUp = false;
+        // over to whatever replaces it - see StepAside.panelClosed.
+        stepAside.panelClosed();
 
         going.dismiss();
         host.panelChanged();
@@ -215,23 +214,25 @@ final class LibraryPanel {
      * fourth corner.
      */
     private void foreignScreenOpened() {
-        foreignScreenUp = true;
+        stepAside.foreignOpened();
         updateStepAside();
     }
 
     /**
-     * How many screens of the app's own are up over this one.
+     * Whether this panel has to be out of the way, and what is asking - the
+     * app's own screens on its display, and a manual's viewer, which reaches
+     * no lifecycle callback of ours at all.
      *
-     * Counted through the application's lifecycle callbacks, exactly as {@code
-     * Panels} counts them for the emulator, and for the reason this panel
-     * learned the hard way: Settings and the full-screen viewer both open in a
-     * task of their own on the panel's display, and when one of them finishes
-     * there is nothing left on that display at all - so the panel had to be
-     * put back, or what you get is Android's own launcher on the second
-     * screen. This panel only ever noticed foreign screens before, so it never
-     * put itself back after one of ours.
+     * The same object the emulator's panel uses for the same question, and
+     * that is the point of it being one: this panel learned the first half
+     * the hard way - Settings and the full-screen viewer both open in a task
+     * of their own over there, and when one finishes there is nothing left on
+     * that display but Android's own launcher, which this never used to put
+     * itself back after. {@link StepAside} carries both that and the fault
+     * the other half of the rule caused, so neither panel can hold only one
+     * of them.
      */
-    private int ownScreens;
+    private final StepAside stepAside = new StepAside();
 
     /**
      * The one place the panel is hidden or shown for something covering it,
@@ -242,7 +243,7 @@ final class LibraryPanel {
     private void updateStepAside() {
         if (panel == null) return;
 
-        if (ownScreens > 0 || foreignScreenUp) panel.hide();
+        if (stepAside.hidden()) panel.hide();
         else panel.show();
     }
 
@@ -265,15 +266,15 @@ final class LibraryPanel {
         public void onActivityStarted(Activity started) {
             if (started == activity) return;
 
-            ownScreens++;
+            stepAside.opened(started);
             updateStepAside();
         }
 
         @Override
-        public void onActivityStopped(Activity stopped) {
-            if (stopped == activity || ownScreens == 0) return;
+        public void onActivityDestroyed(Activity destroyed) {
+            if (destroyed == activity) return;
 
-            ownScreens--;
+            stepAside.closed(destroyed);
             updateStepAside();
         }
 
@@ -281,7 +282,9 @@ final class LibraryPanel {
         @Override public void onActivityResumed(Activity resumed) { }
         @Override public void onActivityPaused(Activity paused) { }
         @Override public void onActivitySaveInstanceState(Activity a, Bundle out) { }
-        @Override public void onActivityDestroyed(Activity destroyed) { }
+
+        // Not the pair of onActivityStarted, deliberately - see StepAside.
+        @Override public void onActivityStopped(Activity stopped) { }
     };
 
     /**
@@ -295,9 +298,7 @@ final class LibraryPanel {
      * stepped aside.
      */
     void topFocusReturned() {
-        if (!foreignScreenUp) return;
-
-        foreignScreenUp = false;
+        stepAside.foreignClosed();
         updateStepAside();
     }
 

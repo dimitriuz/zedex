@@ -262,6 +262,14 @@ any other screen of ours is up. There is no result to wait for — a new task
 cannot return one — so it is counted through the application's lifecycle
 callbacks, which also covers a screen dismissed some way of Android's own.
 
+**A screen of ours being stopped is not a screen of ours being gone.** A
+foreign window covering one of our screens stops it, so counting the panel's
+step-aside on started/stopped read the folder picker opening over our settings
+as our screen having closed — the panel came back and drew over the picker,
+which flashed up and disappeared under the app. `StepAside` holds that rule for
+both panels: a set of the live ones, emptied on destroyed, since a screen
+covered and uncovered is started twice and destroyed once.
+
 **Android reports odd things in passing.** The activity briefly claims to be on
 the panel itself while an input method is being sorted out. Taking the panel down
 on that reading once left nothing to put it back, so `apply()` only closes a

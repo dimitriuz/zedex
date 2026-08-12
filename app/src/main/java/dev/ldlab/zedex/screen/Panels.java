@@ -86,15 +86,15 @@ public final class Panels {
     /** The panel, or null while the controls are on the machine's own screen. */
     private SecondScreen panel;
 
-    /** How many other screens of ours are up; the panel hides while any is. */
-    private int ownScreens;
-
-    /** Whether a manual is up on the panel's own display right now - see
-     *  the class comment's fourth corner. Combined with {@link #ownScreens}
-     *  by {@link #updateStepAside}, never acted on by itself, so the two
-     *  can never leave the panel in a state neither of them actually
-     *  wanted. */
-    private boolean foreignScreenUp;
+    /**
+     * Whether the panel has to be out of the way, and what is asking - the
+     * app's own screens on that display, and a manual's viewer, which reaches
+     * no callback of ours at all. One object because the two overlap in time
+     * and neither may leave the panel in a state the other did not want; see
+     * {@link StepAside} for the two ways this rule has been wrong, and {@code
+     * LibraryPanel}, which asks it the same question about its own panel.
+     */
+    private final StepAside stepAside = new StepAside();
 
     /** Whatever {@link #setGameInfo} was last told - the library's own
      *  relative path for the game now loaded, and its name, or both null
@@ -223,8 +223,8 @@ public final class Panels {
         panel = null;
 
         // Whatever this panel was waiting to come back from does not carry
-        // over to whatever replaces it - see foreignScreenUp's own comment.
-        foreignScreenUp = false;
+        // over to whatever replaces it - see StepAside.panelClosed.
+        stepAside.panelClosed();
 
         going.dismiss();
         host.layout().setLentAway(false);
@@ -237,7 +237,7 @@ public final class Panels {
      * the panel's own display - see the class comment's fourth corner.
      */
     private void foreignScreenOpened() {
-        foreignScreenUp = true;
+        stepAside.foreignOpened();
         updateStepAside();
     }
 
@@ -246,20 +246,20 @@ public final class Panels {
      * nearest signal available for a manual's viewer being dismissed, which
      * gives this app no callback of its own; see the class comment's fourth
      * corner. Cheap to call every time the activity is the focused one
-     * again, own screens and manuals both, since it does nothing unless a
-     * manual was actually the reason the panel stepped aside.
+     * again: a panel already showing is asked to show again, and a panel
+     * kept aside by one of our own screens stays aside, since {@link
+     * StepAside} answers from both reasons rather than from this one.
      */
     public void topFocusReturned() {
-        if (!foreignScreenUp) return;
-        foreignScreenUp = false;
+        stepAside.foreignClosed();
         updateStepAside();
     }
 
     /**
      * The one place {@link SecondScreen#hide} and {@link SecondScreen#show}
      * are called for either reason a screen not our own has covered this
-     * one - one of the app's own, counted in {@link #ownScreens}, or a
-     * manual on this same display, {@link #foreignScreenUp}. Worked out
+     * one - one of the app's own, or a manual on this same display, both of
+     * them held by {@link #stepAside}. Worked out
      * fresh from both every time rather than toggled by whichever changed,
      * the same reasoning {@link #apply} itself follows, so the two can
      * never disagree about whether the panel should be up.
@@ -267,7 +267,7 @@ public final class Panels {
     private void updateStepAside() {
         if (panel == null) return;
 
-        if (ownScreens > 0 || foreignScreenUp) panel.hide();
+        if (stepAside.hidden()) panel.hide();
         else panel.show();
     }
 
@@ -401,15 +401,15 @@ public final class Panels {
         public void onActivityStarted(Activity started) {
             if (started == activity) return;
 
-            ownScreens++;
+            stepAside.opened(started);
             updateStepAside();
         }
 
         @Override
-        public void onActivityStopped(Activity stopped) {
-            if (stopped == activity || ownScreens == 0) return;
+        public void onActivityDestroyed(Activity destroyed) {
+            if (destroyed == activity) return;
 
-            ownScreens--;
+            stepAside.closed(destroyed);
             updateStepAside();
         }
 
@@ -425,7 +425,10 @@ public final class Panels {
         @Override
         public void onActivitySaveInstanceState(Activity a, Bundle state) { }
 
+        // Deliberately not the pair of onActivityStarted: a screen of ours is
+        // stopped by anything that covers it, and the picker doing that is
+        // the whole of the fault this shape fixes. See StepAside.
         @Override
-        public void onActivityDestroyed(Activity destroyed) { }
+        public void onActivityStopped(Activity stopped) { }
     };
 }
