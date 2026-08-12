@@ -151,9 +151,25 @@ public final class Manuals {
             // explicit grant of its own; grantToResolvers is applied to it
             // anyway, since doing so costs nothing and removes the need to
             // trust that expectation instead of covering it.
+            File file = new File(manual.getPath());
+            String authority = context.getPackageName() + ".esde";
+
             try {
-                shareable = FileProvider.getUriForFile(
-                        context, context.getPackageName() + ".esde", new File(manual.getPath()));
+                shareable = FileProvider.getUriForFile(context, authority, file);
+            } catch (IllegalArgumentException outsideTheRoots) {
+                // Not under any root the provider declares, which is the
+                // ordinary case for a manual this app scraped for itself: it
+                // lives in the media folder, under the data folder, which is a
+                // preference and has no path that can be written into XML -
+                // and may be on internal storage, where no external-path could
+                // reach it at all. Every one of those answered "could not open
+                // that file" before this, on every screen.
+                shareable = servedFromCache(context, authority, file);
+
+                if (shareable == null) {
+                    Toast.makeText(context, R.string.open_failed, Toast.LENGTH_LONG).show();
+                    return;
+                }
             } catch (Exception e) {
                 Toast.makeText(context, R.string.open_failed, Toast.LENGTH_LONG).show();
                 return;
@@ -202,6 +218,63 @@ public final class Manuals {
             // No PDF viewer at all, rather than doing nothing silently - the
             // same choice Feedback makes when there is no mail app.
             Toast.makeText(context, R.string.open_failed, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    /**
+     * The manual, copied where the provider can serve it from, or null.
+     *
+     * One folder, one file at a time: the copy before this one is thrown away
+     * on the way in, so the cache holds at most the manual somebody is
+     * actually reading rather than one per manual ever opened. There is no way
+     * out to hook for a tidier scheme - the viewer is another app's activity
+     * and never says when it has finished - which is the same argument {@link
+     * #releaseLastGrant} already makes about the grants.
+     *
+     * On the calling thread, which is the UI thread. A copy is what makes that
+     * defensible rather than a stream: these are a few megabytes at the
+     * outside, ZXDB's PDFs being scans of cassette inlays and typeset
+     * instructions rather than anything long. If manuals ever get big enough
+     * to be felt here, the answer is to move the copy off the thread, not to
+     * hand out a path the provider cannot serve.
+     */
+    private static Uri servedFromCache(Context context, String authority, File manual) {
+        File folder = new File(context.getCacheDir(), "manuals");
+
+        emptyOut(folder);
+
+        if (!folder.isDirectory() && !folder.mkdirs()) {
+            Log.w(TAG, "cannot make " + folder);
+            return null;
+        }
+
+        File copy = new File(folder, manual.getName());
+
+        try (java.io.InputStream in = new java.io.FileInputStream(manual);
+             java.io.OutputStream out = new java.io.FileOutputStream(copy)) {
+
+            byte[] buffer = new byte[64 * 1024];
+            for (int read; (read = in.read(buffer)) != -1; ) out.write(buffer, 0, read);
+        } catch (java.io.IOException e) {
+            Log.w(TAG, "cannot copy " + manual.getName() + " where it can be served from", e);
+            copy.delete();
+            return null;
+        }
+
+        try {
+            return FileProvider.getUriForFile(context, authority, copy);
+        } catch (Exception e) {
+            Log.w(TAG, "the cache copy is not under a declared root either", e);
+            return null;
+        }
+    }
+
+    private static void emptyOut(File folder) {
+        File[] previous = folder.listFiles();
+        if (previous == null) return;
+
+        for (File one : previous) {
+            if (!one.delete()) Log.w(TAG, "cannot remove " + one);
         }
     }
 

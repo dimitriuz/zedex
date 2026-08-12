@@ -31,4 +31,22 @@
          common case, but a manual under a folder this app cannot yet name
          specifically is still better reached than not opened at all. -->
     <external-path name="esde" path="ES-DE" />
+
+    <!-- Where a manual this app scraped for itself is served from.
+         
+         Not the media folder it actually lives in, because that folder has
+         no fixed path to declare: Storage.root is the data folder, which is
+         a preference, and its own default falls back through Documents to
+         getExternalFilesDirs and finally getFilesDir - internal storage,
+         which no external-path could ever reach. A root that cannot be
+         written down is a root FileProvider cannot match, and the failure
+         was exactly that: getUriForFile threw, Manuals caught it, and every
+         scraped manual on every screen answered "could not open that file".
+         
+         So one is copied here instead and handed over from a place this app
+         can always name. It keeps the tight scoping the roots above were
+         chosen for - a mistake here exposes one copied manual, not a data
+         folder - and it is the only form of the fix that works when the
+         data folder is on internal storage. -->
+    <cache-path name="manuals" path="manuals/" />
 </paths>
