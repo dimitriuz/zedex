@@ -30,6 +30,7 @@ import org.junit.runner.RunWith;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -233,6 +234,64 @@ public class ArtworkChoiceTest {
         assertTrue(Artwork.fileFor(context, PATH, "covers", "jpg").isFile());
         assertFalse("the png it replaced is still there, and png outranks jpg",
                     Artwork.fileFor(context, PATH, "covers", "png").isFile());
+    }
+
+    /**
+     * Two sources, nothing on disk: both are offered, and the first is the
+     * one Save keeps.
+     *
+     * The sheet has always been able to draw this - it groups by folder and
+     * preselects the first source when there is nothing of the user's to
+     * prefer - but nothing ever opened it in that state, because "contested"
+     * only asked whether an offer differed from a file the user already had.
+     * A first scrape of a game with no media took the first source's cover
+     * and threw the second's away unseen; see {@code BlendTest}'s own half of
+     * this.
+     */
+    @Test
+    public void twoSourcesWithNothingOnDiskOfferBothAndKeepTheFirst() throws Exception {
+        File one = picture(Artwork.stagingFileFor(context, PATH, "covers/ZXInfo", "png"),
+                           Color.RED);
+        File two = picture(Artwork.stagingFileFor(context, PATH, "covers/ScreenScraper", "png"),
+                           Color.BLUE);
+
+        // existing null, contested false - exactly what Blend stages when the
+        // folder was empty and two sources both answered for it.
+        List<Blend.Staged> staged = Arrays.asList(
+                Blend.staged("covers", "png", "ZXInfo", one, false, null),
+                Blend.staged("covers", "png", "ScreenScraper", two, false, null));
+
+        CountDownLatch done = new CountDownLatch(1);
+        List<Blend.Staged> taken = new ArrayList<>();
+        activity.runOnUiThread(() -> ArtworkChoice.show(
+                activity, "Game.tap", staged, chosen -> {
+                    taken.addAll(chosen);
+                    done.countDown();
+                }));
+
+        for (String who : Arrays.asList("ZXInfo", "ScreenScraper")) {
+            UiObject2 tile = device.wait(
+                    Until.findObject(By.clazz("android.widget.ImageView").desc(who)),
+                    TIMEOUT_MS);
+            assertTrue("nothing on screen is described " + who, tile != null);
+        }
+
+        assertTrue("a tile for a picture the user does not have was drawn",
+                   device.findObject(By.desc(yours())) == null);
+
+        UiObject2 first = device.wait(Until.findObject(By.desc("ZXInfo")), TIMEOUT_MS);
+        assertTrue("the first source must start selected - with nothing of "
+                   + "the user's to keep, Save has to keep something",
+                   first.isSelected());
+
+        UiObject2 save = device.wait(Until.findObject(By.text(save())), TIMEOUT_MS);
+        assertTrue("no Save button", save != null);
+        save.click();
+
+        assertTrue(done.await(TIMEOUT_MS, TimeUnit.MILLISECONDS));
+
+        assertEquals(1, taken.size());
+        assertEquals("ZXInfo", taken.get(0).source);
     }
 
     /**

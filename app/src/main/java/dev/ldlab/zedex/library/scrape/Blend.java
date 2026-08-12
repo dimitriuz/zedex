@@ -13,7 +13,9 @@ import java.io.FileInputStream;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -93,7 +95,15 @@ public final class Blend {
         /** In the staging area, not where anything looks. */
         public final File file;
 
-        /** Something is already in that folder, and it is not these bytes. */
+        /**
+         * Something is already in that folder, and it is not these bytes.
+         *
+         * Half the question, not the whole of it - this one is only ever
+         * about the file the user already has. Two sources offering two
+         * different covers for a folder that was empty is a question too, and
+         * one no single {@code Staged} can see; {@link Result#anythingContested}
+         * is where the folder is looked at as a whole.
+         */
         public final boolean contested;
 
         /**
@@ -179,6 +189,16 @@ public final class Blend {
          */
         public final boolean ambiguous;
 
+        /**
+         * Whether anybody has to be asked anything about the pictures.
+         *
+         * Worked out here, where {@link #run} builds this on a worker
+         * thread, rather than in the getter: deciding it means
+         * hashing every staged file, and the one caller asks on the UI thread
+         * with the sheet about to go up.
+         */
+        private final boolean anyQuestion;
+
         Result(Meta meta, int installed, List<Staged> staged, List<String> consulted,
                List<Failure> failures, boolean ambiguous) {
             this.meta = meta;
@@ -187,14 +207,12 @@ public final class Blend {
             this.consulted = Collections.unmodifiableList(consulted);
             this.failures = Collections.unmodifiableList(failures);
             this.ambiguous = ambiguous;
+            this.anyQuestion = questionsIn(this.staged);
         }
 
         /** Whether anybody has to be asked anything about the pictures. */
         public boolean anythingContested() {
-            for (Staged one : staged) {
-                if (one.contested) return true;
-            }
-            return false;
+            return anyQuestion;
         }
     }
 
@@ -620,6 +638,45 @@ public final class Blend {
                                   differs(already, file), already));
         }
         return staged;
+    }
+
+    /**
+     * Whether any folder has more than one answer.
+     *
+     * Two questions, and both are questions: a picture that is not the one
+     * the user already has, and - the half this missed - two sources offering
+     * two different pictures for a folder that was empty. Only the first was
+     * asked, so a first scrape of a game with nothing on disk took whichever
+     * source happened to come first in the order and threw the other's cover
+     * away without ever showing it. Nothing on disk is not nothing to choose
+     * between.
+     *
+     * A folder whose offers are all the same bytes is still not a question -
+     * see {@link #differs} for why that matters as much here as it does
+     * against the user's own file.
+     */
+    private static boolean questionsIn(List<Staged> staged) {
+        Map<String, String> seen = new HashMap<>();
+
+        for (Staged one : staged) {
+            if (one.contested) return true;
+
+            String signature = signatureOf(one.file);
+            String before = seen.put(one.folder, signature);
+
+            if (before != null && !before.equals(signature)) return true;
+        }
+
+        return false;
+    }
+
+    /** What makes two files the same file here. A file that cannot be hashed
+     *  answers only for itself, so it counts as different and the question
+     *  gets asked - which is the safe way round: the cost is one dialog, and
+     *  the other way silently drops a picture. */
+    private static String signatureOf(File file) {
+        String md5 = md5Of(file);
+        return md5 != null ? file.length() + ":" + md5 : file.getPath();
     }
 
     /**

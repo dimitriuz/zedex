@@ -671,6 +671,82 @@ public class BlendTest {
                     result.staged.get(0).file.equals(result.staged.get(1).file));
     }
 
+    /**
+     * Two sources, two different covers, nothing on disk - and that is a
+     * question.
+     *
+     * The half the rule was missing. "Contested" was only ever asked against
+     * the file the user already had, so a first scrape of a game with no
+     * media took whichever source came first in the order and threw the
+     * other's cover away without ever offering it. Nothing on disk is not
+     * nothing to choose between.
+     */
+    @Test
+    public void twoSourcesOfferingDifferentCoversIsAQuestionWithNothingOnDisk() {
+        Fakes.Fake first = new Fakes.Fake("First");
+        first.media = Collections.singletonList(picture("covers", "http://first/cover"));
+
+        Fakes.Fake second = new Fakes.Fake("Second");
+        second.media = Collections.singletonList(picture("covers", "http://second/cover"));
+
+        Blend.Result result = run(Arrays.asList(first, second), new Fakes.WritesTheUrl(),
+                                  Blend.Media.OFFER_ALTERNATIVES,
+                                  Provider.Wanted.of("covers"), new NeverAsked());
+
+        assertFalse("neither is contested against a file that is not there",
+                    result.staged.get(0).contested || result.staged.get(1).contested);
+
+        assertTrue("two sources offered two different covers for an empty "
+                   + "folder and nobody was asked which to keep",
+                   result.anythingContested());
+    }
+
+    /**
+     * ...and two sources carrying the same scan is not.
+     *
+     * The same rule the user's own file gets: choosing between a picture and
+     * itself is not a choice, and a sheet that opens to ask it is a sheet
+     * that opens for nothing on most games.
+     */
+    @Test
+    public void twoSourcesWithTheSameCoverAreNotAQuestion() {
+        Fakes.Fake first = new Fakes.Fake("First");
+        first.media = Collections.singletonList(picture("covers", "http://same/cover"));
+
+        Fakes.Fake second = new Fakes.Fake("Second");
+        second.media = Collections.singletonList(picture("covers", "http://same/cover"));
+
+        Blend.Result result = run(Arrays.asList(first, second), new Fakes.WritesTheUrl(),
+                                  Blend.Media.OFFER_ALTERNATIVES,
+                                  Provider.Wanted.of("covers"), new NeverAsked());
+
+        assertEquals(2, result.staged.size());
+        assertFalse("both sources had the same scan and the sheet was opened "
+                    + "to ask which of it to keep",
+                    result.anythingContested());
+    }
+
+    /** And two sources answering for two different folders is not a question
+     *  either - one cover and one screenshot is two answers to two
+     *  questions. */
+    @Test
+    public void twoSourcesFillingDifferentFoldersIsNotAQuestion() {
+        Fakes.Fake first = new Fakes.Fake("First");
+        first.media = Collections.singletonList(picture("covers", "http://first/cover"));
+
+        Fakes.Fake second = new Fakes.Fake("Second");
+        second.media = Collections.singletonList(picture("screenshots", "http://second/shot"));
+
+        Blend.Result result = run(Arrays.asList(first, second), new Fakes.WritesTheUrl(),
+                                  Blend.Media.OFFER_ALTERNATIVES,
+                                  Provider.Wanted.of("covers", "screenshots"),
+                                  new NeverAsked());
+
+        assertEquals(2, result.staged.size());
+        assertFalse("a cover and a screenshot were read as a disagreement",
+                    result.anythingContested());
+    }
+
     // --- committing ---------------------------------------------------------------
 
     @Test
