@@ -73,6 +73,19 @@ public final class ZoomableImageView extends ImageView {
      * of these views never need them: a gallery in the pane makes one per page
      * and turns none of them on.
      */
+    /**
+     * <b>This view owns its scale type, and a caller must not set one.</b>
+     *
+     * Zoomable means {@code MATRIX}, because that is the only scale type an
+     * {@code ImageView} will draw a matrix with; unzoomable means {@code
+     * FIT_CENTER}, which is what every page that cannot be pinched wants. A
+     * caller that sets one afterwards breaks the first case in a way nothing
+     * announces: the matrix is still stored, so a pinch moves every number
+     * this class keeps and the picture never changes, and once the view
+     * believes it is zoomed it keeps the drags meant for turning the page.
+     * {@code Gallery} did exactly that for as long as zoom appeared not to
+     * exist - see the comment where it no longer does it.
+     */
     public void setZoomable(boolean on) {
         if (zoomable == on) return;
 
@@ -91,6 +104,30 @@ public final class ZoomableImageView extends ImageView {
 
         setScaleType(ScaleType.MATRIX);
         refit();
+    }
+
+    /**
+     * Refused while zoomable, and that is not tidiness.
+     *
+     * An {@code ImageView} draws the matrix it was given only in {@code
+     * MATRIX} mode, but keeps and hands back that matrix in every mode - so a
+     * caller that sets a scale type after zoom is turned on breaks the drawing
+     * and nothing anywhere says so: the pinch is detected, every number this
+     * class keeps moves, the picture does not change, and the view then eats
+     * the drags meant for turning the page because it believes it is zoomed.
+     *
+     * {@code Gallery} did precisely that, one line after turning zoom on, and
+     * zoom read as a feature nobody had written until it was found. A comment
+     * asking callers not to would have been a comment; this is the same
+     * instruction the compiler and the next person cannot skip.
+     */
+    @Override
+    public void setScaleType(ScaleType type) {
+        if (zoomable && type != ScaleType.MATRIX) {
+            super.setScaleType(ScaleType.MATRIX);
+            return;
+        }
+        super.setScaleType(type);
     }
 
     /** Back to fitting, which every new picture starts at - a gallery page

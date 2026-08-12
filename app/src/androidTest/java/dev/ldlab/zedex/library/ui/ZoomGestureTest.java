@@ -184,6 +184,56 @@ public class ZoomGestureTest {
     }
 
     /**
+     * A zoomable picture is drawn from its matrix, or none of the rest counts.
+     *
+     * The whole of the last fault, and the one thing the earlier tests here
+     * could not see: an ImageView only draws the matrix it was given while its
+     * scale type is MATRIX, but getImageMatrix hands back what was set
+     * whatever the scale type is - so every assertion about scale passed while
+     * Gallery, one line after turning zoom on, put the view back to
+     * FIT_CENTER. A pinch moved every number and the picture never changed.
+     */
+    @Test
+    public void azoomablePictureIsInMatrixModeSoTheZoomIsActuallyDrawn() {
+        onMain(() -> assertTrue(
+                "a zoomable picture is not in MATRIX mode, so nothing it "
+                + "computes is ever drawn",
+                picture.getScaleType() == android.widget.ImageView.ScaleType.MATRIX));
+    }
+
+    /**
+     * And it stays that way even if a caller sets a scale type afterwards.
+     *
+     * This is the regression guard. Gallery turned zoom on and then set
+     * FIT_CENTER on the very next line, which silently un-drew every zoom -
+     * so the view refuses now rather than trusting the order of two calls in
+     * somebody else's file.
+     */
+    @Test
+    public void azoomablePictureRefusesToLeaveMatrixMode() {
+        onMain(() -> {
+            picture.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+
+            assertTrue("a caller set a scale type and the zoom stopped being "
+                       + "drawn, which is exactly the fault this guards",
+                       picture.getScaleType()
+                               == android.widget.ImageView.ScaleType.MATRIX);
+        });
+    }
+
+    /** And an unzoomable one is left fitting, which is what every page that
+     *  cannot be pinched wants. */
+    @Test
+    public void anunzoomablePictureIsLeftFitting() {
+        onMain(() -> {
+            ZoomableImageView plain = new ZoomableImageView(context);
+            assertTrue("an unzoomable picture should fit its box",
+                       plain.getScaleType()
+                               == android.widget.ImageView.ScaleType.FIT_CENTER);
+        });
+    }
+
+    /**
      * The pager is told the moment the second finger lands, not when the
      * pinch is big enough to recognise.
      *

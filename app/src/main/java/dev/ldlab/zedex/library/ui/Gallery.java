@@ -1230,7 +1230,17 @@ public final class Gallery extends LinearLayout {
             // and every Spectrum screenshot is one. Do not "fix" this back to
             // CENTER_INSIDE: that regression is what this comment exists to
             // stop.
-            view.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            //
+            // Set by ZoomableImageView itself rather than here, and it must
+            // stay that way: setZoomable(true) puts the view into MATRIX so it
+            // can draw a zoomed picture at all, and this line used to run
+            // straight afterwards and put it back to FIT_CENTER. The view then
+            // kept its matrix and drew none of it - a pinch moved the numbers,
+            // the picture never changed, and once the view believed it was
+            // zoomed it ate the drags meant for turning the page. Zoom looked
+            // like a feature nobody had written for as long as this line was
+            // here. FIT_CENTER is still what an unzoomable page gets; the
+            // view's own constructor and its setZoomable(false) both set it.
             view.setContentDescription(null);
             view.setLayoutParams(new RecyclerView.LayoutParams(
                     width, ViewGroup.LayoutParams.MATCH_PARENT));
