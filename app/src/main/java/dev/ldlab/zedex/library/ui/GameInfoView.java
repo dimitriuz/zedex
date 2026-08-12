@@ -126,21 +126,28 @@ public final class GameInfoView extends LinearLayout {
     private int token;
 
     /**
-     * Told whenever this view puts something on its own display - a manual
-     * handed to a PDF viewer, or a picture opened full screen.
+     * Told when this view hands something <em>foreign</em> to its own display
+     * - a manual, opened in whatever PDF viewer the phone has.
      *
      * A {@link android.app.Presentation} draws above every activity window on
      * its display, so anything landing there is invisible underneath until the
-     * panel steps aside. The emulator's own panel notices the app's own
-     * screens through the application's lifecycle callbacks, but the library's
-     * does not, and neither notices a foreign one at all - so both are told
-     * here instead, and coming back is {@code topFocusReturned} either way.
+     * panel steps aside. Both panels notice the app's own screens through the
+     * application's lifecycle callbacks and need no telling; a foreign
+     * activity reaches none of those, which is the whole of why this exists.
+     *
+     * Only foreign ones, and that is not a detail: coming back from one is
+     * {@code topFocusReturned}, the host activity being the top-resumed one
+     * again, and a handheld that gives each display its own focus never takes
+     * that away from a host sitting on the other screen - so the signal never
+     * comes and the panel stays down. Announcing our own full-screen viewer
+     * through here latched exactly that, and Back out of a picture looked like
+     * it had closed the panel for good. See {@link #openViewer}.
      *
      * Set once by {@code SecondScreen}, the only place this view is ever
      * shown; a null check where it is read covers a caller that never
      * bothers, the same as every other listener in this app.
      */
-    private Runnable onScreenOpened;
+    private Runnable onForeignScreen;
 
     /** Whether playing a game means anything from here at all - only ever
      *  set by {@link dev.ldlab.zedex.screen.LibraryPanel}, since only the
@@ -383,16 +390,16 @@ public final class GameInfoView extends LinearLayout {
         box.setLayoutParams(params);
     }
 
-    /** {@link #onScreenOpened}'s own setter - public because the panel
+    /** {@link #onForeignScreen}'s own setter - public because the panel
      *  that shows this view is in a different layer; see CLAUDE.md, "a
      *  member another layer needs has to be public". */
-    public void setOnScreenOpened(Runnable listener) {
-        this.onScreenOpened = listener;
+    public void setOnForeignScreen(Runnable listener) {
+        this.onForeignScreen = listener;
     }
 
     /**
      * {@link #onPlay}'s own setter - public for the same reason {@link
-     * #setOnScreenOpened} is, and never called at all by {@code Panels},
+     * #setOnForeignScreen} is, and never called at all by {@code Panels},
      * whose panel shows a game already running; only {@code LibraryPanel}
      * installs an action here, which is what keeps Play off the emulator's
      * own panel without this view guessing from anything it can see for
@@ -487,11 +494,11 @@ public final class GameInfoView extends LinearLayout {
                 // getDisplay() is this view's own panel, whichever activity
                 // put it there - see the class comment. Null before the
                 // first layout pass, which Manuals.open reads as "no panel
-                // to ask for", the ordinary path - and onScreenOpened with
+                // to ask for", the ordinary path - and onForeignScreen with
                 // it, since nothing was put on a display that was never
                 // asked for.
                 manualButton.setOnClickListener(
-                        v -> Manuals.open(getContext(), result, getDisplay(), onScreenOpened));
+                        v -> Manuals.open(getContext(), result, getDisplay(), onForeignScreen));
             });
         });
     }
@@ -557,10 +564,11 @@ public final class GameInfoView extends LinearLayout {
      * Manuals.open} reads it: no panel to ask for, so ask for nothing.
      *
      * Unlike the manual, nothing has to be told this happened. {@code
-     * MediaViewerActivity} is one of the app's own, so {@code Panels} sees it
-     * through the application's lifecycle callbacks and steps the panel aside
-     * by itself - the whole reason {@code onScreenOpened} exists is that a
-     * foreign activity never reaches those.
+     * MediaViewerActivity} is one of the app's own, so both panels see it
+     * through the application's lifecycle callbacks and step aside by
+     * themselves - the whole reason {@link #onForeignScreen} exists is that a
+     * foreign activity never reaches those, and telling it about one of ours
+     * is how the panel came to stay down for good; see that field.
      */
     private void openViewer(int index) {
         if (path == null) return;
@@ -579,9 +587,17 @@ public final class GameInfoView extends LinearLayout {
 
                 getContext().startActivity(intent, options.toBundle());
 
-                // Same as the manual next door: something is now on this
-                // display, and the panel is drawn above it until it is told.
-                if (onScreenOpened != null) onScreenOpened.run();
+                // Not the manual's signal, only the video half of it. This
+                // viewer is one of the app's own, so the panel already steps
+                // aside for it through the lifecycle callbacks - and telling
+                // it a *foreign* screen is up sets a latch that only the host
+                // activity's onTopResumedActivityChanged clears. On a
+                // handheld that gives each display its own focus, the host
+                // never stops being the top-resumed activity on its own
+                // screen, so that callback does not come: the panel went away
+                // when the picture opened and never came back, which reads as
+                // Back out of a picture having closed the panel for good.
+                release();
                 return;
             } catch (RuntimeException e) {
                 // The display refused it or has gone. The main screen is

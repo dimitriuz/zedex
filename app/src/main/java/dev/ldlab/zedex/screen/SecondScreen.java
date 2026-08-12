@@ -183,7 +183,7 @@ public final class SecondScreen extends Presentation {
     private OnModeChanged modeListener;
 
     /** Told the moment the info side puts a manual on this presentation's
-     *  own display - see {@link GameInfoView#setOnScreenOpened} and {@link
+     *  own display - see {@link GameInfoView#setOnForeignScreen} and {@link
      *  Panels}'s class comment, the fourth corner. {@link Panels} and
      *  {@link LibraryPanel} both set this to step their own window aside
      *  for it, exactly as they already do for one of the app's own
@@ -229,10 +229,13 @@ public final class SecondScreen extends Presentation {
         stage.setBackgroundColor(BACKING);
 
         infoView = new GameInfoView(getContext());
-        infoView.setOnScreenOpened(() -> {
+        infoView.setOnForeignScreen(() -> {
             // The fifth of the moments listed on updateVisibility a video
             // must not be left running for - the manual is about to cover
             // this same display, whichever side of the switch is showing.
+            // Only a manual reaches here: this view stops its own video and
+            // says nothing when it opens one of the app's own screens, which
+            // both panels already see for themselves.
             infoView.release();
             if (foreignScreenListener != null) foreignScreenListener.run();
         });
