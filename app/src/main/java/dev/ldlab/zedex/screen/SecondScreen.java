@@ -799,7 +799,16 @@ public final class SecondScreen extends Presentation {
 
     @Override
     protected void onStop() {
-        if (backCallback != null) {
+        // The version check as well as the null one, exactly as {@code
+        // EmulatorActivity.onDestroy} carries it and for the reason written
+        // there: nothing below 33 ever sets backCallback, so the null test
+        // alone is correct today - but that is an invariant two methods apart
+        // rather than something this line says, and lint reads it as an API 33
+        // call on a minSdk 30 build because that is what it is. It read it
+        // that way here too, and failed every build on the branch until this
+        // was put back.
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU
+                && backCallback != null) {
             getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(backCallback);
             backCallback = null;
         }
