@@ -305,10 +305,16 @@ public final class Sweep {
         List<Provider> live = new ArrayList<>(sources);
         ScrapeException last = null;
 
+        // The downloads go here rather than onto this thread - see Backlog.
+        // Everything below that returns has to drain it first, which is why
+        // there is only one return past this point.
+        Backlog backlog = new Backlog();
+
         for (Entry entry : entries) {
             if (watcher.cancelled()) {
                 tally.cancelled = true;
-                return tally;
+                backlog.stop();
+                break;
             }
 
             dropTheSpent(live, wanted);
@@ -317,15 +323,23 @@ public final class Sweep {
                 tally.stopped = last != null ? last : new ScrapeException(
                         ScrapeException.Kind.QUOTA_EXCEEDED,
                         "every source is out of allowance: " + allowanceSummary(sources, wanted));
-                return tally;
+                break;
             }
 
             watcher.at(tally.done, tally.total, entry.name);
 
-            Outcome outcome = one(context, live, http, entry, wanted, conflicts, watcher, tally);
+            Outcome outcome = one(context, live, http, entry, wanted, conflicts, watcher,
+                                  tally, backlog);
             conflicts = outcome.conflicts;
 
-            for (Blend.Failure failure : outcome.failures) {
+            // This game's own refusals, and any the downloads behind it have
+            // reported since the last game - a media host refusing reaches
+            // this one game late now rather than inside the game it belongs
+            // to; see Backlog.
+            List<Blend.Failure> refused = new ArrayList<>(outcome.failures);
+            refused.addAll(backlog.refusals());
+
+            for (Blend.Failure failure : refused) {
                 if (isHopeless(failure.why)) {
                     last = failure.why;
                     drop(live, failure.source);
@@ -334,6 +348,11 @@ public final class Sweep {
 
             tally.done++;
         }
+
+        // Every file that landed, however far behind the scraping this got -
+        // the per-game count is always zero with a Backlog, by its own
+        // contract, and this is the only place the real number exists.
+        tally.media += backlog.drain();
 
         return tally;
     }
@@ -360,7 +379,7 @@ public final class Sweep {
      */
     private static Outcome one(Context context, List<Provider> live, Http http,
                                Entry entry, Provider.Wanted wanted, Conflicts conflicts,
-                               Watcher watcher, Tally tally) {
+                               Watcher watcher, Tally tally, Blend.Installs installs) {
         Outcome outcome = new Outcome();
         outcome.conflicts = conflicts;
 
@@ -392,7 +411,7 @@ public final class Sweep {
 
         Blend.Result result = Blend.run(context, live, http, entry, path, wanted,
                                         Blend.Media.FILL_GAPS, chooser,
-                                        watcher::cancelled);
+                                        watcher::cancelled, installs);
 
         if (watcher.cancelled()) {
             // Cancellation reaching Blend mid-back-off surfaces as a
@@ -409,18 +428,17 @@ public final class Sweep {
             // among isHopeless's four. Skipping outcome.failures here anyway
             // is a hedge against that no longer being true - a kind added to
             // one list and forgotten in the other - not a present risk.
-            if (!result.consulted.isEmpty()) {
-                tally.scraped++;
-                tally.media += result.installed;
-            }
+            if (!result.consulted.isEmpty()) tally.scraped++;
             return outcome;
         }
 
         outcome.failures = result.failures;
 
         if (!result.consulted.isEmpty()) {
+            // The pictures are not counted here: they are still downloading,
+            // behind this thread, and Sweep.run adds what landed once the
+            // backlog is drained.
             tally.scraped++;
-            tally.media += result.installed;
         } else if (!result.failures.isEmpty()) {
             tally.failed++;
         } else if (result.ambiguous) {

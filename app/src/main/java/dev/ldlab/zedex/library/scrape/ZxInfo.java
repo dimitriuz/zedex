@@ -141,7 +141,7 @@ public final class ZxInfo implements Provider {
     }
 
     /**
-     * Half a second between requests, and it is not politeness.
+     * A quarter of a second between requests, and it is not politeness.
      *
      * There is no published rate limit - the API's own documentation asks
      * clients to be good citizens and to identify themselves, and leaves it
@@ -151,9 +151,21 @@ public final class ZxInfo implements Provider {
      * hundred games and sixteen hundred requests.
      *
      * So this is the difference between a working feature and getting users
-     * blocked, and the number is a guess made deliberately on the safe side.
-     * A round trip is a couple of hundred milliseconds anyway, so the real
-     * cost of it is far less than it looks.
+     * blocked, and the number is a guess. It was half a second and is now
+     * half of that, chosen by the project's owner against a measurement
+     * rather than against the guess: the service answers a filecheck, a
+     * search and a record in 0.11 to 0.20 seconds each, so at half a second
+     * the app was spending roughly two thirds of every game's API time
+     * asleep, and a sweep of eight hundred games spent a quarter of an hour
+     * doing nothing at all.
+     *
+     * What has <em>not</em> changed is the thing that got the address blocked:
+     * that was a burst with no User-Agent, which {@code Http.Real} now always
+     * sends, and it is a different failure from asking too often. And the way
+     * this service says "enough" is still handled - {@link #refusalFor} maps
+     * 429 and 403 to {@code CLOSED}, which stops a run rather than letting it
+     * hammer on. If that ever fires in the wild, this number is the first
+     * thing to put back.
      *
      * <b>The number lives here; the counting does not.</b> This is ZXInfo's
      * own number, arrived at from what happened to this app on this service,
@@ -165,7 +177,7 @@ public final class ZxInfo implements Provider {
      * instead, because the thing being spaced is the traffic arriving at
      * ZXInfo, which is not a property of whichever object here sent it.
      */
-    public static final long MINIMUM_INTERVAL_MS = 500;
+    public static final long MINIMUM_INTERVAL_MS = 250;
 
     // --- finding a game ------------------------------------------------------------
 

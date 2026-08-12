@@ -68,6 +68,55 @@ public final class Blend {
     }
 
     /**
+     * Where a game's media actually gets fetched.
+     *
+     * The pictures come from hosts nobody paces - {@code
+     * spectrumcomputing.co.uk} and {@code zxinfo.dk/media} are static files,
+     * and ScreenScraper's own downloads are counted rather than spaced. The
+     * <em>facts</em> come from an API this app deliberately waits between
+     * calls to. So a sweep that fetches the pictures on the same thread that
+     * is about to sleep before the next game's first request spends that
+     * sleep doing nothing, having a download to do the whole time.
+     *
+     * This is the seam that lets a caller say otherwise. {@link #INLINE} does
+     * what this class always did, which is what one game from the popup wants
+     * - there is nothing else to be getting on with. A sweep hands over a
+     * {@link Backlog} instead, which runs the download on one other thread
+     * while the paced calls for the next game go out.
+     *
+     * One other thread, not several: two games' downloads never overlap each
+     * other, so this asks no more of anybody's file host than the sequential
+     * version did. The only thing that changes is what the scraping thread
+     * does while it waits.
+     */
+    public interface Installs {
+
+        /** How many files landed, thrown if the source has refused in a way
+         *  that ends its part of the run. */
+        interface Job {
+            int run() throws ScrapeException;
+        }
+
+        /**
+         * Do this game's media for that source, now or shortly.
+         *
+         * @return what landed, or 0 from an implementation that has not
+         *         finished - or started - by the time it answers
+         */
+        int take(String source, Job job) throws ScrapeException;
+
+        /**
+         * Here and now, on the calling thread, and the count is the truth.
+         *
+         * The default, and what {@code ScrapeOneGame} uses: a person is
+         * watching one game and there is no next game to be overlapping
+         * with. A refusal thrown from here reaches {@code run}'s own
+         * per-source catch exactly as it did before this interface existed.
+         */
+        Installs INLINE = (source, job) -> job.run();
+    }
+
+    /**
      * Which of several a source found, from whoever is watching.
      *
      * Called on the calling thread, which is never the UI thread. Null leaves
@@ -229,6 +278,18 @@ public final class Blend {
     public static Result run(Context context, List<Provider> sources, Http http,
                              Entry entry, String path, Provider.Wanted wanted,
                              Media media, Chooser chooser, Cancellable cancel) {
+        return run(context, sources, http, entry, path, wanted, media, chooser, cancel,
+                   Installs.INLINE);
+    }
+
+    /**
+     * The same, with somewhere else to put the downloading - see {@link
+     * Installs}. Only a sweep passes anything but {@link Installs#INLINE}.
+     */
+    public static Result run(Context context, List<Provider> sources, Http http,
+                             Entry entry, String path, Provider.Wanted wanted,
+                             Media media, Chooser chooser, Cancellable cancel,
+                             Installs installs) {
         // The store does not read itself - a caller reaching this before the
         // library has run in this process would find an empty cache and read
         // every already-scraped game as unscraped, which on a cold start
@@ -289,9 +350,21 @@ public final class Blend {
                 consulted.add(source.name());
 
                 if (media == Media.FILL_GAPS) {
-                    installed += Downloads.fetch(context, http, source, path,
-                                                 answer.media,
-                                                 Downloads.into(context, path)).saved;
+                    final Provider.Scraped fetched = answer;
+
+                    // Artwork's own cache is invalidated where the files
+                    // actually land rather than after this loop, because with
+                    // a Backlog that can be minutes later and on another
+                    // thread - and a cache dropped before the file exists is
+                    // a cache that re-reads the empty folder and remembers
+                    // *that*.
+                    installed += installs.take(source.name(), () -> {
+                        int saved = Downloads.fetch(context, http, source, path,
+                                                    fetched.media,
+                                                    Downloads.into(context, path)).saved;
+                        if (saved > 0) Artwork.forget(path);
+                        return saved;
+                    });
                 } else {
                     staged.addAll(stage(context, http, source, path, answer.media));
                 }
@@ -319,8 +392,6 @@ public final class Blend {
 
         Meta merged = built.build();
         Metadata.put(context, merged);
-
-        if (installed > 0) Artwork.forget(path);
 
         return new Result(merged, installed, staged, consulted, failures, ambiguous);
     }

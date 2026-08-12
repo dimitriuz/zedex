@@ -1156,6 +1156,18 @@ disagreement, because a hash is the file itself and a title is what somebody
 typed on a shelf; the earlier name is kept regardless, since that source had
 priority.
 
+**A sweep's downloads run behind it, not in it.** The facts come from an API
+this app deliberately spaces its calls to; the pictures come from static hosts
+nobody spaces. Fetched on the same thread the two queue up behind each other —
+the sweep fetches a cover, then sleeps before the next game's first request,
+having had nothing to do during the sleep and a download to do the whole time.
+`Blend.Installs` is the seam: `INLINE` is what one game from the popup uses,
+and a sweep hands over a `Backlog` instead, which is one other thread. One, so
+two games' downloads never overlap each other and the file hosts see what they
+always saw. The cost is that a media host's refusal reaches the sweep at the
+next game boundary rather than inside the game it belongs to, which is what
+`Backlog.refusals` is for.
+
 **`Merge.of` is the whole rule: a gap may be filled, a value may never be
 replaced.** One method, in a class of its own (`library/scrape/Merge.java`)
 because it is the only part of the loop with no `Context` in it, so a JVM
