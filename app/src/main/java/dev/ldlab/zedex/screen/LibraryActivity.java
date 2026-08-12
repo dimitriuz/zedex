@@ -144,12 +144,8 @@ public final class LibraryActivity extends ZedexActivity {
      *  read with getBoolean always. Not this screen's to write. */
     private static final String KEY_LIBRARY_NAMES = "libraryNames";
 
-    /** Whether the pane's own three-second wait to the video runs at all -
-     *  see {@link DetailPane#setAutoplay}, which is all this screen does with
-     *  it. Written by the same settings tab, defaulting to true, which is
-     *  what the pane always did before the switch existed; read with
-     *  getBoolean always. Not this screen's to write. */
-    private static final String KEY_LIBRARY_VIDEO_AUTOPLAY = "libraryVideoAutoplay";
+    /* The autoplay key moved to Prefs when the second screen's info view
+       needed it too - see Prefs.KEY_LIBRARY_VIDEO_AUTOPLAY. */
 
     private static final int ACTIVE = 0xff00b0c8;
     private static final int DIVIDER = 0x33ffffff;
@@ -733,7 +729,7 @@ public final class LibraryActivity extends ZedexActivity {
         // Same reasoning: whether the pane's own three-second wait to the
         // video ever fires is exactly as liable to have changed in Settings
         // as the names switch beside it.
-        pane.setAutoplay(preferences.getBoolean(KEY_LIBRARY_VIDEO_AUTOPLAY, true));
+        pane.setAutoplay(preferences.getBoolean(Prefs.KEY_LIBRARY_VIDEO_AUTOPLAY, true));
 
         // Coming back to the front - which this always is by the time
         // watch() runs, since it is onResume that calls it - re-checks the

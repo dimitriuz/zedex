@@ -84,6 +84,30 @@ public final class GameInfoView extends LinearLayout {
 
     private final Handler handler = new Handler(Looper.getMainLooper());
 
+    /**
+     * How long a picture is left up before the video takes over, and the token
+     * every one of those waits is posted under so a new selection cancels the
+     * one before it.
+     *
+     * The same three seconds the pane uses, and deliberately the same: the two
+     * are the same feature on two screens, and a panel that moved to the video
+     * at a different moment from the pane would look like a bug in whichever
+     * one you were not watching.
+     */
+    private static final int VIDEO_DELAY_MS = 3000;
+
+    private final Object videoToken = new Object();
+
+    /** Whether that wait is scheduled at all - the {@code libraryVideoAutoplay}
+     *  preference, handed here by whoever shows this view. True until told
+     *  otherwise, which is what the pane's own default is. */
+    private boolean autoplay = true;
+
+    /** Set the moment somebody swipes the gallery themselves, so the wait
+     *  never drags them off a page they chose - the pane's {@code userSwiped},
+     *  for the same reason. */
+    private boolean userSwiped;
+
     private final Gallery gallery;
     private final ImageButton manualButton;
 
@@ -157,6 +181,11 @@ public final class GameInfoView extends LinearLayout {
         // which reads as a screen that ignores you rather than as a listener
         // nobody had set.
         gallery.setOnPageTapped(this::openViewer);
+
+        // A page somebody chose is a page they keep: without this the wait
+        // would drag them to the video three seconds after they swiped away
+        // from it.
+        gallery.setOnPageChanged(index -> userSwiped = true);
         coverBox.addView(gallery, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
 
@@ -391,6 +420,17 @@ public final class GameInfoView extends LinearLayout {
 
         gallery.load(relativePath);
 
+        userSwiped = false;
+        handler.removeCallbacksAndMessages(videoToken);
+
+        // Off, the video is still there to swipe to and still plays once
+        // swiped to; only this automatic move to it is what the setting turns
+        // off, so a wait with nothing to do is not even scheduled.
+        if (autoplay) {
+            int forThis = token;
+            handler.postDelayed(() -> advanceToVideo(forThis), videoToken, VIDEO_DELAY_MS);
+        }
+
         Context app = getContext().getApplicationContext();
 
         Work.run("pane-info", () -> {
@@ -476,6 +516,30 @@ public final class GameInfoView extends LinearLayout {
      * media.Music}.
      */
     /**
+     * Moves to the video, unless the selection changed or somebody swiped.
+     *
+     * The panel had none of this: the wait, the setting behind it and the
+     * swipe that cancels it were all the pane's, so a video on the second
+     * screen sat on its first picture until somebody swiped to it by hand.
+     * The same three seconds and the same two guards, because it is meant to
+     * be the same behaviour on the other screen rather than a second one.
+     */
+    private void advanceToVideo(int forThis) {
+        if (forThis != token || userSwiped) return;
+
+        int index = gallery.videoIndex();
+        if (index >= 0) gallery.showPage(index);
+    }
+
+    /** Whether {@link #showEntry} schedules that wait at all - the {@code
+     *  libraryVideoAutoplay} preference, re-read and handed here by whoever
+     *  shows this view, exactly as {@code LibraryActivity} hands it to the
+     *  pane on every resume. */
+    public void setAutoplay(boolean on) {
+        autoplay = on;
+    }
+
+    /**
      * The picture that was tapped, full screen, on this view's own display.
      *
      * The display matters, and the manual button next door explains why: this
@@ -545,6 +609,10 @@ public final class GameInfoView extends LinearLayout {
         manualButton.setVisibility(View.GONE);
         updatePlayVisibility();
         gallery.clear();
+
+        // Nothing selected has no video to move to, and a wait left running
+        // would move an empty gallery three seconds after it emptied.
+        handler.removeCallbacksAndMessages(videoToken);
     }
 
     /** Play shows exactly when there is both a game to play ({@link #path})
@@ -563,6 +631,7 @@ public final class GameInfoView extends LinearLayout {
      * video, or anything selected at all.
      */
     public void release() {
+        handler.removeCallbacksAndMessages(videoToken);
         gallery.release();
     }
 

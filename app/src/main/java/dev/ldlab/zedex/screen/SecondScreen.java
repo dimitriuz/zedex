@@ -2,6 +2,7 @@ package dev.ldlab.zedex.screen;
 
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.library.ui.GameInfoView;
+import dev.ldlab.zedex.storage.Prefs;
 import dev.ldlab.zedex.library.ui.Ripple;
 import dev.ldlab.zedex.view.ActivityLights;
 import dev.ldlab.zedex.view.EmulatorLayout;
@@ -308,6 +309,17 @@ public final class SecondScreen extends Presentation {
      */
     void setGameInfo(String relativePath, String name) {
         infoPath = relativePath;
+
+        // Re-read every time rather than once, for the reason LibraryActivity
+        // re-reads it for the pane on every resume: Settings is as liable to
+        // have changed it since the last selection as anything else. Read here
+        // rather than handed down by a host because both hosts want the same
+        // answer - the panel is the same feature on the emulator's screen and
+        // the library's, and a preference is not something either of them
+        // knows better than the other.
+        infoView.setAutoplay(getContext()
+                .getSharedPreferences(Prefs.PREFS, Context.MODE_PRIVATE)
+                .getBoolean(Prefs.KEY_LIBRARY_VIDEO_AUTOPLAY, true));
 
         if (relativePath == null) infoView.clear();
         else infoView.showEntry(relativePath, name);
