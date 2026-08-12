@@ -549,6 +549,11 @@ public final class LibraryActivity extends ZedexActivity {
             public void play() {
                 playSelected();
             }
+
+            @Override
+            public void back() {
+                panelBack();
+            }
         });
 
         // The panel steps aside while any other screen of ours is up and comes
@@ -807,13 +812,24 @@ public final class LibraryActivity extends ZedexActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+
+        // Nothing here exists on the hand-over path: onCreate finished this
+        // activity before building any of it, and an activity finished from
+        // onCreate is never started at all - it goes straight from there to
+        // here, which is why this is the one callback that has to say so for
+        // itself rather than inheriting onStop's guard. Registering the
+        // panel's own lifecycle callbacks in onCreate gave this method
+        // something to dereference that a hand-over never built, and every
+        // launch that starts in the machine rather than the library died on
+        // it - a crash the whole suite could not see, since every test of
+        // ours starts in one screen or the other on purpose.
+        if (handedOver) return;
+
         getApplication().unregisterActivityLifecycleCallbacks(libraryPanel.lifecycle());
 
-        if (!handedOver) {
-            forgetFlattened();
-            Artwork.forget();
-            Gallery.forgetPictures();
-        }
+        forgetFlattened();
+        Artwork.forget();
+        Gallery.forgetPictures();
     }
 
     @Override
@@ -926,6 +942,23 @@ public final class LibraryActivity extends ZedexActivity {
         if (popStack()) return;
 
         finish();
+    }
+
+    /**
+     * Back, pressed on the panel instead - see {@link
+     * LibraryPanel.Host#back()}.
+     *
+     * {@link #handleBack} without its last line, and the missing line is the
+     * whole of the difference: leaving the app is a thing Back may do from the
+     * screen the library is actually on, and never from the other one. A panel
+     * showing a game's cover has nothing above it to go up to, so at the roots
+     * this does nothing at all - which is the answer, not a gap in one. The
+     * way off this app is the way onto any other, and Android's own.
+     */
+    private void panelBack() {
+        if (catalogueBack()) return;
+
+        popStack();
     }
 
     // --- gamepad ---------------------------------------------------------

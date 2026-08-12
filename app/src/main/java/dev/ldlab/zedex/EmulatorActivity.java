@@ -379,6 +379,14 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                 applyFullscreen();
                 controls.applyGamepad();
             }
+
+            @Override
+            public void back() {
+                // The same one the machine's own screen reaches, which is
+                // safe to give the panel precisely because it never leaves:
+                // see handleBack, which always consumes.
+                handleBack();
+            }
         });
 
         getApplication().registerActivityLifecycleCallbacks(panels.lifecycle());

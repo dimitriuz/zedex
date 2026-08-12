@@ -49,6 +49,18 @@ final class LibraryPanel {
         void panelChanged();
 
         void play();
+
+        /**
+         * Back, pressed on the panel rather than on the library's own screen.
+         *
+         * Not this activity's own Back, which finishes at its root - on the
+         * panel that is the app leaving both screens at once for a press on
+         * the one that is only showing a game's details. What the library
+         * gives here is everything its own Back means except that last step;
+         * see {@code LibraryActivity.panelBack} and {@code
+         * SecondScreen.setOnBack}.
+         */
+        void back();
     }
 
     private final Activity activity;
@@ -139,6 +151,7 @@ final class LibraryPanel {
         panel.setGameInfo(infoPath, infoName);
         panel.setOnForeignScreen(this::foreignScreenOpened);
         panel.setOnPlay(host::play);
+        panel.setOnBack(host::back);
         host.panelChanged();
     }
 

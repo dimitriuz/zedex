@@ -66,6 +66,17 @@ public final class Panels {
          * comes and goes, and the on-screen pad steps aside for the real one.
          */
         void panelChanged();
+
+        /**
+         * Back, pressed on the panel rather than on the machine's own screen.
+         *
+         * The activity's own, and the same one its own screen's Back reaches:
+         * the ☰ sheet is <em>on</em> the panel while there is one, so Back
+         * there means what it means anywhere else in this app - up a page of
+         * the sheet, out of fullscreen, or the menu - and never the desktop.
+         * See {@code SecondScreen.setOnBack}.
+         */
+        void back();
     }
 
     private final Activity activity;
@@ -193,6 +204,7 @@ public final class Panels {
         panel.setPreferInfo(preferInfo);
         panel.setOnModeChanged(info -> preferInfo = info);
         panel.setOnForeignScreen(this::foreignScreenOpened);
+        panel.setOnBack(host::back);
 
         // A fresh panel always shows itself first - see Presentation's own
         // show() - so if either reason to step aside is somehow already

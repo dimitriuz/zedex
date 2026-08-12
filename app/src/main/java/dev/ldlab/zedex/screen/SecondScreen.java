@@ -69,6 +69,15 @@ import java.util.List;
  * such state - a game's own details are rebuilt from the store every time, so
  * there is nothing to borrow and nothing to hand back for it.
  *
+ * <b>Back never leaves the app from here.</b> A {@code Presentation} is a
+ * {@code Dialog}, and a Dialog cancels on Back - so a press on the panel's own
+ * navigation bar took this window down and left the second display showing
+ * Android's launcher, measured on an AYN Thor Lite. It is refused twice over -
+ * see the constructor and {@link #onStart} - and answered instead by whatever
+ * the owner put in {@link #setOnBack}, which is the machine's own Back for the
+ * emulator and the library's minus its last step for the library. The way out
+ * of the app is the way into any other one, and it is Android's, not ours.
+ *
  * Top to bottom in the controls: the bar, the joystick in the space below it,
  * the keyboard, and the lamps at the foot — a hand's things near the hand, and
  * the thing that is only read out of the way. The bar is <em>over</em> the
@@ -186,6 +195,20 @@ public final class SecondScreen extends Presentation {
         super(context, display);
         this.borrowed = borrowed;
         this.hasControls = borrowed.length > 0;
+
+        // A panel is not a dialog, whatever it is built out of. Measured on
+        // an AYN Thor Lite: one Back on the panel's own navigation bar took
+        // this window down and left Android's second-display launcher where
+        // the controls had been - a Dialog cancels on Back, and this is a
+        // Dialog. The panel is the app's other half, and the way out of the
+        // app is not a press of Back on it.
+        //
+        // Both, not one: cancelable is Back, and canceled-on-touch-outside
+        // is what Dialog.onKeyDown falls back to for Escape once Back has
+        // been refused - a real keyboard is as plugged in to a handheld as
+        // a pad is, and the panel would go down the same way for it.
+        setCancelable(false);
+        setCanceledOnTouchOutside(false);
     }
 
     @Override
@@ -670,9 +693,31 @@ public final class SecondScreen extends Presentation {
      * first refusal on everything, exactly as it would with one screen. Just as
      * true for the library's own panel: its gamepad handling lives in {@code
      * LibraryActivity.dispatchKeyEvent} the same way the emulator's does.
+     *
+     * Back is the exception, and has to be: handed on to the activity it would
+     * reach {@code Activity.onKeyUp}'s own default, which is to finish - so the
+     * library's panel took the whole app off both screens for a press of Back
+     * on one of them. It is answered here instead, by {@link #backPressed}.
+     *
+     * API 30 to 32 only, like every other {@code KEYCODE_BACK} branch in this
+     * app: from 33 the manifest's {@code enableOnBackInvokedCallback} is
+     * honoured and Back arrives at the callback {@link #onStart} registers
+     * instead, never here. Consumed on both, whether or not it is acted on -
+     * this window is never the one that lets go of Back.
      */
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
+        if (event.getKeyCode() == KeyEvent.KEYCODE_BACK) {
+            if (android.os.Build.VERSION.SDK_INT
+                        < android.os.Build.VERSION_CODES.TIRAMISU
+                    && event.getAction() == KeyEvent.ACTION_UP
+                    && !event.isCanceled()) {
+                backPressed();
+            }
+
+            return true;
+        }
+
         Context owner = getContext();
 
         if (owner instanceof Activity
@@ -681,6 +726,82 @@ public final class SecondScreen extends Presentation {
         }
 
         return super.dispatchKeyEvent(event);
+    }
+
+    /**
+     * What Back means on this panel, set by whichever of {@link Panels} and
+     * {@link LibraryPanel} owns it, and null for "nothing at all".
+     *
+     * Never "leave the app", whatever either of them puts here - that is the
+     * whole point of {@link #backPressed}, and the reason this is a handler
+     * of the owner's choosing rather than the activity's own Back: the
+     * emulator's own back never leaves the machine either, but the library's
+     * finishes at its root, which on the panel is the app disappearing off
+     * both screens at once.
+     */
+    private Runnable backHandler;
+
+    void setOnBack(Runnable handler) {
+        this.backHandler = handler;
+    }
+
+    /**
+     * Back, however it arrived - the key on API 30 to 32, the dispatcher from
+     * 33. The one place either path acts, so the two can never come to mean
+     * different things on the same press.
+     *
+     * Package-private rather than private because it is what {@code
+     * SecondScreenBackTest} asserts against: both entry points are a few lines
+     * of plumbing around this call, and only this one can be reached without a
+     * second display to put a window on.
+     */
+    void backPressed() {
+        if (backHandler != null) backHandler.run();
+    }
+
+    /**
+     * Back on API 33 and later, where {@link #dispatchKeyEvent} no longer sees
+     * it.
+     *
+     * {@code Dialog.onStart} registers a callback of its own here - at {@code
+     * PRIORITY_SYSTEM}, and unconditionally, whatever {@code setCancelable}
+     * was told - so refusing to cancel is only half the job: without this,
+     * Back on the panel would be consumed by that one and mean nothing at all,
+     * and the emulator's own ☰ sheet, which is <em>on</em> this window, would
+     * have no way out but a tap outside it. {@code PRIORITY_DEFAULT} is above
+     * {@code PRIORITY_SYSTEM}, so ours is the one asked.
+     *
+     * Registered here rather than in {@link #onCreate} to pair with {@link
+     * #onStop}, which is where {@code Dialog} drops its own. Neither runs for
+     * {@code hide()} and {@code show()} - the panel steps aside for another
+     * screen of ours many times over one lifetime and this registration
+     * outlives all of it.
+     */
+    private android.window.OnBackInvokedCallback backCallback;
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+
+        if (android.os.Build.VERSION.SDK_INT
+                < android.os.Build.VERSION_CODES.TIRAMISU) {
+            return;
+        }
+
+        backCallback = this::backPressed;
+        getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+                backCallback);
+    }
+
+    @Override
+    protected void onStop() {
+        if (backCallback != null) {
+            getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(backCallback);
+            backCallback = null;
+        }
+
+        super.onStop();
     }
 
     /**

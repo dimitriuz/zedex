@@ -267,11 +267,21 @@ the panel itself while an input method is being sorted out. Taking the panel dow
 on that reading once left nothing to put it back, so `apply()` only closes a
 panel that is genuinely unwanted or whose display has really gone.
 
-Its `Host` is two methods: the layout whose views the panel borrows, and one
+**A presentation is a dialog, and a dialog cancels on Back.** One press on the
+panel's own navigation bar took the window down and left the second display
+showing Android's launcher — measured on an AYN Thor Lite, where each display
+has its own focus and the panel is the focused window on its one. `SecondScreen`
+refuses it twice: `setCancelable(false)`, and a callback of its own registered
+above the one `Dialog.onStart` puts there regardless of that. What Back means
+instead is the owner's to say, through `setOnBack` — the machine's own back for
+the emulator, which never leaves anyway, and the library's own minus its last
+step, since that one finishes. Nothing on the panel is a way out of the app.
+
+Its `Host` is three methods: the layout whose views the panel borrows, one
 callback for the panel coming or going — three things follow from that and all
 three are the activity's, since the bar stops fading, the fullscreen button has
 nothing to clear away, and the on-screen pad steps aside for the handheld's real
-one.
+one — and what Back means over there.
 
 ### The controls
 
