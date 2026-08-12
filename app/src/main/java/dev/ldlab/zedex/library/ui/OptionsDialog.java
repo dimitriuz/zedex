@@ -166,6 +166,17 @@ public final class OptionsDialog {
 
         /** MENU's own "Scrape many games" row was chosen. */
         void scrapeMany();
+
+        /**
+         * MENU's own Quit row was chosen.
+         *
+         * The library's only way out of the app, and it needs one: the
+         * machine's Quit is on a screen the library cannot see, and Back is
+         * spoken for on a two-screen handheld - the panel refuses it, which
+         * is the point of that, and on a device that gives each display its
+         * own focus the panel is where a Back press lands.
+         */
+        void quit();
     }
 
     // Matches LibraryActivity's own palette - duplicated rather than shared,
@@ -744,6 +755,15 @@ public final class OptionsDialog {
                 callbacks.scrapeMany();
             });
         }
+
+        // Last, and always: it is the one row here that is not about the list
+        // at all. The machine has had a Quit since there was a machine; this
+        // screen had no way out but Back, which a panel refuses on a
+        // two-screen handheld - see Callbacks.quit.
+        addRow(column, activity.getString(R.string.menu_quit), () -> {
+            dismiss();
+            callbacks.quit();
+        });
     }
 
     /** "View · List" or "Sort · Rating ▼" - the label a MENU row always

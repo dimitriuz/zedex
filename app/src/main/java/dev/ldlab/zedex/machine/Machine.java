@@ -6,6 +6,7 @@ import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.input.Controls;
 import dev.ldlab.zedex.media.Media;
 import dev.ldlab.zedex.media.Recorder;
+import dev.ldlab.zedex.screen.Quit;
 import dev.ldlab.zedex.storage.Storage;
 import dev.ldlab.zedex.view.MenuDrawer;
 import android.app.Activity;
@@ -464,11 +465,10 @@ public final class Machine {
             Recorder.waitForFile(RECORDER_GRACE_MS);
         }
 
-        // Off the recents list too: a task left there offers to resume a machine
-        // whose process has gone, and Android would answer that by starting a
-        // fresh one - which is what happens anyway, only having looked like the
-        // old one was still there.
-        activity.finishAndRemoveTask();
-        Runtime.getRuntime().exit(0);
+        // Every task of ours, not only this one - see Quit, and the reason
+        // this used to leave the library standing: a singleInstance activity
+        // is always alone in its own task, so finishing this one left the
+        // library's for Android to restart the app and draw.
+        Quit.everything(activity);
     }
 }

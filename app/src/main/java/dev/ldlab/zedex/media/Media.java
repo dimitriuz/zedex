@@ -851,8 +851,15 @@ public final class Media {
      * The drives holding changes that have not been written back, or null when
      * there are none. Fuse's own flag, asked the same way {@link #fill} asks
      * it - the details arrive as name, disk, modified for each drive.
+     *
+     * Static because the library asks it too, from a screen with no {@code
+     * Media} of its own and often with no machine started at all: quitting
+     * from there takes the machine's task with it, so it has to ask the same
+     * question the machine's own Quit asks. Nothing here reads this object -
+     * the answer is Fuse's, not ours - so there was never anything for an
+     * instance to hold.
      */
-    public String modifiedDisks() {
+    public static String modifiedDisks() {
         String[] details = FuseNative.driveDetails();
         StringBuilder names = new StringBuilder();
 

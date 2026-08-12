@@ -17,6 +17,7 @@ import dev.ldlab.zedex.library.meta.Artwork;
 import dev.ldlab.zedex.library.meta.Meta;
 import dev.ldlab.zedex.library.meta.Metadata;
 import dev.ldlab.zedex.library.scrape.Scrapers;
+import dev.ldlab.zedex.media.Media;
 import dev.ldlab.zedex.library.ui.CatalogueView;
 import dev.ldlab.zedex.library.ui.DetailPane;
 import dev.ldlab.zedex.library.ui.EntryAdapter;
@@ -663,6 +664,11 @@ public final class LibraryActivity extends ZedexActivity {
                 // MENU's own Filter row has nothing to offer there.
                 return tab == Tab.BROWSE;
             }
+
+            @Override
+            public void quit() {
+                quitTheApp();
+            }
         });
 
         // A rotation recreates this activity outright - see buildPage's own
@@ -959,6 +965,33 @@ public final class LibraryActivity extends ZedexActivity {
         if (catalogueBack()) return;
 
         popStack();
+    }
+
+    /**
+     * The library's own way out of the app - see {@code
+     * OptionsDialog.Callbacks#quit}.
+     *
+     * The machine's Quit asks about unsaved disks first, and this has to ask
+     * the same question for the same reason: the machine may be running in the
+     * task next door with a disk somebody has written to, and a Quit here
+     * takes that task with it. {@code Media.modifiedDisks} is a read of Fuse's
+     * own drive table and answers nothing at all when no machine has started
+     * in this process, which is the ordinary case here.
+     */
+    private void quitTheApp() {
+        String unsaved = Media.modifiedDisks();
+
+        if (unsaved == null) {
+            Quit.everything(this);
+            return;
+        }
+
+        new android.app.AlertDialog.Builder(this)
+                .setTitle(R.string.quit_unsaved_title)
+                .setMessage(getString(R.string.quit_unsaved, unsaved))
+                .setPositiveButton(R.string.menu_quit, (dialog, which) -> Quit.everything(this))
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
     }
 
     // --- gamepad ---------------------------------------------------------

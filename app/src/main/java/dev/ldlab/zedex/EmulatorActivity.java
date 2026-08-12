@@ -327,7 +327,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
             @Override
             public String modifiedDisks() {
-                return media.modifiedDisks();
+                return Media.modifiedDisks();
             }
 
             @Override
@@ -1553,9 +1553,12 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             // than acting on the machine or opening a page of it - so it
             // goes first, above even Open file…, rather than at the foot
             // among the things reached for rarely. Only when there is a
-            // library to go back to: LibraryActivity is a task of its own,
-            // launchMode="singleInstance" is what stops a second game
-            // standing up a second Fuse core, and Back here is already
+            // library to go back to. The two are separate tasks whichever
+            // way round you read it - this activity is the singleInstance
+            // one, which is what stops a second game standing up a second
+            // Fuse core, and a singleInstance activity is always alone in a
+            // task of its own; see Quit, which is what that costs. Back here
+            // is already
             // spoken for - opening this menu is what it does, since leaving
             // the app any other way loses the machine's RAM. So the only way
             // across is an explicit one, and only worth offering to somebody
