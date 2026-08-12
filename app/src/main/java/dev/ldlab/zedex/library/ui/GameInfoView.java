@@ -7,13 +7,16 @@ import dev.ldlab.zedex.EmulatorActivity;
 import dev.ldlab.zedex.library.meta.Artwork;
 import dev.ldlab.zedex.library.meta.Meta;
 import dev.ldlab.zedex.library.meta.Metadata;
+import dev.ldlab.zedex.screen.MediaViewerActivity;
 
+import android.app.ActivityOptions;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.Display;
 import android.view.Gravity;
 import android.view.View;
@@ -45,6 +48,8 @@ import android.widget.TextView;
  * between the artwork and the words needs to know.
  */
 public final class GameInfoView extends LinearLayout {
+
+    private static final String TAG = "Zedex";
 
 
     /** Roughly what the artwork is decoded at - a whole panel's worth, the
@@ -96,13 +101,22 @@ public final class GameInfoView extends LinearLayout {
     private String path;
     private int token;
 
-    /** Told exactly when the manual button below puts a manual on this
-     *  view's own display - see {@link Manuals#open(Context, Uri, Display,
-     *  Runnable)}. Set once by {@code SecondScreen}, the only place this
-     *  view is ever shown; a null check at the one place it would be read
-     *  covers a caller that never bothers, same as every other listener
-     *  in this app. */
-    private Runnable onManualOpened;
+    /**
+     * Told whenever this view puts something on its own display - a manual
+     * handed to a PDF viewer, or a picture opened full screen.
+     *
+     * A {@link android.app.Presentation} draws above every activity window on
+     * its display, so anything landing there is invisible underneath until the
+     * panel steps aside. The emulator's own panel notices the app's own
+     * screens through the application's lifecycle callbacks, but the library's
+     * does not, and neither notices a foreign one at all - so both are told
+     * here instead, and coming back is {@code topFocusReturned} either way.
+     *
+     * Set once by {@code SecondScreen}, the only place this view is ever
+     * shown; a null check where it is read covers a caller that never
+     * bothers, the same as every other listener in this app.
+     */
+    private Runnable onScreenOpened;
 
     /** Whether playing a game means anything from here at all - only ever
      *  set by {@link dev.ldlab.zedex.screen.LibraryPanel}, since only the
@@ -135,6 +149,14 @@ public final class GameInfoView extends LinearLayout {
 
         gallery = new Gallery(context);
         gallery.setPictureTargetPx(pixels(ARTWORK_TARGET_DP));
+
+        // A tap opens the picture full screen, the same as the pane's own
+        // gallery and the game info screen's. Without this the tap reached
+        // Gallery.notifyTap, found no listener and returned - so artwork on
+        // the panel was the one artwork in the app that could not be opened,
+        // which reads as a screen that ignores you rather than as a listener
+        // nobody had set.
+        gallery.setOnPageTapped(this::openViewer);
         coverBox.addView(gallery, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
 
@@ -325,16 +347,16 @@ public final class GameInfoView extends LinearLayout {
         box.setLayoutParams(params);
     }
 
-    /** {@link #onManualOpened}'s own setter - public because the panel
+    /** {@link #onScreenOpened}'s own setter - public because the panel
      *  that shows this view is in a different layer; see CLAUDE.md, "a
      *  member another layer needs has to be public". */
-    public void setOnManualOpened(Runnable listener) {
-        this.onManualOpened = listener;
+    public void setOnScreenOpened(Runnable listener) {
+        this.onScreenOpened = listener;
     }
 
     /**
      * {@link #onPlay}'s own setter - public for the same reason {@link
-     * #setOnManualOpened} is, and never called at all by {@code Panels},
+     * #setOnScreenOpened} is, and never called at all by {@code Panels},
      * whose panel shows a game already running; only {@code LibraryPanel}
      * installs an action here, which is what keeps Play off the emulator's
      * own panel without this view guessing from anything it can see for
@@ -418,11 +440,11 @@ public final class GameInfoView extends LinearLayout {
                 // getDisplay() is this view's own panel, whichever activity
                 // put it there - see the class comment. Null before the
                 // first layout pass, which Manuals.open reads as "no panel
-                // to ask for", the ordinary path - and onManualOpened with
+                // to ask for", the ordinary path - and onScreenOpened with
                 // it, since nothing was put on a display that was never
                 // asked for.
                 manualButton.setOnClickListener(
-                        v -> Manuals.open(getContext(), result, getDisplay(), onManualOpened));
+                        v -> Manuals.open(getContext(), result, getDisplay(), onScreenOpened));
             });
         });
     }
@@ -453,6 +475,55 @@ public final class GameInfoView extends LinearLayout {
      * is. Whatever was loaded there is put aside and given back - see {@code
      * media.Music}.
      */
+    /**
+     * The picture that was tapped, full screen, on this view's own display.
+     *
+     * The display matters, and the manual button next door explains why: this
+     * view is only ever shown on a panel, and a screen opened without saying
+     * which display it wants lands on the main one - behind the machine, on
+     * the screen nobody was looking at. {@code getDisplay()} is null before
+     * the first layout pass, which is read here exactly as {@code
+     * Manuals.open} reads it: no panel to ask for, so ask for nothing.
+     *
+     * Unlike the manual, nothing has to be told this happened. {@code
+     * MediaViewerActivity} is one of the app's own, so {@code Panels} sees it
+     * through the application's lifecycle callbacks and steps the panel aside
+     * by itself - the whole reason {@code onScreenOpened} exists is that a
+     * foreign activity never reaches those.
+     */
+    private void openViewer(int index) {
+        if (path == null) return;
+
+        Intent intent = new Intent(getContext(), MediaViewerActivity.class)
+                .putExtra(MediaViewerActivity.EXTRA_PATH, path)
+                .putExtra(MediaViewerActivity.EXTRA_INDEX, index)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+        Display display = getDisplay();
+
+        if (display != null) {
+            try {
+                ActivityOptions options = ActivityOptions.makeBasic();
+                options.setLaunchDisplayId(display.getDisplayId());
+
+                getContext().startActivity(intent, options.toBundle());
+
+                // Same as the manual next door: something is now on this
+                // display, and the panel is drawn above it until it is told.
+                if (onScreenOpened != null) onScreenOpened.run();
+                return;
+            } catch (RuntimeException e) {
+                // The display refused it or has gone. The main screen is
+                // better than nothing at all - the same call Manuals.open
+                // makes at the same point.
+                Log.w(TAG, "cannot open the viewer on display "
+                           + display.getDisplayId(), e);
+            }
+        }
+
+        getContext().startActivity(intent);
+    }
+
     private void openMusic(String relativePath) {
         Intent intent = new Intent(getContext(), EmulatorActivity.class)
                 .putExtra(EmulatorActivity.EXTRA_MUSIC, relativePath)

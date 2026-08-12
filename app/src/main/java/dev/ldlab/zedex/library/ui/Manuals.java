@@ -111,7 +111,7 @@ public final class Manuals {
      * exception - never when there was no display to ask for, and never on
      * the fallback below, since neither of those puts anything on {@code
      * display} at all. {@code GameInfoView} passes its own {@code
-     * onManualOpened} here, set once by {@code SecondScreen} - the only
+     * onScreenOpened} here, set once by {@code SecondScreen} - the only
      * place that view is ever shown - because a {@link
      * android.app.Presentation} draws above every activity window on its
      * own display and would otherwise sit over whatever this puts there,

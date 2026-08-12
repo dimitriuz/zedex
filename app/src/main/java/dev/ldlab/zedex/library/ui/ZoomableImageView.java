@@ -148,6 +148,39 @@ public final class ZoomableImageView extends ImageView {
     }
 
     private final class Pinching extends ScaleGestureDetector.SimpleOnScaleGestureListener {
+
+        /**
+         * A pinch is this view's, whatever the pager thinks.
+         *
+         * Without this, zoom did nothing at all - on every picture and every
+         * screen, which is why it read as a feature nobody had written yet.
+         * {@link Tapping#onDown} hands gestures to the pager while the picture
+         * is unzoomed, and that is right for a flick: it is what makes a swipe
+         * across a cover turn the page rather than drag something with nowhere
+         * to go. But a pinch comes in through the same door, and a horizontal
+         * {@code RecyclerView} calls a gesture a scroll the moment a pointer
+         * passes its touch slop - from then on the child sees none of it, so
+         * {@link #onScale} was never reached and the picture never grew.
+         *
+         * Taken back here rather than in {@code onDown} because this is the
+         * first moment the two can be told apart: a finger going down could
+         * still become either.
+         */
+        @Override
+        public boolean onScaleBegin(ScaleGestureDetector detector) {
+            letThePagerHave(false);
+            return true;
+        }
+
+        /** Back to the pager's, unless the pinch left something to drag. The
+         *  next {@code onDown} decides it the same way; this only stops a
+         *  picture pinched back down to fitting from holding on to gestures it
+         *  has no use for until then. */
+        @Override
+        public void onScaleEnd(ScaleGestureDetector detector) {
+            letThePagerHave(scale <= Zoom.MINIMUM);
+        }
+
         @Override
         public boolean onScale(ScaleGestureDetector detector) {
             zoomTo(scale * detector.getScaleFactor(),
