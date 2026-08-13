@@ -44,13 +44,13 @@ final class StepAside {
      *  front. Cleared entry by entry as each is destroyed; the whole thing
      *  dies with the panel's owner, which unregisters the callbacks that
      *  fill it. */
-    private final Set<Object> ourScreens = new HashSet<>();
+    private final java.util.Map<Object, Integer> ourScreens = new java.util.HashMap<>();
 
     private boolean foreignUp;
 
     /** One of the app's own screens is up on the panel's display. */
-    void opened(Object screen) {
-        ourScreens.add(screen);
+    void opened(Object screen, int display) {
+        ourScreens.put(screen, display);
     }
 
     /** ...and is really gone. Destroyed, never merely stopped - see the class
@@ -102,7 +102,13 @@ final class StepAside {
 
     /** The whole answer, from both reasons at once, so that neither can leave
      *  the panel in a state the other did not want. */
-    boolean hidden() {
-        return !ourScreens.isEmpty() || foreignUp;
+    boolean hidden(int panelDisplay) {
+        if (foreignUp) return true;
+
+        for (Integer where : ourScreens.values()) {
+            if (where != null && where == panelDisplay) return true;
+        }
+
+        return false;
     }
 }

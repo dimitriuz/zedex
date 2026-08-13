@@ -20,6 +20,10 @@ public class StepAsideTest {
 
     private final StepAside stepAside = new StepAside();
 
+    /** The panel's own display, and one that is not it - the machine's. */
+    private static final int PANEL = 4;
+    private static final int MACHINE = 0;
+
     /** Two stand-ins for screens of the app's own. Identity is all {@link
      *  StepAside} uses them for. */
     private final Object settings = new Object();
@@ -28,16 +32,16 @@ public class StepAsideTest {
     @Test
     public void anemptyPanelIsShowing() {
         assertFalse("nothing has covered the panel and it is hiding anyway",
-                    stepAside.hidden());
+                    stepAside.hidden(PANEL));
     }
 
     @Test
     public void ascreenOfOursPutsThePanelAside() {
-        stepAside.opened(settings);
+        stepAside.opened(settings, PANEL);
 
         assertTrue("a screen of ours is up on the panel's display and the "
                    + "panel is still drawn over it",
-                   stepAside.hidden());
+                   stepAside.hidden(PANEL));
     }
 
     /**
@@ -51,7 +55,7 @@ public class StepAsideTest {
      */
     @Test
     public void ascreenCoveredByAForeignWindowIsStillAScreen() {
-        stepAside.opened(settings);
+        stepAside.opened(settings, PANEL);
 
         // ...the picker opens over it, our screen stops, and nothing at all
         // is reported here, because being stopped is not being closed.
@@ -59,18 +63,18 @@ public class StepAsideTest {
         assertTrue("the panel came back while one of our screens was merely "
                    + "covered, so it now draws over whatever covered it - the "
                    + "folder picker was unusable exactly like this",
-                   stepAside.hidden());
+                   stepAside.hidden(PANEL));
     }
 
     /** And it is the screen going that brings the panel back. */
     @Test
     public void apanelComesBackWhenOurScreenIsReallyGone() {
-        stepAside.opened(settings);
+        stepAside.opened(settings, PANEL);
         stepAside.closed(settings);
 
         assertFalse("our screen is gone and the panel stayed hidden, which "
                     + "leaves Android's own launcher on the second screen",
-                    stepAside.hidden());
+                    stepAside.hidden(PANEL));
     }
 
     /**
@@ -82,30 +86,30 @@ public class StepAsideTest {
      */
     @Test
     public void ascreenThatStartsTwiceStillOnlyGoesOnce() {
-        stepAside.opened(settings);
-        stepAside.opened(settings);
+        stepAside.opened(settings, PANEL);
+        stepAside.opened(settings, PANEL);
         stepAside.closed(settings);
 
         assertFalse("the panel is still hidden after the only screen over it "
                     + "was destroyed, because it was counted twice for coming "
                     + "back from being covered",
-                    stepAside.hidden());
+                    stepAside.hidden(PANEL));
     }
 
     /** Two of ours at once, and the panel waits for both. */
     @Test
     public void twoScreensOfOursBothHaveToGo() {
-        stepAside.opened(settings);
-        stepAside.opened(viewer);
+        stepAside.opened(settings, PANEL);
+        stepAside.opened(viewer, PANEL);
         stepAside.closed(viewer);
 
         assertTrue("the panel came back with one of our two screens still up",
-                   stepAside.hidden());
+                   stepAside.hidden(PANEL));
 
         stepAside.closed(settings);
 
         assertFalse("the panel stayed hidden with nothing of ours left",
-                    stepAside.hidden());
+                    stepAside.hidden(PANEL));
     }
 
     /** A manual's viewer is nobody's callback, so it says so itself. */
@@ -113,11 +117,11 @@ public class StepAsideTest {
     public void amanualHoldsThePanelAsideOnItsOwn() {
         stepAside.foreignOpened();
         assertTrue("a manual is up on that display and the panel is over it",
-                   stepAside.hidden());
+                   stepAside.hidden(PANEL));
 
         stepAside.foreignClosed();
         assertFalse("the manual has gone and the panel did not come back",
-                    stepAside.hidden());
+                    stepAside.hidden(PANEL));
     }
 
     /**
@@ -131,18 +135,18 @@ public class StepAsideTest {
      */
     @Test
     public void neitherReasonGetsToDecideAlone() {
-        stepAside.opened(settings);
+        stepAside.opened(settings, PANEL);
         stepAside.foreignOpened();
 
         stepAside.foreignClosed();
         assertTrue("the manual closing brought the panel back over one of our "
                    + "own screens",
-                   stepAside.hidden());
+                   stepAside.hidden(PANEL));
 
         stepAside.foreignOpened();
         stepAside.closed(settings);
         assertTrue("our screen closing brought the panel back over a manual",
-                   stepAside.hidden());
+                   stepAside.hidden(PANEL));
     }
 
     /**
@@ -160,14 +164,14 @@ public class StepAsideTest {
         stepAside.panelClosed();
 
         assertFalse("a fresh panel is waiting for a manual the last one opened",
-                    stepAside.hidden());
+                    stepAside.hidden(PANEL));
 
-        stepAside.opened(settings);
+        stepAside.opened(settings, PANEL);
         stepAside.panelClosed();
 
         assertTrue("a fresh panel would draw over a screen of ours that is "
                    + "still on that display",
-                   stepAside.hidden());
+                   stepAside.hidden(PANEL));
     }
 
     /**
@@ -184,13 +188,13 @@ public class StepAsideTest {
     @Test
     public void thehostComingBackClearsAstuckForeignLatch() {
         stepAside.foreignOpened();
-        assertTrue(stepAside.hidden());
+        assertTrue(stepAside.hidden(PANEL));
 
         stepAside.hostResumed();
 
         assertFalse("a foreign window nothing ever reported closing kept the "
                     + "panel down for the life of the process",
-                    stepAside.hidden());
+                    stepAside.hidden(PANEL));
     }
 
     /** But it does not clear our own screens: those are reported both ways,
@@ -198,11 +202,48 @@ public class StepAsideTest {
      *  a settings screen on the panel while the machine is touched. */
     @Test
     public void thehostComingBackDoesNotForgetOurOwnScreens() {
-        stepAside.opened(settings);
+        stepAside.opened(settings, PANEL);
         stepAside.hostResumed();
 
         assertTrue("a screen of ours on that display was forgotten, so the "
                    + "panel would draw over it",
-                   stepAside.hidden());
+                   stepAside.hidden(PANEL));
+    }
+
+    /**
+     * A screen of ours on the other display is not over this panel.
+     *
+     * The machine is exactly that, and it is singleInstance - it outlives
+     * every panel there will ever be, so counting it once meant the library's
+     * panel never appeared again after a game had been played.
+     */
+    @Test
+    public void ascreenOnTheOtherDisplayIsNotInTheWay() {
+        stepAside.opened(settings, MACHINE);
+
+        assertFalse("a screen of ours on the machine's screen was counted "
+                    + "against the panel on the other one",
+                    stepAside.hidden(PANEL));
+    }
+
+    /**
+     * And the display is compared when the question is asked, not when the
+     * screen started.
+     *
+     * Turning the second screen on from the settings builds the panel while
+     * the settings screen is already up: there was no panel to compare against
+     * at the moment it started, so a rule that decided then never counted it
+     * at all, and the panel drew over the settings until the app was
+     * restarted.
+     */
+    @Test
+    public void ascreenThatStartedBeforeThereWasApanelStillCounts() {
+        // ...opened with no panel in existence, which is why what is stored is
+        // the display rather than the answer.
+        stepAside.opened(settings, PANEL);
+
+        assertTrue("a screen that was already up when the panel appeared was "
+                   + "forgotten, so the panel drew over it",
+                   stepAside.hidden(PANEL));
     }
 }
