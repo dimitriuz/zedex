@@ -9,6 +9,7 @@ import dev.ldlab.zedex.library.meta.Artwork;
 import dev.ldlab.zedex.library.meta.Meta;
 import dev.ldlab.zedex.library.meta.Metadata;
 import dev.ldlab.zedex.library.ui.Gallery;
+import dev.ldlab.zedex.library.ui.GameInfoText;
 import dev.ldlab.zedex.library.ui.Manuals;
 import dev.ldlab.zedex.view.SafeArea;
 
@@ -548,20 +549,6 @@ public final class GameInfoActivity extends ZedexActivity {
         extras.addView(text, wrap());
     }
 
-    /** The titles of other entries, comma separated. The ids travel with them
-     *  in the store and nothing reads them yet - see {@code Meta.Link}. */
-    private static String titlesOf(java.util.List<Meta.Link> links) {
-        if (links == null || links.isEmpty()) return null;
-
-        StringBuilder text = new StringBuilder();
-
-        for (Meta.Link link : links) {
-            if (text.length() > 0) text.append(", ");
-            text.append(link.title);
-        }
-
-        return text.toString();
-    }
 
     /**
      * The store alone - {@link Gallery#load} is what resolves the pictures
@@ -610,19 +597,11 @@ public final class GameInfoActivity extends ZedexActivity {
         extras.removeAllViews();
         extra(R.string.info_authors, String.join(", ", meta.authors));
         extra(R.string.info_price, meta.price);
-        extra(R.string.info_series, seriesLine(meta));
-        extra(R.string.info_compilations, titlesOf(meta.compilations));
-        extra(R.string.info_contents, titlesOf(meta.contents));
+        extra(R.string.info_series, GameInfoText.seriesLine(meta));
+        extra(R.string.info_compilations, GameInfoText.titlesOf(meta.compilations));
+        extra(R.string.info_contents, GameInfoText.titlesOf(meta.contents));
     }
 
-    /** The series' name, and the rest of it after a dash where the record
-     *  names any - "Chaos — Lords of Chaos". */
-    private static String seriesLine(Meta meta) {
-        String rest = titlesOf(meta.seriesGames);
-
-        if (meta.series == null) return rest;
-        return rest == null ? meta.series : meta.series + " — " + rest;
-    }
 
     /**
      * Developer, publisher, year, genre and players, joined the same way the
