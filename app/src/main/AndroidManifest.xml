@@ -43,6 +43,15 @@
             <data android:mimeType="application/pdf" />
         </intent>
 
+        <!-- And a text file, for the manual screens' own "open it elsewhere"
+             offer: a transcription is text/plain, and without this Android 11
+             and later hide every text viewer from this app, so the offer
+             resolves to nothing at all. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="text/plain" />
+        </intent>
+
         <!-- And a picture, for the same reason one line up: the catalogue
              lists scans, inlays and advertisements, and CataloguePane hands
              an imported one to whatever the phone has. Without this, Android

@@ -190,14 +190,14 @@ public final class PdfActivity extends ZedexActivity {
     private void handOver() {
         if (source == null) return;
 
-        try {
-            startActivity(new Intent(Intent.ACTION_VIEW)
-                    .setDataAndType(source, "application/pdf")
-                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION));
-        } catch (RuntimeException e) {
-            Log.w(TAG, "nothing else can open " + source, e);
-            Toast.makeText(this, R.string.open_failed, Toast.LENGTH_LONG).show();
-        }
+        // Manuals' own, not a second one built here: this did build its own,
+        // and did nothing at all on a device with All files access, where
+        // Artwork.manual resolves a plain path and a file:// Uri handed to
+        // another app has been refused since Android 7. That conversion, the
+        // explicit grant to every resolver, and the <queries> entry that lets
+        // any of them be seen are all over there and all load-bearing.
+        dev.ldlab.zedex.library.ui.Manuals.handOver(
+                this, source, "application/pdf", getDisplay(), null);
     }
 
     @Override

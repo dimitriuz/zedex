@@ -181,6 +181,29 @@ public final class Manuals {
         // that is not one - and PdfActivity's own menu offers it besides.
         if (showPdf(context, manual, display, onDisplay)) return;
 
+        handOver(context, manual, "application/pdf", display, onDisplay);
+    }
+
+    /**
+     * The document, given to whatever app the phone has for it.
+     *
+     * <b>Its own method because two callers need it now.</b> This screen's own
+     * viewer offers it from a menu - a real PDF app has search and a table of
+     * contents, and somebody who wants one should not have to go and find the
+     * file themselves - and {@link #open} still falls back to it for a
+     * document {@code PdfActivity} cannot read at all.
+     *
+     * The first version of that menu item built its own {@code ACTION_VIEW}
+     * and did nothing on every device that has All files access: {@code
+     * Artwork.manual} resolves a plain path there, and a {@code file://} Uri
+     * handed to another app has been refused outright since Android 7. Every
+     * line below exists for a reason learned the same way, which is exactly
+     * why there is now one copy of them.
+     */
+    public static void handOver(Context context, Uri manual, String type,
+                                Display display, Runnable onDisplay) {
+        if (manual == null) return;
+
         Uri shareable = manual;
 
         if ("file".equals(manual.getScheme())) {
@@ -227,7 +250,7 @@ public final class Manuals {
         }
 
         Intent intent = new Intent(Intent.ACTION_VIEW)
-                .setDataAndType(shareable, "application/pdf")
+                .setDataAndType(shareable, type)
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
 
         // Belt and braces over the flag above: on a device this reached

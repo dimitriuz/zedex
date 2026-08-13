@@ -46,6 +46,34 @@ public final class InstructionsActivity extends ZedexActivity {
 
     private static final String TAG = "Zedex";
 
+    /**
+     * The same offer the PDF screen makes: this document, in whatever app the
+     * phone has for a text file.
+     *
+     * Not the default, and for the reason this screen exists - not every
+     * phone has anything for {@code text/plain}, and the ones that do re-wrap
+     * it, which ruins a transcription hard-wrapped at seventy-eight columns
+     * with rules under its headings. But "shown here" should not mean "and
+     * nowhere else", and the two manual screens should offer the same thing.
+     */
+    @Override
+    public boolean onCreateOptionsMenu(android.view.Menu menu) {
+        menu.add(getString(R.string.library_open))
+            .setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_NEVER);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(android.view.MenuItem item) {
+        String given = getIntent().getStringExtra(EXTRA_FILE);
+
+        dev.ldlab.zedex.library.ui.Manuals.handOver(
+                this, given == null ? null : Uri.parse(given),
+                "text/plain", getDisplay(), null);
+
+        return true;
+    }
+
     /** The file to show, as a {@code file://} - {@code Artwork.manual}
      *  resolves it and {@code Manuals.open} decides it is one of these. */
     public static final String EXTRA_FILE = "dev.ldlab.zedex.extra.INSTRUCTIONS";
