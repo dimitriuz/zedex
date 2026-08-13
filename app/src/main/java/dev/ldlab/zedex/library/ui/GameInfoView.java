@@ -473,6 +473,12 @@ public final class GameInfoView extends LinearLayout {
         facts.setVisibility(View.GONE);
         description.setVisibility(View.GONE);
         musicButton.setVisibility(View.GONE);
+        // Synchronously, unlike the removeAllViews() in show(Meta): this view is
+        // reused across selections and the metadata answer is asynchronous, so
+        // leaving the last game's rows up until the store replies would show
+        // game A's extras under game B's title for however long that answer
+        // takes to arrive - the leak the other four resets above already close.
+        extras.removeAllViews();
         updatePlayVisibility();
 
         gallery.load(relativePath);
@@ -683,6 +689,10 @@ public final class GameInfoView extends LinearLayout {
         facts.setVisibility(View.GONE);
         description.setVisibility(View.GONE);
         rowManual.setVisibility(View.GONE);
+        // See the matching reset in showEntry(): this view is reused across
+        // selections, so nothing selected must mean nothing shown, not the
+        // last game's rows left standing under an empty title.
+        extras.removeAllViews();
         updatePlayVisibility();
         gallery.clear();
 
