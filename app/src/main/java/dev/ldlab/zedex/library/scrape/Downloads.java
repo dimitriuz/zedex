@@ -140,6 +140,57 @@ public final class Downloads {
         return "music".equals(medium.folder) && "zip".equalsIgnoreCase(medium.extension);
     }
 
+    /** The one medium that arrives in a format only a Spectrum understands. */
+    private static boolean isScreenDump(Medium medium) {
+        return "scr".equalsIgnoreCase(medium.extension);
+    }
+
+    /** What a tune is called once it is out of its zip - used by {@link
+     *  #unzip} and by {@link #landsAs} through {@link #transformFor}, so the
+     *  two cannot drift apart into "written as one thing, looked for as
+     *  another" - which is exactly the failure {@code landsAs} exists to
+     *  end. */
+    private static final String MUSIC_EXTENSION = "ay";
+
+    /** The one decision behind both {@link #save} and {@link #landsAs}: which
+     *  of the two on-arrival conversions a medium goes through, if any.
+     *
+     *  Kept as one method rather than two matching if-chains, because two
+     *  chains over the same predicates are the same bug this class was just
+     *  fixed for, one level up - a third transforming medium would need
+     *  both updated by hand, and updating only one is exactly how the AY
+     *  went missing without a single test failing. */
+    private enum Transform { NONE, SCREEN_DUMP, ZIPPED_MUSIC }
+
+    private static Transform transformFor(Medium medium) {
+        if (isScreenDump(medium)) return Transform.SCREEN_DUMP;
+        if (isZippedMusic(medium)) return Transform.ZIPPED_MUSIC;
+        return Transform.NONE;
+    }
+
+    /**
+     * The extension a medium is actually written with, which is not always
+     * the one it arrived as.
+     *
+     * A zipped tune is unpacked and a screen dump converted, and in both
+     * cases the file that was downloaded is <em>deleted</em>. So a caller
+     * that goes looking afterwards for what landed - {@code Blend.stage}
+     * does, to offer it - must ask what it turned into rather than assume
+     * the medium's own extension, or it finds nothing where the download
+     * plainly succeeded and drops it without a word. Only this class can
+     * answer, because only this class does the converting.
+     *
+     * Package-private: {@code Blend} is the only caller, and both are in
+     * {@code dev.ldlab.zedex.library.scrape}.
+     */
+    static String landsAs(Medium medium) {
+        switch (transformFor(medium)) {
+            case SCREEN_DUMP: return ScreenPicture.EXTENSION;
+            case ZIPPED_MUSIC: return MUSIC_EXTENSION;
+            default: return medium.extension;
+        }
+    }
+
     /**
      * Takes the tune out of the zip it arrived in.
      *
@@ -154,7 +205,7 @@ public final class Downloads {
      */
     private static boolean unzip(Context context, String relativePath,
                                  String folder, File zip, Destination destination) {
-        File into = destination.fileFor(folder, "ay");
+        File into = destination.fileFor(folder, MUSIC_EXTENSION);
         boolean taken = false;
 
         try (ZipInputStream in = new ZipInputStream(new FileInputStream(zip))) {
@@ -187,11 +238,6 @@ public final class Downloads {
         }
 
         return taken;
-    }
-
-    /** The one medium that arrives in a format only a Spectrum understands. */
-    private static boolean isScreenDump(Medium medium) {
-        return "scr".equalsIgnoreCase(medium.extension);
     }
 
     /**
@@ -245,18 +291,20 @@ public final class Downloads {
                 return false;
             }
 
-            // A raw Spectrum screen becomes a picture here and nowhere else,
-            // so nothing downstream ever meets one - see ScreenPicture.
-            if (ScreenPicture.EXTENSION.equals(medium.extension)) return true;
-            if (isScreenDump(medium)) {
-                return convert(context, relativePath, medium.folder, into, destination);
+            // The same decision landsAs answers about the name: a raw
+            // Spectrum screen or a zipped tune is converted here and nowhere
+            // else, so nothing downstream ever meets either as it arrived -
+            // see ScreenPicture. An already-rendered picture (extension
+            // already ScreenPicture.EXTENSION) matches neither predicate in
+            // transformFor and falls through to the same "nothing to do".
+            switch (transformFor(medium)) {
+                case SCREEN_DUMP:
+                    return convert(context, relativePath, medium.folder, into, destination);
+                case ZIPPED_MUSIC:
+                    return unzip(context, relativePath, medium.folder, into, destination);
+                default:
+                    return true;
             }
-
-            if (isZippedMusic(medium)) {
-                return unzip(context, relativePath, medium.folder, into, destination);
-            }
-
-            return true;
         } catch (Http.Refused refused) {
             // The status says whether the rest is worth attempting; the caller
             // decides, because only it knows the provider.

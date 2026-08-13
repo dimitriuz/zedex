@@ -764,6 +764,7 @@
     <string name="scrape_media_maps">Mapa del juego</string>
     <string name="scrape_media_adverts">Anuncio</string>
     <string name="scrape_media_pokes">Trucos (pokes)</string>
+    <string name="scrape_media_music">Música (AY)</string>
     <string name="scrape_many_fetching">Qué obtener</string>
     <!-- How to run a game, from a scraped record. -->
     <string name="suggest_title">Cómo ejecutarlo</string>

@@ -2,6 +2,7 @@ package dev.ldlab.zedex.library.scrape;
 
 import dev.ldlab.zedex.library.meta.Artwork;
 import dev.ldlab.zedex.library.meta.ScreenDump;
+import dev.ldlab.zedex.library.meta.ScreenPicture;
 import dev.ldlab.zedex.storage.Storage;
 
 import static org.junit.Assert.assertEquals;
@@ -550,6 +551,41 @@ public class DownloadsTest {
         for (File made : this.made) {
             assertFalse("something was left behind: " + made, made.isFile());
         }
+    }
+
+    // --- what a medium lands as, once it is on disk -------------------------------------
+
+    /**
+     * The contract {@code Blend.stage} relies on to find a tune after
+     * {@code Downloads} has unpacked it - the exact gap that left a scraped
+     * tune undiscoverable until {@code landsAs} existed to answer it (see
+     * {@code .superpowers/music-rootcause.md}).
+     */
+    @Test
+    public void azippedTuneLandsAsAy() {
+        assertEquals("ay", Downloads.landsAs(
+                new Medium("music", "https://x/tune.ay.zip", "zip", null)));
+    }
+
+    /** The other medium transformed on arrival - same contract, same reason. */
+    @Test
+    public void ascreenDumpLandsAsAPicture() {
+        assertEquals(ScreenPicture.EXTENSION, Downloads.landsAs(
+                new Medium("titlescreens", "https://x/screens/load/s/scr/Something.scr",
+                           "scr", null)));
+    }
+
+    /**
+     * Everything else lands under its own name, unchanged - a cover or a
+     * poke file is never unpacked or converted, so asking what it lands as
+     * must answer exactly what it arrived as.
+     */
+    @Test
+    public void anythingElseLandsUnderItsOwnExtension() {
+        assertEquals("jpg", Downloads.landsAs(
+                new Medium("covers", "https://x/cover.jpg", "jpg", null)));
+        assertEquals("pok", Downloads.landsAs(
+                new Medium("cheats", "https://x/game.pok", "pok", null)));
     }
 
     // --- where it lands is the caller's decision ---------------------------------------

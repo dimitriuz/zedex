@@ -697,15 +697,46 @@ public final class Blend {
                 Artwork.stagingFileFor(context, path, folder + "/" + source.name(),
                                        extension);
 
-        Downloads.fetch(context, http, source, path, media, into);
+        Downloads.Result result = Downloads.fetch(context, http, source, path, media, into);
+
+        // Every medium in `media` contributes to exactly one of result.saved
+        // or result.failed - a source that genuinely had nothing for a
+        // medium lands in failed, and that is the ordinary case, expected
+        // for most media on most sources, and not worth a line in the log.
+        // Counted here so the loop below can tell it apart from the other
+        // way to end up with no file: fetched, reported as saved, and still
+        // not found under the name it should have landed as. That second
+        // kind is exactly what swallowed the AY, silently, before landsAs
+        // existed - and it must stay loud, or the next instance of this
+        // class of bug is invisible again.
+        int ordinaryMisses = 0;
 
         for (Medium medium : media) {
-            File file = into.fileFor(medium.folder, medium.extension);
-            if (!file.isFile() || file.length() == 0) continue;
+            // What was asked for is not what landed, for the two media that
+            // are transformed on arrival: a tune is unpacked out of its zip
+            // and a screen dump converted to a picture, and the downloaded
+            // file is deleted either way. Looking for medium.extension
+            // therefore looked for a file that no longer existed - so a tune
+            // that had been fetched and unpacked perfectly well was never
+            // staged, never offered, never installed, and nothing anywhere
+            // logged a thing. Downloads knows what it wrote; ask it.
+            String extension = Downloads.landsAs(medium);
+
+            File file = into.fileFor(medium.folder, extension);
+            if (!file.isFile() || file.length() == 0) {
+                if (ordinaryMisses < result.failed) {
+                    ordinaryMisses++;
+                } else {
+                    Log.w(TAG, "fetched " + medium.folder + " from " + source.name()
+                               + " for " + path + " but found nothing at "
+                               + file.getName() + " afterwards");
+                }
+                continue;
+            }
 
             File already = existing(context, path, medium.folder);
 
-            staged.add(new Staged(medium.folder, medium.extension, source.name(), file,
+            staged.add(new Staged(medium.folder, extension, source.name(), file,
                                   differs(already, file), already));
         }
         return staged;
