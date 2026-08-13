@@ -1120,7 +1120,9 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      * panel's other side, so this turns it over and the borrowed bar - which is
      * on the panel with it - changes face. With one screen there is nowhere to
      * put them beside the picture, so the details are their own screen and this
-     * opens it; that screen carries the same four icons in place of its title.
+     * opens it; its action row sits at the foot of the description, built by
+     * the shared GameInfoView, carrying five icons: back to the machine,
+     * manual, music, ☰ and close.
      */
     private void showDetails(boolean details) {
         if (panels.inUse()) {

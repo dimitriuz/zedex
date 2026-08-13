@@ -330,6 +330,59 @@ public class SettingsActivity extends AppCompatActivity
         // Nothing of ours under the status bar or the camera; see SafeArea.
         SafeArea.fit(findViewById(android.R.id.content));
         show(selected);
+
+        claimBack();
+    }
+
+    /**
+     * Back, claimed rather than left to the platform - {@link ZedexActivity}'s
+     * own copy of this, for the same reason it keeps copies of the language
+     * and safe-area lines: this screen is an AppCompatActivity because
+     * PreferenceFragmentCompat refuses to attach to anything else, and so
+     * inherits none of them.
+     *
+     * See {@link ZedexActivity#claimBack} for what it is worth doing: a
+     * handheld measured here drops the platform's *own* default back
+     * invocation and only that one, which left this screen unleavable while an
+     * app that had claimed back was fine.
+     *
+     * Written against the platform dispatcher and not AppCompat's
+     * {@code OnBackPressedDispatcher}, which is the obvious choice here and
+     * the wrong one: {@code androidx.activity} only started forwarding that
+     * dispatcher to the platform's in <b>1.6.0</b>, and appcompat 1.1.0 brings
+     * <b>1.5.1</b>. On 1.5.1 a callback added there is driven by
+     * {@code onBackPressed} alone - which an app with predictive back on is
+     * never sent - so it registers nothing, the window keeps reading
+     * {@code mPriority=-1}, and the screen stays exactly as stuck as before
+     * while the code looks right. Measured that way round first. Going
+     * straight to the platform costs nothing and owes no dependency bump.
+     *
+     * It has to pop the fragment back stack itself, which AppCompat's would
+     * have done: a nested preference screen is pushed onto it by
+     * {@link #onPreferenceStartScreen}, and claiming back over the top of
+     * FragmentManager means owning that case too, or a nested page would
+     * finish the whole screen.
+     */
+    private android.window.OnBackInvokedCallback backCallback;
+
+    private void claimBack() {
+        if (android.os.Build.VERSION.SDK_INT
+                < android.os.Build.VERSION_CODES.TIRAMISU) {
+            return;
+        }
+
+        backCallback = this::onBackWanted;
+        getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+                backCallback);
+    }
+
+    private void onBackWanted() {
+        if (getSupportFragmentManager().getBackStackEntryCount() > 0) {
+            getSupportFragmentManager().popBackStack();
+        } else {
+            finish();
+        }
     }
 
     @Override

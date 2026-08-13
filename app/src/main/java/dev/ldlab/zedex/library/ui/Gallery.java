@@ -41,12 +41,13 @@ import java.util.concurrent.Executors;
  * openManual} used to be before this stopped needing it. A manual is for
  * reading, not for swiping past on the way to the video.
  *
- * The pane, {@code GameInfoActivity} and {@code MediaViewerActivity} all want
- * this: a strip in the pane, a slightly larger one in the details screen, and
- * the whole window in the viewer. Rather than three copies disagreeing about
+ * {@link GameInfoView} and {@code MediaViewerActivity} both want this: a
+ * strip beside the words wherever {@code GameInfoView} is shown - the pane's
+ * own panel or {@code GameInfoActivity}, since both are that one view now -
+ * and the whole window in the viewer. Rather than copies disagreeing about
  * page order or how a video is muted, this is the one place either question
  * is answered - started life as {@code GameInfoActivity}'s own pager, moved
- * here so all three can share it instead of a second copy drifting from the
+ * here so both hosts can share it instead of a second copy drifting from the
  * first the way two lists that can disagree always do.
  *
  * A {@link PagerSnapHelper} on a horizontal {@link RecyclerView} is a pager

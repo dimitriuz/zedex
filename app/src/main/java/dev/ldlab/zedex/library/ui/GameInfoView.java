@@ -24,15 +24,22 @@ import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
-import android.graphics.drawable.GradientDrawable;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Everything known about one game - the gallery, the name, the facts, the
- * description - built from nothing but its path, the same page {@code
- * GameInfoActivity} builds in its own {@code onCreate}. Pulled out into a
- * view of its own because a second screen wants it too, and a {@link
+ * description, the action row - built from nothing but its path. <b>The one
+ * implementation of these details</b>: {@code GameInfoActivity} had a second
+ * copy of every line of it until that screen was reduced to this view in an
+ * activity, and the two had drifted apart in both directions - the panel had
+ * no extras rows, the screen no autoplay and no measured cover.
+ *
+ * A view of its own rather than a screen because a second screen wants it
+ * too, and a {@link
  * android.app.Presentation} belongs to whichever activity opened it: what
  * {@link dev.ldlab.zedex.screen.SecondScreen} shows cannot be borrowed from
  * another activity's layout the way it borrows the emulator's own controls,
@@ -52,11 +59,11 @@ public final class GameInfoView extends LinearLayout {
     private static final String TAG = "Zedex";
 
 
-    /** Roughly what the artwork is decoded at - a whole panel's worth, the
-     *  same reasoning {@code GameInfoActivity}'s own target follows, bigger
-     *  than that screen's own 360dp because {@link #applyCoverSize} lets the
-     *  box grow to most of the panel's own height now, which is more
-     *  picture than a phone screen ever gave it. */
+    /** Roughly what the artwork is decoded at - a whole panel's worth, and
+     *  bigger than the 360dp the details screen decoded at while it had a
+     *  gallery of its own, because {@link #applyCoverSize} lets the box grow
+     *  to most of the lane's own height now, which is more picture than a
+     *  phone screen ever gave it. */
     private static final int ARTWORK_TARGET_DP = 480;
 
     /** The cover box's own shape - box art's, 3:4, the same ratio {@link
@@ -110,14 +117,32 @@ public final class GameInfoView extends LinearLayout {
 
     private final Gallery gallery;
 
-    /** Beside it, and only for a game a tune was fetched for. */
-    private final ImageButton musicButton;
-    private final Button playButton;
+    /** The rows under the description: authors, price, series, compilations,
+     *  contents. A column of its own because it is rebuilt whenever the store
+     *  answers, and the panel went without it until this view became the one
+     *  implementation of these details rather than the lesser of two. */
+    private final LinearLayout extras;
 
-    /** Beside it, and revealed by the same answer that used to reveal the
-     *  corner button - see {@link #offersManual}, which is what decides
-     *  whether this row or the quick bar carries the manual. */
-    private final Button rowManual;
+    /** The row at the foot of the words lane. Rebuilt by {@link #rebuildRow}
+     *  whenever a host adds to it, because the order is fixed - leading,
+     *  primary, manual, music, trailing - and a host may add in any order. */
+    private final LinearLayout actionRow;
+
+    private final List<View> leadingActions = new ArrayList<>();
+    private final List<View> trailingActions = new ArrayList<>();
+
+    /** The one text button, or null where the host wants none - which is the
+     *  details screen opened from a running machine, where there is nothing
+     *  to start. */
+    private Button primaryButton;
+
+    /** The manual and the music are this view's own, not a host's: it is this
+     *  view that asks Artwork for them off the UI thread and reveals each
+     *  only when the answer arrives. A host says whether it wants the manual
+     *  offered at all ({@link #setOffersManual}) and nothing more. */
+    private final ImageButton rowManual;
+    private final ImageButton rowMusic;
+
     private final TextView title;
     private final TextView filename;
     private final TextView facts;
@@ -130,15 +155,17 @@ public final class GameInfoView extends LinearLayout {
     private int token;
 
     /**
-     * Whether this view offers the manual itself.
+     * Whether this view offers the manual itself, through {@link #rowManual}
+     * in its own action row.
      *
      * <b>It does, unless something else does.</b> On the emulator's own panel
      * the quick bar is on screen beside these details and carries a manual
-     * icon - see {@code EmulatorActivity.applyBarMode} - so a second button
-     * floating in the corner of the artwork would be the same action twice,
-     * which is what the corner button was asked to stop being. The library's
-     * panel lends no controls and so has no bar at all: there the corner is
-     * the only place a manual can be offered from, and it stays.
+     * icon - see {@code EmulatorActivity.applyBarMode} - so {@code rowManual}
+     * would be the same action twice, and that is the one host that turns it
+     * off. Every other host - the library's panel, which lends no controls
+     * and so has no bar of its own, and both {@code GameInfoActivity}
+     * variants, which build no bar at all - leaves it on, since {@code
+     * rowManual} is the only place a manual could come from there.
      *
      * True by default, because a caller that says nothing is a caller with no
      * bar to rely on.
@@ -170,20 +197,13 @@ public final class GameInfoView extends LinearLayout {
      * through here latched exactly that, and Back out of a picture looked like
      * it had closed the panel for good. See {@link #openViewer}.
      *
-     * Set once by {@code SecondScreen}, the only place this view is ever
-     * shown; a null check where it is read covers a caller that never
-     * bothers, the same as every other listener in this app.
+     * Set only by {@code SecondScreen}. {@link dev.ldlab.zedex.screen.GameInfoActivity}
+     * shows this view too, but it is an ordinary activity with no panel to
+     * step aside and nothing to tell - so it never calls the setter, and a
+     * null check where this is read covers that caller the same as every
+     * other listener in this app.
      */
     private Runnable onForeignScreen;
-
-    /** Whether playing a game means anything from here at all - only ever
-     *  set by {@link dev.ldlab.zedex.screen.LibraryPanel}, since only the
-     *  library's own panel shows a game that has not started yet; see this
-     *  class's own comment on {@link #setOnPlay} and CLAUDE.md's "the host
-     *  decides". Null on the emulator's panel, which never calls it, and
-     *  {@link #playButton} stays hidden for exactly that reason - see
-     *  {@link #updatePlayVisibility}. */
-    private Runnable onPlay;
 
     public GameInfoView(Context context) {
         super(context);
@@ -230,41 +250,6 @@ public final class GameInfoView extends LinearLayout {
         coverBox.addView(gallery, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
 
-        // Floats over the cover box's own top corner, the same place {@code
-        // GameInfoActivity} puts it - there is no toolbar here for it to sit
-        // in either. On the box itself now, not the wider lane it sits in:
-        // pinned to the lane before this existed, it floated over whatever
-        // blank letterbox the old full-height stretch left above the
-        // picture, reading as stuck between the picture and the words
-        // rather than belonging to either.
-        //
-        // On a filled disc, though, rather than the plain 50% black square
-        // that came with it there. The icon is a thin white outline and what
-        // sits behind it is whatever art the game happens to have: box art is
-        // as often pale as dark - Ms. Pac-Man's is nearly white - so a scrim
-        // that only darkens is a coin toss. Opaque enough to win against any
-        // picture, with a
-        // faint ring so the disc still reads as an edge against black art,
-        // and round so it reads as a button rather than as part of the
-        // picture it sits on.
-        musicButton = new ImageButton(context);
-        musicButton.setImageResource(R.drawable.ic_music);
-        musicButton.setBackground(disc());
-        musicButton.setPadding(pixels(9), pixels(9), pixels(9), pixels(9));
-        musicButton.setColorFilter(0xffffffff);
-        musicButton.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
-        musicButton.setContentDescription(context.getString(R.string.music_title));
-        musicButton.setVisibility(View.GONE);
-
-        // Under the manual rather than beside it: the box is as wide as a
-        // cover and two buttons in a row across the top of one crowd the
-        // artwork somebody came to look at.
-        FrameLayout.LayoutParams musicParams = new FrameLayout.LayoutParams(
-                pixels(48), pixels(48), Gravity.TOP | Gravity.END);
-        musicParams.topMargin = pixels(12) + pixels(48) + pixels(8);
-        musicParams.rightMargin = pixels(12);
-        coverBox.addView(musicButton, musicParams);
-
         // Neither of the lane's own dimensions exists yet at construction
         // time - portrait's lane is bounded by width and open on height,
         // landscape's the other way about - so the box is sized only once
@@ -281,17 +266,16 @@ public final class GameInfoView extends LinearLayout {
             }
         });
 
-        // Bigger than the pane's own, and than GameInfoActivity's - both are
-        // read close up in the hand, where this is a fixed panel meant to be
-        // read at a slight distance and sized to match the picture beside it
-        // now that the picture is no longer a thumbnail either.
+        // Bigger than the pane's own: that is a strip beside a grid, read
+        // close up in the hand, where this fills a panel or a screen and is
+        // meant to be read at a slight distance - and to match the picture
+        // beside it, now that the picture is no longer a thumbnail either.
         LinearLayout words = new LinearLayout(context);
         words.setOrientation(VERTICAL);
         words.setPadding(pixels(24), pixels(24), pixels(24), pixels(24));
 
         // The filename until the store answers with a scraped name, exactly
-        // as GameInfoActivity's own title does - this is never blank while
-        // it waits.
+        // as a row in the library does - this is never blank while it waits.
         title = new TextView(context);
         title.setTextColor(Palette.TEXT);
         title.setTextSize(24);
@@ -323,6 +307,14 @@ public final class GameInfoView extends LinearLayout {
         description.setVisibility(View.GONE);
         words.addView(description, wrap());
 
+        // Under the description, because these are the long tail: a quarter
+        // of entries have a price, six per cent a series, and a row that is
+        // usually absent belongs below the one thing somebody came to read.
+        extras = new LinearLayout(context);
+        extras.setOrientation(VERTICAL);
+        extras.setPadding(0, pixels(20), 0, 0);
+        words.addView(extras, wrap());
+
         ScrollView scroller = new ScrollView(context);
         scroller.addView(words);
 
@@ -347,48 +339,42 @@ public final class GameInfoView extends LinearLayout {
         wordsLane.addView(scroller, new LinearLayout.LayoutParams(
                 LayoutParams.MATCH_PARENT, 0, 1f));
 
-        // Play and the manual in a row, the same one the library's pane has
-        // and the details screen now grows when it is opened from there. Only
-        // ever seen on the library's own panel: with a machine running the
-        // quick bar is on this display instead, and it carries the manual -
-        // see EmulatorActivity.applyBarMode and setOffersManual.
+        // The row at the foot of the words lane, outside the scroller - the
+        // rule every host of this view shares: a description long enough to
+        // scroll must never carry the button that starts the game out of
+        // reach with it.
         //
-        // The bar reflects whether there is a machine behind the screen, which
-        // is the same rule in all four places it is asked.
-        LinearLayout actionRow = new LinearLayout(context);
+        // The shape is DetailPane's, which had it first: one text button
+        // taking whatever the icons leave, then fixed 48dp icons, in the
+        // order action then manual then music.
+        actionRow = new LinearLayout(context);
         actionRow.setOrientation(HORIZONTAL);
+        actionRow.setGravity(Gravity.CENTER_VERTICAL);
 
-        playButton = new Button(context);
-        playButton.setText(R.string.library_play);
-        playButton.setVisibility(View.GONE);
-        playButton.setOnClickListener(v -> {
-            if (onPlay != null) onPlay.run();
-        });
+        rowManual = icon(R.drawable.ic_manual, R.string.library_manual);
+        rowMusic = icon(R.drawable.ic_music, R.string.music_title);
 
-        actionRow.addView(playButton, new LinearLayout.LayoutParams(
-                0, LayoutParams.WRAP_CONTENT, 1f));
+        rebuildRow();
 
-        rowManual = new Button(context);
-        rowManual.setText(R.string.library_manual);
-        rowManual.setVisibility(View.GONE);
-
-        actionRow.addView(rowManual, new LinearLayout.LayoutParams(
-                0, LayoutParams.WRAP_CONTENT, 1f));
-
-        LinearLayout.LayoutParams playParams = new LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
                 LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
-        playParams.leftMargin = playParams.rightMargin = pixels(24);
-        playParams.topMargin = pixels(16);
-        playParams.bottomMargin = pixels(24);
-        wordsLane.addView(actionRow, playParams);
+        rowParams.leftMargin = rowParams.rightMargin = pixels(24);
+        rowParams.topMargin = pixels(16);
+        rowParams.bottomMargin = pixels(24);
+        wordsLane.addView(actionRow, rowParams);
 
         if (landscape) {
-            LinearLayout.LayoutParams mediaParams = new LinearLayout.LayoutParams(
-                    0, LayoutParams.MATCH_PARENT, LANDSCAPE_MEDIA_WEIGHT);
-            mediaParams.rightMargin = pixels(LANE_GAP_DP);
-            addView(media, mediaParams);
-            addView(wordsLane, new LinearLayout.LayoutParams(
-                    0, LayoutParams.MATCH_PARENT, LANDSCAPE_WORDS_WEIGHT));
+            // Words left, media right - the arrangement GameInfoActivity had,
+            // and the one this view took when that screen was folded into it.
+            // Not a parameter: a knob for which side the picture sits on is
+            // the kind that multiplies, and one arrangement is the point of
+            // having one implementation.
+            LinearLayout.LayoutParams wordsParams = new LinearLayout.LayoutParams(
+                    0, LayoutParams.MATCH_PARENT, LANDSCAPE_WORDS_WEIGHT);
+            wordsParams.rightMargin = pixels(LANE_GAP_DP);
+            addView(wordsLane, wordsParams);
+            addView(media, new LinearLayout.LayoutParams(
+                    0, LayoutParams.MATCH_PARENT, LANDSCAPE_MEDIA_WEIGHT));
         } else {
             LinearLayout.LayoutParams mediaParams = new LinearLayout.LayoutParams(
                     LayoutParams.MATCH_PARENT, 0, 2f);
@@ -420,6 +406,80 @@ public final class GameInfoView extends LinearLayout {
         box.setLayoutParams(params);
     }
 
+    /** One 48dp icon button, built the way DetailPane builds its own. */
+    private ImageButton icon(int iconRes, int descriptionRes) {
+        ImageButton button = new ImageButton(getContext());
+        button.setImageResource(iconRes);
+        button.setColorFilter(Palette.MUTED);
+        button.setBackground(Ripple.make(getResources().getDisplayMetrics().density));
+        button.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
+        button.setContentDescription(getContext().getString(descriptionRes));
+        button.setVisibility(View.GONE);
+        return button;
+    }
+
+    /**
+     * The row, in its one order: leading, primary, manual, music, trailing.
+     *
+     * Rebuilt rather than inserted into, because a host adds in whatever
+     * order suits it and the order on screen is not that one - the details
+     * screen opened from the machine adds its back icon first and its menu
+     * and close icons after, and they must land on opposite sides of two
+     * buttons it never mentions.
+     */
+    private void rebuildRow() {
+        actionRow.removeAllViews();
+
+        for (View action : leadingActions) actionRow.addView(action, iconParams());
+        if (primaryButton != null) {
+            actionRow.addView(primaryButton, new LinearLayout.LayoutParams(
+                    0, LayoutParams.WRAP_CONTENT, 1f));
+        }
+        actionRow.addView(rowManual, iconParams());
+        actionRow.addView(rowMusic, iconParams());
+        for (View action : trailingActions) actionRow.addView(action, iconParams());
+    }
+
+    private LinearLayout.LayoutParams iconParams() {
+        return new LinearLayout.LayoutParams(pixels(48), pixels(48));
+    }
+
+    /**
+     * The one text button, and what it does - Play, everywhere it appears.
+     *
+     * Never called means no text button at all, which is the details screen
+     * opened from a running machine: the game is already going, so there is
+     * nothing to start.
+     */
+    public void setPrimaryAction(int labelRes, Runnable action) {
+        primaryButton = new Button(getContext());
+        primaryButton.setText(labelRes);
+        primaryButton.setOnClickListener(v -> action.run());
+        rebuildRow();
+        updatePrimaryVisibility();
+    }
+
+    /** An icon before the manual. */
+    public void addLeadingAction(int iconRes, int descriptionRes, Runnable action) {
+        leadingActions.add(visibleAction(iconRes, descriptionRes, action));
+        rebuildRow();
+    }
+
+    /** An icon after the music. */
+    public void addTrailingAction(int iconRes, int descriptionRes, Runnable action) {
+        trailingActions.add(visibleAction(iconRes, descriptionRes, action));
+        rebuildRow();
+    }
+
+    /** A host's icon, which unlike the manual and the music is shown at once:
+     *  the host knows whether its own action exists and this view does not. */
+    private ImageButton visibleAction(int iconRes, int descriptionRes, Runnable action) {
+        ImageButton button = icon(iconRes, descriptionRes);
+        button.setVisibility(View.VISIBLE);
+        button.setOnClickListener(v -> action.run());
+        return button;
+    }
+
     /** {@link #onForeignScreen}'s own setter - public because the panel
      *  that shows this view is in a different layer; see CLAUDE.md, "a
      *  member another layer needs has to be public". */
@@ -428,27 +488,12 @@ public final class GameInfoView extends LinearLayout {
     }
 
     /**
-     * {@link #onPlay}'s own setter - public for the same reason {@link
-     * #setOnForeignScreen} is, and never called at all by {@code Panels},
-     * whose panel shows a game already running; only {@code LibraryPanel}
-     * installs an action here, which is what keeps Play off the emulator's
-     * own panel without this view guessing from anything it can see for
-     * itself. Applied at once through {@link #updatePlayVisibility}, since a
-     * game may already be showing by the time this is set - see {@link
-     * dev.ldlab.zedex.screen.LibraryPanel#apply}.
-     */
-    public void setOnPlay(Runnable listener) {
-        this.onPlay = listener;
-        updatePlayVisibility();
-    }
-
-    /**
      * Fills every view from {@code relativePath}'s own store entry and
      * artwork - the title at once from {@code name}, everything scraped
-     * once the store and the gallery answer off the UI thread; mirrors
-     * {@code GameInfoActivity#onCreate}. Safe to call again for a different
-     * game at any time - {@link #token} tells a answer that arrives after
-     * this game was already left that it no longer applies.
+     * once the store and the gallery answer off the UI thread. Safe to call
+     * again for a different game at any time - {@link #token} tells an answer
+     * that arrives after this game was already left that it no longer
+     * applies.
      */
     public void showEntry(String relativePath, String name) {
         int mine = ++token;
@@ -458,8 +503,30 @@ public final class GameInfoView extends LinearLayout {
         filename.setVisibility(View.GONE);
         facts.setVisibility(View.GONE);
         description.setVisibility(View.GONE);
-        musicButton.setVisibility(View.GONE);
-        updatePlayVisibility();
+        // This view is reused across selections and the manual and music
+        // answers are both asynchronous (see the "pane-manual" and
+        // "pane-music" work below), so without this a game with neither
+        // would keep showing the last game's buttons - still visible, and
+        // still wired to the last game's own path, so tapping one would act
+        // on the wrong game. The listeners are dropped too, not just the
+        // visibility, so a stale click target can never fire even if
+        // something makes a button visible again before the answer for this
+        // game arrives. Defensive on the music side - its visibility and
+        // listener are set atomically in one token-gated callback, so the two
+        // can never actually disagree - but kept beside the manual's reset
+        // for the same reason and because a future change to that callback
+        // should not have to rediscover why this matters.
+        rowMusic.setVisibility(View.GONE);
+        rowMusic.setOnClickListener(null);
+        rowManual.setVisibility(View.GONE);
+        rowManual.setOnClickListener(null);
+        // Synchronously, unlike the removeAllViews() in show(Meta): this view is
+        // reused across selections and the metadata answer is asynchronous, so
+        // leaving the last game's rows up until the store replies would show
+        // game A's extras under game B's title for however long that answer
+        // takes to arrive - the leak the other four resets above already close.
+        extras.removeAllViews();
+        updatePrimaryVisibility();
 
         gallery.load(relativePath);
 
@@ -477,9 +544,11 @@ public final class GameInfoView extends LinearLayout {
         Context app = getContext().getApplicationContext();
 
         Work.run("pane-info", () -> {
-            // See GameInfoActivity.load: forPath never parses, so a caller
-            // that cannot show anything useful without the store says so and
-            // waits, on its own thread.
+            // forPath answers from memory and never parses, so a view opened
+            // before the store has been read - straight from ES-DE, most
+            // often - would otherwise show a game about which nothing is
+            // known. This is already a thread of its own, which is the only
+            // place waiting is allowed.
             Metadata.ensureLoaded(app);
 
             Meta meta = Metadata.forPath(app, relativePath);
@@ -501,8 +570,8 @@ public final class GameInfoView extends LinearLayout {
             handler.post(() -> {
                 if (mine != token || !any) return;
 
-                musicButton.setVisibility(View.VISIBLE);
-                musicButton.setOnClickListener(v -> openMusic(relativePath));
+                rowMusic.setVisibility(View.VISIBLE);
+                rowMusic.setOnClickListener(v -> openMusic(relativePath));
             });
         });
 
@@ -543,23 +612,6 @@ public final class GameInfoView extends LinearLayout {
     }
 
     /**
-     * The backing every one of these buttons sits on.
-     *
-     * One each rather than one shared: a {@code Drawable} handed to two views
-     * shares its state with both, and a background that is only ever drawn
-     * still costs nothing to make twice.
-     */
-    private GradientDrawable disc() {
-        GradientDrawable disc = new GradientDrawable();
-
-        disc.setShape(GradientDrawable.OVAL);
-        disc.setColor(0xd0000000);
-        disc.setStroke(pixels(1), 0x66ffffff);
-
-        return disc;
-    }
-
-    /**
      * Hands the game's music to the machine, which is the only thing that can
      * play it.
      *
@@ -595,12 +647,17 @@ public final class GameInfoView extends LinearLayout {
     /**
      * The picture that was tapped, full screen, on this view's own display.
      *
-     * The display matters, and the manual button next door explains why: this
-     * view is only ever shown on a panel, and a screen opened without saying
-     * which display it wants lands on the main one - behind the machine, on
-     * the screen nobody was looking at. {@code getDisplay()} is null before
-     * the first layout pass, which is read here exactly as {@code
-     * Manuals.open} reads it: no panel to ask for, so ask for nothing.
+     * The display matters, and the manual button next door explains why -
+     * but this view is now shown on two different kinds of screen, not one:
+     * {@code SecondScreen}'s panel, on its own secondary display, and {@link
+     * dev.ldlab.zedex.screen.GameInfoActivity}, an ordinary activity that is
+     * always on the main one. Asking {@code getDisplay()} rather than
+     * assuming either is what keeps this right for both - on the panel it
+     * answers the secondary display, on the activity it answers the main
+     * one, which is where an unaddressed launch would land anyway, so the
+     * activity case costs nothing and changes nothing. {@code getDisplay()}
+     * is null before the first layout pass, which is read here exactly as
+     * {@code Manuals.open} reads it: no display to ask for, so ask for none.
      *
      * Unlike the manual, nothing has to be told this happened. {@code
      * MediaViewerActivity} is one of the app's own, so both panels see it
@@ -669,7 +726,14 @@ public final class GameInfoView extends LinearLayout {
         facts.setVisibility(View.GONE);
         description.setVisibility(View.GONE);
         rowManual.setVisibility(View.GONE);
-        updatePlayVisibility();
+        rowManual.setOnClickListener(null);
+        rowMusic.setVisibility(View.GONE);
+        rowMusic.setOnClickListener(null);
+        // See the matching reset in showEntry(): this view is reused across
+        // selections, so nothing selected must mean nothing shown, not the
+        // last game's rows left standing under an empty title.
+        extras.removeAllViews();
+        updatePrimaryVisibility();
         gallery.clear();
 
         // Nothing selected has no video to move to, and a wait left running
@@ -677,12 +741,25 @@ public final class GameInfoView extends LinearLayout {
         handler.removeCallbacksAndMessages(videoToken);
     }
 
-    /** Play shows exactly when there is both a game to play ({@link #path})
-     *  and somewhere for playing it to mean anything ({@link #onPlay}) - see
-     *  that field's own comment. Called from every place either can change:
-     *  {@link #showEntry}, {@link #clear} and {@link #setOnPlay} itself. */
-    private void updatePlayVisibility() {
-        playButton.setVisibility(onPlay != null && path != null ? View.VISIBLE : View.GONE);
+    /**
+     * The primary button appears when there is a game for it to act on, and
+     * only where a host asked for one at all.
+     *
+     * Named for what it governs rather than for Play by name: {@link
+     * #setPrimaryAction} takes whatever label and action a caller hands it,
+     * so this button is the primary one, not necessarily Play - every
+     * current host happens to ask for Play, but nothing here assumes it.
+     *
+     * The old condition also asked whether {@code onPlay} had been set, which
+     * was right when the panel was the only host: it sets the listener
+     * separately from building the button. The details screen sets the action
+     * *in* {@link #setPrimaryAction} and never touches {@code onPlay}, so
+     * asking about it here would hide the button on the one screen whose
+     * whole row leads with it.
+     */
+    private void updatePrimaryVisibility() {
+        if (primaryButton == null) return;
+        primaryButton.setVisibility(path != null ? View.VISIBLE : View.GONE);
     }
 
     /**
@@ -716,12 +793,48 @@ public final class GameInfoView extends LinearLayout {
             description.setText(meta.desc.trim());
             description.setVisibility(View.VISIBLE);
         }
+
+        extras.removeAllViews();
+        extra(R.string.info_authors, String.join(", ", meta.authors));
+        extra(R.string.info_price, meta.price);
+        extra(R.string.info_series, GameInfoText.seriesLine(meta));
+        extra(R.string.info_compilations, GameInfoText.titlesOf(meta.compilations));
+        extra(R.string.info_contents, GameInfoText.titlesOf(meta.contents));
     }
 
     /**
-     * Developer, publisher, year, genre and players, joined the same way
-     * {@code GameInfoActivity}'s own line is and skipping whatever is not
-     * known - which, in a collection scraped by ES-DE, is usually most of it.
+     * A labelled fact, or nothing at all.
+     *
+     * Nothing at all is the common case - see {@link #extras} - and an empty
+     * row with a heading over it would claim the database was asked and had
+     * no answer, when mostly it was never asked.
+     *
+     * A point larger than the screen's own version of this throughout, for
+     * the same reason every other size here is: this is read at a slight
+     * distance on a fixed panel, not close up in the hand.
+     */
+    private void extra(int label, String value) {
+        if (value == null || value.trim().isEmpty()) return;
+
+        TextView heading = new TextView(getContext());
+        heading.setText(label);
+        heading.setTextColor(Palette.MUTED);
+        heading.setTextSize(13);
+        heading.setPadding(0, pixels(12), 0, 0);
+        extras.addView(heading, wrap());
+
+        TextView text = new TextView(getContext());
+        text.setText(value.trim());
+        text.setTextColor(Palette.TEXT);
+        text.setTextSize(16);
+        text.setLineSpacing(pixels(3), 1f);
+        extras.addView(text, wrap());
+    }
+
+    /**
+     * Developer, publisher, year, genre and players, joined the same way the
+     * pane's own line is and skipping whatever is not known - which, in a
+     * collection scraped by ES-DE, is usually most of it.
      */
     private static String factsLine(android.content.Context context, Meta meta) {
         StringBuilder text = new StringBuilder();
