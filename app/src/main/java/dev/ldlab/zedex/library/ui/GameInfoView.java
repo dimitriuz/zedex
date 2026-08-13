@@ -24,9 +24,11 @@ import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
-import android.graphics.drawable.GradientDrawable;
 import android.widget.ScrollView;
 import android.widget.TextView;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Everything known about one game - the gallery, the name, the facts, the
@@ -110,20 +112,32 @@ public final class GameInfoView extends LinearLayout {
 
     private final Gallery gallery;
 
-    /** Beside it, and only for a game a tune was fetched for. */
-    private final ImageButton musicButton;
-    private final Button playButton;
-
     /** The rows under the description: authors, price, series, compilations,
      *  contents. A column of its own because it is rebuilt whenever the store
      *  answers, and the panel went without it until this view became the one
      *  implementation of these details rather than the lesser of two. */
     private final LinearLayout extras;
 
-    /** Beside it, and revealed by the same answer that used to reveal the
-     *  corner button - see {@link #offersManual}, which is what decides
-     *  whether this row or the quick bar carries the manual. */
-    private final Button rowManual;
+    /** The row at the foot of the words lane. Rebuilt by {@link #rebuildRow}
+     *  whenever a host adds to it, because the order is fixed - leading,
+     *  primary, manual, music, trailing - and a host may add in any order. */
+    private final LinearLayout actionRow;
+
+    private final List<View> leadingActions = new ArrayList<>();
+    private final List<View> trailingActions = new ArrayList<>();
+
+    /** The one text button, or null where the host wants none - which is the
+     *  details screen opened from a running machine, where there is nothing
+     *  to start. */
+    private Button primaryButton;
+
+    /** The manual and the music are this view's own, not a host's: it is this
+     *  view that asks Artwork for them off the UI thread and reveals each
+     *  only when the answer arrives. A host says whether it wants the manual
+     *  offered at all ({@link #setOffersManual}) and nothing more. */
+    private final ImageButton rowManual;
+    private final ImageButton rowMusic;
+
     private final TextView title;
     private final TextView filename;
     private final TextView facts;
@@ -186,9 +200,9 @@ public final class GameInfoView extends LinearLayout {
      *  set by {@link dev.ldlab.zedex.screen.LibraryPanel}, since only the
      *  library's own panel shows a game that has not started yet; see this
      *  class's own comment on {@link #setOnPlay} and CLAUDE.md's "the host
-     *  decides". Null on the emulator's panel, which never calls it, and
-     *  {@link #playButton} stays hidden for exactly that reason - see
-     *  {@link #updatePlayVisibility}. */
+     *  decides". Null on the emulator's own panel, which never calls it and
+     *  never asks for a {@link #primaryButton} at all - see {@link
+     *  dev.ldlab.zedex.screen.SecondScreen#onCreate}. */
     private Runnable onPlay;
 
     public GameInfoView(Context context) {
@@ -235,41 +249,6 @@ public final class GameInfoView extends LinearLayout {
         gallery.setOnUserSwipe(() -> userSwiped = true);
         coverBox.addView(gallery, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
-
-        // Floats over the cover box's own top corner, the same place {@code
-        // GameInfoActivity} puts it - there is no toolbar here for it to sit
-        // in either. On the box itself now, not the wider lane it sits in:
-        // pinned to the lane before this existed, it floated over whatever
-        // blank letterbox the old full-height stretch left above the
-        // picture, reading as stuck between the picture and the words
-        // rather than belonging to either.
-        //
-        // On a filled disc, though, rather than the plain 50% black square
-        // that came with it there. The icon is a thin white outline and what
-        // sits behind it is whatever art the game happens to have: box art is
-        // as often pale as dark - Ms. Pac-Man's is nearly white - so a scrim
-        // that only darkens is a coin toss. Opaque enough to win against any
-        // picture, with a
-        // faint ring so the disc still reads as an edge against black art,
-        // and round so it reads as a button rather than as part of the
-        // picture it sits on.
-        musicButton = new ImageButton(context);
-        musicButton.setImageResource(R.drawable.ic_music);
-        musicButton.setBackground(disc());
-        musicButton.setPadding(pixels(9), pixels(9), pixels(9), pixels(9));
-        musicButton.setColorFilter(0xffffffff);
-        musicButton.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
-        musicButton.setContentDescription(context.getString(R.string.music_title));
-        musicButton.setVisibility(View.GONE);
-
-        // Under the manual rather than beside it: the box is as wide as a
-        // cover and two buttons in a row across the top of one crowd the
-        // artwork somebody came to look at.
-        FrameLayout.LayoutParams musicParams = new FrameLayout.LayoutParams(
-                pixels(48), pixels(48), Gravity.TOP | Gravity.END);
-        musicParams.topMargin = pixels(12) + pixels(48) + pixels(8);
-        musicParams.rightMargin = pixels(12);
-        coverBox.addView(musicButton, musicParams);
 
         // Neither of the lane's own dimensions exists yet at construction
         // time - portrait's lane is bounded by width and open on height,
@@ -361,40 +340,29 @@ public final class GameInfoView extends LinearLayout {
         wordsLane.addView(scroller, new LinearLayout.LayoutParams(
                 LayoutParams.MATCH_PARENT, 0, 1f));
 
-        // Play and the manual in a row, the same one the library's pane has
-        // and the details screen now grows when it is opened from there. Only
-        // ever seen on the library's own panel: with a machine running the
-        // quick bar is on this display instead, and it carries the manual -
-        // see EmulatorActivity.applyBarMode and setOffersManual.
+        // The row at the foot of the words lane, outside the scroller - the
+        // rule every host of this view shares: a description long enough to
+        // scroll must never carry the button that starts the game out of
+        // reach with it.
         //
-        // The bar reflects whether there is a machine behind the screen, which
-        // is the same rule in all four places it is asked.
-        LinearLayout actionRow = new LinearLayout(context);
+        // The shape is DetailPane's, which had it first: one text button
+        // taking whatever the icons leave, then fixed 48dp icons, in the
+        // order action then manual then music.
+        actionRow = new LinearLayout(context);
         actionRow.setOrientation(HORIZONTAL);
+        actionRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
 
-        playButton = new Button(context);
-        playButton.setText(R.string.library_play);
-        playButton.setVisibility(View.GONE);
-        playButton.setOnClickListener(v -> {
-            if (onPlay != null) onPlay.run();
-        });
+        rowManual = icon(R.drawable.ic_manual, R.string.library_manual);
+        rowMusic = icon(R.drawable.ic_music, R.string.music_title);
 
-        actionRow.addView(playButton, new LinearLayout.LayoutParams(
-                0, LayoutParams.WRAP_CONTENT, 1f));
+        rebuildRow();
 
-        rowManual = new Button(context);
-        rowManual.setText(R.string.library_manual);
-        rowManual.setVisibility(View.GONE);
-
-        actionRow.addView(rowManual, new LinearLayout.LayoutParams(
-                0, LayoutParams.WRAP_CONTENT, 1f));
-
-        LinearLayout.LayoutParams playParams = new LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
                 LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
-        playParams.leftMargin = playParams.rightMargin = pixels(24);
-        playParams.topMargin = pixels(16);
-        playParams.bottomMargin = pixels(24);
-        wordsLane.addView(actionRow, playParams);
+        rowParams.leftMargin = rowParams.rightMargin = pixels(24);
+        rowParams.topMargin = pixels(16);
+        rowParams.bottomMargin = pixels(24);
+        wordsLane.addView(actionRow, rowParams);
 
         if (landscape) {
             LinearLayout.LayoutParams mediaParams = new LinearLayout.LayoutParams(
@@ -434,6 +402,80 @@ public final class GameInfoView extends LinearLayout {
         box.setLayoutParams(params);
     }
 
+    /** One 48dp icon button, built the way DetailPane builds its own. */
+    private ImageButton icon(int iconRes, int descriptionRes) {
+        ImageButton button = new ImageButton(getContext());
+        button.setImageResource(iconRes);
+        button.setColorFilter(Palette.MUTED);
+        button.setBackground(Ripple.make(getResources().getDisplayMetrics().density));
+        button.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
+        button.setContentDescription(getContext().getString(descriptionRes));
+        button.setVisibility(View.GONE);
+        return button;
+    }
+
+    /**
+     * The row, in its one order: leading, primary, manual, music, trailing.
+     *
+     * Rebuilt rather than inserted into, because a host adds in whatever
+     * order suits it and the order on screen is not that one - the details
+     * screen opened from the machine adds its back icon first and its menu
+     * and close icons after, and they must land on opposite sides of two
+     * buttons it never mentions.
+     */
+    private void rebuildRow() {
+        actionRow.removeAllViews();
+
+        for (View action : leadingActions) actionRow.addView(action, iconParams());
+        if (primaryButton != null) {
+            actionRow.addView(primaryButton, new LinearLayout.LayoutParams(
+                    0, LayoutParams.WRAP_CONTENT, 1f));
+        }
+        actionRow.addView(rowManual, iconParams());
+        actionRow.addView(rowMusic, iconParams());
+        for (View action : trailingActions) actionRow.addView(action, iconParams());
+    }
+
+    private LinearLayout.LayoutParams iconParams() {
+        return new LinearLayout.LayoutParams(pixels(48), pixels(48));
+    }
+
+    /**
+     * The one text button, and what it does - Play, everywhere it appears.
+     *
+     * Never called means no text button at all, which is the details screen
+     * opened from a running machine: the game is already going, so there is
+     * nothing to start.
+     */
+    public void setPrimaryAction(int labelRes, Runnable action) {
+        primaryButton = new Button(getContext());
+        primaryButton.setText(labelRes);
+        primaryButton.setOnClickListener(v -> action.run());
+        rebuildRow();
+        updatePlayVisibility();
+    }
+
+    /** An icon before the manual. */
+    public void addLeadingAction(int iconRes, int descriptionRes, Runnable action) {
+        leadingActions.add(visibleAction(iconRes, descriptionRes, action));
+        rebuildRow();
+    }
+
+    /** An icon after the music. */
+    public void addTrailingAction(int iconRes, int descriptionRes, Runnable action) {
+        trailingActions.add(visibleAction(iconRes, descriptionRes, action));
+        rebuildRow();
+    }
+
+    /** A host's icon, which unlike the manual and the music is shown at once:
+     *  the host knows whether its own action exists and this view does not. */
+    private ImageButton visibleAction(int iconRes, int descriptionRes, Runnable action) {
+        ImageButton button = icon(iconRes, descriptionRes);
+        button.setVisibility(View.VISIBLE);
+        button.setOnClickListener(v -> action.run());
+        return button;
+    }
+
     /** {@link #onForeignScreen}'s own setter - public because the panel
      *  that shows this view is in a different layer; see CLAUDE.md, "a
      *  member another layer needs has to be public". */
@@ -442,18 +484,15 @@ public final class GameInfoView extends LinearLayout {
     }
 
     /**
-     * {@link #onPlay}'s own setter - public for the same reason {@link
-     * #setOnForeignScreen} is, and never called at all by {@code Panels},
-     * whose panel shows a game already running; only {@code LibraryPanel}
-     * installs an action here, which is what keeps Play off the emulator's
-     * own panel without this view guessing from anything it can see for
-     * itself. Applied at once through {@link #updatePlayVisibility}, since a
-     * game may already be showing by the time this is set - see {@link
-     * dev.ldlab.zedex.screen.LibraryPanel#apply}.
+     * What Play does here, when this view's host offers it at all.
+     *
+     * Kept as a setter of its own rather than folded into
+     * {@link #setPrimaryAction} because SecondScreen sets the listener once,
+     * at construction, and learns much later whether there is a game to
+     * play - see the panel's own showEntry/clear pair.
      */
     public void setOnPlay(Runnable listener) {
-        this.onPlay = listener;
-        updatePlayVisibility();
+        onPlay = listener;
     }
 
     /**
@@ -472,7 +511,7 @@ public final class GameInfoView extends LinearLayout {
         filename.setVisibility(View.GONE);
         facts.setVisibility(View.GONE);
         description.setVisibility(View.GONE);
-        musicButton.setVisibility(View.GONE);
+        rowMusic.setVisibility(View.GONE);
         // Synchronously, unlike the removeAllViews() in show(Meta): this view is
         // reused across selections and the metadata answer is asynchronous, so
         // leaving the last game's rows up until the store replies would show
@@ -521,8 +560,8 @@ public final class GameInfoView extends LinearLayout {
             handler.post(() -> {
                 if (mine != token || !any) return;
 
-                musicButton.setVisibility(View.VISIBLE);
-                musicButton.setOnClickListener(v -> openMusic(relativePath));
+                rowMusic.setVisibility(View.VISIBLE);
+                rowMusic.setOnClickListener(v -> openMusic(relativePath));
             });
         });
 
@@ -560,23 +599,6 @@ public final class GameInfoView extends LinearLayout {
                         v -> Manuals.open(getContext(), result, getDisplay()));
             });
         });
-    }
-
-    /**
-     * The backing every one of these buttons sits on.
-     *
-     * One each rather than one shared: a {@code Drawable} handed to two views
-     * shares its state with both, and a background that is only ever drawn
-     * still costs nothing to make twice.
-     */
-    private GradientDrawable disc() {
-        GradientDrawable disc = new GradientDrawable();
-
-        disc.setShape(GradientDrawable.OVAL);
-        disc.setColor(0xd0000000);
-        disc.setStroke(pixels(1), 0x66ffffff);
-
-        return disc;
     }
 
     /**
@@ -689,6 +711,7 @@ public final class GameInfoView extends LinearLayout {
         facts.setVisibility(View.GONE);
         description.setVisibility(View.GONE);
         rowManual.setVisibility(View.GONE);
+        rowMusic.setVisibility(View.GONE);
         // See the matching reset in showEntry(): this view is reused across
         // selections, so nothing selected must mean nothing shown, not the
         // last game's rows left standing under an empty title.
@@ -701,12 +724,20 @@ public final class GameInfoView extends LinearLayout {
         handler.removeCallbacksAndMessages(videoToken);
     }
 
-    /** Play shows exactly when there is both a game to play ({@link #path})
-     *  and somewhere for playing it to mean anything ({@link #onPlay}) - see
-     *  that field's own comment. Called from every place either can change:
-     *  {@link #showEntry}, {@link #clear} and {@link #setOnPlay} itself. */
+    /**
+     * The primary button appears when there is a game for it to act on, and
+     * only where a host asked for one at all.
+     *
+     * The old condition also asked whether {@code onPlay} had been set, which
+     * was right when the panel was the only host: it sets the listener
+     * separately from building the button. The details screen sets the action
+     * *in* {@link #setPrimaryAction} and never touches {@code onPlay}, so
+     * asking about it here would hide the Play button on the one screen whose
+     * whole row leads with it.
+     */
     private void updatePlayVisibility() {
-        playButton.setVisibility(onPlay != null && path != null ? View.VISIBLE : View.GONE);
+        if (primaryButton == null) return;
+        primaryButton.setVisibility(path != null ? View.VISIBLE : View.GONE);
     }
 
     /**

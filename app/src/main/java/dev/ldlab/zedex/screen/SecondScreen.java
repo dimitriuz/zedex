@@ -144,6 +144,16 @@ public final class SecondScreen extends Presentation {
      *  touches it checks that first. */
     private View controlsRoot;
 
+    /** {@link #setOnPlay}'s own listener, read again at click time by the
+     *  primary action built in {@link #onCreate} - the row is built before
+     *  {@link LibraryPanel#apply} ever calls that setter, so the click has to
+     *  read a field that fills in later rather than close over a value that
+     *  does not exist yet. Only the library's own panel ({@link #hasControls}
+     *  false) ever gets a primary action at all - see the guard in {@link
+     *  #onCreate} - so this stays null for the emulator's own panel, which
+     *  never sets it. */
+    private Runnable onPlay;
+
     /** The game's own path relative to the content tree, or null when there
      *  is nothing the store could name for whatever is loaded now - see
      *  {@link #setGameInfo}. */
@@ -224,6 +234,21 @@ public final class SecondScreen extends Presentation {
         // the corner of the artwork is the only place to offer it from. See
         // GameInfoView.setOffersManual.
         infoView.setOffersManual(!hasControls);
+
+        // Only the library's own panel: the emulator's shows this side of a
+        // game already running, and GameInfoView.updatePlayVisibility shows
+        // the row's own button whenever there is a path at all, with no
+        // second check for whether anyone asked for one - so a panel that
+        // never asked must never build it, or a running game's own details
+        // would grow a Play button that does nothing. onPlay is read here
+        // rather than closed over at this point because setOnPlay is not
+        // called until well after this, from LibraryPanel.apply.
+        if (!hasControls) {
+            infoView.setPrimaryAction(R.string.library_play, () -> {
+                if (onPlay != null) onPlay.run();
+            });
+        }
+
         infoView.setOnForeignScreen(() -> {
             // The fifth of the moments listed on updateVisibility a video
             // must not be left running for - the manual is about to cover
@@ -320,14 +345,20 @@ public final class SecondScreen extends Presentation {
         this.foreignScreenListener = listener;
     }
 
-    /** Forwarded straight to {@link GameInfoView#setOnPlay} - only {@link
-     *  LibraryPanel} ever calls this, since only its own panel shows a game
-     *  that has not started yet; {@link Panels} never does, and that is the
-     *  whole of how Play stays off the emulator's own panel. See {@link
-     *  GameInfoView#setOnPlay}'s own comment for why the host decides rather
-     *  than this view or {@link GameInfoView} guessing from anything either
-     *  can see for itself. */
+    /** Only {@link LibraryPanel} ever calls this, since only its own panel
+     *  shows a game that has not started yet; {@link Panels} never does, and
+     *  that - together with the {@link #hasControls} guard in {@link
+     *  #onCreate} that keeps the emulator's own panel from building a primary
+     *  action at all - is the whole of how Play stays off it.
+     *
+     *  Kept in a field of this window's own as well as forwarded to {@link
+     *  GameInfoView#setOnPlay}, the same one Runnable both times: the primary
+     *  action built in {@link #onCreate} runs long before this is ever
+     *  called, so it needs a field to read the listener from at click time,
+     *  and {@link GameInfoView}'s own setter is left standing rather than
+     *  going unused by a caller that used to be its only one. */
     void setOnPlay(Runnable listener) {
+        onPlay = listener;
         infoView.setOnPlay(listener);
     }
 
