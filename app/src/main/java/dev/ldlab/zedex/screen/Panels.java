@@ -153,26 +153,22 @@ public final class Panels {
     /**
      * The manual, on the panel's display when there is one.
      *
-     * <b>On the machine's screen, never the panel's.</b> That is the whole
-     * fix for a class of faults this app kept meeting, and it is what the
-     * platform's own rules make unavoidable: an activity launches on the
-     * caller's display by default, a {@code Presentation} draws above every
-     * activity window on <em>its</em> display, and there is no callback
-     * anywhere for somebody else's activity going away. So a panel that steps
-     * aside for a foreign window has to guess when to come back - and on a
-     * handheld that gives each display its own focus, the signal it guessed
-     * from ({@code onTopResumedActivityChanged}) never fires at all, because
-     * the host never stops being top-resumed on the screen it is already on.
+     * <b>On the panel, and safely, because the viewer is ours.</b> This spent
+     * a while opening on the machine's screen instead, which was the only way
+     * to be sure the panel came back: a {@code Presentation} draws above every
+     * activity window on its display, and nothing anywhere reports somebody
+     * <em>else's</em> activity closing, so a panel that stepped aside for a
+     * foreign PDF viewer had to guess - and on a handheld with per-display
+     * focus the signal it guessed from never fires at all.
      *
-     * The latch that left behind is what made the second screen show the app
-     * you had before ours: once set, every panel built afterwards was hidden
-     * the moment it appeared. Opening the manual where the machine is means
-     * there is nothing to step aside for, nothing to guess about, and Back
-     * out of the PDF lands on the machine rather than on whatever the panel's
-     * display had underneath.
+     * {@code PdfActivity} is one of ours, so none of that applies: it is
+     * reported started and destroyed like Settings and the artwork viewer,
+     * through the same lifecycle callbacks, and {@link StepAside} needs no
+     * telling. No foreign screen is announced here for that reason.
      */
     public void openManual(android.net.Uri manual) {
-        dev.ldlab.zedex.library.ui.Manuals.open(activity, manual);
+        dev.ldlab.zedex.library.ui.Manuals.open(
+                activity, manual, panel == null ? null : panel.getDisplay());
     }
 
     // --- coming and going ----------------------------------------------------

@@ -2,6 +2,7 @@ package dev.ldlab.zedex.library.ui;
 
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.screen.InstructionsActivity;
+import dev.ldlab.zedex.screen.PdfActivity;
 
 import android.app.ActivityOptions;
 import android.content.ActivityNotFoundException;
@@ -76,6 +77,47 @@ public final class Manuals {
         context.startActivity(intent);
     }
 
+    /**
+     * The app's own PDF screen, on the display that asked for it.
+     *
+     * The same display dance the text manual and the hand-over both do, and
+     * the same fallback: a display that refuses it gets the main screen
+     * rather than nothing. Answers false only when there is no document to
+     * show at all, since whether the file can really be parsed is not known
+     * until that screen has tried - it says so itself and closes.
+     */
+    private static boolean showPdf(Context context, Uri manual, Display display,
+                                   Runnable onDisplay) {
+        if (manual == null) return false;
+
+        Intent intent = new Intent(context, PdfActivity.class)
+                .putExtra(PdfActivity.EXTRA_FILE, manual.toString())
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                          | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+        if (display != null) {
+            try {
+                ActivityOptions options = ActivityOptions.makeBasic();
+                options.setLaunchDisplayId(display.getDisplayId());
+
+                context.startActivity(intent, options.toBundle());
+                if (onDisplay != null) onDisplay.run();
+                return true;
+            } catch (RuntimeException e) {
+                Log.w(TAG, "cannot open the manual on display "
+                           + display.getDisplayId(), e);
+            }
+        }
+
+        try {
+            context.startActivity(intent);
+            return true;
+        } catch (RuntimeException e) {
+            Log.w(TAG, "cannot open " + manual + " here", e);
+            return false;
+        }
+    }
+
     /** {@link #open(Context, Uri, Display)} with no display to ask for - the
      *  ordinary path, unchanged from before that existed. */
     public static void open(Context context, Uri manual) {
@@ -130,6 +172,14 @@ public final class Manuals {
             showText(context, manual, display, onDisplay);
             return;
         }
+
+        // And a PDF in ours too, now that there is one. The same reason the
+        // transcription never left this app: a viewer of ours is an activity
+        // the second screen's own step-aside can see, and nothing anywhere
+        // reports a foreign one closing. showPdf falls back to the hand-over
+        // below when the document will not open - an encrypted PDF, or a file
+        // that is not one - and PdfActivity's own menu offers it besides.
+        if (showPdf(context, manual, display, onDisplay)) return;
 
         Uri shareable = manual;
 

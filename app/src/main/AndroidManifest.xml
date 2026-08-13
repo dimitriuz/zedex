@@ -131,6 +131,16 @@
              rather than a PDF: shown here because not every phone has
              anything for text/plain, and the ones that do wrap it to the
              window - see screen/InstructionsActivity.java. -->
+        <!-- The manual, when it is a PDF - read here rather than handed to
+             another app, because a viewer of ours is one the second screen's
+             own step-aside can see. See screen/PdfActivity.java; the
+             hand-over is still offered from its menu. -->
+        <activity
+            android:name=".screen.PdfActivity"
+            android:label="@string/instructions_title"
+            android:theme="@android:style/Theme.DeviceDefault"
+            android:exported="false" />
+
         <activity
             android:name=".screen.InstructionsActivity"
             android:label="@string/instructions_title"

@@ -521,16 +521,13 @@ public final class GameInfoView extends LinearLayout {
                 // to ask for", the ordinary path - and onForeignScreen with
                 // it, since nothing was put on a display that was never
                 // asked for.
-                // The machine's screen, never this panel's - see
-                // Panels.openManual for why that is the rule now: a
-                // Presentation draws above every activity window on its own
-                // display, and nothing anywhere reports a foreign activity
-                // closing, so a panel that steps aside for one has to guess
-                // when to come back and on this hardware guesses wrong for
-                // ever. Nothing is put on this display, so onForeignScreen is
-                // not told either.
+                // This panel's own display, which is safe again now that the
+                // viewer is one of ours - see Panels.openManual. Nothing
+                // foreign is announced, because nothing foreign is opened:
+                // PdfActivity and InstructionsActivity are both reported
+                // through the lifecycle callbacks the panel already watches.
                 manualButton.setOnClickListener(
-                        v -> Manuals.open(getContext(), result));
+                        v -> Manuals.open(getContext(), result, getDisplay()));
             });
         });
     }
