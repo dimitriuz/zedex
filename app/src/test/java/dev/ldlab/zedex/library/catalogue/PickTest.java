@@ -265,4 +265,88 @@ public class PickTest {
         assertFalse(Pick.isRecording(file("tap")));
         assertFalse(Pick.isRecording(null));
     }
+
+    // --- what is not for the machine ------------------------------------------------
+
+    /**
+     * A book is a PDF, and a fifth of this catalogue is not a program.
+     *
+     * 1,570 books, 1,819 electronic magazines, 1,147 hardware entries -
+     * counted from the service's own /metadata/. Every one of them used to end
+     * at "Nothing here the Spectrum can open", with the file sitting in the
+     * record one tap away.
+     */
+    @Test
+    public void abookAnswersWithItsDocument() {
+        Catalogue.Item book = item(version(null, file("pdf")));
+
+        assertNull("a pdf is not something the machine can be handed",
+                   Pick.forGame(book));
+        assertEquals("pdf", Pick.otherFile(book).format());
+    }
+
+    /**
+     * The cover is not the book.
+     *
+     * Both are on the same entry, the picture often first, and answering with
+     * it would be answering with the wrapper rather than the thing.
+     */
+    @Test
+    public void apictureGoesLast() {
+        assertEquals("pdf", Pick.otherFile(
+                item(version(null, file("jpg"), file("pdf")))).format());
+
+        assertEquals("pdf", Pick.otherFile(
+                item(version("cover", file("jpg")),
+                     version("book", file("pdf")))).format());
+    }
+
+    /** ...but an entry that is only a picture still answers with it - an
+     *  advertisement, a photographed cassette. */
+    @Test
+    public void apictureOnItsOwnIsStillAnAnswer() {
+        assertEquals("jpg", Pick.otherFile(item(version(null, file("jpg")))).format());
+    }
+
+    /** Never the machine's own file: that one has its own answer, and offering
+     *  it twice under two names is how a tap comes to mean two things. */
+    @Test
+    public void agameIsNeverOfferedHere() {
+        Catalogue.Item game = item(version(null, file("tzx"), file("z80")));
+
+        assertNotNull(Pick.forGame(game));
+        assertNull("a playable file was offered as something to read",
+                   Pick.otherFile(game));
+    }
+
+    /** And never the recording, for the same reason - it is Play the
+     *  recording's, and it is somebody playing the game rather than a thing to
+     *  open. */
+    @Test
+    public void arecordingIsNeverOfferedHere() {
+        Catalogue.Item recorded = item(version(null, file("rzx")));
+
+        assertNotNull(Pick.recording(recorded));
+        assertNull(Pick.otherFile(recorded));
+    }
+
+    /** An entry with nothing at all is still an entry: a row can exist for a
+     *  title nobody has uploaded anything for, and that is what the refusal
+     *  line is left for. */
+    @Test
+    public void anentryWithNoFilesAnswersNothing() {
+        assertNull(Pick.otherFile(item(version(null))));
+        assertNull(Pick.otherFile(item()));
+        assertNull(Pick.otherFile(null));
+    }
+
+    /** A file with no url is not a file - the catalogue lists what it knows
+     *  about, and it does not always know where a thing is. */
+    @Test
+    public void afileWithNowhereToGetItIsSkipped() {
+        Catalogue.Download nowhere = new Catalogue.Download("", "pdf", -1);
+        Catalogue.Item item = item(version(null, nowhere, file("txt")));
+
+        assertEquals("txt", Pick.otherFile(item).format());
+    }
 }

@@ -152,11 +152,54 @@ public final class Imports {
         }
     }
 
+    /**
+     * What comes out of the archive, and out of a download that was never one.
+     *
+     * The whole pipeline was written around one answer - keep what the
+     * emulator can open, leave the readme and the cover in the zip - which is
+     * right for a game and is the wrong question entirely for a book. A fifth
+     * of this catalogue is books, magazines and hardware; their file is a PDF,
+     * and "nothing inside this app can open" was both true and the end of the
+     * matter.
+     */
+    private enum Keep {
+
+        /** A game, a recording: the machine's own formats and nothing else. */
+        WHAT_THE_MACHINE_OPENS,
+
+        /**
+         * Whatever arrived - a document the phone will open rather than the
+         * machine.
+         *
+         * The caps still apply: an archive is still walked, still bounded, and
+         * still refused when it is absurd. What is dropped is only the test of
+         * whether Fuse would take the file, which for a book is not a question
+         * worth asking.
+         */
+        WHATEVER_ARRIVED,
+    }
+
     /** One entry from the catalogue, filed under the folder its own kind
      *  maps to - see {@link Kinds#folderFor}. */
     public static Result game(Context context, Http http, Catalogue.Item item,
                               Catalogue.Download file) {
-        return bring(context, http, item, file, Kinds.folderFor(item.kind()));
+        return bring(context, http, item, file, Kinds.folderFor(item.kind()),
+                     Keep.WHAT_THE_MACHINE_OPENS);
+    }
+
+    /**
+     * A file for the reader rather than the machine - a book's PDF, a
+     * magazine, a scanned advertisement.
+     *
+     * The same folder its own kind maps to, exactly like {@link #game}: it is
+     * still that entry, and {@code Downloaded/Other/} is where a book belongs
+     * whether or not the app can open it. What differs is only what is kept
+     * out of the download; see {@link Keep}.
+     */
+    public static Result document(Context context, Http http, Catalogue.Item item,
+                                  Catalogue.Download file) {
+        return bring(context, http, item, file, Kinds.folderFor(item.kind()),
+                     Keep.WHATEVER_ARRIVED);
     }
 
     /**
@@ -169,7 +212,8 @@ public final class Imports {
      */
     public static Result recording(Context context, Http http, Catalogue.Item item,
                                    Catalogue.Download file) {
-        return bring(context, http, item, file, Kinds.RECORDINGS);
+        return bring(context, http, item, file, Kinds.RECORDINGS,
+                     Keep.WHAT_THE_MACHINE_OPENS);
     }
 
     /**
@@ -273,7 +317,7 @@ public final class Imports {
     }
 
     private static Result bring(Context context, Http http, Catalogue.Item item,
-                                Catalogue.Download file, String folder) {
+                                Catalogue.Download file, String folder, Keep keep) {
         File cache = new File(context.getCacheDir(), "imports");
         List<Extracted> extracted = new ArrayList<>();
         File zip = new File(cache, "zedex-" + System.nanoTime() + ".zip");
@@ -313,7 +357,7 @@ public final class Imports {
             // whatever a later failure - corrupt data, the caps above - leaves
             // half-finished is still in the list the `finally` below cleans up.
             try {
-                unzip(zip, cache, extracted);
+                unzip(zip, cache, extracted, keep);
             } catch (TooLarge too) {
                 return new Result(null, null, null, false, new ScrapeException(
                         ScrapeException.Kind.MALFORMED, too.getMessage()));
@@ -331,7 +375,9 @@ public final class Imports {
             // named from the url it came from.
             if (extracted.isEmpty()) {
                 String bare = basenameOf(file.url());
-                if (Types.openable(bare)) extracted.add(new Extracted(bare, zip));
+                if (keep == Keep.WHATEVER_ARRIVED || Types.openable(bare)) {
+                    extracted.add(new Extracted(bare, zip));
+                }
             }
 
             if (extracted.isEmpty()) {
@@ -483,7 +529,8 @@ public final class Imports {
      *         #MAX_EXTRACTED_BYTES} - these are untrusted downloads and
      *         nothing upstream bounds them.
      */
-    private static void unzip(File zip, File cache, List<Extracted> found) throws IOException {
+    private static void unzip(File zip, File cache, List<Extracted> found, Keep keep)
+            throws IOException {
         long totalBytes = 0;
         int scanned = 0;
         int kept = 0;
@@ -508,7 +555,7 @@ public final class Imports {
 
                 // Counted here and not above: an archive is allowed to be
                 // full of things this app does not want. See MAX_ENTRIES.
-                if (!Types.openable(name)) continue;
+                if (keep == Keep.WHAT_THE_MACHINE_OPENS && !Types.openable(name)) continue;
 
                 if (++kept > MAX_ENTRIES) {
                     throw new TooLarge("more than " + MAX_ENTRIES

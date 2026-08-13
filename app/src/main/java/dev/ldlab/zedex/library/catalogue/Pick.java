@@ -97,4 +97,71 @@ public final class Pick {
     public static boolean isRecording(Catalogue.Download file) {
         return file != null && RECORDING.equals(file.format());
     }
+
+    /** What a scan or a cover arrives as, and what a book is not. */
+    private static final String[] PICTURES = { "jpg", "jpeg", "png", "gif" };
+
+    /**
+     * The best file that is <em>not</em> for the machine - a book's PDF, a
+     * magazine, a scanned inlay.
+     *
+     * A fifth of what this catalogue lists is not a program at all: 1,570
+     * books, 1,819 electronic magazines, 1,147 hardware entries and the rest,
+     * counted from the service's own {@code /metadata/}. Those used to end at
+     * "Nothing here the Spectrum can open", which is true and was the whole
+     * answer - the entry was on screen, the file was one tap away in the
+     * record, and the app's reply was that it would not be fetching it. A
+     * thing this app cannot run is still a thing somebody chose to open.
+     *
+     * The order is the catalogue's own, with one rule over it: a picture goes
+     * last. A book's <em>cover</em> is a picture and the book is a PDF, both
+     * are on the same entry, and answering with the cover would be answering
+     * with the wrapper rather than the thing. An entry whose only file is a
+     * picture - an advertisement, a photographed cassette - still answers with
+     * it.
+     *
+     * Never a game and never a recording: those have their own two answers,
+     * and a file this returns is by construction one neither of them would.
+     *
+     * @return null when the entry has no file at all, which is common - a row
+     *         can exist for a title nobody has uploaded anything for
+     */
+    public static Catalogue.Download otherFile(Catalogue.Item item) {
+        if (item == null) return null;
+
+        Catalogue.Download picture = null;
+
+        for (Catalogue.Version version : item.versions()) {
+            for (Catalogue.Download file : version.files()) {
+                if (file == null || file.url() == null || file.url().isEmpty()) continue;
+                if (isRecording(file) || isForTheMachine(file)) continue;
+
+                if (isPicture(file)) {
+                    if (picture == null) picture = file;
+                    continue;
+                }
+
+                return file;
+            }
+        }
+
+        return picture;
+    }
+
+    /** Whether {@link #forGame} would have taken it - asked here rather than
+     *  assumed from "forGame answered null", so this can be called on its own
+     *  and still never offer the same file twice under two names. */
+    private static boolean isForTheMachine(Catalogue.Download file) {
+        for (String playable : PREFERENCE) {
+            if (playable.equals(file.format())) return true;
+        }
+        return false;
+    }
+
+    private static boolean isPicture(Catalogue.Download file) {
+        for (String picture : PICTURES) {
+            if (picture.equals(file.format())) return true;
+        }
+        return false;
+    }
 }

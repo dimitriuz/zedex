@@ -518,12 +518,22 @@ public final class CataloguePane extends FrameLayout {
 
         Catalogue.Download game = Pick.forGame(full);
 
-        // Replaced by the refusal rather than shown disabled. A greyed button
-        // invites a tap and then explains nothing, and this is a real thing to
-        // find: an entry whose only files are a cassette scan and a magazine
-        // advert has nothing the Spectrum can open.
-        importButton.setVisibility(game != null ? View.VISIBLE : View.GONE);
-        if (game == null) say(getContext().getString(R.string.catalogue_nothing_to_get));
+        // Anything at all, not only what the machine can open: a fifth of this
+        // catalogue is books, magazines and hardware, and the answer to those
+        // used to be a line saying the app would not be fetching the file that
+        // was right there in the record. It imports the same way and lands in
+        // the same Downloaded/<kind>/ folder; what changes is what happens
+        // afterwards - see importFinished, which offers to hand it to whatever
+        // the phone has for it rather than to the machine.
+        //
+        // The refusal is kept for an entry with no file at all, which is a
+        // real thing to find - a row can exist for a title nobody has uploaded
+        // anything for - and is replaced by the button rather than shown
+        // beside it: a greyed button invites a tap and then explains nothing.
+        Catalogue.Download anything = game != null ? game : Pick.otherFile(full);
+
+        importButton.setVisibility(anything != null ? View.VISIBLE : View.GONE);
+        if (anything == null) say(getContext().getString(R.string.catalogue_nothing_to_get));
 
         versionsButton.setVisibility(full.versions().size() > 1 ? View.VISIBLE : View.GONE);
         recordingButton.setVisibility(Pick.recording(full) != null ? View.VISIBLE : View.GONE);
@@ -564,7 +574,18 @@ public final class CataloguePane extends FrameLayout {
         Catalogue.Item item = showing;
         if (item == null) return;
 
-        beginImport(item, Pick.forGame(item), false);
+        // The machine's file if there is one, and otherwise whatever else the
+        // entry holds - a book's PDF, a magazine, a scan. Not two buttons:
+        // from here it is the same errand, "bring me this", and which of the
+        // two it turns out to be is the catalogue's business rather than
+        // something to make somebody choose between. See Pick.otherFile.
+        Catalogue.Download game = Pick.forGame(item);
+        if (game != null) {
+            beginImport(item, game, false);
+            return;
+        }
+
+        beginImport(item, Pick.otherFile(item), false, true);
     }
 
     /**
@@ -668,6 +689,16 @@ public final class CataloguePane extends FrameLayout {
      *             an import of nothing.
      */
     private void beginImport(Catalogue.Item item, Catalogue.Download file, boolean recording) {
+        beginImport(item, file, recording, false);
+    }
+
+    /**
+     * @param document a file for the reader rather than the machine - see
+     *                 {@code Imports.document}, which keeps what arrived
+     *                 instead of only what Fuse would open
+     */
+    private void beginImport(Catalogue.Item item, Catalogue.Download file, boolean recording,
+                             boolean document) {
         // One at a time, whichever title started it - two imports racing each
         // other into the same folder is how SAF comes to write a second copy
         // under a "(1)" name. Said rather than silently ignored: a button that
@@ -701,12 +732,19 @@ public final class CataloguePane extends FrameLayout {
 
             try {
                 result = recording ? Imports.recording(context, http, item, file)
-                                   : Imports.game(context, http, item, file);
+                     : document ? Imports.document(context, http, item, file)
+                                : Imports.game(context, http, item, file);
 
                 // Only for a file that was actually written. A second import of
                 // something already there has already been described, and a
                 // scrape is a request against somebody's allowance.
-                if (result.failure == null && !result.alreadyThere) {
+                //
+                // Nor for a document: the row it would describe is a PDF
+                // sitting in Downloaded/Other, which no part of the library
+                // draws a cover or a facts line for - the request would be
+                // spent on a key nothing reads, which is the same waste the
+                // folder-import case already avoids.
+                if (!document && result.failure == null && !result.alreadyThere) {
                     Imports.describe(context, providerFor(context), http, result, item);
                 }
             } catch (RuntimeException e) {
@@ -817,6 +855,15 @@ public final class CataloguePane extends FrameLayout {
             label(importButton, R.string.library_play);
             importButton.setVisibility(View.VISIBLE);
             importButton.setOnClickListener(v -> open(result.documentUri));
+        } else if (result.documentUri != null) {
+            // Not a file for the machine - a book, a magazine, a scan. The
+            // same shape as Play above and the same button: it is in the
+            // collection now, and the only thing left to offer is opening
+            // it, which for this one means whatever the phone has rather
+            // than the emulator.
+            label(importButton, R.string.library_open);
+            importButton.setVisibility(View.VISIBLE);
+            importButton.setOnClickListener(v -> openOutside(result.documentUri));
         }
     }
 
@@ -883,6 +930,43 @@ public final class CataloguePane extends FrameLayout {
      * LibraryActivity.openGame} already does - every way of opening a game
      * meets at {@code Media.Host.opened}, and this is one of them.
      */
+    /**
+     * Hands an imported file the machine cannot open to whatever the phone
+     * has for it.
+     *
+     * The type is asked of the provider rather than guessed from the name:
+     * this is a document in the user's own content tree, so {@code
+     * ContentResolver.getType} is the authority on what it is, and a guess
+     * would be this app deciding that a file it has never opened is a PDF.
+     *
+     * <b>The manifest has to declare what this looks for.</b> Android 11 hides
+     * every app from one that has not said what it wants to reach, chooser
+     * included - the trap the mail button and the PDF viewer both hit before
+     * this - so {@code <queries>} names {@code application/pdf} and
+     * {@code image/*}, which is what these entries actually hold: 1,570 books
+     * as PDFs, and scans and adverts as pictures. Anything else resolves to
+     * nothing and says so, rather than appearing to do nothing at all: the
+     * file is still in the content folder, which is a folder of theirs that
+     * any file manager opens.
+     */
+    private void openOutside(Uri document) {
+        String type = getContext().getContentResolver().getType(document);
+
+        Intent intent = new Intent(Intent.ACTION_VIEW)
+                .setDataAndType(document, type != null ? type : "*/*")
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+        try {
+            getContext().startActivity(intent);
+        } catch (RuntimeException e) {
+            // Nothing on the phone answers for it, or the grant has gone -
+            // the same two ways open(Uri) below can fail, and the same
+            // answer: say so rather than look broken.
+            Log.w(TAG, "nothing can open " + document, e);
+            say(getContext().getString(R.string.open_failed));
+        }
+    }
+
     private void open(Uri document) {
         Intent intent = new Intent(Intent.ACTION_VIEW, document,
                                    getContext(), EmulatorActivity.class);

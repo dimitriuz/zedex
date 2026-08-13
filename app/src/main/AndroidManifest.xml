@@ -43,6 +43,17 @@
             <data android:mimeType="application/pdf" />
         </intent>
 
+        <!-- And a picture, for the same reason one line up: the catalogue
+             lists scans, inlays and advertisements, and CataloguePane hands
+             an imported one to whatever the phone has. Without this, Android
+             11 and later hide every gallery from this app and the hand-over
+             resolves to nothing - which is not "no viewer installed", it is
+             this app not having said what it was looking for. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="image/*" />
+        </intent>
+
         <!--
             ES-DE, so that Settings can offer to add Zedex to it. Android 11
             hides every other app from one that has not said what it looks for,
