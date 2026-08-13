@@ -527,7 +527,29 @@ Add these private methods to `GameInfoView`:
 - [ ] **Step 6: Point Play, the manual and the music at the new widgets**
 
 1. In `showEntry`, the manual block (around lines 521–539) now sets `rowManual` — it is an `ImageButton`, so `setOnClickListener` and `setVisibility` are unchanged; nothing there needs editing beyond the field already being renamed in place.
-2. Delete `playButton` and `updatePlayVisibility()`. `setOnPlay(Runnable)` becomes:
+2. Delete the `playButton` field. **Keep `updatePlayVisibility()`** and retarget it — it is what `showEntry`/`clear` already call, and rewiring those is needless risk. Its condition changes, which matters:
+
+```java
+    /**
+     * The primary button appears when there is a game for it to act on, and
+     * only where a host asked for one at all.
+     *
+     * The old condition also asked whether {@code onPlay} had been set, which
+     * was right when the panel was the only host: it sets the listener
+     * separately from building the button. The details screen sets the action
+     * *in* {@link #setPrimaryAction} and never touches {@code onPlay}, so
+     * asking about it here would hide the Play button on the one screen whose
+     * whole row leads with it.
+     */
+    private void updatePlayVisibility() {
+        if (primaryButton == null) return;
+        primaryButton.setVisibility(path != null ? View.VISIBLE : View.GONE);
+    }
+```
+
+Call it at the end of `setPrimaryAction` as well, so a button built after the path is known still gets the right visibility.
+
+3. `setOnPlay(Runnable)` becomes:
 
 ```java
     /**
@@ -543,13 +565,7 @@ Add these private methods to `GameInfoView`:
     }
 ```
 
-3. Wherever `updatePlayVisibility()` was called, set the primary button's visibility instead:
-
-```java
-        if (primaryButton != null) {
-            primaryButton.setVisibility(canPlay ? View.VISIBLE : View.GONE);
-        }
-```
+4. `SecondScreen`'s existing `setOnPlay` call stays as it is: its primary action delegates to `onPlay` at click time, so the panel can keep setting the listener after construction.
 
 - [ ] **Step 7: Hide the music in `clear()`**
 
@@ -930,4 +946,4 @@ you subclass it into."
 
 **Type consistency.** `setPrimaryAction(int, Runnable)`, `addLeadingAction(int, int, Runnable)`, `addTrailingAction(int, int, Runnable)`, `showEntry(String, String)`, `release()`, `setOffersManual(boolean)`, `setOnPlay(Runnable)` are used in Task 5 exactly as defined in Task 3. `GameInfoText.seriesLine(Meta)` and `GameInfoText.titlesOf(List<Meta.Link>)` are used in Task 2 exactly as defined in Task 1. `rowManual`/`rowMusic` are named consistently from Task 3 onward, replacing `musicButton` and the `Button rowManual`.
 
-**Known risk, called out rather than designed around.** Task 3 Step 6 touches `updatePlayVisibility` and `setOnPlay`, whose exact interaction with `SecondScreen`'s `showEntry`/`clear` pair is the one place this plan reads rather than dictates. If the panel's Play button appears for a folder, or fails to appear for a game, that is where to look.
+**Resolved during pre-flight.** An earlier draft of Task 3 Step 6 deleted `updatePlayVisibility` and invented a `canPlay` field that does not exist, and would have kept the old `onPlay != null` condition — which hides the Play button on the details screen, the one host that sets its action through `setPrimaryAction` and never touches `onPlay`. Step 6 now keeps the method, retargets it at `primaryButton`, and states the corrected condition. If the panel's Play button appears for a folder or fails to appear for a game, that is still where to look.
