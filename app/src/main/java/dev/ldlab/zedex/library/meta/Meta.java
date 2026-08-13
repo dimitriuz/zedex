@@ -529,8 +529,32 @@ public final class Meta {
      * they say, and plenty of games are in no database that knows.
      */
     public enum Field {
-        NAME, DESC, DEVELOPER, PUBLISHER, GENRE, SUBGENRE, RELEASED, PLAYERS,
-        RATING, MACHINE, INPUTS, PLAY_COUNT, COMPLETED
+        NAME(true), DESC(true), DEVELOPER(true), PUBLISHER(true), GENRE(true),
+        SUBGENRE(true), RELEASED(true), PLAYERS(true), RATING(true), MACHINE(true),
+        INPUTS(true),
+
+        /**
+         * Two facts a person keeps rather than scrapes - no provider can ever
+         * fill either, so {@code false} here. A field added to this enum
+         * later must answer the same question at the call site, or {@code
+         * Blend.nothingLeftToGain} silently starts requiring it from a
+         * provider that will never send it, and stops early-exiting for
+         * almost every row again.
+         */
+        PLAY_COUNT(false), COMPLETED(false);
+
+        private final boolean scrapeable;
+
+        Field(boolean scrapeable) {
+            this.scrapeable = scrapeable;
+        }
+
+        /** Whether a scrape provider could plausibly supply this field - as
+         *  opposed to a fact only a person can state, like {@link
+         *  #PLAY_COUNT} or {@link #COMPLETED}. */
+        public boolean scrapeable() {
+            return scrapeable;
+        }
     }
 
     /** How a list of controls is written on one line, and split back up. */

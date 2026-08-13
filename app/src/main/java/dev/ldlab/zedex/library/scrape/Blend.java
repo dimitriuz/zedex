@@ -672,6 +672,13 @@ public final class Blend {
         if (stillWanted.any()) return false;
 
         for (Meta.Field field : Meta.Field.values()) {
+            // PLAY_COUNT and COMPLETED are a person's own facts, not a
+            // provider's - see Meta.Field#scrapeable. Requiring them here is
+            // exactly how this predicate rotted: no source can ever fill
+            // either, so almost every row failed this loop and every source
+            // was consulted for every game regardless of what was actually
+            // left to gain.
+            if (!field.scrapeable()) continue;
             if (known.get(field) == null) return false;
         }
 
