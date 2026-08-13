@@ -697,7 +697,19 @@ public final class Blend {
                 Artwork.stagingFileFor(context, path, folder + "/" + source.name(),
                                        extension);
 
-        Downloads.fetch(context, http, source, path, media, into);
+        Downloads.Result result = Downloads.fetch(context, http, source, path, media, into);
+
+        // Every medium in `media` contributes to exactly one of result.saved
+        // or result.failed - a source that genuinely had nothing for a
+        // medium lands in failed, and that is the ordinary case, expected
+        // for most media on most sources, and not worth a line in the log.
+        // Counted here so the loop below can tell it apart from the other
+        // way to end up with no file: fetched, reported as saved, and still
+        // not found under the name it should have landed as. That second
+        // kind is exactly what swallowed the AY, silently, before landsAs
+        // existed - and it must stay loud, or the next instance of this
+        // class of bug is invisible again.
+        int ordinaryMisses = 0;
 
         for (Medium medium : media) {
             // What was asked for is not what landed, for the two media that
@@ -711,7 +723,16 @@ public final class Blend {
             String extension = Downloads.landsAs(medium);
 
             File file = into.fileFor(medium.folder, extension);
-            if (!file.isFile() || file.length() == 0) continue;
+            if (!file.isFile() || file.length() == 0) {
+                if (ordinaryMisses < result.failed) {
+                    ordinaryMisses++;
+                } else {
+                    Log.w(TAG, "fetched " + medium.folder + " from " + source.name()
+                               + " for " + path + " but found nothing at "
+                               + file.getName() + " afterwards");
+                }
+                continue;
+            }
 
             File already = existing(context, path, medium.folder);
 
