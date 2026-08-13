@@ -18,6 +18,7 @@ import androidx.test.uiautomator.UiDevice;
 import androidx.test.uiautomator.UiObject2;
 import androidx.test.uiautomator.Until;
 
+import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -73,6 +74,19 @@ public class GameInfoBarTest {
             InstrumentationRegistry.getInstrumentation().getTargetContext();
 
     /**
+     * Leaves the details screen behind - this app has already lost an hour to
+     * a screen left resumed outliving {@code am force-stop} (see CLAUDE.md),
+     * and a test that opens this screen and never closes it is exactly that.
+     * Back finishes it on both variants: the library's plainly, the
+     * machine's by handing over to {@code EmulatorActivity} and finishing the
+     * same as its own ‹ icon - either way one press is enough.
+     */
+    @After
+    public void leaveTheScreen() {
+        device.pressBack();
+    }
+
+    /**
      * From the library: Play leads, Back trails, and the machine's own menu is
      * on neither end - there is no machine for it to open.
      *
@@ -81,7 +95,7 @@ public class GameInfoBarTest {
      * asserting only that both icons exist would pass just as well if the two
      * were swapped - which is exactly the difference between the two variants
      * this class exists to tell apart. The manual and music icons sit between
-     * leading and trailing in the row (see {@code GameInfoView.show}), but this
+     * leading and trailing in the row (see {@code GameInfoView.rebuildRow}), but this
      * fixture is deliberately a game with neither, so they are never on screen
      * to measure against; Play is the one action guaranteed present here, and
      * it is added before the trailing actions in the same call, so Back must
