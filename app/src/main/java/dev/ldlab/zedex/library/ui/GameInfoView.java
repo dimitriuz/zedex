@@ -196,15 +196,6 @@ public final class GameInfoView extends LinearLayout {
      */
     private Runnable onForeignScreen;
 
-    /** Whether playing a game means anything from here at all - only ever
-     *  set by {@link dev.ldlab.zedex.screen.LibraryPanel}, since only the
-     *  library's own panel shows a game that has not started yet; see this
-     *  class's own comment on {@link #setOnPlay} and CLAUDE.md's "the host
-     *  decides". Null on the emulator's own panel, which never calls it and
-     *  never asks for a {@link #primaryButton} at all - see {@link
-     *  dev.ldlab.zedex.screen.SecondScreen#onCreate}. */
-    private Runnable onPlay;
-
     public GameInfoView(Context context) {
         super(context);
 
@@ -350,7 +341,7 @@ public final class GameInfoView extends LinearLayout {
         // order action then manual then music.
         actionRow = new LinearLayout(context);
         actionRow.setOrientation(HORIZONTAL);
-        actionRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        actionRow.setGravity(Gravity.CENTER_VERTICAL);
 
         rowManual = icon(R.drawable.ic_manual, R.string.library_manual);
         rowMusic = icon(R.drawable.ic_music, R.string.music_title);
@@ -481,18 +472,6 @@ public final class GameInfoView extends LinearLayout {
      *  member another layer needs has to be public". */
     public void setOnForeignScreen(Runnable listener) {
         this.onForeignScreen = listener;
-    }
-
-    /**
-     * What Play does here, when this view's host offers it at all.
-     *
-     * Kept as a setter of its own rather than folded into
-     * {@link #setPrimaryAction} because SecondScreen sets the listener once,
-     * at construction, and learns much later whether there is a game to
-     * play - see the panel's own showEntry/clear pair.
-     */
-    public void setOnPlay(Runnable listener) {
-        onPlay = listener;
     }
 
     /**

@@ -351,15 +351,18 @@ public final class SecondScreen extends Presentation {
      *  #onCreate} that keeps the emulator's own panel from building a primary
      *  action at all - is the whole of how Play stays off it.
      *
-     *  Kept in a field of this window's own as well as forwarded to {@link
-     *  GameInfoView#setOnPlay}, the same one Runnable both times: the primary
-     *  action built in {@link #onCreate} runs long before this is ever
-     *  called, so it needs a field to read the listener from at click time,
-     *  and {@link GameInfoView}'s own setter is left standing rather than
-     *  going unused by a caller that used to be its only one. */
+     *  Kept in a field of this window's own rather than passed straight to
+     *  {@link GameInfoView}: the primary action built in {@link #onCreate}
+     *  runs long before this is ever called, so it needs a field to read the
+     *  listener from at click time, and this window is the one thing built
+     *  early enough to hold it. {@code GameInfoView} used to carry a second,
+     *  identical {@code onPlay} field of its own for this, set by a
+     *  now-deleted {@code setOnPlay} that nothing ever read - the click
+     *  always ran through the {@link Runnable} handed to {@link
+     *  GameInfoView#setPrimaryAction}, which closes over this field, not
+     *  over that one. */
     void setOnPlay(Runnable listener) {
         onPlay = listener;
-        infoView.setOnPlay(listener);
     }
 
     /**

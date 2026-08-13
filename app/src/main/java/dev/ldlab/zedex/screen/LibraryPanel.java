@@ -44,7 +44,7 @@ final class LibraryPanel {
      *  this class has no business doing itself. {@link #apply} installs
      *  {@link #play} on the panel's own Play button; {@code Panels} has no
      *  such method to give its own panel, which is the whole of why Play
-     *  never appears there - see {@code GameInfoView#setOnPlay}. */
+     *  never appears there - see {@code SecondScreen#setOnPlay}. */
     interface Host {
         void panelChanged();
 
