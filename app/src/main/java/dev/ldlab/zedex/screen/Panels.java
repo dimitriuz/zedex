@@ -153,19 +153,26 @@ public final class Panels {
     /**
      * The manual, on the panel's display when there is one.
      *
-     * Here rather than in the activity because both halves of it are this
-     * class's: which display the details are on, and the fact that a manual is
-     * a <em>foreign</em> window that this panel has to step aside for - see
-     * {@link #foreignScreenOpened} and the class comment's fourth corner. The
-     * bar's own manual button used to live in the corner of the artwork, where
-     * {@code GameInfoView} had both of those to hand; on the bar it does not,
-     * so it asks here.
+     * <b>On the machine's screen, never the panel's.</b> That is the whole
+     * fix for a class of faults this app kept meeting, and it is what the
+     * platform's own rules make unavoidable: an activity launches on the
+     * caller's display by default, a {@code Presentation} draws above every
+     * activity window on <em>its</em> display, and there is no callback
+     * anywhere for somebody else's activity going away. So a panel that steps
+     * aside for a foreign window has to guess when to come back - and on a
+     * handheld that gives each display its own focus, the signal it guessed
+     * from ({@code onTopResumedActivityChanged}) never fires at all, because
+     * the host never stops being top-resumed on the screen it is already on.
+     *
+     * The latch that left behind is what made the second screen show the app
+     * you had before ours: once set, every panel built afterwards was hidden
+     * the moment it appeared. Opening the manual where the machine is means
+     * there is nothing to step aside for, nothing to guess about, and Back
+     * out of the PDF lands on the machine rather than on whatever the panel's
+     * display had underneath.
      */
     public void openManual(android.net.Uri manual) {
-        dev.ldlab.zedex.library.ui.Manuals.open(
-                activity, manual,
-                panel == null ? null : panel.getDisplay(),
-                panel == null ? null : this::foreignScreenOpened);
+        dev.ldlab.zedex.library.ui.Manuals.open(activity, manual);
     }
 
     // --- coming and going ----------------------------------------------------
@@ -175,7 +182,13 @@ public final class Panels {
         DisplayManager displays = activity.getSystemService(DisplayManager.class);
         if (displays != null) displays.registerDisplayListener(listener, null);
 
+        // Called from onResume, which is the signal that nothing foreign can
+        // still be over the panel - see StepAside.hostResumed, and Manuals for
+        // why a foreign window is not put there in the first place any more.
+        stepAside.hostResumed();
+
         apply();
+        updateStepAside();
     }
 
     /** Stops watching; from onPause. */

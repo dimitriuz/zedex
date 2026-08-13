@@ -92,7 +92,12 @@ final class LibraryPanel {
         DisplayManager displays = activity.getSystemService(DisplayManager.class);
         if (displays != null) displays.registerDisplayListener(listener, null);
 
+        // See Panels.watch: coming back to the front is what clears the
+        // foreign latch, since nothing reports a foreign window closing.
+        stepAside.hostResumed();
+
         apply();
+        updateStepAside();
     }
 
     void unwatch() {

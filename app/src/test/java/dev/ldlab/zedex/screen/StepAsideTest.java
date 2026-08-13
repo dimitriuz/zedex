@@ -169,4 +169,40 @@ public class StepAsideTest {
                    + "still on that display",
                    stepAside.hidden());
     }
+
+    /**
+     * Coming back to the app clears a foreign latch nothing else can.
+     *
+     * Nothing in Android reports another app's activity closing, so the latch
+     * is set on a signal we have and cleared on one we hope for - and on a
+     * handheld that gives each display its own focus, the hoped-for one never
+     * comes at all: the host never stops being top-resumed on the screen it is
+     * already on. Every panel built afterwards was hidden the moment it
+     * appeared, which is what "the second screen shows the app I had before
+     * this one" turned out to be.
+     */
+    @Test
+    public void thehostComingBackClearsAstuckForeignLatch() {
+        stepAside.foreignOpened();
+        assertTrue(stepAside.hidden());
+
+        stepAside.hostResumed();
+
+        assertFalse("a foreign window nothing ever reported closing kept the "
+                    + "panel down for the life of the process",
+                    stepAside.hidden());
+    }
+
+    /** But it does not clear our own screens: those are reported both ways,
+     *  and one of them may genuinely still be up when the host resumes -
+     *  a settings screen on the panel while the machine is touched. */
+    @Test
+    public void thehostComingBackDoesNotForgetOurOwnScreens() {
+        stepAside.opened(settings);
+        stepAside.hostResumed();
+
+        assertTrue("a screen of ours on that display was forgotten, so the "
+                   + "panel would draw over it",
+                   stepAside.hidden());
+    }
 }

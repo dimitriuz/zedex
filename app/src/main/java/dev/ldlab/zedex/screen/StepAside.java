@@ -72,6 +72,27 @@ final class StepAside {
         foreignUp = false;
     }
 
+    /**
+     * The host is in front again, so nothing foreign can still be over the
+     * panel.
+     *
+     * The belt to {@link #foreignClosed}'s braces. Nothing in Android reports
+     * another app's activity closing, so the foreign latch is set on a signal
+     * we have and cleared on one we hope for - and on a handheld that gives
+     * each display its own focus, the hoped-for one never comes. A latch that
+     * cannot clear hides every panel built afterwards, which is what "the
+     * second screen shows the app I had before this one" actually was.
+     *
+     * So the host's own resume clears it too. That is a signal this app always
+     * gets, it cannot be wrong in the dangerous direction - the worst it does
+     * is show the panel while something foreign is still up, which is what a
+     * Presentation does anyway - and it makes the fault recover by itself
+     * rather than last the life of the process.
+     */
+    void hostResumed() {
+        foreignUp = false;
+    }
+
     /** The panel itself went away. Whatever it was waiting to come back from
      *  is not something the next panel inherits - but our own screens are
      *  still there, and still count against whatever replaces it. */

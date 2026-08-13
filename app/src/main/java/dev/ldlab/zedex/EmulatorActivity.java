@@ -1061,7 +1061,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // And the way out of the game altogether, which the sheet has always
         // had as a row and the details bar needs as an icon: there is no
         // keyboard on that side to reach the sheet from.
-        libraryAction = bar.addAction(R.drawable.ic_library, getString(R.string.library_title),
+        // A cross, not the library's three books: what this does is close the
+        // game. Where it puts you afterwards is the library, but the promise
+        // the icon makes is the one the button keeps - the machine stops
+        // either way.
+        libraryAction = bar.addAction(R.drawable.ic_close, getString(R.string.library_title),
                                       this::openLibrary);
 
         menuAction = bar.addAction(R.drawable.ic_menu, getString(R.string.menu_button),

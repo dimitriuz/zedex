@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 24dp outline, 1.8 stroke, tinted by the row that draws it - the same
+     weight as every other icon on the quick bar.
+
+     A cross, because the button closes what is open rather than going
+     somewhere: it leaves the game and puts the library back. ic_library, three
+     books on a shelf, said "go to the library", which is a different promise
+     from the one this button keeps - the machine stops either way. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:pathData="M6,6 L18,18" android:strokeColor="#ffffff"
+        android:strokeWidth="1.8" android:strokeLineCap="round"
+        android:strokeLineJoin="round" android:fillColor="#00000000"/>
+    <path android:pathData="M18,6 L6,18" android:strokeColor="#ffffff"
+        android:strokeWidth="1.8" android:strokeLineCap="round"
+        android:strokeLineJoin="round" android:fillColor="#00000000"/>
+</vector>
