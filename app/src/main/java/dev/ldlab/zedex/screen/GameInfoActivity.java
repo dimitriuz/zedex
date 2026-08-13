@@ -278,10 +278,9 @@ public final class GameInfoActivity extends ZedexActivity {
         //
         // <b>The title strip it replaced had the Up chevron.</b> Taking the
         // strip away took that with it, and left the system's own Back as the
-        // only way off this screen - which on a two-screen handheld is not a
-        // way at all: measured on an AYN Thor Lite with the panel switched
-        // off, the second display's launcher is the top-focused one and Back
-        // goes there, so it does nothing whatever is on the first screen.
+        // only way off this screen - which on an AYN Thor Lite is not a way at
+        // all: that device drops Back for every app on it, ours and Settings
+        // alike, until it is rebooted. See CLAUDE.md for the measurement.
         // Every other version of this screen already has its own way out -
         // the quick bar's cross - and this one had none.
         android.widget.Button close = new android.widget.Button(this);
