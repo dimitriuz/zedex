@@ -149,6 +149,18 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      */
     public static final String EXTRA_MUSIC = "dev.ldlab.zedex.extra.MUSIC";
 
+    /**
+     * Open the ☰ sheet on arrival.
+     *
+     * How the details screen's own menu icon works on a single screen: the
+     * sheet is built over this activity's window and no second activity can
+     * raise it, so that screen stands aside and asks for it instead. Removed
+     * as it is read, like {@link #EXTRA_MUSIC} and for the same reason - this
+     * activity is long-lived and the intent that started it is remembered, so
+     * without that every return to the machine would reopen the menu.
+     */
+    public static final String EXTRA_OPEN_MENU = "dev.ldlab.zedex.extra.OPEN_MENU";
+
 
     private SharedPreferences preferences;
     private JoystickView[] keyButtons = new JoystickView[0];
@@ -640,6 +652,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         handleViewIntent(getIntent());
         handleMusicIntent(getIntent());
+        handleMenuIntent(getIntent());
     }
 
     @Override
@@ -648,6 +661,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         setIntent(intent);
         handleViewIntent(intent);
         handleMusicIntent(intent);
+        handleMenuIntent(intent);
     }
 
     /**
@@ -724,6 +738,16 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      * because the sheet cannot be shown before the window it lives in has
      * been laid out, which on a cold start is after this runs.
      */
+    /** See {@link #EXTRA_OPEN_MENU}. Posted for the same reason the music
+     *  sheet is: on a cold start the window it lives in has not been laid out
+     *  when this runs. */
+    private void handleMenuIntent(Intent intent) {
+        if (intent == null || !intent.getBooleanExtra(EXTRA_OPEN_MENU, false)) return;
+
+        intent.removeExtra(EXTRA_OPEN_MENU);
+        layout.post(() -> menu.open());
+    }
+
     private void handleMusicIntent(Intent intent) {
         if (intent == null) return;
 

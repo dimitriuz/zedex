@@ -3,6 +3,8 @@ package dev.ldlab.zedex.screen;
 import dev.ldlab.zedex.work.Work;
 import dev.ldlab.zedex.view.Palette;
 import dev.ldlab.zedex.R;
+import dev.ldlab.zedex.EmulatorActivity;
+import dev.ldlab.zedex.view.QuickBar;
 import dev.ldlab.zedex.library.meta.Artwork;
 import dev.ldlab.zedex.library.meta.Meta;
 import dev.ldlab.zedex.library.meta.Metadata;
@@ -91,18 +93,24 @@ public final class GameInfoActivity extends ZedexActivity {
         super.onCreate(savedInstanceState);
 
         // The manifest label is resolved in the phone's language rather than
-        // this screen's, so the title is set here; see Language.
+        // this screen's, so the title is set here; see Language. Still set
+        // although the bar below replaces the title strip: the task switcher
+        // reads it from here.
         setTitle(R.string.library_info);
 
-        // The way back to the library. This screen is reached from a button
-        // in the pane rather than from a list, so the system Back gesture is
-        // the only other way out and not everyone uses it.
-        if (getActionBar() != null) getActionBar().setDisplayHomeAsUpEnabled(true);
+        // <b>A quick bar where the title was.</b> On a handheld the panel
+        // shows these details beside the machine and carries the same four
+        // icons - see EmulatorActivity.applyBarMode - and a title saying
+        // "Game details" over a screen that obviously is the game's details
+        // earns nothing next to four things you can do. The same four, in the
+        // same order, so the two arrangements are one screen in two places
+        // rather than two screens.
+        if (getActionBar() != null) getActionBar().hide();
 
         path = getIntent().getStringExtra(EXTRA_PATH);
         String name = getIntent().getStringExtra(EXTRA_NAME);
 
-        setContentView(page(name));
+        setContentView(withBar(page(name)));
         fitToSafeArea();
 
         if (path != null) {
@@ -137,6 +145,81 @@ public final class GameInfoActivity extends ZedexActivity {
      * above in portrait - with only the words in a {@link ScrollView}. The
      * media takes a fixed share and stays where it is.
      */
+    /**
+     * The page under a bar of its own.
+     *
+     * The bar is built here rather than borrowed: {@code EmulatorActivity}'s
+     * belongs to that activity and is lent to the panel by a {@code
+     * Presentation} that lives on its window, and there is no lending across
+     * two activities. Four buttons is a small thing to build twice; a shared
+     * one would be a seam between two screens for the sake of four lines.
+     *
+     * What each does is what the panel's own four do, from a screen rather
+     * than from beside the machine - see the comments on each.
+     */
+    private View withBar(View page) {
+        LinearLayout column = new LinearLayout(this);
+        column.setOrientation(LinearLayout.VERTICAL);
+        column.setBackgroundColor(Palette.BACKING);
+
+        QuickBar bar = new QuickBar(this);
+
+        // Back to the machine, which for a screen means going away: this was
+        // opened from the machine's own bar and the machine is behind it.
+        bar.addAction(R.drawable.ic_chip, getString(R.string.library_machine),
+                      this::finish);
+
+        // The manual, if there is one. Added always and hidden until it
+        // resolves - see loadManualButton, which already knows how to answer
+        // that question off the UI thread.
+        barManual = bar.addAction(R.drawable.ic_manual, getString(R.string.library_manual),
+                                  this::openTheManual);
+        barManual.setVisibility(View.GONE);
+
+        // The machine's own menu, which only the machine can open: this screen
+        // stands aside and asks for it, since a sheet built over another
+        // activity's window is not something a second activity can raise.
+        bar.addAction(R.drawable.ic_menu, getString(R.string.menu_button), () -> {
+            startActivity(new Intent(this, EmulatorActivity.class)
+                    .putExtra(EmulatorActivity.EXTRA_OPEN_MENU, true));
+            finish();
+        });
+
+        // And out of the game altogether, the same cross the panel's bar
+        // carries: what it does is close the content, and where it leaves you
+        // is the library.
+        bar.addAction(R.drawable.ic_close, getString(R.string.library_title), () -> {
+            startActivity(new Intent(this, LibraryActivity.class)
+                    .putExtra(LibraryActivity.EXTRA_FROM_MENU, true)
+                    .addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                              | Intent.FLAG_ACTIVITY_NEW_TASK));
+            finish();
+        });
+
+        column.addView(bar, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        column.addView(page, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
+
+        return column;
+    }
+
+    /** The bar's own manual button, revealed by {@link #loadManualButton}
+     *  along with the one in the corner of the artwork. */
+    private ImageButton barManual;
+
+    /** Whatever {@link #loadManualButton} resolved, or null - the bar's icon
+     *  is built before that answer can arrive. */
+    private Uri manual;
+
+    /** What the bar's manual icon does - the same hand-over the corner button
+     *  already makes, on this screen's own display. */
+    private void openTheManual() {
+        if (manual != null) Manuals.open(this, manual, getDisplay());
+    }
+
     private View page(String name) {
         boolean landscape = getResources().getConfiguration().orientation
                 == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
@@ -239,20 +322,31 @@ public final class GameInfoActivity extends ZedexActivity {
      */
     private void loadManualButton(String path) {
         Work.run("manual", () -> {
-            Uri manual;
+            Uri found;
             try {
-                manual = Artwork.manual(this, path);
+                found = Artwork.manual(this, path);
             } catch (Exception e) {
-                manual = null;
+                found = null;
             }
 
-            Uri result = manual;
+            Uri result = found;
             handler.post(() -> {
                 if (isFinishing() || isDestroyed()) return;
                 if (result == null) return;
 
-                manualButton.setVisibility(View.VISIBLE);
-                manualButton.setOnClickListener(v -> Manuals.open(this, result));
+                // Remembered for the bar as well as wired to the corner
+                // button: the bar's icon is added before this answer arrives -
+                // it has to be, the bar is built with the page - so it is
+                // hidden until there is something for it to open.
+                manual = result;
+
+                // The bar's icon, and not the one in the corner of the
+                // artwork: the same button twice on one screen is what the
+                // corner button was taken off the panel for, and this screen
+                // now has the same bar. The corner one is left built and
+                // hidden rather than deleted - the layout it sits in is the
+                // same one the pane and the panel share.
+                if (barManual != null) barManual.setVisibility(View.VISIBLE);
             });
         });
     }
