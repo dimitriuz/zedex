@@ -166,6 +166,26 @@ public final class PdfActivity extends ZedexActivity {
      * False when nothing can - no PDF app installed, or a document that could
      * not be made shareable at all - and then this screen renders it itself,
      * which is the case it was written for.
+     *
+     * <b>Why this screen exists at all when another app is going to draw the
+     * document anyway.</b> It looks like an indirection worth deleting, and
+     * deleting it breaks the second screen twice over:
+     *
+     * <ul>
+     *   <li>An activity launches on its <em>caller's</em> display. Handing the
+     *       document straight to {@code ACTION_VIEW} from the library or the
+     *       machine puts the viewer on theirs; going through this screen puts
+     *       it on this screen's.</li>
+     *   <li>A {@code Presentation} draws above every activity window on its
+     *       display, including another app's - so a foreign viewer on the
+     *       panel's display would come up invisibly underneath the panel. This
+     *       activity is <em>ours</em>, so {@code StepAside} sees it start and
+     *       the panel gets out of the way; the viewer launched from here is
+     *       then on top as well as on the right screen.</li>
+     * </ul>
+     *
+     * Neither is visible from here, and neither survives inlining this call
+     * into whatever wanted the manual.
      */
     private boolean handOverFirst() {
         Intent view = dev.ldlab.zedex.library.ui.Manuals.viewIntent(
