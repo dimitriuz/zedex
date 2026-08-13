@@ -236,7 +236,7 @@ public final class SecondScreen extends Presentation {
         infoView.setOffersManual(!hasControls);
 
         // Only the library's own panel: the emulator's shows this side of a
-        // game already running, and GameInfoView.updatePlayVisibility shows
+        // game already running, and GameInfoView.updatePrimaryVisibility shows
         // the row's own button whenever there is a path at all, with no
         // second check for whether anyone asked for one - so a panel that
         // never asked must never build it, or a running game's own details

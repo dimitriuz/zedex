@@ -119,6 +119,24 @@ public final class GameInfoActivity extends ZedexActivity {
     }
 
     /**
+     * Back, on API 30 to 32 only. From 33 the manifest's
+     * enableOnBackInvokedCallback is honoured and back arrives at
+     * {@link #onBackWanted} instead, never here.
+     *
+     * The same answer as {@link #onBackWanted}, and it has to be: the ‹ icon
+     * and the system's own Back are two ways off one screen, and a screen
+     * where they land somewhere different is worse than either.
+     */
+    @Override
+    public void onBackPressed() {
+        if (cameFromTheMachine) {
+            handOverToMachine();
+            return;
+        }
+        super.onBackPressed();
+    }
+
+    /**
      * The hand-over both the ‹ icon and {@link #onBackWanted} run when this
      * screen was opened from the machine - one method, so the two can never
      * drift apart the way icon and Back just had. See the leading action in
