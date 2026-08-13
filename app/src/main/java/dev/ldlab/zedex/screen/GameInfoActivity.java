@@ -4,6 +4,7 @@ import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.EmulatorActivity;
 import dev.ldlab.zedex.library.meta.Metadata;
 import dev.ldlab.zedex.library.ui.GameInfoView;
+import dev.ldlab.zedex.storage.Prefs;
 
 import android.content.Intent;
 import android.net.Uri;
@@ -62,6 +63,12 @@ public final class GameInfoActivity extends ZedexActivity {
      *  the activity has a context worth building against. */
     private GameInfoView view;
 
+    /** True when {@link #EXTRA_URI} was absent - the machine sent us, not the
+     *  library. {@link #onBackWanted} reads this so the system Back button
+     *  runs the same hand-over as the ‹ icon rather than disagreeing with it;
+     *  see that method. */
+    private boolean cameFromTheMachine;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -75,14 +82,51 @@ public final class GameInfoActivity extends ZedexActivity {
         String path = getIntent().getStringExtra(EXTRA_PATH);
         String name = getIntent().getStringExtra(EXTRA_NAME);
         String file = getIntent().getStringExtra(EXTRA_URI);
+        cameFromTheMachine = file == null;
 
         view = new GameInfoView(this);
+
+        // The same preference the panel reads, and re-read here for the same
+        // reason SecondScreen re-reads it rather than trusting a value handed
+        // down once: Settings is as liable to have changed it since the last
+        // time this screen was open as anything else. See CLAUDE.md, "a
+        // setting has to be applied as well as stored" - GameInfoView's own
+        // default (true) is what everyone got here until this line existed.
+        view.setAutoplay(preferences.getBoolean(Prefs.KEY_LIBRARY_VIDEO_AUTOPLAY, true));
+
         configureRow(file, path);
 
         setContentView(view);
         fitToSafeArea();
 
         if (path != null) view.showEntry(path, name);
+    }
+
+    /**
+     * The ‹ icon and the system Back button must agree, and only one of them
+     * used to: the icon hands over to {@code EmulatorActivity} because that
+     * activity is {@code singleInstance} and a plain {@code finish()} lands
+     * in the library's task instead - see {@link #handOverToMachine} - but
+     * nothing overrode this, so Back kept doing the platform's own default of
+     * {@code finish()} on the very same screen. The library variant is
+     * unaffected: {@code finish()} is already correct there, so the platform
+     * default stands.
+     */
+    @Override
+    protected void onBackWanted() {
+        if (cameFromTheMachine) handOverToMachine();
+        else super.onBackWanted();
+    }
+
+    /**
+     * The hand-over both the ‹ icon and {@link #onBackWanted} run when this
+     * screen was opened from the machine - one method, so the two can never
+     * drift apart the way icon and Back just had. See the leading action in
+     * {@link #configureRow} for why a plain {@code finish()} is wrong here.
+     */
+    private void handOverToMachine() {
+        startActivity(new Intent(this, EmulatorActivity.class));
+        finish();
     }
 
     @Override
@@ -138,14 +182,13 @@ public final class GameInfoActivity extends ZedexActivity {
         // would reach: EmulatorActivity is singleInstance, so it is always
         // alone in a task of its own, and this screen sits in whichever task
         // opened it (the library's) - finishing it lands there, not on the
-        // machine. So this hands over exactly the way the menu action two
-        // lines down does, minus the extra, and finishes after - measured on
-        // the device to actually resume EmulatorActivity with the game still
-        // running, where a plain finish() measured landing on the library.
-        view.addLeadingAction(R.drawable.ic_chevron_left, R.string.menu_back, () -> {
-            startActivity(new Intent(this, EmulatorActivity.class));
-            finish();
-        });
+        // machine. handOverToMachine is also what onBackWanted runs, so the
+        // system Back button lands in the same place as this icon rather
+        // than falling through to the platform's plain finish() - measured
+        // on the device to actually resume EmulatorActivity with the game
+        // still running, where a plain finish() measured landing on the
+        // library.
+        view.addLeadingAction(R.drawable.ic_chevron_left, R.string.menu_back, this::handOverToMachine);
 
         // The machine's own menu, which only the machine can open: a sheet
         // built over another activity's window is not something a second
