@@ -89,6 +89,14 @@ public final class QuickBar extends LinearLayout implements Rows {
     /** What a cell came out as, so the same answer is not applied twice. */
     private int cellSize;
 
+    /**
+     * The room last given to {@link #setCompact}, kept so {@link #resize} can
+     * ask the same question again after {@link #showOnly}/{@link #showAllExcept}
+     * change how many icons are visible - the cell size is a function of both,
+     * and only one of the two has a caller that remembers to recompute.
+     */
+    private int room;
+
     /** Which group is showing its row, so tapping it again puts it away. */
     private View openGroup;
 
@@ -133,6 +141,23 @@ public final class QuickBar extends LinearLayout implements Rows {
      * end of it.
      */
     public void setCompact(int room) {
+        this.room = room;
+        resize();
+    }
+
+    /**
+     * Re-applies the last {@link #setCompact} room against however many icons
+     * are visible right now.
+     *
+     * Split out of {@code setCompact} so {@link #showOnly} and
+     * {@link #showAllExcept} can call it too: the cell size depends on the
+     * visible count as well as the room, but only a resize of the window used
+     * to ask this question again. Revealing the details icon after a game
+     * loads - see {@code EmulatorActivity.applyBarMode} - raised the visible
+     * count without either, so the row kept the cell size worked out for the
+     * fewer icons shown at launch and the last one (☰) ran off the edge.
+     */
+    private void resize() {
         int count = 0;
 
         // What it is showing, not what it holds: a hidden icon that still took
@@ -265,6 +290,8 @@ public final class QuickBar extends LinearLayout implements Rows {
 
             child.setVisibility(keep ? VISIBLE : GONE);
         }
+
+        resize();
     }
 
     /**
@@ -287,6 +314,8 @@ public final class QuickBar extends LinearLayout implements Rows {
 
             child.setVisibility(hide ? GONE : VISIBLE);
         }
+
+        resize();
     }
 
     /** Changes what an action looks like and is called, after the fact. */
