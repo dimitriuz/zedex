@@ -667,7 +667,7 @@ public final class GameInfoView extends LinearLayout {
             title.setText(meta.name);
         }
 
-        String line = factsLine(meta);
+        String line = factsLine(getContext(), meta);
         if (line != null) {
             facts.setText(line);
             facts.setVisibility(View.VISIBLE);
@@ -684,7 +684,7 @@ public final class GameInfoView extends LinearLayout {
      * {@code GameInfoActivity}'s own line is and skipping whatever is not
      * known - which, in a collection scraped by ES-DE, is usually most of it.
      */
-    private static String factsLine(Meta meta) {
+    private static String factsLine(android.content.Context context, Meta meta) {
         StringBuilder text = new StringBuilder();
 
         append(text, meta.developer);
@@ -697,6 +697,10 @@ public final class GameInfoView extends LinearLayout {
         // drawn as stars.
         String stars = meta.stars();
         if (stars != null) append(text, stars + "/5");
+
+        // Last, after everything the catalogue knows: this one is the reader's
+        // own history rather than a fact about the game.
+        append(text, Facts.playedLabel(context, meta));
 
         return text.length() > 0 ? text.toString() : null;
     }

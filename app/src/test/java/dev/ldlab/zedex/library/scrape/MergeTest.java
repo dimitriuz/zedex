@@ -175,6 +175,14 @@ public class MergeTest {
                 .seriesGames(Collections.singletonList(new Meta.Link("2", "Jet Set Willy" + suffix)))
                 .compilations(Collections.singletonList(new Meta.Link("3", "They Sold a Million" + suffix)))
                 .contents(Collections.singletonList(new Meta.Link("4", "Something" + suffix)))
+
+                // Neither takes a tag: one is a count and the other a flag,
+                // and " mine" on the end of either is not a value the app or
+                // ES-DE would ever write. The two are told apart by their
+                // values instead - see thebasesOwnValuesWin, which is what the
+                // tag is for elsewhere.
+                .playCount(tag.isEmpty() ? "7" : String.valueOf(3 + tag.length()))
+                .completed(tag.isEmpty() || tag.equals("mine") ? "true" : "false")
                 .build();
     }
 }

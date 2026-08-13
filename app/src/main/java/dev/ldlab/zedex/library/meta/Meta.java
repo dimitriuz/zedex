@@ -208,6 +208,38 @@ public final class Meta {
     public final List<Link> contents;
 
     /**
+     * How many times this game has been started, as a decimal string, or null
+     * for never.
+     *
+     * A string like every other field here - see {@link #rating}, which keeps
+     * the string it arrived as for the same reason: the store writes fields by
+     * name through one helper, and a second shape would be a second thing for
+     * every reader and writer to know about. {@link #plays} is what does the
+     * arithmetic.
+     *
+     * <b>The app's own count as well as ES-DE's.</b> Every way of opening a
+     * game meets at {@code EmulatorActivity.gameOpened} and that is where this
+     * grows, so a collection played through this app builds the same figure
+     * ES-DE keeps for one played through that - and a linked collection starts
+     * from ES-DE's rather than from zero.
+     */
+    public final String playCount;
+
+    /**
+     * Whether this one has been finished - {@code "true"}, {@code "false"} or
+     * null.
+     *
+     * Three states and not two, which is why it is not a boolean: ES-DE writes
+     * the flag either way round for a game somebody has looked at, and a row
+     * nobody has said anything about is a different thing from one explicitly
+     * marked unfinished. Nothing acts on that difference today - {@link
+     * #isCompleted} folds the last two together, which is the right reading of
+     * "is this done" - but throwing it away at the door would make the
+     * distinction unrecoverable.
+     */
+    public final String completed;
+
+    /**
      * Another entry in the database: what it is called, and its id.
      *
      * <b>The id is stored although nothing reads it yet.</b> Every one of
@@ -253,6 +285,8 @@ public final class Meta {
     }
 
     private Meta(Builder from) {
+        this.playCount = from.playCount;
+        this.completed = from.completed;
         this.path = from.path;
         this.name = from.name;
         this.desc = from.desc;
@@ -338,7 +372,8 @@ public final class Meta {
                 .machine(machine).inputs(inputs)
                 .authors(authors).price(price)
                 .series(series).seriesGames(seriesGames)
-                .compilations(compilations).contents(contents);
+                .compilations(compilations).contents(contents)
+                .playCount(playCount).completed(completed);
     }
 
     /**
@@ -356,7 +391,8 @@ public final class Meta {
     public static final class Builder {
 
         private String path, name, desc, developer, publisher, genre, subgenre,
-                released, players, rating, source, keymap, machine, price, series;
+                released, players, rating, source, keymap, machine, price, series,
+                playCount, completed;
 
         private List<String> inputs, authors;
         private List<Link> seriesGames, compilations, contents;
@@ -417,6 +453,8 @@ public final class Meta {
         public Builder compilations(List<Link> v)  { compilations = v; return this; }
         public Builder contents(List<Link> v)      { contents = v;     return this; }
         public Builder machine(String v)   { machine = orNull(v);      return this; }
+        public Builder playCount(String v) { playCount = orNull(v);    return this; }
+        public Builder completed(String v) { completed = orNull(v);    return this; }
 
         /** Copied, and empty is the same as none. */
         public Builder inputs(List<String> v) {
@@ -438,6 +476,8 @@ public final class Meta {
                 case RATING:    return rating(value);
                 case MACHINE:   return machine(value);
                 case INPUTS:    return inputs(listOf(value));
+                case PLAY_COUNT: return playCount(value);
+                case COMPLETED:  return completed(value);
                 default:        return this;
             }
         }
@@ -490,7 +530,7 @@ public final class Meta {
      */
     public enum Field {
         NAME, DESC, DEVELOPER, PUBLISHER, GENRE, SUBGENRE, RELEASED, PLAYERS,
-        RATING, MACHINE, INPUTS
+        RATING, MACHINE, INPUTS, PLAY_COUNT, COMPLETED
     }
 
     /** How a list of controls is written on one line, and split back up. */
@@ -511,11 +551,37 @@ public final class Meta {
             case MACHINE:   return machine;
             case INPUTS:    return inputs.isEmpty() ? null
                                                     : String.join(INPUT_SEPARATOR, inputs);
+            case PLAY_COUNT: return playCount;
+            case COMPLETED:  return completed;
             default:        return null;
         }
     }
 
     // --- reading the awkward fields -----------------------------------------------------
+
+    /**
+     * How many times this has been started, and zero when nothing says.
+     *
+     * Anything unreadable is zero too. A count is written by this app and by
+     * ES-DE and read by a filter and a line of text, and none of those is
+     * improved by a number nobody can parse being carried around as one.
+     */
+    public int plays() {
+        if (playCount == null) return 0;
+
+        try {
+            int count = Integer.parseInt(playCount.trim());
+            return count < 0 ? 0 : count;
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    /** Whether it has been finished. Absent and {@code "false"} are both no -
+     *  see {@link #completed} for why the two are still stored apart. */
+    public boolean isCompleted() {
+        return completed != null && "true".equalsIgnoreCase(completed.trim());
+    }
 
     /**
      * The rating out of five as a number, or {@code -1} when there is none.

@@ -274,6 +274,38 @@ public final class Metadata {
     }
 
     /**
+     * One more start of this game.
+     *
+     * <b>Not a hand edit.</b> {@code but()} carries the contributor list over
+     * untouched, so a row this grows is still whichever sources wrote it -
+     * marking it {@code USER} would make an ordinary game somebody played read
+     * as one they had corrected, which is what {@code Sweep.Only.NOT_SCRAPED}
+     * and the ES-DE link both turn on.
+     *
+     * <b>A row is made for a game that has none.</b> Most of a fresh
+     * collection is unscraped, and a count that only worked for scraped games
+     * would be a count of the wrong thing. A row carrying nothing but a path
+     * and a number still reads as unscraped everywhere it matters - {@code
+     * Meta.isEsde} answers true for no contributors at all, which is what
+     * keeps it in a sweep's sights.
+     *
+     * Must not run on the UI thread: {@link #put} rewrites the store, and
+     * {@link #forPath} needs it loaded first. {@code
+     * EmulatorActivity.gameOpened} calls this from the background thread it
+     * already has for exactly that reason.
+     */
+    public static synchronized void played(Context context, String path) {
+        if (path == null || path.isEmpty()) return;
+
+        ensureLoaded(context);
+
+        Meta known = forPath(context, path);
+        if (known == null) known = Meta.at(path).build();
+
+        put(context, known.but().playCount(String.valueOf(known.plays() + 1)).build());
+    }
+
+    /**
      * Drops one game's row - the editor's "forget my edits".
      *
      * The way back out of {@link Meta#USER}: the row goes, the game reads as
@@ -539,6 +571,12 @@ public final class Metadata {
             field(writer, "machine", game.machine);
             field(writer, "price", game.price);
             field(writer, "series", game.series);
+
+            // Written like everything else here, as strings, although one is a
+            // count and the other a flag - see Meta.playCount. A store that
+            // held three shapes would be three shapes to read back.
+            field(writer, "playCount", game.playCount);
+            field(writer, "completed", game.completed);
             list(writer, "inputs", game.inputs);
             list(writer, "authors", game.authors);
             links(writer, "seriesGames", game.seriesGames);
@@ -794,6 +832,8 @@ public final class Metadata {
                 case "machine":   building.machine(reader.nextString());   break;
                 case "price":     building.price(reader.nextString());     break;
                 case "series":    building.series(reader.nextString());    break;
+                case "playCount": building.playCount(reader.nextString());  break;
+                case "completed": building.completed(reader.nextString());  break;
                 case "inputs":    building.inputs(strings(reader));        break;
                 case "authors":   building.authors(strings(reader));       break;
                 case "seriesGames":  building.seriesGames(links(reader));  break;

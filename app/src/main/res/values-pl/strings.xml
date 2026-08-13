@@ -812,4 +812,9 @@
     <string name="disk_modified_title">Dysk zmieniony</string>
     <string name="disk_modified_save">Zapisz</string>
     <string name="disk_modified_discard">Odrzuć</string>
+    <string name="edit_metadata_play_count">Liczba uruchomień</string>
+    <string name="library_status">Status</string>
+    <string name="library_status_completed">Ukończone</string>
+    <string name="library_status_not_completed">Nieukończone</string>
+    <string name="library_status_played">Wcześniej otwarte</string>
 </resources>

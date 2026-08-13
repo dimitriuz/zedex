@@ -16,6 +16,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.CheckBox;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.EditText;
@@ -138,8 +139,26 @@ public final class EditMetadataActivity extends ZedexActivity {
         return page;
     }
 
+    /**
+     * Whether it has been finished - a box to tick rather than a word to type.
+     *
+     * The one field here that is not text. Everything else on this screen is
+     * something somebody knows and writes down; this is a yes or a no, and
+     * offering it as a line to type "true" into would be asking a person to
+     * spell a boolean. Kept apart from {@link #fields} for that reason, and
+     * read back by {@link #save} on its own.
+     *
+     * Absent is drawn as unticked, which is also what {@code Meta.isCompleted}
+     * reads it as - and the difference between "nobody has said" and "said no"
+     * survives untouched unless somebody actually touches this, since a ticked
+     * or unticked box only reaches the row when it differs from what was
+     * there.
+     */
+    private CheckBox completedBox;
+
     /** A label and the box under it, with the suggestions where they help. */
     private View row(Meta.Field field) {
+        if (field == Meta.Field.COMPLETED) return completedRow();
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.VERTICAL);
         row.setPadding(0, 0, 0, pixels(12));
@@ -159,6 +178,24 @@ public final class EditMetadataActivity extends ZedexActivity {
 
         fields.put(field, box);
         row.addView(box, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        return row;
+    }
+
+    private View completedRow() {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.VERTICAL);
+        row.setPadding(0, 0, 0, pixels(12));
+
+        completedBox = new CheckBox(this);
+        completedBox.setText(labelOf(Meta.Field.COMPLETED));
+        completedBox.setTextColor(Palette.TEXT);
+        completedBox.setTextSize(15);
+        completedBox.setChecked(original != null && original.isCompleted());
+
+        row.addView(completedBox, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
@@ -221,7 +258,7 @@ public final class EditMetadataActivity extends ZedexActivity {
 
         box.setSingleLine(true);
 
-        if (field == Meta.Field.RELEASED) {
+        if (field == Meta.Field.RELEASED || field == Meta.Field.PLAY_COUNT) {
             box.setInputType(InputType.TYPE_CLASS_NUMBER);
         } else if (field == Meta.Field.RATING) {
             box.setInputType(InputType.TYPE_CLASS_NUMBER
@@ -281,6 +318,8 @@ public final class EditMetadataActivity extends ZedexActivity {
 
     private static int labelOf(Meta.Field field) {
         switch (field) {
+            case PLAY_COUNT: return R.string.edit_metadata_play_count;
+            case COMPLETED:  return R.string.library_status_completed;
             case NAME:      return R.string.edit_metadata_name;
             case DESC:      return R.string.edit_metadata_desc;
             case DEVELOPER: return R.string.edit_metadata_developer;
@@ -428,6 +467,17 @@ public final class EditMetadataActivity extends ZedexActivity {
             if (value == null) continue;
 
             building = building.with(each.getKey(), value);
+            changed = true;
+        }
+
+        // The tick box, which is not in the map above. Written only when it
+        // differs from what the row already said, so opening this screen and
+        // leaving without touching anything cannot turn "nobody has said" into
+        // an explicit no.
+        boolean wasCompleted = original != null && original.isCompleted();
+        if (completedBox != null && completedBox.isChecked() != wasCompleted) {
+            building = building.with(Meta.Field.COMPLETED,
+                                     String.valueOf(completedBox.isChecked()));
             changed = true;
         }
 

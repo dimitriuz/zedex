@@ -812,4 +812,9 @@
     <string name="disk_modified_title">Disk byl změněn</string>
     <string name="disk_modified_save">Uložit</string>
     <string name="disk_modified_discard">Zahodit</string>
+    <string name="edit_metadata_play_count">Počet spuštění</string>
+    <string name="library_status">Stav</string>
+    <string name="library_status_completed">Dohráno</string>
+    <string name="library_status_not_completed">Nedohráno</string>
+    <string name="library_status_played">Již otevřeno</string>
 </resources>

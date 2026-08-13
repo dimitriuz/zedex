@@ -795,4 +795,9 @@
     <string name="disk_modified_title">Disquette modifiée</string>
     <string name="disk_modified_save">Enregistrer</string>
     <string name="disk_modified_discard">Abandonner</string>
+    <string name="edit_metadata_play_count">Parties jouées</string>
+    <string name="library_status">État</string>
+    <string name="library_status_completed">Terminé</string>
+    <string name="library_status_not_completed">Non terminé</string>
+    <string name="library_status_played">Déjà ouvert</string>
 </resources>

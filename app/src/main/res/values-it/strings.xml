@@ -795,4 +795,9 @@
     <string name="disk_modified_title">Disco modificato</string>
     <string name="disk_modified_save">Salva</string>
     <string name="disk_modified_discard">Scarta</string>
+    <string name="edit_metadata_play_count">Volte giocato</string>
+    <string name="library_status">Stato</string>
+    <string name="library_status_completed">Completato</string>
+    <string name="library_status_not_completed">Non completato</string>
+    <string name="library_status_played">Già aperto</string>
 </resources>

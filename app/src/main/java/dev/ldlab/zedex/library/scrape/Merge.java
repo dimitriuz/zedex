@@ -55,6 +55,14 @@ public final class Merge {
                 .machine(first(base.machine, addition.machine))
                 .price(first(base.price, addition.price))
                 .series(first(base.series, addition.series))
+
+                // Gaps, like everything else. A play count is the one field
+                // here the app writes for itself, and it still merges this
+                // way: an ES-DE link filling an empty count is right, and
+                // overwriting a count this app has been keeping would throw
+                // away the only record of it.
+                .playCount(first(base.playCount, addition.playCount))
+                .completed(first(base.completed, addition.completed))
                 .inputs(firstList(base.inputs, addition.inputs))
                 .authors(firstList(base.authors, addition.authors))
                 .seriesGames(firstList(base.seriesGames, addition.seriesGames))

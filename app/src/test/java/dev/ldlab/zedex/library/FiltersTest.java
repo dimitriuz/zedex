@@ -149,4 +149,98 @@ public class FiltersTest {
         assertEquals("tzx", Filters.formatOf(file("a.b.tzx")));
         assertEquals("", Filters.formatOf(file("noextension")));
     }
+
+    // --- status ----------------------------------------------------------------------
+
+    private static Meta row(String playCount, String completed) {
+        return Meta.at("./A.tap").playCount(playCount).completed(completed).build();
+    }
+
+    /** Finished, and only finished. */
+    @Test
+    public void completedTakesTheFinishedOnes() {
+        Filters filters = new Filters();
+        filters.toggle(Filters.Field.STATUS, Filters.COMPLETED);
+
+        assertTrue(filters.matches(file("A.tap"), row("3", "true")));
+        assertFalse(filters.matches(file("A.tap"), row("3", "false")));
+        assertFalse("nobody has said, which is not the same as finished",
+                    filters.matches(file("A.tap"), row("3", null)));
+    }
+
+    /**
+     * Not finished takes both of the other two.
+     *
+     * "Said no" and "nobody has said" are stored apart - see Meta.completed -
+     * and this is the question that reads them the same way, which is what
+     * somebody looking for what is left to play means.
+     */
+    @Test
+    public void notCompletedTakesTheRestIncludingTheUnsaid() {
+        Filters filters = new Filters();
+        filters.toggle(Filters.Field.STATUS, Filters.NOT_COMPLETED);
+
+        assertTrue(filters.matches(file("A.tap"), row("0", "false")));
+        assertTrue(filters.matches(file("A.tap"), row("0", null)));
+        assertFalse(filters.matches(file("A.tap"), row("9", "true")));
+    }
+
+    /** Opened before is a count above zero, and nothing to do with finishing
+     *  it. */
+    @Test
+    public void openedBeforeIsAcountAboveZero() {
+        Filters filters = new Filters();
+        filters.toggle(Filters.Field.STATUS, Filters.PLAYED);
+
+        assertTrue(filters.matches(file("A.tap"), row("1", null)));
+        assertFalse(filters.matches(file("A.tap"), row("0", null)));
+        assertFalse(filters.matches(file("A.tap"), row(null, "true")));
+    }
+
+    /** Two of the three is either of them, like every other field here. */
+    @Test
+    public void twoStatusesAreOrEdTogether() {
+        Filters filters = new Filters();
+        filters.toggle(Filters.Field.STATUS, Filters.COMPLETED);
+        filters.toggle(Filters.Field.STATUS, Filters.PLAYED);
+
+        assertTrue("finished but never opened in this app", 
+                   filters.matches(file("A.tap"), row(null, "true")));
+        assertTrue("opened but not finished",
+                   filters.matches(file("A.tap"), row("2", null)));
+        assertFalse("neither", filters.matches(file("A.tap"), row("0", "false")));
+    }
+
+    /**
+     * A game the store knows nothing about answers no to all three - except
+     * "not completed", which it plainly is.
+     *
+     * The same reading every other metadata filter takes of an absent row, and
+     * the reason it is spelled out: a game with no genre is not a game of
+     * every genre, and a game nobody has recorded anything about has not been
+     * finished either.
+     */
+    @Test
+    public void anunknownRowIsUnfinishedAndUnplayed() {
+        Filters completed = new Filters();
+        completed.toggle(Filters.Field.STATUS, Filters.COMPLETED);
+        assertFalse(completed.matches(file("A.tap"), null));
+
+        Filters played = new Filters();
+        played.toggle(Filters.Field.STATUS, Filters.PLAYED);
+        assertFalse(played.matches(file("A.tap"), null));
+
+        Filters unfinished = new Filters();
+        unfinished.toggle(Filters.Field.STATUS, Filters.NOT_COMPLETED);
+        assertTrue(unfinished.matches(file("A.tap"), null));
+    }
+
+    /** And a count that is not a number is no count at all, rather than a
+     *  crash - the store is a file somebody can edit. */
+    @Test
+    public void anunreadableCountIsZero() {
+        assertEquals(0, row("many", null).plays());
+        assertEquals(0, row("-3", null).plays());
+        assertEquals(4, row(" 4 ", null).plays());
+    }
 }

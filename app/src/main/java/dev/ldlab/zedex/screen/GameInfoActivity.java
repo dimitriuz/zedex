@@ -409,7 +409,7 @@ public final class GameInfoActivity extends ZedexActivity {
             title.setText(meta.name);
         }
 
-        String line = factsLine(meta);
+        String line = factsLine(this, meta);
         if (line != null) {
             facts.setText(line);
             facts.setVisibility(View.VISIBLE);
@@ -442,7 +442,7 @@ public final class GameInfoActivity extends ZedexActivity {
      * pane's own line is and skipping whatever is not known - which, in a
      * collection scraped by ES-DE, is usually most of it.
      */
-    private static String factsLine(Meta meta) {
+    private static String factsLine(android.content.Context context, Meta meta) {
         StringBuilder text = new StringBuilder();
 
         append(text, meta.developer);
@@ -450,6 +450,12 @@ public final class GameInfoActivity extends ZedexActivity {
         append(text, meta.year());
         append(text, meta.genre);
         append(text, meta.players);
+
+        // Last, after the facts about the game: this one is the reader's own
+        // history. See Facts.playedLabel, which the pane and the panel's own
+        // game info both render through too, so the three lines cannot come to
+        // word it differently.
+        append(text, dev.ldlab.zedex.library.ui.Facts.playedLabel(context, meta));
 
         return text.length() > 0 ? text.toString() : null;
     }

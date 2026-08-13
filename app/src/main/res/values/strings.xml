@@ -997,4 +997,15 @@
     <string name="disk_modified_title">Disk modified</string>
     <string name="disk_modified_save">Save</string>
     <string name="disk_modified_discard">Discard</string>
+
+    <!-- Two facts a person keeps rather than scrapes, though ES-DE
+         carries both: how many times a game has been started - counted
+         by the app at every way in, see Metadata.played - and whether
+         it has been finished. The three status values are the filter's;
+         "Opened before" is a count above zero and not a fourth field. -->
+    <string name="edit_metadata_play_count">Times played</string>
+    <string name="library_status">Status</string>
+    <string name="library_status_completed">Completed</string>
+    <string name="library_status_not_completed">Not completed</string>
+    <string name="library_status_played">Opened before</string>
 </resources>

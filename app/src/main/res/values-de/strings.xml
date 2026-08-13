@@ -795,4 +795,9 @@
     <string name="disk_modified_title">Diskette geändert</string>
     <string name="disk_modified_save">Speichern</string>
     <string name="disk_modified_discard">Verwerfen</string>
+    <string name="edit_metadata_play_count">Wie oft gespielt</string>
+    <string name="library_status">Status</string>
+    <string name="library_status_completed">Durchgespielt</string>
+    <string name="library_status_not_completed">Nicht durchgespielt</string>
+    <string name="library_status_played">Schon geöffnet</string>
 </resources>

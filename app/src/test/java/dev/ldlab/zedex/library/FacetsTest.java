@@ -1,6 +1,7 @@
 package dev.ldlab.zedex.library;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 import dev.ldlab.zedex.library.meta.Meta;
@@ -97,5 +98,48 @@ public class FacetsTest {
         assertEquals("tap", formats.get(0).name);
         assertEquals(2, formats.get(0).count);
         assertEquals("tzx", formats.get(1).name);
+    }
+
+    // --- status ----------------------------------------------------------------------
+
+    private static Meta status(String playCount, String completed) {
+        return Meta.at("./g.tap").playCount(playCount).completed(completed)
+                   .source(Meta.ESDE).build();
+    }
+
+    /**
+     * The three questions, offered only where there is something to find.
+     *
+     * The same rule every field here follows - a genre nobody has is a genre
+     * not worth a row - and it is what keeps an empty store offering nothing
+     * at all, which {@code anEmptyStoreOffersNothing} asserts for every field
+     * including this one.
+     */
+    @Test
+    public void statusOffersOnlyWhatTheCollectionHas() {
+        Map<Filters.Field, List<Facets.Value>> all = Facets.of(Arrays.asList(
+                status("3", "true"), status("1", null), status(null, null)));
+
+        List<Facets.Value> statuses = values(all, Filters.Field.STATUS);
+
+        assertEquals(3, statuses.size());
+        assertEquals(Filters.COMPLETED, statuses.get(0).name);
+        assertEquals(1, statuses.get(0).count);
+        assertEquals(Filters.NOT_COMPLETED, statuses.get(1).name);
+        assertEquals(2, statuses.get(1).count);
+        assertEquals(Filters.PLAYED, statuses.get(2).name);
+        assertEquals(2, statuses.get(2).count);
+    }
+
+    /** Nothing finished, no row saying so: the sheet offers questions that can
+     *  select something. */
+    @Test
+    public void nothingCompletedOffersNoCompletedRow() {
+        Map<Filters.Field, List<Facets.Value>> all = Facets.of(Arrays.asList(
+                status("2", null), status(null, "false")));
+
+        for (Facets.Value value : values(all, Filters.Field.STATUS)) {
+            assertNotEquals(Filters.COMPLETED, value.name);
+        }
     }
 }

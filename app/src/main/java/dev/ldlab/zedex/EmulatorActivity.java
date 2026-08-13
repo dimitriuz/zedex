@@ -779,6 +779,14 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                 : Metadata.resolve(app, uri, queryDisplayName(uri));
         String shown = path == null ? null : filenameOf(path);
 
+        // One more start, counted here because here is where all four ways in
+        // meet - the library, a file manager's hand-over, ES-DE, and Open
+        // recent - and because this is already the background thread the store
+        // has to be written from. A game with no path in the store is a game
+        // inside a zip or one the tree cannot name, and there is nothing to
+        // count it against.
+        if (path != null) Metadata.played(app, path);
+
         runOnUiThread(() -> {
             panels.setGameInfo(path, shown);
 

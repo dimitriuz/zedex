@@ -146,6 +146,15 @@ public final class EsdeLink {
                         .released(text(element, "releasedate"))
                         .players(text(element, "players"))
                         .rating(text(element, "rating"))
+
+                        // ES-DE keeps both of these itself, so a linked
+                        // collection starts from what somebody has already
+                        // played rather than from zero. Its own spelling:
+                        // <playcount> and <completed>, all lower case, which
+                        // is EmulationStation's gamelist format and not
+                        // ES-DE's invention.
+                        .playCount(text(element, "playcount"))
+                        .completed(text(element, "completed"))
                         .source(Meta.ESDE)
                         .build());
             }

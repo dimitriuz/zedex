@@ -812,4 +812,9 @@
     <string name="disk_modified_title">Диск изменён</string>
     <string name="disk_modified_save">Сохранить</string>
     <string name="disk_modified_discard">Не сохранять</string>
+    <string name="edit_metadata_play_count">Запусков</string>
+    <string name="library_status">Статус</string>
+    <string name="library_status_completed">Пройдено</string>
+    <string name="library_status_not_completed">Не пройдено</string>
+    <string name="library_status_played">Уже открывалось</string>
 </resources>

@@ -30,9 +30,32 @@ import java.util.Set;
  */
 public final class Filters {
 
-    /** The four list-shaped fields. The rating is a threshold, not a list, so
+    /** The five list-shaped fields. The rating is a threshold, not a list, so
      *  it is not one of these - see {@link #minStars}. */
-    public enum Field { FORMAT, GENRE, SUBGENRE, DEVELOPER, PUBLISHER }
+    public enum Field { FORMAT, GENRE, SUBGENRE, DEVELOPER, PUBLISHER, STATUS }
+
+    /**
+     * What {@link Field#STATUS} can be set to.
+     *
+     * <b>A fixed vocabulary, unlike every other field here.</b> The others are
+     * whatever this collection happens to hold, counted by {@code Facets} - a
+     * genre nobody has is a genre not worth offering. These three are
+     * questions rather than values, and they are worth asking of a collection
+     * where the answer is none: "nothing here is finished" is an answer.
+     *
+     * Stored as these strings rather than an enum of their own because the
+     * field machinery - chosen, toggle, the whole OR-within-a-field rule -
+     * already works on strings, and a second shape would need a second copy of
+     * all of it.
+     */
+    public static final String COMPLETED = "completed";
+    public static final String NOT_COMPLETED = "not-completed";
+    public static final String PLAYED = "played";
+
+    /** In the order they are offered, which is the order they narrow: the
+     *  finished ones, the rest, and then the weaker question that takes in
+     *  both. */
+    public static final String[] STATUSES = { COMPLETED, NOT_COMPLETED, PLAYED };
 
     private final Map<Field, Set<String>> chosen = new EnumMap<>(Field.class);
 
@@ -112,6 +135,8 @@ public final class Filters {
         if (!matchesField(Field.DEVELOPER, meta == null ? null : meta.developer)) return false;
         if (!matchesField(Field.PUBLISHER, meta == null ? null : meta.publisher)) return false;
 
+        if (!matchesStatus(meta)) return false;
+
         if (minStars > 0f) {
             float stars = meta == null ? -1f : meta.ratingOutOfFive();
 
@@ -122,6 +147,28 @@ public final class Filters {
         }
 
         return true;
+    }
+
+    /**
+     * The three status questions, which are about the row rather than about a
+     * value in it.
+     *
+     * OR within the field, like everything else: completed <em>or</em> opened
+     * before is both of those, which is the combination somebody picking two
+     * of three actually means. A game the store knows nothing about is
+     * finished by nobody and has been opened never, so it answers no to all
+     * three - the same reading every other metadata filter takes of an absent
+     * row.
+     */
+    private boolean matchesStatus(Meta meta) {
+        Set<String> wanted = chosen.get(Field.STATUS);
+        if (wanted.isEmpty()) return true;
+
+        if (wanted.contains(COMPLETED) && meta != null && meta.isCompleted()) return true;
+        if (wanted.contains(NOT_COMPLETED) && (meta == null || !meta.isCompleted())) return true;
+        if (wanted.contains(PLAYED) && meta != null && meta.plays() > 0) return true;
+
+        return false;
     }
 
     private boolean matchesField(Field field, String value) {

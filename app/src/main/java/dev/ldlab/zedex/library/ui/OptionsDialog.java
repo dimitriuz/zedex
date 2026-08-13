@@ -222,7 +222,7 @@ public final class OptionsDialog {
      * is the one place that translates between the two, and answers {@code
      * null} for {@link #RATING}.
      */
-    private enum FilterRow { FORMAT, GENRE, SUBGENRE, RATING, DEVELOPER, PUBLISHER }
+    private enum FilterRow { FORMAT, GENRE, SUBGENRE, RATING, DEVELOPER, PUBLISHER, STATUS }
 
     /** Where View, Sort and Filter sit among {@link #rows} on {@link
      *  Page#MENU} - {@link #show} starts the cursor on MENU_VIEW, and {@link
@@ -967,13 +967,18 @@ public final class OptionsDialog {
         Set<String> chosen = filters.chosen(field);
 
         for (Facets.Value value : valueSource) {
+            // Matched on what is on screen rather than on what is stored:
+            // typing "done" must find the row that says Completed, and the
+            // key it is stored under is nobody's business up here.
             if (!valueSearch.isEmpty()
-                    && !value.name.toLowerCase(Locale.ROOT).contains(valueSearch)) {
+                    && !shownValue(field, value.name).toLowerCase(Locale.ROOT)
+                            .contains(valueSearch)) {
                 continue;
             }
 
             boolean picked = chosen.contains(value.name);
-            String text = (picked ? TICK + " " : "") + value.name + "  " + value.count;
+            String text = (picked ? TICK + " " : "")
+                    + shownValue(field, value.name) + "  " + value.count;
 
             addRow(valueList, text, () -> {
                 filters.toggle(field, value.name);
@@ -1011,6 +1016,32 @@ public final class OptionsDialog {
      *  Racing" - joined in whatever order they were picked in, which is not
      *  worth sorting for a row that exists to say "something is set", not to
      *  enumerate it precisely. */
+    /**
+     * What a value is called on screen, which for the status field is not what
+     * it is stored as.
+     *
+     * Every other field's values are the collection's own words - a genre is
+     * whatever the scrape wrote - and translating one would be translating
+     * data. The three statuses are this app's own, stored as stable keys so
+     * that a filter set in one language is the same filter in another, and
+     * shown in whatever language the app is in.
+     */
+    private String shownValue(Filters.Field field, String value) {
+        if (field != Filters.Field.STATUS) return value;
+
+        if (Filters.COMPLETED.equals(value)) {
+            return activity.getString(R.string.library_status_completed);
+        }
+        if (Filters.NOT_COMPLETED.equals(value)) {
+            return activity.getString(R.string.library_status_not_completed);
+        }
+        if (Filters.PLAYED.equals(value)) {
+            return activity.getString(R.string.library_status_played);
+        }
+
+        return value;
+    }
+
     private String filterRowLabel(FilterRow row) {
         String name = activity.getString(fieldNameRes(row));
 
@@ -1019,8 +1050,14 @@ public final class OptionsDialog {
                     ? name : name + " · " + Filters.ratingLabel(filters.minStars());
         }
 
-        Set<String> chosen = filters.chosen(fieldOf(row));
-        return chosen.isEmpty() ? name : name + " · " + String.join(", ", chosen);
+        Filters.Field field = fieldOf(row);
+        Set<String> chosen = filters.chosen(field);
+        if (chosen.isEmpty()) return name;
+
+        List<String> shown = new ArrayList<>();
+        for (String value : chosen) shown.add(shownValue(field, value));
+
+        return name + " · " + String.join(", ", shown);
     }
 
     private static int fieldNameRes(FilterRow row) {
@@ -1030,6 +1067,7 @@ public final class OptionsDialog {
             case SUBGENRE: return R.string.library_filter_subgenre;
             case RATING: return R.string.library_filter_rating;
             case DEVELOPER: return R.string.library_filter_developer;
+            case STATUS: return R.string.library_status;
             default: return R.string.library_filter_publisher;
         }
     }
@@ -1043,6 +1081,7 @@ public final class OptionsDialog {
             case SUBGENRE: return Filters.Field.SUBGENRE;
             case DEVELOPER: return Filters.Field.DEVELOPER;
             case PUBLISHER: return Filters.Field.PUBLISHER;
+            case STATUS: return Filters.Field.STATUS;
             default: return null;
         }
     }

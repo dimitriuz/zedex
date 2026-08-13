@@ -677,4 +677,80 @@ public class MetadataStoreTest {
         assertEquals(Collections.singletonList(new Meta.Link("1", "Kept")),
                      back.compilations);
     }
+
+    // --- counting a start --------------------------------------------------------------
+
+    /**
+     * Opening a game counts, and the count survives the store being written
+     * and read.
+     */
+    @Test
+    public void playedCountsOneAtATime() {
+        Metadata.played(context, "./counted.tap");
+        Metadata.played(context, "./counted.tap");
+        Metadata.played(context, "./counted.tap");
+
+        Metadata.refresh(context);
+
+        assertEquals(3, Metadata.forPath(context, "./counted.tap").plays());
+    }
+
+    /**
+     * A game nobody has scraped is counted too, and the row it makes still
+     * reads as unscraped.
+     *
+     * Most of a fresh collection is unscraped, so a count that only worked for
+     * scraped games would count the wrong thing - and a row carrying nothing
+     * but a path and a number must not start reading as one somebody has
+     * already fetched, or a sweep would skip it for ever. {@code Meta.isEsde}
+     * answering true for no contributors at all is what makes that safe, and
+     * this is what says so out loud.
+     */
+    @Test
+    public void anunscrapedRowIsCountedAndStaysUnscraped() {
+        Metadata.played(context, "./never-scraped.tap");
+        Metadata.refresh(context);
+
+        Meta row = Metadata.forPath(context, "./never-scraped.tap");
+
+        assertEquals(1, row.plays());
+        assertTrue("a counted row must still be offered to a sweep", row.isEsde());
+        assertFalse("counting is not a hand edit", row.isMine());
+    }
+
+    /** And it leaves everything else the row says exactly as it was - the
+     *  count is the app's own bookkeeping, not an edit of the facts. */
+    @Test
+    public void countingLeavesTheRestOfTheRowAlone() {
+        Metadata.put(context, Meta.at("./scraped.tap")
+                .name("Manic Miner").genre("Arcade Game")
+                .contributor("ZXInfo").build());
+
+        Metadata.played(context, "./scraped.tap");
+        Metadata.refresh(context);
+
+        Meta row = Metadata.forPath(context, "./scraped.tap");
+
+        assertEquals("Manic Miner", row.name);
+        assertEquals("Arcade Game", row.genre);
+        assertEquals(Collections.singletonList("ZXInfo"), row.sources());
+        assertEquals(1, row.plays());
+    }
+
+    /** The completed flag survives a round trip too - three states, and
+     *  "false" is not the same as absent. */
+    @Test
+    public void thecompletedFlagIsStoredAsItWasSaid() {
+        Metadata.put(context, Meta.at("./done.tap").completed("true").build());
+        Metadata.put(context, Meta.at("./not-done.tap").completed("false").build());
+        Metadata.put(context, Meta.at("./unsaid.tap").name("x").build());
+
+        Metadata.refresh(context);
+
+        assertTrue(Metadata.forPath(context, "./done.tap").isCompleted());
+        assertFalse(Metadata.forPath(context, "./not-done.tap").isCompleted());
+        assertEquals("false", Metadata.forPath(context, "./not-done.tap").completed);
+        assertNull("nobody said, and that is not the same as no",
+                   Metadata.forPath(context, "./unsaid.tap").completed);
+    }
 }

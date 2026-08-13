@@ -667,7 +667,7 @@ public final class DetailPane extends FrameLayout {
             filename.setVisibility(View.VISIBLE);
         }
 
-        String line = factsLine(meta);
+        String line = factsLine(getContext(), meta);
         if (line != null) {
             facts.setText(line);
             facts.setVisibility(View.VISIBLE);
@@ -682,7 +682,7 @@ public final class DetailPane extends FrameLayout {
      * "nothing to show" and "a blank line to show" that {@link #facts}'s own
      * visibility depends on.
      */
-    private static String factsLine(Meta meta) {
+    private static String factsLine(android.content.Context context, Meta meta) {
         if (meta == null) return null;
 
         StringBuilder line = new StringBuilder();
@@ -695,6 +695,11 @@ public final class DetailPane extends FrameLayout {
         // GameInfoView showed five.
         appendFact(line, meta.genre);
         appendFact(line, outOfFive(meta));
+
+        // And how often it has been opened, which is the reader's own history
+        // rather than a fact about the game - so it goes last, and only once
+        // there is one. See Facts.playedLabel.
+        appendFact(line, Facts.playedLabel(context, meta));
 
         return line.length() > 0 ? line.toString() : null;
     }

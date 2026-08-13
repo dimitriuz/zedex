@@ -68,6 +68,38 @@ public final class Facets {
         all.put(Filters.Field.DEVELOPER, ranked(developers));
         all.put(Filters.Field.PUBLISHER, ranked(publishers));
 
+        // The three statuses, in their own order rather than by count: they are
+        // fixed questions rather than values this collection happens to hold,
+        // so ranking them would make the sheet's rows move about as somebody
+        // finishes games.
+        //
+        // Offered only where there is something to find, which is the rule
+        // every other field here already follows - a genre nobody has is a
+        // genre not worth a row, and an empty store offers nothing at all.
+        // "Not completed" is the one that is nearly always there, and it is
+        // still counted rather than assumed: a collection where everything is
+        // finished should not be offered a filter that selects none of it.
+        List<Value> statuses = new ArrayList<>();
+        int completed = 0;
+        int played = 0;
+        int rows = 0;
+
+        for (Meta game : games) {
+            if (game == null) continue;
+
+            rows++;
+            if (game.isCompleted()) completed++;
+            if (game.plays() > 0) played++;
+        }
+
+        if (completed > 0) statuses.add(new Value(Filters.COMPLETED, completed));
+        if (rows - completed > 0) {
+            statuses.add(new Value(Filters.NOT_COMPLETED, rows - completed));
+        }
+        if (played > 0) statuses.add(new Value(Filters.PLAYED, played));
+
+        all.put(Filters.Field.STATUS, statuses);
+
         return all;
     }
 
