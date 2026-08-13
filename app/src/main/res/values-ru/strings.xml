@@ -781,6 +781,7 @@
     <string name="scrape_media_maps">Карта игры</string>
     <string name="scrape_media_adverts">Реклама</string>
     <string name="scrape_media_pokes">Читы (поки)</string>
+    <string name="scrape_media_music">Музыка (AY)</string>
     <string name="scrape_many_fetching">Что загружать</string>
     <!-- How to run a game, from a scraped record. -->
     <string name="suggest_title">Как это запускать</string>

@@ -781,6 +781,7 @@
     <string name="scrape_media_maps">Mapa hry</string>
     <string name="scrape_media_adverts">Reklama</string>
     <string name="scrape_media_pokes">Cheaty (poke)</string>
+    <string name="scrape_media_music">Hudba (AY)</string>
     <string name="scrape_many_fetching">Co stahovat</string>
     <!-- How to run a game, from a scraped record. -->
     <string name="suggest_title">Jak toto spustit</string>
