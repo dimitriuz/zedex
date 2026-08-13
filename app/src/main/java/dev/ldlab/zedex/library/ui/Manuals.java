@@ -202,7 +202,29 @@ public final class Manuals {
      */
     public static void handOver(Context context, Uri manual, String type,
                                 Display display, Runnable onDisplay) {
-        if (manual == null) return;
+        Intent intent = viewIntent(context, manual, type);
+        if (intent == null) return;
+
+        start(context, intent, display, onDisplay);
+    }
+
+    /**
+     * The intent that hands this document to another app, granted and
+     * shareable - or null when it cannot be made.
+     *
+     * <b>Separate from starting it because one caller wants a result.</b>
+     * {@code PdfActivity} offers the phone's own viewer first and has to know
+     * when it is finished with, which means {@code startActivityForResult}
+     * and therefore the intent rather than the act. And that only works
+     * because the two are in one task: a task lives on one display, so the
+     * viewer launched from a screen already on the panel goes into that
+     * screen's task, on that display, and Back pops it back onto us. Launched
+     * with {@code NEW_TASK} onto a display where this app owns nothing - which
+     * is what it did before there was a screen of ours there - it returns its
+     * result immediately and Back lands on the launcher.
+     */
+    public static Intent viewIntent(Context context, Uri manual, String type) {
+        if (manual == null) return null;
 
         Uri shareable = manual;
 
@@ -241,11 +263,11 @@ public final class Manuals {
 
                 if (shareable == null) {
                     Toast.makeText(context, R.string.open_failed, Toast.LENGTH_LONG).show();
-                    return;
+                    return null;
                 }
             } catch (Exception e) {
                 Toast.makeText(context, R.string.open_failed, Toast.LENGTH_LONG).show();
-                return;
+                return null;
             }
         }
 
@@ -264,6 +286,21 @@ public final class Manuals {
         // reached later through a chooser, rather than this call's own
         // list, ends up using.
         grantToResolvers(context, intent, shareable);
+
+        return intent;
+    }
+
+    /** Whether anything on the phone answers for it. Only true thanks to the
+     *  {@code <queries>} entries: Android 11 hides every app from one that has
+     *  not said what it is looking for, so an undeclared type resolves to
+     *  nothing and reads as "nobody has a viewer". */
+    public static boolean anythingCanOpen(Context context, Intent intent) {
+        return intent != null && !context.getPackageManager()
+                .queryIntentActivities(intent, 0).isEmpty();
+    }
+
+    private static void start(Context context, Intent intent, Display display,
+                              Runnable onDisplay) {
 
         if (display != null) {
             // A copy, not intent itself: a task of its own is only wanted

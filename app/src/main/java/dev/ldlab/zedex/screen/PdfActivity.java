@@ -115,6 +115,24 @@ public final class PdfActivity extends ZedexActivity {
         String given = getIntent().getStringExtra(EXTRA_FILE);
         source = given == null ? null : Uri.parse(given);
 
+        // The phone's own viewer first, and this screen only when there is
+        // none. A real PDF app has search, a table of contents and a
+        // scrollbar; what this screen is for is the panel and the phones with
+        // nothing installed, not for replacing it.
+        //
+        // <b>And it works because of the task, not the rendering.</b> Started
+        // from here with no NEW_TASK, the viewer goes into *this* screen's
+        // task, on the display this screen is already on - so it opens on the
+        // panel and Back pops it back onto us, which is what a hand-over
+        // straight from the machine could never do: reaching another display
+        // needs a new task, and a NEW_TASK launch owns nothing there to
+        // return to. onActivityResult then closes this screen behind it.
+        //
+        // Once only: the guard is the saved state, since a rotation would
+        // otherwise hand the same document over again on top of the viewer
+        // already showing it.
+        if (state == null && handOverFirst()) return;
+
         if (!open()) {
             Toast.makeText(this, R.string.open_failed, Toast.LENGTH_LONG).show();
             finish();
@@ -134,6 +152,46 @@ public final class PdfActivity extends ZedexActivity {
         };
 
         setContentView(buildPage());
+    }
+
+    /** What {@code startActivityForResult} answers on, which is the whole
+     *  point of using it: the viewer finishing is the signal that nothing
+     *  foreign is on this display any more. */
+    private static final int VIEWER = 1;
+
+    /**
+     * Offers the document to whatever app the phone has, and says whether one
+     * took it.
+     *
+     * False when nothing can - no PDF app installed, or a document that could
+     * not be made shareable at all - and then this screen renders it itself,
+     * which is the case it was written for.
+     */
+    private boolean handOverFirst() {
+        Intent view = dev.ldlab.zedex.library.ui.Manuals.viewIntent(
+                this, source, "application/pdf");
+
+        if (!dev.ldlab.zedex.library.ui.Manuals.anythingCanOpen(this, view)) return false;
+
+        try {
+            startActivityForResult(view, VIEWER);
+            return true;
+        } catch (RuntimeException e) {
+            // It resolved a moment ago and refused now - uninstalled between
+            // the two, or a viewer that will not take our grant. Ours will do.
+            Log.w(TAG, "the phone's own viewer refused " + source, e);
+            return false;
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int request, int result, Intent data) {
+        super.onActivityResult(request, result, data);
+
+        // Whatever the viewer answered - and it is almost always CANCELED,
+        // since reading a document is not a thing that returns anything -
+        // it is finished with, and this screen was only ever the way in.
+        if (request == VIEWER) finish();
     }
 
     /**
