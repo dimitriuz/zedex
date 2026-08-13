@@ -114,6 +114,12 @@ public final class GameInfoView extends LinearLayout {
     private final ImageButton musicButton;
     private final Button playButton;
 
+    /** The rows under the description: authors, price, series, compilations,
+     *  contents. A column of its own because it is rebuilt whenever the store
+     *  answers, and the panel went without it until this view became the one
+     *  implementation of these details rather than the lesser of two. */
+    private final LinearLayout extras;
+
     /** Beside it, and revealed by the same answer that used to reveal the
      *  corner button - see {@link #offersManual}, which is what decides
      *  whether this row or the quick bar carries the manual. */
@@ -322,6 +328,14 @@ public final class GameInfoView extends LinearLayout {
         description.setPadding(0, pixels(20), 0, pixels(24));
         description.setVisibility(View.GONE);
         words.addView(description, wrap());
+
+        // Under the description, because these are the long tail: a quarter
+        // of entries have a price, six per cent a series, and a row that is
+        // usually absent belongs below the one thing somebody came to read.
+        extras = new LinearLayout(context);
+        extras.setOrientation(VERTICAL);
+        extras.setPadding(0, pixels(20), 0, 0);
+        words.addView(extras, wrap());
 
         ScrollView scroller = new ScrollView(context);
         scroller.addView(words);
@@ -716,6 +730,42 @@ public final class GameInfoView extends LinearLayout {
             description.setText(meta.desc.trim());
             description.setVisibility(View.VISIBLE);
         }
+
+        extras.removeAllViews();
+        extra(R.string.info_authors, String.join(", ", meta.authors));
+        extra(R.string.info_price, meta.price);
+        extra(R.string.info_series, GameInfoText.seriesLine(meta));
+        extra(R.string.info_compilations, GameInfoText.titlesOf(meta.compilations));
+        extra(R.string.info_contents, GameInfoText.titlesOf(meta.contents));
+    }
+
+    /**
+     * A labelled fact, or nothing at all.
+     *
+     * Nothing at all is the common case - see {@link #extras} - and an empty
+     * row with a heading over it would claim the database was asked and had
+     * no answer, when mostly it was never asked.
+     *
+     * A point larger than the screen's own version of this throughout, for
+     * the same reason every other size here is: this is read at a slight
+     * distance on a fixed panel, not close up in the hand.
+     */
+    private void extra(int label, String value) {
+        if (value == null || value.trim().isEmpty()) return;
+
+        TextView heading = new TextView(getContext());
+        heading.setText(label);
+        heading.setTextColor(Palette.MUTED);
+        heading.setTextSize(13);
+        heading.setPadding(0, pixels(12), 0, 0);
+        extras.addView(heading, wrap());
+
+        TextView text = new TextView(getContext());
+        text.setText(value.trim());
+        text.setTextColor(Palette.TEXT);
+        text.setTextSize(16);
+        text.setLineSpacing(pixels(3), 1f);
+        extras.addView(text, wrap());
     }
 
     /**
