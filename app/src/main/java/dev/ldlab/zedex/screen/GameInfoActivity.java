@@ -100,7 +100,10 @@ public final class GameInfoActivity extends ZedexActivity {
      * {@link #EXTRA_URI} present means the library sent us and nothing is
      * running, so the game's own actions belong here and Play leads. Absent
      * means the machine's own ⓘ sent us and the machine is behind this
-     * window, so what is wanted is the way back to it.
+     * window, so what is wanted is the way back to it - and, because that
+     * machine is a different activity in a different task (see the leading
+     * action below), getting there is a hand-over, not a plain {@code
+     * finish()}.
      *
      * Back leads in one and trails in the other, which is deliberate: from
      * the machine it is the reason you are leaving, and from the library it
@@ -131,8 +134,18 @@ public final class GameInfoActivity extends ZedexActivity {
             return;
         }
 
-        // The machine is behind this window, so finishing is going back to it.
-        view.addLeadingAction(R.drawable.ic_chevron_left, R.string.menu_back, this::finish);
+        // The machine is behind this window, but not in the way finish()
+        // would reach: EmulatorActivity is singleInstance, so it is always
+        // alone in a task of its own, and this screen sits in whichever task
+        // opened it (the library's) - finishing it lands there, not on the
+        // machine. So this hands over exactly the way the menu action two
+        // lines down does, minus the extra, and finishes after - measured on
+        // the device to actually resume EmulatorActivity with the game still
+        // running, where a plain finish() measured landing on the library.
+        view.addLeadingAction(R.drawable.ic_chevron_left, R.string.menu_back, () -> {
+            startActivity(new Intent(this, EmulatorActivity.class));
+            finish();
+        });
 
         // The machine's own menu, which only the machine can open: a sheet
         // built over another activity's window is not something a second
