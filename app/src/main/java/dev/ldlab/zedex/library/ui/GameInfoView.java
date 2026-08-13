@@ -155,15 +155,17 @@ public final class GameInfoView extends LinearLayout {
     private int token;
 
     /**
-     * Whether this view offers the manual itself.
+     * Whether this view offers the manual itself, through {@link #rowManual}
+     * in its own action row.
      *
      * <b>It does, unless something else does.</b> On the emulator's own panel
      * the quick bar is on screen beside these details and carries a manual
-     * icon - see {@code EmulatorActivity.applyBarMode} - so a second button
-     * floating in the corner of the artwork would be the same action twice,
-     * which is what the corner button was asked to stop being. The library's
-     * panel lends no controls and so has no bar at all: there the corner is
-     * the only place a manual can be offered from, and it stays.
+     * icon - see {@code EmulatorActivity.applyBarMode} - so {@code rowManual}
+     * would be the same action twice, and that is the one host that turns it
+     * off. Every other host - the library's panel, which lends no controls
+     * and so has no bar of its own, and both {@code GameInfoActivity}
+     * variants, which build no bar at all - leaves it on, since {@code
+     * rowManual} is the only place a manual could come from there.
      *
      * True by default, because a caller that says nothing is a caller with no
      * bar to rely on.
@@ -454,7 +456,7 @@ public final class GameInfoView extends LinearLayout {
         primaryButton.setText(labelRes);
         primaryButton.setOnClickListener(v -> action.run());
         rebuildRow();
-        updatePlayVisibility();
+        updatePrimaryVisibility();
     }
 
     /** An icon before the manual. */
@@ -501,15 +503,21 @@ public final class GameInfoView extends LinearLayout {
         filename.setVisibility(View.GONE);
         facts.setVisibility(View.GONE);
         description.setVisibility(View.GONE);
+        // This view is reused across selections and the manual and music
+        // answers are both asynchronous (see the "pane-manual" and
+        // "pane-music" work below), so without this a game with neither
+        // would keep showing the last game's buttons - still visible, and
+        // still wired to the last game's own path, so tapping one would act
+        // on the wrong game. The listeners are dropped too, not just the
+        // visibility, so a stale click target can never fire even if
+        // something makes a button visible again before the answer for this
+        // game arrives. Defensive on the music side - its visibility and
+        // listener are set atomically in one token-gated callback, so the two
+        // can never actually disagree - but kept beside the manual's reset
+        // for the same reason and because a future change to that callback
+        // should not have to rediscover why this matters.
         rowMusic.setVisibility(View.GONE);
-        // This view is reused across selections and the manual answer is
-        // asynchronous (see the "pane-manual" work below), so without this a
-        // game with no manual would keep showing the last game's manual
-        // button - still visible, and still wired to the last game's own
-        // Uri, so tapping it would open the wrong game's manual. The
-        // listener is dropped too, not just the visibility, so a stale click
-        // target can never fire even if something makes the button visible
-        // again before the answer for this game arrives.
+        rowMusic.setOnClickListener(null);
         rowManual.setVisibility(View.GONE);
         rowManual.setOnClickListener(null);
         // Synchronously, unlike the removeAllViews() in show(Meta): this view is
@@ -518,7 +526,7 @@ public final class GameInfoView extends LinearLayout {
         // game A's extras under game B's title for however long that answer
         // takes to arrive - the leak the other four resets above already close.
         extras.removeAllViews();
-        updatePlayVisibility();
+        updatePrimaryVisibility();
 
         gallery.load(relativePath);
 
@@ -720,11 +728,12 @@ public final class GameInfoView extends LinearLayout {
         rowManual.setVisibility(View.GONE);
         rowManual.setOnClickListener(null);
         rowMusic.setVisibility(View.GONE);
+        rowMusic.setOnClickListener(null);
         // See the matching reset in showEntry(): this view is reused across
         // selections, so nothing selected must mean nothing shown, not the
         // last game's rows left standing under an empty title.
         extras.removeAllViews();
-        updatePlayVisibility();
+        updatePrimaryVisibility();
         gallery.clear();
 
         // Nothing selected has no video to move to, and a wait left running
@@ -736,14 +745,19 @@ public final class GameInfoView extends LinearLayout {
      * The primary button appears when there is a game for it to act on, and
      * only where a host asked for one at all.
      *
+     * Named for what it governs rather than for Play by name: {@link
+     * #setPrimaryAction} takes whatever label and action a caller hands it,
+     * so this button is the primary one, not necessarily Play - every
+     * current host happens to ask for Play, but nothing here assumes it.
+     *
      * The old condition also asked whether {@code onPlay} had been set, which
      * was right when the panel was the only host: it sets the listener
      * separately from building the button. The details screen sets the action
      * *in* {@link #setPrimaryAction} and never touches {@code onPlay}, so
-     * asking about it here would hide the Play button on the one screen whose
+     * asking about it here would hide the button on the one screen whose
      * whole row leads with it.
      */
-    private void updatePlayVisibility() {
+    private void updatePrimaryVisibility() {
         if (primaryButton == null) return;
         primaryButton.setVisibility(path != null ? View.VISIBLE : View.GONE);
     }
