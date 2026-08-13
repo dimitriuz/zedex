@@ -522,13 +522,19 @@ public class BlendTest {
     }
 
     /**
-     * Every field, or a source gets skipped for nothing.
+     * Every field a source could supply, or a source gets skipped for
+     * nothing.
      *
      * The companion to MergeTest.everyFieldIsMerged, and here for the same
      * reason: this predicate decides whether a source is consulted at all, so
      * a field added to Meta and forgotten here means a service silently never
      * asked about it - and nothing on screen to say why the answer is thinner
      * than it should be.
+     *
+     * {@code playCount} and {@code completed} are excluded on purpose - see
+     * {@link #playCountAndCompletedAreNeverAskedOfASource} below, which is
+     * the other half of this test and asserts the opposite for exactly those
+     * two.
      */
     @Test
     public void everyMissingFieldIsSomethingLeftToGain() throws Exception {
@@ -545,6 +551,11 @@ public class BlendTest {
             String name = field.getName();
             if (name.equals("path") || name.equals("source")) continue;
 
+            // A person's own facts, not a provider's - no source can ever
+            // fill either, so clearing one must not make the predicate ask
+            // for more. See Meta.Field#scrapeable.
+            if (name.equals("playCount") || name.equals("completed")) continue;
+
             Meta.Builder without = everything.but();
             boolean isList = java.util.List.class.isAssignableFrom(field.getType());
 
@@ -556,6 +567,27 @@ public class BlendTest {
                         + " - a source that could supply it will never be asked",
                         Blend.nothingLeftToGain(without.build(), Provider.Wanted.nothing()));
         }
+    }
+
+    /**
+     * The two facts a person keeps rather than scrapes must not keep a game
+     * up for consultation for ever.
+     *
+     * Before {@code Meta.Field#scrapeable} existed, {@code nothingLeftToGain}
+     * required every {@code Meta.Field} including these two - and since no
+     * provider can ever write a play count or a completed flag, almost no row
+     * in a real collection ever satisfied the loop, and every source was
+     * asked about every game regardless of what was genuinely left to gain.
+     */
+    @Test
+    public void playCountAndCompletedAreNeverAskedOfASource() {
+        Meta neitherPersonalFact = everythingKnown().but()
+                .playCount(null).completed(null).build();
+
+        assertTrue("a play count and a completed flag are the user's own - "
+                   + "no source can ever supply them, so their absence must not "
+                   + "be read as something left to gain",
+                   Blend.nothingLeftToGain(neitherPersonalFact, Provider.Wanted.nothing()));
     }
 
     // --- one source failing is not the game failing -------------------------------

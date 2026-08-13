@@ -3,6 +3,7 @@ package dev.ldlab.zedex.screen;
 import dev.ldlab.zedex.library.meta.Meta;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -209,14 +210,26 @@ public class EditMetadataFieldsTest {
 
     // --- and what Meta.with does with the answer ---------------------------------------
 
-    /** Storing a field makes the row the user's own, which is what a link then
-     *  leaves alone. */
+    /**
+     * Storing a field makes the row the user's own, which is what a link then
+     * leaves alone.
+     *
+     * A row has contributors, not an owner (see {@code Meta#isMine},
+     * {@code Meta#isEsde}) - {@code scraped()} starts as ES-DE's alone, so
+     * after a hand edit the source is "esde, user", not "user". Asserting the
+     * exact string pins the representation rather than the meaning; the
+     * predicates are what {@code Metadata.replaceScraped} and the rest of the
+     * app actually act on, so those are what this checks.
+     */
     @Test
     public void changingAnythingMakesTheRowMine() {
         Meta game = scraped(null, null);
+        Meta edited = game.with(Meta.Field.NAME, "Mine");
 
-        assertEquals(Meta.USER, game.with(Meta.Field.NAME, "Mine").source);
-        assertEquals("Mine", game.with(Meta.Field.NAME, "Mine").name);
+        assertTrue("a hand edit must count as a contributor", edited.isMine());
+        assertFalse("a hand edit means a link must no longer replace this row",
+                    edited.isEsde());
+        assertEquals("Mine", edited.name);
     }
 
     /** An empty value clears the field rather than storing an empty string,
