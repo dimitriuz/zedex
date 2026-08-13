@@ -116,6 +116,31 @@ public final class MediaViewerActivity extends ZedexActivity {
         buttonParams.rightMargin = pixels(16);
         root.addView(soundButton, buttonParams);
 
+        // A cross, top left, because Back cannot be relied on to leave this
+        // screen. Measured on an AYN Thor Lite: with the panel switched off
+        // the second display's launcher is the top-focused one, so the
+        // system's Back goes there and does nothing whatever is on the first
+        // screen - and this screen's other way out is a tap on the picture,
+        // which is invisible until somebody guesses it and is a whole
+        // double-tap timeout away besides, since a tap here has to be told
+        // apart from the first tap of a pinch.
+        //
+        // Same size and margin as the sound button opposite it, so the two
+        // read as one pair rather than as two accidents.
+        ImageButton close = new ImageButton(this);
+        close.setBackgroundColor(0x00000000);
+        close.setColorFilter(0xffffffff);
+        close.setImageResource(R.drawable.ic_close);
+        close.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
+        close.setContentDescription(getString(android.R.string.cancel));
+        close.setOnClickListener(v -> finish());
+
+        FrameLayout.LayoutParams closeParams = new FrameLayout.LayoutParams(
+                pixels(48), pixels(48), Gravity.TOP | Gravity.START);
+        closeParams.topMargin = pixels(16);
+        closeParams.leftMargin = pixels(16);
+        root.addView(close, closeParams);
+
         return root;
     }
 
