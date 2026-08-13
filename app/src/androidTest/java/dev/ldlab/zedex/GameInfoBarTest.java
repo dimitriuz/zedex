@@ -4,15 +4,18 @@ import dev.ldlab.zedex.screen.GameInfoActivity;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Rect;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.uiautomator.By;
 import androidx.test.uiautomator.BySelector;
 import androidx.test.uiautomator.UiDevice;
+import androidx.test.uiautomator.UiObject2;
 import androidx.test.uiautomator.Until;
 
 import org.junit.Test;
@@ -72,16 +75,29 @@ public class GameInfoBarTest {
     /**
      * From the library: Play leads, Back trails, and the machine's own menu is
      * on neither end - there is no machine for it to open.
+     *
+     * <b>Pinned by position, not only by presence.</b> {@code addLeadingAction}
+     * and {@code addTrailingAction} put a view at opposite ends of one row, and
+     * asserting only that both icons exist would pass just as well if the two
+     * were swapped - which is exactly the difference between the two variants
+     * this class exists to tell apart. The manual and music icons sit between
+     * leading and trailing in the row (see {@code GameInfoView.show}), but this
+     * fixture is deliberately a game with neither, so they are never on screen
+     * to measure against; Play is the one action guaranteed present here, and
+     * it is added before the trailing actions in the same call, so Back must
+     * come out to its right.
      */
     @Test
     public void openedFromTheLibraryItOffersPlayAndBackAndNotTheMachinesMenu() {
         openDetails(true);
 
-        assertNotNull("no Play button on the row",
-                      device.wait(Until.findObject(play()), FIND));
+        UiObject2 playButton = device.wait(Until.findObject(play()), FIND);
+        assertNotNull("no Play button on the row", playButton);
 
-        assertNotNull("no Back icon on the row",
-                      device.wait(Until.findObject(described(R.string.menu_back)), FIND));
+        UiObject2 back = device.wait(Until.findObject(described(R.string.menu_back)), FIND);
+        assertNotNull("no Back icon on the row", back);
+
+        assertLeftOf("Play", playButton, "Back", back);
 
         assertNull("the machine's menu belongs only to the machine's own variant",
                    device.wait(Until.findObject(described(R.string.menu_button)), GLANCE));
@@ -95,16 +111,23 @@ public class GameInfoBarTest {
     /**
      * From the machine: Back leads, the machine's menu and the way out of the
      * content trail, and there is no Play - the game is already running.
+     *
+     * <b>Pinned by position</b> against ☰, the same way the library variant is
+     * pinned against Play - see that test's javadoc. Back is added as a
+     * leading action here, ☰ as a trailing one, so Back must come out to its
+     * left; that is the entire difference between this row and the library's.
      */
     @Test
     public void openedFromTheMachineItOffersBackTheMenuAndTheWayOutAndNoPlay() {
         openDetails(false);
 
-        assertNotNull("no Back icon on the row",
-                      device.wait(Until.findObject(described(R.string.menu_back)), FIND));
+        UiObject2 back = device.wait(Until.findObject(described(R.string.menu_back)), FIND);
+        assertNotNull("no Back icon on the row", back);
 
-        assertNotNull("no ☰ icon on the row",
-                      device.wait(Until.findObject(described(R.string.menu_button)), FIND));
+        UiObject2 menu = device.wait(Until.findObject(described(R.string.menu_button)), FIND);
+        assertNotNull("no ☰ icon on the row", menu);
+
+        assertLeftOf("Back", back, "☰", menu);
 
         assertNotNull("no way out of the content on the row",
                       device.wait(Until.findObject(described(R.string.library_title)), FIND));
@@ -153,6 +176,21 @@ public class GameInfoBarTest {
                               FIND));
 
         Screen.assertHere();
+    }
+
+    /**
+     * The row is a horizontal {@code LinearLayout} whatever the words lane's
+     * own orientation is - see {@code GameInfoView}'s constructor against the
+     * field it builds {@code actionRow} from - so left-of-right holds in both
+     * portrait and landscape and is safe to assert on regardless of rotation.
+     */
+    private void assertLeftOf(String leftName, UiObject2 left, String rightName, UiObject2 right) {
+        Rect leftBounds = left.getVisibleBounds();
+        Rect rightBounds = right.getVisibleBounds();
+
+        assertTrue(leftName + " (" + leftBounds + ") must sit to the left of "
+                        + rightName + " (" + rightBounds + ")",
+                   leftBounds.right <= rightBounds.left);
     }
 
     /** One of this screen's own icons, by the words the app gives it. */

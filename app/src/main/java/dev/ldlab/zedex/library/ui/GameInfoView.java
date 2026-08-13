@@ -195,9 +195,11 @@ public final class GameInfoView extends LinearLayout {
      * through here latched exactly that, and Back out of a picture looked like
      * it had closed the panel for good. See {@link #openViewer}.
      *
-     * Set once by {@code SecondScreen}, the only place this view is ever
-     * shown; a null check where it is read covers a caller that never
-     * bothers, the same as every other listener in this app.
+     * Set only by {@code SecondScreen}. {@link dev.ldlab.zedex.screen.GameInfoActivity}
+     * shows this view too, but it is an ordinary activity with no panel to
+     * step aside and nothing to tell - so it never calls the setter, and a
+     * null check where this is read covers that caller the same as every
+     * other listener in this app.
      */
     private Runnable onForeignScreen;
 
@@ -637,12 +639,17 @@ public final class GameInfoView extends LinearLayout {
     /**
      * The picture that was tapped, full screen, on this view's own display.
      *
-     * The display matters, and the manual button next door explains why: this
-     * view is only ever shown on a panel, and a screen opened without saying
-     * which display it wants lands on the main one - behind the machine, on
-     * the screen nobody was looking at. {@code getDisplay()} is null before
-     * the first layout pass, which is read here exactly as {@code
-     * Manuals.open} reads it: no panel to ask for, so ask for nothing.
+     * The display matters, and the manual button next door explains why -
+     * but this view is now shown on two different kinds of screen, not one:
+     * {@code SecondScreen}'s panel, on its own secondary display, and {@link
+     * dev.ldlab.zedex.screen.GameInfoActivity}, an ordinary activity that is
+     * always on the main one. Asking {@code getDisplay()} rather than
+     * assuming either is what keeps this right for both - on the panel it
+     * answers the secondary display, on the activity it answers the main
+     * one, which is where an unaddressed launch would land anyway, so the
+     * activity case costs nothing and changes nothing. {@code getDisplay()}
+     * is null before the first layout pass, which is read here exactly as
+     * {@code Manuals.open} reads it: no display to ask for, so ask for none.
      *
      * Unlike the manual, nothing has to be told this happened. {@code
      * MediaViewerActivity} is one of the app's own, so both panels see it
