@@ -126,6 +126,29 @@ public final class GameInfoView extends LinearLayout {
     private int token;
 
     /**
+     * Whether this view offers the manual itself.
+     *
+     * <b>It does, unless something else does.</b> On the emulator's own panel
+     * the quick bar is on screen beside these details and carries a manual
+     * icon - see {@code EmulatorActivity.applyBarMode} - so a second button
+     * floating in the corner of the artwork would be the same action twice,
+     * which is what the corner button was asked to stop being. The library's
+     * panel lends no controls and so has no bar at all: there the corner is
+     * the only place a manual can be offered from, and it stays.
+     *
+     * True by default, because a caller that says nothing is a caller with no
+     * bar to rely on.
+     */
+    private boolean offersManual = true;
+
+    /** See {@link #offersManual}. Called before the first {@code showEntry},
+     *  since that is what decides whether the button is ever revealed. */
+    public void setOffersManual(boolean offers) {
+        offersManual = offers;
+        if (!offers) manualButton.setVisibility(View.GONE);
+    }
+
+    /**
      * Told when this view hands something <em>foreign</em> to its own display
      * - a manual, opened in whatever PDF viewer the phone has.
      *
@@ -489,6 +512,7 @@ public final class GameInfoView extends LinearLayout {
             handler.post(() -> {
                 if (mine != token) return;
                 if (result == null) return;
+                if (!offersManual) return;   // the bar beside this has it
 
                 manualButton.setVisibility(View.VISIBLE);
                 // getDisplay() is this view's own panel, whichever activity

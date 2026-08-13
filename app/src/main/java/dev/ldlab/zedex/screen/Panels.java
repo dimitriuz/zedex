@@ -125,6 +125,49 @@ public final class Panels {
         return panel != null;
     }
 
+    /** Whether the panel is showing the game's details rather than the
+     *  controls - what the machine's own bar reads to know which face to
+     *  wear; see {@code EmulatorActivity.applyBarMode}. */
+    public boolean showingInfo() {
+        return panel != null && preferInfo && infoPath != null;
+    }
+
+    /**
+     * Turns the panel to one side or the other.
+     *
+     * <b>The bar asks for this now, not a switch in the corner.</b> The panel
+     * used to carry a round button of its own for it, floating over whichever
+     * side was showing - which meant a control that belonged to no screen in
+     * particular sitting on top of the artwork. The quick bar is where every
+     * other "show me something else" already lives, so this is what it calls.
+     *
+     * Remembered here rather than only on the panel, exactly as it was for the
+     * switch: {@code close} throws the panel away and a fresh one has no memory
+     * of which side was showing - see {@link #preferInfo}.
+     */
+    public void showInfo(boolean info) {
+        preferInfo = info;
+        if (panel != null) panel.setPreferInfo(info);
+    }
+
+    /**
+     * The manual, on the panel's display when there is one.
+     *
+     * Here rather than in the activity because both halves of it are this
+     * class's: which display the details are on, and the fact that a manual is
+     * a <em>foreign</em> window that this panel has to step aside for - see
+     * {@link #foreignScreenOpened} and the class comment's fourth corner. The
+     * bar's own manual button used to live in the corner of the artwork, where
+     * {@code GameInfoView} had both of those to hand; on the bar it does not,
+     * so it asks here.
+     */
+    public void openManual(android.net.Uri manual) {
+        dev.ldlab.zedex.library.ui.Manuals.open(
+                activity, manual,
+                panel == null ? null : panel.getDisplay(),
+                panel == null ? null : this::foreignScreenOpened);
+    }
+
     // --- coming and going ----------------------------------------------------
 
     /** Starts watching for panels; the activity calls this from onResume. */

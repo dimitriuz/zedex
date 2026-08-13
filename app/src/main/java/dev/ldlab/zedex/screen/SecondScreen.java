@@ -3,7 +3,6 @@ package dev.ldlab.zedex.screen;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.library.ui.GameInfoView;
 import dev.ldlab.zedex.storage.Prefs;
-import dev.ldlab.zedex.library.ui.Ripple;
 import dev.ldlab.zedex.view.ActivityLights;
 import dev.ldlab.zedex.view.EmulatorLayout;
 import dev.ldlab.zedex.view.JoystickView;
@@ -25,7 +24,6 @@ import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.graphics.drawable.GradientDrawable;
 import android.widget.FrameLayout;
-import android.widget.ImageButton;
 import android.widget.LinearLayout;
 
 import java.util.ArrayList;
@@ -49,14 +47,21 @@ import java.util.List;
  * between them - see {@code docs/LIBRARY.md}'s notes on that hand-over and
  * {@link #setGameInfo} for what does travel, which is a path, not a window.
  *
- * <b>Two things can be on screen, and a corner switch flips between them.</b>
+ * <b>Two things can be on screen, and the quick bar turns the panel over.</b>
+ * There used to be a round switch in the corner of this window for it; a
+ * control that belonged to neither side, floating over whichever one was
+ * showing. It is on the bar now - see {@code EmulatorActivity.showDetails} -
+ * which is where everything else that changes what is on screen already
+ * lives, and the bar is on the panel with both sides. See {@link
+ * #updateVisibility} for what actually goes away when the details show: the
+ * keyboard, the joystick and the lamps, and not the bar or the sheet.
  * The controls — the bar, the joystick, the keyboard, the lamps — are what the
  * emulator lends, exactly as before; the game info — the artwork, the name, the
  * facts, the description — is {@link GameInfoView}, built from nothing but a
  * path, since a {@code Presentation} cannot borrow a view from another
  * activity's layout the way the controls are borrowed from this one's. The
  * library has no controls to lend at all, so its own panel is game info and
- * nothing else, with no switch to offer - {@link #hasControls} is what tells
+ * nothing else, and no controls to turn back to - {@link #hasControls} is what tells
  * the two apart, and {@link #updateVisibility} is the one place that acts on
  * it. See {@link LibraryPanel} for how the library uses this with an empty
  * {@code borrowed} array.
@@ -108,29 +113,14 @@ public final class SecondScreen extends Presentation {
     private static final float KEY_OF_FIRE = 0.46f;
     private static final int KEY_GAP = 5;
 
-    /** The corner switch's own side, dp - a primary control on a panel worked
-     *  by a thumb, not a status icon, so sized like {@link
-     *  dev.ldlab.zedex.library.ui.GameInfoView}'s manual button scaled up
-     *  for being the only thing to tap rather than one of several. The 40dp
-     *  this used to claim was never what showed: a 50% black fill on a
-     *  near-black panel painted nothing, so what was visible was a bare
-     *  outline icon read as a status indicator - it even sat in line with
-     *  the real ones. */
-    private static final int SWITCH_SIZE_DP = 64;
-
-    /** Room inside the disc the glyph does not fill, dp - see {@link
-     *  #SWITCH_SIZE_DP}; the same ratio {@code GameInfoView}'s manual button
-     *  keeps at its own smaller size. */
-    private static final int SWITCH_PADDING_DP = 14;
-
     private enum Mode { CONTROLS, INFO }
 
     private final View[] borrowed;
 
     /** Whether there are any controls to switch away from at all - true only
      *  for the emulator's own panel, which lends real ones; the library's has
-     *  none to lend, so its panel is {@link Mode#INFO} always and {@link
-     *  #switchButton} never appears. Decided once, from {@link #borrowed},
+     *  none to lend, so its panel is {@link Mode#INFO} always. Decided once,
+     *  from {@link #borrowed},
      *  never re-read: a panel with nothing to lend does not gain controls
      *  partway through being shown. */
     private final boolean hasControls;
@@ -153,14 +143,13 @@ public final class SecondScreen extends Presentation {
     /** Only when {@link #hasControls}; null otherwise, and every method that
      *  touches it checks that first. */
     private View controlsRoot;
-    private ImageButton switchButton;
 
     /** The game's own path relative to the content tree, or null when there
      *  is nothing the store could name for whatever is loaded now - see
      *  {@link #setGameInfo}. */
     private String infoPath;
 
-    /** {@link Mode#CONTROLS} until the switch is used - the emulator's own
+    /** {@link Mode#CONTROLS} until the bar is used - the emulator's own
      *  panel opens on its controls, since starting a game is choosing to
      *  play it; the library's panel is {@link Mode#INFO} regardless, since
      *  {@link #hasControls} overrides this in {@link #updateVisibility}.
@@ -168,12 +157,12 @@ public final class SecondScreen extends Presentation {
      *  side and then starts another game keeps looking at info for the new
      *  one too, rather than being silently carried back to the controls.
      *  {@link #setPreferInfo} is how a fresh instance is told what the last
-     *  one's own switch was left at - this field alone does not survive a
+     *  one's own side was left at - this field alone does not survive a
      *  panel closing and reopening, since a new instance is what {@link
      *  Panels#apply} builds each time; see that field's own comment. */
     private Mode preferredMode = Mode.CONTROLS;
 
-    /** Told whenever the switch is used, so whichever of {@link Panels} or
+    /** Told whenever the side changes, so whichever of {@link Panels} or
      *  {@link LibraryPanel} owns this instance can remember the choice past
      *  this panel's own lifetime - see {@link #setOnModeChanged}. */
     interface OnModeChanged {
@@ -229,10 +218,16 @@ public final class SecondScreen extends Presentation {
         stage.setBackgroundColor(BACKING);
 
         infoView = new GameInfoView(getContext());
+
+        // The emulator's panel has the bar beside these details and the bar
+        // carries the manual; the library's panel lends no controls, so there
+        // the corner of the artwork is the only place to offer it from. See
+        // GameInfoView.setOffersManual.
+        infoView.setOffersManual(!hasControls);
         infoView.setOnForeignScreen(() -> {
             // The fifth of the moments listed on updateVisibility a video
             // must not be left running for - the manual is about to cover
-            // this same display, whichever side of the switch is showing.
+            // this same display, whichever side is showing.
             // Only a manual reaches here: this view stops its own video and
             // says nothing when it opens one of the app's own screens, which
             // both panels already see for themselves.
@@ -251,54 +246,6 @@ public final class SecondScreen extends Presentation {
             controlsRoot = buildControls(margin, room);
             stage.addView(controlsRoot, new FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-
-            // A filled disc, the same treatment GameInfoView's own manual
-            // button already earned for the same reason: box art is as
-            // often pale as dark, and a scrim that only darkens is a coin
-            // toss against it. Opaque enough to win against any picture,
-            // with a faint ring so it still reads as an edge against black
-            // controls, and round so it reads as a button rather than as
-            // part of whatever it floats over - never the bare outline icon
-            // that used to sit here in line with the status bar's own
-            // signal/wifi/battery icons and read as one of them.
-            GradientDrawable disc = new GradientDrawable();
-            disc.setShape(GradientDrawable.OVAL);
-            disc.setColor(0xd0000000);
-            disc.setStroke(Math.round(density), 0x66ffffff);
-
-            int padding = Math.round(SWITCH_PADDING_DP * density);
-
-            switchButton = new ImageButton(getContext());
-            switchButton.setBackground(disc);
-            switchButton.setForeground(Ripple.make(getResources().getDisplayMetrics().density));
-            switchButton.setPadding(padding, padding, padding, padding);
-            switchButton.setColorFilter(0xffffffff);
-            switchButton.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
-            switchButton.setOnClickListener(v -> {
-                preferredMode = preferredMode == Mode.CONTROLS ? Mode.INFO : Mode.CONTROLS;
-                updateVisibility();
-                if (modeListener != null) modeListener.onModeChanged(preferredMode == Mode.INFO);
-            });
-
-            int side = Math.round(SWITCH_SIZE_DP * density);
-            FrameLayout.LayoutParams switchParams = new FrameLayout.LayoutParams(
-                    side, side, Gravity.TOP | Gravity.END);
-            switchParams.topMargin = switchParams.rightMargin = margin;
-            stage.addView(switchButton, switchParams);
-
-            // hide() below asks for no status bar, but this display draws
-            // one anyway - confirmed on the emulator's own second screen -
-            // and the plain margin above put the switch directly under it.
-            // Rather than guess a height, ask the window for whatever it is
-            // actually reporting and add that on top of the ordinary
-            // margin; a display where the bar really is hidden reports zero
-            // here and nothing changes.
-            stage.setOnApplyWindowInsetsListener((view, windowInsets) -> {
-                int barTop = windowInsets.getInsets(WindowInsets.Type.systemBars()).top;
-                switchParams.topMargin = margin + barTop;
-                switchButton.setLayoutParams(switchParams);
-                return windowInsets;
-            });
         }
 
         setContentView(stage);
@@ -400,21 +347,21 @@ public final class SecondScreen extends Presentation {
      * side is showing, only whether a foreign window covers it.
      */
     private void updateVisibility() {
-        boolean canSwitch = hasControls && infoPath != null;
         boolean showInfo = !hasControls || (infoPath != null && preferredMode == Mode.INFO);
 
         infoView.setVisibility(showInfo ? View.VISIBLE : View.GONE);
-        if (controlsRoot != null) controlsRoot.setVisibility(showInfo ? View.GONE : View.VISIBLE);
 
-        if (switchButton != null) {
-            switchButton.setVisibility(canSwitch ? View.VISIBLE : View.GONE);
-
-            if (canSwitch) {
-                switchButton.setImageResource(showInfo ? R.drawable.ic_chip : R.drawable.ic_info);
-                switchButton.setContentDescription(getContext().getString(
-                        showInfo ? R.string.library_machine : R.string.library_info));
-            }
-        }
+        // <b>The column, not the whole of the controls.</b> The bar is in
+        // {@link #controlsRoot} too - over the column rather than in it - and
+        // it stays on screen for both sides now: it is what turns the panel
+        // over, so hiding it with the keyboard would leave the details side
+        // with no way back and nothing to open a menu with. What goes is the
+        // keyboard, the joystick and the lamps, which are the machine's own
+        // controls and have nothing to do with a page of text.
+        //
+        // The sheet is in controlsRoot as well, and also stays: ☰ is one of
+        // the four icons the details bar keeps.
+        if (column != null) column.setVisibility(showInfo ? View.GONE : View.VISIBLE);
 
         if (!showInfo) infoView.release();
     }
@@ -579,6 +526,16 @@ public final class SecondScreen extends Presentation {
                 if (strip.getLayoutParams().height != wanted) {
                     strip.getLayoutParams().height = wanted;
                     strip.requestLayout();
+                }
+
+                // The details side has to leave the same room. The bar is on
+                // screen for both sides now, and without this it floats over
+                // the top of the cover - the artwork started at the panel's
+                // edge, because before the bar stayed with the keyboard there
+                // was nothing above it to make room for. One number, computed
+                // once, applied to both.
+                if (infoView.getPaddingTop() != wanted) {
+                    infoView.setPadding(0, wanted, 0, 0);
                 }
             };
 

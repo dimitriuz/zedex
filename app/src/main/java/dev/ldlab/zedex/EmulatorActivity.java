@@ -25,6 +25,7 @@ import dev.ldlab.zedex.menu.SetupUi;
 import dev.ldlab.zedex.menu.PokesUi;
 import dev.ldlab.zedex.menu.StatesUi;
 import dev.ldlab.zedex.screen.AboutActivity;
+import dev.ldlab.zedex.screen.GameInfoActivity;
 import dev.ldlab.zedex.screen.LibraryActivity;
 import dev.ldlab.zedex.screen.Panels;
 import dev.ldlab.zedex.screen.SettingsActivity;
@@ -378,6 +379,10 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                 revealQuickBar();
                 applyFullscreen();
                 controls.applyGamepad();
+
+                // A panel that has gone takes the details side with it, and
+                // the bar must not be left wearing four icons over a machine.
+                applyBarMode();
             }
 
             @Override
@@ -437,6 +442,13 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         roms = new StartPanel(this, romsHost);
         menu = buildMenu();
         quickBar = buildQuickBar();
+
+        // The machine's own face, once there is a bar to put a face on. Not
+        // up with the collaborators in onCreate, where this was first written
+        // and crashed on every launch: the bar is built here, further down the
+        // same method, and CLAUDE.md's rule about field initialisers is the
+        // same rule one line finer - order inside onCreate counts too.
+        applyBarMode();
         playButton = buildPlayButton();
 
         // A tap anywhere on the picture brings ☰ back; the sheet closing takes
@@ -787,8 +799,17 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // count it against.
         if (path != null) Metadata.played(app, path);
 
+        // Kept for the details bar, and resolved here because here is the
+        // background thread: Artwork.manual walks the documents provider.
+        openedPath = path;
+        hasManual = path != null
+                && dev.ldlab.zedex.library.meta.Artwork.manual(app, path) != null;
+
         runOnUiThread(() -> {
             panels.setGameInfo(path, shown);
+
+            // The details icon appears now, or does not - see applyBarMode.
+            applyBarMode();
 
             // The cheats page reads a scraped .pok beside the game, which it
             // can only find by the store's own key - see PokesUi.forGame.
@@ -1019,11 +1040,141 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                                          getString(R.string.fullscreen_enter),
                                          () -> showFullscreen(!fullscreen()));
 
-        bar.addAction(R.drawable.ic_menu, getString(R.string.menu_button),
-                      () -> menu.open());
+        // The details side, and the way back from it. Two icons rather than
+        // one that changes, because only one of them is ever on screen: the
+        // bar wears one face over the machine and another over the details -
+        // see QuickBar.showOnly and applyBarMode - so a single toggling button
+        // would be a button whose meaning depended on a state the bar already
+        // says out loud by which icons it is showing.
+        detailsAction = bar.addAction(R.drawable.ic_info, getString(R.string.library_info),
+                                      () -> showDetails(true));
+
+        machineAction = bar.addAction(R.drawable.ic_chip, getString(R.string.library_machine),
+                                      () -> showDetails(false));
+
+        // The manual, which used to be a button floating in the corner of the
+        // artwork - see GameInfoView, where it no longer is. It belongs on the
+        // bar with everything else that opens something.
+        manualAction = bar.addAction(R.drawable.ic_manual, getString(R.string.library_manual),
+                                     this::openTheManual);
+
+        // And the way out of the game altogether, which the sheet has always
+        // had as a row and the details bar needs as an icon: there is no
+        // keyboard on that side to reach the sheet from.
+        libraryAction = bar.addAction(R.drawable.ic_library, getString(R.string.library_title),
+                                      this::openLibrary);
+
+        menuAction = bar.addAction(R.drawable.ic_menu, getString(R.string.menu_button),
+                                   () -> menu.open());
 
         return bar;
     }
+
+    /**
+     * The four the bar keeps over the game's details, and everything over the
+     * machine.
+     *
+     * Kept as fields because the bar is built once and asked to change face
+     * many times; {@code QuickBar.showOnly} is told which, since what belongs
+     * on a details bar is a question about this app's screens rather than
+     * about a bar.
+     */
+    private ImageButton detailsAction;
+    private ImageButton machineAction;
+    private ImageButton manualAction;
+    private ImageButton libraryAction;
+    private ImageButton menuAction;
+
+    /**
+     * Shows the game's details, or the machine again.
+     *
+     * <b>Two arrangements, one button.</b> With a panel the details are the
+     * panel's other side, so this turns it over and the borrowed bar - which is
+     * on the panel with it - changes face. With one screen there is nowhere to
+     * put them beside the picture, so the details are their own screen and this
+     * opens it; that screen carries the same four icons in place of its title.
+     */
+    private void showDetails(boolean details) {
+        if (panels.inUse()) {
+            panels.showInfo(details);
+            applyBarMode();
+            return;
+        }
+
+        if (!details) return;   // one screen: the machine is what is showing
+
+        panels.openOwnScreen(new Intent(this, GameInfoActivity.class)
+                .putExtra(GameInfoActivity.EXTRA_PATH, openedPath));
+    }
+
+    /**
+     * The manual for whatever is loaded, or a word saying there is none.
+     *
+     * The path is the store's key for the game now open - {@code gameOpened}
+     * works it out and keeps it here, since the bar can be tapped long after
+     * that and a second resolve would be the same answer at the cost of
+     * another walk of the documents provider.
+     */
+    private void openTheManual() {
+        android.net.Uri manual = openedPath == null ? null
+                : dev.ldlab.zedex.library.meta.Artwork.manual(this, openedPath);
+
+        if (manual == null) return;   // the button is not offered without one
+
+        panels.openManual(manual);
+    }
+
+    /**
+     * Which face the bar is wearing, worked out from where the details are.
+     *
+     * Called wherever that can change - the button above, and a panel arriving
+     * or going, since a panel that goes takes the details side with it and the
+     * bar must not be left showing four icons over a machine.
+     */
+    private void applyBarMode() {
+        if (!panels.showingInfo()) {
+            // Everything except the three that only mean something over the
+            // details: there is no machine to go back to while it is showing,
+            // the sheet already carries the library as a row, and the manual
+            // belongs beside the artwork it explains.
+            //
+            // And not the details icon either for a game the store cannot
+            // name - a tape from a file manager, an entry inside a zip. There
+            // are no details to show, and the corner switch this replaces
+            // appeared only when there were: an icon that opens an empty page
+            // is the same fault in a new place.
+            if (openedPath == null) {
+                quickBar.showAllExcept(machineAction, manualAction, libraryAction,
+                                       detailsAction);
+            } else {
+                quickBar.showAllExcept(machineAction, manualAction, libraryAction);
+            }
+            return;
+        }
+
+        // Without a manual it is three icons, not four greyed ones: the
+        // details side has no manual to open for most games, and an icon that
+        // does nothing is the fault this app refuses elsewhere - see
+        // GameInfoView, whose own corner button appeared only once one had
+        // actually been resolved.
+        if (hasManual) {
+            quickBar.showOnly(machineAction, manualAction, menuAction, libraryAction);
+        } else {
+            quickBar.showOnly(machineAction, menuAction, libraryAction);
+        }
+    }
+
+    /**
+     * The store's key for whatever is loaded, and whether it has a manual.
+     *
+     * Both worked out by {@code gameOpened} on the thread it already runs on -
+     * resolving a manual walks the documents provider, which is not something
+     * to do when a bar is tapped - and read by the details bar afterwards.
+     * Null and false for a game the store cannot name: an entry inside a zip,
+     * or a file handed over from somewhere the content tree does not reach.
+     */
+    private volatile String openedPath;
+    private volatile boolean hasManual;
 
     /**
      * The keyboard that lies over the picture.

@@ -232,6 +232,63 @@ public final class QuickBar extends LinearLayout implements Rows {
         return button;
     }
 
+    /**
+     * Only these icons, or all of them again.
+     *
+     * The bar is built once and then wears two faces. Over the machine it is
+     * everything - six groups, fast forward, fullscreen, the menu; over the
+     * game's details it is four things, because the keyboard and the joystick
+     * are not on screen and neither is the picture, so a Capture button there
+     * would offer to photograph a page of text.
+     *
+     * <b>Hidden, not rebuilt.</b> The bar holds state a rebuild would throw
+     * away - which group is open, what {@code setCompact} worked out for the
+     * panel it is on - and on a two-screen handheld it is <em>borrowed</em>:
+     * the panel adopts this very view, so replacing it would mean handing a
+     * different one back than was taken. Visibility costs nothing and keeps
+     * every reference anybody holds valid.
+     *
+     * The caller says which four rather than this class knowing: what belongs
+     * on a details bar is a question about the app's screens, and the same
+     * reason {@code GameInfoView} is told what to offer instead of guessing.
+     */
+    public void showOnly(ImageButton... keeping) {
+        collapse();
+
+        for (int at = 0; at < primary.getChildCount(); at++) {
+            View child = primary.getChildAt(at);
+
+            boolean keep = false;
+            for (ImageButton wanted : keeping) {
+                if (child == wanted) { keep = true; break; }
+            }
+
+            child.setVisibility(keep ? VISIBLE : GONE);
+        }
+    }
+
+    /**
+     * Everything but these - the machine's own face.
+     *
+     * The two faces are both partial: over the details the bar keeps four
+     * icons, and over the machine it keeps everything except the ones that
+     * only mean something on the other side. A "back to the machine" icon on
+     * the machine's own bar is a button that does nothing, which is the fault
+     * the corner switch was replaced to stop being.
+     */
+    public void showAllExcept(ImageButton... hiding) {
+        for (int at = 0; at < primary.getChildCount(); at++) {
+            View child = primary.getChildAt(at);
+
+            boolean hide = false;
+            for (ImageButton unwanted : hiding) {
+                if (child == unwanted) { hide = true; break; }
+            }
+
+            child.setVisibility(hide ? GONE : VISIBLE);
+        }
+    }
+
     /** Changes what an action looks like and is called, after the fact. */
     public void setAction(ImageButton button, int drawable, String name) {
         Drawable image = getContext().getDrawable(drawable);
