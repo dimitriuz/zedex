@@ -2031,9 +2031,13 @@ public final class LibraryActivity extends ZedexActivity {
         String relativePath = Metadata.relativePath(this, entry.uri);
         if (relativePath == null) return;
 
+        // The file itself as well as its key: opened from here there is no
+        // machine behind this screen, so it offers Play - and playing means
+        // handing the document over, exactly as openGame does from a row.
         startActivity(new Intent(this, GameInfoActivity.class)
                 .putExtra(GameInfoActivity.EXTRA_PATH, relativePath)
-                .putExtra(GameInfoActivity.EXTRA_NAME, entry.name));
+                .putExtra(GameInfoActivity.EXTRA_NAME, entry.name)
+                .putExtra(GameInfoActivity.EXTRA_URI, entry.uri.toString()));
     }
 
     /**

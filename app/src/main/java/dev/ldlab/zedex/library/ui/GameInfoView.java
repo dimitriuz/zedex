@@ -109,11 +109,15 @@ public final class GameInfoView extends LinearLayout {
     private boolean userSwiped;
 
     private final Gallery gallery;
-    private final ImageButton manualButton;
 
     /** Beside it, and only for a game a tune was fetched for. */
     private final ImageButton musicButton;
     private final Button playButton;
+
+    /** Beside it, and revealed by the same answer that used to reveal the
+     *  corner button - see {@link #offersManual}, which is what decides
+     *  whether this row or the quick bar carries the manual. */
+    private final Button rowManual;
     private final TextView title;
     private final TextView filename;
     private final TextView facts;
@@ -145,7 +149,7 @@ public final class GameInfoView extends LinearLayout {
      *  since that is what decides whether the button is ever revealed. */
     public void setOffersManual(boolean offers) {
         offersManual = offers;
-        if (!offers) manualButton.setVisibility(View.GONE);
+        if (!offers) rowManual.setVisibility(View.GONE);
     }
 
     /**
@@ -243,25 +247,6 @@ public final class GameInfoView extends LinearLayout {
         // faint ring so the disc still reads as an edge against black art,
         // and round so it reads as a button rather than as part of the
         // picture it sits on.
-        manualButton = new ImageButton(context);
-        manualButton.setImageResource(R.drawable.ic_manual);
-        manualButton.setBackground(disc());
-        manualButton.setPadding(pixels(9), pixels(9), pixels(9), pixels(9));
-        manualButton.setColorFilter(0xffffffff);
-        manualButton.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
-        manualButton.setContentDescription(context.getString(R.string.library_manual));
-        manualButton.setVisibility(View.GONE);
-
-        // 48dp: the same button is already 48 on GameInfoActivity, and one
-        // control being easier to hit on one screen than another is the sort
-        // of difference nobody chooses on purpose. It floats in the corner of
-        // the cover box with nothing beside it, so the eight extra dp cost
-        // nothing.
-        FrameLayout.LayoutParams buttonParams = new FrameLayout.LayoutParams(
-                pixels(48), pixels(48), Gravity.TOP | Gravity.END);
-        buttonParams.topMargin = buttonParams.rightMargin = pixels(12);
-        coverBox.addView(manualButton, buttonParams);
-
         musicButton = new ImageButton(context);
         musicButton.setImageResource(R.drawable.ic_music);
         musicButton.setBackground(disc());
@@ -362,18 +347,40 @@ public final class GameInfoView extends LinearLayout {
         wordsLane.addView(scroller, new LinearLayout.LayoutParams(
                 LayoutParams.MATCH_PARENT, 0, 1f));
 
+        // Play and the manual in a row, the same one the library's pane has
+        // and the details screen now grows when it is opened from there. Only
+        // ever seen on the library's own panel: with a machine running the
+        // quick bar is on this display instead, and it carries the manual -
+        // see EmulatorActivity.applyBarMode and setOffersManual.
+        //
+        // The bar reflects whether there is a machine behind the screen, which
+        // is the same rule in all four places it is asked.
+        LinearLayout actionRow = new LinearLayout(context);
+        actionRow.setOrientation(HORIZONTAL);
+
         playButton = new Button(context);
         playButton.setText(R.string.library_play);
         playButton.setVisibility(View.GONE);
         playButton.setOnClickListener(v -> {
             if (onPlay != null) onPlay.run();
         });
+
+        actionRow.addView(playButton, new LinearLayout.LayoutParams(
+                0, LayoutParams.WRAP_CONTENT, 1f));
+
+        rowManual = new Button(context);
+        rowManual.setText(R.string.library_manual);
+        rowManual.setVisibility(View.GONE);
+
+        actionRow.addView(rowManual, new LinearLayout.LayoutParams(
+                0, LayoutParams.WRAP_CONTENT, 1f));
+
         LinearLayout.LayoutParams playParams = new LinearLayout.LayoutParams(
                 LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
         playParams.leftMargin = playParams.rightMargin = pixels(24);
         playParams.topMargin = pixels(16);
         playParams.bottomMargin = pixels(24);
-        wordsLane.addView(playButton, playParams);
+        wordsLane.addView(actionRow, playParams);
 
         if (landscape) {
             LinearLayout.LayoutParams mediaParams = new LinearLayout.LayoutParams(
@@ -451,7 +458,6 @@ public final class GameInfoView extends LinearLayout {
         filename.setVisibility(View.GONE);
         facts.setVisibility(View.GONE);
         description.setVisibility(View.GONE);
-        manualButton.setVisibility(View.GONE);
         musicButton.setVisibility(View.GONE);
         updatePlayVisibility();
 
@@ -512,9 +518,13 @@ public final class GameInfoView extends LinearLayout {
             handler.post(() -> {
                 if (mine != token) return;
                 if (result == null) return;
-                if (!offersManual) return;   // the bar beside this has it
+                if (!offersManual) return;   // the quick bar beside this has it
 
-                manualButton.setVisibility(View.VISIBLE);
+                // In the row with Play rather than in the corner of the
+                // artwork: one place for a game's own actions, which is what
+                // the pane has always had and what the corner button was
+                // taken off the panel to become.
+                rowManual.setVisibility(View.VISIBLE);
                 // getDisplay() is this view's own panel, whichever activity
                 // put it there - see the class comment. Null before the
                 // first layout pass, which Manuals.open reads as "no panel
@@ -526,7 +536,7 @@ public final class GameInfoView extends LinearLayout {
                 // foreign is announced, because nothing foreign is opened:
                 // PdfActivity and InstructionsActivity are both reported
                 // through the lifecycle callbacks the panel already watches.
-                manualButton.setOnClickListener(
+                rowManual.setOnClickListener(
                         v -> Manuals.open(getContext(), result, getDisplay()));
             });
         });
@@ -658,7 +668,7 @@ public final class GameInfoView extends LinearLayout {
         filename.setVisibility(View.GONE);
         facts.setVisibility(View.GONE);
         description.setVisibility(View.GONE);
-        manualButton.setVisibility(View.GONE);
+        rowManual.setVisibility(View.GONE);
         updatePlayVisibility();
         gallery.clear();
 

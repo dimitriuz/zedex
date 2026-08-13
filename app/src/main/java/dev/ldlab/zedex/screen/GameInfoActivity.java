@@ -57,6 +57,21 @@ public final class GameInfoActivity extends ZedexActivity {
     /** The file's own name, which is all this screen has to show until the store answers. */
     public static final String EXTRA_NAME = "dev.ldlab.zedex.extra.GAME_NAME";
 
+    /**
+     * The game's own file, when this screen was opened from the library.
+     *
+     * <b>Which bar this screen wears turns on it.</b> There are two ways in
+     * and they are two different states: from the machine's own ⓘ, where a
+     * game is running and what is wanted is the way back to it - the quick
+     * bar; and from the library's pane, where nothing is running and what is
+     * wanted is Play. Absent means the first, which is also what makes the
+     * machine's own call need no change.
+     *
+     * The rule underneath, which the panel follows too: the bar reflects
+     * whether there is a machine behind this screen.
+     */
+    public static final String EXTRA_URI = "dev.ldlab.zedex.extra.GAME_URI";
+
 
     /** Roughly what the artwork is drawn at here - a whole screen's worth,
      *  where the pane wanted a thumbnail. */
@@ -162,6 +177,22 @@ public final class GameInfoActivity extends ZedexActivity {
         column.setOrientation(LinearLayout.VERTICAL);
         column.setBackgroundColor(Palette.BACKING);
 
+        String file = getIntent().getStringExtra(EXTRA_URI);
+
+        // No machine behind this screen: the game's own actions instead of
+        // the machine's. Play and the manual, which is the pane's own row
+        // without its Details button - this is the details.
+        if (file != null) {
+            column.addView(actionRow(Uri.parse(file)), new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT));
+
+            column.addView(page, new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
+
+            return column;
+        }
+
         QuickBar bar = new QuickBar(this);
 
         // Back to the machine, which for a screen means going away: this was
@@ -205,6 +236,49 @@ public final class GameInfoActivity extends ZedexActivity {
 
         return column;
     }
+
+    /**
+     * Play and the manual, side by side - the pane's own row, without the
+     * Details button it does not need here.
+     *
+     * Text rather than icons, because that is what the pane uses and this is
+     * the same row in another place; the quick bar's icons are for the
+     * machine's controls, which these are not.
+     */
+    private View actionRow(Uri file) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setPadding(pixels(12), pixels(8), pixels(12), pixels(8));
+
+        android.widget.Button play = new android.widget.Button(this);
+        play.setText(R.string.library_play);
+        play.setOnClickListener(v -> {
+            // The same hand-over a row in the library makes - see
+            // LibraryActivity.openGame, whose own comment explains why the
+            // grant travels with it.
+            startActivity(new Intent(Intent.ACTION_VIEW, file, this, EmulatorActivity.class)
+                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    .putExtra(EmulatorActivity.EXTRA_LIBRARY_PATH, path));
+            finish();
+        });
+
+        row.addView(play, new LinearLayout.LayoutParams(0,
+                LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        rowManual = new android.widget.Button(this);
+        rowManual.setText(R.string.library_manual);
+        rowManual.setOnClickListener(v -> openTheManual());
+        rowManual.setVisibility(View.GONE);
+
+        row.addView(rowManual, new LinearLayout.LayoutParams(0,
+                LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        return row;
+    }
+
+    /** The action row's own manual button - the same answer reveals it as
+     *  reveals the bar's. */
+    private android.widget.Button rowManual;
 
     /** The bar's own manual button, revealed by {@link #loadManualButton}
      *  along with the one in the corner of the artwork. */
@@ -347,6 +421,7 @@ public final class GameInfoActivity extends ZedexActivity {
                 // hidden rather than deleted - the layout it sits in is the
                 // same one the pane and the panel share.
                 if (barManual != null) barManual.setVisibility(View.VISIBLE);
+                if (rowManual != null) rowManual.setVisibility(View.VISIBLE);
             });
         });
     }
