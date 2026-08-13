@@ -242,6 +242,15 @@ public final class PdfActivity extends ZedexActivity {
             ZoomableImageView view = new ZoomableImageView(PdfActivity.this);
             view.setZoomable(true);
 
+            // As wide as the screen, not wholly inside it. A portrait page
+            // fitted both ways in a landscape panel is scaled to the height,
+            // which leaves a column of text a third of the screen wide - the
+            // page is there and nobody can read it. Fitting the width fills
+            // the screen and lets the page run off the bottom, which is what
+            // reading is; a drag moves down it, and pinching still works from
+            // there.
+            view.setFitWidth(true);
+
             // The pager's own measured width, never MATCH_PARENT: in the
             // direction a list scrolls, MATCH_PARENT is measured UNSPECIFIED,
             // and a picture with no bitmap yet measures zero - which fills the

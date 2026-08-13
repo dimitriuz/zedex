@@ -254,7 +254,11 @@ public final class ZoomableImageView extends ImageView {
         @Override
         public boolean onScroll(MotionEvent from, MotionEvent to,
                                 float dx, float dy) {
-            if (scale <= Zoom.MINIMUM) return false;
+            // Not the zoom alone: a page fitted to the width is taller than
+            // the window at 1x, and refusing here would make it unreadable
+            // below the fold. What decides is whether there is anything to
+            // drag at all.
+            if (scale <= Zoom.MINIMUM && !biggerThanTheWindow()) return false;
 
             float wasX = offsetX;
             move(-dx, -dy);
@@ -315,8 +319,32 @@ public final class ZoomableImageView extends ImageView {
         apply();
     }
 
+    /**
+     * Whether 1x means "as wide as the window" rather than "wholly inside
+     * it".
+     *
+     * <b>A page is not a picture.</b> Fitting a portrait page into a landscape
+     * panel scales it to the <em>height</em>, which leaves a column of text a
+     * third of the screen wide and too small to read - correct for a cover,
+     * useless for a manual. Fitting the width instead fills the screen with
+     * the page and lets it run off the bottom, which is what reading is.
+     *
+     * The panning rule follows from it: with this on there is something to
+     * drag at 1x, so {@code onScroll} may not refuse below the zoom
+     * threshold - see there.
+     */
+    private boolean fitWidth;
+
+    /** See {@link #fitWidth}. Set before the first picture, since it decides
+     *  what 1x means for it. */
+    public void setFitWidth(boolean wanted) {
+        fitWidth = wanted;
+        if (zoomable) refit();
+    }
+
     /** How the picture would sit at 1x - {@code FIT_CENTER}'s own answer,
-     *  asked of the framework rather than worked out again here. */
+     *  asked of the framework rather than worked out again here, unless
+     *  {@link #fitWidth} says the width is what matters. */
     private void refit() {
         Drawable drawable = getDrawable();
         if (drawable == null || getWidth() == 0) return;
@@ -327,13 +355,33 @@ public final class ZoomableImageView extends ImageView {
         float high = drawable.getIntrinsicHeight();
         if (wide <= 0 || high <= 0) return;
 
-        float fit = Math.min(getWidth() / wide, getHeight() / high);
+        float fit = fitWidth ? getWidth() / wide
+                             : Math.min(getWidth() / wide, getHeight() / high);
 
         fitted.setScale(fit, fit);
+
+        // Centred both ways for a picture; for a page, centred across and
+        // pinned to the top, because a page is read from the top and
+        // centring one taller than the window starts it halfway down.
         fitted.postTranslate((getWidth() - wide * fit) / 2f,
-                             (getHeight() - high * fit) / 2f);
+                             fitWidth ? 0f : (getHeight() - high * fit) / 2f);
 
         apply();
+    }
+
+    /** Whether the picture as drawn is larger than the window in either
+     *  direction, which is the same question {@code apply} answers when it
+     *  clamps the offsets. */
+    private boolean biggerThanTheWindow() {
+        Drawable drawable = getDrawable();
+        if (drawable == null) return false;
+
+        fitted.getValues(values);
+
+        float wide = drawable.getIntrinsicWidth() * values[Matrix.MSCALE_X] * scale;
+        float high = drawable.getIntrinsicHeight() * values[Matrix.MSCALE_Y] * scale;
+
+        return wide > getWidth() + 0.5f || high > getHeight() + 0.5f;
     }
 
     private void apply() {
