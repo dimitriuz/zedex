@@ -391,7 +391,7 @@ public final class DetailPane extends FrameLayout {
         // the same game Play is about. Hidden for a folder or an archive,
         // which have nothing to tell.
         infoButton = new ImageButton(context);
-        infoButton.setImageResource(R.drawable.ic_zoom);
+        infoButton.setImageResource(R.drawable.ic_info);
         infoButton.setColorFilter(Palette.MUTED);
         infoButton.setBackground(Ripple.make(density));
         infoButton.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
@@ -402,7 +402,7 @@ public final class DetailPane extends FrameLayout {
         actions.addView(infoButton, new LinearLayout.LayoutParams(
                 pixels(48), LinearLayout.LayoutParams.MATCH_PARENT));
 
-        // Beside the magnifier rather than in the gallery it used to be a
+        // Beside the info icon rather than in the gallery it used to be a
         // page of - see Gallery's own class comment. Starts hidden, same as
         // infoButton does for a folder or an archive; show brings it back
         // once (and only if) Scraped#loadManual answers off the UI thread
