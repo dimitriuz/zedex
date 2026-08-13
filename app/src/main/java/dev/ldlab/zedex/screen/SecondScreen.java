@@ -716,6 +716,7 @@ public final class SecondScreen extends Presentation {
      * second display to put a window on.
      */
     void backPressed() {
+        android.util.Log.i("Zedex", "back: SecondScreen.backPressed");
         if (backHandler != null) backHandler.run();
     }
 

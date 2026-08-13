@@ -2264,6 +2264,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      * disabled as the sheet opens and closes.
      */
     private void handleBack() {
+        android.util.Log.i("Zedex", "back: EmulatorActivity.handleBack");
         // With the sheet open, back belongs to the sheet: up one page,
         // and out of the sheet altogether from the top of it.
         if (menu.back()) return;

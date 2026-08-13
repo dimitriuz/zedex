@@ -944,6 +944,7 @@ public final class LibraryActivity extends ZedexActivity {
      * cannot go stale.
      */
     private void handleBack() {
+        Log.i(TAG, "back: LibraryActivity.handleBack");
         if (catalogueBack()) return;
         if (popStack()) return;
 
@@ -962,6 +963,7 @@ public final class LibraryActivity extends ZedexActivity {
      * way off this app is the way onto any other, and Android's own.
      */
     private void panelBack() {
+        Log.i(TAG, "back: LibraryActivity.panelBack");
         if (catalogueBack()) return;
 
         popStack();
