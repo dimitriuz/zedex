@@ -1,169 +1,215 @@
-# Game details: one action bar, at the bottom of the words
+# Game details: one view, one action bar
 
 **Date:** 2026-08-13
 **Status:** approved, not yet implemented
+**Step 1 of 3** — see *Follow-ups* for steps 2 and 3.
 
-## What this changes
+## The problem
 
-The game's details are shown in three places, and each of them ends its actions
-differently: a row of three text buttons across the top, a `QuickBar` of four
-icons across the top, and a 50/50 row of two text buttons at the bottom — with
-manual and music additionally floating over the artwork's corner in two of them.
-This makes all three the same shape: a text button for the primary action taking
-the remaining width, then fixed 48dp icon buttons, at the bottom of the words
-lane. Nothing floats over the artwork any more.
+A game's details are drawn in three places, and every one of them is its own
+implementation of the same screen:
 
-That shape is not invented here. `DetailPane`, the library's own right-hand
-pane, already ends in exactly it — the action button, then ⓘ, 📖 and 🎵 as 48dp
-icons, in that order. This is the other two places following the one already in
-the codebase, and the icon order below is `DetailPane`'s.
+| | `GameInfoActivity` (681 lines) | `GameInfoView` (761 lines) |
+|---|---|---|
+| title, filename, facts, description | identical code | identical code |
+| authors, price, series, compilations | yes | **missing** |
+| gallery, viewer | yes | yes |
+| video autoplay, measured cover sizing | **missing** | yes |
+| `clear()`, `release()`, `setOnPlay`, `setOffersManual` | **missing** | yes |
+| actions | three text buttons, top | two text buttons, bottom |
 
-## Where the row goes
+`show(Meta)` is character-for-character identical in both but for one line and
+the extras block. `factsLine` exists in **four** files — those two plus
+`DetailPane` and `CataloguePane`.
 
-At the bottom of the **words** lane, *outside* the `ScrollView`.
+They diverged because they were written for different containers at different
+times: `GameInfoView` had to be a `View` because a `Presentation` shows views
+and a panel needs lifecycle hooks a screen does not, and `GameInfoActivity` came
+later and grew the extras rows the panel never got. The panel silently not
+showing authors, price, series or compilations was drift, not a decision.
 
-`GameInfoView` already states the reason in its own comment and it holds for all
-of them: a description long enough to scroll must never carry the button that
-starts the game out of reach with it.
+## What this step does
 
-In landscape this puts the row under the text and beside the image, which is
-what was asked for. In portrait, where the media is above and the words below,
-the same code lands it at the bottom of the screen at full width. There is no
-orientation special case — the row is a child of the words lane and the lane is
-what moves.
+One implementation — `GameInfoView` — with an action row the host configures.
+`GameInfoActivity` becomes a thin shell around it. `SecondScreen` keeps its
+current calls.
 
-Note the two screens disagree about which side the words are on:
-`GameInfoActivity` puts words left and media right (weights 3 and 2);
-`GameInfoView` puts media left and words right. Neither changes here. "Left of
-the image" is a description of `GameInfoActivity` in landscape, not a new rule.
+`GameInfoView` stays where it is, in `dev.ldlab.zedex.library.ui`. It is the
+more capable of the two and already a `View`; moving it as well as merging into
+it is churn for no gain, and the house rule is to extract first and move into
+packages after.
 
-## The three places
+What is left of `GameInfoActivity` afterwards, and nothing else:
+`attachBaseContext` and the title (inherited from `ZedexActivity`), hiding the
+action bar, reading the three intent extras, building one `GameInfoView`,
+configuring its row from whether `EXTRA_URI` is present, `setContentView`,
+`fitToSafeArea`, `showEntry`, and `onPause` → `release()`. Everything else it
+owns today — `words`, `media`, `load`, `show`, `extra`, `titlesOf`,
+`seriesLine`, `factsLine`, `append`, `openViewer`, `loadManualButton`,
+`loadMusicButton`, `artworkHeight`, `wrap`, `pixels` — either moves into the
+view or is already there in duplicate and is deleted.
 
-### 1. `GameInfoActivity` opened from the library — `EXTRA_URI` present
+## The action row
 
-    [      PLAY      ] [📖] [🎵] [‹]
+Built once, at the bottom of the **words** lane, *outside* the `ScrollView` —
+which is the rule `GameInfoView` already states in its own comment and which
+holds for every host: a description long enough to scroll must never carry the
+button that starts the game out of reach with it.
 
-- `actionRow` moves from the top of the outer column to the bottom of the words
-  lane inside `page()`.
-- Play stays an `android.widget.Button` with `R.string.library_play`, weight 1,
-  taking whatever width the icons leave.
-- Manual becomes a 48dp `ImageButton` with `ic_manual`, keeping its current
-  behaviour exactly: built hidden, revealed only when `loadManualButton`
-  answers that this game has one.
-- Music becomes a 48dp `ImageButton` with `ic_music` in the row rather than over
-  the artwork, on the same terms: built hidden, revealed only when
-  `loadMusicButton` finds a scraped `.ay`. Its action is unchanged —
-  `EmulatorActivity` with `EXTRA_MUSIC`, because a tune is the Spectrum running
-  the game's own driver and that is where the Spectrum is.
-- The last button stops being a text button reading "Library" and becomes a 48dp
-  `ImageButton` with `ic_chevron_left`, described as `R.string.menu_back`
-  ("Back"). **Its action does not change** — it is the same `finish()`, and
-  finishing this screen is what returns to the library.
+The shape is `DetailPane`'s, which already has it: a text button for the primary
+action taking the remaining width, then fixed 48dp icon buttons, in the order
+action → manual → music.
 
-`R.string.menu_back` already exists and is already translated, so this adds no
-new string and does not trigger the nine-files rule.
+    library : [      PLAY      ] [📖] [🎵] [‹]
+    machine : [‹] [📖] [🎵] [☰] [✕]
+    panel   : [      PLAY      ] [📖] [🎵]
 
-### 2. `GameInfoActivity` opened from the machine — `EXTRA_URI` absent
+### Who owns what
 
-    [‹] [📖] [🎵] [☰] [✕]
+The view owns the row's **shape** and the two icons it can answer for itself.
+The host owns **which other actions exist and what they do**. That split is what
+keeps the view from needing to know about `EmulatorActivity` or `LibraryActivity`.
 
-- The `QuickBar` at the top of the outer column is replaced by the same row in
-  the same place as variant 1. Five 48dp icons, no Play — the game is already
-  running, so there is nothing to start.
-- Every action is unchanged:
-  - `‹` — `finish()`. The machine is what is behind this screen, so finishing
-    returns to the emulator. The icon changes from `ic_chip` to
-    `ic_chevron_left` so both variants say "back" the same way; the content
-    description becomes `R.string.menu_back`.
-  - `📖` — `openTheManual()`, hidden until resolved, as now.
-  - `🎵` — as in variant 1, hidden until resolved. `loadMusicButton` is already
-    called for both variants, so this needs no new condition.
-  - `☰` — `EmulatorActivity` with `EXTRA_OPEN_MENU`, then `finish()`. A sheet
-    built over another activity's window is not something this activity can
-    raise, which is why it asks rather than opens.
-  - `✕` — `LibraryActivity` with `EXTRA_FROM_MENU`, `REORDER_TO_FRONT` and
-    `NEW_TASK`, then `finish()`.
+- `setPrimaryAction(int labelRes, Runnable)` — the text button, weight 1.
+  Never called means no text button, which is the machine variant.
+- `addLeadingAction(int icon, int descriptionRes, Runnable)` — 48dp, before the
+  manual.
+- `addTrailingAction(int icon, int descriptionRes, Runnable)` — 48dp, after the
+  music.
+- **Manual and music are the view's own**, not host-supplied: it is the view
+  that runs the off-thread `Artwork.manual` / `Artwork.music` queries and
+  reveals each icon only when the answer arrives. `setOffersManual(boolean)`
+  keeps its existing meaning and callers — false where the borrowed quick bar is
+  carrying the manual instead. It governs the manual only, not the music.
 
-Back **leads** here and **trails** in variant 1. That is deliberate, not an
-oversight: here it is the primary reason to leave the screen, and there it is
-the last resort after Play.
+`addLeadingAction`/`addTrailingAction` deliberately mirror `QuickBar.addAction`,
+which is the same idea already in this codebase.
 
-`QuickBar` is no longer used by `GameInfoActivity` at all after this. It stays
-where it is — `EmulatorActivity` owns it and lends it to the panel, which is
-untouched.
+### Per host
 
-### 3. `GameInfoView` — the second screen
+**`GameInfoActivity`, opened from the library** (`EXTRA_URI` present)
 
-    [      PLAY      ] [📖] [🎵]
+- primary: `library_play` → `ACTION_VIEW` to `EmulatorActivity` with
+  `FLAG_GRANT_READ_URI_PERMISSION` and `EXTRA_LIBRARY_PATH`, then `finish()`.
+- trailing: `ic_chevron_left`, described `menu_back` → `finish()`.
 
-- `rowManual` stops being a `Button` with `R.string.library_manual` and becomes
-  a 48dp `ImageButton` with `ic_manual`, described by the same string.
-- `musicButton` moves out of the cover box and into the row as a 48dp
-  `ImageButton`, keeping `ic_music`, its description and its behaviour.
-- The row goes from two weight-1 children to one weight-1 child (Play) and two
-  fixed 48dp children.
-- `setOffersManual(boolean)` keeps its current meaning and its current callers:
-  false hides the manual because the borrowed quick bar is carrying it instead.
-  It governs the manual only, not the music.
-- The panel's borrowed quick bar is not touched.
+The last button stops being a text button reading "Library". **Its action does
+not change** — the same `finish()`, and finishing this screen is what returns to
+the library. `R.string.menu_back` already exists and is translated, so this adds
+no new string and does not trigger the nine-files rule.
 
-## Cleanup that comes with it
+**`GameInfoActivity`, opened from the machine** (`EXTRA_URI` absent)
 
-**`GameInfoActivity.manualButton`** — the `ImageButton` over the top-right corner
-of the artwork — is removed. It is already dead: built, set `GONE`, and nothing
-ever sets it visible or gives it a click listener. A comment on
-`loadManualButton` says it was "left built and hidden rather than deleted". With
-the bar carrying a 📖 icon there is no future in which it comes back, so the
-field, its construction and its layout params go.
+- no primary — the game is already running, so there is nothing to start.
+- leading: `ic_chevron_left`, described `menu_back` → `finish()`. The machine is
+  what is behind this screen, so finishing returns to the emulator. The icon
+  changes from `ic_chip`.
+- trailing: `ic_menu` → `EmulatorActivity` with `EXTRA_OPEN_MENU`, then
+  `finish()`; then `ic_close` → `LibraryActivity` with `EXTRA_FROM_MENU`,
+  `REORDER_TO_FRONT`, `NEW_TASK`, then `finish()`.
 
-**`GameInfoActivity.musicButton`'s corner placement** goes with it — the button
-survives, in the row. Its `FrameLayout.LayoutParams` and the stacking offset
-(`pixels(16) + pixels(48) + pixels(8)`, which only existed to sit below the
-manual) are deleted rather than adjusted.
+Back **leads** here and **trails** in the library variant. Deliberate: here it
+is the primary reason to leave the screen, there it is the last resort after
+Play.
 
-**`GameInfoView.musicButton`'s corner placement** likewise, including its own
-stacking offset (`pixels(12) + pixels(48) + pixels(8)`) — an offset that already
-made room for a manual button that is not there, which is its own small argument
-for the move.
+`QuickBar` is no longer used by `GameInfoActivity` after this. It stays where it
+is — `EmulatorActivity` owns it and lends it to the panel, untouched.
 
-**`GameInfoView.disc()`** becomes unused once the music button is no longer
-floating over artwork, and is removed. It exists solely to give a button on a
-picture a background that wins against both pale and dark box art; a button in a
-row does not need one.
+**`SecondScreen`** — primary `library_play` → the existing `onPlay` runnable, and
+nothing else. Its `setOffersManual`, `setOnForeignScreen`, `setOnPlay`,
+`setAutoplay`, `showEntry`, `clear` and `release` calls are unchanged.
 
-After this, `media()` in `GameInfoActivity` and the cover box in `GameInfoView`
-contain the gallery and nothing else, and neither needs to be a `FrameLayout`
-for the sake of an overlay — though changing the container type is optional and
-not required by this design.
+## Nothing floats over the artwork any more
 
-Every comment that explains corner-versus-bar or manual-above-music placement is
-rewritten rather than left, per the house rule that comments do not move with
-the code.
+Both corner buttons go.
+
+- **`GameInfoActivity.manualButton`** is removed. It is already dead: built, set
+  `GONE`, and nothing ever shows it or gives it a click listener — a comment
+  says it was "left built and hidden rather than deleted".
+- **`GameInfoActivity.musicButton`** survives, in the row. Its
+  `FrameLayout.LayoutParams` and the stacking offset that only existed to sit
+  below the manual are deleted rather than adjusted.
+- **`GameInfoView.musicButton`** likewise, including its own stacking offset
+  which already made room for a manual button that is not there.
+- **`GameInfoView.disc()`** becomes unused and is removed. It exists solely so a
+  button sitting on artwork wins against both pale and dark box art; a button in
+  a row needs no such thing.
+
+## One conflict this forces, and how it is settled
+
+The two screens put the media on opposite sides in landscape:
+`GameInfoActivity` is words left / media right (weights 3 and 2);
+`GameInfoView` is media left / words right. Merging means one of them changes.
+
+**Resolved as words left, media right** — the activity's arrangement, and the
+one the action row was described against ("at the bottom, left of the image").
+**The panel therefore swaps sides.** That is the one deliberate visible change
+to the second screen in this step, and it is called out here rather than
+discovered on the device. It is not made a parameter: a knob for this is the
+kind that multiplies, and one arrangement is the point of the exercise.
+
+## Other behaviour the merge changes
+
+Each of these is the activity inheriting something the view already does. None
+is a regression, and all need looking at on the device:
+
+- **The activity gains video autoplay**, following the same
+  `libraryVideoAutoplay` preference the panel reads.
+- **The activity gains measured cover sizing** (`applyCoverSize`) in place of
+  its fixed `artworkHeight()` and `ARTWORK_TARGET_DP`.
+- **The panel gains the extras rows** — authors, price, series, compilations,
+  contents. This is the drift being corrected.
+- `openViewer` keeps the view's version, which stops the video and announces
+  nothing. That is load-bearing for the panel (announcing our own screen is what
+  took the panel down for good once) and harmless in the activity.
+- `setOnForeignScreen` is never set by the activity, so it stays null and
+  nothing is announced.
 
 ## What is deliberately not changed
 
-- The actions behind every button. This is where they sit and what they look
-  like, nothing else.
-- `EmulatorActivity`'s own quick bar, `applyBarMode`, `showOnly` and
+- What any button does. Only where the buttons sit and what they look like.
+- `EmulatorActivity`'s own quick bar, `applyBarMode`, `showOnly`,
   `showAllExcept`.
-- `DetailPane`, which already has the target shape.
-- Which side the words are on in either screen.
-- `GameInfoActivity`'s two-ways-in rule (`EXTRA_URI` present or absent decides
-  which bar the screen wears). The rule stands; only what each bar looks like
-  changes.
+- `DetailPane` — step 2.
+- `CataloguePane` — step 3.
+- `GameInfoActivity`'s two-ways-in rule: `EXTRA_URI` present or absent decides
+  which bar the screen wears, and the panel follows the same rule. The rule
+  stands; only what each bar looks like changes.
+- The three intent extras `EXTRA_PATH`, `EXTRA_NAME`, `EXTRA_URI` and both
+  callers (`LibraryActivity.showInfo`, `EmulatorActivity`'s ⓘ).
 
 ## Testing
 
-- `DetailPaneTest` covers the library's pane, which is unchanged — it should
-  keep passing untouched and is the check that the shared pattern was not
-  disturbed.
-- Device verification on the AYN Thor Lite for all three: details from the
-  library, details from the machine's ⓘ, and the second screen's panel — in
-  both orientations, since the row's position depends on the words lane and the
+- `DetailPaneTest` covers the library's pane, untouched in this step. It should
+  keep passing without modification, and is the check that nothing shared moved
+  under it.
+- Device verification on the AYN Thor Lite for all three hosts — details from
+  the library, details from the machine's ⓘ, and the panel — **in both
+  orientations**, since the row's position depends on the words lane and the
   lane swaps ends between them.
-- A game **without** a manual and **without** music in each place, since both
-  icons' whole behaviour is being hidden until an off-thread answer arrives, and
-  a screen offering a manual or a tune for a game that has neither is the
-  failure this design can most easily introduce. A game **with** music is the
-  other side of it and is rarer — about one game in fifty — so it needs
-  choosing deliberately rather than being met by chance.
+- A game with **no manual and no music** in each host: both icons' whole
+  behaviour is being hidden until an off-thread answer arrives, and offering a
+  manual or a tune for a game that has neither is the failure this most easily
+  introduces.
+- A game **with** music, chosen deliberately — a tune belongs to about one game
+  in fifty, so it will not be met by chance.
+- The panel specifically, for the two changes it takes: the extras rows arriving
+  and the media swapping sides.
+
+## Follow-ups, named here so they are not designed twice
+
+**Step 2 — `DetailPane` adopts the shared view, condensed.**
+The pane leaves out the description *on purpose*, and it cost something to
+learn: "a description does not fit on one line, and the version of this that
+tried ran out of room in landscape and squeezed itself down to 26px — a scroll
+bar with no room to scroll in." So condensed is a content decision, not a
+smaller copy: facts that fit on one line each, no description, no extras, a
+weighted spacer holding the buttons at the foot, cover about two fifths of the
+pane's height. A density parameter is introduced **then**, not now — step 1 has
+one density and an enum with one value in it is not a design. `DetailPane` keeps
+`Entry`, containers, `Host`, `refreshFacts`, `standDown` and the ⓘ button; only
+its "this entry is a game" rendering moves.
+
+**Step 3 — one `factsLine`.** Four copies today, including `CataloguePane`'s,
+which describes catalogue items rather than local games and may not fit the same
+helper. Worth checking rather than assuming.
