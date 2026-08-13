@@ -117,6 +117,20 @@ public final class QuickBar extends LinearLayout implements Rows {
         secondary.setOrientation(VERTICAL);
         secondary.setVisibility(GONE);
 
+        // Belt and suspenders: showOnly/showAllExcept already call resize()
+        // themselves, immediately, so the row is right the same frame it
+        // changes. But a caller can reach past that API straight to a child's
+        // own setVisibility - EmulatorActivity's fullscreen icon does exactly
+        // that when a panel takes the controls - and nothing then tells this
+        // class its count changed. A visibility change that survives to a
+        // layout pass always resizes primary (a hidden child stops claiming
+        // width), so watching primary's own layout catches every such call,
+        // known or not, without every caller having to remember this class
+        // exists. resize() itself is the guard against a loop: once the cell
+        // matches what is already applied it returns without touching a
+        // child, so the extra pass this triggers settles in one round.
+        primary.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> resize());
+
         LayoutParams below = new LayoutParams(LayoutParams.WRAP_CONTENT,
                                               LayoutParams.WRAP_CONTENT);
         below.topMargin = Math.round(6 * density);
