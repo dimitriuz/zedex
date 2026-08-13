@@ -9,12 +9,12 @@ import android.content.Context;
  * The bits of a facts line that more than one screen has to render the same
  * way.
  *
- * Three screens draw one: the library's pane, {@code GameInfoView} on a
- * second screen's panel, and {@code GameInfoActivity}. Each builds its own
- * line - they show different numbers of facts, on purpose, because a strip
- * beside a grid has less room than a whole screen - but a fact that appears on
- * more than one of them has to <em>read</em> the same on all of them, and
- * three copies of the wording is three places for it to drift. {@code
+ * Two build one: the library's pane, and {@code GameInfoView} - which is the
+ * details wherever they appear, a second screen's panel or {@code
+ * GameInfoActivity}'s whole window. The two show different numbers of facts,
+ * on purpose, because a strip beside a grid has less room than a whole screen
+ * - but a fact that appears on both has to <em>read</em> the same on both, and
+ * two copies of the wording is two places for it to drift. {@code
  * Filters.ratingLabel} exists for the same reason and could not be reused
  * here: that class is deliberately free of Android, and this needs a
  * translated word.

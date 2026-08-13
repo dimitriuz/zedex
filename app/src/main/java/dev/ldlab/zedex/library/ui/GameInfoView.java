@@ -32,9 +32,14 @@ import java.util.List;
 
 /**
  * Everything known about one game - the gallery, the name, the facts, the
- * description - built from nothing but its path, the same page {@code
- * GameInfoActivity} builds in its own {@code onCreate}. Pulled out into a
- * view of its own because a second screen wants it too, and a {@link
+ * description, the action row - built from nothing but its path. <b>The one
+ * implementation of these details</b>: {@code GameInfoActivity} had a second
+ * copy of every line of it until that screen was reduced to this view in an
+ * activity, and the two had drifted apart in both directions - the panel had
+ * no extras rows, the screen no autoplay and no measured cover.
+ *
+ * A view of its own rather than a screen because a second screen wants it
+ * too, and a {@link
  * android.app.Presentation} belongs to whichever activity opened it: what
  * {@link dev.ldlab.zedex.screen.SecondScreen} shows cannot be borrowed from
  * another activity's layout the way it borrows the emulator's own controls,
@@ -54,11 +59,11 @@ public final class GameInfoView extends LinearLayout {
     private static final String TAG = "Zedex";
 
 
-    /** Roughly what the artwork is decoded at - a whole panel's worth, the
-     *  same reasoning {@code GameInfoActivity}'s own target follows, bigger
-     *  than that screen's own 360dp because {@link #applyCoverSize} lets the
-     *  box grow to most of the panel's own height now, which is more
-     *  picture than a phone screen ever gave it. */
+    /** Roughly what the artwork is decoded at - a whole panel's worth, and
+     *  bigger than the 360dp the details screen decoded at while it had a
+     *  gallery of its own, because {@link #applyCoverSize} lets the box grow
+     *  to most of the lane's own height now, which is more picture than a
+     *  phone screen ever gave it. */
     private static final int ARTWORK_TARGET_DP = 480;
 
     /** The cover box's own shape - box art's, 3:4, the same ratio {@link
@@ -257,17 +262,16 @@ public final class GameInfoView extends LinearLayout {
             }
         });
 
-        // Bigger than the pane's own, and than GameInfoActivity's - both are
-        // read close up in the hand, where this is a fixed panel meant to be
-        // read at a slight distance and sized to match the picture beside it
-        // now that the picture is no longer a thumbnail either.
+        // Bigger than the pane's own: that is a strip beside a grid, read
+        // close up in the hand, where this fills a panel or a screen and is
+        // meant to be read at a slight distance - and to match the picture
+        // beside it, now that the picture is no longer a thumbnail either.
         LinearLayout words = new LinearLayout(context);
         words.setOrientation(VERTICAL);
         words.setPadding(pixels(24), pixels(24), pixels(24), pixels(24));
 
         // The filename until the store answers with a scraped name, exactly
-        // as GameInfoActivity's own title does - this is never blank while
-        // it waits.
+        // as a row in the library does - this is never blank while it waits.
         title = new TextView(context);
         title.setTextColor(Palette.TEXT);
         title.setTextSize(24);
@@ -482,10 +486,10 @@ public final class GameInfoView extends LinearLayout {
     /**
      * Fills every view from {@code relativePath}'s own store entry and
      * artwork - the title at once from {@code name}, everything scraped
-     * once the store and the gallery answer off the UI thread; mirrors
-     * {@code GameInfoActivity#onCreate}. Safe to call again for a different
-     * game at any time - {@link #token} tells a answer that arrives after
-     * this game was already left that it no longer applies.
+     * once the store and the gallery answer off the UI thread. Safe to call
+     * again for a different game at any time - {@link #token} tells an answer
+     * that arrives after this game was already left that it no longer
+     * applies.
      */
     public void showEntry(String relativePath, String name) {
         int mine = ++token;
@@ -530,9 +534,11 @@ public final class GameInfoView extends LinearLayout {
         Context app = getContext().getApplicationContext();
 
         Work.run("pane-info", () -> {
-            // See GameInfoActivity.load: forPath never parses, so a caller
-            // that cannot show anything useful without the store says so and
-            // waits, on its own thread.
+            // forPath answers from memory and never parses, so a view opened
+            // before the store has been read - straight from ES-DE, most
+            // often - would otherwise show a game about which nothing is
+            // known. This is already a thread of its own, which is the only
+            // place waiting is allowed.
             Metadata.ensureLoaded(app);
 
             Meta meta = Metadata.forPath(app, relativePath);
@@ -805,9 +811,9 @@ public final class GameInfoView extends LinearLayout {
     }
 
     /**
-     * Developer, publisher, year, genre and players, joined the same way
-     * {@code GameInfoActivity}'s own line is and skipping whatever is not
-     * known - which, in a collection scraped by ES-DE, is usually most of it.
+     * Developer, publisher, year, genre and players, joined the same way the
+     * pane's own line is and skipping whatever is not known - which, in a
+     * collection scraped by ES-DE, is usually most of it.
      */
     private static String factsLine(android.content.Context context, Meta meta) {
         StringBuilder text = new StringBuilder();
