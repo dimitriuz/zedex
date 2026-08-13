@@ -4,7 +4,9 @@ import dev.ldlab.zedex.library.scrape.ScrapeException;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.Locale;
 
 /**
@@ -334,6 +336,30 @@ public interface Catalogue {
 
         /** Empty until {@link Catalogue#item} has been asked - a list does
          *  not need them and they are what makes that call expensive. */
+        /**
+         * Every format this entry holds, lower-case and without a dot.
+         *
+         * Answered from the files themselves, which a <em>row</em> carries as
+         * well as a fetched record does - see {@code
+         * ZxInfoCatalogue.itemFrom}. That is what lets a shelf be filtered by
+         * format without a request per row, and it has to be done here rather
+         * than asked of the service: {@code format}, {@code filetype} and
+         * {@code downloadtype} are all ignored by ZXInfo's search, measured
+         * against a deliberate nonsense parameter as the control, so a filter
+         * that trusted one of them would quietly return everything.
+         */
+        public Set<String> formats() {
+            Set<String> found = new LinkedHashSet<>();
+
+            for (Version version : versions()) {
+                for (Download file : version.files()) {
+                    if (file != null && !file.format().isEmpty()) found.add(file.format());
+                }
+            }
+
+            return found;
+        }
+
         public List<Version> versions() {
             return Collections.unmodifiableList(versions);
         }

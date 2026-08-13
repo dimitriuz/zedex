@@ -1,6 +1,7 @@
 package dev.ldlab.zedex.library.ui;
 
 import dev.ldlab.zedex.R;
+import dev.ldlab.zedex.library.Types;
 import dev.ldlab.zedex.library.catalogue.Catalogue;
 import dev.ldlab.zedex.library.scrape.Http;
 import dev.ldlab.zedex.library.scrape.ScrapeException;
@@ -25,6 +26,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Locale;
 import java.util.Deque;
 import java.util.List;
 
@@ -104,6 +106,10 @@ public final class CatalogueView extends FrameLayout {
 
     private final EditText searchField;
     private final TextView header;
+
+    /** "Format · No filter", and the way to change it - see {@link
+     *  #chooseFormat}. */
+    private final TextView formatRow;
     private final TextView emptyLabel;
     private final ProgressBar spinner;
     private final RecyclerView recycler;
@@ -124,6 +130,22 @@ public final class CatalogueView extends FrameLayout {
      *  it - a divider with nothing on the far side of it is a line across the
      *  screen for no reason. */
     private final View paneDivider;
+
+    /**
+     * Which format is wanted, or null for all of them.
+     *
+     * <b>Filtered here and not by the service.</b> ZXInfo's search has no such
+     * parameter - {@code format}, {@code filetype} and {@code downloadtype}
+     * are every one of them silently ignored, measured against a nonsense
+     * parameter as the control - so this keeps what arrives instead. It costs
+     * no extra request: a row already carries its own files, which is what
+     * {@code ZxInfoCatalogue.itemFrom} was changed to keep.
+     *
+     * What it does cost is pages. An rzx is on about 13.5% of entries, so a
+     * screenful is three or four pages rather than one, and {@link #arrived}
+     * fetches again while a page has added nothing - see {@link #CHASE}.
+     */
+    private String format;
 
     /** Where a person is. Empty means the roots, which is also what makes
      *  {@link #onBack()} able to say "not mine". */
@@ -232,6 +254,21 @@ public final class CatalogueView extends FrameLayout {
         column.addView(header, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        // The one control the catalogue has of its own, and it is a row rather
+        // than a chip because it has to say what it is set to as well as offer
+        // to change it - the same shape the library's own Filter row has, and
+        // the same two strings, so this adds no words to translate.
+        formatRow = new TextView(context);
+        formatRow.setTextColor(Palette.MUTED);
+        formatRow.setTextSize(13);
+        formatRow.setPadding(pad, 0, pad, Math.round(6 * density));
+        formatRow.setOnClickListener(v -> chooseFormat());
+        column.addView(formatRow, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        showFormat();
 
         FrameLayout content = new FrameLayout(context);
 
@@ -552,6 +589,65 @@ public final class CatalogueView extends FrameLayout {
     }
 
     /**
+     * The format filter, chosen from what this app can actually do something
+     * with.
+     *
+     * <b>The list is {@code Types.OPENABLE} and nothing invented here.</b> A
+     * filter offering a format the app cannot open would be a search whose
+     * every result is a dead end, which is the same fault as a chooser that
+     * changes nothing; and a list of its own would be a second place to keep
+     * in step with the first. {@code gz} is left out for the one reason it is
+     * left out of {@code Pick.PREFERENCE} too - it is a wrapper rather than a
+     * format, and nothing is catalogued as one.
+     *
+     * Shown upper-cased, the way the row's own badge shows it, and reusing the
+     * library's own two words - Format, No filter - so this adds nothing to
+     * translate.
+     */
+    private void chooseFormat() {
+        List<String> formats = new ArrayList<>();
+        for (String openable : Types.openable()) {
+            if (!"gz".equals(openable)) formats.add(openable);
+        }
+
+        String[] labels = new String[formats.size() + 1];
+        labels[0] = getContext().getString(R.string.library_filter_none);
+        for (int at = 0; at < formats.size(); at++) {
+            labels[at + 1] = formats.get(at).toUpperCase(Locale.ROOT);
+        }
+
+        new android.app.AlertDialog.Builder(getContext())
+                .setTitle(R.string.library_filter_format)
+                .setItems(labels, (dialog, which) -> {
+                    setFormat(which == 0 ? null : formats.get(which - 1));
+                })
+                .show();
+    }
+
+    /** The filter, and the shelf read again from its first page: a filter
+     *  applied to what is already on screen would show whichever rows this
+     *  view happens to have fetched rather than what the shelf holds. */
+    private void setFormat(String wanted) {
+        if (format == null ? wanted == null : format.equals(wanted)) return;
+
+        format = wanted;
+        chased = 0;
+        showFormat();
+
+        if (stack.isEmpty()) return;   // the roots are shelves, not rows
+        restart();
+    }
+
+    private void showFormat() {
+        String value = format == null
+                ? getContext().getString(R.string.library_filter_none)
+                : format.toUpperCase(Locale.ROOT);
+
+        formatRow.setText(getContext().getString(R.string.library_filter_format)
+                          + " · " + value);
+    }
+
+    /**
      * Back out of one shelf.
      *
      * @return false at the roots, so Back keeps meaning what it means
@@ -799,7 +895,13 @@ public final class CatalogueView extends FrameLayout {
         }
 
         rows.addAll(result.shelves());
-        rows.addAll(result.items());
+
+        int before = rows.size();
+        for (Catalogue.Item item : result.items()) {
+            if (wanted(item)) rows.add(item);
+        }
+        boolean addedSomething = rows.size() > before;
+
         adapter.setRows(rows);
 
         page++;
@@ -810,6 +912,36 @@ public final class CatalogueView extends FrameLayout {
                                      : labelOf(stack.peek()) + " · " + count);
 
         updateState();
+
+        // A filtered page can add nothing at all and still not be the end of
+        // the shelf, and nothing would ask again: the scroll listener fires on
+        // scrolling, and a list that gained no rows cannot be scrolled. So the
+        // chase continues here, while pages keep arriving empty-handed.
+        //
+        // Bounded, because the alternative is a filter nobody has anything for
+        // walking a ten-thousand-row shelf a page at a time. Ten pages is
+        // three hundred entries, about two and a half seconds at the pacing
+        // this app keeps, and then it stops and says the shelf is empty -
+        // which for that format and that shelf it may as well be. Scrolling
+        // starts it again.
+        if (!addedSomething && hasMore && ++chased < CHASE) {
+            fetch();
+            return;
+        }
+
+        if (addedSomething) chased = 0;
+    }
+
+    /** How many pages in a row may arrive with nothing this filter wants
+     *  before the chase gives up - see {@link #arrived}. */
+    private static final int CHASE = 10;
+
+    private int chased;
+
+    /** Whether this row is one the filter wants. Everything, when there is no
+     *  filter - which is the ordinary case and costs a null check. */
+    private boolean wanted(Catalogue.Item item) {
+        return format == null || item.formats().contains(format);
     }
 
     private String labelOf(Catalogue.Shelf shelf) {

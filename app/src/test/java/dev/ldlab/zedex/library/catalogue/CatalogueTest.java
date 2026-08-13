@@ -265,4 +265,66 @@ public class CatalogueTest {
         assertEquals(41232, file.size());
         assertTrue(file.url().startsWith("https://"));
     }
+
+    // --- what an entry holds ---------------------------------------------------------
+
+    private static Catalogue.Download file(String format) {
+        return new Catalogue.Download("https://example/x." + format, format, 100);
+    }
+
+    private static Catalogue.Item holding(Catalogue.Download... files) {
+        return new Catalogue.Item("1", "A game", "1987", "Ocean", "Arcade Game",
+                                  "Available", null,
+                                  Collections.singletonList(
+                                          new Catalogue.Version(null, "1987",
+                                                                Arrays.asList(files))));
+    }
+
+    /**
+     * An entry can say which formats it holds, which is the whole of how a
+     * shelf is filtered by one.
+     *
+     * ZXInfo's search cannot do it - format, filetype and downloadtype are all
+     * silently ignored, measured against a nonsense parameter as the control -
+     * so the app keeps what arrives. It costs no request, because a row
+     * carries its own files.
+     */
+    @Test
+    public void anitemKnowsWhichFormatsItHolds() {
+        Catalogue.Item item = holding(file("tzx"), file("z80"), file("rzx"));
+
+        assertTrue(item.formats().contains("tzx"));
+        assertTrue(item.formats().contains("rzx"));
+        assertFalse("a format it does not hold", item.formats().contains("tap"));
+        assertEquals(3, item.formats().size());
+    }
+
+    /** The same format twice is one format: a release with two tapes is still
+     *  a tzx entry, and a filter counts entries rather than files. */
+    @Test
+    public void thesameFormatTwiceIsOneFormat() {
+        assertEquals(1, holding(file("tzx"), file("tzx")).formats().size());
+    }
+
+    /** Across every version, not only the first - which is where a recording
+     *  hangs when the entry has more than one release. */
+    @Test
+    public void formatsAreReadAcrossEveryVersion() {
+        Catalogue.Item item = new Catalogue.Item(
+                "1", "A game", "1987", "Ocean", "Arcade Game", "Available", null,
+                Arrays.asList(new Catalogue.Version("first", "1987",
+                                                    Collections.singletonList(file("tap"))),
+                              new Catalogue.Version("later", "1988",
+                                                    Collections.singletonList(file("trd")))));
+
+        assertTrue(item.formats().contains("tap"));
+        assertTrue(item.formats().contains("trd"));
+    }
+
+    /** An entry with no files at all answers nothing rather than throwing -
+     *  a row can exist for a title nobody has uploaded anything for. */
+    @Test
+    public void anitemWithNoFilesHoldsNoFormats() {
+        assertTrue(anItem("1").formats().isEmpty());
+    }
 }

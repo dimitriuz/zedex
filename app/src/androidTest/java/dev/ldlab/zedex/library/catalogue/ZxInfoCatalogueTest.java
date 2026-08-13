@@ -103,6 +103,48 @@ public class ZxInfoCatalogueTest {
             + "]}}";
 
     /**
+     * {@code /search?query=Jetpac&titlesonly=true&mode=compact&size=8}, one
+     * hit of nine, carrying the part that matters here: <b>a search hit has
+     * its releases</b>.
+     *
+     * <b>Recorded, on 2026-08-13, and the reason this fixture exists.</b> The
+     * code used to read the releases only for {@code /games}, on the belief
+     * that a list reply did not carry them - so every row was built with no
+     * files and the filter this pins could not have existed. The live reply
+     * says otherwise: the two release files below, their types, their formats
+     * and their sizes are the service's own bytes, and the whole {@code
+     * _source} was compared field by field against {@code /games/0009362} -
+     * eighteen of nineteen shared fields identical, {@code releases} differing
+     * only by a {@code releaseSeq} nothing here reads, and twenty-one further
+     * fields present only in the record, which is why the pane still fetches
+     * it.
+     *
+     * Trimmed to one hit and to the fields this test reads; nothing invented.
+     * {@code Distribution denied} is what this entry really says, and the
+     * paths really are under {@code /denied/}.
+     */
+    private static final String SEARCH_WITH_FILES = "{"
+            + "\"hits\":{\"total\":{\"value\":9},\"hits\":["
+            + "  {\"_id\":\"0009362\",\"_source\":{"
+            + "     \"title\":\"Jetpac\",\"originalYearOfRelease\":1983,"
+            + "     \"genreType\":\"Arcade Game\","
+            + "     \"availability\":\"Distribution denied\","
+            + "     \"publishers\":[{\"name\":\"Ultimate Play The Game\"}],"
+            + "     \"releases\":[{\"files\":["
+            + "        {\"type\":\"Computer/ZX Interface 2 cartridge ROM image dump\","
+            + "         \"format\":\"ROM image dump (ROM)\","
+            + "         \"path\":\"/denied/entries/0009362/Jetpac.rom.zip\","
+            + "         \"size\":9662},"
+            + "        {\"type\":\"Tape image\",\"format\":\"Perfect tape (TZX)\","
+            + "         \"path\":\"/denied/entries/0009362/Jetpac.tzx.zip\","
+            + "         \"size\":9930}]}],"
+            + "     \"additionalDownloads\":[{"
+            + "        \"type\":\"Loading screen\",\"format\":\"Screen dump (SCR)\","
+            + "        \"path\":\"/pub/sinclair/screens/load/j/scr/Jetpac.scr\","
+            + "        \"size\":6912}]}}"
+            + "]}}";
+
+    /**
      * {@code /games/byletter/Z?mode=compact&size=30&offset=0}, trimmed to two
      * of its thirty hits and the fields a row draws.
      *
@@ -472,6 +514,39 @@ public class ZxInfoCatalogueTest {
         assertEquals("Ocean Software Ltd", first.publisher());
         assertEquals("Arcade Game", first.kind());
         assertTrue(first.available());
+    }
+
+    /**
+     * A row from a search carries its own files, and that is what makes a
+     * format filter possible at all.
+     *
+     * ZXInfo's search has no format filter: {@code format}, {@code filetype}
+     * and {@code downloadtype} are every one of them <em>ignored</em> rather
+     * than refused - measured against a deliberate nonsense parameter, which
+     * returned the same total as no parameter at all. So the app keeps what
+     * arrives, which it can only do if a row knows what it holds. This used to
+     * read the releases only for {@code /games}; see {@link
+     * #SEARCH_WITH_FILES}, which is the live reply that says otherwise.
+     *
+     * The two formats are the fixture's own: a tzx inside a zip - the inner
+     * format is what decides what this app can open, so ".tzx.zip" is a tzx -
+     * and a rom dump, which it cannot open and which is exactly why the filter
+     * has something to do.
+     */
+    @Test
+    public void arowFromAsearchCarriesItsFormats() throws Exception {
+        Canned http = new Canned().then(200, SEARCH_WITH_FILES);
+
+        Catalogue.Page page = new ZxInfoCatalogue(http)
+                .open(shelf(http, "search"), Catalogue.Query.text("jetpac"), 0);
+
+        Catalogue.Item first = page.items().get(0);
+
+        assertTrue("a row that does not know its own formats cannot be filtered"
+                   + " by one, and asking the service is not an option",
+                   first.formats().contains("tzx"));
+        assertTrue("the rom dump is in the entry too, and is what a filter is"
+                   + " for leaving out", first.formats().contains("rom"));
     }
 
     /**

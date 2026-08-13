@@ -368,7 +368,7 @@ public final class ZxInfoCatalogue implements Catalogue {
         JSONObject reply = object(ask("games/" + Uri.encode(id) + "?mode=compact"));
         JSONObject source = reply == null ? null : reply.optJSONObject("_source");
 
-        return source == null ? null : itemFrom(id, source, true);
+        return source == null ? null : itemFrom(id, source);
     }
 
     /**
@@ -668,7 +668,7 @@ public final class ZxInfoCatalogue implements Catalogue {
             String id = text(hit, "_id");
             if (id == null) continue;
 
-            items.add(itemFrom(id, source, false));
+            items.add(itemFrom(id, source));
         }
 
         return new Page(items, null, seenBefore,
@@ -836,10 +836,22 @@ public final class ZxInfoCatalogue implements Catalogue {
      * reason to show beside it, because {@link Item#availability} is null. Where
      * the reason is null the row should say nothing rather than say why.
      *
-     * @param full whether to read the releases, which only {@code /games}
-     *             carries and which are what makes that call worth making.
+     * <b>A row carries its files too, and they cost nothing.</b> This used to
+     * read the releases only for {@code /games}, on the belief that a search
+     * hit did not carry them. Measured against the live service: a {@code
+     * mode=compact} search hit's {@code _source} carries {@code releases},
+     * {@code additionalDownloads} and {@code screens}, and every field {@link
+     * #versions} reads is byte-identical to the record's own - what {@code
+     * /games} adds is twenty-one <em>other</em> fields, {@code controls} and
+     * {@code series} among them, which is why the pane still fetches it.
+     *
+     * So a list row already knows which formats it holds, without a request
+     * per row, and that is what makes filtering a shelf by format possible at
+     * all: the service has no such filter - {@code format}, {@code filetype}
+     * and {@code downloadtype} are all silently ignored, measured against a
+     * deliberate nonsense parameter as the control.
      */
-    private static Item itemFrom(String id, JSONObject source, boolean full) {
+    private static Item itemFrom(String id, JSONObject source) {
         return new Item(id,
                         text(source, "title"),
                         year(source),
@@ -847,7 +859,7 @@ public final class ZxInfoCatalogue implements Catalogue {
                         text(source, "genreType"),
                         text(source, "availability"),
                         picture(source),
-                        full ? versions(source) : null);
+                        versions(source));
     }
 
     /**

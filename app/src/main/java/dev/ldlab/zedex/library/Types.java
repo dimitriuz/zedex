@@ -58,6 +58,21 @@ public final class Types {
     }
 
     /** Whether the emulator can load a file directly, judged by its extension. */
+    /**
+     * The same list, for a screen that has to <em>offer</em> the formats
+     * rather than test one.
+     *
+     * A copy, because {@link #OPENABLE} is the answer to "can this app open
+     * it" and a caller that could reorder or shorten it would be editing that
+     * answer. The catalogue's own format filter is built from this rather than
+     * from a list of its own: a second list is a second thing to keep in step,
+     * and the one that drifted would offer a filter whose every result the app
+     * then refused to open.
+     */
+    public static String[] openable() {
+        return OPENABLE.clone();
+    }
+
     public static boolean openable(String name) {
         String extension = extension(name);
         if (extension.isEmpty()) return false;
