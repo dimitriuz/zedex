@@ -512,6 +512,16 @@ public final class GameInfoView extends LinearLayout {
         facts.setVisibility(View.GONE);
         description.setVisibility(View.GONE);
         rowMusic.setVisibility(View.GONE);
+        // This view is reused across selections and the manual answer is
+        // asynchronous (see the "pane-manual" work below), so without this a
+        // game with no manual would keep showing the last game's manual
+        // button - still visible, and still wired to the last game's own
+        // Uri, so tapping it would open the wrong game's manual. The
+        // listener is dropped too, not just the visibility, so a stale click
+        // target can never fire even if something makes the button visible
+        // again before the answer for this game arrives.
+        rowManual.setVisibility(View.GONE);
+        rowManual.setOnClickListener(null);
         // Synchronously, unlike the removeAllViews() in show(Meta): this view is
         // reused across selections and the metadata answer is asynchronous, so
         // leaving the last game's rows up until the store replies would show
@@ -711,6 +721,7 @@ public final class GameInfoView extends LinearLayout {
         facts.setVisibility(View.GONE);
         description.setVisibility(View.GONE);
         rowManual.setVisibility(View.GONE);
+        rowManual.setOnClickListener(null);
         rowMusic.setVisibility(View.GONE);
         // See the matching reset in showEntry(): this view is reused across
         // selections, so nothing selected must mean nothing shown, not the
