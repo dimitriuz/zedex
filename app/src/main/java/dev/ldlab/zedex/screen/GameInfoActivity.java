@@ -279,10 +279,11 @@ public final class GameInfoActivity extends ZedexActivity {
         // <b>The title strip it replaced had the Up chevron.</b> Taking the
         // strip away took that with it, and left the system's own Back as the
         // only way off this screen - which on an AYN Thor Lite is not a way at
-        // all: that device drops Back for every app on it, ours and Settings
-        // alike, until it is rebooted. See CLAUDE.md for the measurement.
-        // Every other version of this screen already has its own way out -
-        // the quick bar's cross - and this one had none.
+        // all: that device drops the platform's *own* default back, which is
+        // the one a screen that claims nothing gets. ZedexActivity claims it
+        // now (see CLAUDE.md), so Back leaves this screen again - but every
+        // other version of it already has a way out on the screen itself, the
+        // quick bar's cross, and this one had none.
         android.widget.Button close = new android.widget.Button(this);
         close.setText(R.string.library_title);
         close.setOnClickListener(v -> finish());

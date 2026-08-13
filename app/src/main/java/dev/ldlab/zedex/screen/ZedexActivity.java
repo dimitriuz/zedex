@@ -76,6 +76,68 @@ public abstract class ZedexActivity extends Activity {
 
         int title = title();
         if (title != 0) setTitle(title);
+
+        claimBack();
+    }
+
+    /**
+     * Back, claimed rather than left to the platform - which sounds like work
+     * for nothing, since what this does is exactly what the platform's own
+     * default does, and is.
+     *
+     * Measured on an AYN Thor Lite: that device drops the *system's* back
+     * invocation and only the system's. In `logcat`, a press on a screen the
+     * app has not claimed reads
+     * {@code startBackNavigation ... mPriority=-1} and then nothing happens -
+     * `PRIORITY_SYSTEM`, the platform's own default handling, thrown away
+     * inside SystemUI before this process is asked. A press on a screen that
+     * *has* claimed it reads {@code mPriority=0} and works. Settings is
+     * unleavable on that handheld for the first reason and Firefox is fine for
+     * the second, which is the whole difference between them.
+     *
+     * So every screen here claims it, and the ten that used to rely on the
+     * default stop depending on a thing this device does not do. What it costs
+     * is the system's predictive back animation - an app that claims back
+     * cannot be previewed sliding off, because the platform no longer knows
+     * where back goes. A working Back is worth more than an animation of one.
+     *
+     * The field is load-bearing, not tidiness: the platform holds a
+     * {@code WeakReference} to the callback, so a lambda passed straight in is
+     * collected and every later press lands on nothing -
+     * "Trying to call onBackInvoked() on a null callback reference" is what
+     * that looks like from the outside, and it was in this very investigation's
+     * logs from another process that had made exactly this mistake.
+     */
+    private android.window.OnBackInvokedCallback backCallback;
+
+    private void claimBack() {
+        // 30 to 32 have no dispatcher and still deliver onBackPressed, whose
+        // default is the same finish() - see CLAUDE.md on predictive back.
+        if (android.os.Build.VERSION.SDK_INT
+                < android.os.Build.VERSION_CODES.TIRAMISU) {
+            return;
+        }
+        if (!claimsBack()) return;
+
+        backCallback = this::onBackWanted;
+        getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+                backCallback);
+    }
+
+    /**
+     * False for a screen that registers its own, so the two do not stack.
+     * {@link LibraryActivity} is the only one: what back means there changes
+     * with the tab and the stack, and at the Browse root it deliberately hands
+     * back to the platform rather than claiming it.
+     */
+    protected boolean claimsBack() {
+        return true;
+    }
+
+    /** What the platform's default would have done. */
+    protected void onBackWanted() {
+        finish();
     }
 
     /**

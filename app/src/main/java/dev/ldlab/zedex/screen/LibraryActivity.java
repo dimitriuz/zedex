@@ -903,7 +903,17 @@ public final class LibraryActivity extends ZedexActivity {
      * leaving the app, which it cannot do for a back that an app has claimed.
      * {@link #pushRoot} and {@link #popStack} are the two places the answer
      * changes, so both call {@link #syncBackCallback}.
+     *
+     * This is also the one screen that turns {@link ZedexActivity#claimsBack}
+     * off: the base class claims back for the life of every other screen, and
+     * a second registration at the same priority would sit over this one and
+     * finish the activity where a shelf was meant to close.
      */
+    @Override
+    protected boolean claimsBack() {
+        return false;
+    }
+
     private android.window.OnBackInvokedCallback backCallback;
 
     private void syncBackCallback() {
