@@ -765,7 +765,7 @@ public class SettingsActivity extends AppCompatActivity
                 // The quick way, for a build that already holds All files
                 // access: ES-DE's folder is where its own documentation says
                 // it is and ordinary file writes reach it.
-                if (Storage.canUseAnyFolder() && EsDe.folder() != null) {
+                if (Storage.canUseAnyFolder() && EsDe.folder(getActivity()) != null) {
                     return EsDe.install(context) ? Written.YES : Written.NO;
                 }
 

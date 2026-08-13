@@ -10,6 +10,8 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Environment;
+import android.os.storage.StorageManager;
+import android.os.storage.StorageVolume;
 import android.provider.DocumentsContract;
 import android.util.Log;
 
@@ -23,6 +25,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.io.OutputStream;
 import java.util.Locale;
 
@@ -178,17 +182,108 @@ public final class EsDe {
     }
 
     /**
-     * ES-DE's application data directory.
+     * ES-DE's application data directory, on <b>whichever volume it is on</b>.
      *
      * {@code ES-DE} at the root of shared storage is where it puts itself and
-     * where its own documentation says the file goes. It can be moved, and a
-     * moved one is not discoverable from here — ES-DE keeps the choice in its
-     * own private storage — so this reports what it can see and the caller says
-     * so plainly rather than writing a file nothing will read.
+     * where its own documentation says the file goes - but "shared storage" is
+     * not one place. A handheld with a memory card has two, and a person who
+     * keeps a collection big enough to want ES-DE keeps it on the card:
+     * measured on an AYN Thor Lite, where ES-DE's real folder is
+     * {@code /storage/FA6E-75C6/ES-DE} with a 699 KB gamelist and a full
+     * {@code downloaded_media}, and {@code
+     * Environment.getExternalStorageDirectory()} answers {@code
+     * /storage/emulated/0} and always will: it is the <em>primary</em> volume
+     * by definition.
+     *
+     * <b>And the wrong answer looked like a working one.</b> That device also
+     * had {@code /storage/emulated/0/ES-DE} - holding nothing but the {@code
+     * custom_systems} folder this app had written into it, on the same wrong
+     * assumption. So the link read an empty folder, found no gamelist, and
+     * said ES-DE had no games listed; and the two files that make a game
+     * launchable from ES-DE had been written where ES-DE would never look.
+     * Both halves of the integration were pointed at a folder of our own
+     * making.
+     *
+     * So: every volume, and the one that <em>looks</em> like ES-DE's wins over
+     * one that merely has the name. {@link #ours} is the same question {@link
+     * #looksLikeEsDe} asks of a granted tree, for the same reason - a folder
+     * that only has the name takes both files happily and ES-DE never reads
+     * them, which looks exactly like success.
+     *
+     * A folder ES-DE has been told to keep somewhere else entirely is still
+     * not discoverable from here, since it keeps that choice in its own
+     * private storage; the caller still says so plainly rather than writing a
+     * file nothing will read.
      */
-    public static File folder() {
-        File folder = new File(Environment.getExternalStorageDirectory(), "ES-DE");
-        return folder.isDirectory() ? folder : null;
+    public static File folder(Context context) {
+        return esdeIn(volumes(context));
+    }
+
+    /**
+     * The choice itself, over volumes somebody hands in.
+     *
+     * Package-private and taking a list so it can be tested on the JVM with
+     * temporary folders: the answer this has to get right is "the furnished
+     * one beats the one that only has the name", and a device test cannot
+     * mount a second volume to ask it.
+     */
+    static File esdeIn(List<File> volumes) {
+        File named = null;
+
+        for (File volume : volumes) {
+            File folder = new File(volume, "ES-DE");
+            if (!folder.isDirectory()) continue;
+
+            if (isFurnished(folder)) return folder;
+            if (named == null) named = folder;
+        }
+
+        return named;
+    }
+
+    /**
+     * Every volume this app can see the root of, primary first.
+     *
+     * {@code StorageManager} rather than {@code getExternalFilesDirs}: the
+     * latter answers this app's own folder on each volume and the root has to
+     * be cut off the front of it by string surgery, which is exactly the kind
+     * of guess this method exists to stop making. {@code
+     * StorageVolume.getDirectory} says where the volume is mounted and has
+     * done since API 30, which is this app's floor.
+     *
+     * Primary first because it is the ordinary answer and because a device
+     * with two furnished ES-DE folders should behave the way it did before
+     * this method existed.
+     */
+    private static List<File> volumes(Context context) {
+        List<File> found = new ArrayList<>();
+
+        File primary = Environment.getExternalStorageDirectory();
+        if (primary != null) found.add(primary);
+
+        StorageManager storage = context.getSystemService(StorageManager.class);
+        if (storage == null) return found;
+
+        for (StorageVolume volume : storage.getStorageVolumes()) {
+            File directory = volume.getDirectory();
+            if (directory != null && !found.contains(directory)) found.add(directory);
+        }
+
+        return found;
+    }
+
+    /**
+     * Whether this folder is ES-DE's own rather than one that shares its name.
+     *
+     * Any of the three ES-DE actually makes for itself. {@code custom_systems}
+     * is deliberately <em>not</em> among them: that is the one this app writes,
+     * so a folder holding only that is a folder we furnished ourselves and is
+     * the exact case that has to lose.
+     */
+    private static boolean isFurnished(File folder) {
+        return new File(folder, "gamelists").isDirectory()
+               || new File(folder, "downloaded_media").isDirectory()
+               || new File(folder, "settings").isDirectory();
     }
 
     /**
@@ -199,7 +294,7 @@ public final class EsDe {
      *         including when it already did.
      */
     public static boolean install(Context context) {
-        File folder = folder();
+        File folder = folder(context);
         if (folder == null) return false;
 
         File custom = new File(folder, CUSTOM);
@@ -279,7 +374,7 @@ public final class EsDe {
      */
     public static Reach reach(Context context) {
         if (Storage.canUseAnyFolder()) {
-            File folder = folder();
+            File folder = folder(context);
             if (folder != null) return new PathReach(folder);
         }
 

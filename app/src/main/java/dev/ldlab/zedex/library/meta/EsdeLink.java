@@ -214,7 +214,7 @@ public final class EsdeLink {
         // tell whether a configured path lies inside it. The actual read
         // always goes through reach.locate, i.e. the same grant or path that
         // got this far, never a second lookup of its own.
-        File esdeFolder = EsDe.folder();
+        File esdeFolder = EsDe.folder(context);
         if (esdeFolder == null && tree != null) {
             esdeFolder = Storage.pathFor(Uri.parse(tree));
         }
