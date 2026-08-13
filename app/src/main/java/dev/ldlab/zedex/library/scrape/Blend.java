@@ -700,12 +700,22 @@ public final class Blend {
         Downloads.fetch(context, http, source, path, media, into);
 
         for (Medium medium : media) {
-            File file = into.fileFor(medium.folder, medium.extension);
+            // What was asked for is not what landed, for the two media that
+            // are transformed on arrival: a tune is unpacked out of its zip
+            // and a screen dump converted to a picture, and the downloaded
+            // file is deleted either way. Looking for medium.extension
+            // therefore looked for a file that no longer existed - so a tune
+            // that had been fetched and unpacked perfectly well was never
+            // staged, never offered, never installed, and nothing anywhere
+            // logged a thing. Downloads knows what it wrote; ask it.
+            String extension = Downloads.landsAs(medium);
+
+            File file = into.fileFor(medium.folder, extension);
             if (!file.isFile() || file.length() == 0) continue;
 
             File already = existing(context, path, medium.folder);
 
-            staged.add(new Staged(medium.folder, medium.extension, source.name(), file,
+            staged.add(new Staged(medium.folder, extension, source.name(), file,
                                   differs(already, file), already));
         }
         return staged;

@@ -140,6 +140,31 @@ public final class Downloads {
         return "music".equals(medium.folder) && "zip".equalsIgnoreCase(medium.extension);
     }
 
+    /** What a tune is called once it is out of its zip. Named here and used
+     *  by both {@link #unzip} and {@link #landsAs}, so the two cannot drift
+     *  apart into "written as one thing, looked for as another" - which is
+     *  exactly the failure {@code landsAs} exists to end. */
+    private static final String MUSIC_EXTENSION = "ay";
+
+    /**
+     * The extension a medium is actually written with, which is not always
+     * the one it arrived as.
+     *
+     * A zipped tune is unpacked and a screen dump converted, and in both
+     * cases the file that was downloaded is <em>deleted</em>. So a caller
+     * that goes looking afterwards for what landed - {@code Blend.stage}
+     * does, to offer it - must ask what it turned into rather than assume
+     * the medium's own extension, or it finds nothing where the download
+     * plainly succeeded and drops it without a word. Only this class can
+     * answer, because only this class does the converting.
+     */
+    public static String landsAs(Medium medium) {
+        if (isScreenDump(medium)) return ScreenPicture.EXTENSION;
+        if (isZippedMusic(medium)) return MUSIC_EXTENSION;
+
+        return medium.extension;
+    }
+
     /**
      * Takes the tune out of the zip it arrived in.
      *
@@ -154,7 +179,7 @@ public final class Downloads {
      */
     private static boolean unzip(Context context, String relativePath,
                                  String folder, File zip, Destination destination) {
-        File into = destination.fileFor(folder, "ay");
+        File into = destination.fileFor(folder, MUSIC_EXTENSION);
         boolean taken = false;
 
         try (ZipInputStream in = new ZipInputStream(new FileInputStream(zip))) {
