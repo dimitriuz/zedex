@@ -356,12 +356,17 @@ public final class GameInfoView extends LinearLayout {
         wordsLane.addView(actionRow, rowParams);
 
         if (landscape) {
-            LinearLayout.LayoutParams mediaParams = new LinearLayout.LayoutParams(
-                    0, LayoutParams.MATCH_PARENT, LANDSCAPE_MEDIA_WEIGHT);
-            mediaParams.rightMargin = pixels(LANE_GAP_DP);
-            addView(media, mediaParams);
-            addView(wordsLane, new LinearLayout.LayoutParams(
-                    0, LayoutParams.MATCH_PARENT, LANDSCAPE_WORDS_WEIGHT));
+            // Words left, media right - the arrangement GameInfoActivity had,
+            // and the one this view took when that screen was folded into it.
+            // Not a parameter: a knob for which side the picture sits on is
+            // the kind that multiplies, and one arrangement is the point of
+            // having one implementation.
+            LinearLayout.LayoutParams wordsParams = new LinearLayout.LayoutParams(
+                    0, LayoutParams.MATCH_PARENT, LANDSCAPE_WORDS_WEIGHT);
+            wordsParams.rightMargin = pixels(LANE_GAP_DP);
+            addView(wordsLane, wordsParams);
+            addView(media, new LinearLayout.LayoutParams(
+                    0, LayoutParams.MATCH_PARENT, LANDSCAPE_MEDIA_WEIGHT));
         } else {
             LinearLayout.LayoutParams mediaParams = new LinearLayout.LayoutParams(
                     LayoutParams.MATCH_PARENT, 0, 2f);
