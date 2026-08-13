@@ -450,12 +450,41 @@ public final class Panels {
     };
 
     /** Every other screen of ours steps the panel aside while it is up. */
+
+    /**
+     * Whether one of our own screens is on the panel's display rather than
+     * somewhere else.
+     *
+     * <b>Alive is not the same as in the way.</b> Screens are added when they
+     * start and removed only when they are destroyed - because a foreign
+     * window covering one merely stops it, and the picker taught us what
+     * treating that as gone costs. But a screen that is stopped and on
+     * <em>another</em> display is not over this panel at all, and the machine
+     * is exactly that: {@code EmulatorActivity} is launchMode singleInstance
+     * and lives as long as the process, so once a game had been played the
+     * library's panel counted it for ever and never showed again. That is
+     * "closing a game closes the second screen too".
+     *
+     * A display is what an activity is on, asked of the activity itself. Null
+     * before it has a window, which cannot be one of ours on this panel yet.
+     */
+    private boolean onThePanel(Activity other) {
+        if (panel == null) return false;
+
+        Display mine = panel.getDisplay();
+        Display theirs = other.getDisplay();
+
+        return mine != null && theirs != null
+               && mine.getDisplayId() == theirs.getDisplayId();
+    }
+
     private final Application.ActivityLifecycleCallbacks others =
             new Application.ActivityLifecycleCallbacks() {
 
         @Override
         public void onActivityStarted(Activity started) {
             if (started == activity) return;
+            if (!onThePanel(started)) return;
 
             stepAside.opened(started);
             updateStepAside();
