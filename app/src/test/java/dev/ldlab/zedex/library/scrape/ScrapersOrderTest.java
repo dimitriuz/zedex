@@ -3,8 +3,12 @@ package dev.ldlab.zedex.library.scrape;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import android.app.Application;
+import android.content.Context;
+
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -142,5 +146,56 @@ public class ScrapersOrderTest {
         assertTrue(Scrapers.chosen(null, null, none).isEmpty());
         assertTrue(Scrapers.chosen(FIRST, null, none).isEmpty());
         assertTrue(Scrapers.chosen(null, FIRST, none).isEmpty());
+    }
+
+    // --- Scrapers.all itself - a new source must not outrank a proven one ---------
+
+    /**
+     * {@code Scrapers.all} needs a real {@code Context}, unlike {@code
+     * chosen} above - {@code ScreenScraper}'s constructor reads two resource
+     * strings and {@code Http.Real} reads the package's own version. A plain
+     * {@code Application} stands in for it: under {@code
+     * unitTests.returnDefaultValues}, every method this build's stub android.jar
+     * has not been given a body for answers null/zero/false rather than
+     * throwing, which is enough for {@code Secrets.reveal} to read an absent
+     * resource as "" (a source clone's own case) and for {@code
+     * Http.Real.versionOf} to catch the {@code NullPointerException} its own
+     * package-manager lookup gets and answer {@code "?"}. Nothing here reaches
+     * a real resource, a real package, or a real socket.
+     */
+    private static Context blankContext() {
+        return new Application();
+    }
+
+    private static List<String> namesOf(List<Provider> providers) {
+        List<String> names = new ArrayList<>();
+        for (Provider provider : providers) names.add(provider.name());
+        return names;
+    }
+
+    /**
+     * A new source must not outrank a proven one silently on everybody's
+     * collection - so it goes last, after both the others, and this is the
+     * order the app actually builds rather than a hand-picked list of names.
+     */
+    @Test
+    public void scrapersAllEndsWithZxart() {
+        List<Provider> providers = Scrapers.all(blankContext());
+
+        assertEquals(Zxart.NAME, providers.get(providers.size() - 1).name());
+    }
+
+    /**
+     * The commonest build has no ScreenScraper credentials at all - a source
+     * clone, per {@code Scrapers.all}'s own javadoc - and on it zxart must
+     * still come after ZXInfo, not ahead of it: ZXInfo is the proven source
+     * every clone already has, and a brand-new one is not entitled to jump
+     * the queue just because ScreenScraper happens to be missing.
+     */
+    @Test
+    public void withNoScreenScraperCredentialsZxInfoStillComesBeforeZxart() {
+        List<Provider> providers = Scrapers.all(blankContext());
+
+        assertEquals(Arrays.asList("ZXInfo", Zxart.NAME), namesOf(providers));
     }
 }

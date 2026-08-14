@@ -51,10 +51,17 @@ public final class Scrapers {
     /**
      * Every provider this build can offer, best first.
      *
-     * ZXInfo needs no credentials at all, so it is always here; ScreenScraper
-     * is only here when the build was given a developer id and password, which
-     * a source clone was not. That ordering is the default priority order for
-     * anybody who has never chosen.
+     * ScreenScraper first when the build was given a developer id and
+     * password, which a source clone was not; then ZXInfo, which needs no
+     * credentials at all and so is always here; then zxart last, needing
+     * none either. zxart goes after both rather than beside ZXInfo at the
+     * front: a new source must not outrank a proven one silently on
+     * everybody's collection, and {@link ScrapersOrderTest} pins the order
+     * this method actually builds - see {@code
+     * ScrapersOrderTest.scrapersAllEndsWithZxart} and {@code
+     * withNoScreenScraperCredentialsZxInfoStillComesBeforeZxart}. That
+     * ordering is the default priority order for anybody who has never
+     * chosen.
      */
     public static List<Provider> all(Context context) {
         return all(context, null, null);
@@ -70,8 +77,9 @@ public final class Scrapers {
      * replace the developer id, which identifies the application and is sent
      * either way.
      *
-     * The account is ScreenScraper's alone. ZXInfo has no accounts, so a login
-     * set here changes nothing for it - worth knowing rather than surprising.
+     * The account is ScreenScraper's alone. Neither ZXInfo nor zxart has
+     * accounts, so a login set here changes nothing for either - worth
+     * knowing rather than surprising.
      */
     private static List<Provider> all(Context context, String user, String password) {
         List<Provider> providers = new ArrayList<>();
@@ -82,6 +90,7 @@ public final class Scrapers {
         if (screenScraper.configured()) providers.add(screenScraper);
 
         providers.add(new ZxInfo(new Http.Real(context)));
+        providers.add(new Zxart(new Http.Real(context)));
 
         return providers;
     }
