@@ -320,7 +320,15 @@ public final class Machine {
         }
     }
 
-    public void showChooser() {
+    /**
+     * @param changed what to do once a change has actually happened, or null.
+     *                A parameter rather than a seventh method on {@link Host},
+     *                which is already wider than it should be - and the right
+     *                home for it anyway: putting the loaded game back is the
+     *                screen's business, not the machine's. Not run for a
+     *                change that failed, since there is nothing to put it on.
+     */
+    public void showChooser(Runnable changed) {
         String[] names = FuseNative.machineNames();
         if (names.length == 0) return;   // Fuse has not finished starting
 
@@ -330,12 +338,12 @@ public final class Machine {
             for (int i = 0; i < names.length; i++) {
                 int which = i;
                 page.addChoice(names[which], which == current,
-                               () -> select(which));
+                               () -> select(which, changed));
             }
         });
     }
 
-    private void select(int index) {
+    private void select(int index, Runnable changed) {
         String[] names = FuseNative.machineNames();
 
         FuseNative.selectMachine(index);
@@ -354,6 +362,11 @@ public final class Machine {
                         Toast.LENGTH_LONG).show();
             } else {
                 host.note(R.string.machine_selected, names[index]);
+
+                // After the check and not before it: a machine that would not
+                // start has nothing worth loading a game onto, and the file
+                // is safer where it is than opened into a fallback 48K.
+                if (changed != null) changed.run();
             }
 
             remember();

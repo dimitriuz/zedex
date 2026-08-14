@@ -119,7 +119,9 @@ public class SuggestedContractTest {
         List<String> missed = new ArrayList<>();
 
         for (String phrase : MACHINE_PHRASES) {
-            if (Suggested.machines(phrase, ids).isEmpty()) missed.add(phrase);
+            // No file: this asks what the phrase means, not what to offer
+            // somebody, and a file would narrow the answer to its own kind.
+            if (Suggested.machines(phrase, null, ids).isEmpty()) missed.add(phrase);
         }
 
         assertTrue("Suggested maps these to ids Fuse does not have: " + missed
@@ -136,7 +138,7 @@ public class SuggestedContractTest {
         List<Integer> seen = new ArrayList<>();
 
         for (String phrase : MACHINE_PHRASES) {
-            List<Integer> found = Suggested.machines(phrase, ids);
+            List<Integer> found = Suggested.machines(phrase, null, ids);
             if (found.isEmpty()) continue;
 
             int first = found.get(0);
@@ -145,6 +147,40 @@ public class SuggestedContractTest {
                         seen.contains(first));
             seen.add(first);
         }
+    }
+
+    /**
+     * And every machine the <em>file</em> table names is one Fuse has.
+     *
+     * The same silent failure as above, reached the other way. A row that
+     * says a TR-DOS disk runs on four machines and gets three of them past
+     * {@code indexOf} offers three, says nothing about the fourth, and leaves
+     * somebody looking for the machine their game wants. Counting is the
+     * check: a wrong id is not an error anywhere, only an absence.
+     *
+     * Asked through {@code machines} rather than of the array, so this tests
+     * the road the app actually takes to it - the extension is read from a
+     * name, which is where {@code 48IRONS.TRD} went wrong once already.
+     */
+    @Test
+    public void everyMachineThefileTableNamesIsOneFuseHas() {
+        String[] ids = machineIds();
+
+        List<String> wrong = new ArrayList<>();
+
+        for (String[] row : Suggested.MACHINES_FOR_FILE) {
+            int named = row.length - 1;
+            int offered = Suggested.machines(null, "game." + row[0], ids).size();
+
+            if (offered != named) {
+                wrong.add(row[0] + " names " + named + " machines, Fuse has "
+                          + offered + " of them: " + Arrays.toString(row));
+            }
+        }
+
+        assertTrue("the file table names ids Fuse does not have: " + wrong
+                   + "\n  Fuse's own ids: " + Arrays.toString(ids),
+                   wrong.isEmpty());
     }
 
     /** Every joystick the table names is one Fuse offers. */

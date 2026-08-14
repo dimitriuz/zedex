@@ -113,9 +113,46 @@ public final class SetupUi {
      */
     private final Set<String> asked = new HashSet<>();
 
+    /**
+     * The game a reopen of <em>ours</em> is on its way for, and only until it
+     * arrives.
+     *
+     * {@link #asked} covers the same failure for the branch that asks, and the
+     * remembered branch above it had nothing - so an answer that Fuse will not
+     * keep was applied, reopened, read again, applied again, for ever. That is
+     * what a TR-DOS disk remembered as a 128K did: {@code utils.c} selects a
+     * machine of its own for one, this put the remembered one back 600ms
+     * later, and the two took turns about twice a second until the app was
+     * killed. Every open counted as a play, too, so the count ran away with it.
+     *
+     * {@link Suggested} is where that particular disagreement is settled, and
+     * this is here so the next one cannot spin: an answer applied once is
+     * applied once, whatever the emulator then does with the machine.
+     *
+     * Cleared by the very next {@code consider} whichever game it is for,
+     * rather than only by the one expected - a reopen that never lands
+     * (the file has gone, the activity is going) would otherwise leave this
+     * set and swallow a later open that deserved an answer.
+     */
+    private String reopening;
+
     public SetupUi(Activity activity, Host host) {
         this.activity = activity;
         this.host = host;
+    }
+
+    /**
+     * The next open of this game is somebody putting it back, not a new
+     * question - so leave the answer alone.
+     *
+     * For the machine chooser, which reopens the game on the machine it has
+     * just changed to. Without this the remembered answer would be replayed
+     * on the way back and put the old machine straight back, which is a hand
+     * choice being undone by a stored one within the second - the same
+     * argument as {@link #reopening}, from the other side.
+     */
+    public void notAskingAbout(String path) {
+        reopening = path;
     }
 
     /**
@@ -171,6 +208,15 @@ public final class SetupUi {
     }
 
     private void consider(String path) {
+        // Our own reopen coming back. It carries no new question - the answer
+        // that caused it has just been applied - and answering it again is
+        // the whole of the loop this guards against. One shot: read and
+        // cleared, so the next open is considered whatever happened to this
+        // one. See the field.
+        String ours = reopening;
+        reopening = null;
+        if (path != null && path.equals(ours)) return;
+
         // Before the remembered branch as well as after it: replaying an
         // answer that names the keyboard means building the game's key
         // profile again, which is read from the record rather than stored
@@ -189,7 +235,7 @@ public final class SetupUi {
         String[] machineIds = FuseNative.machineIds();
         String[] joystickNames = FuseNative.joystickTypeNames();
 
-        if (!Suggested.anything(meta, machineIds, joystickNames)) return;
+        if (!Suggested.anything(meta, path, machineIds, joystickNames)) return;
 
         ask(path, meta, machineIds, joystickNames);
     }
@@ -197,7 +243,7 @@ public final class SetupUi {
     // --- the question -------------------------------------------------------------
 
     private void ask(String path, Meta meta, String[] machineIds, String[] joystickNames) {
-        List<Integer> machines = Suggested.machines(meta.machine, machineIds);
+        List<Integer> machines = Suggested.machines(meta.machine, path, machineIds);
         List<Integer> controls = Suggested.controls(meta, joystickNames);
 
         LinearLayout page = new LinearLayout(activity);
@@ -371,6 +417,10 @@ public final class SetupUi {
         }
 
         FuseNative.selectMachine(index);
+
+        // Claimed before the reopen rather than inside it, so the open this
+        // asks for is recognised as ours however quickly it comes back.
+        reopening = path;
 
         activity.getWindow().getDecorView().postDelayed(() -> {
             host.reopenCurrentGame();

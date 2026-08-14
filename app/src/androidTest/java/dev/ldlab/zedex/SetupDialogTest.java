@@ -294,7 +294,10 @@ public class SetupDialogTest {
         String[] ids = FuseNative.machineIds();
         String[] names = FuseNative.machineNames();
 
-        List<Integer> offered = Suggested.machines(MACHINE, ids);
+        // The same path the dialog was given, not just the record: a file can
+        // narrow what is offered, and asking without one would work out the
+        // wrong expectation for any fixture that was not a tape.
+        List<Integer> offered = Suggested.machines(MACHINE, PATH, ids);
         assertEquals("the record names two machines, so two are offered: "
                      + Arrays.toString(ids), 2, offered.size());
 

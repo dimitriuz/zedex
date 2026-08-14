@@ -105,6 +105,41 @@ public final class Suggested {
     private static final String[] NOT_A_SPECTRUM = { "zx81", "zx80" };
 
     /**
+     * What a file's own kind says about the machine, where it says anything.
+     *
+     * <b>Two of the formats Fuse opens pick a machine whether or not it was
+     * asked to.</b> {@code utils.c} answers a {@code CLASS_DISK_TRDOS} on a
+     * machine without {@code CAPABILITY_TRDOS_DISK} by selecting a Scorpion
+     * itself, and a {@code CLASS_DISK_PLUS3} on one without
+     * {@code CAPABILITY_PLUS3_DISK} by selecting a +3. So for those two, a
+     * suggestion the file cannot honour is not merely unhelpful - it is one
+     * the emulator overrules on every open, and an app that keeps re-applying
+     * it never stops. See {@code SuggestedTest}.
+     *
+     * The ids on the right are exactly the machines libspectrum gives the
+     * matching capability ({@code libspectrum.c}), and nothing else: the +2A
+     * has +3 <em>memory</em> but no drive, so it is not among the second row.
+     * Pentagon leads the first because that is what most of the .trd world
+     * was written for, where Scorpion is merely what Fuse falls back to.
+     *
+     * Every other format is absent on purpose. Tapes and snapshots load on
+     * anything, and the remaining disks Fuse hands to whichever interface is
+     * already plugged in rather than choosing a machine - so there is no
+     * disagreement for this table to settle, and a row for one could only
+     * ever narrow a choice that was already right.
+     *
+     * Public so {@code SuggestedContractTest} can hold it up against the ids
+     * Fuse really has, for the same reason {@link #INPUT_WORDS} is: an id
+     * Fuse does not use is dropped here without a word, and a row that
+     * quietly lost a machine looks exactly like one that never named it.
+     */
+    public static final String[][] MACHINES_FOR_FILE = {
+        { "trd", "pentagon", "pentagon512", "pentagon1024", "scorpion" },
+        { "scl", "pentagon", "pentagon512", "pentagon1024", "scorpion" },
+        { "dsk", "plus3", "plus3e" },
+    };
+
+    /**
      * Every machine the record implies, as indices into {@code ids}.
      *
      * <b>The slash is the disjunction, and everything else is one machine
@@ -119,27 +154,103 @@ public final class Suggested {
      * In the record's own order, so {@code 48K/128K} suggests the 48K first:
      * whatever else it runs on, that is what it was written for.
      *
+     * <b>The file is asked as well as the record, and where they disagree the
+     * file wins.</b> They are answering different questions - the record says
+     * which machines the <em>game</em> was released for, the file says which
+     * can <em>read</em> it - and a record naming 48K for a game whose TR-DOS
+     * disk is what got downloaded is not wrong, merely about another release.
+     * Narrowing to the machines that can read it is the only answer the
+     * emulator will keep; see {@link #MACHINES_FOR_FILE}.
+     *
+     * @param file the name or path the game is loaded from, or null when
+     *             there is not one to hand - the record then answers alone,
+     *             which is right for asking what a phrase means and wrong for
+     *             offering somebody a machine
      * @param ids {@code FuseNative.machineIds()}, so this needs no Fuse
      */
-    public static List<Integer> machines(String machineType, String[] ids) {
+    public static List<Integer> machines(String machineType, String file, String[] ids) {
         List<Integer> found = new ArrayList<>();
-        if (machineType == null || ids == null) return found;
-
-        Set<Integer> already = new LinkedHashSet<>();
-
-        String[] parts = machineType.toLowerCase(Locale.US).split("/");
+        if (ids == null) return found;
 
         // The whole value, not the part: "ZX81 16K/32K" says ZX81 once and
         // then splits, so a part of it read alone is "32k" with nothing left
-        // to say which computer that is.
-        for (String said : NOT_A_SPECTRUM) {
-            if (machineType.toLowerCase(Locale.US).contains(said)) return found;
+        // to say which computer that is. Before the file is consulted, too - a
+        // ZX81 entry carrying a .trd is a mis-filed record, not a reason to
+        // offer a Pentagon.
+        if (machineType != null) {
+            for (String said : NOT_A_SPECTRUM) {
+                if (machineType.toLowerCase(Locale.US).contains(said)) return found;
+            }
         }
 
-        for (String part : parts) mostSpecific(part, ids, already);
+        Set<Integer> already = new LinkedHashSet<>();
+
+        if (machineType != null) {
+            for (String part : machineType.toLowerCase(Locale.US).split("/")) {
+                mostSpecific(part, ids, already);
+            }
+        }
+
+        Set<Integer> canRead = readableOn(file, ids);
+
+        if (canRead != null) {
+            // Narrow, and only fall back to the whole family when narrowing
+            // leaves nothing: a record that already names a machine the file
+            // can be read on is the better answer of the two, and replacing
+            // "Pentagon 128" with all four would throw away the one thing
+            // known about this game to offer a choice nobody asked for.
+            already.retainAll(canRead);
+            if (already.isEmpty()) already = canRead;
+        }
 
         found.addAll(already);
         return found;
+    }
+
+    /**
+     * The machines this file can be read on at all, or null when its kind
+     * rules nothing out.
+     *
+     * Null and empty mean opposite things here and both happen: null is "the
+     * file has no opinion", which leaves the record to answer, and an empty
+     * set would be "nothing this build of Fuse has can read it", which leaves
+     * nothing to offer. Hence a Set rather than a list, and hence the null.
+     */
+    private static Set<Integer> readableOn(String file, String[] ids) {
+        String extension = extensionOf(file);
+        if (extension == null) return null;
+
+        for (String[] entry : MACHINES_FOR_FILE) {
+            if (!entry[0].equals(extension)) continue;
+
+            Set<Integer> machines = new LinkedHashSet<>();
+            for (int at = 1; at < entry.length; at++) {
+                int index = indexOf(ids, entry[at]);
+                if (index >= 0) machines.add(index);
+            }
+            return machines;
+        }
+
+        return null;
+    }
+
+    /**
+     * Whatever follows the last dot of the last path segment, lower-cased.
+     *
+     * Lower-cased because the archive's own spelling is whatever it is:
+     * {@code 48IRONS.TRD} is how ZXDB writes it, and a table matched against
+     * the quiet spelling alone would have missed the very file this was
+     * written for. The last segment, because a folder may hold a dot and the
+     * name after it may not.
+     */
+    private static String extensionOf(String file) {
+        if (file == null) return null;
+
+        String name = file.substring(file.lastIndexOf('/') + 1);
+        int dot = name.lastIndexOf('.');
+
+        return dot < 0 || dot == name.length() - 1 ? null
+                : name.substring(dot + 1).toLowerCase(Locale.US);
     }
 
     /** The first token in {@link #MACHINES} this part contains, and every id
@@ -338,11 +449,19 @@ public final class Suggested {
         "Redefineable keys",
     };
 
-    /** Whether there is anything at all worth asking about. */
-    public static boolean anything(Meta meta, String[] machineIds, String[] joystickNames) {
+    /**
+     * Whether there is anything at all worth asking about.
+     *
+     * The file is asked here for the same reason {@link #machines} asks it:
+     * a TR-DOS disk names four machines and rules out twelve all by itself,
+     * so a record that says nothing about the machine is still worth a
+     * question when the file says that much.
+     */
+    public static boolean anything(Meta meta, String file, String[] machineIds,
+                                   String[] joystickNames) {
         if (meta == null) return false;
 
-        return !machines(meta.machine, machineIds).isEmpty()
+        return !machines(meta.machine, file, machineIds).isEmpty()
                 || !joysticks(meta.inputs, joystickNames).isEmpty()
                 || keyboard(meta);
     }

@@ -795,6 +795,14 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         openedUri = uri;
         openedInside = inside;
 
+        // Cleared rather than left. An entry inside a zip returns below
+        // without ever working a path out, so both of these would otherwise
+        // still describe the game before it - which is what the details bar
+        // is told (setGameInfo(null, null)) and what reopenOnNewMachine would
+        // name the wrong game by.
+        openedPath = null;
+        hasManual = false;
+
         if (inside != null) {
             runOnUiThread(() -> panels.setGameInfo(null, null));
             return;
@@ -879,6 +887,27 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      */
     private volatile Uri openedUri;
     private volatile String openedInside;
+
+    /**
+     * Puts the loaded game back on the machine that has just been chosen by
+     * hand.
+     *
+     * Changing machines resets Fuse, and the file that was loaded does not
+     * survive it in any useful state: a disk stays in its drive but is never
+     * booted, because Fuse only autoboots one at the moment it is inserted
+     * (see {@code ui_drive_autoload}). So choosing Pentagon for a TR-DOS game
+     * left the machine sitting at its own boot menu with the disk in the
+     * drive and nothing happening, which reads as the machine change having
+     * failed rather than as the game needing to be started again.
+     *
+     * Told not to ask on the way back: the answer remembered for this game is
+     * what a hand choice is overriding, and replaying it would undo the
+     * choice within the second.
+     */
+    private void reopenOnNewMachine() {
+        setupUi.notAskingAbout(openedPath);
+        reopenCurrentGame();
+    }
 
     /** Opens whatever is loaded, again, exactly as it was opened. */
     private void reopenCurrentGame() {
@@ -1340,7 +1369,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
         rows.rule();
         rows.item(R.drawable.ic_swap, machine.withName(R.string.menu_machine),
-                  machine::showChooser);
+                  () -> machine.showChooser(this::reopenOnNewMachine));
         // Reset asks first, and asking is a sheet page - so the bar's row opens
         // the sheet on it rather than the two surfaces doing it differently.
         rows.item(R.drawable.ic_reset, getString(R.string.menu_reset),

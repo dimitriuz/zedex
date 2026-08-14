@@ -62,8 +62,14 @@ public class SuggestedTest {
                 .collect(java.util.stream.Collectors.toList());
     }
 
+    /** What the record alone suggests - the file named below where one
+     *  matters, and null where the question is only about the vocabulary. */
     private static List<Integer> machines(String said) {
-        return Suggested.machines(said, MACHINE_IDS);
+        return Suggested.machines(said, null, MACHINE_IDS);
+    }
+
+    private static List<Integer> machines(String said, String file) {
+        return Suggested.machines(said, file, MACHINE_IDS);
     }
 
     // --- machines ---------------------------------------------------------------------
@@ -141,13 +147,151 @@ public class SuggestedTest {
         assertTrue(machines("Sam Coupe").isEmpty());
         assertTrue(machines("").isEmpty());
         assertTrue(machines(null).isEmpty());
-        assertTrue(Suggested.machines("ZX-Spectrum 48K", null).isEmpty());
+        assertTrue(Suggested.machines("ZX-Spectrum 48K", null, null).isEmpty());
     }
 
     /** The same machine twice is offered once. */
     @Test
     public void thesameMachineNamedTwiceIsOfferedOnce() {
         assertEquals(Collections.singletonList("48"), ids(machines("ZX-Spectrum 48K/48K")));
+    }
+
+    // --- machines the file itself rules out --------------------------------------------
+
+    /** Every machine Fuse gives a built-in TR-DOS, in the order this offers
+     *  them - Pentagon first, because that is what most of the .trd world was
+     *  written for. */
+    private static final List<String> TRDOS_MACHINES =
+            Arrays.asList("pentagon", "pentagon512", "pentagon1024", "scorpion");
+
+    /**
+     * The bug this section exists for.
+     *
+     * ZXDB says <em>48 Irons</em> is a "ZX-Spectrum 48K/128K" game, and it is
+     * - there is a tape release. The file the catalogue hands over is a
+     * TR-DOS disk, and no 48K or 128K can read one: Fuse's {@code utils.c}
+     * answers a {@code CLASS_DISK_TRDOS} on a machine without
+     * {@code CAPABILITY_TRDOS_DISK} by selecting a Scorpion itself, whatever
+     * it was told. So a suggestion of 48K was one the emulator would overrule
+     * on every single open - and the app, replaying the same remembered
+     * answer each time, put it straight back. That is a loop with no end, and
+     * it is what "the game restarts a million times" was.
+     *
+     * The record is not wrong; it is answering about the game. The file is a
+     * harder constraint than the record, so where the two disagree the file
+     * wins.
+     */
+    @Test
+    public void atrdosDiskIsNeverOfferedAmachineThatCannotReadOne() {
+        assertEquals(TRDOS_MACHINES,
+                     ids(machines("ZX-Spectrum 48K/128K", "48IRONS.TRD")));
+        assertEquals(TRDOS_MACHINES, ids(machines("ZX-Spectrum 48K", "x.trd")));
+        assertEquals(TRDOS_MACHINES, ids(machines("ZX-Spectrum 128K", "x.scl")));
+    }
+
+    /**
+     * The extension arrives in whichever case the archive wrote it.
+     *
+     * The file that found this was {@code 48IRONS.TRD}, shouted, straight
+     * from ZXDB - so a match on the lower-cased spelling alone would have
+     * fixed nothing for the very game it was written for.
+     */
+    @Test
+    public void thefileTypeIsReadWhateverCaseItIsWrittenIn() {
+        assertEquals(TRDOS_MACHINES, ids(machines("ZX-Spectrum 48K", "GAME.TRD")));
+        assertEquals(TRDOS_MACHINES, ids(machines("ZX-Spectrum 48K", "Game.TrD")));
+        assertEquals(TRDOS_MACHINES,
+                     ids(machines("ZX-Spectrum 48K", "/a path/with dots.in it/x.trd")));
+    }
+
+    /**
+     * Where the record already names a machine that can read the file, it
+     * keeps its answer.
+     *
+     * The file only ever <em>narrows</em>. Replacing a record that says
+     * "Pentagon 128" with all four TR-DOS machines would throw away the one
+     * piece of knowledge worth having and offer a choice nobody asked for.
+     */
+    @Test
+    public void arecordThatAlreadyAgreesWithTheFileIsLeftAlone() {
+        assertEquals(Collections.singletonList("pentagon"),
+                     ids(machines("Pentagon 128", "x.trd")));
+        assertEquals(Collections.singletonList("scorpion"),
+                     ids(machines("Scorpion ZS 256", "x.trd")));
+        assertEquals(Arrays.asList("pentagon", "scorpion"),
+                     ids(machines("Pentagon 128/Scorpion ZS 256", "x.trd")));
+    }
+
+    /**
+     * A +3 disk is the same rule with a different capability.
+     *
+     * {@code CLASS_DISK_PLUS3} on a machine without
+     * {@code CAPABILITY_PLUS3_DISK} makes Fuse select a +3 by itself, so a
+     * .dsk suggested onto a 48K loops in exactly the way a .trd does. Only
+     * the +3 and the +3e have that capability - the +2A has +3 <em>memory</em>
+     * and no drive.
+     */
+    @Test
+    public void aplus3DiskIsOnlyOfferedTheMachinesWithAdrive() {
+        assertEquals(Arrays.asList("plus3", "plus3e"),
+                     ids(machines("ZX-Spectrum 48K/128K", "x.dsk")));
+        assertEquals(Collections.singletonList("plus3"),
+                     ids(machines("ZX-Spectrum 128K +3", "x.dsk")));
+    }
+
+    /**
+     * A file that rules nothing out changes nothing.
+     *
+     * Tapes and snapshots load on anything, and every other disk Fuse can
+     * open it hands to whatever interface is already plugged in rather than
+     * choosing a machine - so there is no disagreement to settle and the
+     * record answers alone.
+     */
+    @Test
+    public void afileThatRulesNothingOutLeavesTheRecordToAnswer() {
+        assertEquals(Arrays.asList("48", "128"),
+                     ids(machines("ZX-Spectrum 48K/128K", "x.tap")));
+        assertEquals(Arrays.asList("48", "128"),
+                     ids(machines("ZX-Spectrum 48K/128K", "x.tzx")));
+        assertEquals(Arrays.asList("48", "128"),
+                     ids(machines("ZX-Spectrum 48K/128K", "x.z80")));
+        assertEquals(Arrays.asList("48", "128"),
+                     ids(machines("ZX-Spectrum 48K/128K", "x.udi")));
+        assertEquals(Arrays.asList("48", "128"),
+                     ids(machines("ZX-Spectrum 48K/128K", "no extension at all")));
+    }
+
+    /**
+     * And a file that rules machines out is worth answering even when the
+     * record says nothing at all.
+     *
+     * This is the case that used to offer no choice whatever - an unknown or
+     * missing {@code machinetype} meant an empty list and no dialog - while
+     * the file alone was enough to name four machines and rule out twelve.
+     */
+    @Test
+    public void thefileAloneIsEnoughToSuggestSomething() {
+        assertEquals(TRDOS_MACHINES, ids(machines(null, "x.trd")));
+        assertEquals(TRDOS_MACHINES, ids(machines("", "x.trd")));
+        assertEquals(TRDOS_MACHINES, ids(machines("Sam Coupe", "x.trd")));
+    }
+
+    /**
+     * ...but not for a computer this app does not emulate.
+     *
+     * A ZX81 entry carrying a .trd is a mis-filed record rather than
+     * something to offer a Pentagon for, and the refusal is deliberate
+     * everywhere else in this table.
+     */
+    @Test
+    public void anotherComputerIsStillRefusedWhateverTheFileIs() {
+        assertTrue(machines("ZX81 16K", "x.trd").isEmpty());
+    }
+
+    /** No machine list, no suggestion - the file cannot conjure one. */
+    @Test
+    public void thereIsNoSuggestionWithoutFusesOwnList() {
+        assertTrue(Suggested.machines("ZX-Spectrum 48K", "x.trd", null).isEmpty());
     }
 
     // --- joysticks --------------------------------------------------------------------
@@ -401,18 +545,34 @@ public class SuggestedTest {
 
     @Test
     public void thereIsNothingToAskWhenNothingIsKnown() {
-        assertFalse(Suggested.anything(null, MACHINE_IDS, JOYSTICKS));
+        assertFalse(Suggested.anything(null, "./g.tap", MACHINE_IDS, JOYSTICKS));
         assertFalse(Suggested.anything(Meta.at("./g.tap").name("G").build(),
-                                       MACHINE_IDS, JOYSTICKS));
+                                       "./g.tap", MACHINE_IDS, JOYSTICKS));
         assertFalse("a machine nothing recognises is nothing to offer",
-                    Suggested.anything(game("Sam Coupe", null), MACHINE_IDS, JOYSTICKS));
+                    Suggested.anything(game("Sam Coupe", null), "./g.tap",
+                                       MACHINE_IDS, JOYSTICKS));
     }
 
     @Test
     public void thereIsSomethingToAskWhenEitherHalfIsKnown() {
-        assertTrue(Suggested.anything(game("ZX-Spectrum 128K", null),
+        assertTrue(Suggested.anything(game("ZX-Spectrum 128K", null), "./g.tap",
                                       MACHINE_IDS, JOYSTICKS));
         assertTrue(Suggested.anything(game(null, null, "Kempston Joystick"),
+                                      "./g.tap", MACHINE_IDS, JOYSTICKS));
+    }
+
+    /**
+     * And a file whose kind names machines is worth asking about on its own.
+     *
+     * The record here says nothing this app recognises - which is the normal
+     * case for the Pentagon demoscene, most of what arrives as .trd - and
+     * before the file was consulted that meant no question and no choice.
+     */
+    @Test
+    public void thereIsSomethingToAskWhenOnlyTheFileSaysAnything() {
+        assertTrue(Suggested.anything(game("Sam Coupe", null), "./x.trd",
                                       MACHINE_IDS, JOYSTICKS));
+        assertTrue(Suggested.anything(Meta.at("./x.trd").name("X").build(),
+                                      "./x.trd", MACHINE_IDS, JOYSTICKS));
     }
 }
