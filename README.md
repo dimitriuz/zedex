@@ -251,8 +251,8 @@ and what to fetch.
 | **ScreenScraper** | Covers, screenshots, video and manuals for far more than the Spectrum. Everyone using the app shares one daily allowance, and every picture spends a piece of it — *Settings › Library › ScreenScraper username* is optional and buys a much larger one of your own |
 | **zxart** | The demoscene and games archive. No account, nothing to set up. Can confirm a renamed or re-zipped file exactly, from a hash carried on the archive side, and states which machine and joystick a game needs |
 
-Both, in whichever order you pick, each filling in what the other left out —
-and where they offer different pictures for the same game, you choose. You
+All three, in whichever order you pick, each filling in what the others left
+out — and where they offer different pictures for the same game, you choose. You
 can also type the details in yourself; a scrape only ever fills in what you
 left blank and never replaces what you typed.
 
@@ -277,11 +277,15 @@ is the only way the ASCII tables in them survive.
 <a href="docs/screenshots/catalogue-category.jpg"><img src="docs/screenshots/catalogue-category.jpg" width="400" alt="The Demoscene category, 1,403 entries, each with its loading screen"></a>
 
 A fourth tab browses ZXInfo's ~40,000 entries, or zxart.ee's — a switch beside
-the format filter picks which, each with its own Top rated and Newest order —
-and imports what you choose into your own folder.
+the format filter picks which — and imports what you choose into your own
+folder. Where an archive can order a list, a Sort row says so and lets you
+change it; where it cannot, the row is not there.
 
-- Search, A–Z, 0–9, by category, newest first, *Surprise me*, or games like the
-  one you are looking at
+- ZXInfo: search, A–Z, 0–9, by category, newest first, *Surprise me*, or games
+  like the one you are looking at
+- zxart: search, its own category tree, everything, and its music and graphics —
+  no A–Z there, because the archive cannot filter by first letter, so it sorts
+  alphabetically instead
 - An import lands in `Downloaded/Games`, `Applications`, `Demoscene` and so on,
   so what the app fetched stays separate from what you put there
 - It arrives with its cover and description already on, because the catalogue's

@@ -347,6 +347,16 @@ There is no md5 *filter* — `zxProdMd5` and `zxReleaseMd5` are both ignored —
 which is why confirmation costs a request per candidate rather than being the
 first thing asked.
 
+`fetch` also writes `Meta.genre`, and it is **the topmost segment of
+`categoriesString`** — zxart's own root-to-leaf breadcrumb, so
+`Games/Action/Maze/Isometric Maze Games` becomes `Games`. `Meta.genre` means the
+broad kind of thing an entry is, and the narrowing below the root is what
+`ZxartCatalogue`'s category tree already resolves; `Zxart.genreOf` therefore does
+not walk it. Pinned in `ZxartTest` against `Fixtures.PROD_SEARCH`, which is an
+English capture — `PROD_LICENCE_TO_KILL`'s own `categoriesString` is Cyrillic and
+could not pin an English claim. (Undeclared here until the branch's final review;
+the code shipped in Task 14 and this line is the design catching up with it.)
+
 `fetch` is two requests and maps by **rule, not position**:
 
 | Folder | From |

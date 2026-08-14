@@ -1039,7 +1039,13 @@ is one mechanism arriving from one place, not four more facts crossing.
 **`Catalogue` is `Provider`'s opposite number, not an extension of it.** Every
 `Provider` method assumes the file already exists — `search` takes a local game,
 `fetch` fills a row already in the store. So browsing gets six methods of its
-own (`name`, `configured`, `shelves`, `open`, `item`, `refusalFor`), and
+own (`name`, `configured`, `shelves`, `open`, `item`, `refusalFor`) plus three
+with defaults, each a promise a catalogue may genuinely lack rather than a
+convenience — `similarTo` (null: no notion of similarity), `knowsFormats`
+(false: rows that cannot say what files they hold, so the screen loses the
+filter instead of showing a broken one) and `sortsFor` (whatever `sorts()`
+says: honouring an ordering is a property of one endpoint, and a control that
+is present and does nothing is worse than one that is absent) — and
 `Catalogues` mirrors `Scrapers` — `all`, `preferred`, `any`, a hand-written
 registration list whose order *is* the fallback order. `ZxInfoCatalogue` and
 `ZxartCatalogue` are the two implementations; neither needs credentials, so
