@@ -148,6 +148,16 @@ public final class Zxart implements Provider {
      * extra beyond the one release-list request: every one zxart offers is
      * a static file, exactly as {@code ZxInfo}'s are, which is why this does
      * not grow further with {@code wanted} the way ScreenScraper's would.
+     *
+     * <b>A re-sweep pays this floor even when every wanted picture is
+     * already on disk.</b> {@code Blend}'s fill-gaps rule drops a folder
+     * like {@code covers} from {@code wanted} once a game already has one,
+     * which is exactly what makes a routine re-sweep of an already-imaged
+     * collection cheap for every other provider - but {@code
+     * hardwareRequired} lives on the release list regardless, so this
+     * provider keeps asking for it, one request per revisited game, for as
+     * long as {@code Meta.machine}/{@code Meta.inputs} count as something
+     * still worth scraping.
      */
     @Override
     public int costPerGame(Wanted wanted) {
