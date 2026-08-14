@@ -950,7 +950,7 @@ public final class ZxInfoCatalogue implements Catalogue {
             JSONObject file = downloads.optJSONObject(at);
             String path = file == null ? null : text(file, "path");
 
-            if (path == null) continue;
+            if (path == null || !served(path)) continue;
 
             Download download = new Download(urlFor(path), formatOf(file, path),
                                              file.optLong("size", -1));
@@ -969,13 +969,49 @@ public final class ZxInfoCatalogue implements Catalogue {
             JSONObject file = files.optJSONObject(at);
             String path = file == null ? null : text(file, "path");
 
-            if (path == null) continue;
+            if (path == null || !served(path)) continue;
 
             found.add(new Download(urlFor(path), formatOf(file, path),
                                    file.optLong("size", -1)));
         }
 
         return found;
+    }
+
+    /** Where ZXDB puts a file it holds a record of and will not hand over -
+     *  see {@link #served}. */
+    private static final String WITHHELD = "/denied/";
+
+    /**
+     * Whether the archive will actually give this file up.
+     *
+     * <b>A path under {@code /denied/} is a 404, every time, and it is the
+     * path that says so rather than the entry.</b> Measured on 2026-08-14,
+     * after "Play the recording" answered "That did not arrive." for Atic
+     * Atac: {@code /denied/entries/0009305/AticAtac.rzx.zip} and its {@code
+     * .tzx.zip} both 404, while {@code
+     * /zxdb/sinclair/entries/0009305/AticAtac.jpg} - the same entry's inlay -
+     * is served; the same on 1942, 1943 and 11-a-Side Soccer. Over 240 sampled
+     * entries the prefix appeared only under an availability of "Distribution
+     * denied", and every one of those entries carried served paths too.
+     *
+     * So it is dropped here, at the parse, rather than anywhere further down.
+     * A file this app cannot fetch is not a file this entry <em>holds</em>,
+     * and everything downstream reads it that way for free: {@code Pick}
+     * answers null instead of naming a 404, the pane offers no button rather
+     * than one that can only fail, and a format filter stops listing games
+     * whose only rzx or tzx nobody can have - which is where this was noticed,
+     * an RZX shelf offering Atic Atac.
+     *
+     * <b>Per file and never per entry.</b> Dropping a denied entry outright
+     * would take its covers, maps, adverts and poke files with it - all of
+     * them served, all of them things somebody looked the entry up for - and
+     * the row itself is worth keeping either way: a game that exists and is
+     * not distributed is a real thing to find, which is what the greyed row
+     * and its stated reason are for.
+     */
+    private static boolean served(String path) {
+        return !path.startsWith(WITHHELD);
     }
 
     /**

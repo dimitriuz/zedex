@@ -3,6 +3,7 @@ package dev.ldlab.zedex.library.catalogue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -143,6 +144,70 @@ public class ZxInfoCatalogueTest {
             + "        \"path\":\"/pub/sinclair/screens/load/j/scr/Jetpac.scr\","
             + "        \"size\":6912}]}}"
             + "]}}";
+
+    /**
+     * {@code /search?query=head+over+heels&mode=compact&size=3&offset=0}, the
+     * second of its three hits, trimmed to the fields this test reads.
+     *
+     * <b>Recorded, on 2026-08-14.</b> Its neighbour {@link #SEARCH_WITH_FILES}
+     * pinned "a row carries its own files" on an entry whose files are under
+     * {@code /denied/} and are not served - true of the parsing and no longer
+     * true of what a row offers, since a withheld file is dropped. So the rule
+     * is pinned here, on an entry whose five tape images are all under {@code
+     * /pub/} or {@code /zxdb/} and every one of them fetchable, and the denied
+     * one now pins the other half of the same rule.
+     *
+     * Two of the five files are kept - one {@code Tape (TAP)} and one {@code
+     * Perfect tape (TZX)}, both the service's own bytes - because two formats
+     * is what a format filter needs to have something to tell apart.
+     */
+    private static final String SEARCH_SERVED = "{"
+            + "\"hits\":{\"total\":{\"value\":153},\"hits\":["
+            + "  {\"_id\":\"0002259\",\"_source\":{"
+            + "     \"title\":\"Head over Heels\",\"originalYearOfRelease\":1987,"
+            + "     \"genreType\":\"Arcade Game\",\"availability\":\"Available\","
+            + "     \"publishers\":[{\"publisherSeq\":1,\"name\":\"Ocean Software Ltd\","
+            + "                      \"country\":\"UK\"}],"
+            + "     \"releases\":[{\"files\":["
+            + "        {\"path\":\"/pub/sinclair/games/h/HeadOverHeels.tap.zip\","
+            + "         \"size\":37132,\"type\":\"Tape image\",\"format\":\"Tape (TAP)\"},"
+            + "        {\"path\":\"/pub/sinclair/games/h/HeadOverHeels.tzx.zip\","
+            + "         \"size\":38570,\"type\":\"Tape image\","
+            + "         \"format\":\"Perfect tape (TZX)\"}]}]}}"
+            + "]}}";
+
+    /**
+     * {@code /games/0029742?mode=compact} - 1 Line 3D Maze - trimmed to the
+     * fields these tests read.
+     *
+     * <b>Recorded, on 2026-08-14</b>, and it is the served counterpart of
+     * {@link #RECORD_WITH_RECORDING}: same shape, same two kinds of file, and
+     * every path under {@code /zxdb/} rather than {@code /denied/}. The
+     * recording was fetched to be sure - 200, {@code application/zip}, 25,700
+     * bytes, which is the size the record states.
+     *
+     * It exists because the entry that used to pin "a recording lives in
+     * {@code additionalDownloads}" is a denied one, whose recording this app
+     * no longer offers at all: a test that asserted on a withheld file would
+     * now be asserting the app does the thing it must not.
+     */
+    private static final String RECORD_SERVED_RECORDING = "{"
+            + "\"_id\":\"0029742\",\"found\":true,\"_source\":{"
+            + "  \"title\":\"1 Line 3D Maze\",\"originalYearOfRelease\":2008,"
+            + "  \"genreType\":\"Arcade Game\",\"availability\":\"Available\","
+            + "  \"publishers\":[{\"publisherSeq\":1,\"name\":\"Einar Saukas\","
+            + "                   \"country\":\"Brazil\"}],"
+            + "  \"releases\":[{\"releaseSeq\":0,\"files\":["
+            + "     {\"path\":\"/zxdb/sinclair/entries/0029742/1Line3DMaze.tzx.zip\","
+            + "      \"size\":695,\"type\":\"Tape image\","
+            + "      \"format\":\"Perfect tape (TZX)\"}]}],"
+            + "  \"additionalDownloads\":["
+            + "     {\"path\":\"/zxdb/sinclair/entries/0029742/1Line3DMaze-RUN-1.scr\","
+            + "      \"size\":6912,\"type\":\"Running screen\","
+            + "      \"format\":\"Screen dump (SCR)\"},"
+            + "     {\"path\":\"/zxdb/sinclair/entries/0029742/1Line3DMaze.rzx.zip\","
+            + "      \"size\":25700,\"type\":\"RZX playback file\","
+            + "      \"format\":\"Game recording (RZX)\"}]}}";
 
     /**
      * {@code /games/byletter/Z?mode=compact&size=30&offset=0}, trimmed to two
@@ -528,13 +593,61 @@ public class ZxInfoCatalogueTest {
      * read the releases only for {@code /games}; see {@link
      * #SEARCH_WITH_FILES}, which is the live reply that says otherwise.
      *
-     * The two formats are the fixture's own: a tzx inside a zip - the inner
-     * format is what decides what this app can open, so ".tzx.zip" is a tzx -
-     * and a rom dump, which it cannot open and which is exactly why the filter
-     * has something to do.
+     * The two formats are the fixture's own: a tap and a tzx, each inside a zip
+     * - the inner format is what decides what this app can open, so
+     * ".tzx.zip" is a tzx.
+     *
+     * <b>On a served entry, and it has to be.</b> This was written against
+     * {@link #SEARCH_WITH_FILES}, which is a real reply and a denied one - its
+     * files are under {@code /denied/} and answer 404 - so it pinned formats a
+     * row must no longer report. The same bytes now pin the other half of that
+     * rule next door, and this reads {@link #SEARCH_SERVED}.
      */
     @Test
     public void arowFromAsearchCarriesItsFormats() throws Exception {
+        Canned http = new Canned().then(200, SEARCH_SERVED);
+
+        Catalogue.Page page = new ZxInfoCatalogue(http)
+                .open(shelf(http, "search"), Catalogue.Query.text("head over heels"), 0);
+
+        Catalogue.Item first = page.items().get(0);
+
+        assertTrue("a row that does not know its own formats cannot be filtered"
+                   + " by one, and asking the service is not an option",
+                   first.formats().contains("tzx"));
+        assertTrue("the same release has a tap as well, and a filter is what"
+                   + " tells the two apart", first.formats().contains("tap"));
+    }
+
+    /**
+     * A file under {@code /denied/} is one this archive holds a record of and
+     * will not serve, and no row may offer it.
+     *
+     * <b>Measured, on 2026-08-14, after "Play the recording" answered "That did
+     * not arrive." for Atic Atac.</b> ZXDB records the file and its size for an
+     * entry whose distribution is denied, and the path it gives is under {@code
+     * /denied/} rather than {@code /pub/} or {@code /zxdb/}. Every one of those
+     * paths answers <b>404</b>, and every non-denied path on the very same
+     * entries answers 200: {@code /denied/entries/0009305/AticAtac.tzx.zip} and
+     * {@code .rzx.zip} both 404 while {@code
+     * /zxdb/sinclair/entries/0009305/AticAtac.jpg} is served, and the same on
+     * 1942 (0009297), 1943 (0009298) and 11-a-Side Soccer (0009296). Over 240
+     * sampled entries a {@code /denied/} path appeared only on ones whose
+     * availability is "Distribution denied", and all three of those carried
+     * served paths as well.
+     *
+     * So this is a fact about the <b>file</b>, not about the entry: the tape and
+     * the recording are withheld and the artwork is not. Dropping the entry
+     * would lose a scrape's covers over a tape nobody can have.
+     *
+     * The fixture is {@link #SEARCH_WITH_FILES}, which has always been a
+     * recorded reply and has always been a denied one - it says so in its own
+     * comment. What it pinned was the opposite of this, that a row carries the
+     * formats of its files, which is why the entry that pins that is now a
+     * served one and this reads the same bytes for the other half of the rule.
+     */
+    @Test
+    public void awithheldFileIsNotOfferedByArow() throws Exception {
         Canned http = new Canned().then(200, SEARCH_WITH_FILES);
 
         Catalogue.Page page = new ZxInfoCatalogue(http)
@@ -542,11 +655,56 @@ public class ZxInfoCatalogueTest {
 
         Catalogue.Item first = page.items().get(0);
 
-        assertTrue("a row that does not know its own formats cannot be filtered"
-                   + " by one, and asking the service is not an option",
-                   first.formats().contains("tzx"));
-        assertTrue("the rom dump is in the entry too, and is what a filter is"
-                   + " for leaving out", first.formats().contains("rom"));
+        assertFalse("the tape is under /denied/ and answers 404 - a format filter"
+                    + " offering this row is a shelf of games nobody can have",
+                    first.formats().contains("tzx"));
+        assertFalse("the rom dump is withheld too", first.formats().contains("rom"));
+
+        assertNull("nothing in this entry can be fetched, and Pick must say so"
+                   + " rather than name a file that 404s", Pick.forGame(first));
+
+        // The row itself stays, with its title and the service's own word for
+        // why: a game that exists and is not distributed is a real thing to
+        // find, and the greyed row and its stated reason are what say so.
+        assertEquals("Jetpac", first.title());
+        assertEquals("Distribution denied", first.availability());
+    }
+
+    /**
+     * ...and no recording either, which is the tap that reported this.
+     *
+     * The record rather than a search row, because a recording is read from
+     * {@code additionalDownloads} by a method of its own. Offering it put a
+     * "Play the recording" button on a game whose recording the archive
+     * refuses, and the import answered 404, which the pane reads as MALFORMED
+     * and reports as "That did not arrive." - a network's shrug for a permanent
+     * refusal.
+     *
+     * The fixture is {@link #RECORD_WITH_RECORDING}, Atic Atac's own reply and
+     * the entry somebody actually tapped. It used to pin the opposite - that a
+     * recording is found at all - and cannot, because everything it holds is
+     * withheld; {@link #RECORD_SERVED_RECORDING} pins that now, and the two
+     * together are the whole rule.
+     */
+    @Test
+    public void awithheldRecordingIsNotOffered() throws Exception {
+        Canned http = new Canned().then(200, RECORD_WITH_RECORDING);
+
+        Catalogue.Item item = new ZxInfoCatalogue(http).item("0009305");
+
+        assertNotNull("the record itself did not parse", item);
+
+        assertNull("the recording is under /denied/ and answers 404",
+                   Pick.recording(item));
+        assertNull("so is the only tape", Pick.forGame(item));
+
+        // Not dropped, and not empty of everything: the entry is still on the
+        // list, saying what it is and why there is nothing to fetch. Its
+        // artwork is untouched too - covers, maps and pokes never travel in a
+        // catalogue Item at all, they are the scraping provider's, which reads
+        // the same record through ZxInfo and is not what this changed.
+        assertEquals("Atic Atac", item.title());
+        assertEquals("Distribution denied", item.availability());
     }
 
     /**
@@ -822,15 +980,15 @@ public class ZxInfoCatalogueTest {
      */
     @Test
     public void therecordingComesFromTheEntrysOwnDownloads() throws Exception {
-        Canned http = new Canned().then(200, RECORD_WITH_RECORDING);
+        Canned http = new Canned().then(200, RECORD_SERVED_RECORDING);
 
-        Catalogue.Item game = new ZxInfoCatalogue(http).item("0009305");
+        Catalogue.Item game = new ZxInfoCatalogue(http).item("0029742");
 
         Catalogue.Download recording = Pick.recording(game);
         assertNotNull("no entry in the database has a recording", recording);
         assertEquals("rzx", recording.format());
-        assertEquals("https://spectrumcomputing.co.uk/denied/entries/0009305/AticAtac.rzx.zip",
-                     recording.url());
+        assertEquals("https://spectrumcomputing.co.uk/zxdb/sinclair/entries/0029742/"
+                     + "1Line3DMaze.rzx.zip", recording.url());
 
         // And it is not mistaken for the game: the tape is still what a tap
         // means, and the recording is never in PREFERENCE.
