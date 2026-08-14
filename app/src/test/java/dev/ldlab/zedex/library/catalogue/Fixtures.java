@@ -1217,6 +1217,60 @@ public final class Fixtures {
             + "success\"}";
 
     /**
+     * A single release row - not a whole reply, since this is fed straight to
+     * {@code Zxart.collectRelease}, which takes one release's JSON and never
+     * the wrapper around it - copied whole from {@code review/zxart/hw-sample.json}
+     * (a 200-release page of {@code export:zxRelease} with no filter), the fourth
+     * of the five releases the sample carries for entry 92668 (Licence to Kill):
+     * id 92675, {@code LicenceToKill(TheHitSquad).tzx.zip}, a 1991 Hit Squad
+     * rerelease.
+     *
+     * <b>Its {@code inlays} are the one row in this whole sample carrying the
+     * {@code _SideA}/{@code _SideB} suffix</b> - a real, captured instance of the
+     * "about a fifth carry a side or edition marker" fact {@code Zxart}'s own
+     * {@code collectInlays} javadoc cites, rather than one invented to exercise
+     * the rule. Front cover (no suffix) and back ({@code _Back}) are both real
+     * entries too, alongside the two this fixture exists for.
+     */
+    public static final String RELEASE_WITH_ODD_INLAY =
+            "{\"id\":92675,\"title\":\"Licence to Kill\",\"dateCreated\":1479491026,\"dateModified\":17565851"
+            + "61,\"file\":\"https:\\/\\/zxart.ee\\/releasefile\\/id:92675\\/LicenceToKill(TheHitSquad).tzx.zip"
+            + "\",\"fileName\":\"LicenceToKill(TheHitSquad).tzx.zip\",\"year\":1991,\"publishersIds\":[327235],"
+            + "\"hardwareRequired\":[\"zx128\",\"ay\",\"kempston\",\"int2_2\"],\"releaseType\":\"rerelease\",\""
+            + "releaseFormat\":[\"tzx\"],\"inlays\":[\"https:\\/\\/zxart.ee\\/release\\/id:205518\\/mode:downlo"
+            + "ad\\/filename:LicenceToKill(HitSquad).jpg\",\"https:\\/\\/zxart.ee\\/release\\/id:380063\\/mode:"
+            + "download\\/filename:LicenceToKill(HitSquad)_Back.jpg\",\"https:\\/\\/zxart.ee\\/release\\/id:554"
+            + "317\\/mode:download\\/filename:LicenceToKill(HitSquad)_SideA.jpg\",\"https:\\/\\/zxart.ee\\/rele"
+            + "ase\\/id:554318\\/mode:download\\/filename:LicenceToKill(HitSquad)_SideB.jpg\"],\"releaseStructu"
+            + "re\":[{\"id\":30,\"md5\":\"40dc40ec64a60db4deead4307dcd7fd0\",\"parentId\":0,\"fileName\":\"Lice"
+            + "nceToKill(TheHitSquad).tzx.zip\",\"size\":41952,\"elementId\":92675,\"type\":\"zip\",\"encoding"
+            + "\":\"none\",\"internalType\":\"binary\",\"viewable\":false,\"items\":[{\"id\":31,\"md5\":\"38f8a"
+            + "97cee91bee419a4da8ceb7a5458\",\"parentId\":30,\"fileName\":\"Licence To Kill - 48k (The Hit Squa"
+            + "d).tzx\",\"size\":48981,\"elementId\":92675,\"type\":\"tzx\",\"encoding\":\"none\",\"internalTyp"
+            + "e\":\"binary\",\"viewable\":false,\"items\":[{\"id\":32,\"md5\":\"7438f6124a7baec7da24e5969c6223"
+            + "68\",\"parentId\":31,\"fileName\":\"LTK48.B\",\"size\":144,\"elementId\":92675,\"type\":\"file\""
+            + ",\"encoding\":\"none\",\"internalType\":\"zx_basic\",\"viewable\":true},{\"id\":33,\"md5\":\"25f"
+            + "eca22e133f9f75434ca35083785e2\",\"parentId\":31,\"fileName\":\"loader.C\",\"size\":512,\"element"
+            + "Id\":92675,\"type\":\"file\",\"encoding\":\"none\",\"internalType\":\"binary\",\"viewable\":fals"
+            + "e},{\"id\":34,\"md5\":\"628d564b9a54a5dddbb77dee621c1123\",\"parentId\":31,\"fileName\":\"data01"
+            + "\",\"size\":6912,\"elementId\":92675,\"type\":\"file\",\"encoding\":\"none\",\"internalType\":\""
+            + "zx_image_standard\",\"viewable\":true},{\"id\":35,\"md5\":\"9d30e985e8c969c2e847ec4e749f8b8f\","
+            + "\"parentId\":31,\"fileName\":\"data02\",\"size\":40960,\"elementId\":92675,\"type\":\"file\",\"e"
+            + "ncoding\":\"none\",\"internalType\":\"binary\",\"viewable\":false}]},{\"id\":36,\"md5\":\"e75691"
+            + "e2756527b4bbf263bc5860f41c\",\"parentId\":30,\"fileName\":\"Licence To Kill - 128k (The Hit Squa"
+            + "d).tzx\",\"size\":48983,\"elementId\":92675,\"type\":\"tzx\",\"encoding\":\"none\",\"internalTyp"
+            + "e\":\"binary\",\"viewable\":false,\"items\":[{\"id\":37,\"md5\":\"410f77539e20d8d59655fc73720f1f"
+            + "a0\",\"parentId\":36,\"fileName\":\"LTK128.B\",\"size\":146,\"elementId\":92675,\"type\":\"file"
+            + "\",\"encoding\":\"none\",\"internalType\":\"zx_basic\",\"viewable\":true},{\"id\":38,\"md5\":\"a"
+            + "1eeed2bea7a72c0d37be2614bf94783\",\"parentId\":36,\"fileName\":\"loader.C\",\"size\":512,\"eleme"
+            + "ntId\":92675,\"type\":\"file\",\"encoding\":\"none\",\"internalType\":\"binary\",\"viewable\":fa"
+            + "lse},{\"id\":39,\"md5\":\"ab45f7987a86629d693a71179d6e00a2\",\"parentId\":36,\"fileName\":\"data"
+            + "01\",\"size\":6912,\"elementId\":92675,\"type\":\"file\",\"encoding\":\"none\",\"internalType\":"
+            + "\"zx_image_standard\",\"viewable\":true},{\"id\":40,\"md5\":\"570a241c5494e6ddf94e2be4df57dcec\""
+            + ",\"parentId\":36,\"fileName\":\"data02\",\"size\":40960,\"elementId\":92675,\"type\":\"file\",\""
+            + "encoding\":\"none\",\"internalType\":\"binary\",\"viewable\":false}]}]}],\"prodId\":92668}";
+
+    /**
      * review/zxart/ord-search-votes.json - export:zxProd,
      * filter:zxProdSearch=head, order:votes,desc, limit:5 - a votes-ordered
      * page of the same search {@code af-prodsearch.json}/{@link #PROD_SEARCH}
