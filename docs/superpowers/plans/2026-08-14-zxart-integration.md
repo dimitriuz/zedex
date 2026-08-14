@@ -2680,6 +2680,25 @@ somebody is about to commit a collection to."
 
 ### Task 14: What zxart knows about a game
 
+**Two rulings from Task 13's review that this task must carry.**
+
+- **`costPerGame` becomes 6 here, and there is no cache.** Task 13 left it at 5 —
+  correct for code whose `fetch` asked only for the prod. This task's `fetch` must also
+  fetch the release list, because `inlays`, `ads` and `instructions` live on releases, so
+  the honest ceiling is one search, up to three confirmations, one prod and one release
+  list. Update the constant, its javadoc and the test that asserts 5.
+  **Do not cache the release list from the confirmation to save the request.**
+  `search()` and `fetch()` are not guaranteed adjacent: `ScrapeOneGame` can put a
+  per-source chooser dialog between them and `Blend`/`Sweep` interleave games and sources,
+  so a single-entry cache keyed on "the last confirmed candidate" would sometimes answer
+  with another entry's releases and sometimes fall back to a second request anyway — a
+  stale-data risk bought with no reliable saving. Over-stating a sweep's cost is
+  conservative; under-stating it is the hazard.
+- **Every request `fetch` makes asks in English**, whatever locale the provider holds,
+  because `fetch` writes *stored* data and `Filters`/`Facets` group a collection by the
+  strings it stores. Task 13's fix round establishes this for the prod request; the
+  release request follows the same rule.
+
 **Files:**
 - Modify: `app/src/main/java/dev/ldlab/zedex/library/scrape/Zxart.java`
 - Test: `app/src/test/java/dev/ldlab/zedex/library/scrape/ZxartTest.java`
