@@ -782,6 +782,10 @@
     <string name="catalogue_failed_network">No se ha podido conectar con el archivo.</string>
     <string name="catalogue_failed_busy">El archivo está rechazando peticiones ahora mismo.</string>
     <string name="catalogue_retry">Reintentar</string>
+    <string name="library_sort_default">Predeterminado</string>
+    <string name="library_sort_top">Mejor valorado</string>
+    <string name="library_sort_newest">Más reciente</string>
+    <string name="library_sort_alphabetical">A–Z</string>
     <string name="catalogue_import">Importar</string>
     <string name="catalogue_versions">Otras versiones…</string>
     <string name="catalogue_recording">Reproducir la grabación</string>

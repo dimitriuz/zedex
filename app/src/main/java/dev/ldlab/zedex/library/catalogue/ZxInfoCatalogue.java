@@ -316,6 +316,47 @@ public final class ZxInfoCatalogue implements Catalogue {
                 new Shelf(SHELF_RANDOM, "Surprise me", Shelf.Accepts.NOTHING));
     }
 
+    /**
+     * {@code DEFAULT} and {@code TOP}, and nothing more.
+     *
+     * <b>{@code sort=score_desc} is honoured</b> - measured in Task 1: the same
+     * query against the same index snapshot, one shard, answered a different
+     * order with it than without, a tied group at score 77.102264 reordering in
+     * a way a shard artefact cannot explain. It is relevance rather than a
+     * community rating - this service keeps no votes - and "Top" is still the
+     * honest word for it: it is the best this index can say about which result
+     * matters most, exactly as zxart's votes are the best that archive can say.
+     *
+     * <b>{@code NEWEST} stays a shelf, not a sort.</b> It already ships as one,
+     * using {@code sort=date_desc}, and turning it into a second declared sort
+     * here would be two ways to ask this catalogue for the same ordering.
+     *
+     * <b>No {@code ALPHABETICAL}.</b> Nobody has measured a title sort against
+     * this service, and this seam does not guess at a parameter the way zxart's
+     * {@code order:title,asc} was guessed at and then measured - see {@code
+     * ZxartApi}'s own history of names that looked plausible and were ignored.
+     */
+    @Override
+    public List<Sort> sorts() {
+        return Arrays.asList(Sort.DEFAULT, Sort.TOP);
+    }
+
+    /**
+     * {@code &sort=score_desc} for {@link Sort#TOP}, nothing for {@link
+     * Sort#DEFAULT} - one less name to be wrong about, exactly as {@code
+     * ZxartCatalogue.orderFor} leaves its own default unspelled.
+     *
+     * <b>Only where a shelf is actually a search.</b> The plain search and a
+     * genre both go through {@link #searchFor}, which is what the measurement
+     * in {@link #sorts()} was taken against; {@link #letterFor}, {@link
+     * #randomFor} and {@link #likeFor} are different endpoints this was never
+     * asked of, and the letter shelf already comes back alphabetical with no
+     * sort at all.
+     */
+    private static String sortParam(Query query) {
+        return query != null && query.sort() == Sort.TOP ? "&sort=score_desc" : "";
+    }
+
     @Override
     public Page open(Shelf shelf, Query query, int page) throws ScrapeException {
         if (SHELF_GENRES.equals(shelf.id())) return genres();
@@ -473,8 +514,8 @@ public final class ZxInfoCatalogue implements Catalogue {
         String id = shelf.id();
 
         if (id.startsWith(GENRE_PREFIX)) {
-            return searchFor("genretype=" + Uri.encode(id.substring(GENRE_PREFIX.length())),
-                             page, size);
+            return searchFor("genretype=" + Uri.encode(id.substring(GENRE_PREFIX.length()))
+                             + sortParam(query), page, size);
         }
 
         if (id.startsWith(LETTER_PREFIX)) {
@@ -493,7 +534,7 @@ public final class ZxInfoCatalogue implements Catalogue {
             return randomFor();
         }
 
-        return searchFor("query=" + Uri.encode(query.text()), page, size);
+        return searchFor("query=" + Uri.encode(query.text()) + sortParam(query), page, size);
     }
 
     /**

@@ -119,6 +119,40 @@ public interface Catalogue {
     }
 
     /**
+     * A way of ordering a shelf, as opposed to a way in.
+     *
+     * <b>A fixed vocabulary, and translated on the app's side.</b> Everywhere
+     * else a shelf's words are the service's own - a genre's name comes off the
+     * wire - but there is nothing off the wire to call an ordering, and what a
+     * person reads here is a sentence in their own language. So this is an enum
+     * with string resources against it rather than labels from a catalogue,
+     * which is also what lets two catalogues offer "Top rated" and mean it even
+     * though one is a community vote and the other is Elasticsearch's own
+     * relevance score.
+     *
+     * <b>A control, not a shelf.</b> "Top rated" as a shelf would give Top over
+     * the whole archive; this is Top <em>inside</em> whatever is already on
+     * screen - inside Games, inside a search, inside a sub-category - which is
+     * why it rides on {@link Query} rather than {@link #shelves()}.
+     */
+    enum Sort { DEFAULT, TOP, NEWEST, ALPHABETICAL }
+
+    /**
+     * The orderings this catalogue can honour, best-known first, always
+     * including {@link Sort#DEFAULT}.
+     *
+     * <b>The same bargain {@link #shelves()} makes.</b> A catalogue owes
+     * nothing it has not got, and {@code CatalogueView} hides the control when
+     * there is only one - exactly as it hides a shelf nothing can build. zxart
+     * declares four, all measured: {@code order:votes,desc} works while {@code
+     * order:rating,desc} is ignored, which is exactly the kind of thing that
+     * must be measured before it is offered rather than guessed at.
+     */
+    default List<Sort> sorts() {
+        return Collections.singletonList(Sort.DEFAULT);
+    }
+
+    /**
      * Whether this catalogue's <em>list rows</em> know which formats an item
      * comes in.
      *
@@ -211,16 +245,18 @@ public interface Catalogue {
      */
     final class Query {
 
-        private static final Query NOTHING = new Query(null, null, false);
+        private static final Query NOTHING = new Query(null, null, false, Sort.DEFAULT);
 
         private final String text;
         private final String letter;
         private final boolean sifting;
+        private final Sort sort;
 
-        private Query(String text, String letter, boolean sifting) {
+        private Query(String text, String letter, boolean sifting, Sort sort) {
             this.text = text;
             this.letter = letter;
             this.sifting = sifting;
+            this.sort = sort;
         }
 
         /** For a shelf that takes nothing. */
@@ -229,11 +265,11 @@ public interface Catalogue {
         }
 
         public static Query text(String typed) {
-            return new Query(typed, null, false);
+            return new Query(typed, null, false, Sort.DEFAULT);
         }
 
         public static Query letter(String one) {
-            return new Query(null, one, false);
+            return new Query(null, one, false, Sort.DEFAULT);
         }
 
         /**
@@ -254,11 +290,28 @@ public interface Catalogue {
          * would be more bytes for rows nobody asked for yet.
          */
         public Query sifting() {
-            return sifting ? this : new Query(text, letter, true);
+            return sifting ? this : new Query(text, letter, true, sort);
         }
 
         public boolean isSifting() {
             return sifting;
+        }
+
+        /**
+         * The same question, ordered.
+         *
+         * <b>Survives {@link #sifting()}, and must go on surviving it</b> - a
+         * filtered shelf makes a copy of the query on every page, and a sort
+         * lost in that copy would be a sort that silently stopped applying
+         * after the first page.
+         */
+        public Query sortedBy(Sort wanted) {
+            return sort == wanted ? this : new Query(text, letter, sifting, wanted);
+        }
+
+        /** Never null - {@link Sort#DEFAULT} for a query nobody ordered. */
+        public Sort sort() {
+            return sort;
         }
 
         /** Never null - a shelf building a URL wants a string. */

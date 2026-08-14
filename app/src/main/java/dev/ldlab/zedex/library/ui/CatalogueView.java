@@ -110,6 +110,11 @@ public final class CatalogueView extends FrameLayout {
     /** "Format · No filter", and the way to change it - see {@link
      *  #chooseFormat}. */
     private final TextView formatRow;
+
+    /** "Sort · Default", and the way to change it - see {@link #chooseSort}.
+     *  The same shape as {@link #formatRow} and for the same reason: it has to
+     *  say what it is set to as well as offer to change it. */
+    private final TextView sortRow;
     private final TextView emptyLabel;
     private final ProgressBar spinner;
     private final RecyclerView recycler;
@@ -147,6 +152,13 @@ public final class CatalogueView extends FrameLayout {
      * see {@link #fillIfShortOfSlack}, {@link #LOOKAHEAD} and {@link #SCAN}.
      */
     private String format;
+
+    /** Which ordering is wanted. {@link Catalogue.Sort#DEFAULT} until somebody
+     *  chooses otherwise. Not reset anywhere yet - there is one catalogue on
+     *  screen for the life of this view - but a future {@code setCatalogue}
+     *  must reset it to {@code DEFAULT} too: a sort one catalogue honours may
+     *  be one the next cannot. */
+    private Catalogue.Sort sort = Catalogue.Sort.DEFAULT;
 
     /** Where a person is. Empty means the roots, which is also what makes
      *  {@link #onBack()} able to say "not mine". */
@@ -277,6 +289,29 @@ public final class CatalogueView extends FrameLayout {
         // present and does nothing is worse than one that is absent, the
         // same reasoning that already hides a shelf nothing can build.
         formatRow.setVisibility(catalogue.knowsFormats() ? View.VISIBLE : View.GONE);
+
+        // The catalogue's other control of its own, built the same way as
+        // formatRow just above and for the same reason - see that field's own
+        // comment. A control rather than a shelf of its own: "Top rated" is
+        // wanted inside whatever is already on screen, not instead of it.
+        sortRow = new TextView(context);
+        sortRow.setTextColor(Palette.MUTED);
+        sortRow.setTextSize(13);
+        sortRow.setPadding(pad, 0, pad, Math.round(6 * density));
+        sortRow.setOnClickListener(v -> chooseSort());
+        column.addView(sortRow, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        showSort();
+
+        // Hidden when the catalogue declares only one ordering - the same
+        // bargain Catalogue.sorts() states and formatRow's own visibility
+        // above already rests on: a control that could only ever leave a
+        // shelf exactly as it found it is worse than no control at all. Gated
+        // here, in the constructor, beside formatRow - there is no
+        // setCatalogue yet for a later task to re-gate it from.
+        sortRow.setVisibility(catalogue.sorts().size() > 1 ? View.VISIBLE : View.GONE);
 
         FrameLayout content = new FrameLayout(context);
 
@@ -641,6 +676,55 @@ public final class CatalogueView extends FrameLayout {
     }
 
     /**
+     * The ordering, chosen from what this catalogue has actually declared.
+     *
+     * <b>By their string resources, not the service's own words</b> - see
+     * {@code Catalogue.Sort}'s own javadoc for why an ordering has nothing off
+     * the wire to be called and is translated on this side of the seam
+     * instead.
+     */
+    private void chooseSort() {
+        List<Catalogue.Sort> sorts = catalogue.sorts();
+        String[] labels = new String[sorts.size()];
+        for (int at = 0; at < sorts.size(); at++) {
+            labels[at] = getContext().getString(labelFor(sorts.get(at)));
+        }
+
+        new android.app.AlertDialog.Builder(getContext())
+                .setTitle(R.string.library_sort)
+                .setItems(labels, (dialog, which) -> setSort(sorts.get(which)))
+                .show();
+    }
+
+    /** The sort, and the shelf read again from its first page - the same
+     *  reasoning {@link #setFormat} rests on: a sort applied to what is
+     *  already on screen would order whichever rows this view happens to have
+     *  fetched rather than the shelf itself. */
+    private void setSort(Catalogue.Sort wanted) {
+        if (sort == wanted) return;
+
+        sort = wanted;
+        showSort();
+
+        if (stack.isEmpty()) return;   // the roots are shelves, not rows
+        restart();
+    }
+
+    private void showSort() {
+        sortRow.setText(getContext().getString(R.string.library_sort)
+                        + " · " + getContext().getString(labelFor(sort)));
+    }
+
+    private static int labelFor(Catalogue.Sort sort) {
+        switch (sort) {
+            case TOP:          return R.string.library_sort_top;
+            case NEWEST:       return R.string.library_sort_newest;
+            case ALPHABETICAL: return R.string.library_sort_alphabetical;
+            default:           return R.string.library_sort_default;
+        }
+    }
+
+    /**
      * Back out of one shelf.
      *
      * @return false at the roots, so Back keeps meaning what it means
@@ -882,7 +966,14 @@ public final class CatalogueView extends FrameLayout {
         // never being read on the far side of this shelf, so the hint would buy
         // bigger pages for nothing kept - see
         // ZxartCatalogueTest.aZxartQueryIsNeverSifting.
-        return format == null || !catalogue.knowsFormats() ? query : query.sifting();
+        Catalogue.Query sifted = format == null || !catalogue.knowsFormats()
+                ? query : query.sifting();
+
+        // The ordering, on every shelf regardless of what it accepts - a
+        // catalogue that cannot honour it, or a shelf whose own endpoint
+        // ignores the parameter, simply reads Query.sort() and does nothing
+        // with it, exactly as one that takes no letter ignores Query.letter().
+        return sifted.sortedBy(sort);
     }
 
     private void deliver(int token, Catalogue.Page result, Throwable failure) {

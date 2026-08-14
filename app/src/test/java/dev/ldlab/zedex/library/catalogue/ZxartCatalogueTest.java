@@ -11,6 +11,7 @@ import dev.ldlab.zedex.library.scrape.Pace;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
@@ -395,6 +396,81 @@ public class ZxartCatalogueTest {
                                                   Catalogue.Query.text("head over heels"), 0);
 
         assertEquals(6, page.total());
+    }
+
+    // --- Task 8: the sort control --------------------------------------------------------
+
+    /** Four sorts, and every one of them measured. rating,desc and
+     *  votesAmount,desc are ignored by the service; votes,desc is what works,
+     *  on prods, music and pictures alike. */
+    @Test
+    public void zxartOffersTheSortsItCanHonour() {
+        List<Catalogue.Sort> sorts = catalogue(new Fixtures.Canned()).sorts();
+
+        assertEquals(Arrays.asList(Catalogue.Sort.DEFAULT, Catalogue.Sort.TOP,
+                                   Catalogue.Sort.NEWEST, Catalogue.Sort.ALPHABETICAL),
+                     sorts);
+    }
+
+    /** A sort is an order segment, applied to whichever shelf is open - here
+     *  Everything, the shelf carrying no filter at all. */
+    @Test
+    public void aSortIsAnOrderSegment() throws Exception {
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.CATEGORY_TREE)
+                                                    .then(Fixtures.PROD_SEARCH);
+        ZxartCatalogue zxart = catalogue(http);
+
+        zxart.open(zxart.shelves().get(2),
+                   Catalogue.Query.none().sortedBy(Catalogue.Sort.TOP), 0);
+
+        assertTrue(lastAsked(http).contains("order:votes,desc"));
+    }
+
+    /**
+     * The sort applies inside a shelf, which is the whole point of its being
+     * a control rather than a shelf of its own: Top inside Games, not Top
+     * instead of Games.
+     *
+     * {@code zxart.shelves().get(1)} is {@code SHELF_CATEGORIES}; opening it
+     * yields the roots, and this descends into the first of those - a real
+     * category filter, not the unfiltered Everything shelf the sort is proved
+     * against above.
+     */
+    @Test
+    public void aSortAppliesInsideACategory() throws Exception {
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.CATEGORY_TREE)
+                                                    .then(Fixtures.PROD_SEARCH);
+        ZxartCatalogue zxart = catalogue(http);
+        Catalogue.Page roots = zxart.open(zxart.shelves().get(1), Catalogue.Query.none(), 0);
+
+        zxart.open(roots.shelves().get(0),
+                   Catalogue.Query.none().sortedBy(Catalogue.Sort.TOP), 0);
+
+        assertTrue(lastAsked(http).contains("filter:zxProdCategory=92177"));
+        assertTrue(lastAsked(http).contains("order:votes,desc"));
+    }
+
+    /** The default asks for no order at all, rather than for the service's
+     *  default spelled out - one less name to be wrong about. */
+    @Test
+    public void theDefaultSortAsksForNothing() throws Exception {
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.CATEGORY_TREE)
+                                                    .then(Fixtures.PROD_SEARCH);
+        ZxartCatalogue zxart = catalogue(http);
+        zxart.open(zxart.shelves().get(2), Catalogue.Query.none(), 0);
+
+        assertFalse(lastAsked(http).contains("order:"));
+    }
+
+    /** A query carries its sort through the copies sifting() makes, or a
+     *  filtered shelf would silently lose it. */
+    @Test
+    public void aSortSurvivesTheSiftingCopy() {
+        Catalogue.Query query = Catalogue.Query.text("head")
+                .sortedBy(Catalogue.Sort.NEWEST).sifting();
+
+        assertEquals(Catalogue.Sort.NEWEST, query.sort());
+        assertTrue(query.isSifting());
     }
 
     // --- helpers -----------------------------------------------------------------------

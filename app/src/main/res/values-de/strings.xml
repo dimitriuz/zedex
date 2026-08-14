@@ -782,6 +782,10 @@
     <string name="catalogue_failed_network">Das Archiv war nicht erreichbar.</string>
     <string name="catalogue_failed_busy">Das Archiv weist Anfragen gerade ab.</string>
     <string name="catalogue_retry">Erneut versuchen</string>
+    <string name="library_sort_default">Standard</string>
+    <string name="library_sort_top">Bestbewertet</string>
+    <string name="library_sort_newest">Neueste</string>
+    <string name="library_sort_alphabetical">A–Z</string>
     <string name="catalogue_import">Importieren</string>
     <string name="catalogue_versions">Andere Versionen…</string>
     <string name="catalogue_recording">Aufzeichnung abspielen</string>

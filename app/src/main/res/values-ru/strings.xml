@@ -799,6 +799,10 @@
     <string name="catalogue_failed_network">Не удалось связаться с архивом.</string>
     <string name="catalogue_failed_busy">Архив сейчас отклоняет запросы.</string>
     <string name="catalogue_retry">Повторить</string>
+    <string name="library_sort_default">По умолчанию</string>
+    <string name="library_sort_top">Лучшие по рейтингу</string>
+    <string name="library_sort_newest">Новейшие</string>
+    <string name="library_sort_alphabetical">A–Z</string>
     <string name="catalogue_import">Импортировать</string>
     <string name="catalogue_versions">Другие версии…</string>
     <string name="catalogue_recording">Воспроизвести запись</string>

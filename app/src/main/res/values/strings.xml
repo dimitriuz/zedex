@@ -974,6 +974,16 @@
     <string name="catalogue_failed_network">Could not reach the archive.</string>
     <string name="catalogue_failed_busy">The archive is turning requests away just now.</string>
     <string name="catalogue_retry">Try again</string>
+    <!-- The catalogue's ordering control - Top inside whatever shelf is on
+         screen, not a shelf of its own. library_sort itself is the library's
+         own word already, above, and is shared rather than repeated here. A
+         fixed vocabulary rather than the service's own words: there is
+         nothing off the wire to call an ordering, and a person reads these in
+         their own language. -->
+    <string name="library_sort_default">Default</string>
+    <string name="library_sort_top">Top rated</string>
+    <string name="library_sort_newest">Newest</string>
+    <string name="library_sort_alphabetical">A–Z</string>
     <!-- The catalogue's detail pane - what one title offers, and the button
          that brings it in; see library/ui/CataloguePane. The service's own
          words for the kind and the availability are not here, only this app's.

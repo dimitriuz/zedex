@@ -782,6 +782,10 @@
     <string name="catalogue_failed_network">Impossibile raggiungere l\'archivio.</string>
     <string name="catalogue_failed_busy">L\'archivio sta rifiutando le richieste al momento.</string>
     <string name="catalogue_retry">Riprova</string>
+    <string name="library_sort_default">Predefinito</string>
+    <string name="library_sort_top">I più votati</string>
+    <string name="library_sort_newest">Più recenti</string>
+    <string name="library_sort_alphabetical">A–Z</string>
     <string name="catalogue_import">Importa</string>
     <string name="catalogue_versions">Altre versioni…</string>
     <string name="catalogue_recording">Riproduci la registrazione</string>

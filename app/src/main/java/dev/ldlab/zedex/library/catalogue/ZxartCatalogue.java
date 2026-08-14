@@ -202,6 +202,34 @@ public final class ZxartCatalogue implements Catalogue {
                 new Shelf(SHELF_EVERYTHING, "Everything", Shelf.Accepts.NOTHING));
     }
 
+    /**
+     * All four - the whole reason {@link Catalogue.Sort#ALPHABETICAL} exists at
+     * all. zxart cannot build an A-Z shelf ({@code zxProdTitleStart} is ignored,
+     * measured, and answers the unfiltered 58,032 every time) but {@code
+     * order:title,asc} works, so the alphabet a shelf could not build comes back
+     * as a sort instead.
+     */
+    @Override
+    public List<Sort> sorts() {
+        return Arrays.asList(Sort.DEFAULT, Sort.TOP, Sort.NEWEST, Sort.ALPHABETICAL);
+    }
+
+    /**
+     * Measured 2026-08-14: {@code votes} is the average rating and the only
+     * name the order answers to - {@code rating} and {@code votesAmount} are
+     * both ignored, on all three entities this service holds (prods, music,
+     * pictures). The default asks for no order at all, rather than spelling out
+     * the service's own default - one less name to be wrong about.
+     */
+    private static String orderFor(Query query) {
+        switch (query == null ? Sort.DEFAULT : query.sort()) {
+            case TOP:          return ZxartApi.ORDER_TOP;
+            case NEWEST:       return ZxartApi.ORDER_NEWEST;
+            case ALPHABETICAL: return ZxartApi.ORDER_TITLE;
+            default:           return null;
+        }
+    }
+
     @Override
     public Page open(Shelf shelf, Query query, int page) throws ScrapeException {
         if (SHELF_CATEGORIES.equals(shelf.id())) return categories();
@@ -216,6 +244,12 @@ public final class ZxartCatalogue implements Catalogue {
         ZxartApi.Ask ask = new ZxartApi.Ask(ZxartApi.PROD)
                 .language(language)
                 .page(page, PAGE_SIZE);
+
+        // Applies to every branch below, including a "similar" shelf's own
+        // resolved-leaf filter - the sort is a property of the page asked for,
+        // not of which filter picked its rows.
+        String order = orderFor(query);
+        if (order != null) ask.order(order);
 
         if (SHELF_SEARCH.equals(shelf.id())) {
             ask.filter(ZxartApi.FILTER_SEARCH, query.text());

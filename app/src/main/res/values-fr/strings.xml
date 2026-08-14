@@ -782,6 +782,10 @@
     <string name="catalogue_failed_network">Impossible de joindre l\'archive.</string>
     <string name="catalogue_failed_busy">L\'archive refuse les requêtes pour le moment.</string>
     <string name="catalogue_retry">Réessayer</string>
+    <string name="library_sort_default">Par défaut</string>
+    <string name="library_sort_top">Les mieux notés</string>
+    <string name="library_sort_newest">Les plus récents</string>
+    <string name="library_sort_alphabetical">A–Z</string>
     <string name="catalogue_import">Importer</string>
     <string name="catalogue_versions">Autres versions…</string>
     <string name="catalogue_recording">Lire l\'enregistrement</string>
