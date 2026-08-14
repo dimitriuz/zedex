@@ -1,7 +1,11 @@
 package dev.ldlab.zedex.library.scrape;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
+import dev.ldlab.zedex.library.catalogue.Fixtures;
+
+import org.json.JSONObject;
 import org.junit.Test;
 
 import java.util.Locale;
@@ -115,5 +119,55 @@ public class ZxartApiTest {
         assertEquals("doom'er", ZxartApi.unescape("doom&#039;er"));
         assertEquals("a < b > c \" d", ZxartApi.unescape("a &lt; b &gt; c &quot; d"));
         assertEquals(null, ZxartApi.unescape(null));
+    }
+
+    /** The wrapper, against a reply the service actually sent. */
+    @Test
+    public void aReplyIsRowsAndATotal() throws Exception {
+        Pace.forget();
+        ZxartApi api = new ZxartApi(new Fixtures.Canned().then(Fixtures.PROD_LICENCE_TO_KILL));
+
+        JSONObject reply = api.ask(new ZxartApi.Ask(ZxartApi.PROD).page(0, 2)
+                                   .filter(ZxartApi.FILTER_PROD_ID, "92668"));
+
+        assertEquals(1, ZxartApi.totalOf(reply));
+        assertEquals(1, ZxartApi.rows(reply, ZxartApi.PROD).size());
+        assertEquals("Licence to Kill",
+                     ZxartApi.rows(reply, ZxartApi.PROD).get(0).optString("title"));
+    }
+
+    /** An entity nobody asked for is empty, not an exception - a reply about
+     *  prods holds no releases and a caller reading both must not crash. */
+    @Test
+    public void anAbsentEntityIsNoRows() throws Exception {
+        Pace.forget();
+        ZxartApi api = new ZxartApi(new Fixtures.Canned().then(Fixtures.PROD_LICENCE_TO_KILL));
+        JSONObject reply = api.ask(new ZxartApi.Ask(ZxartApi.PROD).page(0, 2));
+
+        assertTrue(ZxartApi.rows(reply, ZxartApi.RELEASE).isEmpty());
+    }
+
+    /**
+     * A 500 is NETWORK, and the comment on refusalFor says why that is not
+     * complacency: zxart answers 500 with an empty body for a request it does
+     * not understand, so this is also what a wrong name here looks like.
+     */
+    @Test
+    public void aRefusalIsToldApartByKind() {
+        ZxartApi api = new ZxartApi(new Fixtures.Canned());
+
+        assertEquals(ScrapeException.Kind.CLOSED, api.refusalFor(429).kind);
+        assertEquals(ScrapeException.Kind.CLOSED, api.refusalFor(403).kind);
+        assertEquals(ScrapeException.Kind.NETWORK, api.refusalFor(500).kind);
+        assertEquals(ScrapeException.Kind.MALFORMED, api.refusalFor(418).kind);
+    }
+
+    /** responseStatus is the service's own word for whether it answered.
+     *  Anything else is not a page with no rows, it is a reply to distrust. */
+    @Test(expected = ScrapeException.class)
+    public void anythingButSuccessIsMalformed() throws Exception {
+        Pace.forget();
+        new ZxartApi(new Fixtures.Canned().then("{\"responseStatus\":\"error\"}"))
+                .ask(new ZxartApi.Ask(ZxartApi.PROD).page(0, 1));
     }
 }
