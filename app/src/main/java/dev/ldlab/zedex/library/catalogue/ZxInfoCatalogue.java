@@ -178,6 +178,18 @@ public final class ZxInfoCatalogue implements Catalogue {
      *  megabyte of JSON that nobody reads. */
     private static final int PAGE_SIZE = 30;
 
+    /**
+     * What a shelf that will throw most of a page away asks for instead - see
+     * {@link #sizeFor}.
+     *
+     * The two unpaged shelves keep {@link #PAGE_SIZE} whatever the query says.
+     * Surprise me and More like this each hand back one page of their own
+     * choosing and cannot be asked for the next one, so the size is not a
+     * stride there but a statement of how big those shelves are, and a filter
+     * is no reason to change what they mean.
+     */
+    private static final int SIFTING_PAGE_SIZE = 100;
+
     static final String SHELF_SEARCH = "search";
     static final String SHELF_LETTER = "letter";
     static final String SHELF_NEWEST = "newest";
@@ -331,7 +343,7 @@ public final class ZxInfoCatalogue implements Catalogue {
         // empty second page that ends the list. It costs no request: this
         // returns before pathFor is reached.
         if (shelf.id().startsWith(MORE_PREFIX) && page > 0) {
-            return new Page(null, null, page * PAGE_SIZE, Page.UNKNOWN_TOTAL);
+            return new Page(null, null, page * sizeFor(query), Page.UNKNOWN_TOTAL);
         }
 
         // And Surprise me stops at three hundred - see RANDOM_PAGES for why
@@ -347,7 +359,7 @@ public final class ZxInfoCatalogue implements Catalogue {
         // hundred: CatalogueView.restart() sets page to 0 for every descent,
         // and this endpoint resamples, so re-opening resumes nothing.
         if (SHELF_RANDOM.equals(shelf.id()) && page >= RANDOM_PAGES) {
-            return new Page(null, null, page * PAGE_SIZE, Page.UNKNOWN_TOTAL);
+            return new Page(null, null, page * sizeFor(query), Page.UNKNOWN_TOTAL);
         }
 
         // Two shelves cannot count. A random one because the rows are drawn
@@ -360,7 +372,33 @@ public final class ZxInfoCatalogue implements Catalogue {
         boolean countable = !SHELF_RANDOM.equals(shelf.id())
                 && !shelf.id().startsWith(MORE_PREFIX);
 
-        return rows(pathFor(shelf, query, page), page * PAGE_SIZE, countable);
+        // The size and the stride are one decision, taken once: offset is a
+        // page number at this endpoint, so a shelf that asks for a hundred rows
+        // and counts by thirty walks straight past its own end.
+        int size = sizeFor(query);
+
+        return rows(pathFor(shelf, query, page, size), page * size, countable);
+    }
+
+    /**
+     * How many rows to ask for at once.
+     *
+     * <b>Bigger for a shelf that is going to sift, and measured rather than
+     * chosen.</b> The app filters by format itself - this service has no such
+     * parameter and ignores an invented one rather than refusing it - so a live
+     * TRD filter keeps 4.3% of what arrives, 1.3 rows out of every thirty. What
+     * that costs is mostly the round trip and the 250ms this app waits between
+     * calls, not the bytes: thirty entries take about 0.45s and a hundred about
+     * 0.53s, so three hundred entries read ten pages at a time take 4.5s and
+     * three pages at a time take 1.6s - the same entries, the same rows kept,
+     * roughly the same bytes, a third of the wall clock.
+     *
+     * Thirty stays for an ordinary shelf, where every row that arrives is drawn
+     * and a bigger page would only be more bytes for rows nobody has scrolled
+     * to yet.
+     */
+    private static int sizeFor(Query query) {
+        return query != null && query.isSifting() ? SIFTING_PAGE_SIZE : PAGE_SIZE;
     }
 
     @Override
@@ -421,16 +459,16 @@ public final class ZxInfoCatalogue implements Catalogue {
      * A genre sub-shelf is looked for first and by prefix: it is the only
      * shelf whose id is not a constant here, since it came off the wire.
      */
-    private static String pathFor(Shelf shelf, Query query, int page) {
+    private static String pathFor(Shelf shelf, Query query, int page, int size) {
         String id = shelf.id();
 
         if (id.startsWith(GENRE_PREFIX)) {
             return searchFor("genretype=" + Uri.encode(id.substring(GENRE_PREFIX.length())),
-                             page);
+                             page, size);
         }
 
         if (id.startsWith(LETTER_PREFIX)) {
-            return letterFor(id.substring(LETTER_PREFIX.length()), page);
+            return letterFor(id.substring(LETTER_PREFIX.length()), page, size);
         }
 
         if (id.startsWith(MORE_PREFIX)) {
@@ -438,14 +476,14 @@ public final class ZxInfoCatalogue implements Catalogue {
         }
 
         if (SHELF_NEWEST.equals(id)) {
-            return searchFor("sort=date_desc", page);
+            return searchFor("sort=date_desc", page, size);
         }
 
         if (SHELF_RANDOM.equals(id)) {
             return randomFor();
         }
 
-        return searchFor("query=" + Uri.encode(query.text()), page);
+        return searchFor("query=" + Uri.encode(query.text()), page, size);
     }
 
     /**
@@ -471,8 +509,8 @@ public final class ZxInfoCatalogue implements Catalogue {
      * With {@code offset=page} the same search's second page came back with
      * thirty more, sharing no id with the first.
      */
-    private static String searchFor(String criterion, int page) {
-        return paged("search", criterion, page);
+    private static String searchFor(String criterion, int page, int size) {
+        return paged("search", criterion, page, size);
     }
 
     /**
@@ -526,11 +564,11 @@ public final class ZxInfoCatalogue implements Catalogue {
      * all: a raw {@code #} in a URL is a fragment marker, and everything after
      * it would never leave the phone.
      */
-    private static String letterFor(String letter, int page) {
+    private static String letterFor(String letter, int page, int size) {
         // Encoded although a letter never needs it: what arrives here is a
         // substring of a shelf id, and the one way this can go wrong is the
         // LETTER_PREFIX leaking into the path.
-        return paged("games/byletter/" + Uri.encode(letter), "", page);
+        return paged("games/byletter/" + Uri.encode(letter), "", page, size);
     }
 
     /**
@@ -637,9 +675,9 @@ public final class ZxInfoCatalogue implements Catalogue {
      * which ask about one thing each, and {@link #randomFor} and {@link
      * #likeFor}, whose endpoints take no {@code offset} at all.
      */
-    private static String paged(String path, String criterion, int page) {
+    private static String paged(String path, String criterion, int page, int size) {
         return path + "?" + (criterion.isEmpty() ? "" : criterion + "&")
-                + "mode=compact&size=" + PAGE_SIZE + "&offset=" + page;
+                + "mode=compact&size=" + size + "&offset=" + page;
     }
 
     // --- reading a page ------------------------------------------------------------------

@@ -708,6 +708,71 @@ public class ZxInfoCatalogueTest {
     }
 
     /**
+     * A shelf that is going to throw most of a page away asks for a bigger one.
+     *
+     * <b>Measured, and the reason the number is 100.</b> The service has no
+     * format parameter, so the app filters what arrives - and a live TRD filter
+     * keeps 4.3% of entries, 1.3 rows out of every thirty-row page. What that
+     * costs is dominated by the per-request overhead rather than by the bytes:
+     * a page is 0.17-0.25s of network and this app waits 250ms between calls,
+     * so thirty entries cost about 0.45s and a hundred cost about 0.53s. Three
+     * hundred entries read as ten pages take 4.5s; as three pages, 1.6s. Same
+     * entries, same rows kept, roughly the same bytes, a third of the wall
+     * clock - which is why the hint is about the <em>page</em> and not about
+     * asking for more of them.
+     *
+     * <b>The hint is on the query, so no catalogue is made to care.</b> {@code
+     * Query} exists for exactly this - "one object rather than an argument per
+     * kind, so adding a filter later changes neither open nor any catalogue
+     * that does not use it" - and a catalogue with no notion of page size
+     * ignores it.
+     */
+    @Test
+    public void ashelfThatSiftsAsksForAbiggerPage() throws Exception {
+        Canned http = new Canned().then(200, SEARCH).then(200, SEARCH);
+        ZxInfoCatalogue catalogue = new ZxInfoCatalogue(http);
+
+        catalogue.open(shelf(http, "search"), Catalogue.Query.text("manic miner"), 0);
+        assertTrue(http.asked.get(0), http.asked.get(0).contains("size=30"));
+
+        catalogue.open(shelf(http, "search"),
+                       Catalogue.Query.text("manic miner").sifting(), 0);
+        assertTrue("a sifting shelf asked for the same small page, so a filter"
+                   + " that keeps one row in thirty pays a whole request for it",
+                   http.asked.get(1).contains("size=100"));
+    }
+
+    /**
+     * ...and the page it asks for is the stride it counts by.
+     *
+     * <b>{@code offset} is a page number here, not a row number</b> - the
+     * measured fact this endpoint is paged on - so the size and the offset
+     * multiply, and how many rows a shelf has already seen has to be worked out
+     * with the same size it asked for. Get that wrong and {@code Page.hasMore}
+     * is answered from a count three times too small: a sifting shelf would
+     * walk on past its own end, one wasted paced request per fling, against the
+     * host that has blocked this app's address once already.
+     *
+     * <b>The total is invented and says so.</b> 101 is chosen to sit between
+     * the two strides - above 30 + 2 and below 100 + 2 - which is the whole
+     * point of it; every other value here is {@link #SEARCH}'s, which is a
+     * trimmed real reply. There is no live search whose total lands in that gap
+     * to hand, and waiting for one is not a test.
+     */
+    @Test
+    public void asiftingShelfCountsByThePageItAskedFor() throws Exception {
+        String body = SEARCH.replace("\"total\":{\"value\":153}", "\"total\":{\"value\":101}");
+
+        Catalogue.Page page = new ZxInfoCatalogue(new Canned().then(200, body))
+                .open(shelf(new Canned(), "search"),
+                      Catalogue.Query.text("manic miner").sifting(), 1);
+
+        assertFalse("page one of a hundred-row shelf has seen 100 rows, not 30 -"
+                    + " counted by the wrong stride, this shelf goes on asking"
+                    + " for pages that are not there", page.hasMore());
+    }
+
+    /**
      * <b>Compact, and never filtered by machine.</b>
      *
      * PENTAGON is a sibling of ZXSPECTRUM in ZXInfo's scheme rather than a

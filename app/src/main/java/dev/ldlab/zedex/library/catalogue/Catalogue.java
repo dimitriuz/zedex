@@ -176,14 +176,16 @@ public interface Catalogue {
      */
     final class Query {
 
-        private static final Query NOTHING = new Query(null, null);
+        private static final Query NOTHING = new Query(null, null, false);
 
         private final String text;
         private final String letter;
+        private final boolean sifting;
 
-        private Query(String text, String letter) {
+        private Query(String text, String letter, boolean sifting) {
             this.text = text;
             this.letter = letter;
+            this.sifting = sifting;
         }
 
         /** For a shelf that takes nothing. */
@@ -192,11 +194,36 @@ public interface Catalogue {
         }
 
         public static Query text(String typed) {
-            return new Query(typed, null);
+            return new Query(typed, null, false);
         }
 
         public static Query letter(String one) {
-            return new Query(null, one);
+            return new Query(null, one, false);
+        }
+
+        /**
+         * The same question, from a caller that is going to keep only some of
+         * the answer.
+         *
+         * <b>A hint about the page, and a catalogue owes nothing to it.</b>
+         * The screen's format filter is applied here rather than by the
+         * service - ZXInfo has no such parameter, and an unknown one is
+         * ignored rather than refused - so a filtered shelf reads thirty
+         * entries to keep one, and what that costs is mostly the round trip
+         * and the pacing rather than the bytes. A catalogue that can ask for
+         * more rows at once should; one that cannot ignores this and is no
+         * worse off, which is the whole reason it rides on {@link Query}
+         * rather than widening {@link Catalogue#open}.
+         *
+         * Never say this for a shelf whose rows are all kept: a bigger page
+         * would be more bytes for rows nobody asked for yet.
+         */
+        public Query sifting() {
+            return sifting ? this : new Query(text, letter, true);
+        }
+
+        public boolean isSifting() {
+            return sifting;
         }
 
         /** Never null - a shelf building a URL wants a string. */

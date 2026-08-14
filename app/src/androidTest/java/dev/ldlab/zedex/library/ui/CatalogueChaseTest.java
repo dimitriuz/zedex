@@ -7,6 +7,7 @@ import dev.ldlab.zedex.library.scrape.ScrapeException;
 import dev.ldlab.zedex.screen.LibraryActivity;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -71,6 +72,20 @@ public class CatalogueChaseTest {
     /** Long enough for a screen to come up and for the pages the fill needs -
      *  none of which is a request, so this is generous rather than tuned. */
     private static final long FIND = 30_000;
+
+    private static final long POLL = 100;
+
+    /**
+     * Screenfuls below the one showing that this asserts are there.
+     *
+     * <b>A floor, not the rule.</b> The view keeps more than this - see {@code
+     * CatalogueView.LOOKAHEAD} - and asserting its exact number here would make
+     * this test a copy of the constant rather than a statement about what
+     * scrolling feels like. One screenful of slack is the least that means "the
+     * next flick does not land on the end of the list", and a bench that draws
+     * a partial row at the bottom cannot make that come out false.
+     */
+    private static final int SLACK = 1;
 
     /** What the fake answers with, the size a real page is. */
     private static final int PAGE = 30;
@@ -140,6 +155,74 @@ public class CatalogueChaseTest {
     }
 
     /**
+     * ...and it fills past that, so scrolling does not walk into the end of the
+     * list on every flick.
+     *
+     * <b>Filling until the list can merely be scrolled is the minimum, and the
+     * minimum is a treadmill.</b> A shelf that stops there sits exactly one
+     * screen deep: the first flick reaches the bottom, buys one page, and waits
+     * for it - measured on a live TRD filter at 1.3 rows per request and about
+     * half a second per request, which is four rows and a wait, over and over.
+     * So the fill runs on while there is less than {@link #SLACK} screenfuls
+     * below the last row showing.
+     *
+     * <b>Counted in screenfuls this device actually draws</b>, never in rows: a
+     * row is 156dp and how many of those fit is this bench's business. The rows
+     * on screen are counted off the accessibility tree and the whole list off
+     * the adapter, which is the same pair {@code CatalogueScreenTest} reads.
+     */
+    @Test
+    public void afilteredShelfFillsAscreenfulBeyondWhatIsShowing() {
+        install(new Sparse(MATCHES));
+        chooseTheFilteredFormat();
+        openTheShelf();
+
+        assertNotNull("the shelf never filled far enough to scroll at all",
+                      device.wait(Until.findObject(By.scrollable(true)), FIND));
+
+        int showing = awaitSlack();
+        int rows = rowCount();
+
+        assertTrue("the shelf filled to " + rows + " rows with " + showing
+                   + " of them on screen, so there is less than one screenful"
+                   + " below what is showing - the next flick reaches the end of"
+                   + " the list and waits there for a page",
+                   rows >= showing * (SLACK + 1));
+    }
+
+    /**
+     * A filtered shelf tells the catalogue it is sifting; an unfiltered one
+     * does not.
+     *
+     * <b>The wiring, not the effect.</b> What a catalogue does with the hint is
+     * its own business and {@code ZxInfoCatalogueTest} pins ZXInfo's - a
+     * hundred-row page rather than a thirty-row one, worth about three times
+     * the rows per second where a filter keeps 4.3% of them. What can go wrong
+     * on this side is quieter: the filter is this view's and the request is the
+     * catalogue's, so a hint that is never set costs nothing, breaks nothing,
+     * and simply leaves the shelf as slow as it was.
+     */
+    @Test
+    public void onlyAfilteredShelfAsksTheCatalogueToSift() {
+        install(new Sparse(MATCHES));
+        openTheShelf();
+        awaitRows();
+
+        assertFalse("an unfiltered shelf keeps every row of every page, and has"
+                    + " no reason to ask for a bigger one", catalogue.wasAskedToSift());
+
+        install(new Sparse(MATCHES));
+        chooseTheFilteredFormat();
+        openTheShelf();
+        awaitRows();
+
+        assertTrue("the format filter never reached the catalogue as one, so a"
+                   + " shelf that keeps one row in thirty asks for the same"
+                   + " small page as one that keeps them all",
+                   catalogue.wasAskedToSift());
+    }
+
+    /**
      * ...and a filter nothing matches still gives up.
      *
      * The other half of the same rule, and the reason the fill is bounded at
@@ -185,6 +268,7 @@ public class CatalogueChaseTest {
 
         private final int matchesPerPage;
         private final AtomicInteger asked = new AtomicInteger();
+        private volatile boolean sifting;
 
         private Sparse(int matchesPerPage) {
             this.matchesPerPage = matchesPerPage;
@@ -193,6 +277,11 @@ public class CatalogueChaseTest {
         /** Counted off the thread the fetch runs on, read from the test's. */
         int pagesAsked() {
             return asked.get();
+        }
+
+        /** Whether any page was asked for as one this view will sift. */
+        boolean wasAskedToSift() {
+            return sifting;
         }
 
         @Override
@@ -214,6 +303,7 @@ public class CatalogueChaseTest {
         @Override
         public Page open(Shelf shelf, Query query, int page) {
             asked.incrementAndGet();
+            if (query.isSifting()) sifting = true;
 
             if (page >= PAGES_HELD) return new Page(null, null, page * PAGE, Page.UNKNOWN_TOTAL);
 
@@ -232,7 +322,7 @@ public class CatalogueChaseTest {
                                          + (filtered ? ".rzx" : ".tap"),
                                          filtered ? FILTERED : "tap", 1024);
 
-            return new Item(String.valueOf(number), "Fake Entry " + number, "1984",
+            return new Item(String.valueOf(number), TITLE + " " + number, "1984",
                             "Nobody", "Arcade Game", "Available", null,
                             Arrays.asList(new Version(null, "1984",
                                                       Collections.singletonList(file))));
@@ -252,6 +342,10 @@ public class CatalogueChaseTest {
     /** What the fake's one shelf is called. Nothing a real catalogue says, so
      *  a stray row of somebody else's cannot be mistaken for it. */
     private static final String SHELF = "Sparse Shelf";
+
+    /** ...and the same for its rows, which is how the rows on screen are told
+     *  from everything else in the accessibility tree. */
+    private static final String TITLE = "Fake Entry";
 
     // --- driving the screen -------------------------------------------------------
 
@@ -337,6 +431,47 @@ public class CatalogueChaseTest {
         UiObject2 shelf = device.wait(Until.findObject(By.text(SHELF)), FIND);
         assertNotNull("the fake catalogue's shelf is not on screen", shelf);
         shelf.click();
+    }
+
+    /** Until the shelf has asked for something at all - the fake counts what it
+     *  was asked from the thread the fetch runs on, and a reading taken before
+     *  the first request says nothing. */
+    private void awaitRows() {
+        long deadline = SystemClock.uptimeMillis() + FIND;
+
+        while (catalogue.pagesAsked() == 0 && SystemClock.uptimeMillis() < deadline) {
+            SystemClock.sleep(POLL);
+        }
+    }
+
+    /**
+     * How many of the fake's rows are on screen, once the list has stopped
+     * growing under them - or the last reading when the wait runs out, so the
+     * caller's own assertion is what reports the failure.
+     *
+     * Waits for the condition rather than for a duration: how long a fill takes
+     * is a fact about the fake, the thread pool and what else this bench is
+     * doing, and a sample taken after a fixed sleep passes alone and fails
+     * behind three other classes.
+     */
+    private int awaitSlack() {
+        long deadline = SystemClock.uptimeMillis() + FIND;
+        int showing = rowsOnScreen();
+
+        while (SystemClock.uptimeMillis() < deadline
+               && (showing == 0 || rowCount() < showing * (SLACK + 1))) {
+            SystemClock.sleep(POLL);
+            showing = rowsOnScreen();
+        }
+
+        return showing;
+    }
+
+    /** The rows a person can actually see, counted off the accessibility tree.
+     *  The fake's own titles, so nothing else on the screen can be counted as
+     *  one of them. */
+    private int rowsOnScreen() {
+        return device.findObjects(By.textStartsWith(TITLE)).size();
     }
 
     /** The adapter's own count, read from the thread the view belongs to. A

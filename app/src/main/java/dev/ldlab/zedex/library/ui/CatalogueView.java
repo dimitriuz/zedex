@@ -143,9 +143,8 @@ public final class CatalogueView extends FrameLayout {
      *
      * What it does cost is pages. An rzx is on about 13.5% of entries, so a
      * screenful is three or four pages rather than one, and {@link #deliver}
-     * keeps asking until the list is long enough to scroll - which is when it
-     * can start asking for itself. See {@link #fillIfTooShortToScroll} and
-     * {@link #CHASE}.
+     * keeps asking until there is a screenful or two below what is showing -
+     * see {@link #fillIfShortOfSlack}, {@link #LOOKAHEAD} and {@link #SCAN}.
      */
     private String format;
 
@@ -300,21 +299,7 @@ public final class CatalogueView extends FrameLayout {
             public void onScrolled(RecyclerView view, int dx, int dy) {
                 if (dy <= 0 || inFlight || failed || !hasMore) return;
 
-                int count = manager.getItemCount();
-                int last = manager.findLastVisibleItemPosition();
-                if (last == RecyclerView.NO_POSITION) return;
-
-                // One screen's warning, not one row's - fetching at the very
-                // last row means the grid stops dead while the request goes
-                // out, which reads as a catalogue that has ended. Measured
-                // from the layout manager rather than guessed at, because how
-                // many rows a screen holds is a fact about this device's
-                // screen and this row's height, not a constant somebody can
-                // choose correctly for both.
-                int first = manager.findFirstVisibleItemPosition();
-                int ahead = first == RecyclerView.NO_POSITION ? 1 : Math.max(1, last - first + 1);
-
-                if (last >= count - ahead) nextPage();
+                if (!enoughBelow()) nextPage();
             }
         });
         content.addView(recycler, new FrameLayout.LayoutParams(
@@ -759,7 +744,7 @@ public final class CatalogueView extends FrameLayout {
         // allowed no fill at all and shows whatever its first page happened to
         // hold. Set here rather than only in setFormat, which is one of four
         // ways a new shelf is put on screen.
-        chased = 0;
+        scanned = 0;
 
         header.setText(labelOf(stack.peek()));
 
@@ -775,13 +760,13 @@ public final class CatalogueView extends FrameLayout {
      * {@link #failed}; {@link #retry()} is the way back.
      *
      * A scroll is a person asking for more, so the fill's budget starts again
-     * here: {@link #CHASE} bounds what this view fetches on its own, and this
-     * is the one path where somebody said to.
+     * here: {@link #SCAN} bounds what this view reads on its own, and this is
+     * the one path where somebody said to.
      */
     private void nextPage() {
         if (failed) return;
 
-        chased = 0;
+        scanned = 0;
         fetch();
     }
 
@@ -874,11 +859,20 @@ public final class CatalogueView extends FrameLayout {
      * rather than left to be discovered.
      */
     private Catalogue.Query queryFor(Catalogue.Shelf shelf) {
-        if (shelf.accepts(Catalogue.Shelf.Accepts.TEXT)) return Catalogue.Query.text(typed);
-        if (shelf.accepts(Catalogue.Shelf.Accepts.LETTER) && !typed.isEmpty()) {
-            return Catalogue.Query.letter(typed.substring(0, 1));
+        Catalogue.Query query = Catalogue.Query.none();
+
+        if (shelf.accepts(Catalogue.Shelf.Accepts.TEXT)) {
+            query = Catalogue.Query.text(typed);
+        } else if (shelf.accepts(Catalogue.Shelf.Accepts.LETTER) && !typed.isEmpty()) {
+            query = Catalogue.Query.letter(typed.substring(0, 1));
         }
-        return Catalogue.Query.none();
+
+        // A filter set here means most of what comes back is dropped here too,
+        // and a catalogue that can answer with more rows at once should be told
+        // so - it is the round trip and the pacing that a sifting shelf spends,
+        // not the bytes. Only while there is a filter: an unfiltered shelf
+        // draws every row it is sent.
+        return format == null ? query : query.sifting();
     }
 
     private void deliver(int token, Catalogue.Page result, Throwable failure) {
@@ -922,6 +916,10 @@ public final class CatalogueView extends FrameLayout {
         page++;
         hasMore = result.hasMore();
 
+        // What this page cost, which is what the fill is bounded by: the rows
+        // the catalogue read, not the few that got past the filter.
+        scanned += result.items().size();
+
         String count = CatalogueAdapter.countLabel(result.total());
         header.setText(count == null ? labelOf(stack.peek())
                                      : labelOf(stack.peek()) + " · " + count);
@@ -934,78 +932,117 @@ public final class CatalogueView extends FrameLayout {
         // chase continues here, while pages keep arriving empty-handed.
         //
         // Kept synchronous for this case, rather than folded into the one
-        // below: a page that added no row cannot have changed whether the list
-        // can be scrolled, so there is nothing to wait for a layout to say -
+        // below: a page that added no row cannot have changed what is below
+        // what is showing, so there is nothing to wait for a layout to say -
         // and going round through post() would leave `inFlight` false with no
         // rows for a frame, which is the state updateState() draws "Nothing
         // here." in. That would flash the empty label between every pair of
         // pages of a chase.
-        if (!addedSomething && hasMore && ++chased < CHASE) {
+        if (!addedSomething && hasMore && scanned < SCAN) {
             fetch();
             return;
         }
 
-        // ...and a page that added one row and left the list too short to
-        // scroll stalls in exactly the same way, which is the half this used
-        // to miss. Stopping as soon as a page added anything left four rows on
-        // screen against a live RZX filter - page two of ten never asked for,
-        // six further matches in the pages it stopped short of - and no way at
-        // all to ask for more, because the only thing that asks is a scroll
-        // and there was nothing to scroll. See fillIfTooShortToScroll.
-        fillIfTooShortToScroll(token);
+        // ...and a page that added one row and left the list short stalls in
+        // exactly the same way, which is the half this used to miss. Stopping
+        // as soon as a page added anything left four rows on screen against a
+        // live RZX filter - page two of ten never asked for, six further
+        // matches in the pages it stopped short of - and no way at all to ask
+        // for more, because the only thing that asks is a scroll and there was
+        // nothing to scroll. See fillIfShortOfSlack.
+        fillIfShortOfSlack(token);
     }
 
     /**
-     * Another page, while the list is still too short to ask for one itself.
+     * Another page, while there is not enough list below what is showing.
+     *
+     * <b>Filling until the list can merely be scrolled is the minimum, and the
+     * minimum is a treadmill.</b> That was the first cut of this and it left a
+     * filtered shelf sitting exactly one screen deep: the first flick reached
+     * the bottom, bought one page, and waited for it. Measured on a live TRD
+     * filter - 4.3% of entries, so 1.3 rows per thirty-row page, at about half
+     * a second a page - that is four rows and a wait, over and over, however
+     * hard somebody scrolls. So the target is {@link #LOOKAHEAD} screenfuls
+     * below the last row showing, and the fill runs on until it has them.
      *
      * <b>Asked after a layout, because before one the question has no
-     * answer.</b> {@code canScrollVertically} reads what is laid out, and the
-     * rows just handed to the adapter are not - so this is posted, which puts
-     * it after the traversal that {@code setRows} asked for: a layout pass
-     * raises a sync barrier on the queue, and an ordinary posted message
-     * cannot overtake it. Reading it inline instead answers about the previous
-     * page every time, which is one page late for ever.
-     *
-     * <b>And the bound is the whole fill, not each page of it.</b> {@code
-     * chased} is deliberately not reset by a page that brought something: a
-     * filter that matches one row in thirty would otherwise be allowed ten
-     * fresh pages per row it found, and filling a screen would cost forty
-     * requests against a host that blocks on behaviour patterns. Ten pages is
-     * the ceiling on the whole unattended fill, exactly as it was when only
-     * empty pages counted. A scroll is a person asking, and starts a fresh
-     * one - see {@link #nextPage()}.
+     * answer.</b> What is visible is what is laid out, and the rows just handed
+     * to the adapter are not - so this is posted, which puts it after the
+     * traversal that {@code setRows} asked for: a layout pass raises a sync
+     * barrier on the queue, and an ordinary posted message cannot overtake it.
+     * Reading it inline instead answers about the previous page every time,
+     * which is one page late for ever.
      */
-    private void fillIfTooShortToScroll(int token) {
+    private void fillIfShortOfSlack(int token) {
         recycler.post(() -> {
             // The shelf under this list has been replaced - another search,
             // another shelf, the roots. Its page is nothing to do with what is
             // on screen now, and abandon() has already invalidated the token.
             if (token != fetchToken || failed || !hasMore) return;
 
-            // The list can be scrolled, so it can ask for its own next page:
-            // the scroll listener takes it from here, one page per fling,
-            // which is where paging belongs.
-            if (recycler.canScrollVertically(1)) return;
-
-            if (++chased >= CHASE) return;
+            if (enoughBelow()) return;
+            if (scanned >= SCAN) return;
 
             fetch();
         });
     }
 
     /**
-     * How many pages one unattended fill may ask for before it gives up.
+     * Whether there is enough list below what is showing to scroll into.
+     *
+     * One question, asked by both the things that fetch: the scroll listener,
+     * so a flick never lands on the end of the list while a request is still
+     * out, and {@link #fillIfShortOfSlack}, so a shelf whose filter keeps one
+     * row in thirty gets there without being scrolled at. They used to be two
+     * rules with two constants, and the fill's was the strictest reading there
+     * is - "can it be scrolled at all" - which is how a shelf came to be
+     * exactly one screen deep for ever.
+     *
+     * <b>Measured from the layout manager, never from a constant.</b> How many
+     * rows a screen holds is a fact about this device's height and this row's,
+     * not a number somebody can choose correctly for both.
+     */
+    private boolean enoughBelow() {
+        int last = manager.findLastVisibleItemPosition();
+
+        // Nothing is laid out yet, so there is nothing below anything.
+        if (last == RecyclerView.NO_POSITION) return false;
+
+        int first = manager.findFirstVisibleItemPosition();
+        int visible = first == RecyclerView.NO_POSITION ? 1 : Math.max(1, last - first + 1);
+
+        return manager.getItemCount() - 1 - last >= visible * LOOKAHEAD;
+    }
+
+    /** Screenfuls to keep below the last row showing. Two rather than one
+     *  because one is what a flick crosses. */
+    private static final int LOOKAHEAD = 2;
+
+    /**
+     * How many of the catalogue's own rows one unattended fill may read
+     * before it gives up.
      *
      * The alternative is a filter nobody has anything for walking a
-     * ten-thousand-row shelf a page at a time. Ten pages is three hundred
-     * entries, about two and a half seconds at the pacing this app keeps, and
-     * then it stops and says the shelf is empty - which for that format and
-     * that shelf it may as well be. Scrolling starts it again, and so does
-     * every fresh shelf - see {@link #restart()}.
+     * ten-thousand-row shelf a page at a time. Three hundred entries is about
+     * two and a half seconds at the pacing this app keeps, and then it stops
+     * and says the shelf is empty - which for that format and that shelf it may
+     * as well be. Scrolling starts it again, and so does every fresh shelf -
+     * see {@link #restart()}.
+     *
+     * <b>Counted in entries read and not in pages asked for</b>, because a
+     * sifting shelf asks for a bigger page - see {@code Catalogue.Query} - and
+     * a bound in pages would quietly triple what a fill costs the moment that
+     * page size changed. What this bounds is the traffic, so it is measured in
+     * the thing that makes the traffic.
+     *
+     * <b>And it is not reset by a page that brought something.</b> A filter
+     * that matches one row in thirty would otherwise be allowed a fresh three
+     * hundred per row it found. A scroll is a person asking, and that is what
+     * starts a new one - see {@link #nextPage()}.
      */
-    private static final int CHASE = 10;
+    private static final int SCAN = 300;
 
-    private int chased;
+    private int scanned;
 
     /** Whether this row is one the filter wants. Everything, when there is no
      *  filter - which is the ordinary case and costs a null check. */
