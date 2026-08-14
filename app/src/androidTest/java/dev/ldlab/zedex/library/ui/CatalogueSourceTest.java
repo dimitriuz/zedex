@@ -9,6 +9,7 @@ import dev.ldlab.zedex.screen.LibraryActivity;
 import dev.ldlab.zedex.storage.Prefs;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -37,6 +38,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * The source row - {@code CatalogueView}'s third control of its own, beside
@@ -162,6 +164,40 @@ public class CatalogueSourceTest {
     }
 
     /**
+     * The bug the coordinator found while reviewing this task: {@code
+     * CataloguePane} used to hold its own {@code Catalogue}, set once at
+     * construction, and {@link CatalogueView#setCatalogue} never told it
+     * about a switch - so a pane opened after switching archives would go on
+     * asking the <em>old</em> one for the item, the "games like this" shelf
+     * and the scraping provider, against an id the new archive issued. Fixed
+     * by {@code CataloguePane.setCatalogue}, called from {@code
+     * CatalogueView.setCatalogue} before {@link #showRoots()}.
+     *
+     * <b>Proved by which fake actually answered {@link Catalogue#item}</b> -
+     * the one fact a screenshot of the pane cannot show, since both fakes
+     * answer with an item of the same title. Switching happens before any
+     * shelf is opened, so there is nothing on screen from catalogue A for the
+     * pane to have been holding onto except the stale reference itself.
+     */
+    @Test
+    public void switchingSourceThenOpeningAnItemAsksTheNewCatalogue() {
+        Fake a = new Fake(NAME_A, SHELF_A, false, Collections.singletonList(Catalogue.Sort.DEFAULT));
+        Fake b = new Fake(NAME_B, SHELF_B, false, Collections.singletonList(Catalogue.Sort.DEFAULT));
+
+        install(a);
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> view.setCatalogue(b));
+
+        openShelf(SHELF_B);
+        openTheItem();
+
+        assertTrue("the pane never asked catalogue B for the item, even though B is what "
+                   + "is on screen after the switch", awaitItemAsked(b));
+        assertFalse("the pane asked catalogue A for the item after switching away from it -"
+                    + " it kept a stale Catalogue reference from before the switch",
+                    a.itemWasAsked());
+    }
+
+    /**
      * The part with no other witness: choosing a source actually writes
      * {@link Prefs#KEY_CATALOGUE}, read back out of {@link SharedPreferences}
      * rather than by relaunching the app - {@code chooseSource()} lists the
@@ -234,6 +270,11 @@ public class CatalogueSourceTest {
         private final boolean knowsFormats;
         private final List<Sort> sorts;
 
+        /** Set by {@link #item}, off the {@code Work.run} thread the pane
+         *  fetches on - read from the test's, which is what proves which
+         *  fake's own catalogue the pane actually asked. */
+        private final AtomicBoolean itemAsked = new AtomicBoolean();
+
         private Fake(String name, String shelfLabel, boolean knowsFormats, List<Sort> sorts) {
             this.name = name;
             this.shelfLabel = shelfLabel;
@@ -279,7 +320,12 @@ public class CatalogueSourceTest {
 
         @Override
         public Item item(String id) {
+            itemAsked.set(true);
             return row();
+        }
+
+        boolean itemWasAsked() {
+            return itemAsked.get();
         }
 
         @Override
@@ -333,6 +379,33 @@ public class CatalogueSourceTest {
 
         assertNotNull("LibraryActivity is not the resumed activity", found[0]);
         return found[0];
+    }
+
+    private void openShelf(String label) {
+        UiObject2 shelf = device.wait(Until.findObject(By.text(label)), FIND);
+        assertNotNull("the fake catalogue's shelf " + label + " never appeared", shelf);
+        shelf.click();
+    }
+
+    private void openTheItem() {
+        UiObject2 item = device.wait(Until.findObject(By.textStartsWith(TITLE)), FIND);
+        assertNotNull("the fake catalogue's own item never appeared on its shelf", item);
+        item.click();
+    }
+
+    /**
+     * Until the fake has been asked at all, or the deadline runs out - the
+     * fetch runs off the main thread ({@code Work.run}), so a reading taken
+     * immediately after the tap says nothing.
+     */
+    private boolean awaitItemAsked(Fake fake) {
+        long deadline = SystemClock.uptimeMillis() + FIND;
+
+        while (!fake.itemWasAsked() && SystemClock.uptimeMillis() < deadline) {
+            SystemClock.sleep(POLL);
+        }
+
+        return fake.itemWasAsked();
     }
 
     private void chooseTopRated() {

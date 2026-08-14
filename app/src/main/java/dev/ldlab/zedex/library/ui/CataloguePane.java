@@ -147,7 +147,9 @@ public final class CataloguePane extends FrameLayout {
      */
     public static final int REQUEST_WRITABLE_TREE = 0x7a11;
 
-    private final Catalogue catalogue;
+    /** Which archive {@link #showing}'s id belongs to. Not {@code final}: see
+     *  {@link #setCatalogue}. */
+    private Catalogue catalogue;
     private final Http http;
     private final Host host;
 
@@ -383,6 +385,30 @@ public final class CataloguePane extends FrameLayout {
 
         addView(column, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+    }
+
+    /**
+     * The archive this pane asks, from now on.
+     *
+     * <b>An id is certain only against the service that issued it, and
+     * meaningless to any other</b> - the same rule {@link #providerFor}'s own
+     * javadoc states for matching a scraper, and it applies here first: a
+     * pane built against one catalogue and left open across {@code
+     * CatalogueView.setCatalogue} would go on calling {@link
+     * Catalogue#item}, {@link Catalogue#similarTo} and {@link #providerFor}
+     * against the archive it was built with, on an id the *new* archive
+     * issued - zxart's ids are small integers and ZXInfo's are zero-padded
+     * ZXDB strings, so this is not a near miss, it is another entry or none,
+     * and a wrongly matched provider would describe an imported game with a
+     * different service's answer for the same number.
+     *
+     * <b>Called before {@code showRoots()} clears the list</b>, not after: the
+     * pane is closed by that path either way, but this ordering means there
+     * is no instant in which a visible pane is still holding a stale
+     * catalogue - see {@code CatalogueView.setCatalogue}.
+     */
+    public void setCatalogue(Catalogue chosen) {
+        catalogue = chosen;
     }
 
     // --- what the screen tells it -------------------------------------------------

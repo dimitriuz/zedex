@@ -651,6 +651,13 @@ public final class CatalogueView extends FrameLayout {
      * ignores. Rebuilding the view instead would work and would cost the tab
      * its scroll position and the activity a reference it hands to three other
      * things.
+     *
+     * <b>{@link #pane} is told before {@link #showRoots()} runs</b> - which
+     * closes it anyway, so the ordering changes nothing about what is on
+     * screen, but it means there is never an instant in which a visible pane
+     * holds a stale catalogue. See {@code CataloguePane.setCatalogue}'s own
+     * javadoc for what a pane left pointing at the old archive would have
+     * done with an id the new one issued.
      */
     public void setCatalogue(Catalogue chosen) {
         if (chosen == null || chosen == catalogue) return;
@@ -665,6 +672,7 @@ public final class CatalogueView extends FrameLayout {
         showSort();
         showSource();
 
+        pane.setCatalogue(catalogue);
         showRoots();
     }
 
