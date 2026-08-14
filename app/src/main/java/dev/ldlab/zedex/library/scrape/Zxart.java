@@ -49,6 +49,21 @@ import java.util.Locale;
  * this method does not do yet, precisely so the two remain additions to this
  * method rather than a second network shape bolted on beside it.
  *
+ * <b>{@code fetch} asks in English, whatever locale this instance was built
+ * with.</b> Browsing is reading and should be localised - {@code
+ * ZxartCatalogue} keeps its own locale for exactly that, and a person
+ * choosing between {@link #search}'s candidates is shown whichever language
+ * they asked for, since nothing about a candidate is ever written anywhere.
+ * Scraping is different: {@code fetch} writes {@link Meta#genre} into the
+ * store, and {@code Filters}/{@code Facets} group a whole collection by that
+ * one string. A genre read in Russian half the time and English the other
+ * half would be two facets for one genre - and {@code Merge}'s fill-gaps
+ * rule means whichever scrape landed first keeps the bucket, silently,
+ * because a non-null value is never overwritten. So stored data has to be
+ * language-stable, and the fixed segment costs nothing extra: it is the same
+ * single {@code export:zxProd} request with a different {@code language:}
+ * value. See {@link #STORAGE_LANGUAGE}.
+ *
  * No Android types - no {@code Uri}, no {@code Log} - for the same reason
  * {@link ZxartApi} has none: {@code unitTests.returnDefaultValues} answers
  * null for anything from {@code android.*} in a JVM test, so this whole class
@@ -72,7 +87,18 @@ public final class Zxart implements Provider {
      *  prod measured (24 releases inside a limit of 50). */
     private static final int RELEASE_PAGE_SIZE = 50;
 
+    /** The one language {@link #fetch} ever asks in, never {@link #language}
+     *  - see the class javadoc's "fetch asks in English" paragraph. Fixed
+     *  rather than read from anywhere, because the whole point is that this
+     *  provider's locale must not be able to reach it. */
+    private static final String STORAGE_LANGUAGE = "eng";
+
     private final ZxartApi api;
+
+    /** The disambiguation language: what {@link #search} asks in, for a
+     *  person choosing between candidates in their own language. Never used
+     *  by {@link #fetch}, which is not disambiguation - see {@link
+     *  #STORAGE_LANGUAGE}. */
     private final String language;
 
     public Zxart(Http http, Locale locale) {
@@ -133,6 +159,17 @@ public final class Zxart implements Provider {
      * grant - so a caller that has not paid for it yet gets exactly the name
      * search and nothing more: asking for a release list per candidate would
      * spend a paced request comparing against a hash that does not exist.
+     *
+     * <b>{@code game.md5()} is called at most once, and only when there is
+     * at least one candidate to confirm.</b> A search with nothing to show
+     * has nothing to hash against either - the empty-candidates check runs
+     * before the hash is ever taken, so a game this provider has never heard
+     * of costs no I/O beyond the one search request, whatever the file looks
+     * like on disk. The supplier contract ("called at most once") is {@link
+     * Game#md5}'s own; the reason it matters here is that calling it
+     * speculatively, before knowing there is anything to compare it against,
+     * would read a whole disk image through the documents provider for
+     * nothing.
      */
     @Override
     public List<Candidate> search(Game game) throws ScrapeException {
@@ -148,6 +185,7 @@ public final class Zxart implements Provider {
         for (JSONObject row : ZxartApi.rows(reply, ZxartApi.PROD)) {
             found.add(candidateFrom(row));
         }
+        if (found.isEmpty()) return found;
 
         String md5 = game.md5();
         if (md5 == null || md5.isEmpty()) return found;
@@ -234,11 +272,16 @@ public final class Zxart implements Provider {
      * The prod alone, for now - see the class javadoc's "fetch is minimal"
      * paragraph for why the release list, the artwork and the hardware
      * words are left for Tasks 14 and 15 rather than half-built here.
+     *
+     * <b>{@link #STORAGE_LANGUAGE}, never {@link #language}.</b> See the
+     * class javadoc's "fetch asks in English" paragraph - this writes {@link
+     * Meta#genre} into the store, and the store has to read the same in
+     * every locale.
      */
     @Override
     public Scraped fetch(Candidate candidate, Wanted wanted) throws ScrapeException {
         JSONObject reply = api.ask(new ZxartApi.Ask(ZxartApi.PROD)
-                .language(language)
+                .language(STORAGE_LANGUAGE)
                 .filter(ZxartApi.FILTER_PROD_ID, candidate.handle));
 
         List<JSONObject> rows = ZxartApi.rows(reply, ZxartApi.PROD);
@@ -264,12 +307,13 @@ public final class Zxart implements Provider {
 
     /**
      * {@link Meta#genre}'s own words are "the broad kind of thing this is",
-     * and {@code categoriesString} is zxart's breadcrumb from root to leaf in
-     * whichever language was asked for - {@code "Games/Action/Maze/Isometric
-     * Maze Games"} for entry 100938, requested in English. The topmost
-     * segment is the broad kind; the rest is the narrower classification
-     * {@code ZxartCatalogue}'s own category tree already exists to resolve,
-     * which this method does not need and does not walk.
+     * and {@code categoriesString} is zxart's breadcrumb from root to leaf -
+     * {@code "Games/Action/Maze/Isometric Maze Games"} for entry 100938,
+     * always in {@link #STORAGE_LANGUAGE} since this is read from a {@link
+     * #fetch} reply and never from {@link #search}'s. The topmost segment is
+     * the broad kind; the rest is the narrower classification {@code
+     * ZxartCatalogue}'s own category tree already exists to resolve, which
+     * this method does not need and does not walk.
      */
     private static String genreOf(JSONObject prod) {
         String path = ZxartApi.unescape(prod.optString("categoriesString", ""));
