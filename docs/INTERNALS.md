@@ -1041,10 +1041,24 @@ is one mechanism arriving from one place, not four more facts crossing.
 `fetch` fills a row already in the store. So browsing gets six methods of its
 own (`name`, `configured`, `shelves`, `open`, `item`, `refusalFor`), and
 `Catalogues` mirrors `Scrapers` — `all`, `preferred`, `any`, a hand-written
-registration list whose order *is* the fallback order. `ZxInfoCatalogue` is the
-one implementation; ZXInfo needs no credentials, so `configured()` is
-unconditionally true and exists only so that a catalogue which does need them can
-hide its tab rather than offer something that can only fail.
+registration list whose order *is* the fallback order. `ZxInfoCatalogue` and
+`ZxartCatalogue` are the two implementations; neither needs credentials, so
+`configured()` is unconditionally true on both and exists only so that a
+catalogue which does need them can hide its tab rather than offer something
+that can only fail. `Catalogues.preferred` reads `Prefs.KEY_CATALOGUE` to pick
+between them, defaulting to the first when nothing has been chosen —
+`CatalogueView`'s new Source row is the only thing that writes it, and
+`setCatalogue()` abandons whatever the old one had in flight before showing
+the new one's roots.
+
+**zxart's category tree is what the sub-shelf-in-a-page seam was drawn for,
+and the first two-level use of it.** One request returns all 285 categories;
+opening a root yields its own children *and* its own prods in one `Page` — the
+first place in this codebase that fills both halves at once rather than just
+one. The nine roots resolve to a `Downloaded/<kind>` folder by category **id**,
+never by the root's own word (`Kinds.ZXART_ROOTS`): zxart answers in whichever
+of Russian, English or Spanish the browsing person's phone is set to, and an id
+is the one part of the tree that does not change under that.
 
 **A way in is data.** `shelves()` makes no request — which is what lets it run
 on the UI thread while the tab is built — and a shelf whose children have to be
@@ -1263,6 +1277,44 @@ worse than one refused request.
 **Serial, because the account is.** One request in flight is what an account
 without a subscription gets, and `forcelevel=30` does not change it. So the
 multi-scrape is a loop, not a pool.
+
+**zxart is `Provider` and `Catalogue` from the same client, and that split
+matters.** `Zxart implements Provider` (finding a game, filling in `Meta`) and
+`ZxartCatalogue implements Catalogue` (browsing) share nothing but `ZxartApi`
+and `Http` — the one class that knows the URL grammar, the pacing
+(`Pace.before("zxart.ee", ...)`, keyed by host so a scrape running and a shelf
+being browsed queue behind one another rather than each getting the interval to
+itself) and the parsing. Neither implementation reaches into the other; a
+scrape does not know the catalogue exists, and the catalogue does not know it
+can identify a file.
+
+**The confirmation is the whole reason a fourth source earns its place.**
+zxart has no md5 *filter* to ask with — `zxProdMd5` and `zxReleaseMd5` are both
+among the names measured as ignored — but every release lists
+`releaseStructure`, a tree carrying an md5 for the zip and for every file
+packed inside it. So `Zxart.search` finds candidates by name and
+`confirmedByHash` then walks that tree for up to three of them
+(`Zxart.CONFIRM_LIMIT`), looking for the file's own hash anywhere in it — an
+unzipped `.tzx` matches the same row its zip does, which is certain in a way no
+other source here can be: ScreenScraper and this class's own name search both
+guess by filename, and ZXInfo's `/filecheck` only answers for TOSEC-named
+files. Bounded at three because each candidate is a paced request against an
+archive that blocks on behaviour patterns rather than a published limit, and a
+common word ("head" alone is 271 matches) cannot be allowed to spend one
+request per hit.
+
+**`hardwareRequired` becomes words `Suggested` already parses, not a new code
+path into it.** `Zxart.machineWord`/`inputWord` translate zxart's own
+vocabulary (`zx48`, `zx128`, `kempston`, `int2_2`, …) into the same phrases
+`Suggested.MACHINE_WORDS`/`INPUT_WORDS` already read from ZXDB's — `"ZX-Spectrum
+48K/128K"` for a release naming both, for instance — so
+`Suggested.machines(machineType, file, ids)`'s existing narrowing-by-file still
+applies unchanged: a `.trd` still means a Pentagon or a Scorpion whatever a
+zxart record says, because that rule lives in one place and stays there.
+Answering with a Fuse id directly, or adding a zxart-shaped branch inside
+`Suggested`, would step around that narrowing and re-suggest a machine the
+emulator refuses — precisely the bug commit `692173f` fixed for ZXDB.
+`Suggested` itself is not touched by this feature at all.
 
 **Each half splits at the screen.** `Blend` and `Sweep` hold everything a run
 does; `ScrapeOneGame` and `ScrapeManyActivity` hold only what needs a person —

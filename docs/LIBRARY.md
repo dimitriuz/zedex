@@ -308,12 +308,39 @@ service that issued it and meaningless to any other — so the provider is chose
 by matching the catalogue's name, and where nothing matches the file is imported
 with no details rather than with somebody else's.
 
+**Two catalogues now, chosen with a switch beside the format filter.** ZXInfo
+ships first, as before; zxart.ee sits beside it, in `Catalogues.all` behind its
+own `configured()` — true, the same as ZXInfo's, since neither needs an
+account. `CatalogueView.setCatalogue` abandons whatever was in flight and shows
+the new catalogue's own roots; the choice is `Prefs.KEY_CATALOGUE`, which
+`Catalogues.preferred` has read since the first catalogue shipped and only this
+one writes.
+
+**zxart's shelves are Search, Categories and Everything, plus two archives of
+its own: Music and Graphics.** Categories is the shape the seam was built for —
+one request returns all 285 categories nested under nine roots, and opening a
+root fills both halves of a `Page` at once, its own sub-shelves *and* its own
+prods, paged. The nine roots resolve to `Downloaded/Games`, `Applications`,
+`Compilations`, `Magazines`, `Demoscene` and `Other` through `Kinds`'s existing
+table, by category **id** rather than by the root's own word — zxart answers in
+whichever of Russian, English or Spanish the browsing person's phone is set to,
+so an id is the only thing two people looking at the same tree agree on. Music
+and Graphics are two more top-level shelves rather than a third catalogue: a
+tune or a picture is filed to `Downloaded/Music` or `Downloaded/Graphics` and
+opened with **Open**, handed to the phone with the mime the entry itself
+states, since neither is a game the emulator can load.
+
+**A sort row appears beside Source and Format when a catalogue offers more than
+`DEFAULT`.** `Catalogue.Sort` is `DEFAULT`, `TOP`, `NEWEST`, `ALPHABETICAL`;
+ZXInfo declares `DEFAULT` and `TOP` (`sort=score_desc`), zxart all four
+(`votes,desc` / `date,desc` / `title,asc`). Changing it `restart()`s whatever
+shelf is open rather than opening a new one, so it applies *inside* the current
+view — Top inside Games, Top inside a search, Top inside a sub-category.
+
 ## Still open
 
 - Whether the grid, with no artwork scraped, shows anything better than a name
   and an icon by type.
-- zxart, the second catalogue. It shaped the seam — the category tree is why a
-  page carries sub-shelves — and is not built.
 - Bulk import. One thing at a time; a queue is a different feature with
   different manners.
 - Whether the library should be built focus-first now, since it is the obvious

@@ -1,6 +1,6 @@
 # Privacy policy
 
-**Zedex** · 11 August 2026
+**Zedex** · 14 August 2026
 
 **Zedex collects no personal data.** No account, no analytics, no advertising, no
 crash reporting, and no server belonging to the developer.
@@ -54,7 +54,7 @@ GitHub and is passed to Android's installer, which asks you before installing.
 *Scrape this game…* or *Scrape many games…* in the library. Nothing is
 scraped in the background and nothing is scraped automatically.
 
-There are two services to choose between, in *Settings › Library › Scrape
+There are three services to choose between, in *Settings › Library › Scrape
 from*, and each is covered below.
 
 ### screenscraper.fr
@@ -96,16 +96,39 @@ documentation; there is no identifier for your device, your installation or
 you, because none exists. Each of those sites sees your IP address, as any
 website does.
 
-**5. Browsing the catalogue, and importing from it** — only if you open the
-*Catalogue* tab in the library. Nothing is fetched until you open a shelf, a
-cover is fetched only when its row is on screen, and a game is downloaded only
-when you tap Import.
+### zxart.ee
 
-The same three addresses as above, and the same `Zedex/<version>` and nothing
-else. What Zedex sends is what you asked for: the text you typed, or the letter
-or category you tapped, or the identifier of an entry you opened. A file may be
-named on some other host, and Zedex will follow that name to fetch it — the
-same header goes with it.
+The demoscene and games archive behind zxart.ee. There is no account and
+nothing to set up, so there is nothing of yours to send. What Zedex sends, per
+game, is the title read out of the file's own name. This service has no hash
+lookup to send a checksum *to* — instead, up to three name matches are checked
+against a release list the service has already answered, and that check runs
+on your device: your file's checksum is compared locally and never leaves it.
+
+```
+zxart.ee    the lookup itself, and every picture, tune, map, advert or manual it names
+```
+
+Every request carries `Zedex/<version>` and nothing more, and requests are
+spaced out rather than sent as fast as the connection allows, at the site's own
+published request. There is no identifier for your device, your installation
+or you, because none exists. zxart.ee sees your IP address, as any website
+does.
+
+**5. Browsing the catalogue, and importing from it** — only if you open the
+*Catalogue* tab in the library. A Source switch there picks which of the two
+archives you browse. Nothing is fetched until you open a shelf, a cover is
+fetched only when its row is on screen, and a game is downloaded only when you
+tap Import.
+
+The same addresses as above — the three for ZXInfo, or zxart.ee for its own
+archive, whichever you are browsing — and the same `Zedex/<version>` and
+nothing else. What Zedex sends is what you asked for: the text you typed, or
+the letter or category you tapped, or the identifier of an entry you opened. A
+file may be named on some other host, and Zedex will follow that name to fetch
+it — the same header goes with it. A tune or a picture opens with whatever
+your phone plays audio or shows pictures with, the same as any other file
+Zedex hands off.
 
 What comes back — the game, and its details and artwork — is written into your
 own folder and nowhere else.
@@ -149,8 +172,8 @@ YouTube itself, and tapping it only hands the address to whatever app your
 phone has for opening one.
 
 Zedex itself talks to `screenscraper.fr`, `api.zxinfo.dk`,
-`spectrumcomputing.co.uk` and `zxinfo.dk`, and only when you ask it to — see
-*When Zedex uses the internet* above.
+`spectrumcomputing.co.uk`, `zxinfo.dk` and `zxart.ee`, and only when you ask it
+to — see *When Zedex uses the internet* above.
 
 ## Permissions
 
