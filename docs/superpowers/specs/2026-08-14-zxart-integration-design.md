@@ -488,11 +488,13 @@ the `start` stride, and the `legalStatus` mapping.
 - **Author and party shelves.** `filter:authorId` works and zxart's parties are
   a real way people browse it; both are shelves, which means they are data and
   cost nothing to add later.
-- **ZXInfo declaring `TOP`.** `sort=score_desc` is now measured (see *Sorting
-  is a control, not a shelf*, above) and works — ZXInfo can declare `TOP`
-  alongside `DEFAULT`. Wiring `CatalogueView`'s sort row for it, and measuring
-  `ALPHABETICAL`, is a small task on the ZXInfo catalogue, not part of this
-  design.
+- **ZXInfo's `ALPHABETICAL` sort.** `sort=score_desc` was measured during the
+  build and works, so ZXInfo ships declaring `TOP` alongside `DEFAULT` — this
+  note said that was future work and it was overtaken by the implementation,
+  which is corrected here rather than left to read as an outstanding task.
+  What genuinely remains unmeasured is a **title** sort on that service: nobody
+  has asked ZXInfo for one, so it declares no `ALPHABETICAL` and this design
+  does not guess that it would work.
 - **The 3,988 archive.org recordings** ZXInfo cannot reach. zxart carries an
   `rzx` for **47.9%** of prods against ZXInfo's reachable 1,353, so this piece
   improves that enormously by accident — but a recording zxart does not hold is
