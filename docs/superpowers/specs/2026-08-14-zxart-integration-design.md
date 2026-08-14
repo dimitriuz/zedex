@@ -405,20 +405,36 @@ to change.
 
 ## Manners
 
-zxart's `robots.txt` **disallows `/api` for every user-agent**, and names
-`ClaudeBot` with `Disallow: /`. The API is published, documented by the site's
-own author and served happily to an identified client, and this app is a
-user-initiated client rather than a robot — but the site has stated a
-preference, and the ZXInfo precedent says the address can be lost and that an
-email lifts it.
+zxart's `robots.txt` **disallows every path this app touches**, and names
+`ClaudeBot` with `Disallow: /`. The whole list, from `review/zxart/robots.txt`:
+`/about/contact-us/`, `/simple`, **`/release`**, `/zxfile`, `/remote`,
+`/banner`, `/api`, `/zipItems`, **`/file`**, `/print`, `/redirect`. This
+section said `/api` alone until the branch's final review, and the two in bold
+are why that mattered: every inlay, advert, instruction and map url is
+`/release/id:…` and every game download is `/releasefile/…`, so the media half
+of the feature is under a disallowed prefix too, not only the lookups. The API
+is published, documented by the site's own author and served happily to an
+identified client, and this app is a user-initiated client rather than a robot
+— but the site has stated a preference, and the ZXInfo precedent says the
+address can be lost and that an email lifts it.
 
 So:
 
 - **250ms between requests**, per host, and never a bare `curl` against it
-  while working on this.
+  while working on this. This is the **API** calls — `ZxartApi`, through
+  `Pace.before` — and not the media ones; see the gap below.
 - **Nothing is fetched speculatively** — a page when the grid reaches it, a
   thumbnail when its row is on screen. No prefetch, no warming, no background
   sync. The difference between a client and a crawler is exactly this.
+- **Known gap: media requests are not paced, and zxart serves them from the
+  same host.** `Thumbnails` and `Downloads` fetch on `Work`'s shared pool —
+  `max(4, cores)` lanes — with no `Pace` call, on an argument inherited from
+  ZXInfo, where the API host and the picture hosts are different addresses.
+  They are one address here, so a thirty-row page is a burst of concurrent
+  unpaced requests at the address `ZxartApi` paces at 250ms. Stated rather
+  than fixed: **the measurement is still to take** — how long a page of thirty
+  covers takes at the current lane count against a paced alternative — and an
+  interval chosen without it trades a usable grid for a guess.
 - **The identity header is not optional.** `Http.Real` already sends
   `Zedex/<version>`.
 - **Write to moroz1999** describing what the app does, how often it asks and

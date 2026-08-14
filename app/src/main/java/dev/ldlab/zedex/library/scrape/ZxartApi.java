@@ -40,9 +40,26 @@ public final class ZxartApi {
      * The same interval ZXInfo gets, and per host rather than per object.
      *
      * zxart publishes no rate limit, and its robots.txt disallows {@code /api}
-     * to every agent - so the traffic is kept to what a person actually asked
-     * for: one request at a time, nothing speculative, no prefetch. See the
-     * design's <em>Manners</em>.
+     * to every agent - along with {@code /release} and {@code /file}, which is
+     * where every picture, inlay, map and download this app fetches lives - so
+     * the traffic is kept to what a person actually asked for: one request at a
+     * time, nothing speculative, no prefetch. See the design's <em>Manners</em>.
+     *
+     * <b>This paces the API calls and nothing else, and for zxart that is a
+     * known gap.</b> {@link Pace#before} is called from here and from the two
+     * other API clients; the media fetches - {@code Thumbnails} for a row's
+     * cover, {@code Downloads} for a file somebody imported - deliberately do
+     * not pace, on an argument inherited from ZXInfo, where the API is {@code
+     * api.zxinfo.dk} and the pictures are on two other hosts. <b>For zxart they
+     * are the same host</b>, so a thirty-row page is up to {@code Work}'s lane
+     * count of concurrent unpaced requests at the very address this waits 250ms
+     * between calls to.
+     *
+     * Left as it is rather than guessed at: what a page of thirty covers costs
+     * at the current lane count, against a paced alternative, is a measurement
+     * nobody has taken, and picking an interval without it would trade a
+     * usable grid for a number with no evidence behind it. If zxart ever
+     * refuses, this is the second thing to look at after this constant.
      */
     public static final long MINIMUM_INTERVAL_MS = 250;
 
@@ -61,6 +78,18 @@ public final class ZxartApi {
     public static final String FILTER_SEARCH = "zxProdSearch";
     public static final String FILTER_CATEGORY = "zxProdCategory";
     public static final String FILTER_AUTHOR = "authorId";
+
+    /**
+     * The one name here with <b>no control behind it</b>, said plainly in a
+     * file whose whole point is that every name was checked.
+     *
+     * Honoured or ignored, {@code export:zxProdCategory} answers the same 285
+     * rows - so unlike every filter above it, nothing distinguishes this
+     * working from this being discarded, and the measurement that proves the
+     * others cannot be made for this one. It is sent because zxart's own
+     * documentation names it and because 285 rows is the whole tree either way;
+     * it is not evidence that the name is real.
+     */
     public static final String FILTER_CATEGORIES_ALL = "zxProdCategoryAll";
     public static final String FILTER_MUSIC_ID = "zxMusicId";
     public static final String FILTER_PICTURE_ID = "zxPictureId";

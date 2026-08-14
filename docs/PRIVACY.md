@@ -109,11 +109,16 @@ on your device: your file's checksum is compared locally and never leaves it.
 zxart.ee    the lookup itself, and every picture, tune, map, advert or manual it names
 ```
 
-Every request carries `Zedex/<version>` and nothing more, and requests are
-spaced out rather than sent as fast as the connection allows, at the site's own
-published request. There is no identifier for your device, your installation
-or you, because none exists. zxart.ee sees your IP address, as any website
-does.
+Every request carries `Zedex/<version>` and nothing more. Lookups are spaced
+out rather than sent as fast as the connection allows — a quarter of a second
+apart — because the site asks in its own `robots.txt` not to be crawled, and
+that file names the picture and download paths as well as the lookup ones.
+Pictures and files are *not* spaced that way: several are fetched at once, the
+way any app loading a page of covers does, and on this site they come from the
+same address the lookups go to. That is a known gap in Zedex rather than a
+decision about you, and it is written down in the project's own notes. There is
+no identifier for your device, your installation or you, because none exists.
+zxart.ee sees your IP address, as any website does.
 
 **5. Browsing the catalogue, and importing from it** — only if you open the
 *Catalogue* tab in the library. A Source switch there picks which of the two
