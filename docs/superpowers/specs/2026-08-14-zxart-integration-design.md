@@ -148,10 +148,24 @@ default List<Sort> sorts() { return Collections.singletonList(Sort.DEFAULT); }
 rated" — shown only when a catalogue declares more than one, and changing it
 `restart()`s the current shelf so the sort applies *inside* whatever is on
 screen: Top inside Games, Top inside a search, Top inside a sub-category. Four
-new strings, which is nine files each. ZXInfo declares `DEFAULT` only and its
-row stays hidden until its own `sort` vocabulary has been measured — it is
-real, its Newest shelf uses it, but it has not been measured here and a spec
-does not guess.
+new strings, which is nine files each. **ZXInfo's `sort=score_desc` is
+measured now, and it works.** `GET /v3/search?query=head&size=3&mode=compact`
+against the same with `&sort=score_desc` appended, same index snapshot
+(`zxinfo-20260723-075659`), single shard both times (`_shards.total: 1`, so
+tie order is deterministic and not a distributed-shard artefact): both
+answered `total 119` and the same top hit (`0045541 Head On`, score
+`210.13988`), but the tied group at score `77.102264` held entirely different
+records in positions two and three — `Beach-Head`/`Big Head` with no `sort`,
+`Head Control`/`Hammer-Head` with `sort=score_desc`. Same query, same index,
+same primary score, different tie order: the parameter is honoured, not
+ignored. ZXInfo therefore declares `TOP` as well as `DEFAULT` — `NEWEST`
+already exists as its own shelf via `sort=date_desc` rather than through this
+control, and `ALPHABETICAL` stays unmeasured (not attempted; not one of the
+four things this task was scoped to measure).
+(Note: the brief's probe URL for this,
+`https://api.zxinfo.dk/api/zxinfo/search?...`, 404s — that path is stale.
+The app's own base is `https://api.zxinfo.dk/v3/` (`ZxInfo.API`); the
+measurement above used the corrected `/v3/search` path.)
 
 Two honest caveats: rows with equal ratings can shuffle between pages, which is
 what any unstable sort does over a paged API; and `votes` is an average, so a
@@ -267,9 +281,19 @@ a screen or a chooser of its own. The sorts apply inside them as anywhere else,
 and Top rated is the one people want here, since these archives are ranked by a
 community that voted: 4.88 down for pictures, 4.80 for tunes.
 
-**`zxMusicSearch` and `zxPictureSearch` are unmeasured.** If they are ignored,
-the Search sub-shelf is not declared for that entity, which costs a shelf and
-nothing else.
+**`zxMusicSearch` and `zxPictureSearch` are measured now, and both work.**
+`filter:zxMusicSearch=beyond` against `export:zxMusic` answered `totalAmount:
+10` (control: 29,672 unfiltered) with rows titled *Beyond Time*, *Something
+from beyond*, *Beyond The Road* — the query term present in every title, not
+the unfiltered first page. `filter:zxPictureSearch=girl` against
+`export:zxPicture` answered `totalAmount: 124` (control: 19,408) with rows
+titled *Girl & Sea*, *Car & girl*, *RizcGirl*. Both are a `success` response
+with a total two-to-three orders of magnitude below the unfiltered count and
+rows that visibly match the search term, which is what a working filter looks
+like and what the zxart entities table's control (`zzznonsense` returning the
+unfiltered total byte-identical) says an ignored one does not. So: **a Search
+sub-shelf is declared for both Music and Graphics** — the "costs a shelf and
+nothing else" branch does not apply here.
 
 Author names *are* resolvable here where publisher names were not
 (`export:author/filter:authorId=`), but one id per request — comma-joining
@@ -308,7 +332,7 @@ first thing asked.
 |---|---|
 | `titlescreens` | the `zximages/…` entry of `imagesUrls` — the rendered loading screen |
 | `screenshots` | the `/screenshot/…` entries of the same array |
-| `covers`, `backcovers`, `physicalmedia` | `inlays`: front first, then the `_Back` and `_Media` suffixes — a heuristic, so it gets a fixture and an unrecognised name falls through rather than guessing |
+| `covers`, `backcovers`, `physicalmedia` | `inlays`: front first, then the `_Back` and `_Media` suffixes — a heuristic, so it gets a fixture and an unrecognised name falls through rather than guessing. **Measured** over 400 releases (`hw-sample.json` + `inlay-sample.json`, a contiguous `zxRelease` slice, 178 with any `inlays` at all), by suffix — the segment after the last `_` in the filename, or `front` when there is none: `front` 166, `Back` 101, `Media` 99, `2` 43, `Front` 41 (a second, capitalised spelling of the same thing the no-suffix case already covers), `SideA` 13, `SideB` 11, `3` 7, `Tape` 5, `4` 2, `FrontCase` 1, `FrontCase2` 1, `GoldenCase` 1, `WhiteCase` 1, `YellowCase` 1, `2Back` 1, `2Front` 1, `2-Back` 1, `2-Front` 1. The three the heuristic already names cover the bulk (`front`+`Front` 207, `Back` 101, `Media` 99 of 400 total suffix hits), but a fifth of inlays carry something else — numbered sides (`2`/`3`/`4`, `SideA`/`SideB`, `2Back`/`2Front`/`2-Back`/`2-Front`, for a multi-tape or multi-disk release) and edition-specific case art (`FrontCase*`, `*Case` in gold/white/yellow). None of these is a fourth folder this design names; they fall through the existing "unrecognised name falls through" rule rather than being guessed at. |
 | `maps` | `maps` |
 | `adverts` | `ads` |
 | `manuals` | `instructions`, which are `.txt` — already a manual extension, and `InstructionsActivity` renders one properly rather than letting another app re-wrap it |
@@ -317,8 +341,19 @@ first thing asked.
 *stated* machine and interface where `Suggested` infers them from a genre and a
 machine-type string. It gets the same discipline as the tables it joins: a
 recorded vocabulary, asserted in both directions, and an unknown value mapping
-to nothing. **Measuring that vocabulary is a plan task, not a spec guess** —
-the ZX81-16K mistake was exactly a table written from one collection.
+to nothing.
+
+**Measured** over the same 400-release slice as the inlay count above (97 of
+400 releases carry a non-empty `hardwareRequired`): `zx48` 58, `kempston` 35,
+`zx128` 33, `int2_2` 27, `zx+3` 20, `ay` 12, `int2_1` 10, `cursor` 7, `zx16` 7.
+That is the full vocabulary this slice showed — nine values, a mix of machine
+(`zx48`, `zx128`, `zx16`, `zx+3`) and interface (`kempston`, `int2_2`, `int2_1`,
+`cursor`, `ay`) in the one array, which is why the design reads it as stating
+both rather than picking one. `int2_1`/`int2_2` read as Interface II ports one
+and two rather than two different interfaces. This is one contiguous slice
+(the same caveat the coverage figures elsewhere in this document already carry)
+and not a census — a table built from it should still leave an unknown value
+mapping to nothing, the ZX81-16K mistake being exactly the alternative.
 
 **`youtubeId` becomes a link, not a medium.** 47.1% of prods have one, so it is
 worth keeping:
@@ -366,7 +401,13 @@ So:
 - **The identity header is not optional.** `Http.Real` already sends
   `Zedex/<version>`.
 - **Write to moroz1999** describing what the app does, how often it asks and
-  why — a plan task, before the piece ships, not after a block.
+  why — a plan task, before the piece ships, not after a block. **Drafted
+  2026-08-14**, not yet sent — the draft is
+  `.superpowers/sdd/2026-08-14-zxart-integration/zxart-email-draft.md`, addressed
+  to `moroz1999@gmail.com` (found in a quoted comment on the blog post named in
+  the task brief, not published on zxart.ee itself — worth confirming before
+  it goes out). Sending it is the maintainer's call; once sent, replace this
+  line with the date.
 
 `structureDateModified` filters, so a client that remembered when it last
 looked could sync rather than browse. That is state to keep and staleness to
@@ -426,8 +467,11 @@ the `start` stride, and the `legalStatus` mapping.
 - **Author and party shelves.** `filter:authorId` works and zxart's parties are
   a real way people browse it; both are shelves, which means they are data and
   cost nothing to add later.
-- **ZXInfo's own sorts.** Its `sort` parameter is real and unmeasured here.
-  Measuring it and declaring the same three is a small task, not a design.
+- **ZXInfo declaring `TOP`.** `sort=score_desc` is now measured (see *Sorting
+  is a control, not a shelf*, above) and works — ZXInfo can declare `TOP`
+  alongside `DEFAULT`. Wiring `CatalogueView`'s sort row for it, and measuring
+  `ALPHABETICAL`, is a small task on the ZXInfo catalogue, not part of this
+  design.
 - **The 3,988 archive.org recordings** ZXInfo cannot reach. zxart carries an
   `rzx` for **47.9%** of prods against ZXInfo's reachable 1,353, so this piece
   improves that enormously by accident — but a recording zxart does not hold is
