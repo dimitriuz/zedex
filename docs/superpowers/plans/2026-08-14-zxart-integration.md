@@ -81,6 +81,7 @@ scripts/check-strings.py && scripts/check-prefs.py
 | `library/ui/CataloguePane.java` | The video link icon. |
 | `library/ui/GameInfoView.java` | The video link icon. |
 | `library/meta/Meta.java`, `library/meta/Metadata.java`, `library/scrape/Merge.java` | The `videoLink` field, end to end. |
+| *(not) `machine/Suggested.java`* | Nothing. Task 15 was rewritten after `692173f`: zxart's hardware enters as `Meta.machine`/`Meta.inputs` phrases, which `Suggested` already parses — and which it now narrows by the file. |
 | `library/scrape/Scrapers.java` | Register zxart, last. |
 | `app/src/main/AndroidManifest.xml` | `<queries>`: `audio/*`, and `ACTION_VIEW` on `https`. |
 | `res/values*/strings.xml` (9) | Six new strings. |
@@ -2595,18 +2596,141 @@ somebody is about to commit a collection to."
 
 - [ ] **Step 3: Commit** — subject `feat: zxart's artwork, manuals and maps`, body naming the rule-not-position choice and the measured inlay suffixes.
 
-### Task 15: `hardwareRequired` → `Suggested`
+### Task 15: `hardwareRequired`, spoken in the vocabulary the app already has
 
 **Files:**
-- Modify: `app/src/main/java/dev/ldlab/zedex/machine/Suggested.java`
 - Modify: `app/src/main/java/dev/ldlab/zedex/library/scrape/Zxart.java`
-- Test: `app/src/test/java/dev/ldlab/zedex/machine/SuggestedTest.java` (or the existing home of that table's tests — check `app/src/test/java/dev/ldlab/zedex/machine/` first)
+- Test: `app/src/test/java/dev/ldlab/zedex/library/scrape/ZxartTest.java`
+- **Not modified: `machine/Suggested.java`.** See below — this task was rewritten on 2026-08-14 after `692173f` landed, and the whole of the change is that nothing in `Suggested` needs touching.
 
-- [ ] **Step 1: Write the failing test** against the vocabulary **Task 1 counted**, in both directions, with the refusals spelled out: `zx128` and `zx+3` and `zx48` map to machines, `kempston` and `int2_2` to interfaces, and anything not in the recorded list maps to nothing. This is the ZX81-16K rule: a table written from one collection matched "16" inside "ZX81 16K", so the list is recorded and the test owns it.
+**Interfaces:**
+- Consumes: `Suggested.MACHINE_WORDS`, `Suggested.INPUT_WORDS` (both already public, precisely so a table can be held up against them), `Meta.Builder.machine(String)`, `Meta.Builder.inputs(List<String>)`.
+- Produces: nothing new. `Zxart` fills two fields that three screens already read.
 
-- [ ] **Step 2: Implement, run, pass.**
+**Why this is not a new mechanism.** `Meta.machine` is a *phrase* in ZXDB's vocabulary — "ZX-Spectrum 128K", "Pentagon 128" — and `Meta.inputs` a list of phrases in another — "Kempston Joystick", "Interface 2 (right)". `Suggested.machines(machineType, file, ids)` and `Suggested.joysticks(inputs, names)` parse those, and **`machines` now narrows by the file and lets the file win** (`692173f`, `MACHINES_FOR_FILE`: a `.trd` or `.scl` means Pentagon or Scorpion, a `.dsk` means +3, because Fuse's `utils.c` picks those machines itself and overrules anything else on every open).
 
-- [ ] **Step 3: Commit** — subject `feat: read a game's machine and interface from zxart`, body explaining that this is *stated* where `Suggested` has been inferring, and that the table is recorded and asserted because the alternative already went wrong once.
+So zxart's `hardwareRequired` is a **record** statement and must enter through those two fields, never around them. A zxart release saying `zx128` whose downloaded file is a `.trd` must still land on a Pentagon — and it will, for free, because the file narrows the record. A second path that fed machine ids straight to a dialog would reintroduce exactly the bug `692173f` fixed: a suggestion the emulator overrules, re-applied for ever.
+
+zxart is in a better position than ZXDB here, and it is worth knowing why: it states hardware **per release**, and a release is the thing you actually download, so the statement and the file come from the same row and agree far more often than a per-entry `machinetype` can.
+
+- [ ] **Step 1: Write the failing test**
+
+Use the vocabulary **Task 1 counted** — the assertions below name the four tokens seen in the captured releases, and every token Task 1 found must appear in the table or in the refusals, with a comment giving its count.
+
+```java
+    /**
+     * zxart's own words for hardware, translated into the app's.
+     *
+     * <b>Not into machine ids, and that is the point of the task.</b>
+     * Meta.machine and Meta.inputs are phrases in a vocabulary Suggested
+     * already parses, and since 692173f that parse narrows the record by the
+     * file and lets the file win - a .trd means Pentagon or Scorpion whatever
+     * the record claims, because Fuse picks those itself and overrules
+     * anything else on every open. Feeding ids to a dialog directly would
+     * bypass that and re-suggest a machine the emulator refuses, for ever.
+     */
+    @Test
+    public void hardwareBecomesTheAppsOwnVocabulary() {
+        assertEquals("ZX-Spectrum 128K", Zxart.machineWord("zx128"));
+        assertEquals("ZX-Spectrum 48K", Zxart.machineWord("zx48"));
+        assertEquals("ZX-Spectrum 128 +3", Zxart.machineWord("zx+3"));
+
+        assertEquals("Kempston Joystick", Zxart.inputWord("kempston"));
+        assertEquals("Interface 2 (right)", Zxart.inputWord("int2_2"));
+    }
+
+    /** Every word this class can produce is one Suggested already knows, so
+     *  the two vocabularies cannot drift: a phrase Suggested does not match is
+     *  a machine nobody is ever offered, and it fails silently. */
+    @Test
+    public void everyWordProducedIsOneSuggestedKnows() {
+        for (String token : Zxart.HARDWARE) {
+            String machine = Zxart.machineWord(token);
+            String input = Zxart.inputWord(token);
+
+            if (machine != null) {
+                assertTrue(machine + " is not one of Suggested.MACHINE_WORDS",
+                           Arrays.asList(Suggested.MACHINE_WORDS).contains(machine));
+            }
+            if (input != null) {
+                assertTrue(input + " is not one of Suggested.INPUT_WORDS",
+                           Arrays.asList(Suggested.INPUT_WORDS).contains(input));
+            }
+        }
+    }
+
+    /**
+     * A token that is neither, and a token nobody recorded, both answer
+     * nothing.
+     *
+     * "ay" is a sound chip: it implies a 128K-family machine to a person and
+     * must not be turned into one here, because the release's own machine
+     * token already says which, and inferring a second answer from the first
+     * is how a table starts disagreeing with itself. An unrecorded token is
+     * the ZX81-16K rule: refuse rather than match a fragment.
+     */
+    @Test
+    public void whatIsNeitherAMachineNorAnInputSaysNothing() {
+        assertNull(Zxart.machineWord("ay"));
+        assertNull(Zxart.inputWord("ay"));
+        assertNull(Zxart.machineWord("nonsense"));
+        assertNull(Zxart.inputWord("nonsense"));
+    }
+
+    /** And the two fields actually reach the store, in the record's own order,
+     *  which is what every screen downstream reads. */
+    @Test
+    public void aFetchFillsMachineAndInputs() throws Exception {
+        Pace.forget();
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.PROD_LICENCE_TO_KILL)
+                                                    .then(Fixtures.RELEASES_LICENCE_TO_KILL);
+
+        Meta meta = new Zxart(http, Locale.ENGLISH)
+                .fetch(new Candidate("92668", "Licence to Kill", "1989", null, true),
+                       Provider.Wanted.nothing()).meta;
+
+        assertEquals("ZX-Spectrum 128K", meta.machine);
+        assertTrue(meta.inputs.contains("Kempston Joystick"));
+        assertTrue(meta.inputs.contains("Interface 2 (right)"));
+    }
+```
+
+- [ ] **Step 2: Run it and watch it fail**
+
+Run: `env JAVA_HOME=/opt/android-studio/jbr ./gradlew testDebugUnitTest --tests 'dev.ldlab.zedex.library.scrape.ZxartTest'`
+Expected: FAIL — `machineWord`, `inputWord` and `HARDWARE` undefined.
+
+- [ ] **Step 3: Implement in `Zxart` only**
+
+`HARDWARE` is the recorded vocabulary from Task 1 — every token seen, with its count in the comment. Two small tables map the ones that mean something and everything else answers null. `fetch` takes the release chosen for the item (the first, which is the original), maps its `hardwareRequired`, and fills `machine` with the first machine word found and `inputs` with every input word found, in the release's own order.
+
+- [ ] **Step 4: Run the JVM tier and pass.**
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add -u && git commit -m "feat: read a game's machine and interface from zxart
+
+hardwareRequired is a stated fact where Suggested has been inferring one
+from a genre and a machine-type string - and zxart states it per release,
+which is the row the file itself came from, so the statement and the file
+agree far more often than a per-entry machinetype can.
+
+It goes in as words rather than as machine ids, and Suggested is not
+touched. Meta.machine and Meta.inputs are vocabularies it already parses,
+and since 692173f that parse narrows the record by the file and lets the
+file win: a .trd is a Pentagon whatever the record claims, because Fuse
+picks that itself and overrules anything else on every open. A second
+path handing ids to a dialog would re-suggest a machine the emulator
+refuses, for ever, which is the bug that commit fixed.
+
+The table is asserted against Suggested.MACHINE_WORDS and INPUT_WORDS in
+both directions, so a phrase that stops matching is a test failure rather
+than a machine nobody is offered. ay maps to nothing: it is a sound chip,
+the release's machine token already says which computer, and inferring a
+second answer from the first is how a table starts disagreeing with
+itself."
+```
 
 ### Task 16: The video link, end to end
 
