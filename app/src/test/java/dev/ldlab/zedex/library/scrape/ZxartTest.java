@@ -125,6 +125,40 @@ public class ZxartTest {
     }
 
     /**
+     * A refused release list keeps the name candidates it had already found.
+     *
+     * <b>What this used to cost.</b> The {@code ScrapeException} from {@code
+     * confirmedByHash} went straight out of {@code search}, and with it every
+     * candidate the name search had already produced - so two to four paced
+     * requests were spent and the caller got nothing to choose from, on a
+     * refusal that says nothing about whether the guesses were any good. The
+     * only thing genuinely lost by keeping them is the certainty, and an
+     * unconfirmed candidate is what this provider answers with for the great
+     * majority of files anyway.
+     *
+     * The queue is the search reply and then a 500: the first candidate's
+     * release list refuses, and the whole confirmation loop stops there rather
+     * than asking the same service twice more.
+     */
+    @Test
+    public void arefusedConfirmationKeepsTheGuesses() throws Exception {
+        Pace.forget();
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.PROD_SEARCH)
+                                                    .then(500, "");
+
+        List<Candidate> found = new Zxart(http).search(
+                game("Head over Heels.tzx", "00000000000000000000000000000000"));
+
+        assertEquals("the name candidates must survive a refused confirmation",
+                     3, found.size());
+        assertEquals("100938", found.get(0).handle);
+        assertFalse("nothing was confirmed, so nothing may claim to be certain",
+                    found.get(0).exact);
+        assertEquals("one refusal ends the loop: the search and one release list",
+                     2, http.asked.size());
+    }
+
+    /**
      * A file whose md5 cannot be read never asks for a release list at all.
      *
      * That is the commonest case under a tree grant, where hashing means
@@ -318,6 +352,36 @@ public class ZxartTest {
         assertEquals("ZX-Spectrum 128K", meta.machine);
         assertTrue(meta.inputs.contains("Kempston Joystick"));
         assertTrue(meta.inputs.contains("Interface 2 (right)"));
+    }
+
+    /**
+     * The genre is the <b>topmost</b> segment of zxart's breadcrumb.
+     *
+     * {@code categoriesString} is root-to-leaf - "Games/Action/Maze/Isometric
+     * Maze Games" for entry 100938 - and {@code Meta.genre}'s own words are
+     * "the broad kind of thing this is", so the first segment is what belongs
+     * in it. The narrower classification is what {@code ZxartCatalogue}'s
+     * category tree already exists to resolve, and this deliberately does not
+     * walk it.
+     *
+     * <b>{@link Fixtures#PROD_SEARCH}, not {@code PROD_LICENCE_TO_KILL}.</b>
+     * The latter's {@code categoriesString} is Cyrillic - a real reply, in the
+     * language it was captured in - and cannot pin an English-only claim. This
+     * is an English capture, which is also what {@code fetch} always asks for
+     * (see {@link Zxart#LANGUAGE}), so the value asserted is the value a real
+     * fetch reads.
+     */
+    @Test
+    public void thegenreIsTheTopOfTheCategoryBreadcrumb() throws Exception {
+        Pace.forget();
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.PROD_SEARCH)
+                                                    .then(NO_RELEASES);
+
+        Meta meta = new Zxart(http).fetch(
+                new Candidate("100938", "Head over Heels", "1987", null, true),
+                Provider.Wanted.nothing()).meta;
+
+        assertEquals("Games", meta.genre);
     }
 
     // --- the video link -------------------------------------------------------------

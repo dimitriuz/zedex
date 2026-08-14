@@ -117,8 +117,6 @@ public final class Kinds {
         { COMPILATIONS, "compilation", "covertape", "box set" },
         { MAGAZINES, "electronic magazine", "e-book", "book", "press" },
         { DEMOSCENE, "demoscene", "tech demo", "animation" },
-        { MUSIC, "music" },
-        { GRAPHICS, "graphics" },
         // "application" is zxart's own root word ("Applications") and reaches
         // here directly - none of ZXDB's genre words are "Application"
         // anything, so this row alone would otherwise never see it and the
@@ -133,6 +131,16 @@ public final class Kinds {
         // greedy "game" row above has to see the phrase first, which is the
         // opposite of the specific-first reading the rest of this table uses.
         { APPLICATIONS, "system software", "educational" },
+
+        // Last, and for the same reason "educational" is late: these two words
+        // are whole kinds from zxart's own zxMusic and zxPicture entities -
+        // "Music", "Graphics", nothing else in them - so nothing above can
+        // catch either, while ZXDB's compound genres put them inside a phrase
+        // whose FIRST word is the real kind. "Utility: Music" is a tracker,
+        // a program, and it landed in Music beside zxart's .pt3 tunes while
+        // these rows sat above APPLICATIONS. See KindsTest.
+        { MUSIC, "music" },
+        { GRAPHICS, "graphics" },
     };
 
     private Kinds() {

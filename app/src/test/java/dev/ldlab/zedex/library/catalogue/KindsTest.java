@@ -249,6 +249,38 @@ public class KindsTest {
     }
 
     /**
+     * <b>"Utility: Music" is a program, so it goes to Applications</b> - and
+     * that is a decision, taken deliberately rather than inherited from where
+     * the rows happened to sit.
+     *
+     * {@code folderFor}'s own javadoc says ZXDB's genre field sometimes arrives
+     * as the full compound form - "Arcade Game: Adventure" - and in that form
+     * the <em>first</em> word is the kind and the rest is the narrowing.
+     * "Utility: Music" is a tracker or a player: a .tap the Spectrum runs, not
+     * a tune. Filing it in {@code Downloaded/Music} beside zxart's .pt3 and
+     * .ogg files puts a program in the folder somebody opens with a music
+     * player, and the row would be the only thing there that is not a
+     * recording.
+     *
+     * It answered {@code Music} until the {@code MUSIC}/{@code GRAPHICS} rows
+     * moved to the bottom of the table, which is the whole change: those two
+     * words are whole kinds from zxart's own {@code zxMusic} and {@code
+     * zxPicture} entities and nothing above them can match either, so nothing
+     * is lost by them going last - asserted just above and again for
+     * "Utility: Graphics", a picture editor, which is an application on the
+     * same reading.
+     */
+    @Test
+    public void acompoundUtilityGenreIsAnApplicationAndNotItsSubject() {
+        assertEquals(Kinds.APPLICATIONS, Kinds.folderFor("Utility: Music"));
+        assertEquals(Kinds.APPLICATIONS, Kinds.folderFor("Utility: Graphics"));
+
+        // And the entities' own bare words are untouched by that ordering.
+        assertEquals(Kinds.MUSIC, Kinds.folderFor("Music"));
+        assertEquals(Kinds.GRAPHICS, Kinds.folderFor("Graphics"));
+    }
+
+    /**
      * The new words do not steal ZXDB's.
      *
      * "Educational" reaches Applications and must not drag "Educational Game"

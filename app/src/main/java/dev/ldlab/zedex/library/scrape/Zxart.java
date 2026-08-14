@@ -212,11 +212,34 @@ public final class Zxart implements Provider {
         if (md5 == null || md5.isEmpty()) return found;
 
         int confirm = Math.min(CONFIRM_LIMIT, found.size());
-        for (int at = 0; at < confirm; at++) {
-            if (confirmedByHash(found.get(at).handle, md5)) {
-                found.set(at, exact(found.get(at)));
-                break;
+
+        // A refusal part way through confirmation keeps the guesses.
+        //
+        // This used to let the ScrapeException out, which threw away every name
+        // candidate already in hand - and with them the two to four paced
+        // requests that found them. What is lost by catching it is only the
+        // certainty: an unconfirmed candidate is a guess, Merge's fill-gaps
+        // rule means a guess can only add to a row and never overwrite what is
+        // there, and the per-source chooser still shows whose answer it is. The
+        // caller finds out about the refusal anyway if the service is really
+        // down, because fetch() is the next thing it asks for.
+        //
+        // Around the whole loop rather than per candidate: what refuses one
+        // release list refuses the next, and retrying inside a loop against a
+        // service that has just said no is the behaviour pattern that loses an
+        // address.
+        try {
+            for (int at = 0; at < confirm; at++) {
+                if (confirmedByHash(found.get(at).handle, md5)) {
+                    found.set(at, exact(found.get(at)));
+                    break;
+                }
             }
+        } catch (ScrapeException refused) {
+            // Swallowed without a line in the log, because this class has no
+            // Log by design - see the class javadoc. The refusal is not lost
+            // to the run either way: fetch() is the very next thing a caller
+            // asks for and it goes to the same service.
         }
 
         return found;
