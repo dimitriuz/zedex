@@ -7,11 +7,14 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import dev.ldlab.zedex.library.catalogue.Fixtures;
+import dev.ldlab.zedex.library.meta.Meta;
+import dev.ldlab.zedex.machine.Suggested;
 
 import org.json.JSONObject;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -185,23 +188,30 @@ public class ZxartTest {
      * genre, and {@code Merge}'s fill-gaps rule means whichever scrape
      * landed first would keep the bucket for ever. There is no longer a
      * locale this class could even be built with, so this test now pins the
-     * simpler fact that survives that removal: the request itself always
-     * says {@code eng}, whatever future change might otherwise reintroduce
-     * a second value.
+     * simpler fact that survives that removal: every request {@code fetch}
+     * makes always says {@code eng}, whatever future change might otherwise
+     * reintroduce a second value.
+     *
+     * <b>Two requests, not one, since Task 15.</b> {@code fetch} now always
+     * asks for the release list too - {@code hardwareRequired} lives there -
+     * so both the prod and the release requests have to be checked, not just
+     * the first.
      */
     @Test
     public void fetchAsksInEnglishWhateverTheLocaleIs() throws Exception {
         Pace.forget();
-        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.PROD_LICENCE_TO_KILL);
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.PROD_LICENCE_TO_KILL)
+                                                    .then(Fixtures.RELEASES_LICENCE_TO_KILL);
 
         new Zxart(http).fetch(
                 new Candidate("92668", "Licence to Kill", "1989", null, true),
                 Provider.Wanted.nothing());
 
-        assertEquals(1, http.asked.size());
-        assertTrue("fetch must ask in English", http.asked.get(0).contains("language:eng"));
-        assertFalse("never any other language",
-                    http.asked.get(0).contains("language:rus"));
+        assertEquals("prod and the release list, both in English", 2, http.asked.size());
+        for (String url : http.asked) {
+            assertTrue("fetch must ask in English", url.contains("language:eng"));
+            assertFalse("never any other language", url.contains("language:rus"));
+        }
     }
 
     /**
@@ -224,6 +234,136 @@ public class ZxartTest {
         assertTrue(found.isEmpty());
         assertEquals("md5() must not be called with nothing to confirm against",
                      0, game.md5Calls);
+    }
+
+    // --- hardware -----------------------------------------------------------------------
+
+    /**
+     * zxart's own words for hardware, translated into the app's.
+     *
+     * <b>Not into machine ids, and that is the point of the task.</b>
+     * Meta.machine and Meta.inputs are phrases in a vocabulary Suggested
+     * already parses, and since 692173f that parse narrows the record by the
+     * file and lets the file win - a .trd means Pentagon or Scorpion whatever
+     * the record claims, because Fuse picks those itself and overrules
+     * anything else on every open. Feeding ids to a dialog directly would
+     * bypass that and re-suggest a machine the emulator refuses, for ever.
+     */
+    @Test
+    public void hardwareBecomesTheAppsOwnVocabulary() {
+        assertEquals("ZX-Spectrum 128K", Zxart.machineWord("zx128"));
+        assertEquals("ZX-Spectrum 48K", Zxart.machineWord("zx48"));
+        assertEquals("ZX-Spectrum 128 +3", Zxart.machineWord("zx+3"));
+
+        assertEquals("Kempston Joystick", Zxart.inputWord("kempston"));
+        assertEquals("Interface 2 (right)", Zxart.inputWord("int2_2"));
+    }
+
+    /** Every word this class can produce is one Suggested already knows, so
+     *  the two vocabularies cannot drift: a phrase Suggested does not match is
+     *  a machine nobody is ever offered, and it fails silently. */
+    @Test
+    public void everyWordProducedIsOneSuggestedKnows() {
+        for (String token : Zxart.HARDWARE) {
+            String machine = Zxart.machineWord(token);
+            String input = Zxart.inputWord(token);
+
+            if (machine != null) {
+                assertTrue(machine + " is not one of Suggested.MACHINE_WORDS",
+                           Arrays.asList(Suggested.MACHINE_WORDS).contains(machine));
+            }
+            if (input != null) {
+                assertTrue(input + " is not one of Suggested.INPUT_WORDS",
+                           Arrays.asList(Suggested.INPUT_WORDS).contains(input));
+            }
+        }
+    }
+
+    /**
+     * A token that is neither, and a token nobody recorded, both answer
+     * nothing.
+     *
+     * "ay" is a sound chip: it implies a 128K-family machine to a person and
+     * must not be turned into one here, because the release's own machine
+     * token already says which, and inferring a second answer from the first
+     * is how a table starts disagreeing with itself. An unrecorded token is
+     * the ZX81-16K rule: refuse rather than match a fragment.
+     */
+    @Test
+    public void whatIsNeitherAMachineNorAnInputSaysNothing() {
+        assertNull(Zxart.machineWord("ay"));
+        assertNull(Zxart.inputWord("ay"));
+        assertNull(Zxart.machineWord("nonsense"));
+        assertNull(Zxart.inputWord("nonsense"));
+    }
+
+    /** And the two fields actually reach the store, in the record's own order,
+     *  which is what every screen downstream reads.
+     *
+     *  <b>Not {@code new Zxart(http, Locale.ENGLISH)}, as the brief this test
+     *  was written from still had it.</b> The Locale parameter was removed
+     *  from this class's constructor before Task 15 was written (see the
+     *  class javadoc's own measurement of why) - the brief was drafted
+     *  against an older signature and never updated after that removal. */
+    @Test
+    public void aFetchFillsMachineAndInputs() throws Exception {
+        Pace.forget();
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.PROD_LICENCE_TO_KILL)
+                                                    .then(Fixtures.RELEASES_LICENCE_TO_KILL);
+
+        Meta meta = new Zxart(http).fetch(
+                new Candidate("92668", "Licence to Kill", "1989", null, true),
+                Provider.Wanted.nothing()).meta;
+
+        assertEquals("ZX-Spectrum 128K", meta.machine);
+        assertTrue(meta.inputs.contains("Kempston Joystick"));
+        assertTrue(meta.inputs.contains("Interface 2 (right)"));
+    }
+
+    /**
+     * The "either" row is measured, not invented: entry 100938's {@code .tap}
+     * release (id 100942, in {@link Fixtures#RELEASES_HEAD_OVER_HEELS})
+     * declares {@code ["zx48","zx128","cursor","kempston","int2_2"]} - both
+     * machines, because the tape genuinely runs on either - so taking merely
+     * the first token would say 48K and throw the other half away.
+     * {@code Suggested.MACHINE_WORDS} already carries {@code "ZX-Spectrum
+     * 48K/128K"} for exactly this, and {@code Suggested.machines} already
+     * splits it on the slash, so the machine list offered comes out as two
+     * rather than one.
+     */
+    @Test
+    public void theEitherMachineComesFromARealRelease() throws Exception {
+        JSONObject release = releaseWithId(Fixtures.RELEASES_HEAD_OVER_HEELS, 100942);
+
+        assertEquals("ZX-Spectrum 48K/128K",
+                     Zxart.machineFrom(release.optJSONArray("hardwareRequired")));
+
+        List<String> inputs = Zxart.inputsFrom(release.optJSONArray("hardwareRequired"));
+        assertTrue(inputs.contains("Cursor"));
+        assertTrue(inputs.contains("Kempston Joystick"));
+        assertTrue(inputs.contains("Interface 2 (right)"));
+    }
+
+    /**
+     * A release may name no machine at all, and null is the honest answer:
+     * the same entry's {@code .tzx} release (id 100941) declares only
+     * {@code ["cursor","kempston","int2_2"]} - three interfaces and no
+     * computer - so {@code Zxart.machineFrom} answers null there while
+     * {@code Zxart.inputsFrom} still has three entries. A release saying
+     * which joysticks it reads has said nothing about which Spectrum, and
+     * that must not be turned into a guess.
+     */
+    @Test
+    public void aReleaseNamingOnlyInterfacesLeavesTheMachineNull() throws Exception {
+        JSONObject release = releaseWithId(Fixtures.RELEASES_HEAD_OVER_HEELS, 100941);
+
+        assertNull(Zxart.machineFrom(release.optJSONArray("hardwareRequired")));
+
+        List<String> inputs = Zxart.inputsFrom(release.optJSONArray("hardwareRequired"));
+        assertEquals(3, inputs.size());
+        assertTrue(inputs.contains("Cursor"));
+        assertTrue(inputs.contains("Kempston Joystick"));
+        assertTrue(inputs.contains("Interface 2 (right)"));
     }
 
     // --- media --------------------------------------------------------------------------
@@ -365,23 +505,28 @@ public class ZxartTest {
     }
 
     /**
-     * A {@code wanted} that only names prod-sourced folders never asks for
-     * the release list at all - the request {@code
-     * fetchAsksInEnglishWhateverTheLocaleIs} already pins for {@code
-     * Wanted.nothing()} holds just as well for a real folder that happens to
-     * live on the prod, which is the case a sweep scraping only title
-     * screens and maps actually hits.
+     * <b>Superseded by Task 15 - kept as the record of what changed and
+     * why.</b> Before hardware was read from a release, a {@code wanted}
+     * naming only prod-sourced folders ({@code titlescreens}, {@code maps})
+     * skipped the release-list request entirely, and this test pinned that
+     * at one request. {@code Zxart.metaFrom} now reads {@code
+     * hardwareRequired} off the release list on every {@code fetch}, so
+     * there is no longer a {@code wanted} that can skip it - see {@link
+     * #everyFetchAsksForTheReleaseListNow}, which replaces this test's
+     * assertion with the one that is true now.
      */
     @Test
-    public void titlescreensAloneAsksForNoReleaseList() throws Exception {
+    public void everyFetchAsksForTheReleaseListNow() throws Exception {
         Pace.forget();
-        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.PROD_LICENCE_TO_KILL);
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.PROD_LICENCE_TO_KILL)
+                                                    .then(Fixtures.RELEASES_LICENCE_TO_KILL);
 
         new Zxart(http).fetch(
                 new Candidate("92668", "Licence to Kill", "1989", null, true),
                 Provider.Wanted.of("titlescreens", "maps"));
 
-        assertEquals("no release list for prod-only folders", 1, http.asked.size());
+        assertEquals("prod, then the release list for hardware - even though "
+                     + "neither wanted folder needs one of its own", 2, http.asked.size());
     }
 
     // --- helpers --------------------------------------------------------------------------
@@ -394,6 +539,19 @@ public class ZxartTest {
                 new Candidate("92668", "Licence to Kill", "1989", null, true), wanted);
 
         return scraped.media;
+    }
+
+    /** One release row out of a whole release-list reply, by its id - so a
+     *  hardware test can reach a release other than the one {@code fetch}
+     *  itself would choose (the first in the array), the way {@link
+     *  #theEitherMachineComesFromARealRelease} and {@link
+     *  #aReleaseNamingOnlyInterfacesLeavesTheMachineNull} both need to reach
+     *  100938's second release without disturbing the first. */
+    private static JSONObject releaseWithId(String releasesJson, int id) throws Exception {
+        for (JSONObject release : ZxartApi.rows(new JSONObject(releasesJson), ZxartApi.RELEASE)) {
+            if (release.optInt("id") == id) return release;
+        }
+        throw new AssertionError("no release " + id + " in this fixture");
     }
 
     /** Drives {@code Zxart.collectRelease} directly against one captured

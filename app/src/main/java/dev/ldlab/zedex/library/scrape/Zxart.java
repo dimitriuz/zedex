@@ -60,9 +60,10 @@ import java.util.Map;
  * locale at all. See {@link #LANGUAGE}.
  *
  * <b>{@code fetch} fills in the artwork, the maps, the advert and the text
- * manual - Task 14 - and leaves {@code hardwareRequired} alone for Task
- * 15.</b> See {@link #mediaFrom} for the mapping and {@link #collectRelease}
- * for the per-release half of it.
+ * manual - Task 14 - and, from {@code hardwareRequired}, the machine and
+ * the interfaces a game supports - Task 15.</b> See {@link #mediaFrom} for
+ * the media mapping, {@link #collectRelease} for the per-release half of
+ * it, and {@link #machineFrom}/{@link #inputsFrom} for hardware.
  *
  * No Android types - no {@code Uri}, no {@code Log} - for the same reason
  * {@link ZxartApi} has none: {@code unitTests.returnDefaultValues} answers
@@ -127,20 +128,26 @@ public final class Zxart implements Provider {
      * One search, up to three confirmations, one prod fetch and one release
      * list: {@code inlays}, {@code ads} and {@code instructions} - the
      * artwork, the advert and the text manual - live on a release, not on
-     * the prod, so a {@code fetch} that resolves any of {@code covers},
-     * {@code backcovers}, {@code physicalmedia}, {@code adverts} or {@code
-     * manuals} has to ask for the release list too (see {@link
-     * #needsReleases}). Six prices the worst case, not what a single game
-     * actually spends: a candidate confirmed on the first try and a {@code
-     * wanted} that only asks for {@code titlescreens}/{@code screenshots}/
-     * {@code maps} - all three read straight off the prod - costs three
-     * (search, one confirmation, one prod) and never asks for a release list
-     * at all. The ceiling is what a screen shows before somebody commits a
-     * whole collection to it, and understating that is worse than a number
-     * nobody's game actually spends in full. Media cost nothing extra beyond
-     * the one release-list request: every one zxart offers is a static file,
-     * exactly as {@code ZxInfo}'s are, which is why this does not grow
-     * further with {@code wanted} the way ScreenScraper's would.
+     * the prod. <b>Since Task 15 the release list is asked for on every
+     * {@code fetch}, whatever {@code wanted} names.</b> {@code
+     * hardwareRequired} - which becomes {@link Meta#machine} and {@link
+     * Meta#inputs} - lives there too, and unlike a picture or a PDF it is
+     * not optional metadata a sweep can choose to skip: it is on the same
+     * footing as the title and the year, which this class has never offered
+     * a way to fetch without also asking for the release list. Before this
+     * task a {@code wanted} naming only {@code titlescreens}/{@code
+     * screenshots}/{@code maps} - all three read straight off the prod -
+     * skipped the release list and cost three requests; that shortcut is
+     * gone; see {@code ZxartTest.everyFetchAsksForTheReleaseListNow} for
+     * where it used to live. Six prices the worst case, not what a single
+     * game actually spends: a candidate confirmed on the first try now costs
+     * four (search, one confirmation, prod, release) whatever {@code
+     * wanted} names. The ceiling is what a screen shows before somebody
+     * commits a whole collection to it, and understating that is worse than
+     * a number nobody's game actually spends in full. Media cost nothing
+     * extra beyond the one release-list request: every one zxart offers is
+     * a static file, exactly as {@code ZxInfo}'s are, which is why this does
+     * not grow further with {@code wanted} the way ScreenScraper's would.
      */
     @Override
     public int costPerGame(Wanted wanted) {
@@ -277,7 +284,16 @@ public final class Zxart implements Provider {
     // --- fetching one --------------------------------------------------------------------
 
     /**
-     * The prod, plus a release list when {@code wanted} needs one.
+     * The prod, plus the release list - always, now.
+     *
+     * <b>Before Task 15 this asked for the release list only when {@code
+     * wanted} named a folder that lives on one - {@code needsReleases},
+     * since removed.</b> {@link #metaFrom} now reads {@code
+     * hardwareRequired} off the same list, and there is no {@code wanted}
+     * that can ask for a game's title without also getting its machine and
+     * interfaces: the release list is fetched on every call, whatever media
+     * were asked for, and {@code wanted} only still decides which media
+     * folders get filled from it.
      *
      * <b>The release list is not cached from {@link #search}'s
      * confirmation, on purpose.</b> It looks free - {@code search} may
@@ -288,8 +304,8 @@ public final class Zxart implements Provider {
      * sources, so a single-entry cache keyed on "the last confirmed
      * candidate" would sometimes answer with another entry's releases and
      * sometimes fall back to a second request anyway - a stale-data risk
-     * bought with no reliable saving. A second request when both happen to
-     * want it is the honest cost.
+     * bought with no reliable saving. A second request every time is the
+     * honest cost.
      */
     @Override
     public Scraped fetch(Candidate candidate, Wanted wanted) throws ScrapeException {
@@ -304,34 +320,41 @@ public final class Zxart implements Provider {
         }
         JSONObject prod = rows.get(0);
 
-        List<JSONObject> releases = needsReleases(wanted)
-                ? releasesOf(candidate.handle) : Collections.<JSONObject>emptyList();
+        List<JSONObject> releases = releasesOf(candidate.handle);
 
-        return new Scraped(metaFrom(prod), mediaFrom(prod, releases, wanted));
-    }
-
-    /** Whether {@code wanted} names any folder that only a release can
-     *  supply - {@link #collectRelease}'s own set. Answering false spares
-     *  the request entirely, which is what keeps a metadata-only fetch (or
-     *  one after only {@code titlescreens}/{@code screenshots}/{@code maps})
-     *  down at a single request. */
-    private static boolean needsReleases(Wanted wanted) {
-        return wanted.wants("covers") || wanted.wants("backcovers")
-                || wanted.wants("physicalmedia") || wanted.wants("adverts")
-                || wanted.wants("manuals");
+        return new Scraped(metaFrom(prod, releases), mediaFrom(prod, releases, wanted));
     }
 
     /**
-     * Title, year and the broad kind of thing this is - what a prod row
-     * plainly carries without a second request.
+     * Title, year and the broad kind of thing this is - what the prod row
+     * plainly carries - plus the machine and inputs {@code hardwareRequired}
+     * states on whichever release {@code fetch} asked for.
+     *
+     * <b>One release, not a merge across all of them - a different rule
+     * from {@link #mediaFrom}'s, and deliberately so.</b> A cover and a back
+     * cover are independent photographs and can honestly come from two
+     * different editions; a machine and an interface list are one release's
+     * single, coherent statement about itself; a .tap release naming both
+     * 48K and 128K "either" and a .tzx release next to it naming neither are
+     * two different facts, and merging their tokens together would produce
+     * a machine list neither release actually claims. {@code releases.get(0)}
+     * is the first release the reply names for this prod - the original, in
+     * every capture measured - so the record is chosen to be true of the
+     * entry as it was first released, and {@code Suggested.machines} is what
+     * then narrows it by whichever file the person actually has (see {@code
+     * ZxartTest} for what that means when the two disagree).
      */
-    private static Meta metaFrom(JSONObject prod) {
+    private static Meta metaFrom(JSONObject prod, List<JSONObject> releases) {
         int year = prod.optInt("year", 0);
+        JSONArray hardware = releases.isEmpty() ? null
+                : releases.get(0).optJSONArray("hardwareRequired");
 
         return Meta.at(null)
                 .name(ZxartApi.unescape(prod.optString("title", null)))
                 .released(year > 0 ? year + "0101T000000" : null)
                 .genre(genreOf(prod))
+                .machine(machineFrom(hardware))
+                .inputs(inputsFrom(hardware))
                 .build();
     }
 
@@ -350,6 +373,138 @@ public final class Zxart implements Provider {
 
         int slash = path.indexOf('/');
         return slash < 0 ? path : path.substring(0, slash);
+    }
+
+    // --- hardware -------------------------------------------------------------------------
+
+    /**
+     * Every value {@code hardwareRequired} was measured to carry, Task 1's
+     * count beside each - a contiguous run of 400 releases, not a census, so
+     * a value never seen here is still a value zxart can send: {@code zx48}
+     * 58, {@code kempston} 35, {@code zx128} 33, {@code int2_2} 27, {@code
+     * zx+3} 20, {@code ay} 12, {@code int2_1} 10, {@code cursor} 7, {@code
+     * zx16} 7.
+     *
+     * Public so {@code ZxartTest} can hold every one of these up against
+     * {@link #machineWord}/{@link #inputWord} and, through them, against
+     * {@code Suggested.MACHINE_WORDS}/{@code INPUT_WORDS} - the same reason
+     * those two are public - so a phrase this class starts producing that
+     * {@code Suggested} cannot parse is a test failure and not a machine
+     * nobody is ever offered.
+     */
+    public static final String[] HARDWARE = {
+        "zx48", "kempston", "zx128", "int2_2", "zx+3", "ay", "int2_1", "cursor", "zx16"
+    };
+
+    /**
+     * One token of {@code hardwareRequired} as a phrase {@code
+     * Suggested.machines} already parses, or null.
+     *
+     * <b>Words, never a Fuse id - that is the whole point of this task.</b>
+     * {@link Meta#machine} is a phrase in a vocabulary {@code
+     * Suggested.machines(machineType, file, ids)} already reads, and since
+     * commit {@code 692173f} that parse narrows the record by the file and
+     * lets the file win: a {@code .trd} means a Pentagon or a Scorpion
+     * whatever the record claims, because Fuse's {@code utils.c} selects
+     * those itself and overrules anything else on every open. Answering
+     * with an id and handing it to a dialog directly would step around that
+     * narrowing and re-suggest a machine the emulator refuses, for ever -
+     * precisely the bug {@code 692173f} fixed. So this answers in {@code
+     * Suggested}'s own words and nothing else, and {@code Suggested} itself
+     * is not touched by this task at all.
+     *
+     * {@code ay} answers null on purpose. It is a sound chip, not a
+     * machine - it happens to imply a 128K-family Spectrum to a person
+     * reading the word, but the release's own machine token already says
+     * which one, and deriving a second, independent answer from a chip name
+     * is how this table would end up disagreeing with the very token sitting
+     * next to it in the same array.
+     */
+    static String machineWord(String token) {
+        if (token == null) return null;
+
+        switch (token) {
+            case "zx16":  return "ZX-Spectrum 16K";
+            case "zx48":  return "ZX-Spectrum 48K";
+            case "zx128": return "ZX-Spectrum 128K";
+            case "zx+3":  return "ZX-Spectrum 128 +3";
+            default:      return null;
+        }
+    }
+
+    /** {@link #machineWord}'s twin for {@link Meta#inputs} - into {@code
+     *  Suggested.INPUT_WORDS}'s vocabulary, {@code ay} null for the same
+     *  reason. */
+    static String inputWord(String token) {
+        if (token == null) return null;
+
+        switch (token) {
+            case "kempston": return "Kempston Joystick";
+            case "int2_1":   return "Interface 2 (left)";
+            case "int2_2":   return "Interface 2 (right)";
+            case "cursor":   return "Cursor";
+            default:         return null;
+        }
+    }
+
+    /**
+     * {@link Meta#machine} for one release's {@code hardwareRequired} - the
+     * first machine word the array names, in the record's own order, or the
+     * pair as one phrase when it names both {@code zx48} and {@code zx128}
+     * together.
+     *
+     * <b>Measured, not invented - entry 100938's own two releases are the
+     * case this exists for.</b> Its {@code .tap} release declares {@code
+     * ["zx48","zx128","cursor","kempston","int2_2"]}, both machines,
+     * because the tape genuinely runs on either; taking the first token
+     * alone would say 48K and throw the other half away. {@code
+     * Suggested.MACHINE_WORDS} already carries {@code "ZX-Spectrum
+     * 48K/128K"} for exactly this - ZXDB's own word for "either", the
+     * commonest value in that database - and {@code Suggested.machines}
+     * already splits it on the slash, so the pair maps onto a phrase the
+     * app already knows what to do with and the machine chooser offers two
+     * rather than one.
+     *
+     * Null when the array names no machine at all - the same entry's {@code
+     * .tzx} release declares only {@code
+     * ["cursor","kempston","int2_2"]} - which is the honest answer: a
+     * release stating which joysticks it reads has said nothing about which
+     * computer, and turning that into a guess would be worse than leaving
+     * it unanswered.
+     */
+    static String machineFrom(JSONArray hardware) {
+        if (hardware == null) return null;
+
+        boolean zx48 = false, zx128 = false;
+        for (int at = 0; at < hardware.length(); at++) {
+            String token = hardware.optString(at, null);
+            if ("zx48".equals(token)) zx48 = true;
+            if ("zx128".equals(token)) zx128 = true;
+        }
+        if (zx48 && zx128) return "ZX-Spectrum 48K/128K";
+
+        for (int at = 0; at < hardware.length(); at++) {
+            String machine = machineWord(hardware.optString(at, null));
+            if (machine != null) return machine;
+        }
+
+        return null;
+    }
+
+    /** {@link Meta#inputs} for one release's {@code hardwareRequired} -
+     *  every input word the array names, in the record's own order; empty
+     *  rather than null when it names none, the same "empty means absent"
+     *  {@code Meta.Builder.inputs} already applies on the way in. */
+    static List<String> inputsFrom(JSONArray hardware) {
+        List<String> found = new ArrayList<>();
+        if (hardware == null) return found;
+
+        for (int at = 0; at < hardware.length(); at++) {
+            String input = inputWord(hardware.optString(at, null));
+            if (input != null) found.add(input);
+        }
+
+        return found;
     }
 
     // --- media --------------------------------------------------------------------------
