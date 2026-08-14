@@ -1280,7 +1280,12 @@ Add both to `ALL`. Then the table, with the two new rows placed **after** `GAMES
         { DEMOSCENE, "demoscene", "tech demo", "animation" },
         { MUSIC, "music" },
         { GRAPHICS, "graphics" },
-        { APPLICATIONS, "utility", "programming", "emulator", "replacement rom" },
+        // "application" is here because zxart's own root word is
+        // "Applications" and no ZXDB genre contains that substring - without it
+        // the root's own name falls through to OTHER, which the task's own test
+        // catches. The same reason "press" is in the MAGAZINES row above.
+        { APPLICATIONS, "utility", "programming", "emulator", "replacement rom",
+                        "application" },
         { GAMES, "arcade game", "adventure game", "puzzle game", "casual game",
                  "sport game", "strategy game", "game" },
 
