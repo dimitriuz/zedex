@@ -48,6 +48,15 @@ public final class Catalogues {
         Catalogue zxInfo = new ZxInfoCatalogue(new Http.Real(context));
         if (zxInfo.configured()) catalogues.add(zxInfo);
 
+        // The locale comes from this context, not the device: every
+        // activity's attachBaseContext has already applied the app's own
+        // language preference, and Locale.getDefault() would be a second
+        // mechanism for the same fact.
+        Catalogue zxart = new ZxartCatalogue(new Http.Real(context),
+                                             context.getResources().getConfiguration()
+                                                    .getLocales().get(0));
+        if (zxart.configured()) catalogues.add(zxart);
+
         return catalogues;
     }
 

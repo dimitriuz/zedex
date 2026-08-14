@@ -803,6 +803,7 @@
     <string name="library_sort_top">Nejlépe hodnocené</string>
     <string name="library_sort_newest">Nejnovější</string>
     <string name="library_sort_alphabetical">A–Z</string>
+    <string name="library_catalogue">Katalog</string>
     <string name="catalogue_import">Importovat</string>
     <string name="catalogue_versions">Další verze…</string>
     <string name="catalogue_recording">Přehrát záznam</string>

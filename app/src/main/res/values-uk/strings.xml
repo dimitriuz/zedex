@@ -803,6 +803,7 @@
     <string name="library_sort_top">Найкращі за рейтингом</string>
     <string name="library_sort_newest">Найновіші</string>
     <string name="library_sort_alphabetical">A–Z</string>
+    <string name="library_catalogue">Каталог</string>
     <string name="catalogue_import">Імпортувати</string>
     <string name="catalogue_versions">Інші версії…</string>
     <string name="catalogue_recording">Відтворити запис</string>

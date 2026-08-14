@@ -786,6 +786,7 @@
     <string name="library_sort_top">I più votati</string>
     <string name="library_sort_newest">Più recenti</string>
     <string name="library_sort_alphabetical">A–Z</string>
+    <string name="library_catalogue">Catalogo</string>
     <string name="catalogue_import">Importa</string>
     <string name="catalogue_versions">Altre versioni…</string>
     <string name="catalogue_recording">Riproduci la registrazione</string>

@@ -984,6 +984,12 @@
     <string name="library_sort_top">Top rated</string>
     <string name="library_sort_newest">Newest</string>
     <string name="library_sort_alphabetical">A–Z</string>
+    <!-- The catalogue's own third row, beside Format and Sort and built the
+         same way - see CatalogueView.sourceRow - because it too has to say
+         what it is set to as well as offer to change it. Not
+         library_tab_catalogue: that names the tab itself, and this a row on
+         the screen behind it, which happen to share the one English word. -->
+    <string name="library_catalogue">Catalogue</string>
     <!-- The catalogue's detail pane - what one title offers, and the button
          that brings it in; see library/ui/CataloguePane. The service's own
          words for the kind and the availability are not here, only this app's.

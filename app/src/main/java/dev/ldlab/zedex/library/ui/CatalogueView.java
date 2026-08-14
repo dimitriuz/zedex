@@ -3,8 +3,10 @@ package dev.ldlab.zedex.library.ui;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.library.Types;
 import dev.ldlab.zedex.library.catalogue.Catalogue;
+import dev.ldlab.zedex.library.catalogue.Catalogues;
 import dev.ldlab.zedex.library.scrape.Http;
 import dev.ldlab.zedex.library.scrape.ScrapeException;
+import dev.ldlab.zedex.storage.Prefs;
 import dev.ldlab.zedex.view.Palette;
 import dev.ldlab.zedex.work.Work;
 
@@ -90,7 +92,9 @@ public final class CatalogueView extends FrameLayout {
         void imported();
     }
 
-    private final Catalogue catalogue;
+    /** Which archive is on screen. Not {@code final}: {@link #setCatalogue}
+     *  swaps it, which is the only way it ever changes. */
+    private Catalogue catalogue;
     private final Host host;
 
     /**
@@ -106,6 +110,13 @@ public final class CatalogueView extends FrameLayout {
 
     private final EditText searchField;
     private final TextView header;
+
+    /** "Catalogue · ZXInfo", and the way to change it - see {@link
+     *  #chooseSource}. The same shape as {@link #formatRow} and {@link
+     *  #sortRow} and for the same reason - it has to say what it is set to as
+     *  well as offer to change it - and drawn above both of them, since which
+     *  archive is open is the choice the other two rows are about. */
+    private final TextView sourceRow;
 
     /** "Format · No filter", and the way to change it - see {@link
      *  #chooseFormat}. */
@@ -267,6 +278,19 @@ public final class CatalogueView extends FrameLayout {
         column.addView(header, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        // Which archive is open, built the same way as formatRow just below
+        // and drawn above it - see sourceRow's own field comment for why.
+        sourceRow = new TextView(context);
+        sourceRow.setTextColor(Palette.MUTED);
+        sourceRow.setTextSize(13);
+        sourceRow.setPadding(pad, 0, pad, Math.round(6 * density));
+        sourceRow.setOnClickListener(v -> chooseSource());
+        column.addView(sourceRow, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        showSource();
 
         // The one control the catalogue has of its own, and it is a row rather
         // than a chip because it has to say what it is set to as well as offer
@@ -615,6 +639,74 @@ public final class CatalogueView extends FrameLayout {
     private void open(Catalogue.Shelf shelf) {
         stack.push(shelf);
         restart();
+    }
+
+    /**
+     * Browse a different archive.
+     *
+     * Everything about the current one goes: in-flight requests are
+     * superseded, the pane is closed, the stack is emptied, and the format and
+     * sort go back to nothing - a filter one catalogue can apply may be one
+     * the next cannot even offer, and a sort it honours may be one the next
+     * ignores. Rebuilding the view instead would work and would cost the tab
+     * its scroll position and the activity a reference it hands to three other
+     * things.
+     */
+    public void setCatalogue(Catalogue chosen) {
+        if (chosen == null || chosen == catalogue) return;
+
+        catalogue = chosen;
+        format = null;
+        sort = Catalogue.Sort.DEFAULT;
+
+        formatRow.setVisibility(catalogue.knowsFormats() ? View.VISIBLE : View.GONE);
+        sortRow.setVisibility(catalogue.sorts().size() > 1 ? View.VISIBLE : View.GONE);
+        showFormat();
+        showSort();
+        showSource();
+
+        showRoots();
+    }
+
+    /**
+     * A different archive, chosen from every one this build can browse.
+     *
+     * <b>By {@code name()}, from {@link Catalogues#all}</b> - never {@link
+     * Catalogues#preferred}, which answers "which one" rather than "which
+     * ones are there": the list has to include the archive already on screen
+     * as well as every other, or there would be nothing to switch to and from.
+     * Writes {@link Prefs#KEY_CATALOGUE} as a {@code String}, the same key
+     * {@link Catalogues#preferred} has read since it was declared with
+     * nothing yet writing it - and then hands the choice to {@link
+     * #setCatalogue} directly, rather than waiting for the tab to be rebuilt,
+     * since a chosen archive is wanted straight away and not on next launch.
+     */
+    private void chooseSource() {
+        List<Catalogue> catalogues = Catalogues.all(getContext());
+
+        String[] labels = new String[catalogues.size()];
+        for (int at = 0; at < catalogues.size(); at++) {
+            labels[at] = catalogues.get(at).name();
+        }
+
+        new android.app.AlertDialog.Builder(getContext())
+                .setTitle(R.string.library_catalogue)
+                .setItems(labels, (dialog, which) -> {
+                    Catalogue chosen = catalogues.get(which);
+
+                    getContext().getSharedPreferences(Prefs.PREFS, Context.MODE_PRIVATE)
+                            .edit()
+                            .putString(Prefs.KEY_CATALOGUE, chosen.name())
+                            .apply();
+
+                    setCatalogue(chosen);
+                })
+                .show();
+    }
+
+    private void showSource() {
+        sourceRow.setText(getContext().getString(R.string.library_catalogue)
+                          + " · " + catalogue.name());
     }
 
     /**

@@ -803,6 +803,7 @@
     <string name="library_sort_top">Najlepiej oceniane</string>
     <string name="library_sort_newest">Najnowsze</string>
     <string name="library_sort_alphabetical">A–Z</string>
+    <string name="library_catalogue">Katalog</string>
     <string name="catalogue_import">Importuj</string>
     <string name="catalogue_versions">Inne wersje…</string>
     <string name="catalogue_recording">Odtwórz nagranie</string>
