@@ -270,6 +270,16 @@ offers **Open** rather than Play, with the mime the provider states.
   The catalogue sets `kind` to "Music" or "Graphics" because that is what the
   entity *is*; whether a tune is PT3 or beeper belongs in the version label,
   not in a folder name.
+- **The rendered picture is a PNG, and the service will not tell you so.**
+  Measured 2026-08-14 by fetching one: the `zximages` endpoint answers 200 with
+  the PNG magic number (`89 50 4E 47 0D 0A 1A 0A`) and **no `Content-Type`
+  header at all**. Its url carries no extension either — it is
+  `zximages/id=2232;border=0;pal=srgb;type=standard;zoom=1`. So neither the url
+  nor the reply says what the bytes are, and nothing downstream can sniff it:
+  the catalogue states `png` from this measurement, and the imported file must
+  be *named* `.png` or the phone is handed an extensionless blob it has no
+  handler for. This is the one place in the feature where a `Download.format`
+  cannot be read off the thing it describes.
 - **A tune is one version, two files**: the ogg on `music.zxart.ee` first, the
   PT3/mt3 original second. A picture likewise: the rendered PNG first, the
   `.scr` second. The order is load-bearing — `Pick.otherFile` answers with the
