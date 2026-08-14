@@ -33,7 +33,7 @@ public class PickTest {
 
     private static Catalogue.Item item(Catalogue.Version... versions) {
         return new Catalogue.Item("1", "A game", "1987", "Ocean", "Arcade Game",
-                                  "Available", null, Arrays.asList(versions));
+                                  "Available", null, Arrays.asList(versions), null);
     }
 
     // --- the order ---------------------------------------------------------------------

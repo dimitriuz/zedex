@@ -403,18 +403,18 @@ public interface Catalogue {
         private final List<Version> versions;
         private final String videoLink;
 
-        /** No video link - what every catalogue but zxart answers. See the
-         *  nine-argument constructor below for one that has something to
-         *  offer here. */
-        public Item(String id, String title, String year, String publisher,
-                    String kind, String availability, String pictureUrl,
-                    List<Version> versions) {
-            this(id, title, year, publisher, kind, availability, pictureUrl, versions, null);
-        }
-
         /**
+         * One constructor, not two. An eight-argument overload delegating to
+         * this one with a hidden {@code null} is the shape this project
+         * already abandoned for {@code Meta} - see that class's own class
+         * doc on the positional constructor that once dropped a field
+         * silently - and the hazard is not today's field but the next one: a
+         * caller with no video link to offer has to say {@code null} here
+         * rather than that becoming a second thing to remember to update.
+         *
          * @param videoLink a link to a video about this game, or null - see
-         *                  {@link #videoLink()}
+         *                  {@link #videoLink()}. {@code null} for every
+         *                  catalogue but zxart today.
          */
         public Item(String id, String title, String year, String publisher,
                     String kind, String availability, String pictureUrl,

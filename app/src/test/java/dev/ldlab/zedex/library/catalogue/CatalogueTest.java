@@ -26,7 +26,7 @@ public class CatalogueTest {
     private static Catalogue.Item anItem(String id) {
         return new Catalogue.Item(id, "Head over Heels", "1987", "Ocean Software Ltd",
                                   "Arcade Game", "Available", null,
-                                  Collections.<Catalogue.Version>emptyList());
+                                  Collections.<Catalogue.Version>emptyList(), null);
     }
 
     // --- paging ----------------------------------------------------------------------
@@ -264,7 +264,7 @@ public class CatalogueTest {
 
     private static Catalogue.Item anItemAvailable(String availability) {
         return new Catalogue.Item("1", "A game", null, null, null, availability, null,
-                                  Collections.<Catalogue.Version>emptyList());
+                                  Collections.<Catalogue.Version>emptyList(), null);
     }
 
     // --- a download ------------------------------------------------------------------
@@ -294,7 +294,8 @@ public class CatalogueTest {
                                   "Available", null,
                                   Collections.singletonList(
                                           new Catalogue.Version(null, "1987",
-                                                                Arrays.asList(files))));
+                                                                Arrays.asList(files))),
+                                  null);
     }
 
     /**
@@ -332,7 +333,8 @@ public class CatalogueTest {
                 Arrays.asList(new Catalogue.Version("first", "1987",
                                                     Collections.singletonList(file("tap"))),
                               new Catalogue.Version("later", "1988",
-                                                    Collections.singletonList(file("trd")))));
+                                                    Collections.singletonList(file("trd")))),
+                null);
 
         assertTrue(item.formats().contains("tap"));
         assertTrue(item.formats().contains("trd"));

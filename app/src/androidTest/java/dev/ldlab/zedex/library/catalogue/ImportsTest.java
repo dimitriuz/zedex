@@ -221,7 +221,8 @@ public class ImportsTest {
                                   kind, "Available", null,
                                   Collections.singletonList(
                                           new Catalogue.Version(null, "1987",
-                                                                Arrays.asList(files))));
+                                                                Arrays.asList(files))),
+                                  null);
     }
 
     private static Catalogue.Download download(String format, long size) {

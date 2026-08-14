@@ -218,7 +218,7 @@ public class CatalogueSortTest {
 
         private static Item row() {
             return new Item("1", TITLE, "1984", "Nobody", "Arcade Game", "Available", null,
-                            Collections.emptyList());
+                            Collections.emptyList(), null);
         }
 
         @Override

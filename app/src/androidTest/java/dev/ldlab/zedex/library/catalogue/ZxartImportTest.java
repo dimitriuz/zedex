@@ -281,7 +281,8 @@ public class ZxartImportTest {
                                   kind, "Available", null,
                                   Collections.singletonList(
                                           new Catalogue.Version(null, "2026",
-                                                                Collections.singletonList(file))));
+                                                                Collections.singletonList(file))),
+                                  null);
     }
 
     private static Catalogue.Download download(String url, String format) {

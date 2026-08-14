@@ -557,7 +557,8 @@ public final class ZxartCatalogue implements Catalogue {
                         Kinds.MUSIC,
                         null,   // no legalStatus on this entity - nothing to state
                         null,   // no rendered picture for a tune - imagesUrls does not exist here
-                        Collections.singletonList(version));
+                        Collections.singletonList(version),
+                        null);  // youtubeId lives on a prod, not a tune
     }
 
     /** A list row: no author - see {@link #musicFrom(JSONObject)}. */
@@ -611,7 +612,8 @@ public final class ZxartCatalogue implements Catalogue {
                         Kinds.GRAPHICS,
                         null,               // no legalStatus on this entity
                         rendered.isEmpty() ? null : rendered,
-                        Collections.singletonList(version));
+                        Collections.singletonList(version),
+                        null);              // youtubeId lives on a prod, not a picture
     }
 
     /**

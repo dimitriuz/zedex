@@ -315,7 +315,7 @@ public class CatalogueSourceTest {
 
         private Item row() {
             return new Item(name + "-1", TITLE, "1984", "Nobody", "Arcade Game",
-                            "Available", null, Collections.emptyList());
+                            "Available", null, Collections.emptyList(), null);
         }
 
         @Override

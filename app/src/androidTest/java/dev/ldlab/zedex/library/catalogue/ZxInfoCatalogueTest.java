@@ -1741,7 +1741,7 @@ public class ZxInfoCatalogueTest {
      *  here, since what a similar-games shelf is built from is the id. */
     private static Catalogue.Item anItem(String id) {
         return new Catalogue.Item(id, "Head over Heels", "1987", "Ocean Software Ltd",
-                                  "Arcade Game", "Available", null, null);
+                                  "Arcade Game", "Available", null, null, null);
     }
 
     private static Catalogue.Shelf shelfNamed(String id) {

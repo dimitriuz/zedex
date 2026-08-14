@@ -345,7 +345,8 @@ public class CatalogueChaseTest {
             return new Item(String.valueOf(number), TITLE + " " + number, "1984",
                             "Nobody", "Arcade Game", "Available", null,
                             Arrays.asList(new Version(null, "1984",
-                                                      Collections.singletonList(file))));
+                                                      Collections.singletonList(file))),
+                            null);
         }
 
         @Override

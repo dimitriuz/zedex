@@ -948,7 +948,8 @@ public final class ZxInfoCatalogue implements Catalogue {
                         text(source, "genreType"),
                         text(source, "availability"),
                         picture(source),
-                        versions(source));
+                        versions(source),
+                        null);    // no video link - ZXInfo has nothing to offer here
     }
 
     /**
