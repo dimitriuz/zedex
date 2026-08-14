@@ -94,13 +94,14 @@ public interface Catalogue {
      * every tap and ANR on a slow network. A shelf is a way in and costs nothing
      * until somebody opens it - the request belongs in {@link #open}.
      *
-     * <b>Default null, so a catalogue owes nothing it has not got.</b> This is
-     * the only default here; everything else is abstract, and that is not an
-     * accident being extended. What the seam actually promises is the line at
-     * the top of this file - <em>a way in is data</em> - and this keeps it: a
-     * site with no notion of similarity says so by not overriding this, whatever
-     * offers the way in simply does not offer it, and no future catalogue is
-     * made to implement a method most of them have no endpoint for.
+     * <b>Default null, so a catalogue owes nothing it has not got.</b> This
+     * and {@link #knowsFormats()} are the only two defaults here; everything
+     * else is abstract, and that is not an accident being extended. What the
+     * seam actually promises is the line at the top of this file - <em>a way
+     * in is data</em> - and this keeps it: a site with no notion of
+     * similarity says so by not overriding this, whatever offers the way in
+     * simply does not offer it, and no future catalogue is made to implement
+     * a method most of them have no endpoint for.
      *
      * <b>The label comes from the caller, and that is deliberate.</b>
      * Everywhere else a shelf's words are the service's own - a genre's name
@@ -115,6 +116,40 @@ public interface Catalogue {
      */
     default Shelf similarTo(Item item, String label) {
         return null;
+    }
+
+    /**
+     * Whether this catalogue's <em>list rows</em> know which formats an item
+     * comes in.
+     *
+     * ZXInfo's do: a search hit's {@code _source} carries its releases and
+     * their files, byte-identical to the record's, which is what lets the
+     * screen filter by format without a request per row. zxart's do not - a
+     * prod names its release ids and nothing else - so {@link Item#formats()}
+     * is legitimately empty there, for a reason that has nothing to do with
+     * the game actually holding no files.
+     *
+     * <b>Empty formats cannot be read as either answer, so the catalogue has
+     * to say which it means.</b> Read as "no match" the filter would reject
+     * an entire archive on the strength of a question it was never asked;
+     * read as "keep everything" it would show a control that appears to
+     * filter and changes nothing, which this codebase already treats as the
+     * same class of fault as a chooser with no effect. Neither reading is
+     * safe to guess at silently, so this states it and {@code CatalogueView}
+     * hides the control it cannot honour, exactly as the tab hides itself
+     * when nothing is browsable.
+     *
+     * <b>A second default, and it earns the same reasoning {@link
+     * #similarTo} does.</b> This is not a convenience for a catalogue that
+     * has not gotten round to implementing something - it is a genuine
+     * absence of an endpoint, exactly as "games like this one" is: zxart's
+     * rows cannot know their formats without a request per row, which
+     * defeats the entire reason a list is filterable by format at all.
+     * Default false, so a catalogue that has not thought about it does not
+     * promise: the screen loses a filter rather than showing a broken one.
+     */
+    default boolean knowsFormats() {
+        return false;
     }
 
     /**

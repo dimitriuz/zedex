@@ -271,6 +271,13 @@ public final class CatalogueView extends FrameLayout {
 
         showFormat();
 
+        // Hidden rather than disabled: a catalogue whose rows do not know
+        // their own formats cannot honour this filter at all - see
+        // Catalogue.knowsFormats's own javadoc - and a control that is
+        // present and does nothing is worse than one that is absent, the
+        // same reasoning that already hides a shelf nothing can build.
+        formatRow.setVisibility(catalogue.knowsFormats() ? View.VISIBLE : View.GONE);
+
         FrameLayout content = new FrameLayout(context);
 
         recycler = new RecyclerView(context);
@@ -870,9 +877,12 @@ public final class CatalogueView extends FrameLayout {
         // A filter set here means most of what comes back is dropped here too,
         // and a catalogue that can answer with more rows at once should be told
         // so - it is the round trip and the pacing that a sifting shelf spends,
-        // not the bytes. Only while there is a filter: an unfiltered shelf
-        // draws every row it is sent.
-        return format == null ? query : query.sifting();
+        // not the bytes. Only while there is a filter, and only for a catalogue
+        // that can actually apply one: knowsFormats() false means a filter is
+        // never being read on the far side of this shelf, so the hint would buy
+        // bigger pages for nothing kept - see
+        // ZxartCatalogueTest.aZxartQueryIsNeverSifting.
+        return format == null || !catalogue.knowsFormats() ? query : query.sifting();
     }
 
     private void deliver(int token, Catalogue.Page result, Throwable failure) {

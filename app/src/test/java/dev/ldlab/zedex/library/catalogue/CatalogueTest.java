@@ -188,6 +188,23 @@ public class CatalogueTest {
         assertNull(new BareCatalogue().similarTo(anItem("0002259"), "Games like this"));
     }
 
+    /**
+     * A catalogue owes no answer about formats, and the default is the honest
+     * one.
+     *
+     * ZXInfo's list rows carry their own files, which is what makes its format
+     * filter cost no request. A zxart prod names releasesIds and nothing else,
+     * so its rows know nothing - and a screen that read "no formats" as "no
+     * match" would reject every row in the archive, while one that read it as
+     * "keep everything" would show a filter that does nothing. Neither is
+     * acceptable, so the catalogue says which it is and the screen hides the
+     * control it cannot honour.
+     */
+    @Test
+    public void aCatalogueSaysWhetherItCanAnswerForFormats() {
+        assertFalse(new BareCatalogue().knowsFormats());
+    }
+
     /** The least a catalogue can be: the six methods the seam actually
      *  requires - name, configured, shelves, open, item, refusalFor - and none
      *  of the ones it offers a default for. */

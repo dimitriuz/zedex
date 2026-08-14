@@ -117,6 +117,17 @@ import java.util.Locale;
  * only when the shelf somebody was actually offered is actually opened, which
  * for a shelf never opened is nothing at all - strictly less than an
  * unbounded map paid for every row regardless.
+ *
+ * <h3>{@code knowsFormats()}: not overridden, and that is the whole point</h3>
+ *
+ * A prod row here carries {@code releasesIds} and nothing else - {@link
+ * #itemFrom(JSONObject)} builds a list row with an empty version list, on
+ * purpose, because resolving even one release would be a request per row on
+ * a shelf of thousands. So {@link Item#formats()} is honestly empty for
+ * every row this catalogue ever lists, and inheriting {@link
+ * Catalogue#knowsFormats()}'s {@code false} default is what stops the
+ * screen's format filter reading that emptiness as "holds nothing" - which
+ * would reject every prod in the archive - rather than "not asked yet".
  */
 public final class ZxartCatalogue implements Catalogue {
 

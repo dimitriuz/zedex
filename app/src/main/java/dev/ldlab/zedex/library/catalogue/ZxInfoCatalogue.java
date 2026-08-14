@@ -430,6 +430,16 @@ public final class ZxInfoCatalogue implements Catalogue {
         return new Shelf(MORE_PREFIX + item.id(), label, Shelf.Accepts.NOTHING);
     }
 
+    /** True: a search hit's own {@code _source} carries {@code releases} and
+     *  {@code additionalDownloads} byte-identical to the record's, so {@link
+     *  #itemFrom} builds every row's {@link Item#formats()} without a request
+     *  of its own - see that method's javadoc. That is the whole reason a
+     *  format filter over this catalogue costs nothing. */
+    @Override
+    public boolean knowsFormats() {
+        return true;
+    }
+
     @Override
     public ScrapeException refusalFor(int status) {
         // Deliberately the same kinds ZxInfo raises, and for the same

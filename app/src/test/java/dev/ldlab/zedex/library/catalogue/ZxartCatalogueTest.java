@@ -255,6 +255,27 @@ public class ZxartCatalogueTest {
         assertTrue(onlyItem().formats().isEmpty());
     }
 
+    /** Inherits {@link Catalogue#knowsFormats()}'s false default rather than
+     *  overriding it - see this class's own javadoc, "knowsFormats(): not
+     *  overridden". */
+    @Test
+    public void zxartCannotAnswerForFormats() {
+        assertFalse(catalogue(new Fixtures.Canned()).knowsFormats());
+    }
+
+    /** And so it is never asked to sift: a bigger page for a filter that is
+     *  not applied is bytes nobody wanted. */
+    @Test
+    public void aZxartQueryIsNeverSifting() throws Exception {
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.CATEGORY_TREE)
+                                                    .then(Fixtures.PROD_SEARCH);
+        catalogue(http).open(catalogue(http).shelves().get(0),
+                             Catalogue.Query.text("head").sifting(), 0);
+
+        assertTrue("a sifting hint changes nothing here, and must not silently"
+                   + " triple the page size", lastAsked(http).contains("limit:30"));
+    }
+
     /**
      * A cold instance's first {@code item()} is three requests - the tree,
      * then the prod, then its releases - because the tree is what turns a
