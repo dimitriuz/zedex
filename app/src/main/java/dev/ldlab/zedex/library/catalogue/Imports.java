@@ -374,7 +374,7 @@ public final class Imports {
             // there is nothing usable, try the download itself as the file,
             // named from the url it came from.
             if (extracted.isEmpty()) {
-                String bare = basenameOf(file.url());
+                String bare = namedFrom(file);
                 if (keep == Keep.WHATEVER_ARRIVED || Types.openable(bare)) {
                     extracted.add(new Extracted(bare, zip));
                 }
@@ -612,6 +612,45 @@ public final class Imports {
 
         return new ScrapeException(ScrapeException.Kind.MALFORMED,
                                    "the server answered " + status);
+    }
+
+    /**
+     * The name to give a download that was never a zip - its own basename,
+     * with the catalogue's stated format appended when the url gave none.
+     *
+     * <b>zxart's rendered picture has no extension to read off the url at
+     * all</b> ({@code zximages/id=2232;border=0;pal=srgb;type=standard;zoom=1}
+     * - measured: 200, PNG magic number, no {@code Content-Type} header). A
+     * document written under that bare name still opens - the emulator does
+     * not care what a file is called - but nothing else does: {@code
+     * CataloguePane.openOutside} hands the document off with whatever {@code
+     * ContentResolver.getType()} answers, and SAF derives that from the
+     * <em>display name</em>'s extension, not from anything the writer passed
+     * in. So a name with no extension is a document with no openable type,
+     * silently - "Open" resolves to nothing and there is no error to show,
+     * because nothing failed.
+     *
+     * <b>{@code Tree.write}'s own mime argument is not the fix and must stay
+     * {@code application/octet-stream}.</b> It is inert by the time Open
+     * asks: SAF ignores what a document was created with and re-derives the
+     * type from the name every time it is queried. That inert argument is
+     * also why today's PDF imports already work through this same call -
+     * their basename already ends {@code .pdf}, so the derived type is
+     * right without anyone stating a mime at all. Passing a better mime here
+     * would look like a fix and change nothing; the name is the only lever
+     * that reaches {@code getType()}.
+     *
+     * {@link Catalogue.Download#format()} is lower-case and dotless by
+     * contract, which is what makes a bare {@code "." + format} always
+     * correct. Only a url with no extension at all is affected - a game's
+     * own file, and a tune's {@code mp3FilePath}, both already end in one.
+     */
+    private static String namedFrom(Catalogue.Download file) {
+        String bare = basenameOf(file.url());
+        if (bare.contains(".")) return bare;
+
+        String format = file.format();
+        return format.isEmpty() ? bare : bare + "." + format;
     }
 
     /** The last path segment of a url, ignoring any query string - what a
