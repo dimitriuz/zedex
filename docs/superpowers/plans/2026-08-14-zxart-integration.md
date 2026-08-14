@@ -654,7 +654,7 @@ Note the `&amp;` replacement is **last**: doing it first would turn `&amp;#039;`
 - [ ] **Step 4: Run the tests and watch them pass**
 
 Run: `env JAVA_HOME=/opt/android-studio/jbr ./gradlew testDebugUnitTest --tests 'dev.ldlab.zedex.library.scrape.ZxartApiTest'`
-Expected: PASS, 8 tests.
+Expected: PASS, 9 tests.
 
 - [ ] **Step 5: Commit**
 
@@ -691,6 +691,14 @@ working used %20."
 - Produces: `Fixtures.Canned` — an `Http` fake, replies in order, recording every URL asked.
 
 - [ ] **Step 1: Write the fixtures class**
+
+**The Java code block below is an illustration of the *shape*, not a fixture.**
+It was typed into this plan by hand and is therefore exactly what the rule it
+illustrates forbids: it drops `authorsInfo`, shortens four arrays, and carries an
+English `categoriesString` where the real capture is Russian. Copy the capture
+file, never this block. (Recorded rather than deleted because a plan that quietly
+fixed its own bad example would lose the demonstration that this failure is easy
+enough to make in a document about avoiding it.)
 
 Copy the bodies **verbatim** out of `review/zxart/`, trimming only whole rows (never fields) so a reply stays a reply. `PROD_LICENCE_TO_KILL` is `af-prod-types-release`'s sibling `prod-by-id.json`; `RELEASES_LICENCE_TO_KILL` is `af-release-by-prod.json` trimmed to three of its twenty-four releases; `CATEGORY_TREE` is `af-categories-eng.json`; `PROD_SEARCH` is `af-prodsearch.json`; `MUSIC_ROW` is `af-music-by-id.json`; `PICTURE_ROW` is `af-picture-by-id.json`. For `PROD_FORBIDDEN`, take a real row from `prod-categories.json` whose `legalStatus` is `forbidden` — there are 21 in that slice, so it does not have to be invented.
 
@@ -844,7 +852,7 @@ Add `import dev.ldlab.zedex.library.catalogue.Fixtures;`, `import org.json.JSONO
 
 - [ ] **Step 3: Run and watch it fail, then pass**
 
-Run the class. The four new tests fail first on the missing `Fixtures`; after Step 1 they pass. Expected: PASS, 12 tests.
+Run the class. The four new tests fail first on the missing `Fixtures`; after Step 1 they pass. Expected: PASS, 13 tests — nine from Task 2 and four here.
 
 - [ ] **Step 4: Commit**
 
