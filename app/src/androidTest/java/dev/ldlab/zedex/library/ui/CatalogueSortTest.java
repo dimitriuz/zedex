@@ -141,6 +141,47 @@ public class CatalogueSortTest {
                       device.wait(Until.findObject(By.text(expected)), FIND));
     }
 
+    /**
+     * A shelf that cannot honour the catalogue's sorts hides the row - and the
+     * sort goes back to the default rather than being sent.
+     *
+     * <b>The bug this pins.</b> Honouring a sort is a property of the shelf,
+     * not of the catalogue: ZXInfo sends {@code sort=score_desc} only on the
+     * two shelves that are really a search, and zxart's {@code date,desc} and
+     * {@code title,asc} were measured on prods alone. Declared per catalogue,
+     * the control appeared everywhere - refetching a shelf, relabelling the
+     * row and answering with byte-identical rows on three of ZXInfo's five
+     * shelves, and on zxart sending an order name to an endpoint nobody had
+     * asked it of, against a service that ignores an unrecognised name and
+     * answers success.
+     *
+     * Both halves are asserted, because either alone is still wrong: the row
+     * has to go (a control that does nothing is worse than none), and the
+     * request has to carry {@code DEFAULT} (a sort left set would be handed to
+     * the shelf that cannot honour it).
+     */
+    @Test
+    public void ashelfThatCannotHonourTheSortHidesTheRowAndIsAskedWithTheDefault() {
+        install(new Fake(Arrays.asList(Catalogue.Sort.DEFAULT, Catalogue.Sort.TOP))
+                        .onlyOnTheShelf(Collections.singletonList(Catalogue.Sort.DEFAULT)));
+
+        // At the roots the row is there - no shelf is open, so what the
+        // catalogue declares is all there is to go on - and Top rated can be
+        // chosen there, which is the state that used to be carried into a shelf
+        // that ignores it.
+        chooseTopRated();
+
+        openTheShelf();
+
+        assertEquals("a shelf that declares one ordering must be asked with"
+                     + " DEFAULT, never with the sort chosen outside it",
+                     Catalogue.Sort.DEFAULT, awaitASort());
+
+        assertNull("the sort row is still on screen over a shelf that cannot"
+                   + " honour any ordering",
+                   device.findObject(By.textStartsWith(sortLabel())));
+    }
+
     // --- the fake ------------------------------------------------------------------
 
     /**
@@ -150,11 +191,23 @@ public class CatalogueSortTest {
     private static final class Fake implements Catalogue {
 
         private final List<Sort> sorts;
+
+        /** What {@link #sortsFor} answers for the one shelf, or null to leave
+         *  the seam's own default alone - which is {@link #sorts()}. Set only
+         *  by the test about a shelf that cannot honour what the catalogue
+         *  declares. */
+        private List<Sort> shelfSorts;
+
         private final AtomicReference<Sort> lastSort = new AtomicReference<>();
         private final AtomicInteger asked = new AtomicInteger();
 
         private Fake(List<Sort> sorts) {
             this.sorts = sorts;
+        }
+
+        private Fake onlyOnTheShelf(List<Sort> shelfSorts) {
+            this.shelfSorts = shelfSorts;
+            return this;
         }
 
         /** Counted off the thread the fetch runs on, read from the test's. */
@@ -202,6 +255,13 @@ public class CatalogueSortTest {
         @Override
         public List<Sort> sorts() {
             return sorts;
+        }
+
+        /** The seam's own default unless a test says otherwise - see {@link
+         *  Catalogue#sortsFor}, and {@link #shelfSorts}. */
+        @Override
+        public List<Sort> sortsFor(Shelf shelf) {
+            return shelfSorts == null ? sorts : shelfSorts;
         }
 
         @Override

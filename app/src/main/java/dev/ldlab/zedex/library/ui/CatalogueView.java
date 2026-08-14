@@ -165,10 +165,9 @@ public final class CatalogueView extends FrameLayout {
     private String format;
 
     /** Which ordering is wanted. {@link Catalogue.Sort#DEFAULT} until somebody
-     *  chooses otherwise. Not reset anywhere yet - there is one catalogue on
-     *  screen for the life of this view - but a future {@code setCatalogue}
-     *  must reset it to {@code DEFAULT} too: a sort one catalogue honours may
-     *  be one the next cannot. */
+     *  chooses otherwise, and back to it whenever what is open cannot honour
+     *  the one that was chosen - {@link #setCatalogue} for a different archive,
+     *  {@link #syncSortToShelf()} for a different shelf of the same one. */
     private Catalogue.Sort sort = Catalogue.Sort.DEFAULT;
 
     /** Where a person is. Empty means the roots, which is also what makes
@@ -327,15 +326,15 @@ public final class CatalogueView extends FrameLayout {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        showSort();
-
-        // Hidden when the catalogue declares only one ordering - the same
-        // bargain Catalogue.sorts() states and formatRow's own visibility
-        // above already rests on: a control that could only ever leave a
-        // shelf exactly as it found it is worse than no control at all. Gated
-        // here, in the constructor, beside formatRow - there is no
-        // setCatalogue yet for a later task to re-gate it from.
-        sortRow.setVisibility(catalogue.sorts().size() > 1 ? View.VISIBLE : View.GONE);
+        // Hidden when there is only one ordering to be had - the same bargain
+        // Catalogue.sortsFor() states and formatRow's own visibility above
+        // already rests on: a control that could only ever leave a shelf
+        // exactly as it found it is worse than no control at all. Off the
+        // OPEN shelf rather than off the catalogue, which is why this is a
+        // method and not two lines here: honouring a sort is a property of
+        // one endpoint, and at the roots - where this runs, with an empty
+        // stack - it falls back to what the catalogue declares.
+        syncSortToShelf();
 
         FrameLayout content = new FrameLayout(context);
 
@@ -631,6 +630,10 @@ public final class CatalogueView extends FrameLayout {
         rows.addAll(catalogue.shelves());
         adapter.setRows(rows);
 
+        // The stack is empty again, so the sort row goes back to what the
+        // catalogue as a whole declares - see syncSortToShelf.
+        syncSortToShelf();
+
         header.setText(catalogue.name());
         updateState();
     }
@@ -658,21 +661,35 @@ public final class CatalogueView extends FrameLayout {
      * holds a stale catalogue. See {@code CataloguePane.setCatalogue}'s own
      * javadoc for what a pane left pointing at the old archive would have
      * done with an id the new one issued.
+     *
+     * <b>"The same archive" is a name, never an instance.</b> {@link
+     * #chooseSource} builds a fresh {@link Catalogue} for every entry in the
+     * chooser, so {@code chosen == catalogue} is false even when somebody
+     * picks the archive already open - and this then threw away everything
+     * about it for no reason: the stack, the pane, and zxart's whole category
+     * tree, thirteen kilobytes that then had to be fetched again. By {@link
+     * Catalogue#name()}, which is the one thing about a catalogue that is
+     * stable across instances and is already what {@code Prefs.KEY_CATALOGUE}
+     * stores.
      */
     public void setCatalogue(Catalogue chosen) {
-        if (chosen == null || chosen == catalogue) return;
+        if (chosen == null) return;
+        if (catalogue != null && catalogue.name().equals(chosen.name())) return;
 
         catalogue = chosen;
         format = null;
         sort = Catalogue.Sort.DEFAULT;
 
         formatRow.setVisibility(catalogue.knowsFormats() ? View.VISIBLE : View.GONE);
-        sortRow.setVisibility(catalogue.sorts().size() > 1 ? View.VISIBLE : View.GONE);
         showFormat();
-        showSort();
         showSource();
 
         pane.setCatalogue(catalogue);
+
+        // The sort row is left to showRoots()/syncSortToShelf() below rather
+        // than gated a second time here: the stack is about to be emptied, and
+        // one place deciding this for one reason is what keeps the two rows
+        // from disagreeing.
         showRoots();
     }
 
@@ -784,7 +801,7 @@ public final class CatalogueView extends FrameLayout {
      * instead.
      */
     private void chooseSort() {
-        List<Catalogue.Sort> sorts = catalogue.sorts();
+        List<Catalogue.Sort> sorts = sortsHere();
         String[] labels = new String[sorts.size()];
         for (int at = 0; at < sorts.size(); at++) {
             labels[at] = getContext().getString(labelFor(sorts.get(at)));
@@ -813,6 +830,47 @@ public final class CatalogueView extends FrameLayout {
     private void showSort() {
         sortRow.setText(getContext().getString(R.string.library_sort)
                         + " · " + getContext().getString(labelFor(sort)));
+    }
+
+    /**
+     * The orderings whatever is open can actually honour.
+     *
+     * <b>The open shelf, not the catalogue.</b> A catalogue is several
+     * endpoints wearing one name and a sort parameter is only ever measured
+     * against some of them - see {@link Catalogue#sortsFor}. At the roots
+     * there is no shelf to ask about, so the catalogue's own list stands:
+     * what is on screen there is a list of ways in, and a sort chosen before
+     * descending is carried into the first shelf that can honour it.
+     */
+    private List<Catalogue.Sort> sortsHere() {
+        Catalogue.Shelf open = stack.peek();
+
+        return open == null ? catalogue.sorts() : catalogue.sortsFor(open);
+    }
+
+    /**
+     * The row shown or hidden for what is open, and the sort reset when it
+     * cannot be honoured there.
+     *
+     * <b>Reset rather than sent.</b> Descending from a shelf that honours Top
+     * rated into one that does not used to leave the sort set and hand it over
+     * anyway: ZXInfo simply ignored it, and zxart would have sent an order
+     * name to an endpoint nobody had ever asked it of - and an unrecognised
+     * order name there is ignored rather than refused, so the reply looks like
+     * success. Back to {@link Catalogue.Sort#DEFAULT}, which every shelf
+     * honours by definition, and the row says so.
+     *
+     * Called from every place the open shelf changes - {@link #restart()}
+     * covers descending, backing out, a search and a re-query, and {@link
+     * #showRoots()} the way back to the roots.
+     */
+    private void syncSortToShelf() {
+        List<Catalogue.Sort> here = sortsHere();
+
+        if (!here.contains(sort)) sort = Catalogue.Sort.DEFAULT;
+
+        sortRow.setVisibility(here.size() > 1 ? View.VISIBLE : View.GONE);
+        showSort();
     }
 
     private static int labelFor(Catalogue.Sort sort) {
@@ -936,6 +994,11 @@ public final class CatalogueView extends FrameLayout {
         // hold. Set here rather than only in setFormat, which is one of four
         // ways a new shelf is put on screen.
         scanned = 0;
+
+        // Before fetch(), because this is what decides the sort the query
+        // about to go out carries: a shelf that cannot honour the current
+        // ordering is asked with DEFAULT rather than sent one it would ignore.
+        syncSortToShelf();
 
         header.setText(labelOf(stack.peek()));
 

@@ -15,6 +15,7 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
@@ -339,6 +340,36 @@ public final class ZxInfoCatalogue implements Catalogue {
     @Override
     public List<Sort> sorts() {
         return Arrays.asList(Sort.DEFAULT, Sort.TOP);
+    }
+
+    /**
+     * ...and only on the two shelves that are actually a search.
+     *
+     * <b>The measurement was taken against {@code /search}, and that is the
+     * whole of what it covers.</b> {@link #pathFor} sends {@link #sortParam}
+     * on exactly two branches - the search box and a genre sub-shelf, both of
+     * which go through {@link #searchFor} - so those two can honour {@link
+     * Sort#TOP} and nothing else here can. A-Z is {@code games/byletter} and
+     * comes back alphabetical with no sort at all, Surprise me is {@code
+     * games/random}, More like this is {@code games/morelikethis}, and Newest
+     * already spends the one {@code sort} parameter on {@code date_desc}.
+     * Offering Top rated on any of those refetched the shelf, relabelled the
+     * row and answered with byte-identical rows: three of five shelves wore a
+     * control that could not do anything. See {@link Catalogue#sortsFor}.
+     *
+     * The two shelves that yield sub-shelves rather than rows - A-Z and
+     * Categories - answer {@code DEFAULT} alone as well: what is on screen
+     * there is a list of ways in, and there is no ordering of twenty-seven
+     * letters or a genre list for anybody to want.
+     */
+    @Override
+    public List<Sort> sortsFor(Shelf shelf) {
+        if (shelf == null) return sorts();
+
+        boolean searches = SHELF_SEARCH.equals(shelf.id())
+                || shelf.id().startsWith(GENRE_PREFIX);
+
+        return searches ? sorts() : Collections.singletonList(Sort.DEFAULT);
     }
 
     /**

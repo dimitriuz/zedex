@@ -70,8 +70,12 @@ public interface Catalogue {
      * One item in full: its versions and their files.
      *
      * How many requests that costs is the catalogue's own business - ZXInfo
-     * answers with one call and zxart takes {@code types:zxProd,zxRelease} on
-     * another single one. The caller asks once either way.
+     * answers with one call, and zxart takes two: {@code export:zxProd} for
+     * the row and {@code export:zxRelease} for its releases, plus its
+     * category tree the first time in a session. The documented shortcut for
+     * doing that in one, {@code types:zxProd,zxRelease}, answers HTTP 500 and
+     * is measured as doing so - see {@code ZxartCatalogue.item}. The caller
+     * asks once either way.
      */
     Item item(String id) throws ScrapeException;
 
@@ -150,6 +154,43 @@ public interface Catalogue {
      */
     default List<Sort> sorts() {
         return Collections.singletonList(Sort.DEFAULT);
+    }
+
+    /**
+     * The orderings <em>that shelf</em> can honour - a subset of {@link
+     * #sorts()}, always including {@link Sort#DEFAULT}.
+     *
+     * <b>Honouring a sort is a property of the shelf, not of the
+     * catalogue.</b> A catalogue is several endpoints wearing one name, and a
+     * sort parameter is only ever measured against one of them: ZXInfo's
+     * {@code sort=score_desc} was measured against {@code /search}, which is
+     * what its search box and its genres use, and says nothing about {@code
+     * games/byletter}, {@code games/random} or {@code games/morelikethis};
+     * zxart's {@code order:date,desc} and {@code order:title,asc} were
+     * measured on prods only, and its music and picture entities were only
+     * ever asked for {@code order:votes,desc}. Declared per catalogue, the
+     * control appeared on every shelf and did nothing on most of them - and
+     * on zxart it sent order names to endpoints nobody had ever asked them
+     * of, against a service that <em>ignores</em> an unrecognised name and
+     * answers success, which is this branch's own cardinal sin.
+     *
+     * <b>A control that is present and does nothing is worse than one that is
+     * absent</b> - the same bargain {@link #knowsFormats()} states, and the
+     * reason this is a promise a catalogue can genuinely lack rather than a
+     * convenience. What a person saw before this existed was Top rated
+     * refetching a shelf, relabelling the row, and coming back with
+     * byte-identical rows: a chooser with no effect, which this codebase
+     * treats as a defect rather than a cosmetic issue. {@code CatalogueView}
+     * hides the row on a shelf that declares one ordering, and resets the
+     * sort to {@link Sort#DEFAULT} rather than sending a shelf one it cannot
+     * honour.
+     *
+     * <b>Defaulted to {@link #sorts()}</b>, so a catalogue whose every shelf
+     * really is one endpoint owes nothing extra - and so that a catalogue
+     * declaring no sorts at all is unaffected.
+     */
+    default List<Sort> sortsFor(Shelf shelf) {
+        return sorts();
     }
 
     /**

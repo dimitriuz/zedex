@@ -205,6 +205,26 @@ public class CatalogueTest {
         assertFalse(new BareCatalogue().knowsFormats());
     }
 
+    /**
+     * ...and a catalogue that says nothing about a shelf's orderings is read
+     * as offering whatever it offers everywhere.
+     *
+     * The default has to be {@link Catalogue#sorts()} rather than {@code
+     * DEFAULT} alone: a catalogue whose every shelf really is one endpoint owes
+     * nothing extra, and a catalogue that declares no sorts at all must not
+     * have its control taken away twice over. Honouring a sort is a property of
+     * the shelf for the two catalogues that ship, both of which override this;
+     * the bare one is what pins the default.
+     */
+    @Test
+    public void aShelfInheritsTheCataloguesOwnSortsUnlessItSaysOtherwise() {
+        BareCatalogue bare = new BareCatalogue();
+        Catalogue.Shelf any = new Catalogue.Shelf("any", "Any", Catalogue.Shelf.Accepts.NOTHING);
+
+        assertEquals(bare.sorts(), bare.sortsFor(any));
+        assertEquals(Collections.singletonList(Catalogue.Sort.DEFAULT), bare.sortsFor(any));
+    }
+
     /** The least a catalogue can be: the six methods the seam actually
      *  requires - name, configured, shelves, open, item, refusalFor - and none
      *  of the ones it offers a default for. */
