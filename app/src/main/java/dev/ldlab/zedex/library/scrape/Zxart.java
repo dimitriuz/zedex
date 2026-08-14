@@ -364,34 +364,38 @@ public final class Zxart implements Provider {
      * {@code instructions} live on a release instead, which is why {@code
      * releases} is a list at all: see {@link #collectRelease}.
      *
-     * <b>A folder keeps the first thing it is given, across every release in
-     * the order zxart itself returned them.</b> The same rule {@code
-     * ZxInfo.collect} uses for its two overlapping arrays, extended here to
-     * a whole list of releases rather than one array - and it answers
-     * controller note 4's question directly. A prod with two boxed editions
-     * (measured on entry 92668, Licence to Kill: an original release, id
-     * 92671, and a 1991 Hit Squad rerelease, id 92675, each with its own
-     * front/back/media inlays) ends up with <em>all three</em> of {@code
-     * covers}/{@code backcovers}/{@code physicalmedia} from whichever
-     * release zxart lists first that has any of them - id 92671 here, since
-     * {@code releasesIds} lists the original before the rerelease - and the
-     * second edition's genuinely different pictures are never looked at,
-     * because the folders they would fill are already taken. This was
-     * chosen over two alternatives: filtering to {@code releaseType:
-     * "original"} would leave a prod with no original release (a rerelease
-     * is sometimes all zxart has) with no artwork at all though a release
-     * carries some; and a true union - taking each release's <em>best</em>
-     * inlay per folder rather than the first release with any - would let a
-     * cover from one edition sit beside a back from a visually different
-     * one, which is worse than a coherent set from a single edition. Taking
-     * the first release with anything, whole, is the one option that always
-     * has an answer when any release does and never mixes editions within a
-     * folder set. It costs nothing extra either way: every release's {@code
+     * <b>Each folder keeps the first thing it is given, independently of
+     * every other folder - across every release, in the order zxart itself
+     * returned them.</b> The same rule {@code ZxInfo.collect} uses for its
+     * two overlapping arrays, extended here to a whole list of releases
+     * rather than one array. {@code covers} is filled by the first release
+     * that has a front; {@code backcovers} by the first release that has a
+     * back - and nothing here requires those to be the <em>same</em>
+     * release. <b>A front and a back may come from different editions, and
+     * that is deliberate, not an oversight.</b>
+     *
+     * Each of these folders holds exactly one file for a game in this app,
+     * and {@code Artwork}'s folder list is a preference order for drawing
+     * it - so the real question per folder is "a photograph of this game,
+     * or nothing", and a back cover from a different edition of the same
+     * game is still a genuine photograph of it: mildly inconsistent beside
+     * a front from elsewhere, and strictly better than leaving the folder
+     * empty because the release that happened to be checked first for
+     * fronts had none of its own back. This also matches how the rest of
+     * this app already behaves: {@code Merge.of} fills a null field from
+     * the addition and never overwrites, and {@code Blend.Media.FILL_GAPS}
+     * never re-fetches a folder it already has - filling gaps, not
+     * demanding a matched set, is the house rule, and a same-release lock
+     * would refuse a back cover already in hand because a different box
+     * supplied the front. See {@code
+     * ZxartTest.coversAndBackcoversMayComeFromDifferentEditions} for a case
+     * built from two real releases of one prod where this is exactly what
+     * happens. It costs nothing extra: every release's {@code
      * inlays}/{@code ads}/{@code instructions} already arrived in the one
      * release-list reply {@link #fetch} asked for.
      */
-    private static List<Medium> mediaFrom(JSONObject prod, List<JSONObject> releases,
-                                          Wanted wanted) {
+    static List<Medium> mediaFrom(JSONObject prod, List<JSONObject> releases,
+                                  Wanted wanted) {
         Map<String, Medium> byFolder = new LinkedHashMap<>();
 
         collectImages(byFolder, prod.optJSONArray("imagesUrls"), wanted);

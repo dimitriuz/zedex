@@ -1271,6 +1271,65 @@ public final class Fixtures {
             + "encoding\":\"none\",\"internalType\":\"binary\",\"viewable\":false}]}]}],\"prodId\":92668}";
 
     /**
+     * Two whole, unmodified release rows of one real prod (92868, "ACE"),
+     * both from {@code review/zxart/hw-sample.json} - paired and reordered
+     * for {@code ZxartTest.coversAndBackcoversMayComeFromDifferentEditions},
+     * which needs a release carrying only a front cover checked <em>before</em>
+     * one that also carries a back.
+     *
+     * <b>Assembled, not a natural reply - and said so here rather than left
+     * for a reader to discover.</b> A real {@code export:zxRelease} reply for
+     * prod 92868 lists these two releases in id order - 92874 ("Gamebusters")
+     * ahead of 92876 ("MCM Software") - and 92874 already carries a front
+     * <em>and</em> a back in one release, so a real reply for this prod
+     * cannot show a scrape drawing them from two different releases: the
+     * first release it would ever look at already has both. Reordering these
+     * two real, complete rows - {@link #RELEASE_COVER_ONLY} first, {@link
+     * #RELEASE_WITH_BACK} second - is what makes that visible. Nothing in
+     * either row's own fields was changed from the capture; only their order
+     * relative to each other was chosen for this test.
+     */
+    public static final String RELEASE_COVER_ONLY =
+            "{\"id\":92876,\"title\":\"ACE\",\"dateCreated\":1479491169,\"dateModified\":1786309892,\"file\":"
+            + "\"https:\\/\\/zxart.ee\\/releasefile\\/id:92876\\/ACE(MCMSoftwareS.A.).tzx.zip\",\"fileName\":\""
+            + "ACE(MCMSoftwareS.A.).tzx.zip\",\"year\":1989,\"publishersIds\":[328119],\"releaseType\":\"rerele"
+            + "ase\",\"releaseFormat\":[\"tzx\"],\"inlays\":[\"https:\\/\\/zxart.ee\\/release\\/id:205770\\/mod"
+            + "e:download\\/filename:ACE(MCMSoftwareS.A.).jpg\"],\"instructions\":[\"https:\\/\\/zxart.ee\\/rel"
+            + "ease\\/id:205771\\/mode:download\\/filename:ACE(MCMSoftwareS.A.).pdf\"],\"releaseStructure\":[{"
+            + "\"id\":812,\"md5\":\"7d11b92653acc8841163f08684d10aaa\",\"parentId\":0,\"fileName\":\"ACE(MCMSof"
+            + "twareS.A.).tzx.zip\",\"size\":22232,\"elementId\":92876,\"type\":\"zip\",\"encoding\":\"none\","
+            + "\"internalType\":\"binary\",\"viewable\":false,\"items\":[{\"id\":813,\"md5\":\"b0a08f657b2e158c"
+            + "e9209f4844c92125\",\"parentId\":812,\"fileName\":\"ACE (MCM).tzx\",\"size\":40991,\"elementId\":"
+            + "92876,\"type\":\"tzx\",\"encoding\":\"none\",\"internalType\":\"binary\",\"viewable\":false,\"it"
+            + "ems\":[{\"id\":814,\"md5\":\"cb17b261a46e665f51656116b12270b5\",\"parentId\":813,\"fileName\":\""
+            + "ACE.B\",\"size\":119,\"elementId\":92876,\"type\":\"file\",\"encoding\":\"none\",\"internalType"
+            + "\":\"zx_basic\",\"viewable\":true},{\"id\":815,\"md5\":\"6570c9df529297169443c3da836099f6\",\"pa"
+            + "rentId\":813,\"fileName\":\"code.C\",\"size\":40535,\"elementId\":92876,\"type\":\"file\",\"enco"
+            + "ding\":\"none\",\"internalType\":\"binary\",\"viewable\":false}]}]}],\"prodId\":92868}";
+
+    /** {@link #RELEASE_COVER_ONLY}'s pair - real release 92874, front, back
+     *  and media all present. */
+    public static final String RELEASE_WITH_BACK =
+            "{\"id\":92874,\"title\":\"ACE\",\"dateCreated\":1479491169,\"dateModified\":1786309892,\"file\":"
+            + "\"https:\\/\\/zxart.ee\\/releasefile\\/id:92874\\/ACE(Gamebusters).tzx.zip\",\"fileName\":\"ACE("
+            + "Gamebusters).tzx.zip\",\"year\":1986,\"publishersIds\":[349837],\"releaseType\":\"rerelease\",\""
+            + "releaseFormat\":[\"tzx\"],\"inlays\":[\"https:\\/\\/zxart.ee\\/release\\/id:205769\\/mode:downlo"
+            + "ad\\/filename:ACE(GameBusters).jpg\",\"https:\\/\\/zxart.ee\\/release\\/id:554385\\/mode:downloa"
+            + "d\\/filename:ACE(Gamebusters)_Back.jpg\",\"https:\\/\\/zxart.ee\\/release\\/id:554386\\/mode:dow"
+            + "nload\\/filename:ACE(Gamebusters)_Front.jpg\",\"https:\\/\\/zxart.ee\\/release\\/id:554387\\/mod"
+            + "e:download\\/filename:ACE(Gamebusters)_Media.jpg\"],\"releaseStructure\":[{\"id\":804,\"md5\":\""
+            + "7321ab57281461221ca08661c6c687e2\",\"parentId\":0,\"fileName\":\"ACE(Gamebusters).tzx.zip\",\"si"
+            + "ze\":18865,\"elementId\":92874,\"type\":\"zip\",\"encoding\":\"none\",\"internalType\":\"binary"
+            + "\",\"viewable\":false,\"items\":[{\"id\":805,\"md5\":\"e16ac3d80862cd193adefe2345df9f40\",\"pare"
+            + "ntId\":804,\"fileName\":\"ACE (Game Busters).tzx\",\"size\":35705,\"elementId\":92874,\"type\":"
+            + "\"tzx\",\"encoding\":\"none\",\"internalType\":\"binary\",\"viewable\":false,\"items\":[{\"id\":"
+            + "806,\"md5\":\"a133395f8bc460f027b2f9f4b00de4ad\",\"parentId\":805,\"fileName\":\"ACE.B\",\"size"
+            + "\":68,\"elementId\":92874,\"type\":\"file\",\"encoding\":\"none\",\"internalType\":\"zx_basic\","
+            + "\"viewable\":true},{\"id\":807,\"md5\":\"12b93030179d8ac4eace3656bbe722d3\",\"parentId\":805,\"f"
+            + "ileName\":\"CODE.C\",\"size\":35535,\"elementId\":92874,\"type\":\"file\",\"encoding\":\"none\","
+            + "\"internalType\":\"binary\",\"viewable\":false}]}]}],\"prodId\":92868}";
+
+    /**
      * review/zxart/ord-search-votes.json - export:zxProd,
      * filter:zxProdSearch=head, order:votes,desc, limit:5 - a votes-ordered
      * page of the same search {@code af-prodsearch.json}/{@link #PROD_SEARCH}

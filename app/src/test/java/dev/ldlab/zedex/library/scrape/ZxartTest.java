@@ -282,6 +282,46 @@ public class ZxartTest {
     }
 
     /**
+     * <b>A front and a back may come from different editions - see {@code
+     * Zxart.mediaFrom}'s own javadoc for why that is deliberate.</b> Each
+     * folder is filled independently by the first release that has
+     * something for it, not by "the first release with anything, taken
+     * whole" - so {@code covers} and {@code backcovers} can and here do come
+     * from two different releases of the one prod.
+     *
+     * <p>{@link Fixtures#RELEASE_COVER_ONLY} (release 92876, front only) is
+     * queued first and {@link Fixtures#RELEASE_WITH_BACK} (release 92874,
+     * front, back and media) second - see that fixture's own javadoc for why
+     * this order is assembled rather than a real reply's own. {@code covers}
+     * is asserted to come from 92876 and {@code backcovers} from 92874 -
+     * different release ids - which is exactly what an implementation that
+     * locks all folders to one release could not produce: locked to
+     * whichever release is checked first (92876, front only), it would fill
+     * {@code covers} and leave {@code backcovers} empty rather than filling
+     * it from the other release. I confirmed this directly: briefly
+     * rewriting {@code mediaFrom} to stop once a release supplied anything
+     * (record the first release with any inlay match, then only ever accept
+     * further folders from that same release, skipping every other release
+     * entirely) failed this test with an assertion error on {@code
+     * oneIn(media, "backcovers")} - "nothing in backcovers" - while every
+     * other test in this class still passed, since none of the rest happens
+     * to exercise a prod whose front and back live on different releases.
+     * Reverted before committing.
+     */
+    @Test
+    public void coversAndBackcoversMayComeFromDifferentEditions() throws Exception {
+        Pace.forget();
+        List<Medium> media = mediaFromReleases(
+                Provider.Wanted.of("covers", "backcovers", "physicalmedia"),
+                Fixtures.RELEASE_COVER_ONLY, Fixtures.RELEASE_WITH_BACK);
+
+        assertTrue("covers from the cover-only release",
+                   oneIn(media, "covers").url.contains("id:205770"));
+        assertTrue("backcovers from the OTHER release, since the first has none",
+                   oneIn(media, "backcovers").url.contains("id:554385"));
+    }
+
+    /**
      * The maps, the advert and the text manual, from the two places they
      * live: {@code maps} on the prod, {@code adverts} and {@code manuals}
      * off the release list.
@@ -365,6 +405,19 @@ public class ZxartTest {
         Map<String, Medium> into = new LinkedHashMap<>();
         Zxart.collectRelease(into, new JSONObject(releaseJson), wanted);
         return new ArrayList<>(into.values());
+    }
+
+    /** Drives {@code Zxart.mediaFrom} across several release rows, in the
+     *  order given, with an empty prod - there is no {@code imagesUrls}/
+     *  {@code maps} fact this helper's callers need, only the cross-release
+     *  behaviour of {@code collectRelease}'s own folders. Package-private in
+     *  {@code Zxart} for the same reason {@code collectRelease} is. */
+    private static List<Medium> mediaFromReleases(Provider.Wanted wanted, String... releaseJsons)
+            throws Exception {
+        List<JSONObject> releases = new ArrayList<>();
+        for (String releaseJson : releaseJsons) releases.add(new JSONObject(releaseJson));
+
+        return Zxart.mediaFrom(new JSONObject(), releases, wanted);
     }
 
     /** The folder of the one medium whose url contains {@code substring} -
