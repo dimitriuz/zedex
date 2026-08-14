@@ -1,17 +1,20 @@
 package dev.ldlab.zedex.library.catalogue;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import dev.ldlab.zedex.library.scrape.Pace;
+import dev.ldlab.zedex.library.scrape.ScrapeException;
 
 import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
@@ -171,6 +174,109 @@ public class ZxartCatalogueTest {
         }
 
         assertEquals(1, trees);
+    }
+
+    /**
+     * The tree is asked for in one page, and the page is big enough.
+     *
+     * 285 rows against {@code limit:1000}. Asserted because the failure mode is
+     * silent in the worst possible way: a tree truncated to the service's own
+     * default page would lose roots and leaves, {@code kindOf} would answer
+     * null for every prod under a missing branch, and those imports would land
+     * in {@code Downloaded/Other} with nothing anywhere saying why. A tree that
+     * outgrows this should be a test failure, not a folder full of surprises.
+     */
+    @Test
+    public void theTreeIsAskedForInOnePageBigEnoughToHoldIt() throws Exception {
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.CATEGORY_TREE)
+                                                    .then(Fixtures.PROD_SEARCH);
+        ZxartCatalogue zxart = catalogue(http);
+
+        zxart.open(shelf(ZxartCatalogue.SHELF_CATEGORIES), Catalogue.Query.none(), 0);
+
+        String tree = http.asked.get(0);
+        assertTrue("the tree is one page: " + tree, tree.contains("export:zxProdCategory"));
+        assertTrue("...of a thousand, against 285 rows: " + tree, tree.contains("limit:1000"));
+        assertTrue(tree.contains("start:0"));
+    }
+
+    // --- a tree that did not arrive ----------------------------------------------------
+
+    /**
+     * A refused tree is a failure, not an empty Categories shelf.
+     *
+     * The empty-tree fallback is right for a <em>row</em> - a missing folder
+     * word must not turn a working shelf into an error screen - and wrong for
+     * this screen, whose whole page <em>is</em> the tree: zero sub-shelves draw
+     * {@code Nothing here.}, which says "zxart has no categories" and offers no
+     * <b>Try again</b>, where every other refusal in the app draws a failure
+     * row that does.
+     */
+    @Test
+    public void arefusedTreeFailsRatherThanEmptyingCategories() {
+        Fixtures.Canned http = new Fixtures.Canned().then(500, "");
+
+        try {
+            catalogue(http).open(shelf(ZxartCatalogue.SHELF_CATEGORIES),
+                                 Catalogue.Query.none(), 0);
+            fail("a refused tree must reach the screen as a refusal");
+        } catch (ScrapeException expected) {
+            assertEquals(ScrapeException.Kind.NETWORK, expected.kind);
+        }
+    }
+
+    /**
+     * ...and the refusal is not remembered as an answer.
+     *
+     * Cached like a success, one transient refusal meant every row for the rest
+     * of the session had no kind at all and every import landed in {@code
+     * Downloaded/Other}, silently, in somebody's own collection - and Categories
+     * stayed empty however many times they backed out and tried again. The
+     * refusal is remembered only for the call that met it, so the next shelf
+     * opened asks again.
+     */
+    @Test
+    public void arefusedTreeDoesNotPoisonTheNextAttempt() throws Exception {
+        Fixtures.Canned http = new Fixtures.Canned().then(500, "")
+                                                    .then(Fixtures.CATEGORY_TREE);
+        ZxartCatalogue zxart = catalogue(http);
+
+        try {
+            zxart.open(shelf(ZxartCatalogue.SHELF_CATEGORIES), Catalogue.Query.none(), 0);
+            fail("the first attempt must fail");
+        } catch (ScrapeException expected) {
+            // the point of the first call
+        }
+
+        Catalogue.Page second = zxart.open(shelf(ZxartCatalogue.SHELF_CATEGORIES),
+                                           Catalogue.Query.none(), 0);
+
+        assertEquals("the second attempt must ask again and answer with the roots",
+                     9, second.shelves().size());
+        assertEquals(2, http.asked.size());
+    }
+
+    /**
+     * And within one page a refusal costs one request, not one per row.
+     *
+     * That thrift is the whole reason the failure was cached in the first
+     * place, and it is kept: the tree is asked for once at the top of {@link
+     * ZxartCatalogue#open}, the rows are built against an empty one, and every
+     * {@code kindOf} after the refusal reads the memo rather than the network.
+     * Six rows in {@code PROD_SEARCH}, two requests in total.
+     */
+    @Test
+    public void arefusedTreeIsAskedForOncePerPageAndNoMore() throws Exception {
+        Fixtures.Canned http = new Fixtures.Canned().then(500, "")
+                                                    .then(Fixtures.PROD_SEARCH);
+        Catalogue.Page page = catalogue(http).open(shelf(ZxartCatalogue.SHELF_EVERYTHING),
+                                                  Catalogue.Query.none(), 0);
+
+        assertFalse("the rows still arrive without a tree", page.items().isEmpty());
+        assertNull("...with no kind, which Kinds.folderFor reads as Other",
+                   page.items().get(0).kind());
+        assertEquals("the tree, then the shelf, and nothing per row",
+                     2, http.asked.size());
     }
 
     /** A row's kind is the English root word for the leaf it names, which is
@@ -495,6 +601,84 @@ public class ZxartCatalogueTest {
         zxart.open(zxart.shelves().get(2), Catalogue.Query.none(), 0);
 
         assertFalse(lastAsked(http).contains("order:"));
+    }
+
+    /**
+     * All four on a prod shelf; <b>two on a tune's or a picture's</b>.
+     *
+     * The declaration has to match what was measured, and what was measured on
+     * {@code export:zxMusic} and {@code export:zxPicture} is {@code
+     * order:votes,desc} alone - {@code review/zxart/ord-music-votes.json} and
+     * {@code ord-picture-votes.json}. {@code date,desc} and {@code title,asc}
+     * were only ever asked of prods. Offering them there anyway would send an
+     * order name to an endpoint nobody has verified it against, and an
+     * unrecognised name here is <em>ignored rather than refused</em>: the reply
+     * comes back a success in whatever order the service liked.
+     */
+    @Test
+    public void musicAndGraphicsDeclareOnlyTheOrderMeasuredOnThem() {
+        ZxartCatalogue zxart = catalogue(new Fixtures.Canned());
+
+        List<Catalogue.Sort> two = Arrays.asList(Catalogue.Sort.DEFAULT, Catalogue.Sort.TOP);
+
+        assertEquals(two, zxart.sortsFor(musicSubShelf()));
+        assertEquals(two, zxart.sortsFor(graphicsSubShelf()));
+
+        assertEquals("a prod shelf keeps all four", zxart.sorts(),
+                     zxart.sortsFor(shelf(ZxartCatalogue.SHELF_EVERYTHING)));
+    }
+
+    /**
+     * The roots that yield sub-shelves declare one ordering, so the control is
+     * hidden there: nothing on those screens is a row for an order to order.
+     */
+    @Test
+    public void awayInDeclaresNoOrdering() {
+        ZxartCatalogue zxart = catalogue(new Fixtures.Canned());
+        List<Catalogue.Sort> just = Collections.singletonList(Catalogue.Sort.DEFAULT);
+
+        assertEquals(just, zxart.sortsFor(shelf(ZxartCatalogue.SHELF_CATEGORIES)));
+        assertEquals(just, zxart.sortsFor(shelf(ZxartCatalogue.SHELF_MUSIC)));
+        assertEquals(just, zxart.sortsFor(shelf(ZxartCatalogue.SHELF_GRAPHICS)));
+    }
+
+    /**
+     * And the declaration is enforced on the wire, not only on the screen.
+     *
+     * {@code CatalogueView} resets the sort when it descends into a shelf that
+     * cannot honour it, so this pair should never happen - which is exactly why
+     * it is asserted here: a screen is not the last line of defence against
+     * sending a service a name that was never measured against it. Newest and
+     * A-Z both come out as no order segment at all rather than as {@code
+     * date,desc} or {@code title,asc}.
+     */
+    @Test
+    public void anUnmeasuredOrderIsNeverSentToMusicOrGraphics() throws Exception {
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.MUSIC_ROW)
+                                                    .then(Fixtures.PICTURE_ROW)
+                                                    .then(Fixtures.MUSIC_ROW)
+                                                    .then(Fixtures.PICTURE_ROW);
+        ZxartCatalogue zxart = catalogue(http);
+
+        zxart.open(musicSubShelf(), Catalogue.Query.none()
+                .sortedBy(Catalogue.Sort.NEWEST), 0);
+        assertFalse("date,desc was never measured on zxMusic",
+                    lastAsked(http).contains("order:"));
+
+        zxart.open(graphicsSubShelf(), Catalogue.Query.none()
+                .sortedBy(Catalogue.Sort.NEWEST), 0);
+        assertFalse("date,desc was never measured on zxPicture",
+                    lastAsked(http).contains("order:"));
+
+        zxart.open(musicSubShelf(), Catalogue.Query.none()
+                .sortedBy(Catalogue.Sort.ALPHABETICAL), 0);
+        assertFalse("title,asc was never measured on zxMusic",
+                    lastAsked(http).contains("order:"));
+
+        zxart.open(graphicsSubShelf(), Catalogue.Query.none()
+                .sortedBy(Catalogue.Sort.ALPHABETICAL), 0);
+        assertFalse("title,asc was never measured on zxPicture",
+                    lastAsked(http).contains("order:"));
     }
 
     /** A query carries its sort through the copies sifting() makes, or a

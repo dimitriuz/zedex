@@ -69,17 +69,28 @@ import java.util.Locale;
  * Search issues the tree request first and the search second - which is also
  * the order every test in {@code ZxartCatalogueTest} queues its fixtures in.
  *
- * <b>A tree that cannot be fetched must not take a shelf down with it.</b>
- * {@link #tree()} catches whatever {@link ZxartApi#ask} throws and falls back
- * to {@code ZxartTree.from(Collections.emptyList())} - an empty, but usable,
- * tree - rather than letting a {@link ScrapeException} escape from {@link
- * #kindOf}. A row built against an empty tree simply gets no kind ({@code
+ * <b>A tree that cannot be fetched must not take a <em>row</em> down with
+ * it - and must not be remembered as an answer.</b> {@link #tree()} catches
+ * whatever {@link ZxartApi#ask} throws and falls back to {@code
+ * ZxartTree.from(Collections.emptyList())} - an empty, but usable, tree -
+ * rather than letting a {@link ScrapeException} escape from {@link #kindOf}. A
+ * row built against an empty tree simply gets no kind ({@code
  * Kinds.folderFor(null)} is {@code Other}, a real answer and not a failure),
  * which is a far smaller loss than turning a working shelf into an error
- * screen because a folder name could not be worked out. The failure - and the
- * fallback - is cached exactly like a success: a service that just refused
- * the tree once is not asked again on every single row of every page for the
- * rest of the session.
+ * screen because a folder name could not be worked out.
+ *
+ * <b>Only a tree that actually arrived is cached, though.</b> Caching the
+ * empty fallback the way a success is cached looked like the same thrift {@code
+ * Pace} rests on and was a defect of its own: one transient refusal made {@link
+ * #categories()} answer zero sub-shelves - <em>Nothing here.</em> on screen,
+ * where every other refusal draws a failure row with <b>Try again</b> - and
+ * left every row built for the rest of the session with no kind at all, so
+ * every import landed in {@code Downloaded/Other}, silently, in somebody's own
+ * collection. So the refusal is remembered only for the length of the call that
+ * met it ({@link #treeRefusal}, cleared at every entry point): one request per
+ * page rather than one per row, which is the thrift that was actually wanted,
+ * and the next shelf opened asks again. {@link #categories()} lets the refusal
+ * through, because a screen made of nothing but the tree can honestly fail.
  *
  * <h3>Categories: shelves and items on the same page</h3>
  *
@@ -220,9 +231,22 @@ public final class ZxartCatalogue implements Catalogue {
     private final String language;
 
     /** Fetched once and held: it is the Categories shelf and it is every
-     *  row's kind. See the class javadoc's <em>category tree</em> section for
-     *  what happens when it cannot be fetched at all. */
+     *  row's kind. Only ever a tree the service actually answered with - see
+     *  the class javadoc's <em>category tree</em> section, and {@link
+     *  #treeRefusal} for what a refusal is remembered as instead. */
     private ZxartTree tree;
+
+    /**
+     * The refusal this call met asking for the tree, or null.
+     *
+     * <b>Not a cache - a within-one-call memo.</b> {@link #open} and {@link
+     * #item} clear it on the way in, so a service that refused the tree is
+     * asked again the next time somebody opens a shelf, while a page that
+     * needs a kind for thirty rows still costs exactly one refused request
+     * rather than thirty. The failure is a fact about a moment; the tree is a
+     * fact about the archive, and only the second is worth keeping.
+     */
+    private ScrapeException treeRefusal;
 
     public ZxartCatalogue(Http http, Locale locale) {
         this.api = new ZxartApi(http);
@@ -268,6 +292,50 @@ public final class ZxartCatalogue implements Catalogue {
     }
 
     /**
+     * All four on a prod shelf; {@code DEFAULT} and {@code TOP} on a music or
+     * graphics one, <b>because that is what was measured there</b>.
+     *
+     * {@code order:votes,desc} was checked on all three of this service's
+     * entities - prods, {@code zxMusic} and {@code zxPicture} - and {@code
+     * order:date,desc} and {@code order:title,asc} on <b>prods only</b> (see
+     * {@code review/zxart/ord-music-votes.json} and {@code
+     * ord-picture-votes.json} for the two that were). Sending the other two to
+     * {@code export:zxMusic} and {@code export:zxPicture} anyway is the exact
+     * mistake this whole file is written against: <b>an unrecognised order
+     * name here is ignored, not refused</b>, so the reply comes back 200 with
+     * {@code responseStatus: success} and rows in whatever order the service
+     * felt like - a control that reports success and does nothing. Two
+     * requests would settle it; until somebody makes them, the honest
+     * declaration is the one that has evidence behind it. See {@link
+     * Catalogue#sortsFor}.
+     *
+     * The Music and Graphics roots themselves - and Categories - yield
+     * sub-shelves rather than rows, so they answer {@code DEFAULT} alone: there
+     * is nothing on those screens for an ordering to order.
+     */
+    @Override
+    public List<Sort> sortsFor(Shelf shelf) {
+        if (shelf == null) return sorts();
+
+        String id = shelf.id();
+
+        if (id.startsWith(MUSIC_PREFIX) || id.startsWith(GRAPHICS_PREFIX)) {
+            return Arrays.asList(Sort.DEFAULT, Sort.TOP);
+        }
+
+        // The three that are prod searches, plus a category and a "similar"
+        // shelf - every one of them export:zxProd, which is what the four were
+        // measured against. Categories/Music/Graphics are ways in and order
+        // nothing; the roots keep DEFAULT alone.
+        boolean prods = SHELF_SEARCH.equals(id)
+                || SHELF_EVERYTHING.equals(id)
+                || id.startsWith(CATEGORY_PREFIX)
+                || id.startsWith(MORE_PREFIX);
+
+        return prods ? sorts() : Collections.singletonList(Sort.DEFAULT);
+    }
+
+    /**
      * Measured 2026-08-14: {@code votes} is the average rating and the only
      * name the order answers to - {@code rating} and {@code votesAmount} are
      * both ignored, on all three entities this service holds (prods, music,
@@ -283,8 +351,34 @@ public final class ZxartCatalogue implements Catalogue {
         }
     }
 
+    /**
+     * The same question for a tune or a picture, where only {@link
+     * ZxartApi#ORDER_TOP} has ever been asked of the endpoint.
+     *
+     * <b>Enforced here as well as declared in {@link #sortsFor}</b>, and not
+     * out of belt-and-braces habit: {@code sortsFor} is what the screen reads
+     * to decide which control to show, and this is what decides what actually
+     * goes on the wire. An order this service does not recognise is ignored
+     * rather than refused, so a caller that never consulted {@code sortsFor} -
+     * a future screen, a test, {@code Query.sortedBy} surviving a descent that
+     * forgot to reset - would otherwise send {@code date,desc} to {@code
+     * export:zxMusic} and get a successful-looking reply in no particular
+     * order. Anything but TOP asks for no order at all, which is the one
+     * answer that cannot be wrong.
+     */
+    private static String entityOrderFor(Query query) {
+        Sort sort = query == null ? Sort.DEFAULT : query.sort();
+
+        return sort == Sort.TOP ? ZxartApi.ORDER_TOP : null;
+    }
+
     @Override
     public Page open(Shelf shelf, Query query, int page) throws ScrapeException {
+        // A new page is a new chance for the tree: last call's refusal is a
+        // fact about last call, and remembering it any longer than that filed
+        // a whole session's imports under Other. See treeRefusal.
+        treeRefusal = null;
+
         if (SHELF_CATEGORIES.equals(shelf.id())) return categories();
 
         // Music and Graphics roots: no request, same as Categories - see
@@ -350,6 +444,9 @@ public final class ZxartCatalogue implements Catalogue {
 
     @Override
     public Item item(String id) throws ScrapeException {
+        // The same fresh start open() takes - see treeRefusal.
+        treeRefusal = null;
+
         // A music or picture id, told apart from a prod's by the same prefix
         // its shelf carries - see MUSIC_PREFIX's own javadoc. Neither branch
         // touches tree(): the entity's kind is fixed to its own word, not
@@ -440,7 +537,8 @@ public final class ZxartCatalogue implements Catalogue {
     private Page openMusic(Shelf shelf, Query query, int page) throws ScrapeException {
         ZxartApi.Ask ask = new ZxartApi.Ask(ZxartApi.MUSIC).language(language).page(page, PAGE_SIZE);
 
-        String order = orderFor(query);
+        // Only votes,desc, whatever the query asks for - see entityOrderFor.
+        String order = entityOrderFor(query);
         if (order != null) ask.order(order);
         if ((MUSIC_PREFIX + "search").equals(shelf.id())) {
             ask.filter(ZxartApi.FILTER_MUSIC_SEARCH, query.text());
@@ -458,7 +556,8 @@ public final class ZxartCatalogue implements Catalogue {
     private Page openGraphics(Shelf shelf, Query query, int page) throws ScrapeException {
         ZxartApi.Ask ask = new ZxartApi.Ask(ZxartApi.PICTURE).language(language).page(page, PAGE_SIZE);
 
-        String order = orderFor(query);
+        // ...and the same for a picture.
+        String order = entityOrderFor(query);
         if (order != null) ask.order(order);
         if ((GRAPHICS_PREFIX + "search").equals(shelf.id())) {
             ask.filter(ZxartApi.FILTER_PICTURE_SEARCH, query.text());
@@ -657,20 +756,42 @@ public final class ZxartCatalogue implements Catalogue {
     // --- the category tree, held for the session ------------------------------------
 
     /**
-     * The tree, fetched on first need and held for the life of this object.
+     * The tree, fetched on first need and held once it has arrived - or an
+     * empty one, for a caller that would rather have a row with no kind than
+     * no row.
      *
-     * <b>A failure here is swallowed, deliberately, and cached like a
-     * success.</b> Every row still has to be built even when the tree cannot
-     * be - with no kind, which is a real answer ({@code Kinds.folderFor(null)}
-     * is {@code Other}) and not a failure - so a {@link ScrapeException}
-     * reaching {@link #kindOf} from here would turn a working shelf into an
-     * error screen over nothing worse than a folder name. Caching the empty
-     * fallback rather than retrying on every row is the same reasoning {@code
-     * Pace} rests on: a service that refused this once is not asked again a
-     * hundred times a page for the rest of the session.
+     * <b>A failure here is swallowed, deliberately - but never kept.</b> Every
+     * row still has to be built when the tree cannot be: with no kind, which
+     * is a real answer ({@code Kinds.folderFor(null)} is {@code Other}) and
+     * not a failure, so a {@link ScrapeException} reaching {@link #kindOf}
+     * from here would turn a working shelf into an error screen over nothing
+     * worse than a folder name. What is remembered is only the refusal this
+     * <em>call</em> met - see {@link #treeRefusal} - so the request is not
+     * repeated per row and is repeated on the next shelf opened.
+     *
+     * Callers that can honestly fail use {@link #treeOrRefuse()} instead.
      */
     private ZxartTree tree() {
+        try {
+            return treeOrRefuse();
+        } catch (ScrapeException refused) {
+            return ZxartTree.from(Collections.<JSONObject>emptyList());
+        }
+    }
+
+    /**
+     * The tree, or the refusal that stopped it arriving.
+     *
+     * For {@link #categories()}, whose whole page <em>is</em> the tree: an
+     * empty shelf there says "this archive has no categories", which is a
+     * claim about zxart rather than about one request, and it comes with no
+     * <b>Try again</b> because nothing failed as far as the screen could tell.
+     * Every other refusal in this app draws a failure row; this one used to
+     * draw {@code Nothing here.}
+     */
+    private ZxartTree treeOrRefuse() throws ScrapeException {
         if (tree != null) return tree;
+        if (treeRefusal != null) throw treeRefusal;
 
         try {
             JSONObject reply = api.ask(new ZxartApi.Ask(ZxartApi.CATEGORY)
@@ -680,18 +801,20 @@ public final class ZxartCatalogue implements Catalogue {
 
             tree = ZxartTree.from(ZxartApi.rows(reply, ZxartApi.CATEGORY));
         } catch (ScrapeException refused) {
-            tree = ZxartTree.from(Collections.<JSONObject>emptyList());
+            treeRefusal = refused;
+            throw refused;
         }
 
         return tree;
     }
 
     /** The Categories shelf: nine sub-shelves, no items, no page beyond zero -
-     *  the tree does not paginate. */
-    private Page categories() {
+     *  the tree does not paginate. Throws rather than answering an empty page
+     *  when the tree was refused - see {@link #treeOrRefuse()}. */
+    private Page categories() throws ScrapeException {
         List<Shelf> found = new ArrayList<>();
 
-        for (ZxartTree.Node root : tree().roots()) {
+        for (ZxartTree.Node root : treeOrRefuse().roots()) {
             found.add(new Shelf(CATEGORY_PREFIX + root.id(), root.title(), Shelf.Accepts.NOTHING));
         }
 
