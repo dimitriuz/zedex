@@ -109,7 +109,8 @@ The spec names four unmeasured things and one courtesy. None is code, all of the
  ["inlay-sample.json", "https://zxart.ee/api/action:filter/export:zxRelease/language:eng/limit:200/start:200/"],
  ["music-search.json", "https://zxart.ee/api/action:filter/export:zxMusic/language:eng/limit:3/filter:zxMusicSearch=beyond/"],
  ["picture-search.json", "https://zxart.ee/api/action:filter/export:zxPicture/language:eng/limit:3/filter:zxPictureSearch=girl/"],
- ["zxinfo-sort.json", "https://api.zxinfo.dk/api/zxinfo/search?query=head&size=3&mode=compact&sort=score_desc"]
+ ["zxinfo-nosort.json", "https://api.zxinfo.dk/v3/search?query=head&size=3&mode=compact"],
+ ["zxinfo-sort.json", "https://api.zxinfo.dk/v3/search?query=head&size=3&mode=compact&sort=score_desc"]
 ]
 ```
 
@@ -2080,7 +2081,7 @@ In `Catalogue`:
     }
 ```
 
-`ZxInfoCatalogue` declares whatever Task 1 measured — the four if `sort=score_desc` and friends work, `DEFAULT` alone if they are ignored. Do not guess: if Task 1 could not establish it, leave ZXInfo as it is and say so in the commit.
+`ZxInfoCatalogue` declares **`DEFAULT` and `TOP`**, measured in Task 1: `sort=score_desc` is honoured — same query, same index snapshot, single shard, same top hit, and the tied group at score 77.102264 reorders, which a shard artefact cannot explain. `TOP` maps to `sort=score_desc` there, which is relevance rather than a community rating; that is what "top" means on a service with no votes, and the label is the same word either way. `NEWEST` stays ZXInfo's own shelf (`sort=date_desc`, already shipped and relied on) rather than becoming a sort, and `ALPHABETICAL` is **not** declared for ZXInfo: nobody has measured a title sort there, and this plan does not guess.
 
 In `CatalogueView`: a `sortRow` `TextView` built exactly like `formatRow` (same padding, colour, size, click), `private Catalogue.Sort sort = Catalogue.Sort.DEFAULT;`, `chooseSort()` offering `catalogue.sorts()` by their string resources, `setSort()` assigning and calling `restart()`, `showSort()` writing "Sort · Top rated", visibility `catalogue.sorts().size() > 1 ? VISIBLE : GONE`, and `queryFor` finishing with `.sortedBy(sort)`. `setCatalogue` resets `sort` to `DEFAULT` — a sort one catalogue honours may be one the next cannot.
 
@@ -2422,7 +2423,7 @@ The two helpers build the sub-shelves the same way `open` yields them, e.g. `new
 
 - [ ] **Step 3: Extend `ZxartCatalogue`**
 
-`shelves()` gains the two; `open` answers `SHELF_MUSIC`/`SHELF_GRAPHICS` with sub-shelves and no request (Everything, plus Search **only if Task 1 measured `zxMusicSearch`/`zxPictureSearch` as working**); a `MUSIC_PREFIX`/`GRAPHICS_PREFIX` shelf asks `export:zxMusic`/`export:zxPicture` and builds items:
+`shelves()` gains the two; `open` answers `SHELF_MUSIC`/`SHELF_GRAPHICS` with sub-shelves and no request: **Everything and Search, both**. Task 1 measured `filter:zxMusicSearch` and `filter:zxPictureSearch` as real — 10 rows of 29,672 for `beyond`, 124 of 19,408 for `girl`, every visible title carrying the term, against a control whose signature is the *exact* unfiltered total. Add `FILTER_MUSIC_SEARCH = "zxMusicSearch"` and `FILTER_PICTURE_SEARCH = "zxPictureSearch"` to `ZxartApi` with the same measured-on comment as the others. Note the spec guessed these would be ignored and was wrong; do not carry that assumption into the code; a `MUSIC_PREFIX`/`GRAPHICS_PREFIX` shelf asks `export:zxMusic`/`export:zxPicture` and builds items:
 
 ```java
     /**
@@ -2590,7 +2591,7 @@ somebody is about to commit a collection to."
 - Modify: `app/src/main/java/dev/ldlab/zedex/library/scrape/Zxart.java`
 - Test: `app/src/test/java/dev/ldlab/zedex/library/scrape/ZxartTest.java`
 
-- [ ] **Step 1: Write the failing tests** — media mapped **by rule**: the `zximages/…` member of `imagesUrls` is the `titlescreens` medium and the `/screenshot/…` members are `screenshots`; `inlays` front-first into `covers`, `_Back` into `backcovers`, `_Media` into `physicalmedia` (suffixes as Task 1 counted them, and an unrecognised one is skipped rather than guessed); `maps` into `maps`; `ads` into `adverts`; `instructions` into `manuals`. Assert that a `Wanted` naming only `covers` produces exactly one medium — the folder set is what a sweep is priced on.
+- [ ] **Step 1: Write the failing tests** — media mapped **by rule**: the `zximages/…` member of `imagesUrls` is the `titlescreens` medium and the `/screenshot/…` members are `screenshots`; `inlays` by filename suffix, as Task 1 counted over 400 releases: no `_` at all (166) and `_Front` (41) into `covers`, `_Back` (101) into `backcovers`, `_Media` (99) into `physicalmedia`. **Everything else falls through and is skipped** — about a fifth of all inlay files carry a side or edition marker (`_2`, `_3`, `_4`, `_SideA`, `_SideB`, `_2Back`, `_FrontCase`, `_GoldenCase`, `_WhiteCase`…) that maps to no folder this app has, and inventing a fourth for them is not this task's business. Assert the fall-through as well as the three that land; `maps` into `maps`; `ads` into `adverts`; `instructions` into `manuals`. Assert that a `Wanted` naming only `covers` produces exactly one medium — the folder set is what a sweep is priced on.
 
 - [ ] **Step 2: Implement, run, pass.**
 
@@ -2702,7 +2703,23 @@ Expected: FAIL — `machineWord`, `inputWord` and `HARDWARE` undefined.
 
 - [ ] **Step 3: Implement in `Zxart` only**
 
-`HARDWARE` is the recorded vocabulary from Task 1 — every token seen, with its count in the comment. Two small tables map the ones that mean something and everything else answers null. `fetch` takes the release chosen for the item (the first, which is the original), maps its `hardwareRequired`, and fills `machine` with the first machine word found and `inputs` with every input word found, in the release's own order.
+`HARDWARE` is the recorded vocabulary from Task 1: **nine values over 400 releases, and nothing else appeared** — `zx48` 58, `kempston` 35, `zx128` 33, `int2_2` 27, `zx+3` 20, `ay` 12, `int2_1` 10, `cursor` 7, `zx16` 7. Put those counts in the comment, and the slice's caveat with them: it is a contiguous run of releases, not a census.
+
+Two tables map the ones that mean something:
+
+| token | becomes |
+|---|---|
+| `zx16` | `Meta.machine` = "ZX-Spectrum 16K" |
+| `zx48` | "ZX-Spectrum 48K" |
+| `zx128` | "ZX-Spectrum 128K" |
+| `zx+3` | "ZX-Spectrum 128 +3" |
+| `kempston` | `Meta.inputs` += "Kempston Joystick" |
+| `int2_1` | "Interface 2 (left)" |
+| `int2_2` | "Interface 2 (right)" |
+| `cursor` | "Cursor" |
+| `ay` | **nothing** |
+
+Everything else answers null. `int2_1`/`int2_2` read as Interface 2's two ports, which is what the naming says and all the data supports. `fetch` takes the release chosen for the item (the first, which is the original), maps its `hardwareRequired`, and fills `machine` with the first machine word found and `inputs` with every input word found, in the release's own order.
 
 - [ ] **Step 4: Run the JVM tier and pass.**
 
