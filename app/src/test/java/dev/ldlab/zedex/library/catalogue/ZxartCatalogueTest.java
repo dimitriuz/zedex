@@ -71,23 +71,31 @@ public class ZxartCatalogueTest {
     }
 
     /**
-     * Three shelves, and <b>no A-Z</b>.
+     * Five shelves, and <b>no A-Z</b>.
      *
      * Every title-prefix filter zxart might have had is ignored -
      * zxProdTitleStart returned all 58,032 - so a letter picker cannot be
      * built, and a shelf that cannot be built is not declared. The want is
      * served by the alphabetical sort instead. This is the seam's whole
      * argument in one assertion.
+     *
+     * <b>Updated for Task 11, honestly: this was three until Music and
+     * Graphics were added.</b> The count and the two new indices are the only
+     * change - the {@code Accepts.LETTER} loop is untouched and still pins
+     * the argument above, which is just as true of the two new root shelves
+     * as of the original three: neither takes a letter either.
      */
     @Test
     public void theShelvesAreTheOnesThatCanBeBuilt() {
         List<Catalogue.Shelf> shelves = catalogue(new Fixtures.Canned()).shelves();
 
-        assertEquals(3, shelves.size());
+        assertEquals(5, shelves.size());
         assertEquals(ZxartCatalogue.SHELF_SEARCH, shelves.get(0).id());
         assertTrue(shelves.get(0).accepts(Catalogue.Shelf.Accepts.TEXT));
         assertEquals(ZxartCatalogue.SHELF_CATEGORIES, shelves.get(1).id());
         assertEquals(ZxartCatalogue.SHELF_EVERYTHING, shelves.get(2).id());
+        assertEquals(ZxartCatalogue.SHELF_MUSIC, shelves.get(3).id());
+        assertEquals(ZxartCatalogue.SHELF_GRAPHICS, shelves.get(4).id());
 
         for (Catalogue.Shelf shelf : shelves) {
             assertFalse("no shelf takes a letter, because no filter accepts one",
@@ -471,6 +479,164 @@ public class ZxartCatalogueTest {
 
         assertEquals(Catalogue.Sort.NEWEST, query.sort());
         assertTrue(query.isSifting());
+    }
+
+    // --- Task 11: music and graphics -----------------------------------------------------
+
+    /** Five roots now, and the two new ones are ways in rather than screens:
+     *  opening one yields its own sub-shelves, the mechanism Categories uses. */
+    @Test
+    public void musicAndGraphicsAreShelvesAtTheRoot() {
+        List<Catalogue.Shelf> shelves = catalogue(new Fixtures.Canned()).shelves();
+
+        assertEquals(5, shelves.size());
+        assertEquals(ZxartCatalogue.SHELF_MUSIC, shelves.get(3).id());
+        assertEquals(ZxartCatalogue.SHELF_GRAPHICS, shelves.get(4).id());
+    }
+
+    @Test
+    public void openingMusicYieldsSubShelvesAndNoRequest() throws Exception {
+        Fixtures.Canned http = new Fixtures.Canned();
+        Catalogue.Page page = catalogue(http).open(
+                new Catalogue.Shelf(ZxartCatalogue.SHELF_MUSIC, "Music",
+                                    Catalogue.Shelf.Accepts.NOTHING),
+                Catalogue.Query.none(), 0);
+
+        assertFalse(page.shelves().isEmpty());
+        assertTrue(page.items().isEmpty());
+        assertTrue(http.asked.isEmpty());
+    }
+
+    /**
+     * A tune is one version and two files, the playable one first.
+     *
+     * The ogg is what any phone can play and the PT3 is the original worth
+     * keeping. Order is load-bearing: Pick.otherFile answers with the first
+     * file that is neither picture nor program, and Open hands that to the
+     * phone.
+     */
+    @Test
+    public void aTuneIsTheOggThenTheOriginal() throws Exception {
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.MUSIC_ROW);
+        Catalogue.Page page = catalogue(http).open(musicSubShelf(), Catalogue.Query.none(), 0);
+        Catalogue.Item tune = page.items().get(0);
+
+        assertEquals("Music", tune.kind());
+        assertEquals(Kinds.MUSIC, Kinds.folderFor(tune.kind()));
+
+        List<Catalogue.Download> files = tune.versions().get(0).files();
+        assertEquals("ogg", files.get(0).format());
+        assertEquals("mt3", files.get(1).format());
+        assertEquals("ogg", Pick.otherFile(tune).format());
+    }
+
+    /** A picture is the rendered PNG then the screen dump, for the same
+     *  reason and with the same consequence. */
+    @Test
+    public void aPictureIsThePngThenTheDump() throws Exception {
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.PICTURE_ROW);
+        Catalogue.Item art = catalogue(http)
+                .open(graphicsSubShelf(), Catalogue.Query.none(), 0).items().get(0);
+
+        assertEquals("Graphics", art.kind());
+        assertEquals(Kinds.GRAPHICS, Kinds.folderFor(art.kind()));
+        assertEquals("png", art.versions().get(0).files().get(0).format());
+        assertEquals("scr", art.versions().get(0).files().get(1).format());
+        assertEquals("png", Pick.otherFile(art).format());
+    }
+
+    /** Top rated is the sort these two exist for, and it is the same order
+     *  name: measured, the reply calls the field rating and the order answers
+     *  only to votes. */
+    @Test
+    public void musicSortsByTheSameOrderNameAsProds() throws Exception {
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.MUSIC_ROW);
+        catalogue(http).open(musicSubShelf(),
+                             Catalogue.Query.none().sortedBy(Catalogue.Sort.TOP), 0);
+
+        assertTrue(lastAsked(http).contains("export:zxMusic"));
+        assertTrue(lastAsked(http).contains("order:votes,desc"));
+    }
+
+    /** Both sub-shelves and both entities cost no request to descend into -
+     *  the root shelf yields them, and opening one is the very first request
+     *  made, exactly as {@link #openingMusicYieldsSubShelvesAndNoRequest}
+     *  pins for Music. */
+    @Test
+    public void openingGraphicsYieldsSubShelvesAndNoRequest() throws Exception {
+        Fixtures.Canned http = new Fixtures.Canned();
+        Catalogue.Page page = catalogue(http).open(
+                new Catalogue.Shelf(ZxartCatalogue.SHELF_GRAPHICS, "Graphics",
+                                    Catalogue.Shelf.Accepts.NOTHING),
+                Catalogue.Query.none(), 0);
+
+        assertFalse(page.shelves().isEmpty());
+        assertTrue(page.items().isEmpty());
+        assertTrue(http.asked.isEmpty());
+    }
+
+    /**
+     * Both Search sub-shelves are real filters, measured against this
+     * feature's own spec, which had guessed they would be ignored the way
+     * most zxart title filters are - see {@code ZxartApi.FILTER_MUSIC_SEARCH}
+     * and {@code FILTER_PICTURE_SEARCH}'s own javadoc for the numbers.
+     */
+    @Test
+    public void searchAsksWithTheMeasuredFilterNames() throws Exception {
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.MUSIC_ROW)
+                                                    .then(Fixtures.PICTURE_ROW);
+        ZxartCatalogue zxart = catalogue(http);
+
+        zxart.open(new Catalogue.Shelf(ZxartCatalogue.MUSIC_PREFIX + "search", "Search",
+                                       Catalogue.Shelf.Accepts.TEXT),
+                  Catalogue.Query.text("beyond"), 0);
+        assertTrue(http.asked.get(0).contains("filter:zxMusicSearch=beyond"));
+
+        zxart.open(new Catalogue.Shelf(ZxartCatalogue.GRAPHICS_PREFIX + "search", "Search",
+                                       Catalogue.Shelf.Accepts.TEXT),
+                  Catalogue.Query.text("girl"), 0);
+        assertTrue(http.asked.get(1).contains("filter:zxPictureSearch=girl"));
+    }
+
+    /**
+     * item() answers a music or a picture id, and resolves the author's name
+     * along the way - the one fact these two entities have that a prod does
+     * not.
+     */
+    @Test
+    public void itemAnswersAMusicIdWithItsAuthor() throws Exception {
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.MUSIC_ROW)
+                                                    .then(Fixtures.AUTHOR_RAFFAELE_CECCO);
+        Catalogue.Item tune = catalogue(http).item(ZxartCatalogue.MUSIC_PREFIX + "19636");
+
+        assertEquals("Music", tune.kind());
+        assertEquals("Raffaele Cecco", tune.publisher());
+        assertTrue(http.asked.get(1).contains("export:author"));
+        assertTrue(http.asked.get(1).contains("filter:authorId=7744"));
+    }
+
+    /** {@link #itemAnswersAMusicIdWithItsAuthor}'s twin, for a picture - and
+     *  pictureUrl is the rendered PNG, since the entity <em>is</em> the
+     *  picture. */
+    @Test
+    public void itemAnswersAPictureIdWithItsAuthor() throws Exception {
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.PICTURE_ROW)
+                                                    .then(Fixtures.AUTHOR_RAFFAELE_CECCO);
+        Catalogue.Item art = catalogue(http).item(ZxartCatalogue.GRAPHICS_PREFIX + "2232");
+
+        assertEquals("Graphics", art.kind());
+        assertEquals("Raffaele Cecco", art.publisher());
+        assertTrue(art.pictureUrl().contains("zximages"));
+    }
+
+    private static Catalogue.Shelf musicSubShelf() {
+        return new Catalogue.Shelf(ZxartCatalogue.MUSIC_PREFIX + "everything", "Everything",
+                                   Catalogue.Shelf.Accepts.NOTHING);
+    }
+
+    private static Catalogue.Shelf graphicsSubShelf() {
+        return new Catalogue.Shelf(ZxartCatalogue.GRAPHICS_PREFIX + "everything", "Everything",
+                                   Catalogue.Shelf.Accepts.NOTHING);
     }
 
     // --- helpers -----------------------------------------------------------------------

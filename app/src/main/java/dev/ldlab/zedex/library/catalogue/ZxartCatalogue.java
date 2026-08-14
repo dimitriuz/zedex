@@ -16,13 +16,40 @@ import java.util.Locale;
 /**
  * zxart.ee, the demoscene and games archive, as something to browse.
  *
- * <b>Three shelves, and that is what the service can actually build.</b> A
+ * <b>Five shelves, and that is what the service can actually build.</b> A
  * search box, a category tree that rolls its roots up into their own prods,
- * and everything - no A-Z, because {@code ZxartApi}'s own measurements found
- * every title-prefix filter ignored rather than refused: {@code
- * zxProdTitleStart} answers the unfiltered 58,032 every time. The want an
- * alphabet serves elsewhere is left to {@code sorts()} (Task 8) instead of a
- * shelf this service cannot build.
+ * everything, and two more ways in - Music and Graphics - that are not
+ * screens of their own but roots that yield their own sub-shelves, the same
+ * mechanism Categories uses. No A-Z anywhere, because {@code ZxartApi}'s own
+ * measurements found every title-prefix filter ignored rather than refused:
+ * {@code zxProdTitleStart} answers the unfiltered 58,032 every time. The want
+ * an alphabet serves elsewhere is left to {@code sorts()} (Task 8) instead of
+ * a shelf this service cannot build.
+ *
+ * <h3>Music and Graphics: two more entities, no category tree involved</h3>
+ *
+ * {@link #SHELF_MUSIC} and {@link #SHELF_GRAPHICS} make <b>no request</b> -
+ * opening either yields exactly two sub-shelves, Everything and Search, built
+ * from nothing but the shelf's own id, and both filters are real: {@code
+ * ZxartApi.FILTER_MUSIC_SEARCH}/{@code FILTER_PICTURE_SEARCH} were measured
+ * against the live service on 2026-08-14 and do filter, which corrects this
+ * feature's own spec (it had guessed they would be ignored, the way most
+ * zxart title filters are). Opening one of the two sub-shelves is one request
+ * - {@code export:zxMusic} or {@code export:zxPicture} - and never touches
+ * {@link #tree()}: a tune or a picture has no category to resolve a folder
+ * from, {@link Item#kind()} is simply {@code "Music"} or {@code "Graphics"},
+ * the entities' own words, which {@link Kinds#folderFor} already maps (Task
+ * 5). That is also why {@link #item} can answer a music or picture id without
+ * the three/two-request tree dance a prod costs - see {@link #musicFrom} and
+ * {@link #pictureFrom}.
+ *
+ * <b>Neither entity has a publisher, and both have something better: an
+ * author that actually resolves.</b> {@code export:author/filter:authorId=}
+ * answers with a name - unlike a prod's {@code publishersIds}, which nothing
+ * can resolve - so {@link #item} fetches it, once, for the pane. A list row
+ * never does: thirty rows would be thirty paced requests for a name nobody
+ * asked to see yet, exactly the reasoning that keeps a prod's releases off
+ * its own list rows.
  *
  * <b>No Android types</b> - no {@code Uri}, no {@code Log} - so this runs on
  * the JVM in {@code ZxartCatalogueTest} in well under a second, against
@@ -134,6 +161,8 @@ public final class ZxartCatalogue implements Catalogue {
     static final String SHELF_SEARCH = "search";
     static final String SHELF_CATEGORIES = "categories";
     static final String SHELF_EVERYTHING = "everything";
+    static final String SHELF_MUSIC = "music";
+    static final String SHELF_GRAPHICS = "graphics";
 
     /** A sub-shelf yielded by {@link #categories()} or {@link #childrenOf}
      *  carries the category id behind this prefix, so {@link #open} can tell
@@ -147,6 +176,23 @@ public final class ZxartCatalogue implements Catalogue {
      *  is opened, via {@link #leafOfProd}, rather than up front. See the class
      *  javadoc's "similarTo" section for why. */
     static final String MORE_PREFIX = "more:";
+
+    /**
+     * Two jobs, same prefix, never confused because they live in different
+     * methods: a sub-shelf id ({@code "music:everything"}, {@code
+     * "music:search"}, built by {@link #musicRoots()} and read by {@link
+     * #open}) and an {@link Item#id()} ({@code "music:19636"}, built by
+     * {@link #musicFrom} and read by {@link #item}). zxart's own numbering is
+     * per-entity - a prod, a tune and a picture can legitimately share a bare
+     * numeric id - so an unprefixed id would be ambiguous the moment {@link
+     * #item} had to decide which of three tables to ask; a prod's own id
+     * stays bare because {@link #item}'s prod branch was here first and nothing
+     * needs it disambiguated from a shelf id.
+     */
+    static final String MUSIC_PREFIX = "music:";
+
+    /** {@link #MUSIC_PREFIX}'s twin, for {@code zxPicture}. */
+    static final String GRAPHICS_PREFIX = "graphics:";
 
     /** What a page of the grid asks for. Thirty, like ZXInfo's, because a
      *  screenful is a screenful whichever archive it came from. */
@@ -199,7 +245,14 @@ public final class ZxartCatalogue implements Catalogue {
         return Arrays.asList(
                 new Shelf(SHELF_SEARCH, "Search", Shelf.Accepts.TEXT),
                 new Shelf(SHELF_CATEGORIES, "Categories", Shelf.Accepts.NOTHING),
-                new Shelf(SHELF_EVERYTHING, "Everything", Shelf.Accepts.NOTHING));
+                new Shelf(SHELF_EVERYTHING, "Everything", Shelf.Accepts.NOTHING),
+                // Both take NOTHING at the root: like Categories, they are a
+                // way in rather than a screen, and take nothing themselves -
+                // it is their own sub-shelves, Everything and Search, that
+                // take TEXT. See the class javadoc's "Music and Graphics"
+                // section.
+                new Shelf(SHELF_MUSIC, "Music", Shelf.Accepts.NOTHING),
+                new Shelf(SHELF_GRAPHICS, "Graphics", Shelf.Accepts.NOTHING));
     }
 
     /**
@@ -233,6 +286,16 @@ public final class ZxartCatalogue implements Catalogue {
     @Override
     public Page open(Shelf shelf, Query query, int page) throws ScrapeException {
         if (SHELF_CATEGORIES.equals(shelf.id())) return categories();
+
+        // Music and Graphics roots: no request, same as Categories - see
+        // musicRoots()/graphicsRoots(). Their sub-shelves are handled next,
+        // also before tree() - a tune or a picture has no category to
+        // resolve a kind from, so neither ever needs the tree at all, unlike
+        // every branch below this point.
+        if (SHELF_MUSIC.equals(shelf.id())) return musicRoots();
+        if (SHELF_GRAPHICS.equals(shelf.id())) return graphicsRoots();
+        if (shelf.id().startsWith(MUSIC_PREFIX)) return openMusic(shelf, query, page);
+        if (shelf.id().startsWith(GRAPHICS_PREFIX)) return openGraphics(shelf, query, page);
 
         // Ensured before this shelf's own request, and not lazily inside
         // itemFrom/kindOf as the task brief's own outline first suggested:
@@ -287,6 +350,17 @@ public final class ZxartCatalogue implements Catalogue {
 
     @Override
     public Item item(String id) throws ScrapeException {
+        // A music or picture id, told apart from a prod's by the same prefix
+        // its shelf carries - see MUSIC_PREFIX's own javadoc. Neither branch
+        // touches tree(): the entity's kind is fixed to its own word, not
+        // resolved from a category.
+        if (id != null && id.startsWith(MUSIC_PREFIX)) {
+            return musicItem(idIn(id, MUSIC_PREFIX));
+        }
+        if (id != null && id.startsWith(GRAPHICS_PREFIX)) {
+            return pictureItem(idIn(id, GRAPHICS_PREFIX));
+        }
+
         // Ensured first, for the same reason open() ensures it first: the
         // fixture order every test in ZxartCatalogueTest queues - tree, prod,
         // releases - is only true of the requests this class actually sends
@@ -336,6 +410,246 @@ public final class ZxartCatalogue implements Catalogue {
         // zxart's own reading of a bare status - see ZxartApi.refusalFor,
         // which this only names, exactly as ZxInfoCatalogue names ZxInfo's.
         return api.refusalFor(status);
+    }
+
+    // --- music and pictures: two more entities, no category tree involved ------------
+
+    /** {@link #SHELF_MUSIC}'s two sub-shelves - see the class javadoc's
+     *  "Music and Graphics" section for why this makes no request. */
+    private Page musicRoots() {
+        List<Shelf> found = Arrays.asList(
+                new Shelf(MUSIC_PREFIX + "everything", "Everything", Shelf.Accepts.NOTHING),
+                new Shelf(MUSIC_PREFIX + "search", "Search", Shelf.Accepts.TEXT));
+
+        return new Page(null, found, 0, Page.UNKNOWN_TOTAL);
+    }
+
+    /** {@link #musicRoots()}'s twin, for {@link #SHELF_GRAPHICS}. */
+    private Page graphicsRoots() {
+        List<Shelf> found = Arrays.asList(
+                new Shelf(GRAPHICS_PREFIX + "everything", "Everything", Shelf.Accepts.NOTHING),
+                new Shelf(GRAPHICS_PREFIX + "search", "Search", Shelf.Accepts.TEXT));
+
+        return new Page(null, found, 0, Page.UNKNOWN_TOTAL);
+    }
+
+    /** One page of tunes - {@code export:zxMusic}, filtered by {@link
+     *  ZxartApi#FILTER_MUSIC_SEARCH} on the Search sub-shelf and unfiltered on
+     *  Everything. No sub-shelves of its own: unlike a prod's category, a
+     *  tune's kind never rolls up into anything to descend into. */
+    private Page openMusic(Shelf shelf, Query query, int page) throws ScrapeException {
+        ZxartApi.Ask ask = new ZxartApi.Ask(ZxartApi.MUSIC).language(language).page(page, PAGE_SIZE);
+
+        String order = orderFor(query);
+        if (order != null) ask.order(order);
+        if ((MUSIC_PREFIX + "search").equals(shelf.id())) {
+            ask.filter(ZxartApi.FILTER_MUSIC_SEARCH, query.text());
+        }
+
+        JSONObject reply = api.ask(ask);
+        List<Item> items = new ArrayList<>();
+        for (JSONObject row : ZxartApi.rows(reply, ZxartApi.MUSIC)) items.add(musicFrom(row));
+
+        return new Page(items, null, page * PAGE_SIZE, ZxartApi.totalOf(reply));
+    }
+
+    /** {@link #openMusic}'s twin, for {@code export:zxPicture} and {@link
+     *  ZxartApi#FILTER_PICTURE_SEARCH}. */
+    private Page openGraphics(Shelf shelf, Query query, int page) throws ScrapeException {
+        ZxartApi.Ask ask = new ZxartApi.Ask(ZxartApi.PICTURE).language(language).page(page, PAGE_SIZE);
+
+        String order = orderFor(query);
+        if (order != null) ask.order(order);
+        if ((GRAPHICS_PREFIX + "search").equals(shelf.id())) {
+            ask.filter(ZxartApi.FILTER_PICTURE_SEARCH, query.text());
+        }
+
+        JSONObject reply = api.ask(ask);
+        List<Item> items = new ArrayList<>();
+        for (JSONObject row : ZxartApi.rows(reply, ZxartApi.PICTURE)) items.add(pictureFrom(row));
+
+        return new Page(items, null, page * PAGE_SIZE, ZxartApi.totalOf(reply));
+    }
+
+    /** {@code export:zxMusic}, filtered to one id, plus the author's name -
+     *  the two-request shape {@link #item} promises for these entities,
+     *  against a prod's three-or-two. */
+    private Item musicItem(String id) throws ScrapeException {
+        JSONObject reply = api.ask(new ZxartApi.Ask(ZxartApi.MUSIC)
+                .language(language)
+                .filter(ZxartApi.FILTER_MUSIC_ID, id));
+
+        List<JSONObject> rows = ZxartApi.rows(reply, ZxartApi.MUSIC);
+        if (rows.isEmpty()) return null;
+
+        JSONObject row = rows.get(0);
+        return musicFrom(row, authorNameOf(row));
+    }
+
+    /** {@link #musicItem}'s twin, for {@code export:zxPicture}. */
+    private Item pictureItem(String id) throws ScrapeException {
+        JSONObject reply = api.ask(new ZxartApi.Ask(ZxartApi.PICTURE)
+                .language(language)
+                .filter(ZxartApi.FILTER_PICTURE_ID, id));
+
+        List<JSONObject> rows = ZxartApi.rows(reply, ZxartApi.PICTURE);
+        if (rows.isEmpty()) return null;
+
+        JSONObject row = rows.get(0);
+        return pictureFrom(row, authorNameOf(row));
+    }
+
+    /**
+     * A list row: no author, for the reason a prod's list row carries no
+     * releases - thirty rows would be thirty paced requests for a name
+     * nobody has asked to see yet.
+     */
+    private static Item musicFrom(JSONObject row) {
+        return musicFrom(row, null);
+    }
+
+    /**
+     * A tune as an item.
+     *
+     * kind is "Music" - the entity's own word, which is what Kinds maps - and
+     * the version carries the ogg first and the original second. That order is
+     * not cosmetic: Pick.otherFile answers with the first file that is neither
+     * a picture nor for the machine, and that is what the pane's Open hands to
+     * the phone. The ogg is playable anywhere; a .pt3 is not.
+     *
+     * No size is stated for either, so Download carries -1 - which is honest
+     * and is what a catalogue that does not say looks like.
+     *
+     * <b>{@code type} names the tracker format and {@code originalFileName}
+     * names the file - and they disagree.</b> Measured on {@code
+     * Fixtures.MUSIC_ROW}: {@code type} is {@code "PT3"} while the original
+     * file is a {@code .mt3}. What decides whether Fuse - or anything else -
+     * can open a file is what is inside it, so the format here comes from the
+     * filename, exactly as {@code HeadOverHeels.tzx.zip} being a tzx does
+     * elsewhere in this feature; {@code type} is kept as the version's own
+     * label instead of being discarded, since it is still the truest short
+     * name for what the tune actually is.
+     *
+     * {@code publisher} carries the author's name where given - null on a
+     * list row, resolved once by {@link #musicItem} for the pane - since
+     * there is nowhere else on {@link Item} to put a fact a prod's own
+     * {@code itemFrom} has no equivalent for.
+     */
+    private static Item musicFrom(JSONObject row, String author) {
+        String id = Integer.toString(row.optInt("id", 0));
+        int year = row.optInt("year", 0);
+
+        String ogg = row.optString("mp3FilePath", "");
+        String original = row.optString("originalUrl", "");
+
+        List<Download> files = new ArrayList<>();
+        if (!ogg.isEmpty()) files.add(new Download(ogg, "ogg", -1));
+        if (!original.isEmpty()) files.add(new Download(original, extensionOf(original), -1));
+
+        String label = row.optString("type", "");
+        Version version = new Version(label.isEmpty() ? null : label,
+                                      year > 0 ? Integer.toString(year) : null, files);
+
+        return new Item(MUSIC_PREFIX + id,
+                        ZxartApi.unescape(row.optString("title", "")),
+                        year > 0 ? Integer.toString(year) : null,
+                        author,
+                        Kinds.MUSIC,
+                        null,   // no legalStatus on this entity - nothing to state
+                        null,   // no rendered picture for a tune - imagesUrls does not exist here
+                        Collections.singletonList(version));
+    }
+
+    /** A list row: no author - see {@link #musicFrom(JSONObject)}. */
+    private static Item pictureFrom(JSONObject row) {
+        return pictureFrom(row, null);
+    }
+
+    /**
+     * A picture as an item.
+     *
+     * kind is "Graphics", zxPicture's own root word. The version carries the
+     * rendered PNG first and the original {@code .scr} second - the same
+     * reason a tune lists its ogg first: {@link Pick#otherFile} answers with
+     * the first file that is neither a picture nor for the machine, except
+     * here <em>both</em> files are pictures, so {@link Pick#otherFile} keeps
+     * the first one it sees rather than falling past it - the PNG, which is
+     * what the pane's Open should hand to the phone rather than a raw
+     * Spectrum screen dump nothing but this app understands.
+     *
+     * <b>The PNG's format is stated, not derived - the one file in this whole
+     * feature whose format cannot be read off the thing it describes.</b>
+     * {@code imageUrl} carries no extension at all ({@code
+     * zximages/id=2232;border=0;pal=srgb;type=standard;zoom=1}) and the
+     * service sends no {@code Content-Type} either. Fetched and checked by
+     * hand on 2026-08-14: the reply is 200 with the PNG magic number {@code
+     * 89 50 4E 47 0D 0A 1A 0A} and nothing else to go on. So {@code "png"} is
+     * asserted here from that one measurement rather than parsed from
+     * anything - see {@code ZxartCatalogueTest} and this feature's own
+     * progress notes for the same fact recorded twice on purpose, because the
+     * next reader's instinct will be to look at the url for it and find
+     * nothing there.
+     */
+    private static Item pictureFrom(JSONObject row, String author) {
+        String id = Integer.toString(row.optInt("id", 0));
+        int year = row.optInt("year", 0);
+
+        String rendered = row.optString("imageUrl", "");
+        String original = row.optString("originalUrl", "");
+
+        List<Download> files = new ArrayList<>();
+        // "png", stated - see this method's own javadoc.
+        if (!rendered.isEmpty()) files.add(new Download(rendered, "png", -1));
+        if (!original.isEmpty()) files.add(new Download(original, extensionOf(original), -1));
+
+        Version version = new Version(null, year > 0 ? Integer.toString(year) : null, files);
+
+        return new Item(GRAPHICS_PREFIX + id,
+                        ZxartApi.unescape(row.optString("title", "")),
+                        year > 0 ? Integer.toString(year) : null,
+                        author,
+                        Kinds.GRAPHICS,
+                        null,               // no legalStatus on this entity
+                        rendered.isEmpty() ? null : rendered,
+                        Collections.singletonList(version));
+    }
+
+    /**
+     * The first {@code authorIds} entry's name, or null.
+     *
+     * One request, one id: comma-joining several into one filter was tried
+     * against the live service and returned a single row for three ids asked
+     * for, so there is no batch to use instead. Only the first author is
+     * asked for the same reason a prod's list rows carry no releases - most
+     * tunes and pictures here name one author anyway, and a name is a detail
+     * for the pane, not a fact worth a request per collaborator.
+     */
+    private String authorNameOf(JSONObject row) throws ScrapeException {
+        JSONArray authors = row.optJSONArray("authorIds");
+        if (authors == null || authors.length() == 0) return null;
+
+        JSONObject reply = api.ask(new ZxartApi.Ask(ZxartApi.AUTHOR)
+                .language(language)
+                .filter(ZxartApi.FILTER_AUTHOR, Integer.toString(authors.optInt(0, 0))));
+
+        List<JSONObject> rows = ZxartApi.rows(reply, ZxartApi.AUTHOR);
+        return rows.isEmpty() ? null : ZxartApi.unescape(rows.get(0).optString("title", ""));
+    }
+
+    /**
+     * The extension of a url's own filename, lower or upper case as given -
+     * {@link Download}'s constructor lower-cases it - or empty when there is
+     * none. A dot has to fall after the last {@code /} to count: a folder
+     * name with a dot in it must not be misread as an extension.
+     */
+    private static String extensionOf(String url) {
+        if (url == null) return "";
+
+        String noQuery = url.contains("?") ? url.substring(0, url.indexOf('?')) : url;
+        int dot = noQuery.lastIndexOf('.');
+        int slash = noQuery.lastIndexOf('/');
+
+        return dot > slash ? noQuery.substring(dot + 1) : "";
     }
 
     // --- the category tree, held for the session ------------------------------------

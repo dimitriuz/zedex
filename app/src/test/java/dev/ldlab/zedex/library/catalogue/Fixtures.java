@@ -1112,6 +1112,29 @@ public final class Fixtures {
             + "48\\u0443\\u0442\\u0435\\u0440\"}]},\"responseStatus\":\"success\"}";
 
     /**
+     * review/zxart/af-author-entity.json - export:author,
+     * filter:authorId=6661. Copied whole: one row already.
+     *
+     * <b>A stand-in, exactly as {@code PROD_SEARCH} is for the category and
+     * "similar" tests above</b> - nothing was captured for authorId 7744 (
+     * {@code MUSIC_ROW}'s own author) or 2202 ({@code PICTURE_ROW}'s), and a
+     * probe against either would be inventing a reply from memory rather than
+     * measuring one, which this file's own class javadoc rules out. This is a
+     * real {@code export:author} reply for a real id, in the one shape that
+     * matters to the code under test - one row, a {@code title} to read - so
+     * it proves {@code authorNameOf} parses what the service actually sends
+     * back, which is the fact worth pinning; {@code Fixtures.Canned} does not
+     * check what a queued reply was asked for, only what order it was queued
+     * in.
+     */
+    public static final String AUTHOR_RAFFAELE_CECCO =
+            "{\"totalAmount\":1,\"start\":0,\"limit\":2,\"responseData\":{\"author\":[{\"id\":6661,\"title\":"
+            + "\"Raffaele Cecco\",\"url\":\"https:\\/\\/zxart.ee\\/eng\\/authors\\/r\\/raffaele-cecco\\/\",\"date"
+            + "Created\":1287774884,\"dateModified\":1783618899,\"realName\":\"Raffaele Cecco\",\"picturesQuant"
+            + "ity\":\"9\",\"country\":\"United Kingdom\",\"importIds\":{\"sc\":\"11996\"}}]},\"responseStatus\""
+            + ":\"success\"}";
+
+    /**
      * An {@code Http} that answers from a list and remembers what it was
      * asked.
      *

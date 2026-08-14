@@ -66,6 +66,17 @@ public final class ZxartApi {
     public static final String FILTER_PICTURE_ID = "zxPictureId";
 
     /**
+     * Measured 2026-08-14, against this feature's own spec, which had guessed
+     * these would be ignored like most title filters here: {@code beyond}
+     * against {@link #MUSIC} returned 10 rows of 29,672, {@code girl} against
+     * {@link #PICTURE} returned 124 of 19,408, every visible title carrying
+     * the term, against a control whose signature is the <em>exact</em>
+     * unfiltered total. Both genuinely filter.
+     */
+    public static final String FILTER_MUSIC_SEARCH = "zxMusicSearch";
+    public static final String FILTER_PICTURE_SEARCH = "zxPictureSearch";
+
+    /**
      * Names that are <b>ignored</b>, kept so nobody reaches for one again.
      *
      * {@code zxProdTitleSearch}, {@code zxProdTitle}, {@code zxProdTitleStart},
