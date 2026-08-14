@@ -26,7 +26,7 @@ public class CatalogueTest {
     private static Catalogue.Item anItem(String id) {
         return new Catalogue.Item(id, "Head over Heels", "1987", "Ocean Software Ltd",
                                   "Arcade Game", "Available", null,
-                                  Collections.<Catalogue.Version>emptyList());
+                                  Collections.<Catalogue.Version>emptyList(), null);
     }
 
     // --- paging ----------------------------------------------------------------------
@@ -188,6 +188,43 @@ public class CatalogueTest {
         assertNull(new BareCatalogue().similarTo(anItem("0002259"), "Games like this"));
     }
 
+    /**
+     * A catalogue owes no answer about formats, and the default is the honest
+     * one.
+     *
+     * ZXInfo's list rows carry their own files, which is what makes its format
+     * filter cost no request. A zxart prod names releasesIds and nothing else,
+     * so its rows know nothing - and a screen that read "no formats" as "no
+     * match" would reject every row in the archive, while one that read it as
+     * "keep everything" would show a filter that does nothing. Neither is
+     * acceptable, so the catalogue says which it is and the screen hides the
+     * control it cannot honour.
+     */
+    @Test
+    public void aCatalogueSaysWhetherItCanAnswerForFormats() {
+        assertFalse(new BareCatalogue().knowsFormats());
+    }
+
+    /**
+     * ...and a catalogue that says nothing about a shelf's orderings is read
+     * as offering whatever it offers everywhere.
+     *
+     * The default has to be {@link Catalogue#sorts()} rather than {@code
+     * DEFAULT} alone: a catalogue whose every shelf really is one endpoint owes
+     * nothing extra, and a catalogue that declares no sorts at all must not
+     * have its control taken away twice over. Honouring a sort is a property of
+     * the shelf for the two catalogues that ship, both of which override this;
+     * the bare one is what pins the default.
+     */
+    @Test
+    public void aShelfInheritsTheCataloguesOwnSortsUnlessItSaysOtherwise() {
+        BareCatalogue bare = new BareCatalogue();
+        Catalogue.Shelf any = new Catalogue.Shelf("any", "Any", Catalogue.Shelf.Accepts.NOTHING);
+
+        assertEquals(bare.sorts(), bare.sortsFor(any));
+        assertEquals(Collections.singletonList(Catalogue.Sort.DEFAULT), bare.sortsFor(any));
+    }
+
     /** The least a catalogue can be: the six methods the seam actually
      *  requires - name, configured, shelves, open, item, refusalFor - and none
      *  of the ones it offers a default for. */
@@ -247,7 +284,7 @@ public class CatalogueTest {
 
     private static Catalogue.Item anItemAvailable(String availability) {
         return new Catalogue.Item("1", "A game", null, null, null, availability, null,
-                                  Collections.<Catalogue.Version>emptyList());
+                                  Collections.<Catalogue.Version>emptyList(), null);
     }
 
     // --- a download ------------------------------------------------------------------
@@ -277,7 +314,8 @@ public class CatalogueTest {
                                   "Available", null,
                                   Collections.singletonList(
                                           new Catalogue.Version(null, "1987",
-                                                                Arrays.asList(files))));
+                                                                Arrays.asList(files))),
+                                  null);
     }
 
     /**
@@ -315,7 +353,8 @@ public class CatalogueTest {
                 Arrays.asList(new Catalogue.Version("first", "1987",
                                                     Collections.singletonList(file("tap"))),
                               new Catalogue.Version("later", "1988",
-                                                    Collections.singletonList(file("trd")))));
+                                                    Collections.singletonList(file("trd")))),
+                null);
 
         assertTrue(item.formats().contains("tap"));
         assertTrue(item.formats().contains("trd"));

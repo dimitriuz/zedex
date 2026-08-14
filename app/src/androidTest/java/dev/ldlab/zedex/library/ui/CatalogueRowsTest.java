@@ -40,7 +40,7 @@ public class CatalogueRowsTest {
      */
     private static Catalogue.Item item(String year, String publisher, String availability) {
         return new Catalogue.Item("2259", "Manic Miner", year, publisher,
-                                  "Arcade Game", availability, null, null);
+                                  "Arcade Game", availability, null, null, null);
     }
 
     // --- the count -----------------------------------------------------------------

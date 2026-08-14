@@ -70,8 +70,12 @@ public interface Catalogue {
      * One item in full: its versions and their files.
      *
      * How many requests that costs is the catalogue's own business - ZXInfo
-     * answers with one call and zxart takes {@code types:zxProd,zxRelease} on
-     * another single one. The caller asks once either way.
+     * answers with one call, and zxart takes two: {@code export:zxProd} for
+     * the row and {@code export:zxRelease} for its releases, plus its
+     * category tree the first time in a session. The documented shortcut for
+     * doing that in one, {@code types:zxProd,zxRelease}, answers HTTP 500 and
+     * is measured as doing so - see {@code ZxartCatalogue.item}. The caller
+     * asks once either way.
      */
     Item item(String id) throws ScrapeException;
 
@@ -94,13 +98,14 @@ public interface Catalogue {
      * every tap and ANR on a slow network. A shelf is a way in and costs nothing
      * until somebody opens it - the request belongs in {@link #open}.
      *
-     * <b>Default null, so a catalogue owes nothing it has not got.</b> This is
-     * the only default here; everything else is abstract, and that is not an
-     * accident being extended. What the seam actually promises is the line at
-     * the top of this file - <em>a way in is data</em> - and this keeps it: a
-     * site with no notion of similarity says so by not overriding this, whatever
-     * offers the way in simply does not offer it, and no future catalogue is
-     * made to implement a method most of them have no endpoint for.
+     * <b>Default null, so a catalogue owes nothing it has not got.</b> This
+     * and {@link #knowsFormats()} are the only two defaults here; everything
+     * else is abstract, and that is not an accident being extended. What the
+     * seam actually promises is the line at the top of this file - <em>a way
+     * in is data</em> - and this keeps it: a site with no notion of
+     * similarity says so by not overriding this, whatever offers the way in
+     * simply does not offer it, and no future catalogue is made to implement
+     * a method most of them have no endpoint for.
      *
      * <b>The label comes from the caller, and that is deliberate.</b>
      * Everywhere else a shelf's words are the service's own - a genre's name
@@ -115,6 +120,111 @@ public interface Catalogue {
      */
     default Shelf similarTo(Item item, String label) {
         return null;
+    }
+
+    /**
+     * A way of ordering a shelf, as opposed to a way in.
+     *
+     * <b>A fixed vocabulary, and translated on the app's side.</b> Everywhere
+     * else a shelf's words are the service's own - a genre's name comes off the
+     * wire - but there is nothing off the wire to call an ordering, and what a
+     * person reads here is a sentence in their own language. So this is an enum
+     * with string resources against it rather than labels from a catalogue,
+     * which is also what lets two catalogues offer "Top rated" and mean it even
+     * though one is a community vote and the other is Elasticsearch's own
+     * relevance score.
+     *
+     * <b>A control, not a shelf.</b> "Top rated" as a shelf would give Top over
+     * the whole archive; this is Top <em>inside</em> whatever is already on
+     * screen - inside Games, inside a search, inside a sub-category - which is
+     * why it rides on {@link Query} rather than {@link #shelves()}.
+     */
+    enum Sort { DEFAULT, TOP, NEWEST, ALPHABETICAL }
+
+    /**
+     * The orderings this catalogue can honour, best-known first, always
+     * including {@link Sort#DEFAULT}.
+     *
+     * <b>The same bargain {@link #shelves()} makes.</b> A catalogue owes
+     * nothing it has not got, and {@code CatalogueView} hides the control when
+     * there is only one - exactly as it hides a shelf nothing can build. zxart
+     * declares four, all measured: {@code order:votes,desc} works while {@code
+     * order:rating,desc} is ignored, which is exactly the kind of thing that
+     * must be measured before it is offered rather than guessed at.
+     */
+    default List<Sort> sorts() {
+        return Collections.singletonList(Sort.DEFAULT);
+    }
+
+    /**
+     * The orderings <em>that shelf</em> can honour - a subset of {@link
+     * #sorts()}, always including {@link Sort#DEFAULT}.
+     *
+     * <b>Honouring a sort is a property of the shelf, not of the
+     * catalogue.</b> A catalogue is several endpoints wearing one name, and a
+     * sort parameter is only ever measured against one of them: ZXInfo's
+     * {@code sort=score_desc} was measured against {@code /search}, which is
+     * what its search box and its genres use, and says nothing about {@code
+     * games/byletter}, {@code games/random} or {@code games/morelikethis};
+     * zxart's {@code order:date,desc} and {@code order:title,asc} were
+     * measured on prods only, and its music and picture entities were only
+     * ever asked for {@code order:votes,desc}. Declared per catalogue, the
+     * control appeared on every shelf and did nothing on most of them - and
+     * on zxart it sent order names to endpoints nobody had ever asked them
+     * of, against a service that <em>ignores</em> an unrecognised name and
+     * answers success, which is this branch's own cardinal sin.
+     *
+     * <b>A control that is present and does nothing is worse than one that is
+     * absent</b> - the same bargain {@link #knowsFormats()} states, and the
+     * reason this is a promise a catalogue can genuinely lack rather than a
+     * convenience. What a person saw before this existed was Top rated
+     * refetching a shelf, relabelling the row, and coming back with
+     * byte-identical rows: a chooser with no effect, which this codebase
+     * treats as a defect rather than a cosmetic issue. {@code CatalogueView}
+     * hides the row on a shelf that declares one ordering, and resets the
+     * sort to {@link Sort#DEFAULT} rather than sending a shelf one it cannot
+     * honour.
+     *
+     * <b>Defaulted to {@link #sorts()}</b>, so a catalogue whose every shelf
+     * really is one endpoint owes nothing extra - and so that a catalogue
+     * declaring no sorts at all is unaffected.
+     */
+    default List<Sort> sortsFor(Shelf shelf) {
+        return sorts();
+    }
+
+    /**
+     * Whether this catalogue's <em>list rows</em> know which formats an item
+     * comes in.
+     *
+     * ZXInfo's do: a search hit's {@code _source} carries its releases and
+     * their files, byte-identical to the record's, which is what lets the
+     * screen filter by format without a request per row. zxart's do not - a
+     * prod names its release ids and nothing else - so {@link Item#formats()}
+     * is legitimately empty there, for a reason that has nothing to do with
+     * the game actually holding no files.
+     *
+     * <b>Empty formats cannot be read as either answer, so the catalogue has
+     * to say which it means.</b> Read as "no match" the filter would reject
+     * an entire archive on the strength of a question it was never asked;
+     * read as "keep everything" it would show a control that appears to
+     * filter and changes nothing, which this codebase already treats as the
+     * same class of fault as a chooser with no effect. Neither reading is
+     * safe to guess at silently, so this states it and {@code CatalogueView}
+     * hides the control it cannot honour, exactly as the tab hides itself
+     * when nothing is browsable.
+     *
+     * <b>A second default, and it earns the same reasoning {@link
+     * #similarTo} does.</b> This is not a convenience for a catalogue that
+     * has not gotten round to implementing something - it is a genuine
+     * absence of an endpoint, exactly as "games like this one" is: zxart's
+     * rows cannot know their formats without a request per row, which
+     * defeats the entire reason a list is filterable by format at all.
+     * Default false, so a catalogue that has not thought about it does not
+     * promise: the screen loses a filter rather than showing a broken one.
+     */
+    default boolean knowsFormats() {
+        return false;
     }
 
     /**
@@ -176,16 +286,18 @@ public interface Catalogue {
      */
     final class Query {
 
-        private static final Query NOTHING = new Query(null, null, false);
+        private static final Query NOTHING = new Query(null, null, false, Sort.DEFAULT);
 
         private final String text;
         private final String letter;
         private final boolean sifting;
+        private final Sort sort;
 
-        private Query(String text, String letter, boolean sifting) {
+        private Query(String text, String letter, boolean sifting, Sort sort) {
             this.text = text;
             this.letter = letter;
             this.sifting = sifting;
+            this.sort = sort;
         }
 
         /** For a shelf that takes nothing. */
@@ -194,11 +306,11 @@ public interface Catalogue {
         }
 
         public static Query text(String typed) {
-            return new Query(typed, null, false);
+            return new Query(typed, null, false, Sort.DEFAULT);
         }
 
         public static Query letter(String one) {
-            return new Query(null, one, false);
+            return new Query(null, one, false, Sort.DEFAULT);
         }
 
         /**
@@ -219,11 +331,28 @@ public interface Catalogue {
          * would be more bytes for rows nobody asked for yet.
          */
         public Query sifting() {
-            return sifting ? this : new Query(text, letter, true);
+            return sifting ? this : new Query(text, letter, true, sort);
         }
 
         public boolean isSifting() {
             return sifting;
+        }
+
+        /**
+         * The same question, ordered.
+         *
+         * <b>Survives {@link #sifting()}, and must go on surviving it</b> - a
+         * filtered shelf makes a copy of the query on every page, and a sort
+         * lost in that copy would be a sort that silently stopped applying
+         * after the first page.
+         */
+        public Query sortedBy(Sort wanted) {
+            return sort == wanted ? this : new Query(text, letter, sifting, wanted);
+        }
+
+        /** Never null - {@link Sort#DEFAULT} for a query nobody ordered. */
+        public Sort sort() {
+            return sort;
         }
 
         /** Never null - a shelf building a URL wants a string. */
@@ -313,10 +442,24 @@ public interface Catalogue {
         private final String availability;
         private final String pictureUrl;
         private final List<Version> versions;
+        private final String videoLink;
 
+        /**
+         * One constructor, not two. An eight-argument overload delegating to
+         * this one with a hidden {@code null} is the shape this project
+         * already abandoned for {@code Meta} - see that class's own class
+         * doc on the positional constructor that once dropped a field
+         * silently - and the hazard is not today's field but the next one: a
+         * caller with no video link to offer has to say {@code null} here
+         * rather than that becoming a second thing to remember to update.
+         *
+         * @param videoLink a link to a video about this game, or null - see
+         *                  {@link #videoLink()}. {@code null} for every
+         *                  catalogue but zxart today.
+         */
         public Item(String id, String title, String year, String publisher,
                     String kind, String availability, String pictureUrl,
-                    List<Version> versions) {
+                    List<Version> versions, String videoLink) {
             this.id = id;
             this.title = title;
             this.year = year;
@@ -326,6 +469,7 @@ public interface Catalogue {
             this.pictureUrl = pictureUrl;
             this.versions = versions == null ? Collections.<Version>emptyList()
                                               : new ArrayList<Version>(versions);
+            this.videoLink = videoLink;
         }
 
         public String id() {
@@ -359,6 +503,22 @@ public interface Catalogue {
         /** A thumbnail on an ordinary web host, or null. */
         public String pictureUrl() {
             return pictureUrl;
+        }
+
+        /**
+         * A link to a video about this game, or null - zxart's own {@code
+         * youtubeId}, turned into a watch url; no other catalogue here has
+         * one to offer.
+         *
+         * <b>Not the {@code videos} media folder.</b> That holds an mp4 the
+         * library's own gallery decodes and plays inline, once a game has
+         * actually been imported; this is a page on the open web, offered
+         * for a title that may not be in the library at all yet, and the
+         * only thing done with it is handing it to whatever app the phone
+         * has for a link - see {@code CataloguePane.openLink}.
+         */
+        public String videoLink() {
+            return videoLink;
         }
 
         /** Empty until {@link Catalogue#item} has been asked - a list does

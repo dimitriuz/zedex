@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A camera with a play triangle: 24dp outline, 1.8 stroke, tinted by the
+     row that draws it. Distinct from ic_film (a filmstrip, the captured mp4
+     in a game's own videos media folder) - this is a hand-over to whatever
+     app the phone has for a link, not a file this app plays itself. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:pathData="M3,6 h13 v12 h-13 z" android:strokeColor="#ffffff"
+        android:strokeWidth="1.8" android:strokeLineCap="round"
+        android:strokeLineJoin="round" android:fillColor="#00000000"/>
+    <path android:pathData="M16,10 l5,-3 v10 l-5,-3 z" android:strokeColor="#ffffff"
+        android:strokeWidth="1.8" android:strokeLineCap="round"
+        android:strokeLineJoin="round" android:fillColor="#00000000"/>
+    <path android:pathData="M8,9.3 l4,2.7 l-4,2.7 z" android:fillColor="#ffffff"/>
+</vector>

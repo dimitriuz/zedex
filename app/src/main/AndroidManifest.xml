@@ -63,6 +63,46 @@
             <data android:mimeType="image/*" />
         </intent>
 
+        <!-- A tune imported from a catalogue is handed to whatever plays audio.
+             Android 11+ hides every handler for an undeclared mime, so without
+             this the hand-over resolves to nothing on a phone with three music
+             players - the same fault ACTION_SENDTO had with mail. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="audio/*" />
+        </intent>
+
+        <!-- A catalogue row and a scraped game can carry a video link -
+             zxart's own youtubeId, turned into a watch url, handed to
+             ACTION_VIEW by CataloguePane.openLink/GameInfoView.openVideo.
+
+             Measured rather than assumed, on emulator-5554 (Chrome and the
+             YouTube app both installed): startActivity(ACTION_VIEW, an
+             https Uri) reaches Chrome's ChromeTabbedActivity for a plain
+             url and the YouTube app's own Shell_UrlActivity for a youtube.com
+             one, with this entry present *and* with it removed and the app
+             reinstalled - no ActivityNotFoundException either way. Neither
+             CataloguePane nor GameInfoView calls queryIntentActivities or
+             resolveActivity to decide the icon's visibility first, unlike
+             Manuals.java's PDF grant loop - the icon shows on Meta.videoLink
+             being non-null and the hand-over is a bare startActivity, caught
+             for RuntimeException at the point of the tap.
+
+             So this entry is not load-bearing for that call, the way the
+             mailto and PDF entries above are for theirs: ACTION_VIEW against
+             an http/https Uri carries its own automatic exemption from
+             package-visibility filtering, which the mailto/PDF/image/audio
+             entries above do not get since none of those is a scheme the
+             platform exempts. Left in anyway - harmless, and Android's own
+             documentation gives this exact shape as the canonical example of
+             a <queries> entry, so a future change to how the link is opened
+             (a chooser, an explicit availability check) is covered without
+             this needing to be revisited. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+
         <!--
             ES-DE, so that Settings can offer to add Zedex to it. Android 11
             hides every other app from one that has not said what it looks for,

@@ -49,11 +49,14 @@ public final class Kinds {
     public static final String DEMOSCENE = "Demoscene";
     public static final String RECORDINGS = "Recordings";
     public static final String OTHER = "Other";
+    public static final String MUSIC = "Music";
+    public static final String GRAPHICS = "Graphics";
 
     /** Every folder this feature can create, for the test that says nothing
      *  lands outside them. */
     public static final String[] ALL = {
         GAMES, APPLICATIONS, COMPILATIONS, MAGAZINES, DEMOSCENE, RECORDINGS, OTHER,
+        MUSIC, GRAPHICS,
     };
 
     /**
@@ -74,6 +77,33 @@ public final class Kinds {
     };
 
     /**
+     * zxart's nine root categories, recorded from the live tree on 2026-08-14.
+     *
+     * <b>Ids, because a prod can be traced to one in any language.</b> zxart
+     * answers in Russian, English or Spanish, and this app asks in the user's;
+     * the words therefore differ between two people looking at the same
+     * catalogue while the ids do not. {@code ZxartTree.rootOf} walks a prod's
+     * leaf categories up to one of these, and the title here - zxart's own
+     * canonical English word - becomes {@code Item.kind}, which
+     * {@link #folderFor} then maps exactly as it maps ZXDB's genres.
+     *
+     * Recorded rather than looked up, for the reason every table in this file
+     * is: a tenth root or a renumbered one should fail {@code KindsTest}
+     * rather than silently file a fifth of an archive under {@link #OTHER}.
+     */
+    public static final String[][] ZXART_ROOTS = {
+        { "92177", "Games" },
+        { "92183", "System Software" },
+        { "92188", "Misc" },
+        { "92534", "Educational" },
+        { "202588", "Compilation" },
+        { "204819", "Demoscene" },
+        { "244858", "Press" },
+        { "244880", "Applications" },
+        { "551860", "Series" },
+    };
+
+    /**
      * The table, in order.
      *
      * <b>The order is a rule, not an accident.</b> An entry can honestly be a
@@ -85,11 +115,32 @@ public final class Kinds {
      */
     private static final String[][] TABLE = {
         { COMPILATIONS, "compilation", "covertape", "box set" },
-        { MAGAZINES, "electronic magazine", "e-book", "book" },
+        { MAGAZINES, "electronic magazine", "e-book", "book", "press" },
         { DEMOSCENE, "demoscene", "tech demo", "animation" },
-        { APPLICATIONS, "utility", "programming", "emulator", "replacement rom" },
+        // "application" is zxart's own root word ("Applications") and reaches
+        // here directly - none of ZXDB's genre words are "Application"
+        // anything, so this row alone would otherwise never see it and the
+        // root's own name would fall through to Other.
+        { APPLICATIONS, "utility", "programming", "emulator", "replacement rom",
+                        "application" },
         { GAMES, "arcade game", "adventure game", "puzzle game", "casual game",
                  "sport game", "strategy game", "game" },
+
+        // After GAMES, and that ordering is asserted: zxart's "Educational"
+        // root is an application, and ZXDB's "Educational Game" is a game. The
+        // greedy "game" row above has to see the phrase first, which is the
+        // opposite of the specific-first reading the rest of this table uses.
+        { APPLICATIONS, "system software", "educational" },
+
+        // Last, and for the same reason "educational" is late: these two words
+        // are whole kinds from zxart's own zxMusic and zxPicture entities -
+        // "Music", "Graphics", nothing else in them - so nothing above can
+        // catch either, while ZXDB's compound genres put them inside a phrase
+        // whose FIRST word is the real kind. "Utility: Music" is a tracker,
+        // a program, and it landed in Music beside zxart's .pt3 tunes while
+        // these rows sat above APPLICATIONS. See KindsTest.
+        { MUSIC, "music" },
+        { GRAPHICS, "graphics" },
     };
 
     private Kinds() {
@@ -132,5 +183,18 @@ public final class Kinds {
         }
 
         return OTHER;
+    }
+
+    /** zxart's own word for one of its nine roots, or null for anything else -
+     *  a leaf, or a root added upstream. Null is what makes the caller file it
+     *  under {@link #OTHER} rather than somewhere plausible. */
+    public static String zxartRoot(int id) {
+        String wanted = Integer.toString(id);
+
+        for (String[] root : ZXART_ROOTS) {
+            if (root[0].equals(wanted)) return root[1];
+        }
+
+        return null;
     }
 }

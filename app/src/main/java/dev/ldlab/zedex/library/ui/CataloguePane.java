@@ -32,6 +32,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -147,7 +148,9 @@ public final class CataloguePane extends FrameLayout {
      */
     public static final int REQUEST_WRITABLE_TREE = 0x7a11;
 
-    private final Catalogue catalogue;
+    /** Which archive {@link #showing}'s id belongs to. Not {@code final}: see
+     *  {@link #setCatalogue}. */
+    private Catalogue catalogue;
     private final Http http;
     private final Host host;
 
@@ -187,6 +190,20 @@ public final class CataloguePane extends FrameLayout {
      * wants another way on.
      */
     private final Button similarButton;
+
+    /**
+     * A link to a video about this title - zxart's own {@code youtubeId} -
+     * shown only when {@link Catalogue.Item#videoLink()} answers one.
+     *
+     * <b>Decided the moment a row is tapped, in {@link #show}, not waited for
+     * in {@link #itemArrived}.</b> Unlike {@link #versionsButton} and {@link
+     * #recordingButton}, which need the files a fetched {@link
+     * Catalogue.Item} carries, a list row and a fetched one answer the
+     * identical {@code youtubeId} - measured, see {@code ZxartCatalogue
+     * .itemFrom} - so there is nothing here worth waiting for the second
+     * request to learn.
+     */
+    private final ImageButton videoButton;
 
     /** Beside {@link #status} when the folder needs re-granting, and only
      *  then - see {@link #askForWriteAccess}. */
@@ -381,8 +398,48 @@ public final class CataloguePane extends FrameLayout {
         similarButton.setOnClickListener(v -> openSimilar());
         words.addView(similarButton, wrap());
 
+        // An icon rather than a fifth text button: it sits beside the words
+        // this pane already draws rather than in their own line, the same
+        // shape GameInfoView's rowManual/rowMusic take beside its own words.
+        videoButton = new ImageButton(context);
+        videoButton.setImageResource(R.drawable.ic_video);
+        videoButton.setColorFilter(Palette.MUTED);
+        videoButton.setBackground(Ripple.make(getResources().getDisplayMetrics().density));
+        videoButton.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
+        videoButton.setContentDescription(context.getString(R.string.library_video));
+        videoButton.setVisibility(View.GONE);
+
+        LinearLayout.LayoutParams videoParams =
+                new LinearLayout.LayoutParams(pixels(48), pixels(48));
+        videoParams.topMargin = pixels(8);
+        words.addView(videoButton, videoParams);
+
         addView(column, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+    }
+
+    /**
+     * The archive this pane asks, from now on.
+     *
+     * <b>An id is certain only against the service that issued it, and
+     * meaningless to any other</b> - the same rule {@link #providerFor}'s own
+     * javadoc states for matching a scraper, and it applies here first: a
+     * pane built against one catalogue and left open across {@code
+     * CatalogueView.setCatalogue} would go on calling {@link
+     * Catalogue#item}, {@link Catalogue#similarTo} and {@link #providerFor}
+     * against the archive it was built with, on an id the *new* archive
+     * issued - zxart's ids are small integers and ZXInfo's are zero-padded
+     * ZXDB strings, so this is not a near miss, it is another entry or none,
+     * and a wrongly matched provider would describe an imported game with a
+     * different service's answer for the same number.
+     *
+     * <b>Called before {@code showRoots()} clears the list</b>, not after: the
+     * pane is closed by that path either way, but this ordering means there
+     * is no instant in which a visible pane is still holding a stale
+     * catalogue - see {@code CatalogueView.setCatalogue}.
+     */
+    public void setCatalogue(Catalogue chosen) {
+        catalogue = chosen;
     }
 
     // --- what the screen tells it -------------------------------------------------
@@ -434,6 +491,16 @@ public final class CataloguePane extends FrameLayout {
         // and Catalogue.similarTo makes no request - see similarButton.
         similar = catalogue.similarTo(item, likeLabel(item));
         similarButton.setVisibility(similar != null ? View.VISIBLE : View.GONE);
+
+        // Reset, then decided here too rather than waiting for itemArrived -
+        // see videoButton's own comment for why the list row already knows.
+        videoButton.setVisibility(View.GONE);
+        videoButton.setOnClickListener(null);
+        String video = item.videoLink();
+        if (video != null) {
+            videoButton.setVisibility(View.VISIBLE);
+            videoButton.setOnClickListener(v -> openLink(video));
+        }
 
         showCover(forThis, item.pictureUrl());
 
@@ -963,6 +1030,39 @@ public final class CataloguePane extends FrameLayout {
             // the same two ways open(Uri) below can fail, and the same
             // answer: say so rather than look broken.
             Log.w(TAG, "nothing can open " + document, e);
+            say(getContext().getString(R.string.open_failed));
+        }
+    }
+
+    /**
+     * Hands a video link to whatever the phone has for it - a browser, or
+     * the YouTube app itself.
+     *
+     * Not this pane's own import machinery at all: there is no file to bring
+     * in, only a page on the open web, for a title that may not even be in
+     * the library yet. And not {@code Artwork}'s {@code videos} media folder
+     * either - that holds an mp4 the gallery decodes and plays inline, once a
+     * game has actually been imported; conflating the two would have the
+     * gallery trying to play a URL.
+     *
+     * <b>{@code FLAG_ACTIVITY_NEW_TASK}, and no display asked for.</b> This
+     * pane's own host is an ordinary activity - {@code CatalogueView} inside
+     * {@code LibraryActivity} - so unlike {@code GameInfoView.openVideo},
+     * which is shown on a {@link android.app.Presentation} too, the flag is
+     * not what stands between this working and throwing today. It is here
+     * because the launch is identical in kind: a browser is another app's
+     * activity, it goes wherever the phone puts it, and this pane must never
+     * grow a display target for it - see that method for the panel rule this
+     * would break if it did.
+     */
+    private void openLink(String url) {
+        try {
+            getContext().startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        } catch (RuntimeException e) {
+            // Nothing on the phone answers for https, which is not a shape
+            // this app can be sure will never happen on somebody's device.
+            Log.w(TAG, "nothing can open " + url, e);
             say(getContext().getString(R.string.open_failed));
         }
     }

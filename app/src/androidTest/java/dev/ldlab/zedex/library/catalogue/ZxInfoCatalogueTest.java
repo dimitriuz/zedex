@@ -16,6 +16,8 @@ import org.junit.runner.RunWith;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -48,7 +50,18 @@ import java.util.List;
 @RunWith(AndroidJUnit4.class)
 public class ZxInfoCatalogueTest {
 
-    /** Answers whatever it was told to, and remembers what it was asked. */
+    /**
+     * Answers whatever it was told to, remembers what it was asked, and
+     * <b>throws once its queue is spent</b>.
+     *
+     * It used to answer {@code 200 \{\}} for ever instead, which is a lie a
+     * test can pass on: a shelf that asked for one page more than the test
+     * queued read an empty reply as an empty page and stopped, and an
+     * assertion about how many pages were fetched measured the fake's
+     * patience rather than the catalogue's behaviour. {@code Fixtures.Canned}
+     * on the unit tier is strict for the same reason; the two are separate
+     * classes only because the two source sets are.
+     */
     private static final class Canned implements Http {
         private final List<Reply> replies = new ArrayList<>();
         final List<String> asked = new ArrayList<>();
@@ -58,10 +71,13 @@ public class ZxInfoCatalogueTest {
             return this;
         }
 
+        /** @throws IllegalStateException once every queued reply is spent. */
         @Override
         public Reply get(String url) {
             asked.add(url);
-            if (replies.isEmpty()) return new Reply(200, "{}");
+            if (replies.isEmpty()) {
+                throw new IllegalStateException("Canned exhausted: unexpected request " + url);
+            }
             return replies.remove(0);
         }
 
@@ -1718,6 +1734,88 @@ public class ZxInfoCatalogueTest {
 
     // --- helpers ----------------------------------------------------------------------------
 
+    // --- which shelves can honour a sort ------------------------------------------------
+
+    /**
+     * {@code sort=score_desc} was measured against {@code /search}, so only the
+     * shelves that <em>are</em> a search declare it.
+     *
+     * <b>The bug this pins.</b> {@link ZxInfoCatalogue#sorts()} is a fact about
+     * the catalogue and the sort is only sent by {@code pathFor}'s two search
+     * branches - so Top rated on A-Z, Newest, Surprise me and Games like this
+     * refetched the shelf, relabelled the row and answered with byte-identical
+     * rows. Three of five shelves wore a control that could not do anything,
+     * which this codebase treats as the same class of defect as a chooser with
+     * no effect.
+     */
+    @Test
+    public void onlyAsearchDeclaresThatItCanBeSorted() {
+        ZxInfoCatalogue catalogue = new ZxInfoCatalogue(new Canned());
+        List<Catalogue.Sort> both =
+                Arrays.asList(Catalogue.Sort.DEFAULT, Catalogue.Sort.TOP);
+        List<Catalogue.Sort> just = Collections.singletonList(Catalogue.Sort.DEFAULT);
+
+        assertEquals("the search box is /search itself",
+                     both, catalogue.sortsFor(shelfNamed("search")));
+
+        for (String id : new String[] { "letter", "genres", "newest", "random" }) {
+            assertEquals(id + " does not send a sort and must not offer one",
+                         just, catalogue.sortsFor(shelfNamed(id)));
+        }
+
+        Catalogue.Shelf like = catalogue.similarTo(anItem("0002259"), "Games like this");
+        assertEquals("games/morelikethis takes no sort", just, catalogue.sortsFor(like));
+    }
+
+    /**
+     * ...and a genre sub-shelf does, because it goes through the same {@code
+     * /search} the measurement was taken against.
+     *
+     * Built by opening Categories rather than by hand, so this asserts about the
+     * shelf the service's own reply produced - the prefix is internal and a test
+     * that guessed at it would be pinning the guess.
+     */
+    @Test
+    public void agenreSubShelfCanBeSortedBecauseItIsAsearch() throws Exception {
+        Canned http = new Canned().then(200, METADATA_LIVE);
+        ZxInfoCatalogue catalogue = new ZxInfoCatalogue(http);
+
+        Catalogue.Shelf utility = catalogue.open(shelf(http, "genres"),
+                                                 Catalogue.Query.none(), 0).shelves().get(1);
+
+        assertEquals(Arrays.asList(Catalogue.Sort.DEFAULT, Catalogue.Sort.TOP),
+                     catalogue.sortsFor(utility));
+    }
+
+    /**
+     * And a shelf that declares no ordering is sent none, whatever the query
+     * says.
+     *
+     * The screen resets the sort on the way into such a shelf, so this pair
+     * should never reach the catalogue - which is why it is worth asserting:
+     * {@code sort=score_desc} on {@code games/byletter} or on top of {@code
+     * sort=date_desc} would be a second sort parameter on a path that already
+     * has its own answer, and this service ignores what it does not understand
+     * rather than refusing it.
+     */
+    @Test
+    public void ashelfThatCannotBeSortedIsSentNoSort() throws Exception {
+        for (String id : new String[] { "newest", "random" }) {
+            String url = urlOpening(shelfNamed(id),
+                                    Catalogue.Query.none().sortedBy(Catalogue.Sort.TOP));
+
+            assertFalse(id + " was sent a sort it does not honour: " + url,
+                        url.contains("score_desc"));
+        }
+
+        String letter = urlOpening(new ZxInfoCatalogue(new Canned())
+                .open(shelfNamed("letter"), Catalogue.Query.none(), 0).shelves().get(0),
+                Catalogue.Query.none().sortedBy(Catalogue.Sort.TOP));
+
+        assertFalse("a letter shelf was sent a sort: " + letter,
+                    letter.contains("score_desc"));
+    }
+
     /** Opens a shelf against a canned reply and hands back what it asked for. */
     private static String urlOpening(Catalogue.Shelf shelf, Catalogue.Query query)
             throws Exception {
@@ -1741,7 +1839,7 @@ public class ZxInfoCatalogueTest {
      *  here, since what a similar-games shelf is built from is the id. */
     private static Catalogue.Item anItem(String id) {
         return new Catalogue.Item(id, "Head over Heels", "1987", "Ocean Software Ltd",
-                                  "Arcade Game", "Available", null, null);
+                                  "Arcade Game", "Available", null, null, null);
     }
 
     private static Catalogue.Shelf shelfNamed(String id) {

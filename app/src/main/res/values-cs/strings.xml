@@ -591,6 +591,7 @@
     <string name="library_play">Hrát</string>
     <string name="library_info">Podrobnosti o hře</string>
     <string name="library_manual">Návod</string>
+    <string name="library_video">Video</string>
     <string name="instructions_title">Návod</string>
     <string name="instructions_unreadable">Tento soubor nelze přečíst.</string>
     <string name="music_title">Hudba…</string>
@@ -799,6 +800,11 @@
     <string name="catalogue_failed_network">Archiv se nepodařilo kontaktovat.</string>
     <string name="catalogue_failed_busy">Archiv teď požadavky odmítá.</string>
     <string name="catalogue_retry">Zkusit znovu</string>
+    <string name="library_sort_default">Výchozí</string>
+    <string name="library_sort_top">Nejlépe hodnocené</string>
+    <string name="library_sort_newest">Nejnovější</string>
+    <string name="library_sort_alphabetical">A–Z</string>
+    <string name="library_catalogue">Katalog</string>
     <string name="catalogue_import">Importovat</string>
     <string name="catalogue_versions">Další verze…</string>
     <string name="catalogue_recording">Přehrát záznam</string>

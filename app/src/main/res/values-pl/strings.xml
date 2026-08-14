@@ -591,6 +591,7 @@
     <string name="library_play">Graj</string>
     <string name="library_info">Szczegóły gry</string>
     <string name="library_manual">Instrukcja</string>
+    <string name="library_video">Wideo</string>
     <string name="instructions_title">Instrukcja</string>
     <string name="instructions_unreadable">Nie można odczytać tego pliku.</string>
     <string name="music_title">Muzyka…</string>
@@ -799,6 +800,11 @@
     <string name="catalogue_failed_network">Nie można połączyć się z archiwum.</string>
     <string name="catalogue_failed_busy">Archiwum odrzuca teraz żądania.</string>
     <string name="catalogue_retry">Spróbuj ponownie</string>
+    <string name="library_sort_default">Domyślne</string>
+    <string name="library_sort_top">Najlepiej oceniane</string>
+    <string name="library_sort_newest">Najnowsze</string>
+    <string name="library_sort_alphabetical">A–Z</string>
+    <string name="library_catalogue">Katalog</string>
     <string name="catalogue_import">Importuj</string>
     <string name="catalogue_versions">Inne wersje…</string>
     <string name="catalogue_recording">Odtwórz nagranie</string>

@@ -591,6 +591,7 @@
     <string name="library_play">Играть</string>
     <string name="library_info">Об игре</string>
     <string name="library_manual">Инструкция</string>
+    <string name="library_video">Видео</string>
     <string name="instructions_title">Инструкция</string>
     <string name="instructions_unreadable">Не удалось прочитать файл.</string>
     <string name="music_title">Музыка…</string>
@@ -799,6 +800,11 @@
     <string name="catalogue_failed_network">Не удалось связаться с архивом.</string>
     <string name="catalogue_failed_busy">Архив сейчас отклоняет запросы.</string>
     <string name="catalogue_retry">Повторить</string>
+    <string name="library_sort_default">По умолчанию</string>
+    <string name="library_sort_top">Лучшие по рейтингу</string>
+    <string name="library_sort_newest">Новейшие</string>
+    <string name="library_sort_alphabetical">A–Z</string>
+    <string name="library_catalogue">Каталог</string>
     <string name="catalogue_import">Импортировать</string>
     <string name="catalogue_versions">Другие версии…</string>
     <string name="catalogue_recording">Воспроизвести запись</string>

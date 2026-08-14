@@ -26,6 +26,7 @@ import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -143,6 +144,18 @@ public final class GameInfoView extends LinearLayout {
     private final ImageButton rowManual;
     private final ImageButton rowMusic;
 
+    /**
+     * A link to a video about this game - zxart's own {@code youtubeId}, as
+     * a watch url - shown beside the manual and the music, in every host: no
+     * quick bar anywhere already offers this, so there is no {@code
+     * offersManual}-style toggle to turn it off on the emulator's own panel.
+     * Revealed synchronously from {@link Meta#videoLink} in {@link #show},
+     * not asked for off the UI thread the way the manual and the music are:
+     * the value already sits in the {@link Meta} that {@link #showEntry}'s
+     * own store lookup fetches, so there is nothing further to wait for.
+     */
+    private final ImageButton rowVideo;
+
     private final TextView title;
     private final TextView filename;
     private final TextView facts;
@@ -196,6 +209,18 @@ public final class GameInfoView extends LinearLayout {
      * comes and the panel stays down. Announcing our own full-screen viewer
      * through here latched exactly that, and Back out of a picture looked like
      * it had closed the panel for good. See {@link #openViewer}.
+     *
+     * <b>Nothing in this view fires it today, and that is the correct state
+     * rather than an oversight.</b> A manual goes to {@code PdfActivity} or
+     * {@code InstructionsActivity} - both ours, both seen through the
+     * lifecycle callbacks - and this view asks {@code Manuals.open} for no
+     * callback at all; a video link is deliberately launched with no display
+     * target, because a browser is another app's activity and must never be
+     * put on the panel's display ({@link #openVideo} says why at length).
+     * The hook is kept as the seam for anything genuinely foreign a future
+     * screen puts on this display, and it is left <em>unfired</em> on
+     * purpose: telling a panel about a screen that is not covering it is
+     * exactly how the latch came to stay set.
      *
      * Set only by {@code SecondScreen}. {@link dev.ldlab.zedex.screen.GameInfoActivity}
      * shows this view too, but it is an ordinary activity with no panel to
@@ -353,6 +378,7 @@ public final class GameInfoView extends LinearLayout {
 
         rowManual = icon(R.drawable.ic_manual, R.string.library_manual);
         rowMusic = icon(R.drawable.ic_music, R.string.music_title);
+        rowVideo = icon(R.drawable.ic_video, R.string.library_video);
 
         rebuildRow();
 
@@ -437,6 +463,7 @@ public final class GameInfoView extends LinearLayout {
         }
         actionRow.addView(rowManual, iconParams());
         actionRow.addView(rowMusic, iconParams());
+        actionRow.addView(rowVideo, iconParams());
         for (View action : trailingActions) actionRow.addView(action, iconParams());
     }
 
@@ -520,6 +547,14 @@ public final class GameInfoView extends LinearLayout {
         rowMusic.setOnClickListener(null);
         rowManual.setVisibility(View.GONE);
         rowManual.setOnClickListener(null);
+        // Reset here too, even though it is only ever set synchronously from
+        // show(Meta) below and never asynchronously the way the other two
+        // are: the store answer that show(Meta) waits for is itself
+        // asynchronous, so without this a game with no video would keep
+        // showing the last game's button, wired to the last game's link,
+        // until this game's own answer happened to arrive.
+        rowVideo.setVisibility(View.GONE);
+        rowVideo.setOnClickListener(null);
         // Synchronously, unlike the removeAllViews() in show(Meta): this view is
         // reused across selections and the metadata answer is asynchronous, so
         // leaving the last game's rows up until the store replies would show
@@ -707,6 +742,62 @@ public final class GameInfoView extends LinearLayout {
         getContext().startActivity(intent);
     }
 
+    /**
+     * Hands the video link to whatever the phone has for it - a browser, or
+     * the YouTube app itself - never to this view's own gallery, which plays
+     * a captured mp4 from the game's {@code videos} media folder rather than
+     * a page on the open web.
+     *
+     * <b>No display is asked for, and that is the difference between a link
+     * and a manual.</b> A manual may be sent to this view's own display
+     * because the thing that opens it is <em>ours</em> - {@code PdfActivity}
+     * or {@code InstructionsActivity}, which both panels see start and stop
+     * through the application's lifecycle callbacks, so the panel steps
+     * aside for them and comes back by itself. A browser is another app's
+     * activity, and CLAUDE.md's rule about that is flat: never put one on
+     * the panel's display. A {@link android.app.Presentation} draws above
+     * every activity window on its own display, so it would render invisibly
+     * underneath this panel; nothing anywhere reports a foreign activity
+     * closing, so the step-aside latch would have to be guessed back off;
+     * and on a handheld that gives each display its own focus the signal it
+     * would be guessed from ({@code onTopResumedActivityChanged}) never
+     * fires at all, because the host never stops being top-resumed on the
+     * screen it is already on. That latch left set hides <em>every</em>
+     * panel built afterwards.
+     *
+     * So this launches with {@code FLAG_ACTIVITY_NEW_TASK} and no display
+     * target, exactly the way {@code Manuals.open}'s own hand-over fallback
+     * ends up doing it: the link opens where the phone's own launcher and
+     * everything else lives, and {@link #onForeignScreen} is never told,
+     * because nothing foreign was put on this display to tell it about.
+     *
+     * <b>{@code FLAG_ACTIVITY_NEW_TASK} is not optional here.</b> On the
+     * panel this view's context is a {@link android.app.Presentation}'s - a
+     * theme wrapper over a display context, not an activity - and {@code
+     * startActivity} on one of those without the flag throws {@code
+     * AndroidRuntimeException}. Without it the icon was dead on the second
+     * screen: the targeted launch threw, the catch logged, the bare fallback
+     * threw the same way and the only thing a person saw was {@code
+     * open_failed}. {@link #openViewer} and {@link #openMusic} both carry
+     * the flag for the same reason.
+     *
+     * Package-private rather than private so {@code GameInfoVideoTest} can
+     * call it with a recording context and assert what actually goes out -
+     * which of the two {@code startActivity} overloads, and with which
+     * flags. Nothing else calls it.
+     */
+    void openVideo(String url) {
+        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+        try {
+            getContext().startActivity(intent);
+        } catch (RuntimeException e) {
+            Log.w(TAG, "nothing can open " + url, e);
+            Toast.makeText(getContext(), R.string.open_failed, Toast.LENGTH_LONG).show();
+        }
+    }
+
     private void openMusic(String relativePath) {
         Intent intent = new Intent(getContext(), EmulatorActivity.class)
                 .putExtra(EmulatorActivity.EXTRA_MUSIC, relativePath)
@@ -729,6 +820,8 @@ public final class GameInfoView extends LinearLayout {
         rowManual.setOnClickListener(null);
         rowMusic.setVisibility(View.GONE);
         rowMusic.setOnClickListener(null);
+        rowVideo.setVisibility(View.GONE);
+        rowVideo.setOnClickListener(null);
         // See the matching reset in showEntry(): this view is reused across
         // selections, so nothing selected must mean nothing shown, not the
         // last game's rows left standing under an empty title.
@@ -792,6 +885,11 @@ public final class GameInfoView extends LinearLayout {
         if (meta.desc != null && !meta.desc.isEmpty()) {
             description.setText(meta.desc.trim());
             description.setVisibility(View.VISIBLE);
+        }
+
+        if (meta.videoLink != null) {
+            rowVideo.setVisibility(View.VISIBLE);
+            rowVideo.setOnClickListener(v -> openVideo(meta.videoLink));
         }
 
         extras.removeAllViews();

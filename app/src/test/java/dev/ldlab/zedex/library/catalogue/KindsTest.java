@@ -2,6 +2,7 @@ package dev.ldlab.zedex.library.catalogue;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
@@ -136,13 +137,20 @@ public class KindsTest {
     }
 
     /**
-     * And nothing lands anywhere but the seven.
+     * And nothing lands anywhere but the nine.
      *
      * The direction that catches a typo in the table itself, which would
      * otherwise create a folder named after a mistake and put games in it.
+     *
+     * Was "the seven" until {@link Kinds#MUSIC} and {@link Kinds#GRAPHICS}
+     * joined {@link Kinds#ALL} for zxart's two non-program entities - the
+     * count is a fact about {@code ALL}'s size, not a fixed target, so it
+     * moves with it. The loop over {@link Kinds#ZXDB_VOCABULARY} is untouched:
+     * that half is what would catch a typo in the table, and adding two
+     * folders neither of ZXDB's words reaches must not weaken it.
      */
     @Test
-    public void nothingLandsOutsideTheSeven() {
+    public void nothingLandsOutsideTheNine() {
         Set<String> allowed = new HashSet<>(Arrays.asList(Kinds.ALL));
 
         for (String genre : Kinds.ZXDB_VOCABULARY) {
@@ -150,7 +158,7 @@ public class KindsTest {
                        allowed.contains(Kinds.folderFor(genre)));
         }
 
-        assertEquals("seven folders, no more", 7, allowed.size());
+        assertEquals("nine folders, no more", 9, allowed.size());
     }
 
     // --- the order is a rule ----------------------------------------------------------
@@ -175,5 +183,116 @@ public class KindsTest {
     public void thecaseIsNotTheCatalogueSproblem() {
         assertEquals(Kinds.GAMES, Kinds.folderFor("arcade game"));
         assertEquals(Kinds.DEMOSCENE, Kinds.folderFor("DEMOSCENE"));
+    }
+
+    // --- zxart's own nine ---------------------------------------------------------------
+
+    /**
+     * The nine root ids, recorded from the live tree on 2026-08-14.
+     *
+     * Ids rather than words because this is what a prod can be traced to in
+     * any language, and a recorded table rather than a lookup because these
+     * are what the tree is <em>expected</em> to contain: a tenth root, or one
+     * renumbered, should fail here rather than quietly file a fifth of the
+     * catalogue under Other.
+     */
+    @Test
+    public void zxartsRootsAreTheNineRecorded() {
+        assertEquals("Games", Kinds.zxartRoot(92177));
+        assertEquals("System Software", Kinds.zxartRoot(92183));
+        assertEquals("Misc", Kinds.zxartRoot(92188));
+        assertEquals("Educational", Kinds.zxartRoot(92534));
+        assertEquals("Compilation", Kinds.zxartRoot(202588));
+        assertEquals("Demoscene", Kinds.zxartRoot(204819));
+        assertEquals("Press", Kinds.zxartRoot(244858));
+        assertEquals("Applications", Kinds.zxartRoot(244880));
+        assertEquals("Series", Kinds.zxartRoot(551860));
+
+        assertEquals(9, Kinds.ZXART_ROOTS.length);
+    }
+
+    /** An id that is not a root - a leaf, or something new upstream - is not
+     *  answered with a plausible guess. */
+    @Test
+    public void anythingElseIsNotARoot() {
+        assertNull(Kinds.zxartRoot(523395));
+        assertNull(Kinds.zxartRoot(0));
+    }
+
+    /**
+     * Every one of zxart's nine words reaches a folder, and the three new ones
+     * reach the right one.
+     *
+     * This is the both-directions rule applied to a second vocabulary: the
+     * words come from the service and the folders are ours, and a word that
+     * fell through to Other silently would be a fifth of an archive landing in
+     * the wrong place.
+     */
+    @Test
+    public void everyZxartRootLandsSomewhereDeliberate() {
+        assertEquals(Kinds.GAMES, Kinds.folderFor("Games"));
+        assertEquals(Kinds.APPLICATIONS, Kinds.folderFor("System Software"));
+        assertEquals(Kinds.APPLICATIONS, Kinds.folderFor("Applications"));
+        assertEquals(Kinds.APPLICATIONS, Kinds.folderFor("Educational"));
+        assertEquals(Kinds.COMPILATIONS, Kinds.folderFor("Compilation"));
+        assertEquals(Kinds.MAGAZINES, Kinds.folderFor("Press"));
+        assertEquals(Kinds.DEMOSCENE, Kinds.folderFor("Demoscene"));
+        assertEquals(Kinds.OTHER, Kinds.folderFor("Misc"));
+        assertEquals(Kinds.OTHER, Kinds.folderFor("Series"));
+    }
+
+    /** The two entities that are not programs at all. */
+    @Test
+    public void musicAndGraphicsHaveFoldersOfTheirOwn() {
+        assertEquals(Kinds.MUSIC, Kinds.folderFor("Music"));
+        assertEquals(Kinds.GRAPHICS, Kinds.folderFor("Graphics"));
+    }
+
+    /**
+     * <b>"Utility: Music" is a program, so it goes to Applications</b> - and
+     * that is a decision, taken deliberately rather than inherited from where
+     * the rows happened to sit.
+     *
+     * {@code folderFor}'s own javadoc says ZXDB's genre field sometimes arrives
+     * as the full compound form - "Arcade Game: Adventure" - and in that form
+     * the <em>first</em> word is the kind and the rest is the narrowing.
+     * "Utility: Music" is a tracker or a player: a .tap the Spectrum runs, not
+     * a tune. Filing it in {@code Downloaded/Music} beside zxart's .pt3 and
+     * .ogg files puts a program in the folder somebody opens with a music
+     * player, and the row would be the only thing there that is not a
+     * recording.
+     *
+     * It answered {@code Music} until the {@code MUSIC}/{@code GRAPHICS} rows
+     * moved to the bottom of the table, which is the whole change: those two
+     * words are whole kinds from zxart's own {@code zxMusic} and {@code
+     * zxPicture} entities and nothing above them can match either, so nothing
+     * is lost by them going last - asserted just above and again for
+     * "Utility: Graphics", a picture editor, which is an application on the
+     * same reading.
+     */
+    @Test
+    public void acompoundUtilityGenreIsAnApplicationAndNotItsSubject() {
+        assertEquals(Kinds.APPLICATIONS, Kinds.folderFor("Utility: Music"));
+        assertEquals(Kinds.APPLICATIONS, Kinds.folderFor("Utility: Graphics"));
+
+        // And the entities' own bare words are untouched by that ordering.
+        assertEquals(Kinds.MUSIC, Kinds.folderFor("Music"));
+        assertEquals(Kinds.GRAPHICS, Kinds.folderFor("Graphics"));
+    }
+
+    /**
+     * The new words do not steal ZXDB's.
+     *
+     * "Educational" reaches Applications and must not drag "Educational Game"
+     * with it - zxart has such a category and ZXDB has the phrase - and
+     * "Press" must not catch anything else. Asserted because folderFor
+     * matches by contains and order, so a new row is a new chance to shadow
+     * an old one.
+     */
+    @Test
+    public void theNewWordsDoNotShadowTheOldOnes() {
+        assertEquals(Kinds.GAMES, Kinds.folderFor("Educational Game"));
+        assertEquals(Kinds.MAGAZINES, Kinds.folderFor("Electronic Magazine"));
+        assertEquals(Kinds.APPLICATIONS, Kinds.folderFor("Utility"));
     }
 }

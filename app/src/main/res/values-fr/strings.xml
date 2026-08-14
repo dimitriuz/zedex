@@ -589,6 +589,7 @@
     <string name="library_play">Jouer</string>
     <string name="library_info">Détails du jeu</string>
     <string name="library_manual">Manuel</string>
+    <string name="library_video">Vidéo</string>
     <string name="instructions_title">Instructions</string>
     <string name="instructions_unreadable">Ce fichier ne peut pas être lu.</string>
     <string name="music_title">Musique…</string>
@@ -782,6 +783,11 @@
     <string name="catalogue_failed_network">Impossible de joindre l\'archive.</string>
     <string name="catalogue_failed_busy">L\'archive refuse les requêtes pour le moment.</string>
     <string name="catalogue_retry">Réessayer</string>
+    <string name="library_sort_default">Par défaut</string>
+    <string name="library_sort_top">Les mieux notés</string>
+    <string name="library_sort_newest">Les plus récents</string>
+    <string name="library_sort_alphabetical">A–Z</string>
+    <string name="library_catalogue">Catalogue</string>
     <string name="catalogue_import">Importer</string>
     <string name="catalogue_versions">Autres versions…</string>
     <string name="catalogue_recording">Lire l\'enregistrement</string>
