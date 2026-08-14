@@ -158,7 +158,17 @@ answered `total 119` and the same top hit (`0045541 Head On`, score
 records in positions two and three — `Beach-Head`/`Big Head` with no `sort`,
 `Head Control`/`Hammer-Head` with `sort=score_desc`. Same query, same index,
 same primary score, different tie order: the parameter is honoured, not
-ignored. ZXInfo therefore declares `TOP` as well as `DEFAULT` — `NEWEST`
+ignored.
+
+**And each of the two is reproducible, which is what closes the argument.**
+Two rows differing between two calls is also what a live index or a run-to-run
+tie-break would look like, and "single shard" does not rule either out — so
+both URLs were asked a second time, minutes later: byte-identical replies, 9,349
+bytes without `sort` and 5,665 with, the same records in the same positions each
+time. The unsorted call is stable, the sorted call is stable, and they differ
+from each other. Nothing varying underneath explains that; the parameter does.
+The differing payload *size* is a second witness: sorting changes what comes
+back, not merely the order it comes back in. ZXInfo therefore declares `TOP` as well as `DEFAULT` — `NEWEST`
 already exists as its own shelf via `sort=date_desc` rather than through this
 control, and `ALPHABETICAL` stays unmeasured (not attempted; not one of the
 four things this task was scoped to measure).
