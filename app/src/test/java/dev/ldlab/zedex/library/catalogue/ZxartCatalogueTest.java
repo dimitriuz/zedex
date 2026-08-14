@@ -22,8 +22,8 @@ import java.util.Locale;
  * gets dropped. Nothing here reaches the network - {@code Fixtures.Canned}
  * answers - and nothing here is Android.
  *
- * <b>Three corrections to the task brief's own test code, all made before this
- * ran once:</b>
+ * <b>Corrections to the task brief's own test code, made before this ran
+ * once:</b>
  * <ol>
  *   <li>{@code aSearchAsksForWhatWasTyped} and {@code theTreeIsAskedForOnce}
  *       use {@code catalogue.shelves().get(0)} for the search shelf rather
@@ -31,18 +31,32 @@ import java.util.Locale;
  *       {@code Accepts.NOTHING} - the brief says this in prose after the
  *       code and it is applied here.</li>
  *   <li>{@code categoriesYieldShelvesAndThenBoth} queues a second reply,
- *       {@code Fixtures.PROD_LICENCE_TO_KILL}, for opening the Games root.
- *       The brief's own listing queued only the tree - one reply for two
- *       real requests (the tree, then the Games category's own filtered
- *       search) - which cannot pass under any implementation that does not
- *       fabricate rows: {@code Fixtures.Canned} answers a spent queue with
- *       {@code {"responseStatus" absent}}, which {@code ZxartApi.ask} reads
- *       as MALFORMED, and even if it did not, the category tree's own body
- *       carries no {@code zxProd} rows to reuse. Licence to Kill is under
- *       Games (see {@code aRowsKindIsItsRootCategory}), so it is what a real
- *       {@code filter:zxProdCategory=92177} request would plausibly answer
- *       with among its 23,162.</li>
+ *       {@code Fixtures.PROD_SEARCH}, for opening the Games root. The
+ *       brief's own listing queued only the tree - one reply for two real
+ *       requests (the tree, then the Games category's own filtered search) -
+ *       which cannot pass under any implementation that does not fabricate
+ *       rows: {@code Fixtures.Canned} answers a spent queue with {@code
+ *       {"responseStatus" absent}}, which {@code ZxartApi.ask} reads as
+ *       MALFORMED, and even if it did not, the category tree's own body
+ *       carries no {@code zxProd} rows to reuse. Neither {@code PROD_SEARCH}
+ *       nor {@code PROD_LICENCE_TO_KILL} (used here in an earlier revision)
+ *       was captured from that exact {@code filter:zxProdCategory=92177}
+ *       request, but a six-row search reply is the better stand-in of the
+ *       two: the point of this test is that a root page carries child
+ *       shelves <em>and</em> items together, and a shelf that plausibly holds
+ *       several rows says that more plainly than one that happens to hold
+ *       exactly one.</li>
  * </ol>
+ *
+ * <b>Round-one review fixes, on top of the above:</b> {@code
+ * itemCostsThreeRequestsColdAndTwoWarm} replaces {@code oneItemIsTwoRequests}
+ * - the old name stopped being true the moment {@code item()} started
+ * ensuring the tree, and nothing in that test caught it; {@code
+ * openingSimilarToResolvesTheLeafOnce} is new, covering {@code open}'s side of
+ * resolving a leaf category on demand now that {@code similarTo} no longer
+ * remembers one; and {@code titlesAreUnescaped} no longer asserts on {@code
+ * onlyItem()}, whose title has nothing escaped in it to prove anything with -
+ * see that test's own javadoc for what it asserts on instead and why.
  */
 public class ZxartCatalogueTest {
 
@@ -114,7 +128,7 @@ public class ZxartCatalogueTest {
     @Test
     public void categoriesYieldShelvesAndThenBoth() throws Exception {
         Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.CATEGORY_TREE)
-                                                    .then(Fixtures.PROD_LICENCE_TO_KILL);
+                                                    .then(Fixtures.PROD_SEARCH);
         ZxartCatalogue zxart = catalogue(http);
 
         Catalogue.Page roots = zxart.open(shelf(ZxartCatalogue.SHELF_CATEGORIES),
@@ -185,10 +199,49 @@ public class ZxartCatalogueTest {
         assertFalse(page.items().get(0).available());
     }
 
-    /** Titles arrive escaped and must not reach a row that way. */
+    /**
+     * A hand-built reply, not one of {@code Fixtures}' captured ones.
+     *
+     * None of the six {@code zxProd}/{@code zxProdCategory}/{@code zxRelease}
+     * fixtures this task uses carries a genuinely escaped {@code title} to
+     * prove {@link ZxartCatalogue}'s own unescaping against - checked with a
+     * grep of the whole {@code Fixtures} file for {@code &amp;}, {@code
+     * &quot;}, {@code &lt;}, {@code &gt;} and {@code &#039;} before writing
+     * this. The one place {@code &#039;} does appear is {@code
+     * Fixtures.PROD_LICENCE_TO_KILL}'s own {@code categoriesString} - the
+     * field the task brief says to ignore entirely, since it is Russian and a
+     * kind is decided by id, never by word - and the category tree's own
+     * {@code title} fields are <em>already</em> plain ({@code CATEGORY_TREE}
+     * holds {@code "Shoot 'em up (Shmups)"} and {@code "Shoot 'em Up"} with a
+     * literal apostrophe each, not {@code &#039;}). The only fixture with a
+     * genuinely escaped {@code title} is {@code Fixtures.PICTURE_ROW} -
+     * {@code "Girl &amp; Sea"} - and that is a {@code zxPicture} row, the
+     * wrong shape for a {@code zxProd} reply and Task 11's fixture rather than
+     * this task's.
+     *
+     * So this reuses the one pairing {@code ZxartApiTest} already measures
+     * and pins for {@link dev.ldlab.zedex.library.scrape.ZxartApi#unescape}
+     * itself - {@code "doom&#039;er"} to {@code "doom'er"} - inside a reply
+     * shaped like a real one, to prove {@code itemFrom} actually calls it.
+     * It is not re-measuring the escape table, which is not this class's fact
+     * to hold; it is proving the wiring.
+     */
+    private static final String PROD_WITH_ESCAPED_TITLE =
+            "{\"totalAmount\":1,\"responseData\":{\"zxProd\":[{\"id\":1,\"title\":\"doom&#039;er\"}]},"
+            + "\"responseStatus\":\"success\"}";
+
+    /** Titles arrive escaped and must not reach a row that way - see {@link
+     *  #PROD_WITH_ESCAPED_TITLE} for why this cannot be shown with a captured
+     *  fixture and what it asserts on instead. */
     @Test
     public void titlesAreUnescaped() throws Exception {
-        assertFalse(onlyItem().title().contains("&"));
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.CATEGORY_TREE)
+                                                    .then(PROD_WITH_ESCAPED_TITLE);
+
+        Catalogue.Item item = catalogue(http).open(shelf(ZxartCatalogue.SHELF_EVERYTHING),
+                                                   Catalogue.Query.none(), 0).items().get(0);
+
+        assertEquals("doom'er", item.title());
     }
 
     /**
@@ -202,23 +255,43 @@ public class ZxartCatalogueTest {
         assertTrue(onlyItem().formats().isEmpty());
     }
 
-    /** item() is two requests - the prod, then every release of it in one
-     *  call - because types:zxProd,zxRelease answers HTTP 500. */
+    /**
+     * A cold instance's first {@code item()} is three requests - the tree,
+     * then the prod, then its releases - because the tree is what turns a
+     * leaf category into a folder and is fetched once per instance and held;
+     * every {@code item()} after that, on the same instance, is exactly two.
+     *
+     * Replaces {@code oneItemIsTwoRequests}, which asserted only the item's
+     * own fields and so kept passing - having stopped being true - the moment
+     * {@code item()} started ensuring the tree.
+     */
     @Test
-    public void oneItemIsTwoRequests() throws Exception {
+    public void itemCostsThreeRequestsColdAndTwoWarm() throws Exception {
         Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.CATEGORY_TREE)
                                                     .then(Fixtures.PROD_LICENCE_TO_KILL)
+                                                    .then(Fixtures.RELEASES_LICENCE_TO_KILL)
+                                                    .then(Fixtures.PROD_LICENCE_TO_KILL)
                                                     .then(Fixtures.RELEASES_LICENCE_TO_KILL);
+        ZxartCatalogue zxart = catalogue(http);
 
-        Catalogue.Item item = catalogue(http).item("92668");
+        Catalogue.Item first = zxart.item("92668");
 
-        assertNotNull(item);
-        assertFalse(item.versions().isEmpty());
+        assertNotNull(first);
+        assertFalse(first.versions().isEmpty());
+        assertEquals("cold: tree, prod, releases", 3, http.asked.size());
+        assertTrue("the tree is the first request on a cold instance",
+                   http.asked.get(0).contains("export:zxProdCategory"));
 
-        Catalogue.Download file = item.versions().get(0).files().get(0);
+        Catalogue.Download file = first.versions().get(0).files().get(0);
         assertEquals("tzx", file.format());
         assertTrue(file.url().startsWith("https://zxart.ee/releasefile/"));
         assertEquals(41330, file.size());
+
+        Catalogue.Item second = zxart.item("92668");
+
+        assertNotNull(second);
+        assertEquals("warm: the tree is held, so this costs two more, not three",
+                     5, http.asked.size());
     }
 
     /** A version's label tells two releases apart by what they need, which is
@@ -233,8 +306,14 @@ public class ZxartCatalogueTest {
                    .toLowerCase(Locale.ROOT).contains("zx128"));
     }
 
-    /** similarTo is a way in and costs nothing until opened - the pane calls
-     *  it while laying out, on the UI thread. */
+    /**
+     * similarTo is a way in and costs nothing until opened - the pane calls
+     * it while laying out, on the UI thread.
+     *
+     * The shelf's id carries the prod's own id, not a leaf category: {@code
+     * open} is what resolves one, and only once this shelf is actually
+     * opened - see {@code openingSimilarToResolvesTheLeafOnce}.
+     */
     @Test
     public void similarToMakesNoRequest() throws Exception {
         Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.CATEGORY_TREE)
@@ -248,7 +327,41 @@ public class ZxartCatalogueTest {
 
         assertNotNull(like);
         assertEquals("Games like this one", like.label());
+        assertEquals(ZxartCatalogue.MORE_PREFIX + item.id(), like.id());
         assertEquals(before, http.asked.size());
+    }
+
+    /**
+     * Opening the shelf {@code similarTo} returns resolves the leaf category
+     * it names - one request to find the prod's own leaf, then the same
+     * filtered search a category shelf makes with it.
+     *
+     * Licence to Kill's first leaf is 523395 ("Run 'n' Gun", under Games) -
+     * see {@code aRowsKindIsItsRootCategory} and the task brief's controller
+     * notes for that fact. {@code Fixtures.PROD_SEARCH} stands in for the
+     * "similar" page's own reply, exactly as it does for {@code
+     * categoriesYieldShelvesAndThenBoth} - nothing was captured from this
+     * exact request either.
+     */
+    @Test
+    public void openingSimilarToResolvesTheLeafOnce() throws Exception {
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.CATEGORY_TREE)
+                                                    .then(Fixtures.PROD_LICENCE_TO_KILL)
+                                                    .then(Fixtures.PROD_LICENCE_TO_KILL)
+                                                    .then(Fixtures.PROD_SEARCH);
+        ZxartCatalogue zxart = catalogue(http);
+        Catalogue.Item item = zxart.open(shelf(ZxartCatalogue.SHELF_EVERYTHING),
+                                         Catalogue.Query.none(), 0).items().get(0);
+        Catalogue.Shelf like = zxart.similarTo(item, "Games like this one");
+
+        Catalogue.Page page = zxart.open(like, Catalogue.Query.none(), 0);
+
+        assertEquals(4, http.asked.size());
+        assertTrue("resolving the leaf is a plain lookup of the prod's own id",
+                   http.asked.get(2).contains("filter:zxProdId=" + item.id()));
+        assertTrue("and then the leaf filters the actual page, same as a category shelf",
+                   http.asked.get(3).contains("filter:zxProdCategory=523395"));
+        assertFalse(page.items().isEmpty());
     }
 
     /** The total is the service's own and is real, so a shelf can print it -

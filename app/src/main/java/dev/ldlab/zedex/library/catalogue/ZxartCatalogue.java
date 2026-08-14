@@ -10,10 +10,8 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 
 /**
  * zxart.ee, the demoscene and games archive, as something to browse.
@@ -67,18 +65,25 @@ import java.util.Map;
  * and {@link Page#items()} at once - the mechanism {@link Page}'s own javadoc
  * always described sub-shelves as being for.
  *
- * <h3>{@code item()}: two requests, because the documented one-request shape
- * is broken</h3>
+ * <h3>{@code item()}: two requests once the tree is held, three on a cold
+ * instance</h3>
  *
  * {@code types:zxProd,zxRelease} - the shape zxart's own documentation
  * describes for fetching a prod and its releases together - answers HTTP 500.
- * So {@link #item} asks twice: {@code export:zxProd} filtered by {@link
- * ZxartApi#FILTER_PROD_ID} for the row, then {@code export:zxRelease} filtered
- * the same way for every release of it. The caller still asks once; how many
- * requests that costs is this catalogue's own business, exactly as {@link
- * Catalogue#item}'s own javadoc allows.
+ * So {@link #item} asks twice on top of whatever {@link #tree()} costs: {@code
+ * export:zxProd} filtered by {@link ZxartApi#FILTER_PROD_ID} for the row, then
+ * {@code export:zxRelease} filtered the same way for every release of it.
+ * {@link #tree()} is what turns a leaf category into the folder word {@link
+ * Item#kind()} carries, and it is fetched once per instance and held - so the
+ * very first {@link #item} (or {@link #open}) call of a session is three
+ * requests, tree then prod then releases, and every {@link #item} call after
+ * it on the same instance is exactly two. {@code
+ * ZxartCatalogueTest.itemCostsThreeRequestsColdAndTwoWarm} pins both counts.
+ * The caller still asks once either way; how many requests that costs is this
+ * catalogue's own business, exactly as {@link Catalogue#item}'s own javadoc
+ * allows.
  *
- * <h3>A row's kind, and the id {@link #similarTo} needs to reuse it</h3>
+ * <h3>A row's kind, and how {@link #similarTo} finds "similar" without one</h3>
  *
  * A prod names its categories by leaf id ({@code connectedCategoriesIds}) and
  * never by word - zxart answers in whichever of three languages this app
@@ -89,15 +94,29 @@ import java.util.Map;
  * becomes {@link Item#kind()} untouched.
  *
  * {@link Catalogue.Item} carries no field for the leaf id that produced that
- * word - it is not this catalogue's to add, and every other catalogue's items
- * get by without one - so {@link #similarTo} cannot recover it from the item
- * alone. This class remembers it itself: {@link #leafFor} maps an item's own
- * id to the leaf id {@link #leafOf} found for it, filled in as every row is
- * built and read back only by {@link #similarTo}. The alternative - reversing
- * {@link Item#kind()} back through {@link Kinds#ZXART_ROOTS} to the
- * <em>root's</em> id - would ask the whole of Games rather than the leaf a
- * game actually named, which is a coarser "similar" than what the tree
- * actually knows.
+ * word, so {@link #similarTo} cannot build a filter from it - and {@link
+ * #similarTo} must not make a request either, since the pane calls it on the
+ * UI thread while laying out. So the shelf it returns carries the prod's own
+ * id behind {@link #MORE_PREFIX}, and {@link #open} resolves the leaf - one
+ * more request, {@link #leafOfProd} - only once that shelf is actually
+ * opened, exactly where {@link #categories()}, {@link #childrenOf} and {@link
+ * #tree()} already defer their own cost to.
+ *
+ * <b>This used to be a {@code Map<String, String>} from an item's id to the
+ * leaf {@link #leafOf} found for it, filled in as every row was built.</b> It
+ * was the wrong shape, for a reason this codebase has hit more than once (see
+ * {@code StepAside}'s remove-on-destroy set and the {@code RecyclerView} that
+ * measured zero and ate 1.9 GB, both in this project's own working notes): a
+ * catalogue instance lives as long as the library tab, nothing ever cleared
+ * the map, and every row of every shelf ever browsed added an entry that
+ * outlived the pane that built it. It was also a silently wrong answer rather
+ * than an honest one - an item this instance had not happened to build a row
+ * for (a different session, a stale reference) made {@link #similarTo} answer
+ * null, indistinguishable from "this game genuinely names no category", when
+ * the true answer was "not asked yet". Resolving on open costs one request
+ * only when the shelf somebody was actually offered is actually opened, which
+ * for a shelf never opened is nothing at all - strictly less than an
+ * unbounded map paid for every row regardless.
  */
 public final class ZxartCatalogue implements Catalogue {
 
@@ -112,8 +131,10 @@ public final class ZxartCatalogue implements Catalogue {
      *  LETTER_PREFIX} use. */
     static final String CATEGORY_PREFIX = "category:";
 
-    /** And again for {@link #similarTo}, whose id carries the leaf category
-     *  {@link #leafFor} remembered for the item it was asked about. */
+    /** And again for {@link #similarTo}, whose id carries the <b>prod's own
+     *  id</b> - {@link #open} resolves the leaf category only once this shelf
+     *  is opened, via {@link #leafOfProd}, rather than up front. See the class
+     *  javadoc's "similarTo" section for why. */
     static final String MORE_PREFIX = "more:";
 
     /** What a page of the grid asks for. Thirty, like ZXInfo's, because a
@@ -145,12 +166,6 @@ public final class ZxartCatalogue implements Catalogue {
      *  row's kind. See the class javadoc's <em>category tree</em> section for
      *  what happens when it cannot be fetched at all. */
     private ZxartTree tree;
-
-    /** An item's id to the leaf category {@link #leafOf} found for it, so
-     *  {@link #similarTo} can ask for that leaf again without either the
-     *  network or a wider field on {@link Item} than every other catalogue's
-     *  items carry. See the class javadoc. */
-    private final Map<String, String> leafFor = new HashMap<>();
 
     public ZxartCatalogue(Http http, Locale locale) {
         this.api = new ZxartApi(http);
@@ -196,7 +211,16 @@ public final class ZxartCatalogue implements Catalogue {
         } else if (shelf.id().startsWith(CATEGORY_PREFIX)) {
             ask.filter(ZxartApi.FILTER_CATEGORY, idIn(shelf.id(), CATEGORY_PREFIX));
         } else if (shelf.id().startsWith(MORE_PREFIX)) {
-            ask.filter(ZxartApi.FILTER_CATEGORY, idIn(shelf.id(), MORE_PREFIX));
+            // similarTo hands over the prod's own id, not a leaf - resolved
+            // here, the one place a request is allowed, rather than paid for
+            // every row a shelf happens to show. No leaf, no request worth
+            // making: an unfiltered "similar" would be everything, which is a
+            // worse answer than an empty shelf to a question that could not
+            // be resolved.
+            String leaf = leafOfProd(idIn(shelf.id(), MORE_PREFIX));
+            if (leaf == null) return new Page(null, null, page * PAGE_SIZE, Page.UNKNOWN_TOTAL);
+
+            ask.filter(ZxartApi.FILTER_CATEGORY, leaf);
         }
         // SHELF_EVERYTHING carries no filter at all - every prod, unfiltered.
 
@@ -242,21 +266,24 @@ public final class ZxartCatalogue implements Catalogue {
     }
 
     /**
-     * A way in to "games like this one", built round the leaf category {@link
-     * #leafFor} remembered when the item was built.
+     * A way in to "games like this one", carrying the prod's own id.
      *
-     * <b>Makes no request</b>, and null for an item this catalogue never
-     * built a row for - a stale item, or one that named no category this
-     * app's tree could resolve - rather than guessing at a wider "similar"
-     * than the tree actually supports. See the class javadoc for why this
-     * reads {@link #leafFor} rather than reversing {@link Item#kind()}.
+     * <b>Makes no request</b> - the pane calls this on the UI thread while
+     * laying out - so the leaf category that decides what "similar" means is
+     * resolved later, inside {@link #open}, only if this shelf is actually
+     * opened. See the class javadoc's "similarTo" section for why this is a
+     * pure construction rather than a lookup into anything remembered from
+     * when the item was built.
+     *
+     * Null only for an item with no id, which is not a shape any row built by
+     * this class produces but is cheaper to refuse here than to build a shelf
+     * {@link #open} could do nothing with.
      */
     @Override
     public Shelf similarTo(Item item, String label) {
-        if (item == null) return null;
+        if (item == null || item.id() == null || item.id().isEmpty()) return null;
 
-        String leaf = leafFor.get(item.id());
-        return leaf == null ? null : new Shelf(MORE_PREFIX + leaf, label, Shelf.Accepts.NOTHING);
+        return new Shelf(MORE_PREFIX + item.id(), label, Shelf.Accepts.NOTHING);
     }
 
     @Override
@@ -354,8 +381,6 @@ public final class ZxartCatalogue implements Catalogue {
         int year = row.optInt("year", 0);
         int leaf = leafOf(row);
 
-        if (leaf >= 0) leafFor.put(id, Integer.toString(leaf));
-
         return new Item(id,
                         ZxartApi.unescape(row.optString("title", "")),
                         year > 0 ? Integer.toString(year) : null,
@@ -374,9 +399,9 @@ public final class ZxartCatalogue implements Catalogue {
      * (added upstream since the tree was fetched, or a tree that could not be
      * fetched at all) is skipped in favour of the next leaf rather than
      * silently filing the whole prod under {@code Other} when a later leaf
-     * would have resolved. Kept apart from {@link #kindOf} so {@link
-     * #itemFrom} can remember the id for {@link #similarTo} without asking
-     * {@link ZxartTree#rootOf} to walk the array twice.
+     * would have resolved. Kept apart from {@link #kindOf} so a caller that
+     * only wants the id - {@link #leafOfProd}, resolving {@link #similarTo}'s
+     * shelf - is not made to look up a word it will throw away.
      */
     private int leafOf(JSONObject row) {
         JSONArray leaves = row.optJSONArray("connectedCategoriesIds");
@@ -395,6 +420,31 @@ public final class ZxartCatalogue implements Catalogue {
      *  {@code Other} rather than this class guessing at one. */
     private String kindOf(int leaf) {
         return leaf < 0 ? null : Kinds.zxartRoot(tree().rootOf(leaf));
+    }
+
+    /**
+     * The leaf category a prod names, fetched fresh - the one request {@link
+     * #similarTo}'s shelf costs, and only when it is opened.
+     *
+     * A second, genuine {@code export:zxProd} lookup rather than anything
+     * remembered from when the item was first built: see the class javadoc's
+     * "similarTo" section for why a per-item map was the wrong place to keep
+     * this. Null for a prod that can no longer be found, or one that names no
+     * leaf this app's tree can resolve - either way {@link #open} answers an
+     * empty, uncountable page rather than falling back to every prod, which
+     * would make a "similar" shelf show whatever the archive has instead of
+     * nothing at all.
+     */
+    private String leafOfProd(String prodId) throws ScrapeException {
+        JSONObject reply = api.ask(new ZxartApi.Ask(ZxartApi.PROD)
+                .language(language)
+                .filter(ZxartApi.FILTER_PROD_ID, prodId));
+
+        List<JSONObject> rows = ZxartApi.rows(reply, ZxartApi.PROD);
+        if (rows.isEmpty()) return null;
+
+        int leaf = leafOf(rows.get(0));
+        return leaf < 0 ? null : Integer.toString(leaf);
     }
 
     /**
