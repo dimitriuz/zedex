@@ -210,6 +210,18 @@ public final class GameInfoView extends LinearLayout {
      * through here latched exactly that, and Back out of a picture looked like
      * it had closed the panel for good. See {@link #openViewer}.
      *
+     * <b>Nothing in this view fires it today, and that is the correct state
+     * rather than an oversight.</b> A manual goes to {@code PdfActivity} or
+     * {@code InstructionsActivity} - both ours, both seen through the
+     * lifecycle callbacks - and this view asks {@code Manuals.open} for no
+     * callback at all; a video link is deliberately launched with no display
+     * target, because a browser is another app's activity and must never be
+     * put on the panel's display ({@link #openVideo} says why at length).
+     * The hook is kept as the seam for anything genuinely foreign a future
+     * screen puts on this display, and it is left <em>unfired</em> on
+     * purpose: telling a panel about a screen that is not covering it is
+     * exactly how the latch came to stay set.
+     *
      * Set only by {@code SecondScreen}. {@link dev.ldlab.zedex.screen.GameInfoActivity}
      * shows this view too, but it is an ordinary activity with no panel to
      * step aside and nothing to tell - so it never calls the setter, and a
@@ -736,33 +748,47 @@ public final class GameInfoView extends LinearLayout {
      * a captured mp4 from the game's {@code videos} media folder rather than
      * a page on the open web.
      *
-     * The same display targeting {@link #openViewer} and {@code
-     * Manuals.open} use, and for the same reason: an activity launches on
-     * its caller's display by default, which on the second screen's own
-     * panel is not where a person is looking. Unlike {@link #openViewer}'s
-     * own {@code MediaViewerActivity}, this is a foreign activity - nothing
-     * reports one of those closing - so {@link #onForeignScreen} is told,
-     * and only on the path that actually put something on the panel's own
-     * display, exactly as {@code Manuals.open}'s own callback is.
+     * <b>No display is asked for, and that is the difference between a link
+     * and a manual.</b> A manual may be sent to this view's own display
+     * because the thing that opens it is <em>ours</em> - {@code PdfActivity}
+     * or {@code InstructionsActivity}, which both panels see start and stop
+     * through the application's lifecycle callbacks, so the panel steps
+     * aside for them and comes back by itself. A browser is another app's
+     * activity, and CLAUDE.md's rule about that is flat: never put one on
+     * the panel's display. A {@link android.app.Presentation} draws above
+     * every activity window on its own display, so it would render invisibly
+     * underneath this panel; nothing anywhere reports a foreign activity
+     * closing, so the step-aside latch would have to be guessed back off;
+     * and on a handheld that gives each display its own focus the signal it
+     * would be guessed from ({@code onTopResumedActivityChanged}) never
+     * fires at all, because the host never stops being top-resumed on the
+     * screen it is already on. That latch left set hides <em>every</em>
+     * panel built afterwards.
+     *
+     * So this launches with {@code FLAG_ACTIVITY_NEW_TASK} and no display
+     * target, exactly the way {@code Manuals.open}'s own hand-over fallback
+     * ends up doing it: the link opens where the phone's own launcher and
+     * everything else lives, and {@link #onForeignScreen} is never told,
+     * because nothing foreign was put on this display to tell it about.
+     *
+     * <b>{@code FLAG_ACTIVITY_NEW_TASK} is not optional here.</b> On the
+     * panel this view's context is a {@link android.app.Presentation}'s - a
+     * theme wrapper over a display context, not an activity - and {@code
+     * startActivity} on one of those without the flag throws {@code
+     * AndroidRuntimeException}. Without it the icon was dead on the second
+     * screen: the targeted launch threw, the catch logged, the bare fallback
+     * threw the same way and the only thing a person saw was {@code
+     * open_failed}. {@link #openViewer} and {@link #openMusic} both carry
+     * the flag for the same reason.
+     *
+     * Package-private rather than private so {@code GameInfoVideoTest} can
+     * call it with a recording context and assert what actually goes out -
+     * which of the two {@code startActivity} overloads, and with which
+     * flags. Nothing else calls it.
      */
-    private void openVideo(String url) {
-        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-        Display display = getDisplay();
-
-        if (display != null) {
-            try {
-                ActivityOptions options = ActivityOptions.makeBasic();
-                options.setLaunchDisplayId(display.getDisplayId());
-
-                getContext().startActivity(intent, options.toBundle());
-
-                if (onForeignScreen != null) onForeignScreen.run();
-                return;
-            } catch (RuntimeException e) {
-                Log.w(TAG, "cannot open " + url + " on display "
-                           + display.getDisplayId(), e);
-            }
-        }
+    void openVideo(String url) {
+        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 
         try {
             getContext().startActivity(intent);

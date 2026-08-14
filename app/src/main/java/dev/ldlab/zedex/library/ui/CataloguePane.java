@@ -1044,10 +1044,21 @@ public final class CataloguePane extends FrameLayout {
      * either - that holds an mp4 the gallery decodes and plays inline, once a
      * game has actually been imported; conflating the two would have the
      * gallery trying to play a URL.
+     *
+     * <b>{@code FLAG_ACTIVITY_NEW_TASK}, and no display asked for.</b> This
+     * pane's own host is an ordinary activity - {@code CatalogueView} inside
+     * {@code LibraryActivity} - so unlike {@code GameInfoView.openVideo},
+     * which is shown on a {@link android.app.Presentation} too, the flag is
+     * not what stands between this working and throwing today. It is here
+     * because the launch is identical in kind: a browser is another app's
+     * activity, it goes wherever the phone puts it, and this pane must never
+     * grow a display target for it - see that method for the panel rule this
+     * would break if it did.
      */
     private void openLink(String url) {
         try {
-            getContext().startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+            getContext().startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         } catch (RuntimeException e) {
             // Nothing on the phone answers for https, which is not a shape
             // this app can be sure will never happen on somebody's device.

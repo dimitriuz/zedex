@@ -181,13 +181,19 @@ public final class SecondScreen extends Presentation {
 
     private OnModeChanged modeListener;
 
-    /** Told the moment the info side puts a manual on this presentation's
-     *  own display - see {@link GameInfoView#setOnForeignScreen} and {@link
-     *  Panels}'s class comment, the fourth corner. {@link Panels} and
-     *  {@link LibraryPanel} both set this to step their own window aside
-     *  for it, exactly as they already do for one of the app's own
-     *  screens - a manual is a foreign one, and never reaches either
-     *  owner's lifecycle callbacks the way one of ours would. */
+    /** Told if the info side ever puts a <em>foreign</em> screen on this
+     *  presentation's own display - see {@link
+     *  GameInfoView#setOnForeignScreen} and {@link Panels}'s class comment,
+     *  the fourth corner. {@link Panels} and {@link LibraryPanel} both set
+     *  this to step their own window aside for it, exactly as they already
+     *  do for one of the app's own screens, which a foreign activity never
+     *  reaches either owner's lifecycle callbacks the way one of ours would.
+     *
+     *  <b>Nothing fires it as things stand.</b> A manual is one of the app's
+     *  own screens now ({@code PdfActivity}/{@code InstructionsActivity}),
+     *  and the one genuinely foreign thing the info side can open - a video
+     *  link - is launched with no display target at all, precisely so it
+     *  never lands here. See {@link GameInfoView#openVideo}. */
     private Runnable foreignScreenListener;
 
     SecondScreen(Context context, Display display, View[] borrowed) {
@@ -251,11 +257,15 @@ public final class SecondScreen extends Presentation {
 
         infoView.setOnForeignScreen(() -> {
             // The fifth of the moments listed on updateVisibility a video
-            // must not be left running for - the manual is about to cover
-            // this same display, whichever side is showing.
-            // Only a manual reaches here: this view stops its own video and
-            // says nothing when it opens one of the app's own screens, which
-            // both panels already see for themselves.
+            // must not be left running for - something foreign is about to
+            // cover this same display, whichever side is showing.
+            //
+            // Nothing reaches here today, and deliberately: a manual is one
+            // of the app's own screens and both panels already see it for
+            // themselves, and a video link is opened with no display target
+            // at all because a browser must never be put on this display -
+            // see GameInfoView.openVideo. This stays wired so a future
+            // foreign screen has somewhere to say so.
             infoView.release();
             if (foreignScreenListener != null) foreignScreenListener.run();
         });
