@@ -152,14 +152,17 @@ public final class Zxart implements Provider {
      * not grow further with {@code wanted} the way ScreenScraper's would.
      *
      * <b>A re-sweep pays this floor even when every wanted picture is
-     * already on disk.</b> {@code Blend}'s fill-gaps rule drops a folder
-     * like {@code covers} from {@code wanted} once a game already has one,
-     * which is exactly what makes a routine re-sweep of an already-imaged
+     * already on disk - a first sweep has already paid it too, as part of
+     * the same six.</b> {@code Blend}'s fill-gaps rule drops a folder like
+     * {@code covers} from {@code wanted} once a game already has one, which
+     * is exactly what makes a routine re-sweep of an already-imaged
      * collection cheap for every other provider - but {@code
      * hardwareRequired} lives on the release list regardless, so this
      * provider keeps asking for it, one request per revisited game, for as
      * long as {@code Meta.machine}/{@code Meta.inputs} count as something
-     * still worth scraping.
+     * still worth scraping. The floor is not an extra charge on top of a
+     * first run's own cost; it is the release-list request that run already
+     * made, being made again on every visit after it.
      */
     @Override
     public int costPerGame(Wanted wanted) {
