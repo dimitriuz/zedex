@@ -54,6 +54,7 @@ responseStatus}`.
 | Orders that work | `votes,desc` (the rating), `date,desc`, `title,asc` — on prods, and `votes,desc` on music and pictures too |
 | Orders **ignored** | `rating,desc`, `votesAmount,desc` |
 | Language | `rus` is the default; `eng` and `spa` translate `categoriesString`, the category tree's titles, picture `tags` and the `url` field |
+| Language does **not** affect search | measured: `zxProdSearch=dizzy` under `eng` and under `rus` gave `totalAmount` 189 both times, the same ten ids **in the same order**, the same titles. Only the reply's size differs (12,441 against 13,988 bytes), because the translated fields are bigger — so a client that reads only ids, titles and years can ask in any language and get the same answer |
 
 Four of those are rules rather than observations:
 
