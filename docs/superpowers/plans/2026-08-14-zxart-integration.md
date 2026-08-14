@@ -2543,25 +2543,87 @@ everything and how somebody concludes the first import failed."
         assertEquals("92668", found.get(0).handle);
     }
 
-    /** The zip's own md5 confirms too - most people have the zip. */
+    /**
+     * The zip's own md5 confirms too, and that is the commoner case: most
+     * people have the file as the archive downloaded it.
+     */
     @Test
-    public void theZipsHashConfirmsAsWell() throws Exception { ... }
+    public void theZipsHashConfirmsAsWell() throws Exception {
+        Pace.forget();
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.PROD_SEARCH)
+                                                    .then(Fixtures.RELEASES_HEAD_OVER_HEELS);
 
-    /** No hash match is not a failure: the name candidates stand, marked as
-     *  the guesses they are, and Merge's fill-gaps rule bounds what a wrong
-     *  one can cost. */
-    @Test
-    public void withoutAHashMatchTheNameCandidatesStand() throws Exception { ... }
+        List<Candidate> found = new Zxart(http, Locale.ENGLISH).search(
+                game("HeadOverHeels.tzx.zip", "b95d7490a4258bfbd6782af62a862602"));
 
-    /** A file whose md5 cannot be read - the commonest case on a tree grant -
-     *  never asks for a release list at all. */
-    @Test
-    public void nothingIsConfirmedWithoutAHash() throws Exception { ... }
+        assertTrue(found.get(0).exact);
+        assertEquals("100938", found.get(0).handle);
+    }
 
-    /** At most three candidates are confirmed. A search for a common word
-     *  answers with hundreds, and confirming each is a paced request each. */
+    /**
+     * No hash match is not a failure.
+     *
+     * The name candidates stand, marked as the guesses they are, and {@code
+     * Merge}'s fill-gaps rule bounds what a wrong one can cost - a wrong cover
+     * on a game nobody has scraped by hand, never an overwritten value.
+     */
     @Test
-    public void onlyTheFirstFewCandidatesAreConfirmed() throws Exception { ... }
+    public void withoutAHashMatchTheNameCandidatesStand() throws Exception {
+        Pace.forget();
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.PROD_SEARCH)
+                                                    .then(Fixtures.RELEASES_HEAD_OVER_HEELS);
+
+        List<Candidate> found = new Zxart(http, Locale.ENGLISH).search(
+                game("Head over Heels.tzx", "00000000000000000000000000000000"));
+
+        assertFalse("a name match must not claim to be certain", found.get(0).exact);
+        assertEquals("100938", found.get(0).handle);
+    }
+
+    /**
+     * A file whose md5 cannot be read never asks for a release list at all.
+     *
+     * That is the commonest case under a tree grant, where hashing means
+     * reading the whole file through the documents provider - which is why
+     * {@code Provider.Game#md5} is a supplier rather than a value. Asking for
+     * releases anyway would spend a paced request per candidate to compare
+     * against nothing.
+     */
+    @Test
+    public void nothingIsConfirmedWithoutAHash() throws Exception {
+        Pace.forget();
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.PROD_SEARCH);
+
+        List<Candidate> found = new Zxart(http, Locale.ENGLISH).search(
+                game("Head over Heels.tzx", null));
+
+        assertFalse(found.isEmpty());
+        assertFalse(found.get(0).exact);
+        assertEquals("one search and no confirmation", 1, http.asked.size());
+    }
+
+    /**
+     * At most three candidates are confirmed.
+     *
+     * A search for a common word answers with hundreds - "head" alone is 271 -
+     * and confirming each is one paced request each against an archive that
+     * blocks on behaviour patterns. Three is the bound; the fourth candidate is
+     * never asked about, however promising its name.
+     */
+    @Test
+    public void onlyTheFirstFewCandidatesAreConfirmed() throws Exception {
+        Pace.forget();
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.PROD_SEARCH_MANY)
+                                                    .then(Fixtures.RELEASES_HEAD_OVER_HEELS)
+                                                    .then(Fixtures.RELEASES_HEAD_OVER_HEELS)
+                                                    .then(Fixtures.RELEASES_HEAD_OVER_HEELS);
+
+        new Zxart(http, Locale.ENGLISH).search(
+                game("Head.tzx", "00000000000000000000000000000000"));
+
+        assertEquals("one search and three confirmations, never a fourth",
+                     4, http.asked.size());
+    }
 
     /** Five is the ceiling and it is stated honestly: one search, up to three
      *  confirmations, one prod. Media are static files and cost nothing. */
@@ -2573,6 +2635,24 @@ everything and how somebody concludes the first import failed."
 ```
 
 Write out the bodies of the four elided tests in the same shape as the first — the plan's own rule is that "similar to Task N" is not an instruction, and neither is "similar to the test above".
+
+**Two fixtures this task adds**, both real captures out of `review/zxart/`:
+`RELEASES_HEAD_OVER_HEELS` from `releases-headoverheels.json` (19 releases of entry
+100938; keep three whole rows), and `PROD_SEARCH_MANY` — a search reply with four or
+more rows, so "only three are confirmed" can be distinguished from "there were only
+three". `af-prodsearch.json` has three rows and cannot prove the bound; use
+`review/zxart/af-search-page2.json` or another captured multi-row search and say in the
+fixture which reply it is.
+
+**Why these two pair with each other and the earlier ones do not.** `PROD_SEARCH` is a
+real `zxProdSearch=head over heels` reply whose top hit is **Head over Heels, entry
+100938** — so its releases, and their md5s, must be 100938's. An earlier draft of this
+plan paired `PROD_SEARCH` with *Licence to Kill's* release list and asserted a handle of
+92668: a canned queue does not check that a search reply and a release reply describe
+the same entry, so it would have passed while pairing a candidate with another entry's
+files. The hashes below are 100938's own: `b95d7490a4258bfbd6782af62a862602` is the
+`HeadOverHeels.tzx.zip` archive and `82bb33587530d337323ef3cd4456d4c4` is the
+`Head Over Heels.tzx` inside it.
 
 - [ ] **Step 2: Run, fail, implement, pass**
 
@@ -2604,7 +2684,108 @@ somebody is about to commit a collection to."
 - Modify: `app/src/main/java/dev/ldlab/zedex/library/scrape/Zxart.java`
 - Test: `app/src/test/java/dev/ldlab/zedex/library/scrape/ZxartTest.java`
 
-- [ ] **Step 1: Write the failing tests** — media mapped **by rule**: the `zximages/…` member of `imagesUrls` is the `titlescreens` medium and the `/screenshot/…` members are `screenshots`; `inlays` by filename suffix, as Task 1 counted over 400 releases: no `_` at all (166) and `_Front` (41) into `covers`, `_Back` (101) into `backcovers`, `_Media` (99) into `physicalmedia`. **Everything else falls through and is skipped** — about a fifth of all inlay files carry a side or edition marker (`_2`, `_3`, `_4`, `_SideA`, `_SideB`, `_2Back`, `_FrontCase`, `_GoldenCase`, `_WhiteCase`…) that maps to no folder this app has, and inventing a fourth for them is not this task's business. Assert the fall-through as well as the three that land; `maps` into `maps`; `ads` into `adverts`; `instructions` into `manuals`. Assert that a `Wanted` naming only `covers` produces exactly one medium — the folder set is what a sweep is priced on.
+- [ ] **Step 1: Write the failing tests**
+
+Every medium is mapped **by rule and never by position**, and each rule below was
+measured over 400 releases in Task 1: no `_` suffix at all (166) and `_Front` (41) are
+the cover, `_Back` (101) the back, `_Media` (99) the photograph of the tape or disk, and
+about a fifth carry a side or edition marker (`_2`, `_3`, `_SideA`, `_SideB`, `_2Back`,
+`_FrontCase`, `_GoldenCase`, `_WhiteCase`) that maps to no folder this app has.
+
+```java
+    /**
+     * The rendered loading screen and the screenshots come out of ONE array and
+     * are told apart by their path, not by their index.
+     *
+     * Measured: `imagesUrls` holds a `zximages/id=…` entry — zxart's own
+     * renderer, which is the loading screen — followed by `/screenshot/id:…`
+     * files. Taking the first by position would be right until an entry arrives
+     * without a rendered screen, and then it would file a screenshot as the
+     * title screen for ever.
+     */
+    @Test
+    public void theRenderedScreenAndTheScreenshotsAreToldApartByPath() throws Exception {
+        Pace.forget();
+        List<Medium> media = fetchWith(Provider.Wanted.of("titlescreens", "screenshots"));
+
+        assertEquals("titlescreens", folderOf(media, "zximages"));
+        assertEquals("screenshots", folderOf(media, "/screenshot/"));
+    }
+
+    /** The three inlay suffixes that land, from the measured vocabulary. */
+    @Test
+    public void theInlaysAreCoverBackAndMedia() throws Exception {
+        Pace.forget();
+        List<Medium> media = fetchWith(
+                Provider.Wanted.of("covers", "backcovers", "physicalmedia"));
+
+        assertEquals("covers", folderOf(media, "LicenceToKill.jpg"));
+        assertEquals("backcovers", folderOf(media, "LicenceToKill_Back.jpg"));
+        assertEquals("physicalmedia", folderOf(media, "LicenceToKill_Media.jpg"));
+    }
+
+    /**
+     * <b>An unrecognised suffix is skipped, not guessed at.</b>
+     *
+     * A fifth of all inlay files carry a marker this app has no folder for, and
+     * inventing a fourth folder is not this feature's business. What must not
+     * happen is one of them landing in `covers` because it happened to be first
+     * in the array — which is exactly what a positional rule would do.
+     */
+    @Test
+    public void anUnknownInlaySuffixIsSkipped() throws Exception {
+        Pace.forget();
+        List<Medium> media = mediaFrom(Fixtures.RELEASE_WITH_ODD_INLAY,
+                                      Provider.Wanted.of("covers"));
+
+        for (Medium medium : media) {
+            assertFalse("a side marker must not be taken for a cover",
+                        medium.url.contains("_SideA"));
+        }
+    }
+
+    @Test
+    public void mapsAdvertsAndTheTextManual() throws Exception {
+        Pace.forget();
+        List<Medium> media = fetchWith(Provider.Wanted.of("maps", "adverts", "manuals"));
+
+        assertEquals("maps", folderOf(media, "filename:LicenceToKill.jpg"));
+        assertEquals("adverts", folderOf(media, "filename:LicenceToKill.jpg"));
+        assertEquals("manuals", folderOf(media, "LicenceToKill.txt"));
+    }
+
+    /**
+     * <b>Only what was asked for.</b>
+     *
+     * The folder set is what a sweep is priced on — `costPerGame` times a
+     * collection — so a provider that quietly returned a medium nobody asked
+     * for makes that arithmetic a lie, even though these particular media are
+     * free static files.
+     */
+    @Test
+    public void onlyTheWantedFoldersComeBack() throws Exception {
+        Pace.forget();
+        List<Medium> media = fetchWith(Provider.Wanted.of("covers"));
+
+        assertEquals(1, media.size());
+        assertEquals("covers", media.get(0).folder);
+    }
+```
+
+`fetchWith(Wanted)` runs `fetch` over `PROD_LICENCE_TO_KILL` plus
+`RELEASES_LICENCE_TO_KILL` and answers `Scraped.media`. `folderOf(media, substring)`
+answers the folder of the one medium whose url contains that substring and **fails the
+test when none or several do** — write it that way, because a helper that returns the
+first match would let two media with similar urls agree by accident. Note that `maps`
+and `ads` on this entry share a filename and differ only in their array, so
+`mapsAdvertsAndTheTextManual` as written above cannot tell them apart with one
+substring: make the helper take the expected folder and assert the url set per folder
+instead, or pick a release whose two differ. Say in your report which you did — this is
+the one place in this task where the obvious test does not work.
+
+`RELEASE_WITH_ODD_INLAY` is a captured release row carrying a `_SideA` inlay; find one in
+`review/zxart/hw-sample.json` or `inlay-sample.json`, both 200-release pages, and say in
+the fixture which entry it came from.
 
 - [ ] **Step 2: Implement, run, pass.**
 
@@ -2725,6 +2906,7 @@ Two tables map the ones that mean something:
 | `zx16` | `Meta.machine` = "ZX-Spectrum 16K" |
 | `zx48` | "ZX-Spectrum 48K" |
 | `zx128` | "ZX-Spectrum 128K" |
+| `zx48` **and** `zx128` together | "ZX-Spectrum 48K/128K" |
 | `zx+3` | "ZX-Spectrum 128 +3" |
 | `kempston` | `Meta.inputs` += "Kempston Joystick" |
 | `int2_1` | "Interface 2 (left)" |
@@ -2732,7 +2914,21 @@ Two tables map the ones that mean something:
 | `cursor` | "Cursor" |
 | `ay` | **nothing** |
 
-Everything else answers null. `int2_1`/`int2_2` read as Interface 2's two ports, which is what the naming says and all the data supports. `fetch` takes the release chosen for the item (the first, which is the original), maps its `hardwareRequired`, and fills `machine` with the first machine word found and `inputs` with every input word found, in the release's own order.
+Everything else answers null. `int2_1`/`int2_2` read as Interface 2's two ports, which is what the naming says and all the data supports.
+
+**The "either" row is not a nicety, and it came out of a real release.** Entry 100938's
+`.tap` release declares `["zx48","zx128","cursor","kempston","int2_2"]` — both machines,
+because the tape runs on both — and taking merely the first token would say 48K and
+throw the other half away. `Suggested` already parses a slash as a disjunction
+(`48K/128K` is "either", and it is the commonest value in ZXDB), so the pair maps onto
+the phrase ZXDB's own vocabulary already has for it and the machine list offered comes
+out as two rather than one. Assert it.
+
+**And a release may name no machine at all.** 100938's `.tzx` release declares only
+`["cursor","kempston","int2_2"]`, so `Meta.machine` is null there while `Meta.inputs`
+has three entries. That is the honest answer — the release says which interfaces it
+reads and nothing about which computer — and it must not be turned into a guess. Assert
+that too, from the same fixture. `fetch` takes the release chosen for the item (the first, which is the original), maps its `hardwareRequired`, and fills `machine` with the first machine word found and `inputs` with every input word found, in the release's own order.
 
 - [ ] **Step 4: Run the JVM tier and pass.**
 
@@ -2770,7 +2966,64 @@ itself."
 
 The checklist for a new `Meta` field, all six places, because missing one loses the value silently: the public field, the copy constructor, the `Builder` setter, `Field.VIDEO_LINK(true)` plus `get`/`set`, `Merge.of`'s `first(...)`, and `Metadata`'s writer `field(writer, "videoLink", game.videoLink)` and reader `case "videoLink":`.
 
-- [ ] **Step 1: Write the failing tests** — a round trip through the store keeps the link; `Merge` fills it from an addition and never overwrites; a `Meta` with no link answers null. Then `Zxart` builds `https://www.youtube.com/watch?v=<id>` from `youtubeId` and nothing when there is none.
+- [ ] **Step 1: Write the failing tests**
+
+Four, across three tiers, and one of them is a trap this codebase has already set for
+you (see the note after the code).
+
+```java
+    // MergeTest, on the JVM — the fill-gaps rule applies to this field like any
+    // other: an addition fills a gap and may never overwrite.
+    @Test
+    public void aVideoLinkIsFilledButNeverOverwritten() {
+        Meta mine = Meta.at("./Game.tap").but()
+                .videoLink("https://www.youtube.com/watch?v=mine").build();
+        Meta theirs = Meta.at("./Game.tap").but()
+                .videoLink("https://www.youtube.com/watch?v=theirs").build();
+
+        assertEquals("https://www.youtube.com/watch?v=mine",
+                     Merge.of(mine, theirs).videoLink);
+        assertEquals("https://www.youtube.com/watch?v=theirs",
+                     Merge.of(Meta.at("./Game.tap").build(), theirs).videoLink);
+    }
+
+    // ZxartTest, on the JVM — the provider builds a watch url from the id, and
+    // answers nothing at all when the entry has no video. 47.1% of prods carry
+    // one, so "no link" is the ordinary case and must not become an empty
+    // string that a screen then draws an icon for.
+    @Test
+    public void aYoutubeIdBecomesAWatchLink() throws Exception {
+        Pace.forget();
+        Meta meta = fetchMeta(Fixtures.PROD_LICENCE_TO_KILL);
+
+        assertEquals("https://www.youtube.com/watch?v=r1U9U1MMn6g", meta.videoLink);
+    }
+
+    @Test
+    public void anEntryWithNoVideoHasNoLink() throws Exception {
+        Pace.forget();
+        assertNull(fetchMeta(Fixtures.PROD_WITHOUT_VIDEO).videoLink);
+    }
+```
+
+And the store's round trip, which lives on the device tier with the rest of
+`Metadata`'s: write a `Meta` carrying a link, `refresh()`, read it back, assert the link
+survived. Follow whatever the existing round-trip test in that class does rather than
+inventing a second way to do it.
+
+`PROD_WITHOUT_VIDEO` is a captured prod row with no `youtubeId` key — the majority case,
+so any of the 1,000 rows in `review/zxart/prod-categories.json` without one will do; say
+in the fixture which entry it is.
+
+**The trap, and it is not optional.** `BlendTest.everyMissingFieldIsSomethingLeftToGain`
+walks `Meta`'s public fields **by reflection** and asserts up front that its own
+`everythingKnown()` fixture satisfies `Blend.nothingLeftToGain`. So adding a field means:
+- the builder setter must be named **exactly** `videoLink`, matching the field, because
+  the walk finds the setter by the field's name;
+- `everythingKnown()` must set it, or that test fails immediately with its own message —
+  "the fixture itself does not satisfy the predicate; fix it first".
+
+That test is on the device tier, so the JVM tier passing proves nothing about it. Run it.
 
 - [ ] **Step 2: Implement, including the manifest and the icons.**
 
