@@ -629,6 +629,64 @@ public class ZxartCatalogueTest {
         assertTrue(art.pictureUrl().contains("zximages"));
     }
 
+    /**
+     * Review round 1: nothing above actually pins the request <em>count</em>
+     * for a list page - {@code aTuneIsTheOggThenTheOriginal} only checks the
+     * rows it got back, and {@code Fixtures.Canned} answers an exhausted
+     * queue with a silent empty success rather than failing, so a regression
+     * that moved {@code authorNameOf} into {@code openMusic}'s per-row loop
+     * would still leave every field assertion passing while quietly turning
+     * one request into two. This is the count, asserted on its own, with a
+     * single-row fixture - the smallest one that can distinguish "made a
+     * request" from "made the right number".
+     */
+    @Test
+    public void openingMusicIsExactlyOneRequest() throws Exception {
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.MUSIC_ROW);
+        catalogue(http).open(musicSubShelf(), Catalogue.Query.none(), 0);
+
+        assertEquals(1, http.asked.size());
+    }
+
+    /** {@link #openingMusicIsExactlyOneRequest}'s twin, for Graphics. */
+    @Test
+    public void openingGraphicsIsExactlyOneRequest() throws Exception {
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.PICTURE_ROW);
+        catalogue(http).open(graphicsSubShelf(), Catalogue.Query.none(), 0);
+
+        assertEquals(1, http.asked.size());
+    }
+
+    /**
+     * The count that a single-row fixture cannot tell apart from a per-row
+     * bug: one row and thirty rows cost {@code Fixtures.Canned} the same one
+     * reply either way, so only a page carrying <em>several</em> rows proves
+     * the request is made once per page rather than once per row. {@code
+     * Fixtures.MUSIC_SEARCH} is a real capture of three rows out of the ten
+     * {@code zxMusicSearch=beyond} actually matches - the largest multi-row
+     * music reply on file.
+     */
+    @Test
+    public void openingMusicIsOneRequestForAWholePage() throws Exception {
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.MUSIC_SEARCH);
+        Catalogue.Page page = catalogue(http).open(musicSubShelf(), Catalogue.Query.none(), 0);
+
+        assertEquals(3, page.items().size());
+        assertEquals(1, http.asked.size());
+    }
+
+    /** {@link #openingMusicIsOneRequestForAWholePage}'s twin, for Graphics -
+     *  {@code Fixtures.PICTURE_SEARCH}, three of the 124 {@code
+     *  zxPictureSearch=girl} rows. */
+    @Test
+    public void openingGraphicsIsOneRequestForAWholePage() throws Exception {
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.PICTURE_SEARCH);
+        Catalogue.Page page = catalogue(http).open(graphicsSubShelf(), Catalogue.Query.none(), 0);
+
+        assertEquals(3, page.items().size());
+        assertEquals(1, http.asked.size());
+    }
+
     private static Catalogue.Shelf musicSubShelf() {
         return new Catalogue.Shelf(ZxartCatalogue.MUSIC_PREFIX + "everything", "Everything",
                                    Catalogue.Shelf.Accepts.NOTHING);

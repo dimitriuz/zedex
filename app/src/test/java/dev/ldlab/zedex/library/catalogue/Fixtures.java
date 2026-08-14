@@ -1076,6 +1076,62 @@ public final class Fixtures {
             + "al=srgb;type=standard;zoom=1\",\"originalUrl\":\"https:\\/\\/zxart.ee\\/file\\/id:2232\\/filenam"
             + "e:Liza_-_Girl_&_Sea_(2009)_(ArtField_2009,_1).scr\"}]},\"responseStatus\":\"success\"}";
 
+    /** review/zxart/music-search.json - export:zxMusic,
+     *  filter:zxMusicSearch=beyond, limit:3. Copied whole: three of the ten
+     *  rows the measured filter actually returned, real and untrimmed. */
+    public static final String MUSIC_SEARCH =
+            "{\"totalAmount\":10,\"start\":0,\"limit\":3,\"responseData\":{\"zxMusic\":[{\"id\":19636,\"title"
+            + "\":\"Beyond Time\",\"internalTitle\":\"BeYoNd TiMe ... h! f4nz!\",\"url\":\"https:\\/\\/zxart.ee"
+            + "\\/eng\\/authors\\/m\\/mmcm1\\/beyond-time\\/\",\"dateCreated\":1388784658,\"dateModified\":1772"
+            + "312799,\"time\":\"3:14.88\",\"partyId\":\"17066\",\"compo\":\"ay\",\"partyPlace\":\"1\",\"author"
+            + "Ids\":[7744],\"type\":\"PT3\",\"rating\":\"4.54\",\"plays\":\"1072\",\"year\":2013,\"originalUrl"
+            + "\":\"https:\\/\\/zxart.ee\\/file\\/id:19636\\/filename:MmcM_-_Beyond_Time_%282013%29_%28Chaos_Co"
+            + "nstructions_2013%2C_1%29.mt3\",\"originalFileName\":\"MmcM_-_Beyond_Time_%282013%29_%28Chaos_Con"
+            + "structions_2013%2C_1%29.mt3\",\"mp3FilePath\":\"https:\\/\\/music.zxart.ee\\/music\\/19636_MmcM_"
+            + "Beyond_Time.ogg\"},{\"id\":45930,\"title\":\"Something from beyond\",\"internalTitle\":\"somethi"
+            + "ng from beyond\",\"url\":\"https:\\/\\/zxart.ee\\/eng\\/authors\\/g\\/gibson\\/something-from-be"
+            + "yond\\/\",\"dateCreated\":1400516201,\"dateModified\":1772314045,\"time\":\"3:04.03\",\"partyId"
+            + "\":\"2301\",\"compo\":\"standard\",\"partyPlace\":\"8\",\"authorIds\":[20210,30637],\"type\":\"P"
+            + "T3\",\"rating\":\"4.06\",\"plays\":\"92\",\"year\":2007,\"originalUrl\":\"https:\\/\\/zxart.ee\\"
+            + "/file\\/id:45930\\/filename:Gibson%2C_Ch41ns4w_-_Something_from_beyond_%282007%29_%28Chaos_Const"
+            + "ructions_Antique_2007%2C_8%29.pt3\",\"originalFileName\":\"Gibson%2C_Ch41ns4w_-_Something_from_b"
+            + "eyond_%282007%29_%28Chaos_Constructions_Antique_2007%2C_8%29.pt3\",\"mp3FilePath\":\"https:\\/\\"
+            + "/music.zxart.ee\\/music\\/45930_Gibson_Ch41ns4w_Something_from_beyond.ogg\"},{\"id\":47085,\"tit"
+            + "le\":\"Beyond The Road\",\"internalTitle\":\"beyond the road (ABC 1.77)\",\"url\":\"https:\\/\\/"
+            + "zxart.ee\\/eng\\/authors\\/w\\/wbcbz7\\/beyond-the-road\\/\",\"dateCreated\":1405282747,\"dateMo"
+            + "dified\":1772314476,\"time\":\"2:47.85\",\"partyId\":\"47042\",\"compo\":\"standard\",\"partyPla"
+            + "ce\":\"8\",\"authorIds\":[308697],\"type\":\"TS\",\"rating\":\"3.78\",\"plays\":\"74\",\"year\":"
+            + "2014,\"originalUrl\":\"https:\\/\\/zxart.ee\\/file\\/id:47085\\/filename:wbcbz7_-_Beyond_The_Roa"
+            + "d_%282014%29_%283BM_OpenAir_2014%2C_8%29.pt3\",\"originalFileName\":\"wbcbz7_-_Beyond_The_Road_%"
+            + "282014%29_%283BM_OpenAir_2014%2C_8%29.pt3\",\"mp3FilePath\":\"https:\\/\\/music.zxart.ee\\/music"
+            + "\\/47085_wbcbz7_Beyond_The_Road.ogg\"}]},\"responseStatus\":\"success\"}";
+
+    /** review/zxart/picture-search.json - export:zxPicture,
+     *  filter:zxPictureSearch=girl, limit:3. Copied whole: three of the 124
+     *  rows the measured filter actually returned, real and untrimmed. */
+    public static final String PICTURE_SEARCH =
+            "{\"totalAmount\":124,\"start\":0,\"limit\":3,\"responseData\":{\"zxPicture\":[{\"id\":2232,\"tit"
+            + "le\":\"Girl &amp; Sea\",\"url\":\"https:\\/\\/zxart.ee\\/eng\\/authors\\/l\\/liza\\/girl-sea\\/"
+            + "\",\"dateCreated\":1249075813,\"dateModified\":1707045199,\"partyId\":\"2201\",\"compo\":\"stand"
+            + "ard\",\"partyPlace\":\"1\",\"authorIds\":[2202],\"tags\":[\"Female\",\"Glasses\",\"Landscape\","
+            + "\"Portrait\"],\"type\":\"standard\",\"rating\":\"3.82\",\"views\":\"894\",\"year\":2009,\"descri"
+            + "ption\":\"1st at ArtField'2009\",\"imageUrl\":\"https:\\/\\/zxart.ee\\/zximages\\/id=2232;border"
+            + "=0;pal=srgb;type=standard;zoom=1\",\"originalUrl\":\"https:\\/\\/zxart.ee\\/file\\/id:2232\\/fil"
+            + "ename:Liza_-_Girl_&_Sea_(2009)_(ArtField_2009,_1).scr\"},{\"id\":2288,\"title\":\"Car &amp; girl"
+            + "\",\"url\":\"https:\\/\\/zxart.ee\\/eng\\/authors\\/t\\/tractor\\/car-girl\\/\",\"dateCreated\":"
+            + "1249116520,\"dateModified\":1707045202,\"partyId\":\"2252\",\"compo\":\"standard\",\"partyPlace"
+            + "\":\"12\",\"authorIds\":[2266],\"tags\":[\"Black&amp;white\",\"Car\",\"Nude\",\"Surfing\"],\"typ"
+            + "e\":\"standard\",\"rating\":\"3.76\",\"views\":\"1152\",\"year\":2002,\"imageUrl\":\"https:\\/\\"
+            + "/zxart.ee\\/zximages\\/id=2288;border=7;pal=srgb;type=standard;zoom=1\",\"originalUrl\":\"https:"
+            + "\\/\\/zxart.ee\\/file\\/id:2288\\/filename:Tractor_-_Car_&_girl_(2002)_(Shit_Compo_2002,_12).scr"
+            + "\"},{\"id\":2571,\"title\":\"RizcGirl\",\"url\":\"https:\\/\\/zxart.ee\\/eng\\/authors\\/p\\/phe"
+            + "el1\\/rizcgirl\\/\",\"dateCreated\":1275853147,\"dateModified\":1707045211,\"compo\":\"standard"
+            + "\",\"authorIds\":[2270],\"tags\":[\"Eye\",\"Face\",\"Female\",\"Hair\",\"Hidden Pixels\",\"Portr"
+            + "ait\"],\"type\":\"standard\",\"rating\":\"4.61\",\"views\":\"1621\",\"year\":2000,\"imageUrl\":"
+            + "\"https:\\/\\/zxart.ee\\/zximages\\/id=2571;border=0;pal=srgb;type=standard;zoom=1\",\"originalU"
+            + "rl\":\"https:\\/\\/zxart.ee\\/file\\/id:2571\\/filename:PheeL_-_RizcGirl_(2000).scr\"}]},\"respo"
+            + "nseStatus\":\"success\"}";
+
     /**
      * A real {@code legalStatus:"forbidden"} row, out of review/zxart/
      * prod-categories.json (id 93056, "Afterburner" - one of the 21 forbidden
@@ -1142,6 +1198,40 @@ public final class Fixtures {
      * deliberate: two fakes that differ only in style are two things to read.
      * It lives here rather than in each test class because four classes need
      * it now.
+     *
+     * <b>Strict, on purpose, since review round 1 of Task 11: an exhausted
+     * queue throws rather than answering a silent empty success.</b> It used
+     * to hand back {@code 200 {}} once {@link #replies} ran out, which is a
+     * trap disguised as a convenience - {@code ZxartApi.rows} reads an
+     * unrecognised body as zero rows rather than failing, so a caller that
+     * makes one request more than a test queued for got an empty page back
+     * and kept going. Nothing this class's own assertions checked would
+     * notice: a test that asserts on the rows it got, and not on {@code
+     * asked.size()}, cannot tell "the code made the one request I queued
+     * for" from "the code made that request, then one more nobody asked
+     * about, which came back empty and was silently swallowed." That is
+     * exactly the shape a regression moving a per-item request (an author
+     * lookup, say) into a per-row loop would take: every field on every row
+     * would still be right, because the extra author lookups would each
+     * resolve to null and nothing downstream reads that as a failure.
+     * Thirty rows becoming thirty paced requests against an archive that
+     * blocks on behaviour patterns is precisely the kind of regression that
+     * must not be able to hide behind a green run.
+     *
+     * Tried strict against the whole JVM tier before keeping it: nothing in
+     * {@code ZxartCatalogueTest} or {@code ZxartApiTest} - the only two
+     * classes that use this fake today - depends on an exhausted queue
+     * answering anything at all, so there was nothing to revert. A test that
+     * legitimately wants to allow more requests than it cares to name replies
+     * for should queue enough real replies (or a generic one repeated), not
+     * lean on this falling through - the whole point of a canned fake is
+     * that every request it answers is one somebody wrote down.
+     *
+     * {@code ZxInfoCatalogueTest}'s own, separate {@code Canned}
+     * (`app/src/androidTest`) is untouched and stays lenient - it is a
+     * different class in a different tier, outside what this fix addressed,
+     * and carries the same hazard this javadoc now names for whoever next
+     * has reason to look at it.
      */
     public static final class Canned implements Http {
 
@@ -1157,10 +1247,14 @@ public final class Fixtures {
             return then(200, body);
         }
 
+        /** @throws IllegalStateException once every queued reply is spent -
+         *  see this class's own javadoc for why that is a feature. */
         @Override
         public Reply get(String url) {
             asked.add(url);
-            if (replies.isEmpty()) return new Reply(200, "{}");
+            if (replies.isEmpty()) {
+                throw new IllegalStateException("Canned exhausted: unexpected request " + url);
+            }
             return replies.remove(0);
         }
 
