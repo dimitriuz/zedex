@@ -349,4 +349,30 @@ public class PickTest {
 
         assertEquals("txt", Pick.otherFile(item).format());
     }
+
+    /**
+     * A {@code .scr} is a picture, and until it was in the list it was not.
+     *
+     * zxart's graphics entries hold the rendered PNG and the original screen
+     * dump. Pick.otherFile answers with the first file that is neither a
+     * picture nor for the machine - so a .scr, being in neither list, won,
+     * and Open handed a Spectrum screen dump to a phone with nothing that can
+     * read one. A .scr *is* a picture, this app renders them already, and with
+     * it listed the PNG wins by being listed first.
+     */
+    @Test
+    public void aScreenDumpIsAPicture() {
+        Catalogue.Item picture = item(version(null, file("png"), file("scr")));
+
+        assertEquals("png", Pick.otherFile(picture).format());
+    }
+
+    /** And an entry whose only file is a screen dump still answers with it,
+     *  the same way an advertisement or a photographed cassette does. */
+    @Test
+    public void aScreenDumpAloneIsStillTheAnswer() {
+        Catalogue.Item dump = item(version(null, file("scr")));
+
+        assertEquals("scr", Pick.otherFile(dump).format());
+    }
 }

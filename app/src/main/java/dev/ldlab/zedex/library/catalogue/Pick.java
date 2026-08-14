@@ -98,8 +98,13 @@ public final class Pick {
         return file != null && RECORDING.equals(file.format());
     }
 
-    /** What a scan or a cover arrives as, and what a book is not. */
-    private static final String[] PICTURES = { "jpg", "jpeg", "png", "gif" };
+    /** What a scan or a cover arrives as, and what a book is not.
+     *
+     *  {@code scr} is here because a Spectrum screen dump is a picture: zxart's
+     *  graphics entries carry the rendered PNG and the original .scr, and
+     *  without this the .scr counted as "not a picture", won, and was handed to
+     *  a phone that has nothing to open one with. */
+    private static final String[] PICTURES = { "jpg", "jpeg", "png", "gif", "scr" };
 
     /**
      * The best file that is <em>not</em> for the machine - a book's PDF, a

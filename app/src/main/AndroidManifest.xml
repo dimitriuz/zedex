@@ -63,6 +63,15 @@
             <data android:mimeType="image/*" />
         </intent>
 
+        <!-- A tune imported from a catalogue is handed to whatever plays audio.
+             Android 11+ hides every handler for an undeclared mime, so without
+             this the hand-over resolves to nothing on a phone with three music
+             players - the same fault ACTION_SENDTO had with mail. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="audio/*" />
+        </intent>
+
         <!--
             ES-DE, so that Settings can offer to add Zedex to it. Android 11
             hides every other app from one that has not said what it looks for,
