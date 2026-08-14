@@ -9,6 +9,7 @@ import static org.junit.Assume.assumeNotNull;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.net.Uri;
+import android.provider.DocumentsContract;
 import android.util.Log;
 
 import androidx.test.core.app.ApplicationProvider;
@@ -63,15 +64,19 @@ import java.util.List;
  * serve, and each test reads its own {@code calls} count back rather than
  * assuming a single request happened.
  *
- * <b>Names are stamped with {@code nanoTime}, never fixed</b> - the same
- * reason {@code ImportsTest} does it and not {@code RecentsTest}'s
- * {@code dropAnyLeftOver}: that pattern exists for a test that needs one
- * predictable, human-visible name across runs. Nothing here does - a fresh
- * nanoTime makes a name a killed run's leftover can never collide with,
- * which is the same guarantee {@code dropAnyLeftOver} gives by a different
- * route. The one test that imports the same thing twice does so within a
- * single stamp, on purpose - that repeat is the point of the test, not a
- * hazard.
+ * <b>Names are stamped with {@code nanoTime}, and swept on the way in as
+ * well.</b> The stamp is what makes this run's names collide with nothing a
+ * previous run left - the same thing {@code ImportsTest} does, and a different
+ * route to the guarantee {@code RecentsTest.dropAnyLeftOver} gives by using one
+ * predictable name and clearing it. But a stamp alone only protects the
+ * <em>test</em>: a run killed by hand never reaches {@link #tidyUp()}, and what
+ * it leaves behind is a fresh set of {@code zedex-zxart-*} files in somebody's
+ * own {@code Downloaded/Games}, {@code Music} and {@code Graphics}, one set per
+ * killed run, for ever. So {@link #dropAnyLeftOver()} clears them on the way in
+ * too - the way in is the only place that can, for exactly the reason
+ * {@code RecentsTest} gives. The one test that imports the same thing twice
+ * does so within a single stamp, on purpose - that repeat is the point of the
+ * test, not a hazard.
  */
 @RunWith(AndroidJUnit4.class)
 public class ZxartImportTest {
@@ -89,6 +94,70 @@ public class ZxartImportTest {
         context = ApplicationProvider.getApplicationContext();
         tree = Storage.contentFolder(context);
         assumeNotNull("no content folder granted on this device", tree);
+
+        dropAnyLeftOver();
+    }
+
+    /**
+     * Anything a killed run left behind, removed - {@code zedex-zxart-*} under
+     * the three folders these tests import into.
+     *
+     * <b>On the way in, because there is no way out to hook.</b> A run stopped
+     * by hand never reaches {@link #tidyUp()}, and the {@code nanoTime} stamp
+     * means the next run cannot collide with the leftovers - so nothing ever
+     * notices them and they accumulate, one set per killed run, in the user's
+     * own collection. The same reasoning {@code RecentsTest.dropAnyLeftOver}
+     * rests on, reached from the opposite direction: it clears a fixed name so
+     * a leftover cannot break the next run, this clears a stamped family so a
+     * leftover cannot outlive it.
+     *
+     * Only folders that already exist are looked in, through {@link
+     * Tree#find}: making {@code Downloaded/Music} in order to check it is
+     * empty would leave a folder behind on a device that never had one.
+     */
+    private void dropAnyLeftOver() {
+        Uri downloaded = Tree.find(context, tree, "Downloaded");
+        if (downloaded == null) return;
+
+        for (String folder : new String[] { Kinds.GAMES, Kinds.MUSIC, Kinds.GRAPHICS }) {
+            Uri where = Tree.find(context, downloaded, folder);
+            if (where == null) continue;
+
+            for (Uri stale : childrenNamed(where, "zedex-zxart-")) {
+                try {
+                    DocumentsContract.deleteDocument(context.getContentResolver(), stale);
+                } catch (Exception e) {
+                    // A leftover that will not go is not this run's problem:
+                    // the stamp means it cannot collide with anything here.
+                    Log.w("Zedex", "cannot remove the leftover " + stale, e);
+                }
+            }
+        }
+    }
+
+    /** Every child of that folder whose display name starts with the prefix. */
+    private List<Uri> childrenNamed(Uri folder, String prefix) {
+        List<Uri> found = new ArrayList<>();
+
+        Uri children = DocumentsContract.buildChildDocumentsUriUsingTree(
+                folder, DocumentsContract.getDocumentId(folder));
+
+        try (android.database.Cursor cursor = context.getContentResolver().query(children,
+                new String[] { DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                               DocumentsContract.Document.COLUMN_DISPLAY_NAME },
+                null, null, null)) {
+            if (cursor == null) return found;
+
+            while (cursor.moveToNext()) {
+                String name = cursor.getString(1);
+                if (name != null && name.startsWith(prefix)) {
+                    found.add(DocumentsContract.buildDocumentUriUsingTree(
+                            folder, cursor.getString(0)));
+                }
+            }
+        }
+
+        return found;
     }
 
     /** Only what this run made - see the class doc for why nothing else can

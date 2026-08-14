@@ -241,7 +241,12 @@ public class CatalogueSourceTest {
         assertNotNull("the source row did not update to name " + want.name(),
                       device.wait(Until.findObject(By.text(sourceLabel() + " · " + want.name())), FIND));
 
-        // zxart's own three shelves, its own words - see ZxartCatalogue.shelves.
+        // Three of zxart's own five shelves, in its own words - see
+        // ZxartCatalogue.shelves, which has offered Music and Graphics as well
+        // since Task 11. These three are the ones this test needs: they are
+        // enough to say the switch really put zxart on screen, and asserting on
+        // all five would make this a test of that class's shelf list rather
+        // than of the source switch.
         assertNotNull("zxart's own Search shelf never appeared",
                       device.wait(Until.findObject(By.text("Search")), FIND));
         assertNotNull("zxart's own Categories shelf never appeared",
