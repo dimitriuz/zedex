@@ -740,6 +740,12 @@ public final class ZxartCatalogue implements Catalogue {
         int year = row.optInt("year", 0);
         int leaf = leafOf(row);
 
+        // videoLink straight off the same row, no extra request: a search
+        // hit and a single-id lookup answer the identical shape, measured
+        // (see ZxartApi.watchUrlOf) - so a list row already carries this
+        // before Catalogue.item is ever asked, which is what lets
+        // CataloguePane decide whether to show the icon the moment a title
+        // is tapped, the same way it already decides similarButton.
         return new Item(id,
                         ZxartApi.unescape(row.optString("title", "")),
                         year > 0 ? Integer.toString(year) : null,
@@ -747,7 +753,8 @@ public final class ZxartCatalogue implements Catalogue {
                         kindOf(leaf),
                         availabilityOf(row),
                         pictureOf(row),
-                        versions);
+                        versions,
+                        ZxartApi.watchUrlOf(row));
     }
 
     /**

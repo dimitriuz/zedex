@@ -61,9 +61,11 @@ import java.util.Map;
  *
  * <b>{@code fetch} fills in the artwork, the maps, the advert and the text
  * manual - Task 14 - and, from {@code hardwareRequired}, the machine and
- * the interfaces a game supports - Task 15.</b> See {@link #mediaFrom} for
- * the media mapping, {@link #collectRelease} for the per-release half of
- * it, and {@link #machineFrom}/{@link #inputsFrom} for hardware.
+ * the interfaces a game supports - Task 15 - and, from {@code youtubeId}, a
+ * link a person can tap - Task 16.</b> See {@link #mediaFrom} for the media
+ * mapping, {@link #collectRelease} for the per-release half of it, {@link
+ * #machineFrom}/{@link #inputsFrom} for hardware, and {@link #metaFrom} for
+ * the video link.
  *
  * No Android types - no {@code Uri}, no {@code Log} - for the same reason
  * {@link ZxartApi} has none: {@code unitTests.returnDefaultValues} answers
@@ -353,6 +355,11 @@ public final class Zxart implements Provider {
      * entry as it was first released, and {@code Suggested.machines} is what
      * then narrows it by whichever file the person actually has (see {@code
      * ZxartTest} for what that means when the two disagree).
+     *
+     * <b>{@code videoLink}, straight off the prod - no extra request.</b>
+     * {@code youtubeId} lives on the very row already fetched for the title
+     * and the year, exactly as {@code categoriesString} does; see {@link
+     * ZxartApi#watchUrlOf}.
      */
     private static Meta metaFrom(JSONObject prod, List<JSONObject> releases) {
         int year = prod.optInt("year", 0);
@@ -365,6 +372,7 @@ public final class Zxart implements Provider {
                 .genre(genreOf(prod))
                 .machine(machineFrom(hardware))
                 .inputs(inputsFrom(hardware))
+                .videoLink(ZxartApi.watchUrlOf(prod))
                 .build();
     }
 

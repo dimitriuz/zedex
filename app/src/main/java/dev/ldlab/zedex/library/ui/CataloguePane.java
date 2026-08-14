@@ -32,6 +32,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -189,6 +190,20 @@ public final class CataloguePane extends FrameLayout {
      * wants another way on.
      */
     private final Button similarButton;
+
+    /**
+     * A link to a video about this title - zxart's own {@code youtubeId} -
+     * shown only when {@link Catalogue.Item#videoLink()} answers one.
+     *
+     * <b>Decided the moment a row is tapped, in {@link #show}, not waited for
+     * in {@link #itemArrived}.</b> Unlike {@link #versionsButton} and {@link
+     * #recordingButton}, which need the files a fetched {@link
+     * Catalogue.Item} carries, a list row and a fetched one answer the
+     * identical {@code youtubeId} - measured, see {@code ZxartCatalogue
+     * .itemFrom} - so there is nothing here worth waiting for the second
+     * request to learn.
+     */
+    private final ImageButton videoButton;
 
     /** Beside {@link #status} when the folder needs re-granting, and only
      *  then - see {@link #askForWriteAccess}. */
@@ -383,6 +398,22 @@ public final class CataloguePane extends FrameLayout {
         similarButton.setOnClickListener(v -> openSimilar());
         words.addView(similarButton, wrap());
 
+        // An icon rather than a fifth text button: it sits beside the words
+        // this pane already draws rather than in their own line, the same
+        // shape GameInfoView's rowManual/rowMusic take beside its own words.
+        videoButton = new ImageButton(context);
+        videoButton.setImageResource(R.drawable.ic_video);
+        videoButton.setColorFilter(Palette.MUTED);
+        videoButton.setBackground(Ripple.make(getResources().getDisplayMetrics().density));
+        videoButton.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
+        videoButton.setContentDescription(context.getString(R.string.library_video));
+        videoButton.setVisibility(View.GONE);
+
+        LinearLayout.LayoutParams videoParams =
+                new LinearLayout.LayoutParams(pixels(48), pixels(48));
+        videoParams.topMargin = pixels(8);
+        words.addView(videoButton, videoParams);
+
         addView(column, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
     }
@@ -460,6 +491,16 @@ public final class CataloguePane extends FrameLayout {
         // and Catalogue.similarTo makes no request - see similarButton.
         similar = catalogue.similarTo(item, likeLabel(item));
         similarButton.setVisibility(similar != null ? View.VISIBLE : View.GONE);
+
+        // Reset, then decided here too rather than waiting for itemArrived -
+        // see videoButton's own comment for why the list row already knows.
+        videoButton.setVisibility(View.GONE);
+        videoButton.setOnClickListener(null);
+        String video = item.videoLink();
+        if (video != null) {
+            videoButton.setVisibility(View.VISIBLE);
+            videoButton.setOnClickListener(v -> openLink(video));
+        }
 
         showCover(forThis, item.pictureUrl());
 
@@ -989,6 +1030,28 @@ public final class CataloguePane extends FrameLayout {
             // the same two ways open(Uri) below can fail, and the same
             // answer: say so rather than look broken.
             Log.w(TAG, "nothing can open " + document, e);
+            say(getContext().getString(R.string.open_failed));
+        }
+    }
+
+    /**
+     * Hands a video link to whatever the phone has for it - a browser, or
+     * the YouTube app itself.
+     *
+     * Not this pane's own import machinery at all: there is no file to bring
+     * in, only a page on the open web, for a title that may not even be in
+     * the library yet. And not {@code Artwork}'s {@code videos} media folder
+     * either - that holds an mp4 the gallery decodes and plays inline, once a
+     * game has actually been imported; conflating the two would have the
+     * gallery trying to play a URL.
+     */
+    private void openLink(String url) {
+        try {
+            getContext().startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+        } catch (RuntimeException e) {
+            // Nothing on the phone answers for https, which is not a shape
+            // this app can be sure will never happen on somebody's device.
+            Log.w(TAG, "nothing can open " + url, e);
             say(getContext().getString(R.string.open_failed));
         }
     }

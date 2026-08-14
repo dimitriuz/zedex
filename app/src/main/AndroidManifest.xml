@@ -72,6 +72,18 @@
             <data android:mimeType="audio/*" />
         </intent>
 
+        <!-- A catalogue row and a scraped game can carry a video link -
+             zxart's own youtubeId, turned into a watch url. Without this,
+             queryIntentActivities answers nothing on Android 11+ and the
+             icon hides itself on a phone with three browsers, exactly the
+             mailto and PDF traps above: the check for "is there anything
+             that can open a link" would be answered wrongly rather than not
+             asked. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+
         <!--
             ES-DE, so that Settings can offer to add Zedex to it. Android 11
             hides every other app from one that has not said what it looks for,

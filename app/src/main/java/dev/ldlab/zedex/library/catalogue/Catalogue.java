@@ -401,10 +401,24 @@ public interface Catalogue {
         private final String availability;
         private final String pictureUrl;
         private final List<Version> versions;
+        private final String videoLink;
 
+        /** No video link - what every catalogue but zxart answers. See the
+         *  nine-argument constructor below for one that has something to
+         *  offer here. */
         public Item(String id, String title, String year, String publisher,
                     String kind, String availability, String pictureUrl,
                     List<Version> versions) {
+            this(id, title, year, publisher, kind, availability, pictureUrl, versions, null);
+        }
+
+        /**
+         * @param videoLink a link to a video about this game, or null - see
+         *                  {@link #videoLink()}
+         */
+        public Item(String id, String title, String year, String publisher,
+                    String kind, String availability, String pictureUrl,
+                    List<Version> versions, String videoLink) {
             this.id = id;
             this.title = title;
             this.year = year;
@@ -414,6 +428,7 @@ public interface Catalogue {
             this.pictureUrl = pictureUrl;
             this.versions = versions == null ? Collections.<Version>emptyList()
                                               : new ArrayList<Version>(versions);
+            this.videoLink = videoLink;
         }
 
         public String id() {
@@ -447,6 +462,22 @@ public interface Catalogue {
         /** A thumbnail on an ordinary web host, or null. */
         public String pictureUrl() {
             return pictureUrl;
+        }
+
+        /**
+         * A link to a video about this game, or null - zxart's own {@code
+         * youtubeId}, turned into a watch url; no other catalogue here has
+         * one to offer.
+         *
+         * <b>Not the {@code videos} media folder.</b> That holds an mp4 the
+         * library's own gallery decodes and plays inline, once a game has
+         * actually been imported; this is a page on the open web, offered
+         * for a title that may not be in the library at all yet, and the
+         * only thing done with it is handing it to whatever app the phone
+         * has for a link - see {@code CataloguePane.openLink}.
+         */
+        public String videoLink() {
+            return videoLink;
         }
 
         /** Empty until {@link Catalogue#item} has been asked - a list does

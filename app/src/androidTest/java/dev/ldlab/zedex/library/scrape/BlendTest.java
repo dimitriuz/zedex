@@ -517,6 +517,7 @@ public class BlendTest {
                 .seriesGames(Collections.singletonList(new Meta.Link("2", "Jet Set Willy")))
                 .compilations(Collections.singletonList(new Meta.Link("3", "Compilation")))
                 .contents(Collections.singletonList(new Meta.Link("4", "Something")))
+                .videoLink("https://www.youtube.com/watch?v=abc123")
                 .contributor("Someone")
                 .build();
     }

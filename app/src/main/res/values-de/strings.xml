@@ -589,6 +589,7 @@
     <string name="library_play">Spielen</string>
     <string name="library_info">Spieldetails</string>
     <string name="library_manual">Handbuch</string>
+    <string name="library_video">Video</string>
     <string name="instructions_title">Anleitung</string>
     <string name="instructions_unreadable">Diese Datei kann nicht gelesen werden.</string>
     <string name="music_title">Musik…</string>

@@ -689,6 +689,13 @@
          yes; see LibraryActivity and GameInfoActivity. Tapping it opens the
          PDF in whatever app the phone has for one. -->
     <string name="library_manual">Manual</string>
+    <!-- Beside the manual and the music, in the pane, the details screen and
+         the catalogue - shown only when the game has a scraped video link
+         (zxart's youtubeId); tapping it hands the link to whatever app the
+         phone has, never to this app's own gallery. Static: nothing on
+         screen may change a contentDescription continuously, or UI Automator
+         fails with "the button never appeared" - see CLAUDE.md. -->
+    <string name="library_video">Video</string>
     <string name="instructions_title">Instructions</string>
     <string name="instructions_unreadable">That file cannot be read.</string>
     <string name="music_title">Music…</string>

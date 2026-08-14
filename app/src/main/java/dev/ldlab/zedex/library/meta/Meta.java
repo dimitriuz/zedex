@@ -226,6 +226,24 @@ public final class Meta {
     public final String playCount;
 
     /**
+     * A link to a video about this game, or null - a full watch url, never a
+     * bare id, so a future source with something else to offer here still
+     * fits the field it lands in. zxart's own {@code youtubeId} is the first
+     * source that fills this; 47.1% of its prods carry one, so no link is the
+     * ordinary case and this is null rather than an empty string a screen
+     * would then draw an icon for.
+     *
+     * <b>Not {@code Artwork}'s {@code videos} media folder.</b> That folder
+     * holds an mp4 this app captured or was scraped as a file, which the
+     * gallery decodes and plays inline; this is a page on the open web, and
+     * the only thing this app ever does with it is hand it to whatever app
+     * the phone has for a link - see {@code CataloguePane.openLink} and
+     * {@code GameInfoView.openVideo}. Conflating the two would have the
+     * gallery trying to play a URL as though it were a file on disk.
+     */
+    public final String videoLink;
+
+    /**
      * Whether this one has been finished - {@code "true"}, {@code "false"} or
      * null.
      *
@@ -286,6 +304,7 @@ public final class Meta {
 
     private Meta(Builder from) {
         this.playCount = from.playCount;
+        this.videoLink = from.videoLink;
         this.completed = from.completed;
         this.path = from.path;
         this.name = from.name;
@@ -373,7 +392,7 @@ public final class Meta {
                 .authors(authors).price(price)
                 .series(series).seriesGames(seriesGames)
                 .compilations(compilations).contents(contents)
-                .playCount(playCount).completed(completed);
+                .playCount(playCount).videoLink(videoLink).completed(completed);
     }
 
     /**
@@ -392,7 +411,7 @@ public final class Meta {
 
         private String path, name, desc, developer, publisher, genre, subgenre,
                 released, players, rating, source, keymap, machine, price, series,
-                playCount, completed;
+                playCount, videoLink, completed;
 
         private List<String> inputs, authors;
         private List<Link> seriesGames, compilations, contents;
@@ -454,6 +473,12 @@ public final class Meta {
         public Builder contents(List<Link> v)      { contents = v;     return this; }
         public Builder machine(String v)   { machine = orNull(v);      return this; }
         public Builder playCount(String v) { playCount = orNull(v);    return this; }
+
+        /** Named exactly for the field it sets, and not, say, {@code video} -
+         *  {@code BlendTest.everyMissingFieldIsSomethingLeftToGain} finds this
+         *  setter by reflecting on {@link Meta#videoLink}'s own name. */
+        public Builder videoLink(String v) { videoLink = orNull(v);    return this; }
+
         public Builder completed(String v) { completed = orNull(v);    return this; }
 
         /** Copied, and empty is the same as none. */
@@ -477,6 +502,7 @@ public final class Meta {
                 case MACHINE:   return machine(value);
                 case INPUTS:    return inputs(listOf(value));
                 case PLAY_COUNT: return playCount(value);
+                case VIDEO_LINK: return videoLink(value);
                 case COMPLETED:  return completed(value);
                 default:        return this;
             }
@@ -533,6 +559,10 @@ public final class Meta {
         SUBGENRE(true), RELEASED(true), PLAYERS(true), RATING(true), MACHINE(true),
         INPUTS(true),
 
+        /** A link a provider could plausibly send back - zxart already does -
+         *  so {@code true}, unlike the two below. */
+        VIDEO_LINK(true),
+
         /**
          * Two facts a person keeps rather than scrapes - no provider can ever
          * fill either, so {@code false} here. A field added to this enum
@@ -576,6 +606,7 @@ public final class Meta {
             case INPUTS:    return inputs.isEmpty() ? null
                                                     : String.join(INPUT_SEPARATOR, inputs);
             case PLAY_COUNT: return playCount;
+            case VIDEO_LINK: return videoLink;
             case COMPLETED:  return completed;
             default:        return null;
         }

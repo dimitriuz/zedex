@@ -62,6 +62,7 @@ public final class Merge {
                 // overwriting a count this app has been keeping would throw
                 // away the only record of it.
                 .playCount(first(base.playCount, addition.playCount))
+                .videoLink(first(base.videoLink, addition.videoLink))
                 .completed(first(base.completed, addition.completed))
                 .inputs(firstList(base.inputs, addition.inputs))
                 .authors(firstList(base.authors, addition.authors))

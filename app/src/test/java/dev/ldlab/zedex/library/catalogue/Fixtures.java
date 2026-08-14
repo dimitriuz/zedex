@@ -19,11 +19,12 @@ import java.util.List;
  *
  * Trimmed only by dropping whole rows - never by dropping fields - so what is
  * left is still shaped like a reply. {@code RELEASES_LICENCE_TO_KILL} keeps 3
- * of 24 releases; {@code PROD_FORBIDDEN} is built by wrapping one real,
- * complete row (a genuine {@code legalStatus:"forbidden"} entry) in the same
- * wrapper shape a single-id lookup answers with, because {@code
- * prod-categories.json} itself is a 285-category sweep with no single-prod
- * reply of its own to copy.
+ * of 24 releases; {@code PROD_FORBIDDEN} and {@code PROD_WITHOUT_VIDEO} are
+ * each built by wrapping one real, complete row (a genuine {@code
+ * legalStatus:"forbidden"} entry, and a genuine entry with no {@code
+ * youtubeId} key at all) in the same wrapper shape a single-id lookup answers
+ * with, because {@code prod-categories.json} itself is a 285-category sweep
+ * with no single-prod reply of its own to copy.
  *
  * The originals are in review/zxart/, which is gitignored, so they are on one
  * machine only; review/zxart/probe.py fetches any that are missing and skips
@@ -1627,6 +1628,32 @@ public final class Fixtures {
             + "ring\":\"\\u0418\\u0433\\u0440\\u044b\\/\\u042d\\u043a\\u0448\\u0435\\u043d\\/\\u0428\\u0443\\u0"
             + "442\\u0435\\u0440\\u044b\\/\\u0420\\u0435\\u043b\\u044c\\u0441\\u043e\\u0432\\u044b\\u0439 \\u04"
             + "48\\u0443\\u0442\\u0435\\u0440\"}]},\"responseStatus\":\"success\"}";
+
+    /**
+     * A real row with no {@code youtubeId} key at all, out of review/zxart/
+     * prod-categories.json (id 92705, "100 Kilometri") - the majority case,
+     * 529 of the file's 1,000 rows. Built to {@code PROD_FORBIDDEN}'s own
+     * wrapper shape and for the same reason: a 285-category sweep has no
+     * single-prod reply of its own to copy, so only the row itself - {@code
+     * totalAmount}, {@code start}, {@code limit}, {@code responseStatus} come
+     * from {@code prod-by-id.json}'s real shape instead - is copied verbatim,
+     * byte for byte, from the file.
+     */
+    public static final String PROD_WITHOUT_VIDEO =
+            "{\"totalAmount\":1,\"start\":0,\"limit\":2,\"responseData\":{\"zxProd\":[{\"id\":92705,\"title\""
+            + ":\"100 Kilometri\",\"dateCreated\":1479491026,\"dateModified\":1786309890,\"language\":[\"it\"],"
+            + "\"year\":1986,\"legalStatus\":\"unknown\",\"publishersIds\":[184197],\"releasesIds\":[92708],\"i"
+            + "magesUrls\":[\"https:\\/\\/zxart.ee\\/zximages\\/id=92706;pal=srgb;type=standard;zoom=1\",\"http"
+            + "s:\\/\\/zxart.ee\\/screenshot\\/id:92707\\/100Kilometri.gif\"],\"maps\":[\"https:\\/\\/zxart.ee\\"
+            + "/release\\/id:375095\\/mode:download\\/filename:100kmRace.png\",\"https:\\/\\/zxart.ee\\/release"
+            + "\\/id:554334\\/mode:download\\/filename:100Kilometri.png\"],\"authorsInfo\":[{\"id\":1142,\"auth"
+            + "orId\":176159,\"startDate\":\"\",\"endDate\":\"\",\"roles\":[\"unknown\"],\"type\":\"prod\"},{\""
+            + "id\":1143,\"authorId\":176160,\"startDate\":\"\",\"endDate\":\"\",\"roles\":[\"unknown\"],\"type"
+            + "\":\"prod\"}],\"importIds\":{\"maps\":\"100kmRace\",\"zxdb\":\"10\",\"wos\":\"0000010\"},\"votes"
+            + "\":3.91,\"votesAmount\":1,\"connectedCategoriesIds\":[523425],\"categoriesString\":\"\\u0418\\u0"
+            + "433\\u0440\\u044b\\/\\u042d\\u043a\\u0448\\u0435\\u043d\\/\\u0413\\u043e\\u043d\\u043a\\u0438\\/"
+            + "\\u0413\\u043e\\u043d\\u043a\\u0438 \\u0441 \\u0432\\u0438\\u0434\\u043e\\u043c \\u0441\\u0432\\"
+            + "u0435\\u0440\\u0445\\u0443\"}]},\"responseStatus\":\"success\"}";
 
     /**
      * review/zxart/af-author-entity.json - export:author,

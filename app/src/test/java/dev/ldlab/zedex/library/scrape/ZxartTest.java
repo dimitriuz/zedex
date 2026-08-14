@@ -320,6 +320,46 @@ public class ZxartTest {
         assertTrue(meta.inputs.contains("Interface 2 (right)"));
     }
 
+    // --- the video link -------------------------------------------------------------
+
+    /**
+     * The provider builds a full watch url from the bare id zxart sends -
+     * never the id alone, so a future source with something else to offer
+     * here still fits the field it lands in. See {@code Meta#videoLink}.
+     */
+    @Test
+    public void aYoutubeIdBecomesAWatchLink() throws Exception {
+        Pace.forget();
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.PROD_LICENCE_TO_KILL)
+                                                    .then(Fixtures.RELEASES_LICENCE_TO_KILL);
+
+        Meta meta = new Zxart(http).fetch(
+                new Candidate("92668", "Licence to Kill", "1989", null, true),
+                Provider.Wanted.nothing()).meta;
+
+        assertEquals("https://www.youtube.com/watch?v=r1U9U1MMn6g", meta.videoLink);
+    }
+
+    /**
+     * 529 of a 1,000-row sample of {@code prod-categories.json} carry no
+     * {@code youtubeId} at all, so no link is the ordinary case - and it has
+     * to answer null rather than an empty string a screen would then draw an
+     * icon for. {@link Fixtures#PROD_WITHOUT_VIDEO} is entry 92705, "100
+     * Kilometri", a real row with the key genuinely absent.
+     */
+    @Test
+    public void anEntryWithNoVideoHasNoLink() throws Exception {
+        Pace.forget();
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.PROD_WITHOUT_VIDEO)
+                                                    .then(NO_RELEASES);
+
+        Meta meta = new Zxart(http).fetch(
+                new Candidate("92705", "100 Kilometri", "1986", null, true),
+                Provider.Wanted.nothing()).meta;
+
+        assertNull(meta.videoLink);
+    }
+
     /**
      * The "either" row is measured, not invented: entry 100938's {@code .tap}
      * release (id 100942, in {@link Fixtures#RELEASES_HEAD_OVER_HEELS})
@@ -616,6 +656,16 @@ public class ZxartTest {
      *  memory" rule is about the replies that carry real content. */
     private static final String NO_MATCH =
             "{\"totalAmount\":0,\"start\":0,\"limit\":10,\"responseData\":{\"zxProd\":[]},"
+            + "\"responseStatus\":\"success\"}";
+
+    /** {@link #NO_MATCH}'s own twin for a release list - an entry with no
+     *  releases at all is not a shape this app is ever asked to explain, only
+     *  one {@code fetch} must not choke on now that the release list is asked
+     *  for on every call. Not a capture, for the same reason {@code NO_MATCH}
+     *  is not: nothing substantive to get wrong from memory about an empty
+     *  array and a success status. */
+    private static final String NO_RELEASES =
+            "{\"totalAmount\":0,\"start\":0,\"limit\":50,\"responseData\":{\"zxRelease\":[]},"
             + "\"responseStatus\":\"success\"}";
 
     /** A stand-in for a file on disk, the same shape {@code ZxInfoTest}'s own

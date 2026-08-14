@@ -737,6 +737,30 @@ public class MetadataStoreTest {
         assertEquals(1, row.plays());
     }
 
+    // --- the video link -------------------------------------------------------------
+
+    /** A video link survives being written and read back, exactly as every
+     *  other string field here does. */
+    @Test
+    public void avideoLinkSurvivesTheRoundTrip() {
+        String link = "https://www.youtube.com/watch?v=r1U9U1MMn6g";
+
+        Metadata.put(context, game("./a.tap", "A").but().videoLink(link).build());
+        Metadata.refresh(context);
+
+        assertEquals(link, Metadata.forPath(context, "./a.tap").videoLink);
+    }
+
+    /** A game with no video reads back with none, not an empty string - the
+     *  ordinary case, since most of a collection has no video at all. */
+    @Test
+    public void agameWithNoVideoReadsBackWithNone() {
+        Metadata.replaceScraped(context, Collections.singletonList(game("./a.tap", "A")));
+        Metadata.refresh(context);
+
+        assertNull(Metadata.forPath(context, "./a.tap").videoLink);
+    }
+
     /** The completed flag survives a round trip too - three states, and
      *  "false" is not the same as absent. */
     @Test

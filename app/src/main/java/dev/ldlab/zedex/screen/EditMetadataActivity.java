@@ -330,6 +330,13 @@ public final class EditMetadataActivity extends ZedexActivity {
             case PLAYERS:   return R.string.edit_metadata_players;
             case RATING:    return R.string.edit_metadata_rating;
             case MACHINE:   return R.string.edit_metadata_machine;
+            // library_video already names this - the icon's own
+            // contentDescription in CataloguePane and GameInfoView - and a
+            // second string for the same word would be one more to keep
+            // translated in step. Without a case here VIDEO_LINK fell to the
+            // default below and showed as "Controls", which is INPUTS' own
+            // fallback label and wrong for this field.
+            case VIDEO_LINK: return R.string.library_video;
             default:        return R.string.edit_metadata_controls;
         }
     }

@@ -254,6 +254,33 @@ public class ZxartCatalogueTest {
     }
 
     /**
+     * A list row already carries the video link, before {@link
+     * Catalogue#item} is ever asked - the same row {@link #onlyItem} builds
+     * from, {@code PROD_LICENCE_TO_KILL}, whose {@code youtubeId} is
+     * {@code r1U9U1MMn6g}. That is what lets {@code CataloguePane} decide
+     * whether to show the icon the moment a title is tapped.
+     */
+    @Test
+    public void aListRowCarriesTheVideoLink() throws Exception {
+        assertEquals("https://www.youtube.com/watch?v=r1U9U1MMn6g", onlyItem().videoLink());
+    }
+
+    /**
+     * Most prods have none - 529 of a 1,000-row sample - and null is the
+     * honest answer, not an empty string a row would then draw an icon for.
+     */
+    @Test
+    public void arowWithNoYoutubeIdHasNoVideoLink() throws Exception {
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.CATEGORY_TREE)
+                                                    .then(Fixtures.PROD_WITHOUT_VIDEO);
+
+        Catalogue.Item item = catalogue(http).open(shelf(ZxartCatalogue.SHELF_EVERYTHING),
+                                                   Catalogue.Query.none(), 0).items().get(0);
+
+        assertNull(item.videoLink());
+    }
+
+    /**
      * A prod row carries no files at all - only releasesIds - so the formats
      * are one request away per row and Item.formats() is honestly empty. Task
      * 7's knowsFormats is what stops the screen's filter rejecting the whole

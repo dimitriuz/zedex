@@ -26,6 +26,7 @@ import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -142,6 +143,18 @@ public final class GameInfoView extends LinearLayout {
      *  offered at all ({@link #setOffersManual}) and nothing more. */
     private final ImageButton rowManual;
     private final ImageButton rowMusic;
+
+    /**
+     * A link to a video about this game - zxart's own {@code youtubeId}, as
+     * a watch url - shown beside the manual and the music, in every host: no
+     * quick bar anywhere already offers this, so there is no {@code
+     * offersManual}-style toggle to turn it off on the emulator's own panel.
+     * Revealed synchronously from {@link Meta#videoLink} in {@link #show},
+     * not asked for off the UI thread the way the manual and the music are:
+     * the value already sits in the {@link Meta} that {@link #showEntry}'s
+     * own store lookup fetches, so there is nothing further to wait for.
+     */
+    private final ImageButton rowVideo;
 
     private final TextView title;
     private final TextView filename;
@@ -353,6 +366,7 @@ public final class GameInfoView extends LinearLayout {
 
         rowManual = icon(R.drawable.ic_manual, R.string.library_manual);
         rowMusic = icon(R.drawable.ic_music, R.string.music_title);
+        rowVideo = icon(R.drawable.ic_video, R.string.library_video);
 
         rebuildRow();
 
@@ -437,6 +451,7 @@ public final class GameInfoView extends LinearLayout {
         }
         actionRow.addView(rowManual, iconParams());
         actionRow.addView(rowMusic, iconParams());
+        actionRow.addView(rowVideo, iconParams());
         for (View action : trailingActions) actionRow.addView(action, iconParams());
     }
 
@@ -520,6 +535,14 @@ public final class GameInfoView extends LinearLayout {
         rowMusic.setOnClickListener(null);
         rowManual.setVisibility(View.GONE);
         rowManual.setOnClickListener(null);
+        // Reset here too, even though it is only ever set synchronously from
+        // show(Meta) below and never asynchronously the way the other two
+        // are: the store answer that show(Meta) waits for is itself
+        // asynchronous, so without this a game with no video would keep
+        // showing the last game's button, wired to the last game's link,
+        // until this game's own answer happened to arrive.
+        rowVideo.setVisibility(View.GONE);
+        rowVideo.setOnClickListener(null);
         // Synchronously, unlike the removeAllViews() in show(Meta): this view is
         // reused across selections and the metadata answer is asynchronous, so
         // leaving the last game's rows up until the store replies would show
@@ -707,6 +730,48 @@ public final class GameInfoView extends LinearLayout {
         getContext().startActivity(intent);
     }
 
+    /**
+     * Hands the video link to whatever the phone has for it - a browser, or
+     * the YouTube app itself - never to this view's own gallery, which plays
+     * a captured mp4 from the game's {@code videos} media folder rather than
+     * a page on the open web.
+     *
+     * The same display targeting {@link #openViewer} and {@code
+     * Manuals.open} use, and for the same reason: an activity launches on
+     * its caller's display by default, which on the second screen's own
+     * panel is not where a person is looking. Unlike {@link #openViewer}'s
+     * own {@code MediaViewerActivity}, this is a foreign activity - nothing
+     * reports one of those closing - so {@link #onForeignScreen} is told,
+     * and only on the path that actually put something on the panel's own
+     * display, exactly as {@code Manuals.open}'s own callback is.
+     */
+    private void openVideo(String url) {
+        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+        Display display = getDisplay();
+
+        if (display != null) {
+            try {
+                ActivityOptions options = ActivityOptions.makeBasic();
+                options.setLaunchDisplayId(display.getDisplayId());
+
+                getContext().startActivity(intent, options.toBundle());
+
+                if (onForeignScreen != null) onForeignScreen.run();
+                return;
+            } catch (RuntimeException e) {
+                Log.w(TAG, "cannot open " + url + " on display "
+                           + display.getDisplayId(), e);
+            }
+        }
+
+        try {
+            getContext().startActivity(intent);
+        } catch (RuntimeException e) {
+            Log.w(TAG, "nothing can open " + url, e);
+            Toast.makeText(getContext(), R.string.open_failed, Toast.LENGTH_LONG).show();
+        }
+    }
+
     private void openMusic(String relativePath) {
         Intent intent = new Intent(getContext(), EmulatorActivity.class)
                 .putExtra(EmulatorActivity.EXTRA_MUSIC, relativePath)
@@ -729,6 +794,8 @@ public final class GameInfoView extends LinearLayout {
         rowManual.setOnClickListener(null);
         rowMusic.setVisibility(View.GONE);
         rowMusic.setOnClickListener(null);
+        rowVideo.setVisibility(View.GONE);
+        rowVideo.setOnClickListener(null);
         // See the matching reset in showEntry(): this view is reused across
         // selections, so nothing selected must mean nothing shown, not the
         // last game's rows left standing under an empty title.
@@ -792,6 +859,11 @@ public final class GameInfoView extends LinearLayout {
         if (meta.desc != null && !meta.desc.isEmpty()) {
             description.setText(meta.desc.trim());
             description.setVisibility(View.VISIBLE);
+        }
+
+        if (meta.videoLink != null) {
+            rowVideo.setVisibility(View.VISIBLE);
+            rowVideo.setOnClickListener(v -> openVideo(meta.videoLink));
         }
 
         extras.removeAllViews();

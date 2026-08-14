@@ -576,6 +576,7 @@ public final class Metadata {
             // count and the other a flag - see Meta.playCount. A store that
             // held three shapes would be three shapes to read back.
             field(writer, "playCount", game.playCount);
+            field(writer, "videoLink", game.videoLink);
             field(writer, "completed", game.completed);
             list(writer, "inputs", game.inputs);
             list(writer, "authors", game.authors);
@@ -833,6 +834,7 @@ public final class Metadata {
                 case "price":     building.price(reader.nextString());     break;
                 case "series":    building.series(reader.nextString());    break;
                 case "playCount": building.playCount(reader.nextString());  break;
+                case "videoLink": building.videoLink(reader.nextString());  break;
                 case "completed": building.completed(reader.nextString());  break;
                 case "inputs":    building.inputs(strings(reader));        break;
                 case "authors":   building.authors(strings(reader));       break;

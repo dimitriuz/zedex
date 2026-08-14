@@ -346,4 +346,25 @@ public final class ZxartApi {
                    .replace("&gt;", ">")
                    .replace("&amp;", "&");
     }
+
+    /**
+     * {@code prod}'s own {@code youtubeId}, turned into a link a person can
+     * open, or null when it has none - the ordinary case, at 529 of a 1,000-row
+     * sample of {@code prod-categories.json}. A full watch url rather than the
+     * bare id, so a future source with something else to offer here still fits
+     * the field it lands in - see {@code Meta#videoLink}.
+     *
+     * Shared between {@code Zxart} and {@code ZxartCatalogue} rather than
+     * copied into each, unlike {@code extensionOf}'s deliberate duplication
+     * between those same two classes: that pair reads two different things
+     * (a url's own extension) and is worth keeping independently correct, but
+     * this reads the identical field off the identical row shape in both
+     * callers - a search hit's row and a single-id lookup's are the same
+     * export, measured - so a second copy could only drift from this one for
+     * no reason worth having.
+     */
+    public static String watchUrlOf(JSONObject prod) {
+        String id = prod.optString("youtubeId", "");
+        return id.isEmpty() ? null : "https://www.youtube.com/watch?v=" + id;
+    }
 }

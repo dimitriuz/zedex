@@ -137,6 +137,29 @@ public class MergeTest {
         }
     }
 
+    /**
+     * The fill-gaps rule applies to this field like any other: an addition
+     * fills a gap and may never overwrite.
+     *
+     * Not {@code Meta.at("./Game.tap").but().videoLink(...)}, as the plan
+     * this test was written from has it - {@code at} already answers a
+     * {@link Meta.Builder}, which has no {@code but()} of its own; that is
+     * {@link Meta}'s instance method, for carrying an existing row's fields
+     * into a fresh builder, and there is nothing existing to carry here.
+     */
+    @Test
+    public void aVideoLinkIsFilledButNeverOverwritten() {
+        Meta mine = Meta.at("./Game.tap")
+                .videoLink("https://www.youtube.com/watch?v=mine").build();
+        Meta theirs = Meta.at("./Game.tap")
+                .videoLink("https://www.youtube.com/watch?v=theirs").build();
+
+        assertEquals("https://www.youtube.com/watch?v=mine",
+                     Merge.of(mine, theirs).videoLink);
+        assertEquals("https://www.youtube.com/watch?v=theirs",
+                     Merge.of(Meta.at("./Game.tap").build(), theirs).videoLink);
+    }
+
     @Test
     public void nullAdditionAnswersBaseUnchanged() {
         Meta base = Meta.at("./A.tap").name("Manic Miner").build();
@@ -175,6 +198,7 @@ public class MergeTest {
                 .seriesGames(Collections.singletonList(new Meta.Link("2", "Jet Set Willy" + suffix)))
                 .compilations(Collections.singletonList(new Meta.Link("3", "They Sold a Million" + suffix)))
                 .contents(Collections.singletonList(new Meta.Link("4", "Something" + suffix)))
+                .videoLink("https://www.youtube.com/watch?v=abc" + suffix)
 
                 // Neither takes a tag: one is a count and the other a flag,
                 // and " mine" on the end of either is not a value the app or

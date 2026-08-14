@@ -144,6 +144,10 @@ The last two are there if you want to leave the developer a tip. Nothing in
 Zedex is behind them, nothing counts whether you tapped one, and the app never
 learns whether you did.
 
+A game's scraped video link works the same way: Zedex makes no request to
+YouTube itself, and tapping it only hands the address to whatever app your
+phone has for opening one.
+
 Zedex itself talks to `screenscraper.fr`, `api.zxinfo.dk`,
 `spectrumcomputing.co.uk` and `zxinfo.dk`, and only when you ask it to — see
 *When Zedex uses the internet* above.
