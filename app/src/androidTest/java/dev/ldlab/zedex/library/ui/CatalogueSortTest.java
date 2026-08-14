@@ -176,6 +176,24 @@ public class CatalogueSortTest {
             return true;
         }
 
+        /**
+         * False, on purpose, not by omission.
+         *
+         * {@link #row} builds every item with an empty version list - no
+         * {@code Download}, no format, nothing a format filter could act on -
+         * because this class is about the sort control and not about
+         * formats. Answering true would claim a shape these rows do not
+         * have, exactly the mistake {@code CatalogueChaseTest.Sparse} made by
+         * leaving this unstated (see that class's own {@code knowsFormats}
+         * javadoc, added in the same fix as this comment). None of the three
+         * tests here opens {@code formatRow} - it stays {@code GONE} for
+         * this fake, correctly, and is not what this class exercises.
+         */
+        @Override
+        public boolean knowsFormats() {
+            return false;
+        }
+
         @Override
         public List<Shelf> shelves() {
             return Collections.singletonList(new Shelf("shelf", SHELF, Shelf.Accepts.NOTHING));

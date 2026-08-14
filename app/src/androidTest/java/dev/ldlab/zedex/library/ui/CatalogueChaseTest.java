@@ -294,6 +294,26 @@ public class CatalogueChaseTest {
             return true;
         }
 
+        /**
+         * True - the honest declaration, not a workaround.
+         *
+         * {@link #row} builds every item with a real {@link Download}, tap or
+         * rzx depending on {@code filtered}, precisely so the format filter
+         * this whole class chases pages for has something to filter. A fake
+         * whose rows carry their own files is claiming exactly the shape
+         * {@code Catalogue#knowsFormats()}'s javadoc describes for ZXInfo, and
+         * leaving this undeclared - inheriting the interface's {@code false}
+         * default, introduced alongside the format filter itself in {@code
+         * 9a026ec} - silently hid {@code CatalogueView.formatRow} behind a
+         * predicate this class never meant to answer no to. That is what let
+         * all four tests below fail at {@link #chooseTheFilteredFormat} with
+         * no code here having changed.
+         */
+        @Override
+        public boolean knowsFormats() {
+            return true;
+        }
+
         @Override
         public List<Shelf> shelves() {
             return Collections.singletonList(
