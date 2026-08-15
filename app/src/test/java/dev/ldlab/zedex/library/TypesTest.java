@@ -103,8 +103,32 @@ public class TypesTest {
     @Test
     public void anythingElseIsNotSupported() {
         assertFalse(Types.supported("notes.txt"));
-        assertFalse(Types.supported("cover.png"));
         assertFalse(Types.supported("README"));
+    }
+
+    /**
+     * A music or screenshot import - {@code Pick.otherFile}'s own answer for
+     * a Music or Graphics catalogue item - is supported without being
+     * openable, the same distinction a zip carries: the library shows the
+     * row, and the emulator is never asked to load it.
+     */
+    @Test
+    public void aMusicOrScreenshotImportIsExternalAndNotOpenable() {
+        for (String name : Arrays.asList("tune.ogg", "screen.png", "screen.jpg",
+                                         "screen.jpeg", "screen.gif")) {
+            assertTrue(name + " should be external", Types.external(name));
+            assertFalse(name + " should not be openable", Types.openable(name));
+            assertTrue(name + " should be supported", Types.supported(name));
+        }
+    }
+
+    /** A raw Spectrum screen dump is a picture {@code Pick} recognises, but
+     *  nothing on Android has a viewer for one - listing it would show a row
+     *  that can only fail, so it stays unsupported. */
+    @Test
+    public void aScreenDumpIsNotExternal() {
+        assertFalse(Types.external("screen.scr"));
+        assertFalse(Types.supported("screen.scr"));
     }
 
     // --- what ES-DE is told -----------------------------------------------------
@@ -130,9 +154,18 @@ public class TypesTest {
                 Arrays.asList(Types.forEsDe()));
     }
 
-    /** Everything the library will show, ES-DE is told about - the two lists
-     *  disagreeing about a format is what having two copies of them once
-     *  caused, and it is silent: the row appears in one and not the other. */
+    /**
+     * Everything the library will show that the emulator can load or walk
+     * into, ES-DE is told about - the two lists disagreeing about a format is
+     * what having two copies of them once caused, and it is silent: the row
+     * appears in one and not the other.
+     *
+     * <b>A music or screenshot import is deliberately not in this list.</b>
+     * ES-DE launches emulators; it has its own {@code downloaded_media}
+     * folders for a tune or a screenshot already, and offering one as a
+     * "system" of its own would be a second, worse way to show the same file.
+     * See {@link #anExternalImportIsNotToldToEsDe}.
+     */
     @Test
     public void esDeIsToldAboutEverythingTheLibraryShows() {
         Set<String> told = new HashSet<>(Arrays.asList(Types.forEsDe()));
@@ -143,6 +176,17 @@ public class TypesTest {
                                          "game.gz", "games.zip")) {
             assertTrue("the library shows " + name + " but ES-DE is not told about it",
                        told.contains(Types.extension(name)));
+        }
+    }
+
+    /** See {@link #esDeIsToldAboutEverythingTheLibraryShows}'s own note: the
+     *  one deliberate exception to "everything shown is told". */
+    @Test
+    public void anExternalImportIsNotToldToEsDe() {
+        Set<String> told = new HashSet<>(Arrays.asList(Types.forEsDe()));
+
+        for (String extension : Arrays.asList("ogg", "png", "jpg", "jpeg", "gif")) {
+            assertFalse(extension + " must not be told to ES-DE", told.contains(extension));
         }
     }
 
