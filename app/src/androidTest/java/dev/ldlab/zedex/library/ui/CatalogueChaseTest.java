@@ -343,11 +343,12 @@ public class CatalogueChaseTest {
                                          + (filtered ? ".rzx" : ".tap"),
                                          filtered ? FILTERED : "tap", 1024);
 
-            return new Item(String.valueOf(number), TITLE + " " + number, "1984",
-                            "Nobody", "Arcade Game", "Available", null,
-                            Arrays.asList(new Version(null, "1984",
-                                                      Collections.singletonList(file))),
-                            null);
+            return Item.builder(String.valueOf(number))
+                    .title(TITLE + " " + number).year("1984").publisher("Nobody")
+                    .kind("Arcade Game").availability("Available")
+                    .versions(Arrays.asList(new Version(null, "1984",
+                                                        Collections.singletonList(file))))
+                    .build();
         }
 
         @Override

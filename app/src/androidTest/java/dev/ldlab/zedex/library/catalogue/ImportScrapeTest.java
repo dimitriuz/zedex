@@ -117,8 +117,10 @@ public class ImportScrapeTest {
     }
 
     private static Catalogue.Item item(String id, String title) {
-        return new Catalogue.Item(id, title, "1987", "Ocean", "Arcade Game", "Available",
-                                  null, Collections.emptyList(), null);
+        return Catalogue.Item.builder(id)
+                .title(title).year("1987").publisher("Ocean").kind("Arcade Game")
+                .availability("Available").versions(Collections.emptyList())
+                .build();
     }
 
     /** Never asked for a page, never saves media - {@code describe} does not

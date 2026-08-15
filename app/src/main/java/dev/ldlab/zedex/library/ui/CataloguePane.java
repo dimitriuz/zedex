@@ -12,6 +12,7 @@ import dev.ldlab.zedex.library.scrape.Http;
 import dev.ldlab.zedex.library.scrape.Provider;
 import dev.ldlab.zedex.library.scrape.ScrapeException;
 import dev.ldlab.zedex.library.scrape.Scrapers;
+import dev.ldlab.zedex.screen.CatalogueDetailsActivity;
 import dev.ldlab.zedex.storage.Prefs;
 import dev.ldlab.zedex.storage.Storage;
 import dev.ldlab.zedex.storage.Tree;
@@ -39,6 +40,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.List;
+import java.util.Locale;
 
 /**
  * One catalogue title, and the button that brings it in.
@@ -148,6 +150,11 @@ public final class CataloguePane extends FrameLayout {
      */
     public static final int REQUEST_WRITABLE_TREE = 0x7a11;
 
+    /** {@code CatalogueDetailsActivity}'s own request code - the only answer
+     *  it can give is Similar games, attached to the result and read back in
+     *  {@link #onActivityResult}; see that activity's {@code EXTRA_SHELF}. */
+    public static final int REQUEST_DETAILS = 0x7a12;
+
     /** Which archive {@link #showing}'s id belongs to. Not {@code final}: see
      *  {@link #setCatalogue}. */
     private Catalogue catalogue;
@@ -190,6 +197,22 @@ public final class CataloguePane extends FrameLayout {
      * wants another way on.
      */
     private final Button similarButton;
+
+    /**
+     * Everything this catalogue knows about the title, on a screen of its
+     * own - images, description, the same facts this pane already shows -
+     * see {@code CatalogueDetailsActivity}.
+     *
+     * <b>Waits for {@link Catalogue#item}, unlike {@link #similarButton}.</b>
+     * A list row's own {@link Catalogue.Item} may already carry everything
+     * the details screen wants - ZXInfo's search hit and its full record are
+     * measured byte-identical - but zxart's does not: a row names its
+     * releases and nothing else, so opening Details before the full record
+     * has answered would show an item with no versions to import from
+     * there. Gated the same way {@link #versionsButton} and {@link
+     * #recordingButton} already are, for the same reason.
+     */
+    private final Button detailsButton;
 
     /**
      * A link to a video about this title - zxart's own {@code youtubeId} -
@@ -398,6 +421,10 @@ public final class CataloguePane extends FrameLayout {
         similarButton.setOnClickListener(v -> openSimilar());
         words.addView(similarButton, wrap());
 
+        detailsButton = button(R.string.catalogue_details);
+        detailsButton.setOnClickListener(v -> openDetails());
+        words.addView(detailsButton, wrap());
+
         // An icon rather than a fifth text button: it sits beside the words
         // this pane already draws rather than in their own line, the same
         // shape GameInfoView's rowManual/rowMusic take beside its own words.
@@ -466,7 +493,7 @@ public final class CataloguePane extends FrameLayout {
         // the answer to why the Import button on this new title does nothing.
 
         title.setText(item.title());
-        facts.setText(factsLine(item));
+        facts.setText(CatalogueText.factsLine(item));
 
         boolean stated = item.availability() != null && !item.availability().isEmpty();
         availability.setText(stated ? item.availability() : "");
@@ -485,6 +512,7 @@ public final class CataloguePane extends FrameLayout {
 
         versionsButton.setVisibility(View.GONE);
         recordingButton.setVisibility(View.GONE);
+        detailsButton.setVisibility(View.GONE);
 
         // The one button that is decided here rather than when the record
         // arrives: where it goes is built from the id the row already carries,
@@ -539,6 +567,7 @@ public final class CataloguePane extends FrameLayout {
      *         its own handling of anything else.
      */
     public boolean onActivityResult(int request, int result, Intent data) {
+        if (request == REQUEST_DETAILS) return detailsFinished(result, data);
         if (request != REQUEST_WRITABLE_TREE) return false;
 
         if (result != Activity.RESULT_OK || data == null || data.getData() == null) return true;
@@ -554,6 +583,22 @@ public final class CataloguePane extends FrameLayout {
         Runnable then = pending;
         pending = null;
         if (then != null) then.run();
+
+        return true;
+    }
+
+    /**
+     * The details screen's own answer: Similar games, chosen there rather
+     * than here - see {@code CatalogueDetailsActivity.openSimilar} and this
+     * class's {@link Host#openShelf}, which is the same door {@link
+     * #openSimilar} already uses for the pane's own button.
+     */
+    private boolean detailsFinished(int result, Intent data) {
+        if (result != Activity.RESULT_OK || data == null) return true;
+
+        Catalogue.Shelf shelf = (Catalogue.Shelf)
+                data.getSerializableExtra(CatalogueDetailsActivity.EXTRA_SHELF);
+        if (shelf != null) host.openShelf(shelf);
 
         return true;
     }
@@ -581,7 +626,7 @@ public final class CataloguePane extends FrameLayout {
         // The full record's own facts, which can be better than the row's: a
         // search result and a fetched entry are two replies and the second is
         // the one with everything in it.
-        facts.setText(factsLine(full));
+        facts.setText(CatalogueText.factsLine(full));
 
         Catalogue.Download game = Pick.forGame(full);
 
@@ -604,6 +649,7 @@ public final class CataloguePane extends FrameLayout {
 
         versionsButton.setVisibility(full.versions().size() > 1 ? View.VISIBLE : View.GONE);
         recordingButton.setVisibility(Pick.recording(full) != null ? View.VISIBLE : View.GONE);
+        detailsButton.setVisibility(View.VISIBLE);
     }
 
     /**
@@ -684,6 +730,33 @@ public final class CataloguePane extends FrameLayout {
         if (shelf == null) return;
 
         host.openShelf(shelf);
+    }
+
+    /**
+     * The Details button: everything this catalogue knows, on a screen of
+     * its own - see {@code CatalogueDetailsActivity}.
+     *
+     * <b>{@code startActivityForResult}, not a plain {@code startActivity}.</b>
+     * The one thing that screen can do that this pane has to act on is
+     * choosing Similar games there - see {@link #detailsFinished} - and a
+     * shelf answered from a screen this pane did not start would have
+     * nowhere to arrive.
+     */
+    private void openDetails() {
+        Catalogue.Item full = showing;
+        if (full == null) return;
+
+        Activity activity = activityOf();
+        if (activity == null) {
+            Log.w(TAG, "no activity to open the details screen from");
+            return;
+        }
+
+        Intent intent = new Intent(getContext(), CatalogueDetailsActivity.class)
+                .putExtra(CatalogueDetailsActivity.EXTRA_ITEM, full)
+                .putExtra(CatalogueDetailsActivity.EXTRA_CATALOGUE_NAME, catalogue.name());
+
+        activity.startActivityForResult(intent, REQUEST_DETAILS);
     }
 
     /**
@@ -1157,28 +1230,10 @@ public final class CataloguePane extends FrameLayout {
 
     // --- small things --------------------------------------------------------------
 
-    /** Year, publisher and the catalogue's own word for the kind, skipping
-     *  whichever is unknown - the same joining and the same separator the rows
-     *  and {@code DetailPane} both use. */
-    private static String factsLine(Catalogue.Item item) {
-        StringBuilder line = new StringBuilder();
-
-        appendFact(line, item.year());
-        appendFact(line, item.publisher());
-        appendFact(line, item.kind());
-
-        return line.toString();
-    }
-
-    private static void appendFact(StringBuilder line, String fact) {
-        if (fact == null || fact.isEmpty()) return;
-        if (line.length() > 0) line.append(" · ");
-        line.append(fact);
-    }
-
     /** What tells two releases apart on a list: the catalogue's own label for
      *  it, its year, or - for the original, which is often neither - the year
-     *  alone. Never empty, since an unlabelled row cannot be chosen. */
+     *  alone, followed by whatever {@link #factsFor} has to add. Never empty
+     *  before that, since an unlabelled row cannot be chosen. */
     private String labelOf(Catalogue.Version version) {
         String label = version.label();
         String year = version.year();
@@ -1186,11 +1241,57 @@ public final class CataloguePane extends FrameLayout {
         boolean hasLabel = label != null && !label.isEmpty();
         boolean hasYear = year != null && !year.isEmpty();
 
-        if (hasLabel && hasYear) return label + " (" + year + ")";
-        if (hasLabel) return label;
-        if (hasYear) return year;
+        String base;
+        if (hasLabel && hasYear) base = label + " (" + year + ")";
+        else if (hasLabel) base = label;
+        else if (hasYear) base = year;
+        else base = String.valueOf(title.getText());
 
-        return String.valueOf(title.getText());
+        String facts = factsFor(version);
+        return facts == null ? base : base + " · " + facts;
+    }
+
+    /**
+     * "TZX · 45 KB" - the format and size of whichever file this version
+     * would actually hand over, so the chooser says what tapping a row
+     * means rather than only which release it is.
+     *
+     * <b>The same file {@link #chooseVersion} would import</b> - {@link
+     * Pick#forGame(Catalogue.Version)}, not a format read off the version's
+     * files in whatever order the catalogue happened to list them. A
+     * version with nothing playable falls back to its first file regardless
+     * of kind - a scan or a manual is still worth naming, and this dialog
+     * has no second wording for "nothing to play but something to see".
+     *
+     * Null when the version has no files at all, which is a real thing to
+     * find - a release can be catalogued with nothing uploaded for it yet.
+     */
+    private static String factsFor(Catalogue.Version version) {
+        Catalogue.Download file = Pick.forGame(version);
+        if (file == null && !version.files().isEmpty()) file = version.files().get(0);
+        if (file == null) return null;
+
+        StringBuilder facts = new StringBuilder();
+        if (!file.format().isEmpty()) facts.append(file.format().toUpperCase(Locale.ROOT));
+
+        String size = sizeOf(file.size());
+        if (size != null) {
+            if (facts.length() > 0) facts.append(" · ");
+            facts.append(size);
+        }
+
+        return facts.length() > 0 ? facts.toString() : null;
+    }
+
+    /** "45 KB", "1.2 MB" - null for {@code -1} (the catalogue did not state
+     *  one) and for zero, which is not a size worth printing either. */
+    private static String sizeOf(long bytes) {
+        if (bytes >= 1024 * 1024) {
+            return String.format(Locale.US, "%.1f MB", bytes / (1024.0 * 1024.0));
+        }
+        if (bytes >= 1024) return String.format(Locale.US, "%.0f KB", bytes / 1024.0);
+        if (bytes > 0) return bytes + " B";
+        return null;
     }
 
     /** The one line about what is happening, or nothing at all - gone rather

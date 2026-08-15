@@ -1033,6 +1033,14 @@
     <string name="catalogue_similar_to">Games like %1$s</string>
     <string name="catalogue_needs_write">Zedex needs permission to add games to %1$s.</string>
     <string name="catalogue_choose_folder">Choose</string>
+    <!-- Everything the catalogue knows about a title, on a screen of its
+         own - see screen/CatalogueDetailsActivity. catalogue_details_import
+         is that screen's own version of Import, asked for when there is
+         nowhere yet to write the file: it points back at the pane's own
+         button rather than opening a folder picker a second place would
+         then have to keep in step with. -->
+    <string name="catalogue_details">Details</string>
+    <string name="catalogue_details_import">Import from the catalogue\'s own pane to choose a folder first.</string>
     <string name="disk_modified_title">Disk modified</string>
     <string name="disk_modified_save">Save</string>
     <string name="disk_modified_discard">Discard</string>

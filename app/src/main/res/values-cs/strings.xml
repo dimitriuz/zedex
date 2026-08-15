@@ -818,6 +818,8 @@
     <string name="catalogue_similar_to">Hry jako %1$s</string>
     <string name="catalogue_needs_write">Zedex potřebuje oprávnění přidávat hry do %1$s.</string>
     <string name="catalogue_choose_folder">Vybrat</string>
+    <string name="catalogue_details">Podrobnosti</string>
+    <string name="catalogue_details_import">Pro výběr složky nejprve použijte tlačítko Importovat na panelu katalogu.</string>
     <string name="disk_modified_title">Disk byl změněn</string>
     <string name="disk_modified_save">Uložit</string>
     <string name="disk_modified_discard">Zahodit</string>

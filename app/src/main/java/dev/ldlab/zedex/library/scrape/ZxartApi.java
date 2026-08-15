@@ -106,6 +106,29 @@ public final class ZxartApi {
     public static final String FILTER_PICTURE_SEARCH = "zxPictureSearch";
 
     /**
+     * A name search against {@link #AUTHOR}, not {@link #PROD} - measured
+     * 2026-08-15 against "Zosya", which {@link #FILTER_SEARCH} finds nothing
+     * for: {@code export:author/filter:authorSearch=Zosya} answers "ZOSYA
+     * entertainment"'s author row out of 19,482, and that row's {@code id}
+     * then works as {@link #FILTER_AUTHOR} against {@link #PROD}, narrowing
+     * 58,032 to exactly the four real games the group made. {@code
+     * groupSearch} resolves a group the same way, but is a dead end here:
+     * nothing filters {@link #PROD} by a publisher or group id - {@code
+     * publishersIds}, {@code groupsIds}, {@code groupId} and {@code
+     * publisherId} were all tried and all ignored.
+     *
+     * <b>A substring match, not a whole-name one - measured the same day.</b>
+     * {@code head} answers 21 authors, "HeadSoft" among them; {@code dizzy}
+     * answers "DizZy" and "diZZy128"; {@code elite} answers "britelite".
+     * Anything reached through this filter is therefore only safe to trust
+     * when nothing more exact already answered the question - see {@code
+     * ZxartCatalogue.appendAuthorMatches}, this filter's only caller, for why
+     * it is asked for solely when a title search already came up with
+     * nothing at all.
+     */
+    public static final String FILTER_AUTHOR_SEARCH = "authorSearch";
+
+    /**
      * Names that are <b>ignored</b>, kept so nobody reaches for one again.
      *
      * {@code zxProdTitleSearch}, {@code zxProdTitle}, {@code zxProdTitleStart},

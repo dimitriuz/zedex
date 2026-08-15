@@ -801,6 +801,8 @@
     <string name="catalogue_similar_to">Des jeux comme %1$s</string>
     <string name="catalogue_needs_write">Zedex a besoin d\'une autorisation pour ajouter des jeux à %1$s.</string>
     <string name="catalogue_choose_folder">Choisir</string>
+    <string name="catalogue_details">Détails</string>
+    <string name="catalogue_details_import">Pour choisir un dossier, utilisez d\'abord le bouton Importer du panneau du catalogue.</string>
     <string name="disk_modified_title">Disquette modifiée</string>
     <string name="disk_modified_save">Enregistrer</string>
     <string name="disk_modified_discard">Abandonner</string>

@@ -39,8 +39,10 @@ public class CatalogueRowsTest {
      * neither rule looks at.
      */
     private static Catalogue.Item item(String year, String publisher, String availability) {
-        return new Catalogue.Item("2259", "Manic Miner", year, publisher,
-                                  "Arcade Game", availability, null, null, null);
+        return Catalogue.Item.builder("2259")
+                .title("Manic Miner").year(year).publisher(publisher)
+                .kind("Arcade Game").availability(availability)
+                .build();
     }
 
     // --- the count -----------------------------------------------------------------

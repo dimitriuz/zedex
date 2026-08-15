@@ -291,8 +291,10 @@ public class CatalogueSortTest {
         }
 
         private static Item row() {
-            return new Item("1", TITLE, "1984", "Nobody", "Arcade Game", "Available", null,
-                            Collections.emptyList(), null);
+            return Item.builder("1")
+                    .title(TITLE).year("1984").publisher("Nobody").kind("Arcade Game")
+                    .availability("Available").versions(Collections.emptyList())
+                    .build();
         }
 
         @Override

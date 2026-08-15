@@ -24,9 +24,11 @@ import java.util.List;
 public class CatalogueTest {
 
     private static Catalogue.Item anItem(String id) {
-        return new Catalogue.Item(id, "Head over Heels", "1987", "Ocean Software Ltd",
-                                  "Arcade Game", "Available", null,
-                                  Collections.<Catalogue.Version>emptyList(), null);
+        return Catalogue.Item.builder(id)
+                .title("Head over Heels").year("1987").publisher("Ocean Software Ltd")
+                .kind("Arcade Game").availability("Available")
+                .versions(Collections.<Catalogue.Version>emptyList())
+                .build();
     }
 
     // --- paging ----------------------------------------------------------------------
@@ -283,8 +285,9 @@ public class CatalogueTest {
     }
 
     private static Catalogue.Item anItemAvailable(String availability) {
-        return new Catalogue.Item("1", "A game", null, null, null, availability, null,
-                                  Collections.<Catalogue.Version>emptyList(), null);
+        return Catalogue.Item.builder("1").title("A game").availability(availability)
+                .versions(Collections.<Catalogue.Version>emptyList())
+                .build();
     }
 
     // --- a download ------------------------------------------------------------------
@@ -310,12 +313,12 @@ public class CatalogueTest {
     }
 
     private static Catalogue.Item holding(Catalogue.Download... files) {
-        return new Catalogue.Item("1", "A game", "1987", "Ocean", "Arcade Game",
-                                  "Available", null,
-                                  Collections.singletonList(
-                                          new Catalogue.Version(null, "1987",
-                                                                Arrays.asList(files))),
-                                  null);
+        return Catalogue.Item.builder("1")
+                .title("A game").year("1987").publisher("Ocean").kind("Arcade Game")
+                .availability("Available")
+                .versions(Collections.singletonList(
+                        new Catalogue.Version(null, "1987", Arrays.asList(files))))
+                .build();
     }
 
     /**
@@ -348,13 +351,15 @@ public class CatalogueTest {
      *  hangs when the entry has more than one release. */
     @Test
     public void formatsAreReadAcrossEveryVersion() {
-        Catalogue.Item item = new Catalogue.Item(
-                "1", "A game", "1987", "Ocean", "Arcade Game", "Available", null,
-                Arrays.asList(new Catalogue.Version("first", "1987",
-                                                    Collections.singletonList(file("tap"))),
-                              new Catalogue.Version("later", "1988",
-                                                    Collections.singletonList(file("trd")))),
-                null);
+        Catalogue.Item item = Catalogue.Item.builder("1")
+                .title("A game").year("1987").publisher("Ocean").kind("Arcade Game")
+                .availability("Available")
+                .versions(Arrays.asList(
+                        new Catalogue.Version("first", "1987",
+                                              Collections.singletonList(file("tap"))),
+                        new Catalogue.Version("later", "1988",
+                                              Collections.singletonList(file("trd")))))
+                .build();
 
         assertTrue(item.formats().contains("tap"));
         assertTrue(item.formats().contains("trd"));

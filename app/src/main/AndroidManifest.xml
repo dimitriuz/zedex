@@ -202,6 +202,24 @@
             android:theme="@android:style/Theme.DeviceDefault"
             android:exported="false" />
 
+        <!-- A catalogue item's own facts, images and description, opened from
+             the catalogue pane's Details button - see
+             screen/CatalogueDetailsActivity.java. -->
+        <activity
+            android:name=".screen.CatalogueDetailsActivity"
+            android:label="@string/catalogue_details"
+            android:theme="@android:style/Theme.DeviceDefault"
+            android:exported="false" />
+
+        <!-- One of that screen's own images, full size - see
+             screen/CatalogueImageActivity.java. No title bar, so no label of
+             its own shows; the manifest one is only for the task switcher. -->
+        <activity
+            android:name=".screen.CatalogueImageActivity"
+            android:label="@string/app_name"
+            android:theme="@android:style/Theme.DeviceDefault"
+            android:exported="false" />
+
         <!-- The same game's facts, by hand: reached from the library's own
              options popup while a game is selected. adjustResize so the soft
              keyboard scrolls the fields rather than covering the one being

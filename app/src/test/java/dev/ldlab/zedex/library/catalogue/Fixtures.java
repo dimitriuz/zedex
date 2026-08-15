@@ -1679,6 +1679,79 @@ public final class Fixtures {
             + ":\"success\"}";
 
     /**
+     * review/zxart/af-prodsearch-zosya-empty.json - export:zxProd,
+     * filter:zxProdSearch=Zosya. Copied whole - the real, live shape of a
+     * title search that finds nothing at all, captured 2026-08-15: {@code
+     * totalAmount:0}, an empty {@code zxProd} array, and {@code
+     * responseStatus:"success"} regardless - the reply the original bug
+     * report's own "search by Zosya returns nothing" is built from.
+     */
+    public static final String PROD_SEARCH_EMPTY =
+            "{\"totalAmount\":0,\"start\":0,\"limit\":30,\"responseData\":{\"zxProd\":[]},\"responseStatus\":"
+            + "\"success\"}";
+
+    /**
+     * review/zxart/af-author-search-zosya.json - export:author,
+     * filter:authorSearch=Zosya. Copied whole, one row: "ZOSYA
+     * entertainment's authors", id 351455 - the fact {@code
+     * ZxartApi#FILTER_AUTHOR_SEARCH}'s own javadoc measures, captured live
+     * on 2026-08-15 rather than assembled from memory.
+     */
+    public static final String AUTHOR_SEARCH_ZOSYA =
+              "{\"totalAmount\":1,\"start\":0,\"limit\":5,\"responseData\":{\"author\":[{\"id\":351455,\"title\":\"ZOSYA entertainment's authors\",\"url\":\"https:\\/\\/zxart.ee\\/rus\\/avtory\\/z\\/zosya-entertainm"
+            + "ents-authors\\/\",\"dateCreated\":1601501985,\"dateModified\":1785177662,\"picturesQuantity\":\"76\"}]},\"responseStatus\":\"success\"}";
+
+    /**
+     * review/zxart/af-prod-by-author-351455.json - export:zxProd,
+     * filter:authorId=351455. Copied whole, all 4 of the returned rows
+     * (totalAmount 4) - the exact four real games {@code
+     * ZxartApi#FILTER_AUTHOR_SEARCH}'s own javadoc names: Metal Man Remixed,
+     * Scroller, Drift! 2K22, Juggernauts. Pairs with {@link
+     * #AUTHOR_SEARCH_ZOSYA}, and only with it - the two requests {@link
+     * ZxartCatalogue#appendAuthorMatches} chains.
+     */
+    public static final String PROD_BY_AUTHOR_ZOSYA =
+              "{\"totalAmount\":4,\"start\":0,\"limit\":30,\"responseData\":{\"zxProd\":[{\"id\":200753,\"title\":\"Metal Man Remixed\",\"dateCreated\":1524230342,\"dateModified\":1745387918,\"language\":[\"en\",\"r"
+            + "u\"],\"year\":2015,\"youtubeId\":\"UEDSPXczv-8\",\"description\":\"New York, near future.\\r\\n\\r\\nCrime groups united in powerful networks. Battle robots and other new technologies came to the aid "
+            + "of a mafia. Fight against a crime is extremely difficult as the mafia is under the care of the authorities.\\r\\n\\r\\nSome police stations, which haven&#039;t accepted new system, continue to work un"
+            + "derground, throwing down a challenge to crime and authorities. In one of them there is a desperate cop Matthew Cranston, better known as METAL MAN.\\r\\n\\r\\nMetal Man Remixed and Matthew Cranston Re"
+            + "mixed.\\r\\n\\r\\nOriginally METAL MAN REMIXED was released in 2015 as part of a Kickstarter campaign by Sam Dyer, Bitmap Books. In turn, METAL MAN REMIXED is an improved version of METAL MAN RELOADED"
+            + ", which was created in 2013 and released in 2014; and that is a remake of the 1997 game METAL MAN.\\r\\n\\r\\nMATTHEW CRANSTON REMIXED is not a full-scale game, but a little spin-off. In this game, th"
+            + "e levels are much shorter and easier. You can also use this game as a practice before the main game.\",\"legalStatus\":\"unknown\",\"groupsIds\":[325439],\"publishersIds\":[325439],\"releasesIds\":[24"
+            + "7174,378335,405695,420789],\"imagesUrls\":[\"https:\\/\\/zxart.ee\\/zximages\\/id=203291;pal=srgb;type=standard;zoom=1\",\"https:\\/\\/zxart.ee\\/zximages\\/id=200754;pal=srgb;type=standard;zoom=1\","
+            + "\"https:\\/\\/zxart.ee\\/screenshot\\/id:405696\\/mmrmx_01.gif\",\"https:\\/\\/zxart.ee\\/screenshot\\/id:405697\\/mmrmx_02.gif\",\"https:\\/\\/zxart.ee\\/zximages\\/id=405694;pal=srgb;type=standard;z"
+            + "oom=1\",\"https:\\/\\/zxart.ee\\/screenshot\\/id:405698\\/mmrmx_04.gif\",\"https:\\/\\/zxart.ee\\/screenshot\\/id:405699\\/mmrmx_08.gif\"],\"authorsInfo\":[{\"id\":25780,\"authorId\":7586,\"startDate"
+            + "\":\"\",\"endDate\":\"\",\"roles\":[\"unknown\"],\"type\":\"prod\"},{\"id\":29155,\"authorId\":189657,\"startDate\":\"\",\"endDate\":\"\",\"roles\":[\"unknown\"],\"type\":\"prod\"},{\"id\":65497,\"aut"
+            + "horId\":351455,\"startDate\":\"\",\"endDate\":\"\",\"roles\":[\"code\",\"release\",\"graphics\"],\"type\":\"prod\"}],\"importIds\":{\"zxdb\":\"30401\",\"vt\":\"1405707a079b4b3d794583003f89d5a9\"},\"vo"
+            + "tes\":4.08,\"votesAmount\":3,\"connectedCategoriesIds\":[523395],\"categoriesString\":\"\\u0418\\u0433\\u0440\\u044b\\/\\u042d\\u043a\\u0448\\u0435\\u043d\\/\\u0428\\u0443\\u0442\\u0435\\u0440\\u044b"
+            + "\\/Run &#039;n&#039; Gun\"},{\"id\":370428,\"title\":\"Scroller\",\"dateCreated\":1642979006,\"dateModified\":1786311510,\"year\":2022,\"youtubeId\":\"_gjikUuc6Yw\",\"description\":\"Full screen 50 fp"
+            + "s multicolor scroller demo for Pentagon (any version). It uses standard 3.5Mhz and meet new level of perfomance for Speccy.\\r\\n\",\"legalStatus\":\"allowed\",\"releasesIds\":[370429,370527,370528,37"
+            + "0475,392689],\"imagesUrls\":[\"https:\\/\\/zxart.ee\\/screenshot\\/id:548413\\/ezgif.com-animated-gif-maker (14).gif\",\"https:\\/\\/zxart.ee\\/zximages\\/id=548414;pal=srgb;type=standard;zoom=1\"],\""
+            + "authorsInfo\":[{\"id\":62583,\"authorId\":2329,\"startDate\":\"\",\"endDate\":\"\",\"roles\":[\"graphics\"],\"type\":\"prod\"},{\"id\":62582,\"authorId\":7744,\"startDate\":\"\",\"endDate\":\"\",\"rol"
+            + "es\":[\"music\"],\"type\":\"prod\"},{\"id\":62585,\"authorId\":351455,\"startDate\":\"\",\"endDate\":\"\",\"roles\":[\"graphics\"],\"type\":\"prod\"},{\"id\":62586,\"authorId\":357252,\"startDate\":\""
+            + "\",\"endDate\":\"\",\"roles\":[\"graphics\"],\"type\":\"prod\"},{\"id\":62587,\"authorId\":370426,\"startDate\":\"\",\"endDate\":\"\",\"roles\":[\"code\"],\"type\":\"prod\"},{\"id\":62584,\"authorId\""
+            + ":541064,\"startDate\":\"\",\"endDate\":\"\",\"roles\":[\"graphics\"],\"type\":\"prod\"}],\"importIds\":{\"dzoo\":\"304794\",\"pouet\":\"90767\",\"zxd\":\"304794\"},\"votes\":4.59,\"votesAmount\":19,\""
+            + "connectedCategoriesIds\":[315136,92159],\"categoriesString\":\"\\u0414\\u0435\\u043c\\u043e\\u0441\\u0446\\u0435\\u043d\\u0430\\/\\u0414\\u0435\\u043c\\u043e\"},{\"id\":405495,\"title\":\"Drift! 2K22"
+            + "\",\"dateCreated\":1676058206,\"dateModified\":1786311571,\"language\":[\"en\"],\"year\":2022,\"description\":\"Differences from the 2019 game:\\r\\n\\r\\n\\u2022 The game was heavily ripped; unnecess"
+            + "ary features removed.\\r\\n\\u2022 New season with three new locations: Rotterdam, Giza and Valencia.\\r\\n\\u2022 New car, along with one of the cars from the 2019 game.\\r\\n\\u2022 Completely new l"
+            + "oading screen and final cut.\\r\\n\\u2022 Minor changes in the car physics, visual and audio FX.\\r\\n\\u2022 Faster loading: the game takes up less memory.\\r\\n\\u2022 Additionally, you have a full "
+            + "racing season of the 2019 game.\\r\\n\\u2022 Target times of some 2019 tracks have been corrected.\\t\\t\\r\\n\\r\\nHow to drift:\\r\\n\\r\\n\\u2022 Approaching the corner, steer the car into the skid"
+            + " (in the direction that you wish to turn).\\r\\n\\u2022 Holding the gas pedal, turn the steering wheel to the opposite direction.\\r\\n\\u2022 Drift as long as you can!\\r\\n\\r\\nYou can also release"
+            + " the gas pedal for a while and push it again for correcting the trajectory.\\r\\n\\r\\nDon&#039;t forget to brake before the turn, if the speed is excessive. Keep in mind that more powerful and faster"
+            + " cars require more intensive braking before the turns.\\r\\n\\r\\nTo gain control of the car after drift, release the gas pedal completely during steering wheel manipulation.\",\"legalStatus\":\"unkno"
+            + "wn\",\"groupsIds\":[325439],\"publishersIds\":[325439],\"releasesIds\":[405496,405497],\"imagesUrls\":[\"https:\\/\\/zxart.ee\\/zximages\\/id=405498;pal=srgb;type=standard;zoom=1\",\"https:\\/\\/zxart"
+            + ".ee\\/screenshot\\/id:548927\\/drift22_game2.gif\",\"https:\\/\\/zxart.ee\\/zximages\\/id=405501;pal=srgb;type=standard;zoom=1\",\"https:\\/\\/zxart.ee\\/screenshot\\/id:548928\\/drift22_game1.gif\","
+            + "\"https:\\/\\/zxart.ee\\/zximages\\/id=567676;pal=srgb;type=standard;zoom=1\",\"https:\\/\\/zxart.ee\\/zximages\\/id=567677;pal=srgb;type=standard;zoom=1\"],\"authorsInfo\":[{\"id\":65452,\"authorId\""
+            + ":351455,\"startDate\":\"\",\"endDate\":\"\",\"roles\":[\"code\",\"release\",\"graphics\"],\"type\":\"prod\"}],\"importIds\":{\"zxdb\":\"41010\",\"vt\":\"e5164210f934fd0e31f61d7e26b0a345\"},\"votes\":4"
+            + ".37,\"votesAmount\":9,\"externalLink\":\"https:\\/\\/www.zosya.net\\/2022\\/10\\/13\\/new-game-drift-2k22\\/\",\"connectedCategoriesIds\":[523426],\"categoriesString\":\"\\u0418\\u0433\\u0440\\u044b\\"
+            + "/\\u042d\\u043a\\u0448\\u0435\\u043d\\/\\u0413\\u043e\\u043d\\u043a\\u0438\\/\\u0413\\u043e\\u043d\\u043a\\u0438 \\u0441 \\u0432\\u0438\\u0434\\u043e\\u043c \\u0441\\u0437\\u0430\\u0434\\u0438\"},{\"i"
+            + "d\":573163,\"title\":\"Juggernauts\",\"dateCreated\":1754908702,\"dateModified\":1754913704,\"language\":[\"en\"],\"legalStatus\":\"unreleased\",\"publishersIds\":[325439],\"imagesUrls\":[\"https:\\/"
+            + "\\/zxart.ee\\/zximages\\/id=573193;pal=srgb;type=standard;zoom=1\",\"https:\\/\\/zxart.ee\\/zximages\\/id=573194;pal=srgb;type=standard;zoom=1\",\"https:\\/\\/zxart.ee\\/zximages\\/id=573195;pal=srgb;"
+            + "type=standard;zoom=1\",\"https:\\/\\/zxart.ee\\/zximages\\/id=573196;pal=srgb;type=standard;zoom=1\"],\"authorsInfo\":[{\"id\":81365,\"authorId\":351455,\"startDate\":\"\",\"endDate\":\"\",\"roles\":["
+            + "\"unknown\"],\"type\":\"prod\"}],\"connectedCategoriesIds\":[523426],\"categoriesString\":\"\\u0418\\u0433\\u0440\\u044b\\/\\u042d\\u043a\\u0448\\u0435\\u043d\\/\\u0413\\u043e\\u043d\\u043a\\u0438\\/"
+            + "\\u0413\\u043e\\u043d\\u043a\\u0438 \\u0441 \\u0432\\u0438\\u0434\\u043e\\u043c \\u0441\\u0437\\u0430\\u0434\\u0438\"}]},\"responseStatus\":\"success\"}";
+
+    /**
      * An {@code Http} that answers from a list and remembers what it was
      * asked.
      *

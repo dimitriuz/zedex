@@ -801,6 +801,8 @@
     <string name="catalogue_similar_to">Spiele wie %1$s</string>
     <string name="catalogue_needs_write">Zedex braucht die Berechtigung, Spiele zu %1$s hinzuzufügen.</string>
     <string name="catalogue_choose_folder">Auswählen</string>
+    <string name="catalogue_details">Details</string>
+    <string name="catalogue_details_import">Zum Auswählen eines Ordners zuerst über die Schaltfläche „Importieren“ im Katalog-Bereich.</string>
     <string name="disk_modified_title">Diskette geändert</string>
     <string name="disk_modified_save">Speichern</string>
     <string name="disk_modified_discard">Verwerfen</string>
