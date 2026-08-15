@@ -1734,32 +1734,29 @@ public class ZxInfoCatalogueTest {
 
     // --- helpers ----------------------------------------------------------------------------
 
-    // --- which shelves can honour a sort ------------------------------------------------
+    // --- no shelf can honour a sort any more ---------------------------------------------
 
     /**
-     * {@code sort=score_desc} was measured against {@code /search}, so only the
-     * shelves that <em>are</em> a search declare it.
-     *
-     * <b>The bug this pins.</b> {@link ZxInfoCatalogue#sorts()} is a fact about
-     * the catalogue and the sort is only sent by {@code pathFor}'s two search
-     * branches - so Top rated on A-Z, Newest, Surprise me and Games like this
-     * refetched the shelf, relabelled the row and answered with byte-identical
-     * rows. Three of five shelves wore a control that could not do anything,
-     * which this codebase treats as the same class of defect as a chooser with
-     * no effect.
+     * ZXInfo declares nothing but {@code DEFAULT}, on every shelf, including
+     * the ones that <em>are</em> a search - see {@link
+     * ZxInfoCatalogue#sorts()}'s own comment for why {@code TOP} was removed
+     * rather than kept for {@code /search} alone: it sorted by Elasticsearch's
+     * relevance, not by the rating {@link Item#rating()} now shows beside it,
+     * and the two visibly disagreed - measured on "arkanoid", where relevance
+     * ranked a 5-vote, 5/10 entry above a 117-vote, 8.3/10 one. Five plausible
+     * parameter names for sorting by the rating itself were tried against the
+     * live service and every one was silently ignored, so there is no sort
+     * left here that is not either wrong or impossible.
      */
     @Test
-    public void onlyAsearchDeclaresThatItCanBeSorted() {
+    public void everyShelfDeclaresOnlyDefault() {
         ZxInfoCatalogue catalogue = new ZxInfoCatalogue(new Canned());
-        List<Catalogue.Sort> both =
-                Arrays.asList(Catalogue.Sort.DEFAULT, Catalogue.Sort.TOP);
         List<Catalogue.Sort> just = Collections.singletonList(Catalogue.Sort.DEFAULT);
 
-        assertEquals("the search box is /search itself",
-                     both, catalogue.sortsFor(shelfNamed("search")));
+        assertEquals(just, catalogue.sorts());
 
-        for (String id : new String[] { "letter", "genres", "newest", "random" }) {
-            assertEquals(id + " does not send a sort and must not offer one",
+        for (String id : new String[] { "search", "letter", "genres", "newest", "random" }) {
+            assertEquals(id + " must not offer a sort ZXInfo cannot honestly do",
                          just, catalogue.sortsFor(shelfNamed(id)));
         }
 
@@ -1768,43 +1765,45 @@ public class ZxInfoCatalogueTest {
     }
 
     /**
-     * ...and a genre sub-shelf does, because it goes through the same {@code
-     * /search} the measurement was taken against.
-     *
-     * Built by opening Categories rather than by hand, so this asserts about the
-     * shelf the service's own reply produced - the prefix is internal and a test
-     * that guessed at it would be pinning the guess.
+     * ...and a genre sub-shelf the same way, built by opening Categories
+     * rather than by hand, so this asserts about the shelf the service's own
+     * reply produced - the prefix is internal and a test that guessed at it
+     * would be pinning the guess.
      */
     @Test
-    public void agenreSubShelfCanBeSortedBecauseItIsAsearch() throws Exception {
+    public void agenreSubShelfDeclaresOnlyDefaultToo() throws Exception {
         Canned http = new Canned().then(200, METADATA_LIVE);
         ZxInfoCatalogue catalogue = new ZxInfoCatalogue(http);
 
         Catalogue.Shelf utility = catalogue.open(shelf(http, "genres"),
                                                  Catalogue.Query.none(), 0).shelves().get(1);
 
-        assertEquals(Arrays.asList(Catalogue.Sort.DEFAULT, Catalogue.Sort.TOP),
+        assertEquals(Collections.singletonList(Catalogue.Sort.DEFAULT),
                      catalogue.sortsFor(utility));
     }
 
     /**
-     * And a shelf that declares no ordering is sent none, whatever the query
-     * says.
+     * And no shelf is ever sent {@code sort=score_desc}, even handed a
+     * directly-built {@code Query} asking for {@link Catalogue.Sort#TOP} -
+     * the screen itself can no longer choose that sort, since {@link
+     * ZxInfoCatalogue#sorts()} never declares it, but this pins the seam's
+     * own behaviour rather than only the UI's. Search included, which is the
+     * one branch that genuinely used to honour it.
      *
-     * The screen resets the sort on the way into such a shelf, so this pair
-     * should never reach the catalogue - which is why it is worth asserting:
-     * {@code sort=score_desc} on {@code games/byletter} or on top of {@code
-     * sort=date_desc} would be a second sort parameter on a path that already
-     * has its own answer, and this service ignores what it does not understand
-     * rather than refusing it.
+     * <b>Not genres.</b> Its root needs {@code METADATA_LIVE} rather than
+     * {@link #SEARCH}, and its sub-shelf's own declared sorts are already
+     * pinned by {@link #agenreSubShelfDeclaresOnlyDefaultToo} - proving the
+     * screen can never build a {@code Query} carrying {@code TOP} there is
+     * enough without a second, differently-shaped request just to check the
+     * raw URL too.
      */
     @Test
-    public void ashelfThatCannotBeSortedIsSentNoSort() throws Exception {
-        for (String id : new String[] { "newest", "random" }) {
+    public void noShelfIsEverSentAsort() throws Exception {
+        for (String id : new String[] { "search", "newest", "random" }) {
             String url = urlOpening(shelfNamed(id),
                                     Catalogue.Query.none().sortedBy(Catalogue.Sort.TOP));
 
-            assertFalse(id + " was sent a sort it does not honour: " + url,
+            assertFalse(id + " was sent a sort ZXInfo no longer offers: " + url,
                         url.contains("score_desc"));
         }
 
@@ -1838,8 +1837,10 @@ public class ZxInfoCatalogueTest {
     /** A row as a list hands one over - id and title and nothing that matters
      *  here, since what a similar-games shelf is built from is the id. */
     private static Catalogue.Item anItem(String id) {
-        return new Catalogue.Item(id, "Head over Heels", "1987", "Ocean Software Ltd",
-                                  "Arcade Game", "Available", null, null, null);
+        return Catalogue.Item.builder(id)
+                .title("Head over Heels").year("1987").publisher("Ocean Software Ltd")
+                .kind("Arcade Game").availability("Available")
+                .build();
     }
 
     private static Catalogue.Shelf shelfNamed(String id) {

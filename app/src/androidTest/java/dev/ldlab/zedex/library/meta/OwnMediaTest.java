@@ -172,6 +172,25 @@ public class OwnMediaTest {
         assertEquals(written.getAbsolutePath(), Artwork.picture(context, GAME).getPath());
     }
 
+    /**
+     * gif as readily as png and jpg - zxart's own screenshots arrive that
+     * way, see {@code Zxart.collectImages}'s own comment on {@code
+     * /screenshot/id:.../name.gif}. Without this, {@code Blend.commit}
+     * renames a chosen gif into {@code screenshots/} exactly as it does a
+     * png, and {@link Artwork#picture} then never finds it there - a
+     * screenshot somebody picked from the sheet, written to disk, and never
+     * seen again, which reads as "I chose it and it did not arrive" with
+     * nothing on screen to say why.
+     */
+    @Test
+    public void agifIsFoundTheSameWayApngIs() throws IOException {
+        File written = put("screenshots", "gif");
+
+        assertEquals("a gif written to a picture folder was not found - see "
+                     + "Artwork.PICTURE_EXTENSIONS", written.getAbsolutePath(),
+                     Artwork.picture(context, GAME).getPath());
+    }
+
     /** A file with nothing in it is not a picture. An interrupted download
      *  leaves exactly that, and treating it as a hit means a broken image with
      *  no way to retry. */

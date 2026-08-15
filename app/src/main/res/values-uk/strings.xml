@@ -6,6 +6,7 @@
 -->
 <resources>
     <string name="machine_title">Машина</string>
+    <string name="menu_online_browser">Онлайн-браузер</string>
     <string name="menu_open">Відкрити файл…</string>
     <string name="menu_recent">Відкрити недавні…</string>
     <string name="menu_media">Носії…</string>
@@ -805,6 +806,7 @@
     <string name="library_sort_newest">Найновіші</string>
     <string name="library_sort_alphabetical">A–Z</string>
     <string name="library_catalogue">Каталог</string>
+    <string name="library_sort_filter">Сортування і фільтр</string>
     <string name="catalogue_import">Імпортувати</string>
     <string name="catalogue_versions">Інші версії…</string>
     <string name="catalogue_recording">Відтворити запис</string>
@@ -816,6 +818,8 @@
     <string name="catalogue_similar_to">Ігри на кшталт %1$s</string>
     <string name="catalogue_needs_write">Zedex потрібен дозвіл додавати ігри до %1$s.</string>
     <string name="catalogue_choose_folder">Вибрати</string>
+    <string name="catalogue_details">Подробиці</string>
+    <string name="catalogue_details_import">Щоб вибрати теку, спочатку скористайтеся кнопкою «Імпорт» на панелі каталогу.</string>
     <string name="disk_modified_title">Диск змінено</string>
     <string name="disk_modified_save">Зберегти</string>
     <string name="disk_modified_discard">Не зберігати</string>

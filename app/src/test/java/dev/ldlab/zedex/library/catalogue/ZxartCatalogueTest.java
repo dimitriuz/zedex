@@ -470,6 +470,28 @@ public class ZxartCatalogueTest {
     }
 
     /**
+     * Licence to Kill's own {@code rzx} - a fact on the prod row, apart from
+     * every one of its 24 releases - lands where {@link Pick#recording}
+     * looks: the first version's own files, format stated as {@code "rzx"}
+     * rather than read off the url, which ends plain {@code .zip}.
+     */
+    @Test
+    public void aProdsOwnRzxIsFoundAsARecording() throws Exception {
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.CATEGORY_TREE)
+                                                    .then(Fixtures.PROD_LICENCE_TO_KILL)
+                                                    .then(Fixtures.RELEASES_LICENCE_TO_KILL);
+
+        Catalogue.Item item = catalogue(http).item("92668");
+        Catalogue.Download recording = Pick.recording(item);
+
+        assertNotNull("Licence to Kill has one, and Pick must find it", recording);
+        assertEquals("rzx", recording.format());
+        assertTrue(recording.url().endsWith("licencetokill.zip"));
+        assertFalse("the game itself must still be pickable off the same version",
+                    Pick.isRecording(Pick.forGame(item)));
+    }
+
+    /**
      * similarTo is a way in and costs nothing until opened - the pane calls
      * it while laying out, on the UI thread.
      *
@@ -537,6 +559,65 @@ public class ZxartCatalogueTest {
                                                   Catalogue.Query.text("head over heels"), 0);
 
         assertEquals(6, page.total());
+    }
+
+    /**
+     * The fold-in itself: an empty title search chains to {@code
+     * authorSearch}, resolves ZOSYA's author id, and its four real games
+     * land on the same page - two more requests, in the order {@link
+     * ZxartCatalogue#appendAuthorMatches} sends them.
+     */
+    @Test
+    public void anEmptyTitleSearchFoldsInTheMatchingAuthorsGames() throws Exception {
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.CATEGORY_TREE)
+                                                    .then(Fixtures.PROD_SEARCH_EMPTY)
+                                                    .then(Fixtures.AUTHOR_SEARCH_ZOSYA)
+                                                    .then(Fixtures.PROD_BY_AUTHOR_ZOSYA);
+        Catalogue.Page page = catalogue(http).open(shelf(ZxartCatalogue.SHELF_SEARCH),
+                                                  Catalogue.Query.text("Zosya"), 0);
+
+        assertEquals(4, page.items().size());
+        assertEquals("Metal Man Remixed", page.items().get(0).title());
+        assertEquals("the title search's own total (0, honestly), never inflated by what "
+                   + "was folded in - see appendAuthorMatches's own javadoc for why",
+                     0, page.total());
+        assertFalse("a rescued page has nothing more to page through", page.hasMore());
+        assertTrue(http.asked.get(2).contains("export:author"));
+        assertTrue(http.asked.get(2).contains("filter:authorSearch=Zosya"));
+        assertTrue(http.asked.get(3).contains("export:zxProd"));
+        assertTrue(http.asked.get(3).contains("filter:authorId=351455"));
+    }
+
+    /**
+     * A search that already found something by title is never touched - the
+     * fold-in is a rescue for an empty page, not a second opinion on a full
+     * one. Only two requests: no third for {@code authorSearch}.
+     */
+    @Test
+    public void aSearchThatAlreadyFoundSomethingIsNeverFoldedInto() throws Exception {
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.CATEGORY_TREE)
+                                                    .then(Fixtures.PROD_SEARCH);
+        catalogue(http).open(shelf(ZxartCatalogue.SHELF_SEARCH),
+                             Catalogue.Query.text("head over heels"), 0);
+
+        assertEquals(2, http.asked.size());
+    }
+
+    /**
+     * A refusal resolving the author must not turn an honestly empty search
+     * into a thrown exception - the same swallow {@link #tree()} applies to
+     * its own failure. The tree and the title search both answer; the
+     * author lookup is the one queued reply that refuses.
+     */
+    @Test
+    public void aFailedAuthorLookupLeavesTheSearchEmptyRatherThanThrowing() throws Exception {
+        Fixtures.Canned http = new Fixtures.Canned().then(Fixtures.CATEGORY_TREE)
+                                                    .then(Fixtures.PROD_SEARCH_EMPTY)
+                                                    .then(500, "");
+        Catalogue.Page page = catalogue(http).open(shelf(ZxartCatalogue.SHELF_SEARCH),
+                                                  Catalogue.Query.text("Zosya"), 0);
+
+        assertTrue(page.items().isEmpty());
     }
 
     // --- Task 8: the sort control --------------------------------------------------------

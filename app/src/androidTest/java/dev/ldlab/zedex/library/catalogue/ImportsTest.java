@@ -217,12 +217,12 @@ public class ImportsTest {
      *  folder after it, and a bare "Head over Heels" would collide with
      *  anything a previous run - or a real import - left behind. */
     private Catalogue.Item item(String kind, Catalogue.Download... files) {
-        return new Catalogue.Item("0002259", stamp + "-Head over Heels", "1987", "Ocean",
-                                  kind, "Available", null,
-                                  Collections.singletonList(
-                                          new Catalogue.Version(null, "1987",
-                                                                Arrays.asList(files))),
-                                  null);
+        return Catalogue.Item.builder("0002259")
+                .title(stamp + "-Head over Heels").year("1987").publisher("Ocean")
+                .kind(kind).availability("Available")
+                .versions(Collections.singletonList(
+                        new Catalogue.Version(null, "1987", Arrays.asList(files))))
+                .build();
     }
 
     private static Catalogue.Download download(String format, long size) {

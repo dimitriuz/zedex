@@ -41,10 +41,11 @@ import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * The source row - {@code CatalogueView}'s third control of its own, beside
- * Format and Sort, and the first thing in this codebase to ever write {@link
- * Prefs#KEY_CATALOGUE}. {@code Catalogues.preferred} has read that key since
- * the day it was declared, with nothing writing it: this is what makes it real.
+ * The Catalogue entry - the options menu's own way of naming which archive is
+ * open, beside Format and Sort, and the first thing in this codebase to ever
+ * write {@link Prefs#KEY_CATALOGUE}. {@code Catalogues.preferred} has read
+ * that key since the day it was declared, with nothing writing it: this is
+ * what makes it real.
  *
  * <b>Two questions, and two ways of answering them.</b> Whether {@link
  * CatalogueView#setCatalogue} swaps the shelves on screen and resets the
@@ -103,16 +104,20 @@ public class CatalogueSourceTest {
 
     /**
      * "Catalogue · " and whichever fake this view was built with - the same
-     * shape {@code formatRow}/{@code sortRow} already say what they are set
-     * to, so this one has to as well.
+     * shape the menu's Format/Sort entries already say what they are set to,
+     * so this one has to as well.
      */
     @Test
     public void theSourceRowNamesTheCurrentCatalogue() {
         install(new Fake(NAME_A, SHELF_A, false, Collections.singletonList(Catalogue.Sort.DEFAULT)));
 
+        openOptions();
+
         String expected = sourceLabel() + " · " + NAME_A;
-        assertNotNull("the source row never named " + NAME_A + ": expected \""
+        assertNotNull("the options menu never named " + NAME_A + ": expected \""
                       + expected + "\"", device.wait(Until.findObject(By.text(expected)), FIND));
+
+        device.pressBack();   // close the menu without choosing anything
     }
 
     /**
@@ -133,13 +138,15 @@ public class CatalogueSourceTest {
 
         // Both controls moved away from their defaults, at the roots - format
         // and sort apply to whatever is on screen whether or not a shelf is
-        // open, and neither needs one to update its own row.
+        // open, and neither needs one to update its own menu entry.
         chooseTopRated();
         chooseFormat(FORMAT);
 
+        openOptions();
         String formatChanged = formatLabel() + " · " + FORMAT.toUpperCase(Locale.ROOT);
-        assertNotNull("the format row never actually changed away from its default",
+        assertNotNull("the Format entry never actually changed away from its default",
                       device.wait(Until.findObject(By.text(formatChanged)), FIND));
+        device.pressBack();   // close the menu without choosing anything
 
         InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> view.setCatalogue(b));
 
@@ -150,17 +157,21 @@ public class CatalogueSourceTest {
         assertNull("catalogue A's shelf is still on screen after switching to B",
                    device.findObject(By.text(SHELF_A)));
 
-        assertNotNull("the source row did not update to name catalogue B",
+        openOptions();
+
+        assertNotNull("the Catalogue entry did not update to name catalogue B",
                       device.wait(Until.findObject(By.text(sourceLabel() + " · " + NAME_B)), FIND));
 
-        // B knows no formats and declares one sort - both rows must be gone
-        // rather than merely reset to their defaults, the same bargain
-        // formatRow/sortRow already keep: a control that can only ever leave
-        // a shelf exactly as it found it is worse than no control at all.
-        assertNull("formatRow must be hidden for a catalogue that does not know formats",
+        // B knows no formats and declares one sort - both entries must be
+        // gone rather than merely reset to their defaults, the same bargain
+        // the menu already keeps: a control that can only ever leave a shelf
+        // exactly as it found it is worse than no control at all.
+        assertNull("the Format entry must be absent for a catalogue that does not know formats",
                    device.findObject(By.textStartsWith(formatLabel())));
-        assertNull("sortRow must be hidden for a catalogue declaring one sort",
+        assertNull("the Sort entry must be absent for a catalogue declaring one sort",
                    device.findObject(By.textStartsWith(sortLabel())));
+
+        device.pressBack();   // close the menu without choosing anything
     }
 
     /**
@@ -222,8 +233,10 @@ public class CatalogueSourceTest {
         }
         assertNotNull("this build does not offer a catalogue named zxart", want);
 
+        openOptions();
+
         UiObject2 row = device.wait(Until.findObject(By.textStartsWith(sourceLabel())), FIND);
-        assertNotNull("the catalogue has no source row on screen", row);
+        assertNotNull("the options menu has no Catalogue entry", row);
         row.click();
 
         for (Catalogue candidate : real) {
@@ -238,8 +251,10 @@ public class CatalogueSourceTest {
         assertEquals("choosing a source never wrote Prefs.KEY_CATALOGUE",
                      want.name(), awaitPreference(want.name()));
 
-        assertNotNull("the source row did not update to name " + want.name(),
+        openOptions();
+        assertNotNull("the Catalogue entry did not update to name " + want.name(),
                       device.wait(Until.findObject(By.text(sourceLabel() + " · " + want.name())), FIND));
+        device.pressBack();   // close the menu without choosing anything
 
         // Three of zxart's own five shelves, in its own words - see
         // ZxartCatalogue.shelves, which has offered Music and Graphics as well
@@ -319,8 +334,10 @@ public class CatalogueSourceTest {
         }
 
         private Item row() {
-            return new Item(name + "-1", TITLE, "1984", "Nobody", "Arcade Game",
-                            "Available", null, Collections.emptyList(), null);
+            return Item.builder(name + "-1")
+                    .title(TITLE).year("1984").publisher("Nobody").kind("Arcade Game")
+                    .availability("Available").versions(Collections.emptyList())
+                    .build();
         }
 
         @Override
@@ -414,8 +431,10 @@ public class CatalogueSourceTest {
     }
 
     private void chooseTopRated() {
+        openOptions();
+
         UiObject2 row = device.wait(Until.findObject(By.textStartsWith(sortLabel())), FIND);
-        assertNotNull("the catalogue has no sort row on screen", row);
+        assertNotNull("the options menu has no Sort entry", row);
         row.click();
 
         String wanted = context.getString(R.string.library_sort_top);
@@ -425,14 +444,26 @@ public class CatalogueSourceTest {
     }
 
     private void chooseFormat(String format) {
+        openOptions();
+
         UiObject2 row = device.wait(Until.findObject(By.textStartsWith(formatLabel())), FIND);
-        assertNotNull("the catalogue has no format row on screen", row);
+        assertNotNull("the options menu has no Format entry", row);
         row.click();
 
         String wanted = format.toUpperCase(Locale.ROOT);
         UiObject2 choice = device.wait(Until.findObject(By.text(wanted)), FIND);
         assertNotNull("the format chooser does not offer " + wanted, choice);
         choice.click();
+    }
+
+    /** The one door to the Catalogue/Format/Sort entries now - {@code
+     *  CatalogueView}'s own options button, named for what it opens rather
+     *  than the library's generic "Options". */
+    private void openOptions() {
+        UiObject2 button = device.wait(Until.findObject(
+                By.desc(context.getString(R.string.library_sort_filter))), FIND);
+        assertNotNull("the catalogue has no options button on screen", button);
+        button.click();
     }
 
     private String sourceLabel() {

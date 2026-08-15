@@ -10,6 +10,7 @@ import dev.ldlab.zedex.input.ControlProfiles;
 import dev.ldlab.zedex.input.Gamepad;
 import dev.ldlab.zedex.input.Hotkeys;
 import dev.ldlab.zedex.input.Mouse;
+import dev.ldlab.zedex.library.catalogue.Catalogues;
 import dev.ldlab.zedex.library.meta.Metadata;
 import dev.ldlab.zedex.machine.Video;
 import dev.ldlab.zedex.machine.Border;
@@ -1792,6 +1793,18 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                               this::openLibrary);
             }
 
+            // Beside it for the same reason and gated the same way: nowhere
+            // to land is worse than a row that could only fail, and {@link
+            // Catalogues#any} is the one question that answers whether there
+            // is a shelf here at all - the same gate the library's own rail
+            // button for this tab rests on. Its own word, not the tab's own
+            // "Catalogue" - see menu_online_browser's own comment for why a
+            // row reached from the machine needs to say "online" itself.
+            if (Catalogues.any(this)) {
+                sheet.addItem(getString(R.string.menu_online_browser),
+                              R.drawable.ic_catalogue, this::openOnlineCatalogue);
+            }
+
             sheet.addItem(getString(R.string.menu_open), R.drawable.ic_folder,
                           media::pick);
 
@@ -1866,6 +1879,22 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     private void openLibrary() {
         Intent intent = new Intent(this, LibraryActivity.class);
         intent.putExtra(LibraryActivity.EXTRA_FROM_MENU, true);
+        intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                       | Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(intent);
+    }
+
+    /**
+     * The same door as {@link #openLibrary}, one extra turned on: {@link
+     * LibraryActivity#EXTRA_OPEN_CATALOGUE} asks that instance to land on
+     * its Catalogue tab rather than wherever Browse was left. Everything
+     * else - the reordered task, the untouched machine - is identical, and
+     * deliberately so: see that method's own comment.
+     */
+    private void openOnlineCatalogue() {
+        Intent intent = new Intent(this, LibraryActivity.class);
+        intent.putExtra(LibraryActivity.EXTRA_FROM_MENU, true);
+        intent.putExtra(LibraryActivity.EXTRA_OPEN_CATALOGUE, true);
         intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
                        | Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(intent);

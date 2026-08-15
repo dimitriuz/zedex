@@ -35,9 +35,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * The sort control - a row beside Format, hidden when a catalogue has nothing
- * to offer it and, when it does, a way to ask for Top rated inside whatever
- * shelf is open.
+ * The sort control - an entry in {@code CatalogueView}'s options menu, absent
+ * when a catalogue has nothing to offer it and, when it is there, a way to
+ * ask for Top rated inside whatever shelf is open.
  *
  * <b>Against a fake catalogue, on the main thread, exactly the way {@code
  * CatalogueChaseTest} does it</b> - and for that file's own three reasons: it
@@ -49,9 +49,9 @@ import java.util.concurrent.atomic.AtomicReference;
  * catalogues are proven to build the right URL for a sort; this is where the
  * screen is proven to reach {@link Catalogue.Query#sort()} at all.
  *
- * <b>What this proves and how.</b> Not "the row looks right" read off a
+ * <b>What this proves and how.</b> Not "the menu entry looks right" read off a
  * screenshot - {@link Catalogue.Query#sort()} the fake was actually handed,
- * which is the one fact a screenshot cannot show: a row can say "Top rated"
+ * which is the one fact a screenshot cannot show: a menu can say "Top rated"
  * while the request underneath it still asks for nothing.
  */
 @RunWith(AndroidJUnit4.class)
@@ -77,44 +77,54 @@ public class CatalogueSortTest {
     }
 
     /**
-     * One sort declared, and the row is not on screen at all.
+     * One sort declared, and the options menu offers no entry for it at all.
      *
-     * The same bargain {@code formatRow} already rests on: a control that
-     * could only ever leave a shelf exactly as it found it is worse than no
-     * control, so {@code CatalogueView} hides it rather than showing one that
-     * does nothing. Checked before any shelf is opened - visibility is decided
-     * in the constructor, off {@link Catalogue#sorts()} alone.
+     * The same bargain {@code chooseOptions}'s Format entry already rests on:
+     * a control that could only ever leave a shelf exactly as it found it is
+     * worse than no control, so {@code CatalogueView} leaves it out of the
+     * menu rather than showing one that does nothing. Checked before any
+     * shelf is opened - what the menu offers is decided fresh each time it is
+     * built, off {@link Catalogue#sorts()} alone at the roots.
      */
     @Test
     public void theSortRowIsAbsentWhenOnlyOneSortIsDeclared() {
         install(new Fake(Collections.singletonList(Catalogue.Sort.DEFAULT)));
 
-        // Something of the fake's has to be on screen first, or an absent row
-        // could just as well mean the view never finished building.
+        // Something of the fake's has to be on screen first, or an absent
+        // entry could just as well mean the view never finished building.
         assertNotNull("the fake's own shelf never appeared",
                       device.wait(Until.findObject(By.text(SHELF)), FIND));
 
-        assertNull("a catalogue declaring one sort must not offer a control"
-                   + " for it - there is nothing a second choice could do",
+        openOptions();
+
+        assertNull("a catalogue declaring one sort must not offer a menu"
+                   + " entry for it - there is nothing a second choice could do",
                    device.findObject(By.textStartsWith(sortLabel())));
+
+        device.pressBack();   // close the menu without choosing anything
     }
 
     /**
-     * Several sorts declared: the row is there, and says which one is
-     * current before anybody has touched it.
+     * Several sorts declared: the menu offers an entry, and it says which one
+     * is current before anybody has touched it.
      *
-     * "Sort · Default" rather than just "Sort" - the row has to say what it is
-     * set to as well as offer to change it, the same reasoning {@code
-     * formatRow}'s own comment gives.
+     * "Sort · Default" rather than just "Sort" - the entry has to say what it
+     * is set to as well as offer to change it, the same reasoning {@code
+     * chooseOptions}'s Format entry rests on.
      */
     @Test
     public void theSortRowNamesTheCurrentSortWhenThereAreSeveral() {
         install(new Fake(Arrays.asList(Catalogue.Sort.DEFAULT, Catalogue.Sort.TOP)));
 
+        openOptions();
+
         String expected = sortLabel() + " · " + label(Catalogue.Sort.DEFAULT);
 
-        assertNotNull("the sort row never said it was at the default: expected \""
-                      + expected + "\"", device.wait(Until.findObject(By.text(expected)), FIND));
+        assertNotNull("the options menu never said Sort was at the default:"
+                      + " expected \"" + expected + "\"",
+                      device.wait(Until.findObject(By.text(expected)), FIND));
+
+        device.pressBack();   // close the menu without choosing anything
     }
 
     /**
@@ -136,36 +146,38 @@ public class CatalogueSortTest {
         assertEquals("choosing Top rated never reached the catalogue's own"
                      + " Query.sort()", Catalogue.Sort.TOP, awaitSort(Catalogue.Sort.TOP));
 
+        openOptions();
         String expected = sortLabel() + " · " + label(Catalogue.Sort.TOP);
-        assertNotNull("the row did not update to say Top rated",
+        assertNotNull("the menu did not update to say Top rated",
                       device.wait(Until.findObject(By.text(expected)), FIND));
+        device.pressBack();   // close the menu without choosing anything
     }
 
     /**
-     * A shelf that cannot honour the catalogue's sorts hides the row - and the
-     * sort goes back to the default rather than being sent.
+     * A shelf that cannot honour the catalogue's sorts drops the menu entry -
+     * and the sort goes back to the default rather than being sent.
      *
      * <b>The bug this pins.</b> Honouring a sort is a property of the shelf,
      * not of the catalogue: ZXInfo sends {@code sort=score_desc} only on the
      * two shelves that are really a search, and zxart's {@code date,desc} and
      * {@code title,asc} were measured on prods alone. Declared per catalogue,
      * the control appeared everywhere - refetching a shelf, relabelling the
-     * row and answering with byte-identical rows on three of ZXInfo's five
+     * entry and answering with byte-identical rows on three of ZXInfo's five
      * shelves, and on zxart sending an order name to an endpoint nobody had
      * asked it of, against a service that ignores an unrecognised name and
      * answers success.
      *
-     * Both halves are asserted, because either alone is still wrong: the row
-     * has to go (a control that does nothing is worse than none), and the
-     * request has to carry {@code DEFAULT} (a sort left set would be handed to
-     * the shelf that cannot honour it).
+     * Both halves are asserted, because either alone is still wrong: the
+     * entry has to go (a control that does nothing is worse than none), and
+     * the request has to carry {@code DEFAULT} (a sort left set would be
+     * handed to the shelf that cannot honour it).
      */
     @Test
     public void ashelfThatCannotHonourTheSortHidesTheRowAndIsAskedWithTheDefault() {
         install(new Fake(Arrays.asList(Catalogue.Sort.DEFAULT, Catalogue.Sort.TOP))
                         .onlyOnTheShelf(Collections.singletonList(Catalogue.Sort.DEFAULT)));
 
-        // At the roots the row is there - no shelf is open, so what the
+        // At the roots the menu offers Sort - no shelf is open, so what the
         // catalogue declares is all there is to go on - and Top rated can be
         // chosen there, which is the state that used to be carried into a shelf
         // that ignores it.
@@ -177,9 +189,11 @@ public class CatalogueSortTest {
                      + " DEFAULT, never with the sort chosen outside it",
                      Catalogue.Sort.DEFAULT, awaitASort());
 
-        assertNull("the sort row is still on screen over a shelf that cannot"
-                   + " honour any ordering",
+        openOptions();
+        assertNull("the options menu still offers Sort over a shelf that"
+                   + " cannot honour any ordering",
                    device.findObject(By.textStartsWith(sortLabel())));
+        device.pressBack();   // close the menu without choosing anything
     }
 
     // --- the fake ------------------------------------------------------------------
@@ -238,9 +252,9 @@ public class CatalogueSortTest {
          * formats. Answering true would claim a shape these rows do not
          * have, exactly the mistake {@code CatalogueChaseTest.Sparse} made by
          * leaving this unstated (see that class's own {@code knowsFormats}
-         * javadoc, added in the same fix as this comment). None of the three
-         * tests here opens {@code formatRow} - it stays {@code GONE} for
-         * this fake, correctly, and is not what this class exercises.
+         * javadoc, added in the same fix as this comment). None of the four
+         * tests here open a Format entry - it stays out of the options menu
+         * for this fake, correctly, and is not what this class exercises.
          */
         @Override
         public boolean knowsFormats() {
@@ -277,8 +291,10 @@ public class CatalogueSortTest {
         }
 
         private static Item row() {
-            return new Item("1", TITLE, "1984", "Nobody", "Arcade Game", "Available", null,
-                            Collections.emptyList(), null);
+            return Item.builder("1")
+                    .title(TITLE).year("1984").publisher("Nobody").kind("Arcade Game")
+                    .availability("Available").versions(Collections.emptyList())
+                    .build();
         }
 
         @Override
@@ -358,18 +374,30 @@ public class CatalogueSortTest {
     }
 
     /**
-     * The row, then Top rated in the dialog it opens - the way a person
-     * chooses it.
+     * The options menu, then its Sort entry, then Top rated in the chooser
+     * that opens - the way a person chooses it.
      */
     private void chooseTopRated() {
+        openOptions();
+
         UiObject2 row = device.wait(Until.findObject(By.textStartsWith(sortLabel())), FIND);
-        assertNotNull("the catalogue has no sort row on screen", row);
+        assertNotNull("the options menu has no Sort entry", row);
         row.click();
 
         String wanted = label(Catalogue.Sort.TOP);
         UiObject2 choice = device.wait(Until.findObject(By.text(wanted)), FIND);
         assertNotNull("the sort chooser does not offer " + wanted, choice);
         choice.click();
+    }
+
+    /** The one door to the Sort entry now - {@code CatalogueView}'s own
+     *  options button, named for what it opens rather than the library's
+     *  generic "Options". */
+    private void openOptions() {
+        UiObject2 button = device.wait(Until.findObject(
+                By.desc(context.getString(R.string.library_sort_filter))), FIND);
+        assertNotNull("the catalogue has no options button on screen", button);
+        button.click();
     }
 
     private String sortLabel() {

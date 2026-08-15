@@ -60,10 +60,18 @@ public final class Artwork {
      */
 
     /**
-     * Both cases, because {@link EsdeLink#read} copies whatever extension
-     * ES-DE actually scraped with, and that is not always {@code .png}.
+     * All three, because {@link EsdeLink#read} copies whatever extension
+     * ES-DE actually scraped with, and that is not always {@code .png} -
+     * and because zxart's own screenshots arrive as {@code .gif}, see
+     * {@code Zxart.collectImages}'s own comment on {@code
+     * /screenshot/id:.../name.gif}. Without the third, {@link
+     * dev.ldlab.zedex.library.scrape.Blend#commit} renames a chosen gif
+     * into place exactly as it does a png, and this method - the one every
+     * picture in the app is found through - never looked for it: a
+     * screenshot somebody picked from the sheet, sitting on disk, and never
+     * seen again.
      */
-    private static final String[] PICTURE_EXTENSIONS = { "png", "jpg" };
+    private static final String[] PICTURE_EXTENSIONS = { "png", "jpg", "gif" };
 
     private static final String VIDEO_FOLDER = "videos";
     private static final String VIDEO_EXTENSION = "mp4";

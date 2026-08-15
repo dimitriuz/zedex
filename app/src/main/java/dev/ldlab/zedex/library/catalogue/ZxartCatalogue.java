@@ -10,8 +10,10 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * zxart.ee, the demoscene and games archive, as something to browse.
@@ -431,6 +433,14 @@ public final class ZxartCatalogue implements Catalogue {
 
         for (JSONObject row : ZxartApi.rows(reply, ZxartApi.PROD)) items.add(itemFrom(row));
 
+        // Only when the title search itself came up empty - see
+        // appendAuthorMatches's own javadoc for why a title search that
+        // already found something is never touched.
+        if (SHELF_SEARCH.equals(shelf.id()) && page == 0 && items.isEmpty()
+                && !query.text().trim().isEmpty()) {
+            appendAuthorMatches(items, query.text());
+        }
+
         // A root category carries its children as well as its prods: roots
         // roll up, so opening Games is ten sub-shelves and 23,162 items on the
         // one page. Only at page zero - a later page of the same shelf is more
@@ -476,7 +486,8 @@ public final class ZxartCatalogue implements Catalogue {
                 .page(0, RELEASE_PAGE_SIZE)
                 .filter(ZxartApi.FILTER_PROD_ID, id));
 
-        List<Version> versions = versionsFrom(ZxartApi.rows(releaseReply, ZxartApi.RELEASE));
+        List<Version> versions = versionsFrom(ZxartApi.rows(releaseReply, ZxartApi.RELEASE),
+                                              recordingsOf(prodRows.get(0)));
 
         return itemFrom(prodRows.get(0), versions);
     }
@@ -649,15 +660,16 @@ public final class ZxartCatalogue implements Catalogue {
         Version version = new Version(label.isEmpty() ? null : label,
                                       year > 0 ? Integer.toString(year) : null, files);
 
-        return new Item(MUSIC_PREFIX + id,
-                        ZxartApi.unescape(row.optString("title", "")),
-                        year > 0 ? Integer.toString(year) : null,
-                        author,
-                        Kinds.MUSIC,
-                        null,   // no legalStatus on this entity - nothing to state
-                        null,   // no rendered picture for a tune - imagesUrls does not exist here
-                        Collections.singletonList(version),
-                        null);  // youtubeId lives on a prod, not a tune
+        return Item.builder(MUSIC_PREFIX + id)
+                .title(ZxartApi.unescape(row.optString("title", "")))
+                .year(year > 0 ? Integer.toString(year) : null)
+                .publisher(author)
+                .kind(Kinds.MUSIC)
+                // no legalStatus on this entity - nothing to state
+                // no rendered picture for a tune - imagesUrls does not exist here
+                .versions(Collections.singletonList(version))
+                // youtubeId lives on a prod, not a tune
+                .build();
     }
 
     /** A list row: no author - see {@link #musicFrom(JSONObject)}. */
@@ -704,15 +716,94 @@ public final class ZxartCatalogue implements Catalogue {
 
         Version version = new Version(null, year > 0 ? Integer.toString(year) : null, files);
 
-        return new Item(GRAPHICS_PREFIX + id,
-                        ZxartApi.unescape(row.optString("title", "")),
-                        year > 0 ? Integer.toString(year) : null,
-                        author,
-                        Kinds.GRAPHICS,
-                        null,               // no legalStatus on this entity
-                        rendered.isEmpty() ? null : rendered,
-                        Collections.singletonList(version),
-                        null);              // youtubeId lives on a prod, not a picture
+        return Item.builder(GRAPHICS_PREFIX + id)
+                .title(ZxartApi.unescape(row.optString("title", "")))
+                .year(year > 0 ? Integer.toString(year) : null)
+                .publisher(author)
+                .kind(Kinds.GRAPHICS)
+                // no legalStatus on this entity
+                .pictureUrl(rendered.isEmpty() ? null : rendered)
+                .versions(Collections.singletonList(version))
+                // youtubeId lives on a prod, not a picture
+                .images(rendered.isEmpty() ? Collections.emptyList()
+                                            : Collections.singletonList(rendered))
+                .build();
+    }
+
+    /**
+     * Folds a matching author's own games into an already-fetched Search
+     * page, in place - two more requests, and only when the page's title
+     * search came up with nothing at all.
+     *
+     * <b>Why the title search alone misses this.</b> {@code
+     * zxProdSearch=Zosya} answers nothing: a prod's title rarely names the
+     * group that made it. But {@code export:author/filter:authorSearch=}
+     * resolves the same word to an author row - measured 2026-08-15 against
+     * "Zosya", which found "ZOSYA entertainment", id 351455 - and that id
+     * then narrows {@link #PROD} via {@link ZxartApi#FILTER_AUTHOR} to
+     * exactly the four games the group made. So a name search is two
+     * requests chained through an id, never one filter on prods directly -
+     * there is no such filter to ask for.
+     *
+     * <b>Only when the title search is empty - never as well as it.</b>
+     * {@code authorSearch} is a substring match, not an exact one: measured
+     * the same day, {@code head} matches 21 authors including "HeadSoft",
+     * {@code dizzy} matches "DizZy", {@code elite} matches "britelite". Any
+     * of those folded into a search that had already found the title
+     * everyone typed the word for - Head Over Heels, a Dizzy game, an Elite
+     * release - would splice an unrelated author's whole catalogue into a
+     * search that already had its real answer. Gating on the title search's
+     * own page being empty is what keeps this a rescue for a search that
+     * found nothing rather than noise on one that already worked; {@link
+     * #open} only calls this when {@code items} is empty.
+     *
+     * <b>Page 0 only, and {@code total} is untouched.</b> A search this
+     * triggers on has nothing to page through in the first place - an empty
+     * page 0 - so there is no later page whose own arithmetic could be
+     * disturbed by rows spliced in here.
+     *
+     * <b>A refusal here is swallowed, deliberately</b> - the same call
+     * {@link #tree()} makes for its own failure. This is a bonus on top of a
+     * search that has already answered "nothing"; losing the fold-in must
+     * not turn that into a thrown exception instead of the same honest empty
+     * shelf the search would have been without it.
+     */
+    private void appendAuthorMatches(List<Item> items, String text) {
+        List<Item> found;
+        try {
+            found = authorGamesFor(text);
+        } catch (ScrapeException failed) {
+            return;
+        }
+
+        Set<String> already = new HashSet<>();
+        for (Item item : items) already.add(item.id());
+
+        for (Item item : found) if (already.add(item.id())) items.add(item);
+    }
+
+    /** {@code text} resolved to an author, then that author's own games - or
+     *  empty, when the word names no author at all. See {@link
+     *  #appendAuthorMatches}, its only caller, for the reasoning. */
+    private List<Item> authorGamesFor(String text) throws ScrapeException {
+        JSONObject authorReply = api.ask(new ZxartApi.Ask(ZxartApi.AUTHOR)
+                .language(language)
+                .page(0, 1)
+                .filter(ZxartApi.FILTER_AUTHOR_SEARCH, text));
+
+        List<JSONObject> authorRows = ZxartApi.rows(authorReply, ZxartApi.AUTHOR);
+        if (authorRows.isEmpty()) return Collections.emptyList();
+
+        int authorId = authorRows.get(0).optInt("id", 0);
+
+        JSONObject prodReply = api.ask(new ZxartApi.Ask(ZxartApi.PROD)
+                .language(language)
+                .page(0, PAGE_SIZE)
+                .filter(ZxartApi.FILTER_AUTHOR, Integer.toString(authorId)));
+
+        List<Item> games = new ArrayList<>();
+        for (JSONObject row : ZxartApi.rows(prodReply, ZxartApi.PROD)) games.add(itemFrom(row));
+        return games;
     }
 
     /**
@@ -871,15 +962,28 @@ public final class ZxartCatalogue implements Catalogue {
         // before Catalogue.item is ever asked, which is what lets
         // CataloguePane decide whether to show the icon the moment a title
         // is tapped, the same way it already decides similarButton.
-        return new Item(id,
-                        ZxartApi.unescape(row.optString("title", "")),
-                        year > 0 ? Integer.toString(year) : null,
-                        null,                       // no publisher: see above
-                        kindOf(leaf),
-                        availabilityOf(row),
-                        pictureOf(row),
-                        versions,
-                        ZxartApi.watchUrlOf(row));
+        //
+        // No developer, description or rating either - the same measurement
+        // that found no publisher found nothing to read for any of these
+        // three on a prod, and zxart's own images are real: picturesOf reads
+        // every entry of imagesUrls, not only the first the row draws.
+        List<String> images = picturesOf(row);
+
+        return Item.builder(id)
+                .title(ZxartApi.unescape(row.optString("title", "")))
+                .year(year > 0 ? Integer.toString(year) : null)
+                .kind(kindOf(leaf))
+                // The leaf's own title, a finer word than kindOf's root -
+                // "Arcade" beside "Games", say - free once the tree is
+                // fetched, which kindOf already costs. Null for the same
+                // -1 kindOf itself answers null for.
+                .category(leaf < 0 ? null : tree().titleOf(leaf))
+                .availability(availabilityOf(row))
+                .pictureUrl(images.isEmpty() ? null : images.get(0))
+                .versions(versions)
+                .videoLink(ZxartApi.watchUrlOf(row))
+                .images(images)
+                .build();
     }
 
     /**
@@ -953,24 +1057,77 @@ public final class ZxartCatalogue implements Catalogue {
         return stated.isEmpty() || "unknown".equals(stated) ? null : stated;
     }
 
-    /** The first of {@code imagesUrls} - the rendered loading screen, present
-     *  on 100% of the measured slice - or null for a prod with none. */
-    private static String pictureOf(JSONObject row) {
+    /** Every entry of {@code imagesUrls}, in the record's own order - the
+     *  first is the rendered loading screen, present on 100% of the
+     *  measured slice; empty for a prod with none. */
+    private static List<String> picturesOf(JSONObject row) {
+        List<String> found = new ArrayList<>();
         JSONArray images = row.optJSONArray("imagesUrls");
 
-        return images != null && images.length() > 0 ? images.optString(0, null) : null;
+        for (int at = 0; images != null && at < images.length(); at++) {
+            String url = images.optString(at, null);
+            if (url != null) found.add(url);
+        }
+
+        return found;
     }
 
     // --- one prod's releases, fetched only by item() ----------------------------------
 
-    /** Every release, in the order the reply lists them - nothing here
-     *  re-sorts: that order is zxart's own statement about which came first,
-     *  exactly as {@code ZxInfoCatalogue.versions} treats ZXDB's. */
-    private static List<Version> versionsFrom(List<JSONObject> releases) {
+    /**
+     * Every release, in the order the reply lists them - nothing here
+     * re-sorts: that order is zxart's own statement about which came first,
+     * exactly as {@code ZxInfoCatalogue.versions} treats ZXDB's.
+     *
+     * <b>{@code recordings} are hung off the first release, the same seam
+     * {@code ZxInfoCatalogue.versions} uses for the same reason</b>: {@link
+     * Pick#recording} looks across every version a prod has, so which one
+     * carries the file is only ever a question of where to put it, never of
+     * which the pane will find. A prod with no releases at all but a
+     * recording - not measured here, but not ruled out either - gets a
+     * version of nothing else, so the recording is never silently dropped
+     * for want of somewhere to hang it.
+     */
+    private static List<Version> versionsFrom(List<JSONObject> releases,
+                                              List<Download> recordings) {
         List<Version> found = new ArrayList<>();
 
         for (JSONObject release : releases) {
-            found.add(new Version(labelFor(release), yearOf(release), filesFor(release)));
+            List<Download> files = filesFor(release);
+            if (found.isEmpty()) files.addAll(recordings);
+
+            found.add(new Version(labelFor(release), yearOf(release), files));
+        }
+
+        if (found.isEmpty() && !recordings.isEmpty()) {
+            found.add(new Version(null, null, recordings));
+        }
+
+        return found;
+    }
+
+    /**
+     * The recording, if the prod has one - its own {@code rzx} array, never
+     * a release's file.
+     *
+     * Measured against Licence to Kill (id 92668): its entry carries {@code
+     * rzx:["https://zxart.ee/release/id:554313/mode:download/filename:lice
+     * ncetokill.zip"]} sitting apart from {@code releasesIds} entirely, on
+     * the prod row itself - so this reads no more than {@link #item} already
+     * fetched, no request of its own. {@link Pick#isRecording} tells a
+     * recording from a game by its format alone, so this states {@code
+     * "rzx"} rather than reading the url's own extension: Licence to Kill's
+     * own link ends plain {@code .zip}, not {@code .rzx.zip}, the same
+     * reasoning that states {@code "png"} for a rendered picture in {@link
+     * #pictureFrom} regardless of what its url happens to end in.
+     */
+    private static List<Download> recordingsOf(JSONObject row) {
+        List<Download> found = new ArrayList<>();
+        JSONArray rzx = row.optJSONArray("rzx");
+
+        for (int at = 0; rzx != null && at < rzx.length(); at++) {
+            String url = rzx.optString(at, "");
+            if (!url.isEmpty()) found.add(new Download(url, "rzx", -1));
         }
 
         return found;
@@ -1006,10 +1163,14 @@ public final class ZxartCatalogue implements Catalogue {
      * release is one archive on zxart, and {@code releaseStructure} beyond its
      * own first entry is what is packed <em>inside</em> that archive - the
      * loader, the screen, the pokes - not a second file to offer alongside it.
+     *
+     * <b>Mutable, on purpose</b> - {@link #versionsFrom} folds a recording
+     * into the first release's own list this way, the same as {@code
+     * ZxInfoCatalogue.files} does for ZXDB's.
      */
     private static List<Download> filesFor(JSONObject release) {
         String url = release.optString("file", "");
-        if (url.isEmpty()) return Collections.emptyList();
+        if (url.isEmpty()) return new ArrayList<>();
 
         JSONArray formats = release.optJSONArray("releaseFormat");
         String format = formats != null && formats.length() > 0 ? formats.optString(0, "") : "";
@@ -1022,6 +1183,8 @@ public final class ZxartCatalogue implements Catalogue {
             if (first != null) size = first.optLong("size", -1);
         }
 
-        return Collections.singletonList(new Download(url, format, size));
+        List<Download> found = new ArrayList<>();
+        found.add(new Download(url, format, size));
+        return found;
     }
 }

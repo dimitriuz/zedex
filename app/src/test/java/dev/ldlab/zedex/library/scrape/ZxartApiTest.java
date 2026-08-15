@@ -85,6 +85,7 @@ public class ZxartApiTest {
         assertEquals("zxProdId", ZxartApi.FILTER_PROD_ID);
         assertEquals("zxProdCategory", ZxartApi.FILTER_CATEGORY);
         assertEquals("authorId", ZxartApi.FILTER_AUTHOR);
+        assertEquals("authorSearch", ZxartApi.FILTER_AUTHOR_SEARCH);
         assertEquals("votes,desc", ZxartApi.ORDER_TOP);
         assertEquals("date,desc", ZxartApi.ORDER_NEWEST);
         assertEquals("title,asc", ZxartApi.ORDER_TITLE);

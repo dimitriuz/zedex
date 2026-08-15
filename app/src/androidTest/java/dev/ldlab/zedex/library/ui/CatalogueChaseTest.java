@@ -304,8 +304,9 @@ public class CatalogueChaseTest {
          * {@code Catalogue#knowsFormats()}'s javadoc describes for ZXInfo, and
          * leaving this undeclared - inheriting the interface's {@code false}
          * default, introduced alongside the format filter itself in {@code
-         * 9a026ec} - silently hid {@code CatalogueView.formatRow} behind a
-         * predicate this class never meant to answer no to. That is what let
+         * 9a026ec} - silently hid the Format entry of {@code
+         * CatalogueView.chooseOptions} behind a predicate this class never
+         * meant to answer no to. That is what let
          * all four tests below fail at {@link #chooseTheFilteredFormat} with
          * no code here having changed.
          */
@@ -342,11 +343,12 @@ public class CatalogueChaseTest {
                                          + (filtered ? ".rzx" : ".tap"),
                                          filtered ? FILTERED : "tap", 1024);
 
-            return new Item(String.valueOf(number), TITLE + " " + number, "1984",
-                            "Nobody", "Arcade Game", "Available", null,
-                            Arrays.asList(new Version(null, "1984",
-                                                      Collections.singletonList(file))),
-                            null);
+            return Item.builder(String.valueOf(number))
+                    .title(TITLE + " " + number).year("1984").publisher("Nobody")
+                    .kind("Arcade Game").availability("Available")
+                    .versions(Arrays.asList(new Version(null, "1984",
+                                                        Collections.singletonList(file))))
+                    .build();
         }
 
         @Override
@@ -427,16 +429,18 @@ public class CatalogueChaseTest {
     }
 
     /**
-     * The filter, chosen the way a person chooses it: the row, then the format
-     * in the dialog it opens. Set at the roots, where no shelf is open, so the
-     * shelf below is asked exactly once with the filter already on - {@code
-     * setFormat} restarts an open shelf, and a test that filtered afterwards
-     * would be counting two fills.
+     * The filter, chosen the way a person chooses it: the options menu, its
+     * Format entry, then the format in the dialog it opens. Set at the roots,
+     * where no shelf is open, so the shelf below is asked exactly once with
+     * the filter already on - {@code setFormat} restarts an open shelf, and a
+     * test that filtered afterwards would be counting two fills.
      */
     private void chooseTheFilteredFormat() {
+        openOptions();
+
         UiObject2 row = device.wait(Until.findObject(By.textStartsWith(
                 context.getString(R.string.library_filter_format))), FIND);
-        assertNotNull("the catalogue has no format row on screen", row);
+        assertNotNull("the options menu has no Format entry", row);
         row.click();
 
         String label = FILTERED.toUpperCase(Locale.ROOT);
@@ -444,8 +448,20 @@ public class CatalogueChaseTest {
         assertNotNull("the format chooser does not offer " + label, choice);
         choice.click();
 
-        assertNotNull("the format row does not say the filter is on",
+        openOptions();
+        assertNotNull("the Format entry does not say the filter is on",
                       device.wait(Until.findObject(By.textEndsWith(label)), FIND));
+        device.pressBack();   // close the menu without choosing anything
+    }
+
+    /** The one door to the Format entry now - {@code CatalogueView}'s own
+     *  options button, named for what it opens rather than the library's
+     *  generic "Options". */
+    private void openOptions() {
+        UiObject2 button = device.wait(Until.findObject(
+                By.desc(context.getString(R.string.library_sort_filter))), FIND);
+        assertNotNull("the catalogue has no options button on screen", button);
+        button.click();
     }
 
     private void openTheShelf() {

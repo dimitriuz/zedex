@@ -2,6 +2,7 @@ package dev.ldlab.zedex.library.catalogue;
 
 import dev.ldlab.zedex.library.scrape.ScrapeException;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -247,7 +248,7 @@ public interface Catalogue {
      * service's own word for itself, which is why this is not a string
      * resource.
      */
-    final class Shelf {
+    final class Shelf implements Serializable {
 
         /** What a shelf will do something with, if it is given one. */
         public enum Accepts { NOTHING, TEXT, LETTER }
@@ -432,7 +433,7 @@ public interface Catalogue {
      * into a folder is {@link Kinds}' job and happens at import, not here: a
      * catalogue is never asked to know what this app's folders are called.
      */
-    final class Item {
+    final class Item implements Serializable {
 
         private final String id;
         private final String title;
@@ -443,33 +444,37 @@ public interface Catalogue {
         private final String pictureUrl;
         private final List<Version> versions;
         private final String videoLink;
+        private final String developer;
+        private final String description;
+        private final String rating;
+        private final List<String> images;
+        private final String category;
 
-        /**
-         * One constructor, not two. An eight-argument overload delegating to
-         * this one with a hidden {@code null} is the shape this project
-         * already abandoned for {@code Meta} - see that class's own class
-         * doc on the positional constructor that once dropped a field
-         * silently - and the hazard is not today's field but the next one: a
-         * caller with no video link to offer has to say {@code null} here
-         * rather than that becoming a second thing to remember to update.
-         *
-         * @param videoLink a link to a video about this game, or null - see
-         *                  {@link #videoLink()}. {@code null} for every
-         *                  catalogue but zxart today.
-         */
-        public Item(String id, String title, String year, String publisher,
-                    String kind, String availability, String pictureUrl,
-                    List<Version> versions, String videoLink) {
-            this.id = id;
-            this.title = title;
-            this.year = year;
-            this.publisher = publisher;
-            this.kind = kind;
-            this.availability = availability;
-            this.pictureUrl = pictureUrl;
-            this.versions = versions == null ? Collections.<Version>emptyList()
-                                              : new ArrayList<Version>(versions);
-            this.videoLink = videoLink;
+        private Item(Builder from) {
+            this.id = from.id;
+            this.title = from.title;
+            this.year = from.year;
+            this.publisher = from.publisher;
+            this.kind = from.kind;
+            this.availability = from.availability;
+            this.pictureUrl = from.pictureUrl;
+            this.versions = from.versions == null ? Collections.<Version>emptyList()
+                                                   : new ArrayList<Version>(from.versions);
+            this.videoLink = from.videoLink;
+            this.developer = from.developer;
+            this.description = from.description;
+            this.rating = from.rating;
+            this.images = from.images == null ? Collections.<String>emptyList()
+                                               : new ArrayList<String>(from.images);
+            this.category = from.category;
+        }
+
+        /** A fresh builder - {@code id} is the one thing every item must
+         *  have, and everything else defaults to absent rather than to a
+         *  positional {@code null} somebody has to count along the list to
+         *  place correctly. See {@link Builder}. */
+        public static Builder builder(String id) {
+            return new Builder(id);
         }
 
         public String id() {
@@ -492,6 +497,16 @@ public interface Catalogue {
         /** The catalogue's own word. Never translated, never mapped here. */
         public String kind() {
             return kind;
+        }
+
+        /** A finer-grained word than {@link #kind}, where the catalogue has
+         *  one - ZXInfo's {@code genreSubType} beside its {@code genreType},
+         *  zxart's own leaf category beside the root {@link #kind()} rolls
+         *  up to (see {@code ZxartCatalogue.kindOf}). Null where the
+         *  catalogue has nothing finer to say, which for a leaf {@code
+         *  kind()} could never resolve past is most zxart prods today. */
+        public String category() {
+            return category;
         }
 
         /** The catalogue's own word again - shown as the reason a row is
@@ -519,6 +534,39 @@ public interface Catalogue {
          */
         public String videoLink() {
             return videoLink;
+        }
+
+        /** Who made it - a person, where the catalogue keeps that apart from
+         *  who published it - or null where the catalogue has no such
+         *  notion. zxart never does: see {@code ZxartCatalogue.itemFrom}'s
+         *  own comment on why it has no publisher either. */
+        public String developer() {
+            return developer;
+        }
+
+        /** Prose about the game, in the catalogue's own words, or null where
+         *  it has none to offer - ZXDB calls this "remarks", and it is the
+         *  only prose about the game there is; a catalogue with nothing of
+         *  the kind simply never sets it. */
+        public String description() {
+            return description;
+        }
+
+        /** A fraction from 0 to 1 - the same convention {@code Meta#rating}
+         *  already uses - or null where the catalogue keeps no community
+         *  rating, or none is stated for this item. Never computed here:
+         *  formatting it as stars is a screen's job, not this class's. */
+        public String rating() {
+            return rating;
+        }
+
+        /** Every picture the catalogue offered for this item, in its own
+         *  order - {@link #pictureUrl()} is the first of these, kept
+         *  separate because a row draws only that one and a details screen
+         *  wants the rest. Empty, never null, for a catalogue or an item
+         *  with nothing beyond the one thumbnail. */
+        public List<String> images() {
+            return Collections.unmodifiableList(images);
         }
 
         /** Empty until {@link Catalogue#item} has been asked - a list does
@@ -591,6 +639,54 @@ public interface Catalogue {
 
             return line.toString();
         }
+
+        /**
+         * Builds an {@link Item} one field at a time, named the way a
+         * caller thinks of them rather than by position.
+         *
+         * <b>Why this replaced the old nine-argument constructor.</b> That
+         * one deliberately stayed a single constructor rather than growing a
+         * shorter overload beside it - seen at a call site, a positional
+         * {@code null} for "no video link" reads the same as one for "no
+         * rating", and only the compiler could tell them apart by counting
+         * commas. Rating, developer, description and images pushed the
+         * count to thirteen, past the point that was still worth reading
+         * that way. The same shape {@code Meta.Builder} already settled on
+         * for the same reason, minus the copy-for-editing half ({@code
+         * Meta.but()}): nothing here is ever merged from two sources or
+         * hand-edited, so there is nothing to carry forward from an
+         * existing instance.
+         */
+        public static final class Builder {
+
+            private final String id;
+            private String title, year, publisher, kind, availability, pictureUrl,
+                    videoLink, developer, description, rating, category;
+            private List<Version> versions;
+            private List<String> images;
+
+            private Builder(String id) {
+                this.id = id;
+            }
+
+            public Builder title(String v)       { title = v;       return this; }
+            public Builder year(String v)        { year = v;        return this; }
+            public Builder publisher(String v)   { publisher = v;   return this; }
+            public Builder kind(String v)        { kind = v;        return this; }
+            public Builder availability(String v) { availability = v; return this; }
+            public Builder pictureUrl(String v)  { pictureUrl = v;  return this; }
+            public Builder videoLink(String v)   { videoLink = v;   return this; }
+            public Builder developer(String v)   { developer = v;   return this; }
+            public Builder description(String v) { description = v; return this; }
+            public Builder rating(String v)       { rating = v;      return this; }
+            public Builder versions(List<Version> v) { versions = v; return this; }
+            public Builder images(List<String> v)    { images = v;   return this; }
+            public Builder category(String v)        { category = v; return this; }
+
+            public Item build() {
+                return new Item(this);
+            }
+        }
     }
 
     /**
@@ -600,7 +696,7 @@ public interface Catalogue {
      * them, because their order is the catalogue's own statement about which
      * came first and this app has no better source for it.
      */
-    final class Version {
+    final class Version implements Serializable {
 
         private final String label;
         private final String year;
@@ -641,7 +737,7 @@ public interface Catalogue {
      * and is the <b>inner</b> format where the file is zipped, since that is
      * what decides whether this app can open it. A ".tap.zip" is a tap.
      */
-    final class Download {
+    final class Download implements Serializable {
 
         private final String url;
         private final String format;

@@ -346,12 +346,13 @@ public class ZxartImportTest {
     }
 
     private Catalogue.Item item(String kind, Catalogue.Download file) {
-        return new Catalogue.Item(stamp, stamp + "-item", "2026", "zxart",
-                                  kind, "Available", null,
-                                  Collections.singletonList(
-                                          new Catalogue.Version(null, "2026",
-                                                                Collections.singletonList(file))),
-                                  null);
+        return Catalogue.Item.builder(stamp)
+                .title(stamp + "-item").year("2026").publisher("zxart")
+                .kind(kind).availability("Available")
+                .versions(Collections.singletonList(
+                        new Catalogue.Version(null, "2026",
+                                              Collections.singletonList(file))))
+                .build();
     }
 
     private static Catalogue.Download download(String url, String format) {

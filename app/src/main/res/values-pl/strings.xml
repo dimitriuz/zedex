@@ -6,6 +6,7 @@
 -->
 <resources>
     <string name="machine_title">Maszyna</string>
+    <string name="menu_online_browser">Przeglądarka online</string>
     <string name="menu_open">Otwórz plik…</string>
     <string name="menu_recent">Otwórz ostatnie…</string>
     <string name="menu_media">Nośniki…</string>
@@ -805,6 +806,7 @@
     <string name="library_sort_newest">Najnowsze</string>
     <string name="library_sort_alphabetical">A–Z</string>
     <string name="library_catalogue">Katalog</string>
+    <string name="library_sort_filter">Sortuj i filtruj</string>
     <string name="catalogue_import">Importuj</string>
     <string name="catalogue_versions">Inne wersje…</string>
     <string name="catalogue_recording">Odtwórz nagranie</string>
@@ -816,6 +818,8 @@
     <string name="catalogue_similar_to">Gry takie jak %1$s</string>
     <string name="catalogue_needs_write">Zedex potrzebuje uprawnienia, aby dodawać gry do %1$s.</string>
     <string name="catalogue_choose_folder">Wybierz</string>
+    <string name="catalogue_details">Szczegóły</string>
+    <string name="catalogue_details_import">Aby wybrać folder, najpierw użyj przycisku Importuj w panelu katalogu.</string>
     <string name="disk_modified_title">Dysk zmieniony</string>
     <string name="disk_modified_save">Zapisz</string>
     <string name="disk_modified_discard">Odrzuć</string>
