@@ -6,6 +6,7 @@
 -->
 <resources>
     <string name="machine_title">Počítač</string>
+    <string name="menu_online_browser">Online prohlížeč</string>
     <string name="menu_open">Otevřít soubor…</string>
     <string name="menu_recent">Otevřít nedávné…</string>
     <string name="menu_media">Média…</string>
@@ -805,6 +806,7 @@
     <string name="library_sort_newest">Nejnovější</string>
     <string name="library_sort_alphabetical">A–Z</string>
     <string name="library_catalogue">Katalog</string>
+    <string name="library_sort_filter">Řadit a filtrovat</string>
     <string name="catalogue_import">Importovat</string>
     <string name="catalogue_versions">Další verze…</string>
     <string name="catalogue_recording">Přehrát záznam</string>

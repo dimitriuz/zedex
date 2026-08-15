@@ -6,6 +6,7 @@
 -->
 <resources>
     <string name="machine_title">Машина</string>
+    <string name="menu_online_browser">Онлайн-браузер</string>
     <string name="menu_open">Открыть файл…</string>
     <string name="menu_recent">Открыть недавние…</string>
     <string name="menu_media">Носители…</string>
@@ -805,6 +806,7 @@
     <string name="library_sort_newest">Новейшие</string>
     <string name="library_sort_alphabetical">A–Z</string>
     <string name="library_catalogue">Каталог</string>
+    <string name="library_sort_filter">Сортировка и фильтр</string>
     <string name="catalogue_import">Импортировать</string>
     <string name="catalogue_versions">Другие версии…</string>
     <string name="catalogue_recording">Воспроизвести запись</string>

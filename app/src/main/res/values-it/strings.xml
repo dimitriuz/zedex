@@ -6,6 +6,7 @@
 -->
 <resources>
     <string name="machine_title">Macchina</string>
+    <string name="menu_online_browser">Browser online</string>
     <string name="menu_open">Apri file…</string>
     <string name="menu_recent">Apri recenti…</string>
     <string name="menu_media">Supporti…</string>
@@ -788,6 +789,7 @@
     <string name="library_sort_newest">Più recenti</string>
     <string name="library_sort_alphabetical">A–Z</string>
     <string name="library_catalogue">Catalogo</string>
+    <string name="library_sort_filter">Ordina e filtra</string>
     <string name="catalogue_import">Importa</string>
     <string name="catalogue_versions">Altre versioni…</string>
     <string name="catalogue_recording">Riproduci la registrazione</string>

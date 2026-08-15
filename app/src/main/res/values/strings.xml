@@ -9,6 +9,13 @@
     -->
     <string name="data_folder" translatable="false">Zedex</string>
     <string name="machine_title">Machine</string>
+    <!-- The menu's own row leading to LibraryActivity's Catalogue tab - see
+         EmulatorActivity.openOnlineCatalogue. Its own word rather than
+         library_tab_catalogue's "Catalogue": the tab underneath still
+         answers to that, but this row is reached from the machine, where
+         "Catalogue" alone reads as a local list rather than one out on the
+         web. -->
+    <string name="menu_online_browser">Online browser</string>
     <string name="menu_open">Open file\u2026</string>
     <string name="menu_recent">Open recent\u2026</string>
     <string name="menu_media">Media\u2026</string>
@@ -991,12 +998,18 @@
     <string name="library_sort_top">Top rated</string>
     <string name="library_sort_newest">Newest</string>
     <string name="library_sort_alphabetical">A–Z</string>
-    <!-- The catalogue's own third row, beside Format and Sort and built the
-         same way - see CatalogueView.sourceRow - because it too has to say
+    <!-- The catalogue's own word for which archive is open - offered from
+         the same menu as Format and Sort, below, because it too has to say
          what it is set to as well as offer to change it. Not
-         library_tab_catalogue: that names the tab itself, and this a row on
-         the screen behind it, which happen to share the one English word. -->
+         library_tab_catalogue: that names the tab itself, and this the
+         archive shown behind it, which happen to share the one English word. -->
     <string name="library_catalogue">Catalogue</string>
+    <!-- The one button that opens the menu listing Catalogue, Format and
+         Sort - see library/ui/CatalogueView.chooseOptions. Named for what it
+         does rather than reusing library_options' bare "Options": that word
+         is already Browse's own generic overflow button, sitting behind this
+         tab rather than beside it, and a screen reader has no icon to go by. -->
+    <string name="library_sort_filter">Sort and filter</string>
     <!-- The catalogue's detail pane - what one title offers, and the button
          that brings it in; see library/ui/CataloguePane. The service's own
          words for the kind and the availability are not here, only this app's.

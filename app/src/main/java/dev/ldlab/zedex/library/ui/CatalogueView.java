@@ -19,6 +19,7 @@ import android.view.ViewParent;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -109,23 +110,31 @@ public final class CatalogueView extends FrameLayout {
     private final Http http;
 
     private final EditText searchField;
+
+    /**
+     * "ZXInfo · Demoscene · TZX · Top rated · 1,403" - whichever of those
+     * parts apply, built fresh by {@link #headerText} every time any of them
+     * changes. Catalogue, Format and Sort used to be three rows of their own,
+     * each saying what it was set to and each a door to change it; folded
+     * into this one line and {@link #optionsButton} for the same reason
+     * {@code LibraryActivity}'s own sort/filter/view buttons were folded into
+     * one Options button - see that field's own comment - though here it is
+     * this view's only door to any of the three, not a second one beside a
+     * pad shortcut.
+     */
     private final TextView header;
 
-    /** "Catalogue · ZXInfo", and the way to change it - see {@link
-     *  #chooseSource}. The same shape as {@link #formatRow} and {@link
-     *  #sortRow} and for the same reason - it has to say what it is set to as
-     *  well as offer to change it - and drawn above both of them, since which
-     *  archive is open is the choice the other two rows are about. */
-    private final TextView sourceRow;
+    /**
+     * Opens {@link #chooseOptions}, the menu listing Catalogue, Format and
+     * Sort - whichever of those apply, in that order, each showing what it is
+     * set to. {@code ic_filter}, the same glyph Browse's own Options button
+     * wears now, not {@code ic_settings}'s sliders - that one already means
+     * the app's own Settings screens, and a glyph that says "narrows this
+     * list" is more honest about what is behind it than a generic "more"
+     * ever was.
+     */
+    private final ImageButton optionsButton;
 
-    /** "Format · No filter", and the way to change it - see {@link
-     *  #chooseFormat}. */
-    private final TextView formatRow;
-
-    /** "Sort · Default", and the way to change it - see {@link #chooseSort}.
-     *  The same shape as {@link #formatRow} and for the same reason: it has to
-     *  say what it is set to as well as offer to change it. */
-    private final TextView sortRow;
     private final TextView emptyLabel;
     private final ProgressBar spinner;
     private final RecyclerView recycler;
@@ -242,6 +251,13 @@ public final class CatalogueView extends FrameLayout {
         LinearLayout column = new LinearLayout(context);
         column.setOrientation(LinearLayout.VERTICAL);
 
+        // The search field and the options button share one row, the same
+        // arrangement Browse's own toolbar puts its search field and Options
+        // button in - see LibraryActivity.buildToolbar.
+        LinearLayout searchRow = new LinearLayout(context);
+        searchRow.setOrientation(LinearLayout.HORIZONTAL);
+        searchRow.setGravity(Gravity.CENTER_VERTICAL);
+
         searchField = new EditText(context);
         searchField.setHint(R.string.catalogue_search_hint);
         // Described as well as hinted. An empty EditText's hint is not
@@ -266,75 +282,41 @@ public final class CatalogueView extends FrameLayout {
             }
             return false;
         });
-        column.addView(searchField, new LinearLayout.LayoutParams(
+        searchRow.addView(searchField, new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        // The one door to Catalogue, Format and Sort - see chooseOptions -
+        // and named for what it opens rather than reusing library_options'
+        // bare "Options": Browse's own button answers to that word because
+        // its own menu is wider (View as well as Sort and Filter), and this
+        // one only ever offers the three named on its own menu.
+        optionsButton = new ImageButton(context);
+        optionsButton.setImageResource(R.drawable.ic_filter);
+        optionsButton.setColorFilter(Palette.TEXT);
+        optionsButton.setBackgroundColor(0x00000000);
+        optionsButton.setForeground(Ripple.make(density));
+        optionsButton.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
+        optionsButton.setContentDescription(
+                context.getString(R.string.library_sort_filter));
+        optionsButton.setOnClickListener(v -> chooseOptions());
+        searchRow.addView(optionsButton, new LinearLayout.LayoutParams(
+                Math.round(48 * density), Math.round(48 * density)));
+
+        column.addView(searchRow, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
+        // The one line left above the list - catalogue, shelf, format and
+        // sort folded together, plus the count once a page has answered (see
+        // headerText) - bigger now that it is not squeezed beside a button of
+        // its own any more.
         header = new TextView(context);
         header.setTextColor(Palette.MUTED);
-        header.setTextSize(13);
-        header.setPadding(pad, 0, pad, Math.round(6 * density));
+        header.setTextSize(16);
+        header.setPadding(pad, Math.round(6 * density), pad, Math.round(6 * density));
         column.addView(header, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        // Which archive is open, built the same way as formatRow just below
-        // and drawn above it - see sourceRow's own field comment for why.
-        sourceRow = new TextView(context);
-        sourceRow.setTextColor(Palette.MUTED);
-        sourceRow.setTextSize(13);
-        sourceRow.setPadding(pad, 0, pad, Math.round(6 * density));
-        sourceRow.setOnClickListener(v -> chooseSource());
-        column.addView(sourceRow, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        showSource();
-
-        // The one control the catalogue has of its own, and it is a row rather
-        // than a chip because it has to say what it is set to as well as offer
-        // to change it - the same shape the library's own Filter row has, and
-        // the same two strings, so this adds no words to translate.
-        formatRow = new TextView(context);
-        formatRow.setTextColor(Palette.MUTED);
-        formatRow.setTextSize(13);
-        formatRow.setPadding(pad, 0, pad, Math.round(6 * density));
-        formatRow.setOnClickListener(v -> chooseFormat());
-        column.addView(formatRow, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        showFormat();
-
-        // Hidden rather than disabled: a catalogue whose rows do not know
-        // their own formats cannot honour this filter at all - see
-        // Catalogue.knowsFormats's own javadoc - and a control that is
-        // present and does nothing is worse than one that is absent, the
-        // same reasoning that already hides a shelf nothing can build.
-        formatRow.setVisibility(catalogue.knowsFormats() ? View.VISIBLE : View.GONE);
-
-        // The catalogue's other control of its own, built the same way as
-        // formatRow just above and for the same reason - see that field's own
-        // comment. A control rather than a shelf of its own: "Top rated" is
-        // wanted inside whatever is already on screen, not instead of it.
-        sortRow = new TextView(context);
-        sortRow.setTextColor(Palette.MUTED);
-        sortRow.setTextSize(13);
-        sortRow.setPadding(pad, 0, pad, Math.round(6 * density));
-        sortRow.setOnClickListener(v -> chooseSort());
-        column.addView(sortRow, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        // Hidden when there is only one ordering to be had - the same bargain
-        // Catalogue.sortsFor() states and formatRow's own visibility above
-        // already rests on: a control that could only ever leave a shelf
-        // exactly as it found it is worse than no control at all. Off the
-        // OPEN shelf rather than off the catalogue, which is why this is a
-        // method and not two lines here: honouring a sort is a property of
-        // one endpoint, and at the roots - where this runs, with an empty
-        // stack - it falls back to what the catalogue declares.
-        syncSortToShelf();
 
         FrameLayout content = new FrameLayout(context);
 
@@ -630,11 +612,11 @@ public final class CatalogueView extends FrameLayout {
         rows.addAll(catalogue.shelves());
         adapter.setRows(rows);
 
-        // The stack is empty again, so the sort row goes back to what the
+        // The stack is empty again, so the sort goes back to what the
         // catalogue as a whole declares - see syncSortToShelf.
         syncSortToShelf();
 
-        header.setText(catalogue.name());
+        header.setText(headerText(null));
         updateState();
     }
 
@@ -680,16 +662,12 @@ public final class CatalogueView extends FrameLayout {
         format = null;
         sort = Catalogue.Sort.DEFAULT;
 
-        formatRow.setVisibility(catalogue.knowsFormats() ? View.VISIBLE : View.GONE);
-        showFormat();
-        showSource();
-
         pane.setCatalogue(catalogue);
 
-        // The sort row is left to showRoots()/syncSortToShelf() below rather
-        // than gated a second time here: the stack is about to be emptied, and
-        // one place deciding this for one reason is what keeps the two rows
-        // from disagreeing.
+        // The header text and what chooseOptions() offers are both left to
+        // showRoots()/syncSortToShelf() below rather than touched a second
+        // time here: the stack is about to be emptied, and one place deciding
+        // this for one reason is what keeps the two from disagreeing.
         showRoots();
     }
 
@@ -727,11 +705,6 @@ public final class CatalogueView extends FrameLayout {
                     setCatalogue(chosen);
                 })
                 .show();
-    }
-
-    private void showSource() {
-        sourceRow.setText(getContext().getString(R.string.library_catalogue)
-                          + " · " + catalogue.name());
     }
 
     /**
@@ -777,19 +750,10 @@ public final class CatalogueView extends FrameLayout {
         if (format == null ? wanted == null : format.equals(wanted)) return;
 
         format = wanted;
-        showFormat();
+        header.setText(headerText(null));
 
         if (stack.isEmpty()) return;   // the roots are shelves, not rows
         restart();
-    }
-
-    private void showFormat() {
-        String value = format == null
-                ? getContext().getString(R.string.library_filter_none)
-                : format.toUpperCase(Locale.ROOT);
-
-        formatRow.setText(getContext().getString(R.string.library_filter_format)
-                          + " · " + value);
     }
 
     /**
@@ -821,15 +785,10 @@ public final class CatalogueView extends FrameLayout {
         if (sort == wanted) return;
 
         sort = wanted;
-        showSort();
+        header.setText(headerText(null));
 
         if (stack.isEmpty()) return;   // the roots are shelves, not rows
         restart();
-    }
-
-    private void showSort() {
-        sortRow.setText(getContext().getString(R.string.library_sort)
-                        + " · " + getContext().getString(labelFor(sort)));
     }
 
     /**
@@ -849,8 +808,9 @@ public final class CatalogueView extends FrameLayout {
     }
 
     /**
-     * The row shown or hidden for what is open, and the sort reset when it
-     * cannot be honoured there.
+     * The sort reset when what is open cannot honour it - whether {@link
+     * #chooseOptions} goes on offering it is decided fresh each time that
+     * menu is built instead, off the same {@link #sortsHere()}.
      *
      * <b>Reset rather than sent.</b> Descending from a shelf that honours Top
      * rated into one that does not used to leave the sort set and hand it over
@@ -858,7 +818,7 @@ public final class CatalogueView extends FrameLayout {
      * name to an endpoint nobody had ever asked it of - and an unrecognised
      * order name there is ignored rather than refused, so the reply looks like
      * success. Back to {@link Catalogue.Sort#DEFAULT}, which every shelf
-     * honours by definition, and the row says so.
+     * honours by definition.
      *
      * Called from every place the open shelf changes - {@link #restart()}
      * covers descending, backing out, a search and a re-query, and {@link
@@ -868,9 +828,6 @@ public final class CatalogueView extends FrameLayout {
         List<Catalogue.Sort> here = sortsHere();
 
         if (!here.contains(sort)) sort = Catalogue.Sort.DEFAULT;
-
-        sortRow.setVisibility(here.size() > 1 ? View.VISIBLE : View.GONE);
-        showSort();
     }
 
     private static int labelFor(Catalogue.Sort sort) {
@@ -880,6 +837,75 @@ public final class CatalogueView extends FrameLayout {
             case ALPHABETICAL: return R.string.library_sort_alphabetical;
             default:           return R.string.library_sort_default;
         }
+    }
+
+    /**
+     * "ZXInfo · Demoscene · TZX · Top rated · 1,403" - {@link #header}'s own
+     * text, built fresh from the catalogue's name, the open shelf's label if
+     * there is one, the format and the sort if either is set to something
+     * other than its own default, and {@code count} if the caller has one.
+     * Catalogue, Format and Sort used to be three separate rows saying
+     * exactly this; this is the one line that says it now.
+     */
+    private String headerText(String count) {
+        StringBuilder line = new StringBuilder(catalogue.name());
+
+        Catalogue.Shelf shelf = stack.peek();
+        if (shelf != null) line.append(" · ").append(shelf.label());
+
+        if (format != null) line.append(" · ").append(format.toUpperCase(Locale.ROOT));
+
+        if (sort != Catalogue.Sort.DEFAULT) {
+            line.append(" · ").append(getContext().getString(labelFor(sort)));
+        }
+
+        if (count != null) line.append(" · ").append(count);
+
+        return line.toString();
+    }
+
+    /**
+     * {@link #optionsButton}'s menu: Catalogue always, Format when {@link
+     * Catalogue#knowsFormats()} says this archive's rows carry one, Sort when
+     * there is more than one ordering to choose between - the same three
+     * conditions the old rows were shown or hidden by, expressed here as
+     * "absent from the menu" instead. Each row says what it is set to, the
+     * same shape the old rows said it in, and picking one opens the same
+     * chooser that row used to open.
+     */
+    private void chooseOptions() {
+        List<String> labels = new ArrayList<>();
+        List<Runnable> actions = new ArrayList<>();
+
+        labels.add(getContext().getString(R.string.library_catalogue)
+                   + " · " + catalogue.name());
+        actions.add(this::chooseSource);
+
+        if (catalogue.knowsFormats()) {
+            String value = format == null
+                    ? getContext().getString(R.string.library_filter_none)
+                    : format.toUpperCase(Locale.ROOT);
+            labels.add(getContext().getString(R.string.library_filter_format)
+                       + " · " + value);
+            actions.add(this::chooseFormat);
+        }
+
+        if (sortsHere().size() > 1) {
+            labels.add(getContext().getString(R.string.library_sort)
+                       + " · " + getContext().getString(labelFor(sort)));
+            actions.add(this::chooseSort);
+        }
+
+        // library_options, not library_sort_filter: the button's own
+        // description is what needed to say more than a bare "Options" - the
+        // dialog title does not, and "Sort and filter" here would collide
+        // with a chooser looking for its Sort entry by textStartsWith("Sort"),
+        // matching the title before the row itself - measured, not guessed.
+        new android.app.AlertDialog.Builder(getContext())
+                .setTitle(R.string.library_options)
+                .setItems(labels.toArray(new String[0]),
+                          (dialog, which) -> actions.get(which).run())
+                .show();
     }
 
     /**
@@ -1000,7 +1026,7 @@ public final class CatalogueView extends FrameLayout {
         // ordering is asked with DEFAULT rather than sent one it would ignore.
         syncSortToShelf();
 
-        header.setText(labelOf(stack.peek()));
+        header.setText(headerText(null));
 
         fetch();
     }
@@ -1185,8 +1211,7 @@ public final class CatalogueView extends FrameLayout {
         scanned += result.items().size();
 
         String count = CatalogueAdapter.countLabel(result.total());
-        header.setText(count == null ? labelOf(stack.peek())
-                                     : labelOf(stack.peek()) + " · " + count);
+        header.setText(headerText(count));
 
         updateState();
 

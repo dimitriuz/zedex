@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 24dp outline, 1.8 stroke, tinted by the row that draws it. Three lines
+     narrowing left to right - the ordinary shape for "narrow this list" -
+     rather than ic_settings' sliders (the app's Settings screens): this
+     button opens a menu of list-shaping actions - Catalogue/Format/Sort on
+     the catalogue tab, View/Sort/Filter on Browse - and the glyph says so
+     before anybody taps it. The one options button both tabs share now;
+     ic_options' three dots, a bare "more" that said nothing of the sort, is
+     gone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:pathData="M4,7 h16 M7,12 h10 M10,17 h4" android:strokeColor="#ffffff"
+        android:strokeWidth="1.8" android:strokeLineCap="round"
+        android:strokeLineJoin="round" android:fillColor="#00000000"/>
+</vector>

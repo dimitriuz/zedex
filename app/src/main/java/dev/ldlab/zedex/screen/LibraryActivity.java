@@ -91,22 +91,23 @@ public final class LibraryActivity extends ZedexActivity {
     private static final String TAG = "Zedex";
 
     /**
-     * Set only by {@code EmulatorActivity.openLibrary}: this instance was
-     * reached by a deliberate tap on ☰ Library rather than by whatever
-     * starts the launcher's own task.
+     * Set only by {@code EmulatorActivity.openLibrary}/{@code
+     * openOnlineCatalogue}: this instance was reached by a deliberate tap on
+     * one of ☰'s own rows rather than by whatever starts the launcher's own
+     * task.
      *
      * The two ask a different question in {@link #onCreate}. The launcher's
      * is "should the app open here at all", which {@link
      * SettingsActivity#startsInLibrary} answers and can send this activity
      * straight back to {@link EmulatorActivity} for - the switch, or no
      * folder, means the machine is what a bare launch should show. A ☰
-     * Library tap has already answered that question: somebody asked for
-     * this screen by name, and {@code EmulatorActivity} only offers the row
-     * at all once {@link SettingsActivity#libraryExists} is true - see that
-     * row's own comment. Asking {@code startsInLibrary} again here, which
-     * also reads the switch, made the row silently hand back to the machine
-     * whenever the switch was off, indistinguishable from the tap doing
-     * nothing.
+     * Library or ☰ Catalogue tap has already answered that question:
+     * somebody asked for this screen by name, and {@code EmulatorActivity}
+     * only offers either row at all once there is somewhere for it to lead -
+     * see {@link SettingsActivity#libraryExists} and {@link Catalogues#any}.
+     * Asking {@code startsInLibrary} again here, which also reads the
+     * switch, made the row silently hand back to the machine whenever the
+     * switch was off, indistinguishable from the tap doing nothing.
      *
      * With no content folder at all - a grant lost between the row being
      * built and being tapped - this still does not bounce: {@link #onCreate}
@@ -116,6 +117,18 @@ public final class LibraryActivity extends ZedexActivity {
      * a bounce.
      */
     public static final String EXTRA_FROM_MENU = "dev.ldlab.zedex.extra.LIBRARY_FROM_MENU";
+
+    /**
+     * Set only by {@code EmulatorActivity.openOnlineCatalogue}: open
+     * straight onto {@link Tab#CATALOGUE} rather than the ordinary {@link
+     * Tab#BROWSE} start - see {@link #onCreate} and {@link #onNewIntent},
+     * which is the one other place this is read, for the case {@link
+     * #openLibrary} has always had to allow for: the library's task already
+     * exists, {@code REORDER_TO_FRONT} brings it forward untouched, and
+     * nothing about a fresh {@link #onCreate} happens at all.
+     */
+    public static final String EXTRA_OPEN_CATALOGUE =
+            "dev.ldlab.zedex.extra.LIBRARY_OPEN_CATALOGUE";
 
     private static final int REQUEST_CONTENT_TREE = 1;
 
@@ -682,7 +695,38 @@ public final class LibraryActivity extends ZedexActivity {
         }
 
         pushRoot();
-        show(Tab.BROWSE);
+        show(wantsCatalogue(getIntent()) ? Tab.CATALOGUE : Tab.BROWSE);
+    }
+
+    /**
+     * A fresh intent arriving at an instance that already exists - the case
+     * {@link #EXTRA_OPEN_CATALOGUE}'s own comment names: {@code
+     * openOnlineCatalogue} asks for this activity's task with {@code
+     * REORDER_TO_FRONT}, which for a task that already exists brings it
+     * forward exactly as it was left, calling neither {@link #onCreate} nor
+     * anything else - so a library sitting on Browse, or on a shelf three
+     * deep in the catalogue, stayed exactly there, silently, on every tap
+     * after the first. {@code setIntent} so a later question about "the
+     * intent this activity was started with" - there is none today, but
+     * {@link #wantsCatalogue} itself is one - reads this one rather than the
+     * launch that built the instance.
+     */
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+
+        if (wantsCatalogue(intent)) show(Tab.CATALOGUE);
+    }
+
+    /** Whether {@code intent} asks for {@link Tab#CATALOGUE} specifically -
+     *  and whether there is one to ask for at all, the same gate {@link
+     *  #buildRail} answers before it builds a button for it. Never true for
+     *  nothing: a build with no catalogue configured has no shelf to land
+     *  on, and asking anyway would leave {@link #show} pointed at a tab this
+     *  screen never built. */
+    private boolean wantsCatalogue(Intent intent) {
+        return intent.getBooleanExtra(EXTRA_OPEN_CATALOGUE, false) && Catalogues.any(this);
     }
 
     /**
@@ -1776,7 +1820,10 @@ public final class LibraryActivity extends ZedexActivity {
         // of how it was reached. The dialog resolves its own filter values;
         // nothing needs pre-loading here the way the old Filter button had
         // to walk the store before showFilters could open.
-        optionsButton = toolbarButton(R.drawable.ic_options, getString(R.string.library_options));
+        // ic_filter, the same glyph CatalogueView's own options button wears
+        // now - one visual language for "this button narrows/orders what the
+        // list shows", rather than a bare "more" ic_options never said that.
+        optionsButton = toolbarButton(R.drawable.ic_filter, getString(R.string.library_options));
         optionsButton.setOnClickListener(v ->
                 optionsDialog.show(sortFieldIndex(sort), sortDescending, grid));
         row.addView(optionsButton);
