@@ -12,6 +12,7 @@ import dev.ldlab.zedex.library.Filters;
 import dev.ldlab.zedex.library.Listing;
 import dev.ldlab.zedex.library.Shortlist;
 import dev.ldlab.zedex.library.Sorting;
+import dev.ldlab.zedex.library.Types;
 import dev.ldlab.zedex.library.catalogue.Catalogues;
 import dev.ldlab.zedex.library.meta.Artwork;
 import dev.ldlab.zedex.library.meta.Meta;
@@ -2040,12 +2041,52 @@ public final class LibraryActivity extends ZedexActivity {
 
     /**
      * {@link DetailPane.Host#open}, and the gamepad's own activate button:
-     * walk into a folder or a zip, or hand a game to the machine. One method
-     * rather than the test repeated at each caller - see {@link
-     * Entry#isContainer}, which is the whole of it.
+     * walk into a folder or a zip, hand a game to the machine, or hand a
+     * music or screenshot import to whatever else the phone has for it - see
+     * {@link Entry#isContainer} and {@link Types#external}, which between
+     * them are the whole of it.
      */
     private void open(Entry entry) {
-        if (entry.isContainer()) enter(entry); else openGame(entry);
+        if (entry.isContainer()) enter(entry);
+        else if (Types.external(entry.name)) openExternally(entry);
+        else openGame(entry);
+    }
+
+    /**
+     * Hands a music or screenshot import to another app - {@code
+     * ACTION_VIEW} with whatever mime the document's own provider states,
+     * the same shape {@code CataloguePane.openOutside} already hands a
+     * catalogue import to the phone with.
+     *
+     * <b>Only for a real document.</b> An entry read out of a zip carries the
+     * archive's own uri and a path within it that means nothing to another
+     * app - Fuse's native bridge is the only thing that knows how to read a
+     * zip entry by name, so there is no document here to had over. A music or
+     * screenshot import is never zipped by anything this app writes, so this
+     * is the rare case rather than the common one; it says so rather than
+     * attempting a hand-over that could only fail silently or crash.
+     */
+    private void openExternally(Entry entry) {
+        if (entry.inside != null) {
+            Toast.makeText(this, R.string.open_failed, Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        String type = getContentResolver().getType(entry.uri);
+
+        Intent intent = new Intent(Intent.ACTION_VIEW)
+                .setDataAndType(entry.uri, type != null ? type : "*/*")
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+        try {
+            startActivity(intent);
+        } catch (RuntimeException e) {
+            // Nothing on the phone answers for it, or the grant has gone -
+            // openGame's own SecurityException branch says the same thing
+            // for the same two reasons.
+            Log.w(TAG, "nothing can open " + entry.uri, e);
+            Toast.makeText(this, R.string.open_failed, Toast.LENGTH_LONG).show();
+        }
     }
 
     /**

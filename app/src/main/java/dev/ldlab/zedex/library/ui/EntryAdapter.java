@@ -345,6 +345,11 @@ public final class EntryAdapter extends RecyclerView.Adapter<EntryAdapter.Holder
         if (isOneOf(extension, "dsk", "mgt", "img", "scl", "trd", "udi")) {
             return R.drawable.ic_disk;
         }
+        // A music or screenshot import - see Types.external for the list.
+        // Tapping either hands it to another app rather than the machine, so
+        // the icon says that before the tap does.
+        if (isOneOf(extension, "ogg")) return R.drawable.ic_music;
+        if (isOneOf(extension, "png", "jpg", "jpeg", "gif")) return R.drawable.ic_picture;
         return R.drawable.ic_file;
     }
 

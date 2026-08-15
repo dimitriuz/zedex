@@ -2,6 +2,7 @@ package dev.ldlab.zedex.library.ui;
 
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.library.Entry;
+import dev.ldlab.zedex.library.Types;
 import dev.ldlab.zedex.library.meta.Meta;
 import dev.ldlab.zedex.library.meta.Metadata;
 import dev.ldlab.zedex.view.Palette;
@@ -643,7 +644,11 @@ public final class DetailPane extends FrameLayout {
      *  first part {@link #show} does. */
     private void applyEntryFacts(Entry entry) {
         subtitle.setText(EntryAdapter.detail(getContext(), entry));
-        actionButton.setText(entry.isContainer() ? R.string.library_open : R.string.library_play);
+        // A music or screenshot import says Open too - the button hands it
+        // to another app, exactly as it does for a folder or an archive,
+        // never Play, which only ever means the machine.
+        actionButton.setText(entry.isContainer() || Types.external(entry.name)
+                ? R.string.library_open : R.string.library_play);
 
         // A folder or an archive has nothing an information screen could say,
         // and neither has an entry inside a zip, which has no path of its own

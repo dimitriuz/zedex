@@ -14,14 +14,17 @@ import java.util.Locale;
  * was tapped, which is exactly the "hide what we cannot open" rule this
  * package exists to keep - see docs/LIBRARY.md.
  *
- * So there are three questions, not one: {@link #openable} is what the
+ * So there are four questions, not one: {@link #openable} is what the
  * emulator can load, {@link #archive} is what can be walked into instead of
- * loaded, and {@link #supported} - openable or archive - is what the library
+ * loaded, {@link #external} is a music or screenshot import the emulator was
+ * never going to open and another app is handed instead, and
+ * {@link #supported} - openable, archive or external - is what the library
  * shows. ES-DE's own list, {@link #forEsDe()}, is openable plus {@code .zip}
  * plus the two extras it needs for itself; it used to be the only list here,
  * and {@code EsDe.EXTENSIONS} still has to come out byte-identical to what it
  * always was, so it keeps its own order rather than being rebuilt from the
- * other two.
+ * other two. {@link #external} plays no part in it either - ES-DE launches
+ * emulators, and has its own media folders for exactly this already.
  */
 public final class Types {
 
@@ -30,6 +33,26 @@ public final class Types {
         "dsk", "gz", "img", "mgt", "rzx", "scl", "sna", "szx",
         "tap", "trd", "tzx", "udi", "z80",
     };
+
+    /**
+     * A tune or a screenshot the catalogue imported - real files under
+     * {@code Downloaded/Music} and {@code Downloaded/Graphics}, and until now
+     * invisible to the library and unreachable once written: {@code
+     * Pick.otherFile} is what actually chooses a Music or Graphics item's
+     * download, and it hands back exactly these formats - {@code ogg} for a
+     * tune (the rendered file {@code ZxartCatalogue}/{@code ZxInfoCatalogue}
+     * both add first, before a tracker module that would never be reached),
+     * {@code png}/{@code jpg}/{@code jpeg}/{@code gif} for a screenshot (
+     * {@code Pick}'s own {@code PICTURES}, minus {@code scr} - a raw memory
+     * dump nothing on Android has a viewer for, so listing one would show a
+     * row that can only fail).
+     *
+     * The emulator was never asked to load any of these - they are not in
+     * {@link #OPENABLE} - so a row for one hands the file to whatever else
+     * the phone has, via {@code image/*}/{@code audio/*}, both already
+     * declared in {@code <queries>} for the catalogue's own "Open" button.
+     */
+    private static final String[] EXTERNAL = { "ogg", "png", "jpg", "jpeg", "gif" };
 
     /**
      * Exactly ES-DE's own historical list: {@link #OPENABLE} interleaved with
@@ -88,12 +111,25 @@ public final class Types {
         return "zip".equals(extension(name));
     }
 
+    /** Whether a name is a music or screenshot import - see {@link #EXTERNAL}
+     *  for which formats and why. */
+    public static boolean external(String name) {
+        String extension = extension(name);
+        if (extension.isEmpty()) return false;
+
+        for (String candidate : EXTERNAL) {
+            if (candidate.equals(extension)) return true;
+        }
+        return false;
+    }
+
     /**
      * Whether the library should show a file at all: something the emulator
-     * can load, or something it can be walked into instead.
+     * can load, something it can be walked into instead, or something it
+     * hands to another app entirely.
      */
     public static boolean supported(String name) {
-        return openable(name) || archive(name);
+        return openable(name) || archive(name) || external(name);
     }
 
     /** The name's extension, lower case and without the dot, or "" if it has none. */
