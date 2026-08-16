@@ -5,6 +5,7 @@ import dev.ldlab.zedex.storage.Prefs;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeFalse;
 
 import android.content.Context;
@@ -88,13 +89,24 @@ public class GuideTest {
         // "Got it" rather than "Next" - see Coach.show's own last parameter -
         // so both texts are looked for, or the walk stops one mark short and
         // never reaches the click that actually sets the flag.
-        while (true) {
+        //
+        // Bounded at the mark count plus one: an uncapped loop turns a Coach
+        // that fails to advance into a hang rather than a failure, and a hang
+        // gives no clue which mark it stuck on.
+        final int marks = 4; // buildMachineTour's own four .mark() calls.
+        for (int tap = 0; tap <= marks; tap++) {
             UiObject2 button = device.findObject(By.text(next));
             if (button == null) button = device.findObject(By.text(done));
             if (button == null) break;
 
             button.click();
             device.waitForIdle();
+        }
+
+        if (device.findObject(By.text(next)) != null
+                || device.findObject(By.text(done)) != null) {
+            fail("the guide is still showing \"" + next + "\" or \"" + done
+                    + "\" after " + (marks + 1) + " taps - it never reached the end");
         }
 
         assertTrue("the guide did not record itself as given",

@@ -24,6 +24,18 @@ import java.util.function.Supplier;
  * <b>And the flag is set at the end, never at the start.</b> A guide
  * interrupted by a rotation or a kill has not been given, and should not be
  * remembered as one that was.
+ *
+ * <b>The activity's own {@code onPause} must go through {@link
+ * #dismiss}, never through {@code Coach.dismiss} directly.</b> A bar-agnostic
+ * dismiss takes the mark down but has no way to know a {@link #hold} is in
+ * effect, so it never runs {@link #release} - which is what re-arms whatever
+ * the hold suspended. Interrupting a tour that way (Home, then back) left the
+ * quick bar pinned open with its fade permanently unscheduled, since {@code
+ * release} - the only thing that calls {@code postDelayed(fadeQuickBar, ...)}
+ * again - never ran. {@link #dismiss} owns both halves: it always takes the
+ * mark down, and runs {@link #release} exactly once per {@link #hold},
+ * however the tour stops - the last mark answered, a target that vanished
+ * mid-walk, or the activity backgrounding with one still up.
  */
 public final class Tour {
 
@@ -46,6 +58,11 @@ public final class Tour {
      *  Null for a guide with nothing to hold. */
     private Runnable hold;
     private Runnable release;
+
+    /** True from the moment {@link #hold} runs until {@link #release} does -
+     *  the window in which {@link #dismiss} owes a release to whatever the
+     *  hold suspended. */
+    private boolean active;
 
     private Tour(String flag) {
         this.flag = flag;
@@ -86,6 +103,7 @@ public final class Tour {
                 if (mark.target.get() == null) return;   // declines, flag unset
             }
 
+            active = true;
             if (hold != null) hold.run();
             showFrom(activity, preferences, 0);
         });
@@ -94,7 +112,8 @@ public final class Tour {
     private void showFrom(Activity activity, SharedPreferences preferences,
                            int at) {
         if (at >= marks.size()) {
-            done(preferences);
+            preferences.edit().putBoolean(flag, true).apply();
+            dismiss(activity);
             return;
         }
 
@@ -104,8 +123,7 @@ public final class Tour {
         // Gone since the check above - a bar that faded, a row recycled. Not a
         // failure: stop, and leave the flag so the guide is given next time.
         if (target == null) {
-            Coach.dismiss(activity);
-            if (release != null) release.run();
+            dismiss(activity);
             return;
         }
 
@@ -114,8 +132,25 @@ public final class Tour {
                    () -> showFrom(activity, preferences, at + 1));
     }
 
-    private void done(SharedPreferences preferences) {
-        preferences.edit().putBoolean(flag, true).apply();
-        if (release != null) release.run();
+    /**
+     * Takes down whatever mark of this tour is up, and runs {@link #release}
+     * if {@link #hold} is still owed one. Idempotent either way, so the
+     * tour's own paths above (the last mark answered, a target vanishing
+     * mid-walk) and the activity's {@code onPause} can all call this without
+     * checking which of them got there first.
+     *
+     * <b>This is what {@code onPause} must call instead of {@code
+     * Coach.dismiss}</b> - see the class comment. A tour interrupted mid-walk
+     * has not been given (the flag is untouched), but whatever {@link #hold}
+     * suspended is still released, exactly as it would be had the last mark
+     * been answered.
+     */
+    public void dismiss(Activity activity) {
+        Coach.dismiss(activity);
+
+        if (active) {
+            active = false;
+            if (release != null) release.run();
+        }
     }
 }

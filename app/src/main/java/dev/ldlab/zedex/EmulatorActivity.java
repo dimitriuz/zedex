@@ -47,7 +47,6 @@ import dev.ldlab.zedex.view.QuickBar;
 import dev.ldlab.zedex.view.Rows;
 import dev.ldlab.zedex.view.SpectrumKeyboardView;
 import dev.ldlab.zedex.view.SystemKeyboardView;
-import dev.ldlab.zedex.welcome.Coach;
 import dev.ldlab.zedex.welcome.Tour;
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -2159,10 +2158,12 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // on behind a machine nobody is looking at either.
         panels.pauseVideo();
 
-        // Idempotent - a no-op when no mark is up, and left showing when
-        // there is one nothing else takes down; see Coach's own class
-        // comment.
-        Coach.dismiss(this);
+        // Through the tour, not Coach.dismiss directly - Tour.dismiss also
+        // runs the tour's own release when one is owed, which is what
+        // re-arms the quick bar's fade. Coach.dismiss alone would take the
+        // mark down and leave the fade unscheduled until some unrelated tap
+        // called revealQuickBar() again - see Tour's own class comment.
+        machineTour.dismiss(this);
 
         // A held direction has nobody to let go of it once we are not being sent
         // events any more.
