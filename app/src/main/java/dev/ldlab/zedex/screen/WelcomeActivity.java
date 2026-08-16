@@ -37,9 +37,12 @@ import android.widget.TextView;
  * <b>It runs before Fuse starts</b>, and that is a simplification rather than a
  * limitation: Machine.arguments() puts --machine and --joystick-1-output on
  * Fuse's command line out of these very preferences, and FuseSettings reads
- * them after start. So a page writes a preference and stops. Nothing here may
- * call into FuseNative - see MachinePage for the one place that costs
- * something.
+ * them after start. So a page writes a preference and stops. The ban is on
+ * {@code FuseNative.machineIds()} specifically, not on FuseNative as a whole -
+ * see MachinePage for the one place that costs something, keeping its own
+ * table rather than asking Fuse. {@code FuseNative.joystickTypeNames()} is the
+ * opposite case: populated before Fuse ever runs, so ControlsPage asks it
+ * directly rather than keeping a table of its own.
  */
 public final class WelcomeActivity extends ZedexActivity {
 

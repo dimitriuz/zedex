@@ -177,7 +177,6 @@
     <string name="welcome_later_hint">Ir directo al Spectrum. Todo se queda con su valor de siempre.</string>
     <string name="welcome_next">Siguiente</string>
     <string name="welcome_skip">Omitir</string>
-    <string name="welcome_language">Idioma</string>
     <string name="welcome_language_hint">Zedex habla nueve. Déjalo en el idioma del sistema y seguirá al del teléfono.</string>
     <string name="welcome_machine">¿Qué Spectrum?</string>
     <string name="welcome_machine_hint">El que espera un juego. El de 128K mueve casi todo; la lista completa, y todas las demás máquinas que Fuse conoce, están en Ajustes › Máquina.</string>

@@ -177,7 +177,6 @@
     <string name="welcome_later_hint">Rovnou ke Spectru. Všechno zůstane na obvyklé výchozí hodnotě.</string>
     <string name="welcome_next">Dál</string>
     <string name="welcome_skip">Přeskočit</string>
-    <string name="welcome_language">Jazyk</string>
     <string name="welcome_language_hint">Zedex mluví devíti jazyky. Necháš-li jazyk systému, půjde podle telefonu.</string>
     <string name="welcome_machine">Který Spectrum?</string>
     <string name="welcome_machine_hint">Ten, který hra očekává. Na 128K běží většina věcí; celý seznam a všechny další počítače, které Fuse zná, jsou v Nastavení › Počítač.</string>

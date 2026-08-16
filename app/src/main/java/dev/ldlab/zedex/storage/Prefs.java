@@ -218,11 +218,9 @@ public final class Prefs {
      *
      * A String, and read with {@code getString} always. The same reasoning as
      * {@link #KEY_SCRAPER} beside it, for the same reason: a name rather than
-     * an index, and absent means whichever {@code Catalogues} prefers. Nothing
-     * writes it yet - there is one catalogue - which is why it reads as a
-     * default rather than as a choice; it is declared here now so that a
-     * settings row, when there is one to add, has a key to write rather than a
-     * name invented at the point of use.
+     * an index, and absent means whichever {@code Catalogues} prefers.
+     * {@code LibraryPage} writes it now, one archive card at a time, in the
+     * wizard's LIBRARY page.
      */
     public static final String KEY_CATALOGUE = "catalogueProvider";
     /* How big the picture is drawn, one per orientation: the number of device
