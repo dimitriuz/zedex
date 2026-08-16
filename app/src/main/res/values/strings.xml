@@ -245,6 +245,13 @@
     <string name="welcome_issues">Feedback and issues</string>
     <string name="welcome_issues_hint">Anything broken, missing or wrong \u2014 on GitHub.</string>
 
+    <!-- The guide: coach marks on the real controls. guide_next and
+         guide_done are the overlay's own chrome, shown on every mark of
+         every tour; a tour's own captions (guide_picture and the rest)
+         arrive with the first tour. -->
+    <string name="guide_next">Next</string>
+    <string name="guide_done">Got it</string>
+
     <string name="roms_needed">ROMs needed</string>
     <string name="roms_needed_message">The app ships the ROMs it is allowed to, but none of them could be put in\n\n%1$s\n\nThat folder may not be writable — Settings › App can point somewhere else. Or bring your own, whichever way below.</string>
     <string name="roms_blocked">No access to that folder</string>
