@@ -1575,6 +1575,7 @@ Everything else is in a layer:
 | `library.meta` | `Meta`, `Metadata`, `Artwork`, `EsdeLink`, `EsdeManuals` — what ES-DE knows about a row, and where its pictures are |
 | `library.scrape` | `Provider`, `ScreenScraper`, `Http`, `Scrape`, `Sweep`, `Downloads`, `Candidate`, `Medium`, `Quota` — fetching what a game is from a service |
 | `library.ui` | `EntryAdapter`, `DetailPane`, `Gallery`, `OptionsDialog`, `GamepadCursor`, `Scraped` — the library screen's own views |
+| `welcome` | `Steps`, `Step`, `Page`, `Coach`, `Tour` and `welcome.pages` — the first run's questions, and the coach marks that point at the real controls afterwards |
 | `screen` | the other activities, plus `StartPanel`, `SecondScreen` and `Panels` |
 
 **Sub-packages cost package-private.** The codebase used it everywhere — `final
