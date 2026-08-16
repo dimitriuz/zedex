@@ -12,6 +12,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.view.View;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 
 /**
  * The on-screen keyboard skin, and what a game should think is plugged in.
@@ -77,8 +78,15 @@ public final class ControlsPage implements Step {
         Cards.Group skins = new Cards.Group();
 
         for (SpectrumKeyboardView.Skin skin : SpectrumKeyboardView.Skin.values()) {
+            // The blurb above already says what this list of rows is for;
+            // repeating it as every row's own caption was what pushed the
+            // way past the wizard below the fold. Only SYSTEM needs its own
+            // word - it draws nothing, unlike every other row here.
+            int description = skin == SpectrumKeyboardView.Skin.SYSTEM
+                    ? R.string.welcome_controls_system_note : 0;
+
             column.addView(skins.add(context, context.getString(skin.title),
-                    R.string.welcome_controls_hint,
+                    description,
                     v -> {
                         preferences.edit()
                                 .putString(Prefs.KEY_KEYBOARD_SKIN, skin.value)
@@ -130,7 +138,9 @@ public final class ControlsPage implements Step {
         previewSlot.removeAllViews();
 
         if (skin == SpectrumKeyboardView.Skin.SYSTEM) {
-            previewSlot.addView(Cards.note(context, R.string.welcome_controls_system_note));
+            TextView note = Cards.note(context);
+            note.setText(R.string.welcome_controls_system_note);
+            previewSlot.addView(note);
             return;
         }
 

@@ -258,7 +258,7 @@ public final class Cards {
         return note;
     }
 
-    /** {@link #note} under a heading, for a page with two sections in it. */
+    /** A plain section heading, for a page with two sections in it. */
     public static View note(Context context, int heading) {
         LinearLayout column = new LinearLayout(context);
         column.setOrientation(LinearLayout.VERTICAL);
@@ -270,7 +270,6 @@ public final class Cards {
         title.setPadding(0, 0, 0, unit(context, 2));
         column.addView(title);
 
-        column.addView(note(context));
         return column;
     }
 
