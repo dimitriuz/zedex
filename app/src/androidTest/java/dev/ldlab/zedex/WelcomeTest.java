@@ -39,7 +39,23 @@ import org.junit.runner.RunWith;
 @RunWith(AndroidJUnit4.class)
 public class WelcomeTest {
 
-    private static final long WAIT = 5000;
+    /**
+     * Long enough for {@code launch()} to find the wizard, and separately for
+     * {@link #tapUntil} to walk every built page to the summary.
+     *
+     * <b>Measured, not guessed.</b> {@link #nextLandsSomewhereRealRatherThanCrashing}
+     * now walks five real pages - WELCOME, FOLDERS, MACHINE, CONTROLS, SCREEN -
+     * to reach DONE, one more than before ScreenPage existed, and the new page
+     * is the tallest of them (four stills and eight cards), so each fling to
+     * reach its own Next takes longer to settle. At 5000ms (the budget four
+     * pages ran under) it failed about a third of the time on this bench; 7000
+     * and 12000ms were both still flaky over repeated runs. 20000ms passed five
+     * repeats of this test and two of the full class cleanly, so that is the
+     * number here - generous rather than tight, since the point of a deadline
+     * is catching a control that has genuinely stopped responding, not shaving
+     * margin off one that mostly works.
+     */
+    private static final long WAIT = 20000;
 
     private UiDevice device;
     private Context context;
@@ -208,14 +224,14 @@ public class WelcomeTest {
     /**
      * Next has to land somewhere real rather than crashing.
      *
-     * Tasks 7-9 have not written a Step for CONTROLS, SCREEN, LIBRARY or
-     * SCRAPING yet - {@code WelcomeActivity.stepFor} answers null for all
-     * four today - so this is the regression the walk in {@code forwardFrom}
-     * exists to prevent: without it, tapping the only button on a reachable
-     * page throws {@code IllegalStateException} building the page after it.
-     * Landing on the summary - by way of the folders and machine pages, the
-     * two built pages among the six - is what proves the walk skipped every
-     * unbuilt page rather than stopping on one.
+     * Tasks 10-11 have not written a Step for LIBRARY or SCRAPING yet -
+     * {@code WelcomeActivity.stepFor} answers null for both today - so this
+     * is the regression the walk in {@code forwardFrom} exists to prevent:
+     * without it, tapping the only button on a reachable page throws
+     * {@code IllegalStateException} building the page after it. Landing on
+     * the summary - by way of the folders, machine, controls and screen
+     * pages, the four built pages among six - is what proves the walk
+     * skipped every unbuilt page rather than stopping on one.
      */
     @Test
     public void nextLandsSomewhereRealRatherThanCrashing() {

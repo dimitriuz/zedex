@@ -202,6 +202,19 @@ The app is a handful of classes: `EmulatorActivity` holds the menus,
 `Recorder` takes frames off the emulation thread and `GifRecording` /
 `Mp4Recording` turn them into files.
 
+### The wizard's filter stills
+
+`res/drawable-nodpi/filter_*.png` are captures of the real emulator with each
+filter on, used by the first-run wizard's screen page — there is no way to
+preview the filter without Fuse, since it is a GL shader in
+`native/ui/android/android_gl.c` running on its framebuffer.
+
+**Nothing recaptures them when the shader changes.** If you change the filter,
+recapture: load the demo tape, set each filter from ☰ › Display, `screencap`,
+crop to the 4:3 picture, scale to ~480px wide. They live here rather than in a
+README beside the files because `res/drawable` takes resources and nothing else
+— a `.md` dropped in there is a build failure.
+
 ## Building
 
 Requires the Android SDK with NDK r27, plus `autoconf`-era build tools on the

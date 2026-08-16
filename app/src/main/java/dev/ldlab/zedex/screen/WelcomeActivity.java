@@ -14,6 +14,7 @@ import dev.ldlab.zedex.welcome.pages.DonePage;
 import dev.ldlab.zedex.welcome.pages.FoldersPage;
 import dev.ldlab.zedex.welcome.pages.LanguagePage;
 import dev.ldlab.zedex.welcome.pages.MachinePage;
+import dev.ldlab.zedex.welcome.pages.ScreenPage;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -146,8 +147,8 @@ public final class WelcomeActivity extends ZedexActivity {
      *         for yet - <b>scaffold, not a real "no page"</b>. {@link #next},
      *         {@link #skip} and {@link #back} all walk past a null the way
      *         {@link #forwardFrom}/{@link #backwardFrom} do, so nothing here
-     *         is ever shown; WELCOME, FOLDERS, MACHINE, CONTROLS and DONE
-     *         build one, and SCREEN, LIBRARY and SCRAPING do not yet. Once
+     *         is ever shown; WELCOME, FOLDERS, MACHINE, CONTROLS, SCREEN and
+     *         DONE build one, and LIBRARY and SCRAPING do not yet. Once
      *         every case does, this branch is unreachable and the walking in
      *         {@link #forwardFrom}/{@link #backwardFrom} never iterates more
      *         than once - that is the moment to delete the null handling on
@@ -159,6 +160,7 @@ public final class WelcomeActivity extends ZedexActivity {
             case FOLDERS:  return new FoldersPage(this);
             case MACHINE:  return new MachinePage();
             case CONTROLS: return new ControlsPage();
+            case SCREEN:   return new ScreenPage();
             case DONE:     return new DonePage();
             default:
                 return null;
