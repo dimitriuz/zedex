@@ -782,21 +782,19 @@ public final class LibraryActivity extends ZedexActivity {
      * The archive's own guide: search, then the shelves you land on.
      *
      * <b>Two marks, not three.</b> A first draft added a third, captioned
-     * {@code guide_catalogue_pane} ("Download it into your own library, or
-     * open it straight away") and pointed at {@link CatalogueView#list()} -
-     * the same view {@code guide_shelves} already rings - since nothing else
-     * on this tab represents that action before a title has been tapped.
-     * That left two consecutive marks ringing the same rectangle with only
-     * the caption changing. {@link CatalogueView}'s own options button (sort,
-     * format, catalogue) is a real, always-present, distinct view, but it is
-     * about narrowing the shelf, not about downloading or opening a game - a
+     * "Download it into your own library, or open it straight away" and
+     * pointed at {@link CatalogueView#list()} - the same view {@code
+     * guide_shelves} already rings - since nothing else on this tab
+     * represents that action before a title has been tapped. That left two
+     * consecutive marks ringing the same rectangle with only the caption
+     * changing. {@link CatalogueView}'s own options button (sort, format,
+     * catalogue) is a real, always-present, distinct view, but it is about
+     * narrowing the shelf, not about downloading or opening a game - a
      * caption pointed at it would ring the wrong thing about the right
      * words. No view on this tab, before a title is tapped, is honestly
-     * "download it or open it", so the mark was dropped rather than kept for
-     * a target that does not fit it; {@code guide_catalogue_pane} is left in
-     * {@code strings.xml}, unconsumed, same as {@code guide_skip} - a call
-     * for whoever next decides what unused guide strings cost in
-     * translation, not something to remove from here.
+     * "download it or open it", so the mark - and its unused string,
+     * {@code guide_catalogue_pane} - were dropped rather than kept for a
+     * target that does not fit it.
      *
      * <b>Never {@link CatalogueView}'s own pane.</b> It starts {@code GONE}
      * and stays that way until somebody has already tapped a title, so a

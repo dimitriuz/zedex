@@ -22,6 +22,7 @@ import dev.ldlab.zedex.library.meta.Artwork;
 import dev.ldlab.zedex.library.meta.EsdeLink;
 import dev.ldlab.zedex.library.meta.Meta;
 import dev.ldlab.zedex.library.meta.Metadata;
+import dev.ldlab.zedex.storage.AllFiles;
 import dev.ldlab.zedex.storage.Prefs;
 import dev.ldlab.zedex.storage.Storage;
 
@@ -43,7 +44,6 @@ import android.net.Uri;
 import android.provider.DocumentsContract;
 import android.os.Bundle;
 import android.os.Environment;
-import android.provider.Settings;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.preference.ListPreference;
 import androidx.preference.Preference;
@@ -557,6 +557,35 @@ public class SettingsActivity extends AppCompatActivity
             snapToEntries();
             updateSummaries();
 
+            // Getting started: the way back into the first-run wizard, and the
+            // way to re-arm the coach marks - two rows because re-running seven
+            // questions and re-arming three overlays are different wants; see
+            // settings_app.xml.
+            Preference welcomeAgain = findPreference("welcomeAgain");
+            if (welcomeAgain != null) {
+                welcomeAgain.setOnPreferenceClickListener(preference -> {
+                    // returnHere: this screen stays behind it, and the wizard
+                    // has no routing to do - it was not the launcher that
+                    // opened it.
+                    WelcomeActivity.start(getActivity(), true);
+                    return true;
+                });
+            }
+
+            Preference guideAgain = findPreference("guideAgain");
+            if (guideAgain != null) {
+                guideAgain.setOnPreferenceClickListener(preference -> {
+                    SharedPreferences.Editor edit = getPreferenceManager()
+                            .getSharedPreferences().edit();
+                    for (String flag : Prefs.GUIDE_FLAGS) edit.putBoolean(flag, false);
+                    edit.apply();
+
+                    Toast.makeText(getActivity(), R.string.settings_guide_again_done,
+                                   Toast.LENGTH_LONG).show();
+                    return true;
+                });
+            }
+
             /*
              * The update switch is only a setting where updating is possible: a
              * Play install updates itself, and the Play build has no updater in
@@ -926,22 +955,6 @@ public class SettingsActivity extends AppCompatActivity
                     Toast.LENGTH_LONG).show();
         }
 
-        /** The one dialog that offers the permission, for both ways in. */
-        private void askForAllFiles(int why) {
-            if (!Storage.canAskForAnyFolder(getActivity())) return;
-
-            new AlertDialog.Builder(getActivity(),
-                    android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                    .setMessage(why)
-                    .setPositiveButton(R.string.settings_grant, (dialog, which) ->
-                            startActivity(new Intent(
-                                    Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
-                                    Uri.parse("package:" + getActivity().getPackageName()))))
-                    .setNegativeButton(android.R.string.cancel,
-                            (dialog, which) -> pendingFolder = null)
-                    .show();
-        }
-
         private void chooseAnyFolder() {
             // Unreachable in a build with no permission to grant - the item that
             // leads here is not in the list - but the dialog it would put up
@@ -949,7 +962,7 @@ public class SettingsActivity extends AppCompatActivity
             if (!Storage.canAskForAnyFolder(getActivity())) return;
 
             if (!Storage.canUseAnyFolder()) {
-                askForAllFiles(R.string.settings_all_files);
+                AllFiles.ask(getActivity(), R.string.settings_all_files);
                 return;
             }
 
@@ -972,7 +985,7 @@ public class SettingsActivity extends AppCompatActivity
             if (!Storage.canUseAnyFolder()
                     && Storage.needsAllFilesFor(getActivity(), folder)) {
                 pendingFolder = folder;
-                askForAllFiles(R.string.settings_all_files_folder);
+                AllFiles.ask(getActivity(), R.string.settings_all_files_folder);
                 return;
             }
 

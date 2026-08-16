@@ -1,14 +1,8 @@
 package dev.ldlab.zedex.screen;
 
 /**
- * The project's own addresses, in one place - for the wizard's last page,
- * which wants two of the three {@link AboutActivity} already had as its own
- * constants.
- *
- * <b>Not consolidated yet.</b> {@code AboutActivity} still carries its own
- * copies of {@code SOURCE}, {@code KO_FI} and {@code COFFEE} - pulling those
- * out to leave one copy is Task 13's job, not this one's, so for now the two
- * screens duplicate these three strings rather than sharing them.
+ * The project's own addresses, in one place - for the wizard's last page and
+ * {@link AboutActivity}, which both want two or three of them.
  *
  * <b>Not a {@code releases} url anywhere.</b> CI greps every Play dex for the
  * literal {@code github.com/dimitriuz/zedex/releases} and fails the build if it

@@ -251,7 +251,6 @@
          arrive with the first tour. -->
     <string name="guide_next">Next</string>
     <string name="guide_done">Got it</string>
-    <string name="guide_skip">Skip the guide</string>
     <string name="guide_picture">Tap the picture any time to bring these buttons back — they fade out so they are not over the game.</string>
     <string name="guide_files">Tapes, disks and anything else you want to load.</string>
     <string name="guide_controls">The keyboard, the joystick, and what your gamepad does.</string>
@@ -262,7 +261,6 @@
     <string name="guide_pane">Everything scraped about this game — the cover, who wrote it, the manual, and the way in.</string>
     <string name="guide_shelves">Shelves: by letter, by category, by year, or whatever is best rated.</string>
     <string name="guide_catalogue_search">Look for a game by name across the whole archive.</string>
-    <string name="guide_catalogue_pane">Download it into your own library, or open it straight away.</string>
 
     <string name="roms_needed">ROMs needed</string>
     <string name="roms_needed_message">The app ships the ROMs it is allowed to, but none of them could be put in\n\n%1$s\n\nThat folder may not be writable — Settings › App can point somewhere else. Or bring your own, whichever way below.</string>
@@ -629,6 +627,15 @@
     <string name="capture_busy">Still finishing the last recording</string>
     <string name="capture_open_folder">Open captures folder</string>
     <string name="capture_no_browser">Recordings are in %1$s</string>
+
+    <!-- Settings: the way back into the first-run wizard and the coach marks,
+         for whoever wants either again after answering or dismissing it once. -->
+    <string name="settings_group_start">Getting started</string>
+    <string name="settings_welcome_again">Run the setup again</string>
+    <string name="settings_welcome_again_summary">The questions from the first run — language, folders, machine, controls, the picture, your library and scraping. Nothing is cleared.</string>
+    <string name="settings_guide_again">Show the guide again</string>
+    <string name="settings_guide_again_summary">The pointers over the buttons, next time you open the machine, the library and the archive.</string>
+    <string name="settings_guide_again_done">The guide will run again next time you open each screen.</string>
 
     <!-- Settings: the language the app itself speaks. -->
     <string name="settings_group_language">Language</string>
