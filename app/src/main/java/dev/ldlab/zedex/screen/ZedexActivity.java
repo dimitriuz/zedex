@@ -141,6 +141,32 @@ public abstract class ZedexActivity extends Activity {
     }
 
     /**
+     * Back, on API 30 to 32 only. {@link #claimBack} returns before
+     * registering anything below TIRAMISU - there is no
+     * {@code OnBackInvokedDispatcher} to register on - so on those versions
+     * Back arrives here, the platform's own pre-predictive-back path, and
+     * never at {@link #onBackWanted} at all. Left undelegated, every screen's
+     * override of {@code onBackWanted} was silently dead on a third of the
+     * versions this app supports: Back fell to the platform's bare default of
+     * {@code finish()} instead, which is wrong wherever a screen overrode
+     * {@code onBackWanted} to do something else - {@code WelcomeActivity}'s
+     * own {@link #onBackWanted} walking back a page is exactly such a case,
+     * and it does not run at all on 30-32 without this.
+     *
+     * A no-op for every screen whose {@code onBackWanted} is still the
+     * default {@code finish()}: this ends up calling that, which is the same
+     * as what {@code super.onBackPressed()} would already have done.
+     *
+     * {@code GameInfoActivity} carried its own copy of exactly this pattern
+     * before it was pulled up here, once, for every screen.
+     */
+    @Override
+    public void onBackPressed() {
+        if (claimsBack()) onBackWanted();
+        else super.onBackPressed();
+    }
+
+    /**
      * Keeps the content out of the cutout.
      *
      * Called by the screen once it has set its content view, since that is

@@ -170,8 +170,58 @@
     <string name="setup_content">Папка с играми: %1$s</string>
     <string name="setup_content_none">не выбрана</string>
     <string name="setup_content_hint">Откуда начинает «Открыть файл…». Укажите на свои игры — и каждая загрузка станет короче на два нажатия.</string>
-    <string name="setup_start">Запустить машину</string>
-    <string name="setup_start_hint">Готово — включаем Spectrum.</string>
+
+    <string name="welcome_title">Добро пожаловать в Zedex</string>
+    <string name="welcome_message">Семь коротких вопросов — язык, куда идут файлы, какой Spectrum, управление, изображение, ваша библиотека и архив. Всё это можно изменить позже, в настройках.</string>
+    <string name="welcome_later">Настроить позже</string>
+    <string name="welcome_later_hint">Сразу к Spectrum. Всё остаётся со своими обычными значениями.</string>
+    <string name="welcome_next">Дальше</string>
+    <string name="welcome_skip">Пропустить</string>
+    <string name="welcome_language_hint">Zedex говорит на девяти. Оставьте язык системы — и он будет следовать за телефоном.</string>
+    <string name="welcome_machine">Какой Spectrum?</string>
+    <string name="welcome_machine_hint">Тот, которого ждёт игра. На 128K идёт большинство; полный список и все прочие машины, которые знает Fuse, — в «Настройки › Машина».</string>
+    <string name="welcome_machine_48">Оригинал, 48K памяти и пищалка.</string>
+    <string name="welcome_machine_128">128K и звуковой чип AY. То, чего хочет большинство игр.</string>
+    <string name="welcome_machine_plus2">128K со встроенным магнитофоном.</string>
+    <string name="welcome_machine_plus2a">+3 без дисковода.</string>
+    <string name="welcome_machine_plus3">128K с трёхдюймовым дисководом.</string>
+    <string name="welcome_machine_pentagon">Русский клон, и почти всё, что приходит как .trd или .scl.</string>
+    <string name="welcome_controls">Клавиатура и джойстик</string>
+    <string name="welcome_controls_hint">Какую клавиатуру рисовать поверх изображения и что игра должна считать подключённым.</string>
+    <string name="welcome_controls_keyboard">Клавиатура</string>
+    <string name="welcome_controls_joystick">Джойстик</string>
+    <string name="welcome_controls_system_note">Печатает собственная клавиатура телефона — здесь ничего не рисуется.</string>
+    <string name="welcome_screen">Изображение</string>
+    <string name="welcome_screen_hint">Как должен выглядеть экран. Это фотографии настоящей машины, и всё это позже настраивается на ходу в «☰ › Изображение».</string>
+    <string name="welcome_screen_border">Бордюр</string>
+    <string name="welcome_library">Ваша библиотека</string>
+    <string name="welcome_library_hint">Zedex может открываться на ваших играх, а не на пустом Spectrum, и листать архив ещё примерно из сорока тысяч.</string>
+    <string name="welcome_library_start">Запускаться в библиотеке</string>
+    <string name="welcome_library_start_hint">Начинать со своих игр. Машина в любом случае в одном нажатии.</string>
+    <string name="welcome_library_archive">Какой архив</string>
+    <string name="welcome_scraping">Обложки и описания</string>
+    <string name="welcome_scraping_hint">Zedex умеет узнать, что это за игра, кто её написал и как выглядела её обложка. Ничего не загружается, пока вы не попросите.</string>
+    <string name="welcome_scraping_sources">Где искать и в каком порядке</string>
+    <string name="welcome_scraping_account">Ваша собственная учётная запись ScreenScraper</string>
+    <string name="welcome_scraping_account_hint">Необязательно. Общая учётная запись есть в каждой копии приложения, и прочитать её может кто угодно, поэтому целую коллекцию лучше собирать со своей — и именно это оставляет общую рабочей для всех остальных.</string>
+    <string name="welcome_done_title">Это всё</string>
+    <string name="welcome_done_message">Всё это лежит в настройках, если передумаете.</string>
+    <string name="welcome_start">Запустить машину</string>
+    <string name="welcome_start_hint">Готово — включаем Spectrum.</string>
+    <string name="welcome_issues">Отзывы и проблемы</string>
+    <string name="welcome_issues_hint">Всё сломанное, недостающее или неверное — на GitHub.</string>
+
+    <string name="guide_next">Дальше</string>
+    <string name="guide_done">Понятно</string>
+    <string name="guide_picture">Коснитесь изображения в любой момент, чтобы вернуть эти кнопки — они гаснут, чтобы не лежать поверх игры.</string>
+    <string name="guide_bar">Ленты и диски, сохранения, машина, снимки экрана, клавиатура и джойстик, изображение — каждый значок открывает короткий список.</string>
+    <string name="guide_menu">Всё остальное здесь — машины, сохранённые состояния, читы и настройки.</string>
+    <string name="guide_tabs">Ваши игры, ваше избранное, во что играли в последний раз — и архив ещё примерно из сорока тысяч.</string>
+    <string name="guide_toolbar">Поиск, фильтр и сортировка. Фильтр остаётся, пока вы его не снимете.</string>
+    <string name="guide_row">Коснитесь игры, чтобы увидеть, что о ней известно; коснитесь ещё раз, чтобы играть.</string>
+    <string name="guide_pane">Всё, что собрано об этой игре — обложка, кто её написал, руководство и способ войти.</string>
+    <string name="guide_shelves">Полки: по букве, по категории, по году или по лучшим оценкам.</string>
+    <string name="guide_catalogue_search">Искать игру по названию по всему архиву.</string>
 
     <string name="roms_needed">Нужны ROM</string>
     <string name="roms_needed_message">Приложение поставляется с теми ROM, которые ему разрешено раздавать, но ни один не удалось положить в\n\n%1$s\n\nВозможно, в эту папку нельзя писать — в «Настройки › Приложение» можно указать другую. Или добавьте свои, любым способом ниже.</string>
@@ -506,6 +556,13 @@
     <string name="capture_busy">Предыдущая запись ещё завершается</string>
     <string name="capture_open_folder">Открыть папку захвата</string>
     <string name="capture_no_browser">Записи лежат в %1$s</string>
+
+    <string name="settings_group_start">Для начала</string>
+    <string name="settings_welcome_again">Пройти настройку заново</string>
+    <string name="settings_welcome_again_summary">Вопросы первого запуска — язык, папки, машина, управление, изображение, ваша библиотека и сбор данных. Ничего не стирается.</string>
+    <string name="settings_guide_again">Показать подсказки снова</string>
+    <string name="settings_guide_again_summary">Подсказки над кнопками — при следующем открытии машины, библиотеки и архива.</string>
+    <string name="settings_guide_again_done">Подсказки появятся снова при следующем открытии каждого экрана.</string>
 
     <string name="settings_group_language">Язык</string>
     <string name="settings_language">Язык приложения</string>

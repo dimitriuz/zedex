@@ -170,8 +170,58 @@
     <string name="setup_content">Dossier de jeux : %1$s</string>
     <string name="setup_content_none">non choisi</string>
     <string name="setup_content_hint">Là où « Ouvrir un fichier… » commence à chercher. Pointez-le sur vos jeux et chaque chargement fait deux touchers de moins.</string>
-    <string name="setup_start">Démarrer la machine</string>
-    <string name="setup_start_hint">Voilà — on démarre le Spectrum.</string>
+
+    <string name="welcome_title">Bienvenue dans Zedex</string>
+    <string name="welcome_message">Sept questions rapides — la langue, où vont les fichiers, quel Spectrum, les commandes, l\'image, votre bibliothèque et l\'archive. Tout cela se change plus tard, dans les Réglages.</string>
+    <string name="welcome_later">Configurer plus tard</string>
+    <string name="welcome_later_hint">Aller droit au Spectrum. Tout garde sa valeur habituelle.</string>
+    <string name="welcome_next">Suivant</string>
+    <string name="welcome_skip">Passer</string>
+    <string name="welcome_language_hint">Zedex parle neuf langues. Laissé sur la langue du système, il suit votre téléphone.</string>
+    <string name="welcome_machine">Quel Spectrum ?</string>
+    <string name="welcome_machine_hint">Celui qu\'un jeu attend. Le 128K fait tourner presque tout ; la liste complète, et toutes les autres machines que Fuse connaît, sont dans Réglages › Machine.</string>
+    <string name="welcome_machine_48">L\'original, 48K de mémoire et le buzzer.</string>
+    <string name="welcome_machine_128">128K et la puce sonore AY. Ce que veulent la plupart des jeux.</string>
+    <string name="welcome_machine_plus2">Le 128K avec le lecteur de cassettes intégré.</string>
+    <string name="welcome_machine_plus2a">Le +3 sans le lecteur de disquettes.</string>
+    <string name="welcome_machine_plus3">128K avec un lecteur de disquettes 3 pouces.</string>
+    <string name="welcome_machine_pentagon">Le clone russe, et l\'essentiel de ce qui arrive en .trd ou .scl.</string>
+    <string name="welcome_controls">Clavier et joystick</string>
+    <string name="welcome_controls_hint">Quel clavier dessiner par-dessus l\'image, et ce qu\'un jeu doit croire branché.</string>
+    <string name="welcome_controls_keyboard">Clavier</string>
+    <string name="welcome_controls_joystick">Joystick</string>
+    <string name="welcome_controls_system_note">C\'est le clavier du téléphone qui écrit — rien n\'est dessiné ici.</string>
+    <string name="welcome_screen">L\'image</string>
+    <string name="welcome_screen_hint">À quoi l\'écran doit ressembler. Ce sont des photos de la vraie machine, et tout cela se règle ensuite en direct dans ☰ › Image.</string>
+    <string name="welcome_screen_border">Bordure</string>
+    <string name="welcome_library">Votre bibliothèque</string>
+    <string name="welcome_library_hint">Zedex peut s\'ouvrir sur vos propres jeux plutôt que sur un Spectrum nu, et parcourir une archive d\'environ quarante mille autres.</string>
+    <string name="welcome_library_start">Démarrer sur la bibliothèque</string>
+    <string name="welcome_library_start_hint">Commencer par vos jeux. La machine reste à un toucher, dans les deux cas.</string>
+    <string name="welcome_library_archive">Quelle archive</string>
+    <string name="welcome_scraping">Jaquettes et descriptions</string>
+    <string name="welcome_scraping_hint">Zedex peut chercher ce qu\'est un jeu, qui l\'a écrit et à quoi ressemblait sa jaquette. Rien n\'est récupéré tant que vous ne le demandez pas.</string>
+    <string name="welcome_scraping_sources">Où chercher, et dans quel ordre</string>
+    <string name="welcome_scraping_account">Votre propre compte ScreenScraper</string>
+    <string name="welcome_scraping_account_hint">Facultatif. Le compte partagé se trouve dans chaque copie de l\'app et est lisible par qui le veut ; scraper toute une collection se fait donc mieux avec le vôtre — et c\'est ce qui garde le compte partagé utilisable pour tous les autres.</string>
+    <string name="welcome_done_title">C\'est tout</string>
+    <string name="welcome_done_message">Tout cela se retrouve dans les Réglages si vous changez d\'avis.</string>
+    <string name="welcome_start">Démarrer la machine</string>
+    <string name="welcome_start_hint">Voilà — on démarre le Spectrum.</string>
+    <string name="welcome_issues">Retours et problèmes</string>
+    <string name="welcome_issues_hint">Tout ce qui est cassé, manquant ou faux — sur GitHub.</string>
+
+    <string name="guide_next">Suivant</string>
+    <string name="guide_done">Compris</string>
+    <string name="guide_picture">Touchez l\'image à tout moment pour ramener ces boutons — ils s\'effacent pour ne pas rester sur le jeu.</string>
+    <string name="guide_bar">Cassettes et disquettes, sauvegardes, la machine, captures d\'écran, le clavier et le joystick, et l\'image — chaque icône ouvre une courte liste.</string>
+    <string name="guide_menu">Tout le reste est là-dedans — machines, sauvegardes, codes et réglages.</string>
+    <string name="guide_tabs">Vos jeux, vos favoris, ce que vous avez joué en dernier — et une archive d\'environ quarante mille autres.</string>
+    <string name="guide_toolbar">Chercher, filtrer et trier. Un filtre reste jusqu\'à ce que vous l\'enleviez.</string>
+    <string name="guide_row">Touchez un jeu pour voir ce qu\'on sait de lui ; touchez encore pour jouer.</string>
+    <string name="guide_pane">Tout ce qui a été scrapé sur ce jeu — la jaquette, qui l\'a écrit, le manuel, et la façon d\'y entrer.</string>
+    <string name="guide_shelves">Rayons : par lettre, par catégorie, par année, ou les mieux notés.</string>
+    <string name="guide_catalogue_search">Chercher un jeu par son nom dans toute l\'archive.</string>
 
     <string name="roms_needed">ROM nécessaires</string>
     <string name="roms_needed_message">L\'app fournit les ROM qu\'elle a le droit de fournir, mais aucune n\'a pu être placée dans\n\n%1$s\n\nCe dossier n\'est peut-être pas accessible en écriture — Réglages › App peut en désigner un autre. Ou apportez les vôtres, par l\'un des moyens ci-dessous.</string>
@@ -506,6 +556,13 @@
     <string name="capture_busy">Le dernier enregistrement se termine encore</string>
     <string name="capture_open_folder">Ouvrir le dossier des captures</string>
     <string name="capture_no_browser">Les enregistrements sont dans %1$s</string>
+
+    <string name="settings_group_start">Pour commencer</string>
+    <string name="settings_welcome_again">Refaire la configuration</string>
+    <string name="settings_welcome_again_summary">Les questions du premier démarrage — langue, dossiers, machine, commandes, l\'image, votre bibliothèque et le scraping. Rien n\'est effacé.</string>
+    <string name="settings_guide_again">Revoir le guide</string>
+    <string name="settings_guide_again_summary">Les repères sur les boutons, la prochaine fois que vous ouvrirez la machine, la bibliothèque et l\'archive.</string>
+    <string name="settings_guide_again_done">Le guide repassera la prochaine fois que vous ouvrirez chaque écran.</string>
 
     <string name="settings_group_language">Langue</string>
     <string name="settings_language">Langue de l\'app</string>

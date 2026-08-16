@@ -1,5 +1,9 @@
 package dev.ldlab.zedex.storage;
 
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.content.pm.PackageInfo;
+
 /**
  * Every setting this app stores, by name.
  *
@@ -214,11 +218,9 @@ public final class Prefs {
      *
      * A String, and read with {@code getString} always. The same reasoning as
      * {@link #KEY_SCRAPER} beside it, for the same reason: a name rather than
-     * an index, and absent means whichever {@code Catalogues} prefers. Nothing
-     * writes it yet - there is one catalogue - which is why it reads as a
-     * default rather than as a choice; it is declared here now so that a
-     * settings row, when there is one to add, has a key to write rather than a
-     * name invented at the point of use.
+     * an index, and absent means whichever {@code Catalogues} prefers.
+     * {@code LibraryPage} writes it now, one archive card at a time, in the
+     * wizard's LIBRARY page.
      */
     public static final String KEY_CATALOGUE = "catalogueProvider";
     /* How big the picture is drawn, one per orientation: the number of device
@@ -242,6 +244,22 @@ public final class Prefs {
     public static final String KEY_VIDEO = "video";
     public static final String KEY_FILTER_BLEED = "filterBleed";
     public static final String KEY_FILTER_NOISE = "filterNoise";
+
+    /**
+     * Whether each guide has been given. One flag per screen, not one for the
+     * lot: somebody who has had the app for a year gets the archive's marks
+     * the first time they open the archive, and is not handed a welcome they
+     * have no use for. Somebody who skipped the wizard still gets them.
+     */
+    public static final String KEY_GUIDE_MACHINE = "guideMachine";
+    public static final String KEY_GUIDE_LIBRARY = "guideLibrary";
+    public static final String KEY_GUIDE_CATALOGUE = "guideCatalogue";
+
+    /** All three, for the Settings row that re-arms them and for the tests
+     *  that must turn them off before they can measure anything else. */
+    public static final String[] GUIDE_FLAGS = {
+        KEY_GUIDE_MACHINE, KEY_GUIDE_LIBRARY, KEY_GUIDE_CATALOGUE,
+    };
     /**
      * A number out of a preference that stores one as a String.
      *
@@ -261,6 +279,61 @@ public final class Prefs {
             return Integer.parseInt(preferences.getString(key, String.valueOf(fallback)));
         } catch (NumberFormatException | ClassCastException e) {
             return fallback;
+        }
+    }
+
+    /**
+     * Whether the first run is still to be answered.
+     *
+     * <b>Not "are the preferences empty".</b> That is what this used to ask,
+     * from {@code StartPanel.setupNeeded}, and it was answered for it: {@code
+     * LibraryActivity} is the launcher and writes {@code libraryMigrated} in
+     * its own {@code onCreate} before {@code EmulatorActivity} ever gets here,
+     * so the file was never empty and the folders question was never put. The
+     * app settled where it kept everything without asking, and nothing said
+     * so. {@code SettingsActivity} had already learned this for its own
+     * migration and written it down; this is the caller that did not get the
+     * memo.
+     *
+     * The honest question is whether this install has ever been updated, which
+     * nothing this process does to its own preferences can change.
+     *
+     * @param everUpdated {@link #isUpdate}, passed rather than asked, so the
+     *                    rule can be tested on the JVM tier - a device test
+     *                    cannot pose "an install that has been updated" either
+     */
+    public static boolean welcomeNeeded(boolean everUpdated,
+                                        SharedPreferences preferences) {
+        if (preferences.getBoolean(Storage.KEY_SETUP_DONE, false)) return false;
+        return !everUpdated;
+    }
+
+    /** {@link #welcomeNeeded(boolean, SharedPreferences)}, asking the package
+     *  manager the question it needs. */
+    public static boolean welcomeNeeded(Context context,
+                                        SharedPreferences preferences) {
+        return welcomeNeeded(isUpdate(context), preferences);
+    }
+
+    /**
+     * Whether this install has ever replaced itself.
+     *
+     * {@code firstInstallTime} and {@code lastUpdateTime} are the same instant
+     * for exactly as long as an install has never been updated, and differ from
+     * the first update on. Unlike the preferences file, that is unaffected by
+     * anything this process has written.
+     *
+     * Any failure to read it answers "yes, this is an update" - the
+     * conservative direction, since it is an existing user who must not be
+     * interrogated, never a new one who must not be asked.
+     */
+    public static boolean isUpdate(Context context) {
+        try {
+            PackageInfo info = context.getPackageManager()
+                    .getPackageInfo(context.getPackageName(), 0);
+            return info.firstInstallTime != info.lastUpdateTime;
+        } catch (android.content.pm.PackageManager.NameNotFoundException e) {
+            return true;
         }
     }
 }

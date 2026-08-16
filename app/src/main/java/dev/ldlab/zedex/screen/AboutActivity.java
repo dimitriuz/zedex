@@ -34,18 +34,10 @@ import android.widget.Toast;
 public final class AboutActivity extends ZedexActivity {
 
 
-    private static final String SOURCE = "https://github.com/dimitriuz/zedex";
-
-    /**
-     * Where to put something in the hat, if this was worth anything to you.
-     *
-     * Two of them because the two services reach different people - one of them
-     * is unavailable in whole countries - and because neither is asked for
-     * anywhere else in the app. Nothing here is gated behind them, nothing is
-     * counted, and this screen is the only place they appear.
-     */
-    private static final String KO_FI = "https://ko-fi.com/W3Q224VFOR";
-    private static final String COFFEE = "https://www.buymeacoffee.com/dmitriileshchenko";
+    // The three addresses are in screen/Links now, because the first-run
+    // wizard's last page offers two of them as well. That comment used to say
+    // this screen was the only place they appeared, and it has stopped being
+    // true - a changed policy is fine, a comment lying about it is not.
 
     private static final int LINK = 0xff00b0c8;
 
@@ -93,9 +85,9 @@ public final class AboutActivity extends ZedexActivity {
         column.addView(text(getString(R.string.about_catalogue), 13, Palette.MUTED, pixels(16)));
         column.addView(feedback());
         column.addView(text(getString(R.string.about_support), 15, Palette.TEXT, pixels(24)));
-        column.addView(opens("Ko-fi", KO_FI, pixels(8)));
-        column.addView(opens("Buy Me a Coffee", COFFEE, pixels(4)));
-        column.addView(opens(SOURCE, SOURCE, pixels(20)));
+        column.addView(opens("Ko-fi", Links.KO_FI, pixels(8)));
+        column.addView(opens("Buy Me a Coffee", Links.COFFEE, pixels(4)));
+        column.addView(opens(Links.SOURCE, Links.SOURCE, pixels(20)));
 
         return column;
     }

@@ -32,6 +32,7 @@ import dev.ldlab.zedex.screen.Panels;
 import dev.ldlab.zedex.screen.SettingsActivity;
 import dev.ldlab.zedex.screen.StartPanel;
 import dev.ldlab.zedex.screen.StatesActivity;
+import dev.ldlab.zedex.screen.WelcomeActivity;
 import dev.ldlab.zedex.storage.Recents;
 import dev.ldlab.zedex.storage.States;
 import dev.ldlab.zedex.feedback.Crashes;
@@ -46,6 +47,7 @@ import dev.ldlab.zedex.view.QuickBar;
 import dev.ldlab.zedex.view.Rows;
 import dev.ldlab.zedex.view.SpectrumKeyboardView;
 import dev.ldlab.zedex.view.SystemKeyboardView;
+import dev.ldlab.zedex.welcome.Tour;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
@@ -429,7 +431,15 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         //
         // The ROMs are not unpacked here any more: startEmulator does it, on
         // every start, so that a data folder chosen at any point gets them.
-        if (!StartPanel.setupNeeded(this)) Storage.installDemo(this);
+        // Guarded on welcomeNeeded rather than unconditional: an install still
+        // waiting on the wizard has not settled a folder yet, and installDemo
+        // running here first would plant the tape in the pre-wizard default
+        // root, mark KEY_DEMO_INSTALLED, and turn WelcomeActivity.finishSetup's
+        // own installDemo into a no-op - so the tape sits somewhere other than
+        // the folder DonePage just told the summary about. This is what the
+        // old StartPanel.setupNeeded guard already did correctly, and calling
+        // it unconditional here was a mistake this app made once.
+        if (!Prefs.welcomeNeeded(this, preferences)) Storage.installDemo(this);
 
         // Asks GitHub whether there is a newer APK than this one, on a thread of
         // its own, and says nothing unless there is. Never for a Play install
@@ -455,6 +465,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         roms = new StartPanel(this, romsHost);
         menu = buildMenu();
         quickBar = buildQuickBar();
+        machineTour = buildMachineTour();
 
         // The machine's own face, once there is a bar to put a face on. Not
         // up with the collaborators in onCreate, where this was first written
@@ -981,10 +992,13 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }
 
-        // A folder chosen before the app was allowed to use it, and the panel's
-        // own rows: All files access is granted on a screen of Android's, and
-        // coming back from that is a resume rather than a result.
-        roms.onResumed();
+        // The wizard's own retry: this activity is singleInstance and stays
+        // alive behind WelcomeActivity while it is up, and coming back to it
+        // is a resume rather than a result. The same guard surfaceChanged
+        // uses, for the same reason - started only ever flips true right
+        // before machine.start(), so whichever of the two runs first wins and
+        // the other's own call is a no-op.
+        if (!started) startEmulator();
 
         // The settings screen can have changed these while we were away.
         layout.setLightsVisible(
@@ -1142,6 +1156,58 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     private ImageButton manualAction;
     private ImageButton libraryAction;
     private ImageButton menuAction;
+
+    /**
+     * The machine's own guide: the picture, the bar, and ☰.
+     *
+     * <b>The bar is rung whole rather than an icon at a time.</b> There are
+     * nine of them, and a mark each would be a ten-step tour on the first
+     * launch somebody ever makes - which is a thing people abandon rather
+     * than read. It would also be nine ways for the guide to decline: {@link
+     * QuickBar#setCompact} drops icons when the bar is narrow, and {@link
+     * Tour#arm} refuses the <em>whole</em> guide when any one target answers
+     * null, so on a narrow phone a per-icon tour would silently never fire.
+     * The bar itself is always there when the bar is there.
+     *
+     * So the caption names what the icons open and the mark rings all of
+     * them. What is left is the two things the icons cannot say themselves:
+     * that a tap on the picture brings the bar back once it has faded, and
+     * that ☰ holds everything the bar has no room for.
+     *
+     * <b>Suppliers, not views.</b> {@link #menuAction} is on the quick bar,
+     * and the bar is <em>borrowed</em> by the second screen's panel when one
+     * is showing - {@link EmulatorLayout#setLentAway} detaches it from {@link
+     * #layout} and a fresh {@code SecondScreen} reparents it onto its own
+     * window. So {@code quickBar.getParent() == layout} is the fact to read:
+     * true only while the bar is actually in this window, false both while it
+     * is borrowed and in the instant between detach and reattach. Reading
+     * that here, next to each target, means {@link Tour#arm} needs no
+     * separate condition for a second screen at all - a borrowed bar simply
+     * answers null like any other missing target.
+     *
+     * The picture itself never moves - detaching the {@code SurfaceView}
+     * would destroy the surface Fuse draws into - so {@link #layout} itself
+     * is always a fine target for it.
+     *
+     * <b>Built in {@link #buildMachineTour}, called from {@link #onCreate},
+     * not a field initialiser.</b> This one would run before {@code
+     * fadeQuickBar} is declared and referencing it from an initialiser is an
+     * illegal forward reference - the same rule this project keeps about
+     * collaborators and field initialisers, one line finer.
+     */
+    private Tour machineTour;
+
+    private Tour buildMachineTour() {
+        return Tour.of(Prefs.KEY_GUIDE_MACHINE)
+                .mark(() -> layout, R.string.guide_picture)
+                .mark(() -> quickBar.getParent() == layout ? quickBar : null,
+                      R.string.guide_bar)
+                .mark(() -> quickBar.getParent() == layout ? menuAction : null,
+                      R.string.guide_menu)
+                // Or the bar fades out from under its own explanation.
+                .holding(() -> quickBar.removeCallbacks(fadeQuickBar),
+                         this::revealQuickBar);
+    }
 
     /**
      * Shows the game's details, or the machine again.
@@ -2095,6 +2161,13 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // on behind a machine nobody is looking at either.
         panels.pauseVideo();
 
+        // Through the tour, not Coach.dismiss directly - Tour.dismiss also
+        // runs the tour's own release when one is owed, which is what
+        // re-arms the quick bar's fade. Coach.dismiss alone would take the
+        // mark down and leave the fade unscheduled until some unrelated tap
+        // called revealQuickBar() again - see Tour's own class comment.
+        machineTour.dismiss(this);
+
         // A held direction has nobody to let go of it once we are not being sent
         // events any more.
         gamepad.releaseAll();
@@ -2214,9 +2287,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     private void startEmulator() {
         // The first run asks where things are kept before anything is kept
         // anywhere: the ROMs are unpacked into the answer, so the question
-        // comes before the machine.
-        if (StartPanel.setupNeeded(this) || roms.asking()) {
-            roms.showSetup();
+        // comes before the machine. This activity is singleInstance and stays
+        // alive behind the wizard, so it keeps whatever file it was opened
+        // with and onResume tries again when the wizard is done.
+        if (Prefs.welcomeNeeded(this, preferences)) {
+            WelcomeActivity.start(this, true);
             return;
         }
 
@@ -2236,6 +2311,14 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         started = true;
 
         machine.start();
+
+        // Not while the bar is on the panel: with a second screen the quick
+        // bar is borrowed by a Presentation on the other display, and an
+        // overlay in this window would ring a bar that is not here. Tour.arm
+        // declines on a null target, so this needs no separate check - the
+        // suppliers answer null when the bar is not in this window; see
+        // machineTour's own comment.
+        machineTour.arm(this);
     }
 
     @Override

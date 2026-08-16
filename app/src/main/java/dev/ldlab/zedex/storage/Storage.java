@@ -2,7 +2,6 @@ package dev.ldlab.zedex.storage;
 
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.media.Media;
-import dev.ldlab.zedex.screen.StartPanel;
 import android.Manifest;
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -48,7 +47,7 @@ public final class Storage {
     /**
      * Whether the first run has been through. Not "have the folders been
      * chosen": leaving both where they are is an answer, and one nobody should
-     * be asked for twice. See {@link StartPanel#showSetup}.
+     * be asked for twice. See {@link dev.ldlab.zedex.screen.WelcomeActivity#finishSetup}.
      */
     public static final String KEY_SETUP_DONE = "setupDone";
     /**

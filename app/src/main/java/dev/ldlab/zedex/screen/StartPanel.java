@@ -1,24 +1,20 @@
 package dev.ldlab.zedex.screen;
 
-import dev.ldlab.zedex.storage.Prefs;
 import dev.ldlab.zedex.work.Work;
+import dev.ldlab.zedex.view.Cards;
 import dev.ldlab.zedex.view.Palette;
 import dev.ldlab.zedex.EmulatorActivity;
 import dev.ldlab.zedex.R;
+import dev.ldlab.zedex.storage.AllFiles;
 import dev.ldlab.zedex.storage.Storage;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
-import android.content.SharedPreferences;
-import android.graphics.Color;
 import android.database.Cursor;
 import android.net.Uri;
 import android.provider.DocumentsContract;
-import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
-import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -41,24 +37,21 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 /**
- * The screen the app shows when there is no machine yet: the two folders on the
- * first run, and ROMs when there are none.
+ * The screen the app shows when there are no ROMs to run a machine with.
  *
- * <b>First run.</b> Everything the app writes goes in the data folder, and
- * everything it opens tends to live in one place too, and both are better asked
- * about once than discovered later — a hundred saved states in app-private
- * storage are a hundred states that go when the app is uninstalled. So the very
- * first start is this panel, with the two folders and a way on.
- *
- * <b>ROMs.</b> The app ships them, but a data folder can be pointed somewhere
- * they are not, and a folder full of the wrong ones is a machine that will not
- * start: without a ROM Fuse gives up hard, drawing nothing, so the screen would
+ * The app ships them, but a data folder can be pointed somewhere they are not,
+ * and a folder full of the wrong ones is a machine that will not start:
+ * without a ROM Fuse gives up hard, drawing nothing, so the screen would
  * simply stay black with no way out of it. This is the way out — what is
  * missing, and three routes to fixing it.
  *
  * ROMs arrive by one of three routes and all three are kept, because Android
  * refuses to grant a document tree on {@code Download} — where a downloaded set
  * usually lands — while the file picker opens it without complaint.
+ *
+ * The first run's two folders used to be shown here too, before there was
+ * anywhere else for them; that half now lives in {@code WelcomeActivity}'s
+ * own {@code FoldersPage}.
  */
 public final class StartPanel {
 
@@ -96,8 +89,6 @@ public final class StartPanel {
     /** Ours to answer; the activity forwards anything with these codes. */
     public static final int REQUEST_IMPORT_ROMS = 3;
     public static final int REQUEST_IMPORT_ROMS_TREE = 5;
-    public static final int REQUEST_DATA_TREE = 8;
-    public static final int REQUEST_CONTENT_TREE = 9;
 
     private final Activity activity;
     private final Host host;
@@ -125,38 +116,6 @@ public final class StartPanel {
      */
     private View grant;
 
-    /** The two folder rows of the first run, and the way on from it. */
-    private final List<View> folders = new ArrayList<>();
-    private TextView dataFolder;
-    private TextView contentFolder;
-    private View start;
-
-    /** Where the demo tape will be, said on the first run and not asked about. */
-    private TextView demoNote;
-
-    /**
-     * A folder chosen before the app was allowed to use it.
-     *
-     * Granting All files access is another screen, and the way back from it is
-     * a resume rather than a result - so the choice is kept here and made when
-     * the answer arrives, instead of asking the user to pick the same folder
-     * twice with no sign that the first time did anything.
-     */
-    private File pending;
-
-    /**
-     * Whether the first run is on screen and unanswered.
-     *
-     * Needed because {@link #setupNeeded} stops being true the moment setup
-     * writes anything, and choosing the data folder writes something. Picking
-     * one of the offered roots is a dialog and never leaves the activity, but
-     * choosing any other folder is Android's own picker: coming back from it
-     * resumes the activity, which asks whether to start the machine, which
-     * asked the static question and got "setup is done" - so the panel went
-     * away with the ROMs still in the APK and nothing in the folder.
-     */
-    private boolean asking;
-
     public StartPanel(Activity activity, Host host) {
         this.activity = activity;
         this.host = host;
@@ -179,35 +138,6 @@ public final class StartPanel {
      * activity can go on to its own.
      */
     public boolean onActivityResult(int request, int result, Intent data) {
-        if (request == REQUEST_DATA_TREE || request == REQUEST_CONTENT_TREE) {
-            Uri tree = result == Activity.RESULT_OK && data != null
-                    ? data.getData() : null;
-
-            if (tree != null && request == REQUEST_DATA_TREE) {
-                File folder = Storage.pathFor(tree);
-
-                if (folder == null) toast(R.string.settings_folder_unusable);
-                else useDataFolder(folder);
-            }
-
-            if (tree != null && request == REQUEST_CONTENT_TREE) {
-                // Write too, now that importing a game means writing into
-                // this same folder - see Tree.canWrite. An existing grant
-                // made before this cannot be upgraded in place; Task 11's
-                // import flow is what asks a read-only grant to be re-picked.
-                Storage.keepAccessTo(activity, tree,
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION
-                        | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-                activity.getSharedPreferences(Prefs.PREFS,
-                                              Activity.MODE_PRIVATE)
-                        .edit().putString(Storage.KEY_CONTENT_TREE, tree.toString())
-                        .apply();
-                describeFolders();
-            }
-
-            return true;
-        }
-
         if (request != REQUEST_IMPORT_ROMS && request != REQUEST_IMPORT_ROMS_TREE) {
             return false;
         }
@@ -246,10 +176,10 @@ public final class StartPanel {
      * that a missing ROM used to leave behind with no way out of it.
      */
     private View buildPanel() {
-        int pad = unit(6);
+        int pad = Cards.unit(activity, 6);
 
-        Column content = new Column(activity, unit(150));
-        content.setPadding(pad, unit(10), pad, pad);
+        LinearLayout content = Cards.column(activity, 150);
+        content.setPadding(pad, Cards.unit(activity, 10), pad, pad);
 
         title = new TextView(activity);
         title.setTextSize(26);
@@ -260,72 +190,33 @@ public final class StartPanel {
         message = new TextView(activity);
         message.setTextSize(15);
         message.setTextColor(Palette.MUTED);
-        message.setLineSpacing(unit(1), 1f);
-        message.setPadding(0, unit(2), 0, unit(5));
+        message.setLineSpacing(Cards.unit(activity, 1), 1f);
+        message.setPadding(0, Cards.unit(activity, 2), 0, Cards.unit(activity, 5));
         content.addView(message);
 
         // Above the three ways of finding ROMs, because where this one applies
         // the ROMs have already been found: they are in the folder, and Android
         // is not letting the app look. Downloading a second set into a folder
         // it still cannot read would not help.
-        grant = panelChoice(R.string.roms_grant, R.string.roms_grant_hint,
-                            v -> askForAllFiles(R.string.roms_grant_ask));
+        grant = Cards.choice(activity, R.string.roms_grant, R.string.roms_grant_hint,
+                            v -> AllFiles.ask(activity, R.string.roms_grant_ask), false);
         grant.setVisibility(View.GONE);
         content.addView(grant);
 
         // Downloading first: it is the one that needs nothing of the user.
-        choices.add(panelChoice(R.string.roms_where,
-                R.string.roms_where_hint, v -> offerRomsDownload()));
-        choices.add(panelChoice(R.string.roms_folder,
-                R.string.roms_folder_hint, v -> importRomsFolder()));
-        choices.add(panelChoice(R.string.roms_files,
-                R.string.roms_files_hint, v -> importRomFiles()));
+        choices.add(Cards.choice(activity, R.string.roms_where,
+                R.string.roms_where_hint, v -> offerRomsDownload(), false));
+        choices.add(Cards.choice(activity, R.string.roms_folder,
+                R.string.roms_folder_hint, v -> importRomsFolder(), false));
+        choices.add(Cards.choice(activity, R.string.roms_files,
+                R.string.roms_files_hint, v -> importRomFiles(), false));
 
         for (View choice : choices) content.addView(choice);
 
-        run = panelChoice(R.string.roms_run, R.string.roms_run_hint, v -> runNow());
+        run = Cards.choice(activity, R.string.roms_run, R.string.roms_run_hint,
+                           v -> runNow(), false);
         run.setVisibility(View.GONE);
         content.addView(run);
-
-        // And the first run's two folders, which are the same kind of row with
-        // the answer written on the button: what a folder is called matters
-        // more here than what the row would do to it.
-        dataFolder = new TextView(activity);
-        folders.add(folderCard(dataFolder, R.string.setup_data_hint,
-                               v -> chooseDataFolder()));
-
-        contentFolder = new TextView(activity);
-        folders.add(folderCard(contentFolder, R.string.setup_content_hint,
-                               v -> chooseContentFolder()));
-
-        // Said on the way past rather than asked about. The demo is a tape like
-        // any other once the folders are settled, and a screen of its own
-        // between somebody and the machine they came for is a toll booth: they
-        // have to answer it before the Spectrum appears, and the answer is
-        // nearly always no. This tells them it is there and gets out of the way.
-        //
-        // Its own quiet card, with the icon's cyan down the near edge: it is
-        // the one row here that asks for nothing, so it should not look like
-        // the ones that do.
-        demoNote = new TextView(activity);
-        demoNote.setTextSize(14);
-        demoNote.setTextColor(Palette.MUTED);
-        demoNote.setLineSpacing(unit(1), 1f);
-        demoNote.setPadding(unit(4), unit(3), unit(4), unit(3));
-        demoNote.setBackground(stripe(CARD, CYAN));
-        folders.add(spaced(demoNote));
-
-        // The one that gets on with it, in the icon's cyan: every other row
-        // here is a detour, and this is the way out.
-        start = panelChoice(R.string.setup_start, R.string.setup_start_hint,
-                            v -> finishSetup(), true);
-        folders.add(start);
-
-        for (View row : folders) {
-            row.setVisibility(View.GONE);
-            content.addView(row);
-        }
-
 
         // Landscape leaves little height, and the message is not short.
         //
@@ -333,7 +224,7 @@ public final class StartPanel {
         // a tablet is margin: left where it fell, the whole screen read as one
         // corner of a page with nothing on the other two thirds of it.
         ScrollView scroll = new ScrollView(activity);
-        scroll.setBackgroundColor(BACK);
+        scroll.setBackgroundColor(Cards.BACK);
 
         FrameLayout.LayoutParams middle = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
@@ -348,176 +239,6 @@ public final class StartPanel {
 
         return scroll;
     }
-
-    /**
-     * A button with a line under it saying what it does, since "Choose
-     * folder" and "Choose files" are not self-explaining on their own.
-     */
-    private View panelChoice(int label, int description, View.OnClickListener action) {
-        return panelChoice(label, description, action, false);
-    }
-
-    /**
-     * One thing that can be done: what it is, and a line saying what it does.
-     *
-     * A card rather than a button with a caption under it. A stock button on
-     * black is a grey lozenge with no relation to anything else on the screen,
-     * and the caption belonging to it was only implied by being nearby - so a
-     * column of them read as a list of loose parts. Here the two lines are
-     * inside the thing you tap, which is what makes it one row.
-     */
-    private View panelChoice(int label, int description,
-                             View.OnClickListener action, boolean primary) {
-        LinearLayout row = new LinearLayout(activity);
-
-        row.setOrientation(LinearLayout.VERTICAL);
-        row.setBackground(card(primary ? CYAN : CARD));
-        row.setPadding(unit(4), unit(3), unit(4), unit(3));
-        row.setOnClickListener(action);
-        touchable(row);
-
-        TextView name = new TextView(activity);
-        name.setText(label);
-        name.setTextSize(17);
-        name.setTextColor(primary ? ON_CYAN : Palette.TEXT);
-        row.addView(name);
-
-        TextView caption = new TextView(activity);
-        caption.setText(description);
-        caption.setTextSize(13);
-        caption.setTextColor(primary ? 0xcc05222a : Palette.MUTED);
-        caption.setLineSpacing(unit(1) / 2f, 1f);
-        caption.setPadding(0, unit(1), 0, 0);
-        row.addView(caption);
-
-        return spaced(row);
-    }
-
-    /** The same shape, holding a value this class keeps up to date. */
-    private View folderCard(TextView value, int description,
-                            View.OnClickListener action) {
-        LinearLayout row = new LinearLayout(activity);
-
-        row.setOrientation(LinearLayout.VERTICAL);
-        row.setBackground(card(CARD));
-        row.setPadding(unit(4), unit(3), unit(4), unit(3));
-        row.setOnClickListener(action);
-        touchable(row);
-
-        value.setTextSize(17);
-        value.setTextColor(Palette.TEXT);
-        row.addView(value);
-
-        TextView caption = new TextView(activity);
-        caption.setText(description);
-        caption.setTextSize(13);
-        caption.setTextColor(Palette.MUTED);
-        caption.setLineSpacing(unit(1) / 2f, 1f);
-        caption.setPadding(0, unit(1), 0, 0);
-        row.addView(caption);
-
-        return spaced(row);
-    }
-
-    /** The platform's own press feedback, over whatever the row is painted. */
-    private void touchable(View row) {
-        android.util.TypedValue found = new android.util.TypedValue();
-
-        if (activity.getTheme().resolveAttribute(
-                android.R.attr.selectableItemBackground, found, true)) {
-            row.setForeground(activity.getDrawable(found.resourceId));
-        }
-    }
-
-    /** A button with a line under it saying what it does. */
-    /** Four dp, the step everything on this panel is spaced by. */
-    private int unit(int steps) {
-        return Math.round(4 * steps * activity.getResources()
-                .getDisplayMetrics().density);
-    }
-
-    // --- the look of it ------------------------------------------------------
-    //
-    // Built here rather than in a theme or a drawable folder for the reason
-    // everything else in this app is built in code: there are no dependencies
-    // to inflate with, and one file that says how the screen looks beats a
-    // colour in one place and a shape in another.
-    //
-    // The palette is the app's own - the dark plate of the icon, and the cyan
-    // that marks a chosen thing in the key editor.
-
-    private static final int BACK = 0xff0e0f13;
-    private static final int CARD = 0xff1b1d24;
-    private static final int EDGE = 0x14ffffff;
-    private static final int CYAN = 0xff00b0c8;
-    private static final int ON_CYAN = 0xff05222a;
-
-    /** A card: the shape every row on this panel is. */
-    private android.graphics.drawable.Drawable card(int fill) {
-        android.graphics.drawable.GradientDrawable shape =
-                new android.graphics.drawable.GradientDrawable();
-
-        shape.setColor(fill);
-        shape.setCornerRadius(unit(3));
-        shape.setStroke(Math.max(1, unit(1) / 4), EDGE);
-
-        return shape;
-    }
-
-    /** The same, with a band of colour down the leading edge. */
-    private android.graphics.drawable.Drawable stripe(int fill, int accent) {
-        android.graphics.drawable.GradientDrawable band =
-                new android.graphics.drawable.GradientDrawable();
-        band.setColor(accent);
-        band.setCornerRadius(unit(3));
-
-        android.graphics.drawable.LayerDrawable both =
-                new android.graphics.drawable.LayerDrawable(
-                        new android.graphics.drawable.Drawable[] { band, card(fill) });
-
-        both.setLayerInset(1, unit(1), 0, 0, 0);
-        return both;
-    }
-
-    /** A row, with air under it. */
-    private View spaced(View row) {
-        LinearLayout holder = new LinearLayout(activity);
-        holder.setOrientation(LinearLayout.VERTICAL);
-        holder.addView(row, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT));
-        holder.setPadding(0, 0, 0, unit(3));
-
-        return holder;
-    }
-
-    /**
-     * A column that stops growing.
-     *
-     * A line of text the whole width of a tablet is a line nobody can follow
-     * back to its start, and the panel is mostly prose. Sixty characters or so
-     * is the width this settles at; the rest of the window is margin, and the
-     * column sits in the middle of it.
-     */
-    private static final class Column extends LinearLayout {
-
-        private final int most;
-
-        Column(android.content.Context context, int most) {
-            super(context);
-            this.most = most;
-            setOrientation(VERTICAL);
-        }
-
-        @Override
-        protected void onMeasure(int widthSpec, int heightSpec) {
-            if (MeasureSpec.getSize(widthSpec) > most) {
-                widthSpec = MeasureSpec.makeMeasureSpec(most, MeasureSpec.EXACTLY);
-            }
-            super.onMeasure(widthSpec, heightSpec);
-        }
-    }
-
 
     /**
      * @param startFailed whether Fuse tried and gave up, which needs a new
@@ -552,237 +273,9 @@ public final class StartPanel {
 
         grant.setVisibility(blocked ? View.VISIBLE : View.GONE);
         for (View choice : choices) choice.setVisibility(View.VISIBLE);
-        for (View row : folders) row.setVisibility(View.GONE);
         run.setVisibility(startFailed ? View.VISIBLE : View.GONE);
         panel.setVisibility(View.VISIBLE);
         host.setTakeover(true);
-    }
-
-    // --- the first run -------------------------------------------------------
-
-    /**
-     * Whether this is the first start, and so whether the folders have been
-     * asked about. Recorded rather than guessed from whether they have been
-     * chosen: keeping everything where it is is an answer too, and one nobody
-     * should be asked for twice.
-     */
-    public static boolean setupNeeded(Activity activity) {
-        SharedPreferences preferences = activity.getSharedPreferences(
-                Prefs.PREFS, Activity.MODE_PRIVATE);
-
-        if (preferences.getBoolean(Storage.KEY_SETUP_DONE, false)) return false;
-
-        // An install that predates this screen has answered by never being
-        // asked: it has a machine, a folder, a keyboard skin, something. An
-        // upgrade is no moment to interrogate somebody who has been playing
-        // for a month, so only a preferences file with nothing at all in it
-        // counts as a first run.
-        return preferences.getAll().isEmpty();
-    }
-
-    /** Whether the first run is still waiting to be answered. */
-    public boolean asking() {
-        return asking;
-    }
-
-    /**
-     * Back from somewhere - most usefully from Android's All files screen.
-     *
-     * A folder picked before the permission existed is applied now, and the
-     * rows are described again either way: the permission decides what the
-     * default folder is, so granting it changes what this screen should say
-     * even when nothing was picked.
-     */
-    public void onResumed() {
-        File wanted = pending;
-        pending = null;
-
-        if (wanted != null && Storage.canUseAnyFolder()) {
-            useDataFolder(wanted);
-            return;
-        }
-
-        if (asking) describeFolders();
-    }
-
-    /** The first run: where things are kept, and where they are opened from. */
-    public void showSetup() {
-        asking = true;
-        title.setText(R.string.setup_title);
-        message.setText(R.string.setup_message);
-
-        for (View choice : choices) choice.setVisibility(View.GONE);
-        run.setVisibility(View.GONE);
-        grant.setVisibility(View.GONE);
-        for (View row : folders) row.setVisibility(View.VISIBLE);
-
-        describeFolders();
-
-        panel.setVisibility(View.VISIBLE);
-        host.setTakeover(true);
-    }
-
-    /** Both buttons say where they point, which is the answer they hold. */
-    private void describeFolders() {
-        dataFolder.setText(activity.getString(R.string.setup_data,
-                Storage.root(activity).getAbsolutePath()));
-
-        String content = Storage.describe(
-                activity.getSharedPreferences(Prefs.PREFS,
-                                              Activity.MODE_PRIVATE)
-                        .getString(Storage.KEY_CONTENT_TREE, null));
-
-        contentFolder.setText(activity.getString(R.string.setup_content,
-                content != null ? content
-                        : activity.getString(R.string.setup_content_none)));
-
-        // Named from the folder as it stands, and said again whenever that
-        // changes: the tape follows the data folder, and this row is above the
-        // button that settles it.
-        demoNote.setText(activity.getString(R.string.setup_demo,
-                Storage.demoTape(activity).getAbsolutePath()));
-    }
-
-    /**
-     * The data folder, as the settings screen offers it: the roots the device
-     * has, and anywhere at all for whoever has granted All files access.
-     *
-     * By path and not as a document tree, because Fuse opens its files with
-     * stdio and a {@code content://} URI is not something it can pass to
-     * {@code fopen}.
-     */
-    private void chooseDataFolder() {
-        // The short one at the root of storage goes first, and is offered
-        // whether or not the permission to make it is held: it is the answer
-        // most people want, and being told what it needs is more use than not
-        // being shown it. Picking it without the permission asks for that
-        // instead, and comes back here.
-        List<File> roots = new ArrayList<>();
-        // A folder at the root of storage, and any folder at all, are both only
-        // worth offering to a build that can ask for the permission they need.
-        boolean anywhere = Storage.canAskForAnyFolder(activity);
-
-        if (anywhere) roots.add(Storage.sharedRoot(activity));
-        roots.addAll(Storage.roots(activity));
-
-        String[] items = new String[roots.size() + (anywhere ? 1 : 0)];
-
-        for (int i = 0; i < roots.size(); i++) {
-            items[i] = Storage.label(activity, roots.get(i))
-                    + "\n" + roots.get(i).getAbsolutePath();
-        }
-        if (anywhere) {
-            items[roots.size()] = activity.getString(R.string.settings_choose_folder);
-        }
-
-        new AlertDialog.Builder(activity,
-                android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(R.string.settings_data_folder)
-                .setItems(items, (dialog, which) -> {
-                    if (which < roots.size()) {
-                        useDataFolder(roots.get(which));
-                    } else if (!Storage.canUseAnyFolder()) {
-                        askForAllFiles(R.string.settings_all_files);
-                    } else {
-                        activity.startActivityForResult(
-                                new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE),
-                                REQUEST_DATA_TREE);
-                    }
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
-    }
-
-    /**
-     * @param why what the permission is for, which is not the same each time:
-     *            one caller is about to choose a folder, the other has one
-     *            already and cannot read it.
-     */
-    private void askForAllFiles(int why) {
-        // Nothing to grant in a build that does not declare it, and the
-        // settings page would open empty. Every caller checks first; this is
-        // the backstop.
-        if (!Storage.canAskForAnyFolder(activity)) {
-            toast(R.string.settings_folder_unusable);
-            return;
-        }
-
-        new AlertDialog.Builder(activity,
-                android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setMessage(why)
-                .setPositiveButton(R.string.settings_grant, (dialog, which) ->
-                        activity.startActivity(new Intent(
-                                Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
-                                Uri.parse("package:" + activity.getPackageName()))))
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
-    }
-
-    private void useDataFolder(File folder) {
-        // A folder outside the app's own storage cannot even be made without
-        // All files access, so a refusal here is usually a permission and not a
-        // bad folder. Ask for the one, remember the other, and put it in place
-        // when the answer comes back - see {@link #onResumed}.
-        if (!Storage.canUseAnyFolder() && Storage.needsAllFilesFor(activity, folder)) {
-            pending = folder;
-            askForAllFiles(R.string.settings_all_files_folder);
-            return;
-        }
-
-        if (!Storage.isWritable(folder)) {
-            toast(R.string.settings_folder_unusable);
-            return;
-        }
-
-        activity.getSharedPreferences(Prefs.PREFS, Activity.MODE_PRIVATE)
-                .edit()
-                .putString(Storage.KEY_STATES_ROOT, folder.getAbsolutePath())
-                .apply();
-
-        // Nothing to move: on the first run there is nothing there yet, and the
-        // ROMs are unpacked into whatever this ends up being when the machine
-        // is asked for.
-        Storage.createFolders(activity);
-        describeFolders();
-    }
-
-    private void chooseContentFolder() {
-        try {
-            activity.startActivityForResult(
-                    new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE),
-                    REQUEST_CONTENT_TREE);
-        } catch (android.content.ActivityNotFoundException e) {
-            toast(R.string.open_failed);
-        }
-    }
-
-    /**
-     * Done asking. The ROMs go into whatever folder was settled on - which is
-     * why this is the moment for it and not the activity's onCreate - and the
-     * machine is asked for.
-     */
-    private void finishSetup() {
-        asking = false;
-        activity.getSharedPreferences(Prefs.PREFS, Activity.MODE_PRIVATE)
-                .edit().putBoolean(Storage.KEY_SETUP_DONE, true).apply();
-
-        // Whatever the folder rows ended up saying, written down as the answer.
-        // Leaving the default unrecorded would let a permission granted later
-        // change where the app looks; see Storage.pinRoot.
-        Storage.pinRoot(activity);
-
-        Storage.createFolders(activity);
-        Storage.installRoms(activity);
-
-        // The demo goes in the same folder the ROMs did and for the same
-        // reason: this is the moment the folders are settled. Nothing is asked
-        // about it - the panel said where it would be, and it is a tape like
-        // any other from here on.
-        Storage.installDemo(activity);
-
-        hide();
-        host.onRomsChanged();
-
     }
 
     public void hide() {

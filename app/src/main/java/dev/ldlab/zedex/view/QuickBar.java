@@ -345,8 +345,11 @@ public final class QuickBar extends LinearLayout implements Rows {
      * An icon that opens the second row instead of doing something. The row is
      * built each time it is opened, so it can offer <em>Stop recording</em>
      * only while something is recording.
+     *
+     * Returns the button, for the callers that need to point a coach mark at
+     * it later - the bar is built once, so this is the only chance to keep it.
      */
-    public void addGroup(int drawable, String name, Row row) {
+    public ImageButton addGroup(int drawable, String name, Row row) {
         ImageButton group = makeButton(drawable, name, null);
 
         group.setOnClickListener(v -> {
@@ -369,6 +372,8 @@ public final class QuickBar extends LinearLayout implements Rows {
         });
 
         primary.addView(group);
+
+        return group;
     }
 
     /**

@@ -198,8 +198,65 @@
     <string name="setup_content">Content folder: %1$s</string>
     <string name="setup_content_none">not chosen</string>
     <string name="setup_content_hint">Where Open file\u2026 starts looking. Point it at your games and every load is two taps shorter.</string>
-    <string name="setup_start">Start the machine</string>
-    <string name="setup_start_hint">Done \u2014 boot the Spectrum.</string>
+
+    <!-- The first run. Every page is skippable and the first page offers a way
+         past all of them: a screen between somebody and the machine they came
+         for is a toll booth, and this one has to earn each page it keeps. -->
+    <string name="welcome_title">Welcome to Zedex</string>
+    <string name="welcome_message">Seven quick questions \u2014 language, where files go, which Spectrum, controls, the picture, your library and the archive. All of them can be changed later, in Settings.</string>
+    <string name="welcome_later">Set it up later</string>
+    <string name="welcome_later_hint">Go straight to the Spectrum. Everything keeps its usual default.</string>
+    <string name="welcome_next">Next</string>
+    <string name="welcome_skip">Skip</string>
+    <string name="welcome_language_hint">Zedex speaks nine. Leave it on the system language and it follows your phone.</string>
+    <string name="welcome_machine">Which Spectrum?</string>
+    <string name="welcome_machine_hint">The one a game expects. 128K runs most things; the full list, and every other machine Fuse knows, is in Settings › Machine.</string>
+    <string name="welcome_machine_48">The original, 48K of memory and the beeper.</string>
+    <string name="welcome_machine_128">128K and the AY sound chip. What most games want.</string>
+    <string name="welcome_machine_plus2">The 128K with a tape deck built in.</string>
+    <string name="welcome_machine_plus2a">The +3 without the disk drive.</string>
+    <string name="welcome_machine_plus3">128K with a 3-inch disk drive.</string>
+    <string name="welcome_machine_pentagon">The Russian clone, and most of what arrives as .trd or .scl.</string>
+    <string name="welcome_controls">Keyboard and joystick</string>
+    <string name="welcome_controls_hint">Which keyboard to draw over the picture, and what a game should think is plugged in.</string>
+    <string name="welcome_controls_keyboard">Keyboard</string>
+    <string name="welcome_controls_joystick">Joystick</string>
+    <string name="welcome_controls_system_note">Your phone\'s own keyboard types instead — nothing is drawn here.</string>
+    <string name="welcome_screen">The picture</string>
+    <string name="welcome_screen_hint">What the screen should look like. These are photographs of the real thing, and it is all live in ☰ › Display later.</string>
+    <string name="welcome_screen_border">Border</string>
+    <string name="welcome_library">Your library</string>
+    <string name="welcome_library_hint">Zedex can open on your own games rather than on a bare Spectrum, and browse an archive of about forty thousand more.</string>
+    <string name="welcome_library_start">Open on the library</string>
+    <string name="welcome_library_start_hint">Start on your games. The machine is one tap away either way.</string>
+    <string name="welcome_library_archive">Which archive</string>
+    <string name="welcome_scraping">Covers and descriptions</string>
+    <string name="welcome_scraping_hint">Zedex can look up what a game is, who wrote it and what its cover looked like. Nothing is fetched until you ask for it.</string>
+    <string name="welcome_scraping_sources">Where to look, and in what order</string>
+    <string name="welcome_scraping_account">Your own ScreenScraper account</string>
+    <string name="welcome_scraping_account_hint">Optional. The shared account is in every copy of the app and readable by anyone who wants it, so scraping a whole collection is better done on your own — and it is what keeps the shared one working for everybody else.</string>
+    <string name="welcome_done_title">That\'s everything</string>
+    <string name="welcome_done_message">All of it lives in Settings if you want to change your mind.</string>
+    <string name="welcome_start">Start the machine</string>
+    <string name="welcome_start_hint">Done \u2014 boot the Spectrum.</string>
+    <string name="welcome_issues">Feedback and issues</string>
+    <string name="welcome_issues_hint">Anything broken, missing or wrong \u2014 on GitHub.</string>
+
+    <!-- The guide: coach marks on the real controls. guide_next and
+         guide_done are the overlay's own chrome, shown on every mark of
+         every tour; a tour's own captions (guide_picture and the rest)
+         arrive with the first tour. -->
+    <string name="guide_next">Next</string>
+    <string name="guide_done">Got it</string>
+    <string name="guide_picture">Tap the picture any time to bring these buttons back — they fade out so they are not over the game.</string>
+    <string name="guide_bar">Tapes and disks, saved games, the machine, screenshots, the keyboard and joystick, and the picture — each icon opens a short list.</string>
+    <string name="guide_menu">Everything else lives in here — machines, saved states, cheats and settings.</string>
+    <string name="guide_tabs">Your games, your favourites, what you played last — and an archive of about forty thousand more.</string>
+    <string name="guide_toolbar">Search, filter and sort. A filter stays until you clear it.</string>
+    <string name="guide_row">Tap a game to see what is known about it; tap again to play.</string>
+    <string name="guide_pane">Everything scraped about this game — the cover, who wrote it, the manual, and the way in.</string>
+    <string name="guide_shelves">Shelves: by letter, by category, by year, or whatever is best rated.</string>
+    <string name="guide_catalogue_search">Look for a game by name across the whole archive.</string>
 
     <string name="roms_needed">ROMs needed</string>
     <string name="roms_needed_message">The app ships the ROMs it is allowed to, but none of them could be put in\n\n%1$s\n\nThat folder may not be writable — Settings › App can point somewhere else. Or bring your own, whichever way below.</string>
@@ -566,6 +623,15 @@
     <string name="capture_busy">Still finishing the last recording</string>
     <string name="capture_open_folder">Open captures folder</string>
     <string name="capture_no_browser">Recordings are in %1$s</string>
+
+    <!-- Settings: the way back into the first-run wizard and the coach marks,
+         for whoever wants either again after answering or dismissing it once. -->
+    <string name="settings_group_start">Getting started</string>
+    <string name="settings_welcome_again">Run the setup again</string>
+    <string name="settings_welcome_again_summary">The questions from the first run — language, folders, machine, controls, the picture, your library and scraping. Nothing is cleared.</string>
+    <string name="settings_guide_again">Show the guide again</string>
+    <string name="settings_guide_again_summary">The pointers over the buttons, next time you open the machine, the library and the archive.</string>
+    <string name="settings_guide_again_done">The guide will run again next time you open each screen.</string>
 
     <!-- Settings: the language the app itself speaks. -->
     <string name="settings_group_language">Language</string>

@@ -176,6 +176,24 @@ AGP's `addGeneratedSourceDirectory`, which wires every consumer there is and any
 added later. `assembleDebug` will not catch a regression here — `lintVital` only
 runs for release, so check with `./gradlew assembleRelease`.
 
+**And nothing local runs the lint CI runs.** The workflow's own step is
+`./gradlew lintDebug`, which is broader than the `lintVital` an
+`assembleRelease` triggers and stricter than anything `assembleDebug` does —
+it fails the build on errors. So a `NewApi` call, an unused resource or a
+wrong `@link` passes every local build and stops the PR. Run it before you
+push:
+
+```sh
+env JAVA_HOME=/opt/android-studio/jbr ./gradlew lintDebug
+```
+
+The failure that prompted this note is worth knowing for its shape rather than
+its subject: `Coach.releaseBack` guarded an API-33 call with `backCallback ==
+null`, which is correct at run time — the field is only ever assigned inside a
+version-guarded branch — and invisible to lint, which cannot infer a field's
+provenance. **A version check has to be spelled out where the call is**, even
+when something else already implies it.
+
 The first run says where it is and nothing more — a line under the two folder
 buttons, naming the path, kept in step as the data folder is chosen. It used to
 be a screen of its own with *Load the demo* and *Not now* on it, and that is a
@@ -201,6 +219,40 @@ The app is a handful of classes: `EmulatorActivity` holds the menus,
 `SpectrumKeyboardView` the keyboard, `Storage` decides where things live,
 `Recorder` takes frames off the emulation thread and `GifRecording` /
 `Mp4Recording` turn them into files.
+
+### The wizard's filter stills
+
+`res/drawable-nodpi/filter_*.png` are captures of the real emulator with each
+filter on, used by the first-run wizard's screen page — there is no way to
+preview the filter without Fuse, since it is a GL shader in
+`native/ui/android/android_gl.c` running on its framebuffer.
+
+**Nothing recaptures them when the shader changes.** If you change the filter,
+recapture: set each filter from ☰ › Display and `screencap`. They live here
+rather than in a README beside the files because `res/drawable` takes resources
+and nothing else — a `.md` dropped in there is a build failure.
+
+**Shoot the 128 boot menu, not the demo.** The demo's starfield is the wrong
+subject twice over: it has almost no hard edges, so scanlines and the CRT
+curve are both hard to tell apart at the size a wizard row draws, and its
+wordmark colour-cycles, so four captures taken a few seconds apart differ for
+a reason that has nothing to do with the filter. The boot menu is static, high
+contrast, and carries the colour bar — which is the part that shows what a
+filter does to *colour* rather than to edges.
+
+Three things about the processing, each of which was got wrong once:
+
+- **Crop all four to the same rectangle** — the flat picture's own bounds. Crop
+  each to its own and the CRT ones get scaled back up to match, which hides the
+  inset edge that is the whole point of that filter. On a 2376x1080 capture the
+  picture is x 528-1967 over the full height: 1440x1080, exactly 4:3.
+- **Resize with `BOX`, never `LANCZOS`.** A scanline is one pixel tall, and any
+  filter that averages adjacent rows washes the texture out — 1440 to 480 is a
+  whole-number factor, so `BOX` keeps it exactly.
+- **Do not quantise to a palette.** It looks like free bytes (191 KB down to
+  86 KB on the busiest one) and it kills the colour bar: the scanline texture
+  consumes the whole 256-colour palette in greys, and the red/yellow/green/cyan
+  stripes come back as pale yellow and blue. ~250 KB for the four is the price.
 
 ## Building
 

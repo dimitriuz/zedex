@@ -59,6 +59,9 @@ public class LibraryQuitTest {
                 .putExtra(LibraryActivity.EXTRA_FROM_MENU, true)
                 .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
 
+        // Or a mark over the toolbar would swallow the very tap this test
+        // makes on Options.
+        Screen.suppressGuides(context);
         context.startActivity(library, Screen.here());
 
         UiObject2 options = device.wait(

@@ -23,6 +23,21 @@ import java.util.List;
  * The list shown is every source this build has, in the order they will be
  * asked, with the disabled ones after the enabled ones. Rebuilt in place on
  * every move rather than animated: it is three rows.
+ *
+ * <b>Package-private on purpose, including from {@code welcome.ScrapingPage},
+ * which reaches this dialog too.</b> A member another layer genuinely needs
+ * has to be public - CLAUDE.md says so, and it is a fact about Java's
+ * boundaries, not license to widen everything a lambda happens to touch.
+ * Making this class, {@link Chosen} and {@link #show} all public so a lambda
+ * outside this package could satisfy {@link Chosen} directly was tried first
+ * and reverted: that would have published the dialog's class name and its
+ * bespoke callback type forever, for one call site, when the caller only
+ * ever needed to hand over a list and get a list back. {@link
+ * ScraperOrderEntry#show} is the one seam this package opens for that - a
+ * stock {@code java.util.function.Consumer<List<String>>} in, adapted to
+ * {@link Chosen} right here, so a future second caller from outside
+ * {@code screen} still finds one purpose-built entry point rather than a
+ * reason to widen a fourth declaration.
  */
 final class ScraperOrder {
 

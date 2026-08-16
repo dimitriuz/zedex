@@ -327,6 +327,16 @@
             android:label="@string/menu_states"
             android:theme="@android:style/Theme.DeviceDefault"
             android:exported="false" />
+
+        <!-- The first run: where things are kept, which Spectrum, and the rest
+             - see screen/WelcomeActivity.java. Its label is set in onCreate
+             like every other screen's, because android:label is resolved in
+             the phone's language rather than the app's. -->
+        <activity
+            android:name=".screen.WelcomeActivity"
+            android:label="@string/app_name"
+            android:theme="@android:style/Theme.DeviceDefault"
+            android:exported="false" />
         <!-- The downloaded APK, for the system installer to read. It runs in
              another process and cannot open a file in our cache, and a file://
              URI has been refused since Android 7. -->
