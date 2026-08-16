@@ -43,12 +43,20 @@ import android.widget.TextView;
  * activity lamps did exactly this once and took the whole UI Automator suite
  * down.
  *
- * <b>Every touch, key and motion event is consumed while a mark is up.</b>
- * {@link #onTouchEvent} always returns true, so a tap on the scrim cannot
- * reach whatever it is drawn over, and {@link #dispatchKeyEvent} swallows
- * everything except the one that activates Next - so nothing behind is
- * half-pressed and no {@code GamepadCursor} moves a cursor or steals focus
- * mid-mark. {@link #dispatchGenericMotionEvent} does the same for a
+ * <b>Every touch, key and motion event is consumed while a mark is up - except
+ * the keys Android itself owns.</b> {@link #onTouchEvent} always returns
+ * true, so a tap on the scrim cannot reach whatever it is drawn over, and
+ * {@link #dispatchKeyEvent} swallows everything except the one that activates
+ * Next - so nothing behind is half-pressed and no {@code GamepadCursor} moves
+ * a cursor or steals focus mid-mark. Volume, mute, camera and focus are the
+ * exception: {@code isSystemKey} passes those straight to {@code
+ * super.dispatchKeyEvent} before the blanket swallow, because a mark has no
+ * use for them and swallowing them anyway is the exact regression
+ * {@code CLAUDE.md} names - "consuming the volume keys so Fuse could ignore
+ * them is how the phone's volume buttons stopped working" - except here it
+ * would be a coach mark doing it, not Fuse, and for as long as a guide is on
+ * screen rather than for the length of a whole session. {@link
+ * #dispatchGenericMotionEvent} does the same swallow-everything for a
  * gamepad's stick or hat: that class of input often arrives as an axis
  * rather than a key - see the project's own note on this, that falling
  * through to the view tree "looks like the tidier fix and leaves the D-pad
@@ -434,6 +442,15 @@ public final class Coach extends FrameLayout {
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
+        if (isSystemKey(event.getKeyCode())) {
+            // "Only swallow a key Fuse can use" - a mark has no use for the
+            // volume keys at all, so letting the blanket swallow below take
+            // them too was how the phone's own volume buttons stopped
+            // working for as long as a mark was up. PhoneWindow needs to see
+            // these to do anything with them.
+            return super.dispatchKeyEvent(event);
+        }
+
         if (event.getAction() == KeyEvent.ACTION_UP && activates(event.getKeyCode())) {
             // A gamepad's A is not a key Button itself reacts to the way
             // KEYCODE_DPAD_CENTER and KEYCODE_ENTER are, so it is turned into
@@ -446,6 +463,26 @@ public final class Coach extends FrameLayout {
         // nothing behind this can be half-pressed and no GamepadCursor sees
         // a direction or a button and moves a cursor or a selection under it.
         return true;
+    }
+
+    /**
+     * Volume and the other keys Android itself owns, never Fuse or a mark:
+     * nothing here reacts to them, so passing them on costs nothing and
+     * keeping them is a regression the project has already made once (see
+     * the class comment).
+     */
+    private static boolean isSystemKey(int keyCode) {
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_VOLUME_UP:
+            case KeyEvent.KEYCODE_VOLUME_DOWN:
+            case KeyEvent.KEYCODE_VOLUME_MUTE:
+            case KeyEvent.KEYCODE_MUTE:
+            case KeyEvent.KEYCODE_CAMERA:
+            case KeyEvent.KEYCODE_FOCUS:
+                return true;
+            default:
+                return false;
+        }
     }
 
     /**
