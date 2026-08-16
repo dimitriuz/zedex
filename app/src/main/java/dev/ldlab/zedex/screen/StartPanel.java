@@ -5,6 +5,7 @@ import dev.ldlab.zedex.view.Cards;
 import dev.ldlab.zedex.view.Palette;
 import dev.ldlab.zedex.EmulatorActivity;
 import dev.ldlab.zedex.R;
+import dev.ldlab.zedex.storage.AllFiles;
 import dev.ldlab.zedex.storage.Storage;
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -14,7 +15,6 @@ import android.graphics.Color;
 import android.database.Cursor;
 import android.net.Uri;
 import android.provider.DocumentsContract;
-import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -202,7 +202,7 @@ public final class StartPanel {
         // is not letting the app look. Downloading a second set into a folder
         // it still cannot read would not help.
         grant = Cards.choice(activity, R.string.roms_grant, R.string.roms_grant_hint,
-                            v -> askForAllFiles(R.string.roms_grant_ask), false);
+                            v -> AllFiles.ask(activity, R.string.roms_grant_ask), false);
         grant.setVisibility(View.GONE);
         content.addView(grant);
 
@@ -279,31 +279,6 @@ public final class StartPanel {
         run.setVisibility(startFailed ? View.VISIBLE : View.GONE);
         panel.setVisibility(View.VISIBLE);
         host.setTakeover(true);
-    }
-
-    /**
-     * @param why what the permission is for, which is not the same each time:
-     *            one caller is about to choose a folder, the other has one
-     *            already and cannot read it.
-     */
-    private void askForAllFiles(int why) {
-        // Nothing to grant in a build that does not declare it, and the
-        // settings page would open empty. Every caller checks first; this is
-        // the backstop.
-        if (!Storage.canAskForAnyFolder(activity)) {
-            toast(R.string.settings_folder_unusable);
-            return;
-        }
-
-        new AlertDialog.Builder(activity,
-                android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setMessage(why)
-                .setPositiveButton(R.string.settings_grant, (dialog, which) ->
-                        activity.startActivity(new Intent(
-                                Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
-                                Uri.parse("package:" + activity.getPackageName()))))
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
     }
 
     public void hide() {

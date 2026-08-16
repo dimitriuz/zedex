@@ -1,6 +1,7 @@
 package dev.ldlab.zedex.welcome.pages;
 
 import dev.ldlab.zedex.R;
+import dev.ldlab.zedex.storage.AllFiles;
 import dev.ldlab.zedex.storage.Storage;
 import dev.ldlab.zedex.view.Cards;
 import dev.ldlab.zedex.welcome.Step;
@@ -11,7 +12,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
-import android.provider.Settings;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -206,38 +206,13 @@ public final class FoldersPage implements Step {
                     if (which < roots.size()) {
                         useDataFolder(roots.get(which));
                     } else if (!Storage.canUseAnyFolder()) {
-                        askForAllFiles(R.string.settings_all_files);
+                        AllFiles.ask(activity, R.string.settings_all_files);
                     } else {
                         activity.startActivityForResult(
                                 new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE),
                                 REQUEST_DATA_TREE);
                     }
                 })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
-    }
-
-    /**
-     * @param why what the permission is for, which is not the same each time:
-     *            one caller is about to choose a folder, the other has one
-     *            already and cannot read it.
-     */
-    private void askForAllFiles(int why) {
-        // Nothing to grant in a build that does not declare it, and the
-        // settings page would open empty. Every caller checks first; this is
-        // the backstop.
-        if (!Storage.canAskForAnyFolder(activity)) {
-            toast(R.string.settings_folder_unusable);
-            return;
-        }
-
-        new AlertDialog.Builder(activity,
-                android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setMessage(why)
-                .setPositiveButton(R.string.settings_grant, (dialog, which) ->
-                        activity.startActivity(new Intent(
-                                Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
-                                Uri.parse("package:" + activity.getPackageName()))))
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
     }
@@ -249,7 +224,7 @@ public final class FoldersPage implements Step {
         // when the answer comes back - see {@link #onResumed}.
         if (!Storage.canUseAnyFolder() && Storage.needsAllFilesFor(activity, folder)) {
             pending = folder;
-            askForAllFiles(R.string.settings_all_files_folder);
+            AllFiles.ask(activity, R.string.settings_all_files_folder);
             return;
         }
 
