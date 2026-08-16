@@ -89,8 +89,8 @@ public class WelcomeTest {
      * Emulator.scrollTo} finding a machine by name in the ☰ sheet; without
      * this the row is there and unreadable by a query that never scrolled.
      *
-     * <b>The pause afterwards is load-bearing, not padding.</b> {@code
-     * scrollIntoView}'s own swipe is a fling, and a {@code ScrollView}
+     * <b>Scrolled into view is not the same as safe to tap.</b>
+     * {@code scrollIntoView}'s own swipe is a fling, and a {@code ScrollView}
      * answers a touch down while its {@code Scroller} has not finished -
      * {@code isFinished()} - by grabbing it to stop the scroll, whether or
      * not the content has actually moved since. A fling that lands exactly on
@@ -98,13 +98,22 @@ public class WelcomeTest {
      * is the one at the very foot of the page - is clamped there well before
      * the {@code Scroller}'s own precomputed duration elapses, so the row's
      * bounds read as settled long before the view is really done consuming
-     * touches for it. Measured on this bench: a tap thrown right after
-     * {@code scrollIntoView} returns landed at the correct, unmoving
-     * coordinates and did nothing at all - no click, no scroll, nothing in
-     * logcat - and the identical tap a little over a second later worked
-     * every time. Nothing in UiAutomator's public surface reports {@code
-     * isFinished()}, so this is a real wait for a real condition with no way
-     * to ask for it directly, not a guess dressed up as one.
+     * touches for it: polling the row's own bounds for two equal reads in a
+     * row was tried here first, and it did not catch this - the bounds settle
+     * before the fling does. Measured on this bench: a tap thrown right after
+     * {@code scrollIntoView} returns lands at the correct, unmoving
+     * coordinates and does nothing at all - no click, no scroll, nothing in
+     * logcat.
+     *
+     * Nothing in UiAutomator's public surface reports {@code isFinished()},
+     * so there is no condition here to wait on directly - which is why this
+     * method does not sleep at all, and {@link #tapUntil} is what actually
+     * copes with it, on the other side: it retries the tap itself against an
+     * observed effect, rather than this method guessing how long a fling
+     * takes to settle. A guessed duration was tried and measured first (1500ms,
+     * chosen because it passed here) and dropped for exactly the reason
+     * CLAUDE.md gives for never doing that: it is a number this bench
+     * happened to agree with, not a number a loaded one would.
      */
     private void scrollTo(String text) {
         try {
@@ -115,12 +124,13 @@ public class WelcomeTest {
         } catch (androidx.test.uiautomator.UiObjectNotFoundException e) {
             // Not there, or not scrollable; the caller's own assertion reports it.
         }
-
-        SystemClock.sleep(1500);
     }
 
     /**
-     * Taps the row that answers for {@code text}, not the label's own node.
+     * Taps the row that answers for {@code text}, not the label's own node,
+     * repeating the tap until {@code effect} says it landed - see
+     * {@link #scrollTo}'s own comment for why a single tap right after a
+     * scroll can be swallowed with nothing on screen or in logcat to say so.
      *
      * {@code Cards.choiceOf} puts the click listener on the row; the label is
      * a plain, non-clickable {@code TextView} inside it, which is what
@@ -128,11 +138,29 @@ public class WelcomeTest {
      * coordinates directly rather than asking a specific node to click
      * itself, so it reaches whichever view is actually there - the row,
      * underneath the label - the same as a finger would.
+     *
+     * The retry is what makes a swallowed tap cost one more attempt instead
+     * of a wrong pass or a flaky failure: {@code text} is re-queried fresh
+     * every time round, since a tap that did land may have moved or removed
+     * it entirely (both {@link #skippingItAllStillFinishesTheSetup} and
+     * {@link #nextLandsSomewhereRealRatherThanCrashing} leave the wizard's
+     * first page, which is where {@code text} lived), and a control that is
+     * genuinely not answering still fails the test, at the timeout, rather
+     * than looping forever.
      */
-    private void tap(String text) {
-        UiObject2 found = device.findObject(By.text(text));
-        Rect bounds = found.getVisibleBounds();
-        device.click(bounds.centerX(), bounds.centerY());
+    private void tapUntil(String text, java.util.function.BooleanSupplier effect) {
+        long deadline = SystemClock.uptimeMillis() + WAIT;
+
+        while (SystemClock.uptimeMillis() < deadline) {
+            UiObject2 found = device.findObject(By.text(text));
+            if (found != null) {
+                Rect bounds = found.getVisibleBounds();
+                device.click(bounds.centerX(), bounds.centerY());
+            }
+
+            if (effect.getAsBoolean()) return;
+            SystemClock.sleep(200);
+        }
     }
 
     @Test
@@ -153,9 +181,11 @@ public class WelcomeTest {
         launch();
         scrollTo(context.getString(R.string.welcome_later));
 
-        tap(context.getString(R.string.welcome_later));
-        device.wait(Until.gone(By.text(
-                context.getString(R.string.welcome_title))), WAIT);
+        // The observed effect, not a wait on a clock: finishSetup() writes
+        // this before it finishes the activity, so it is true the moment a
+        // tap has actually landed - and re-tapped until it is.
+        tapUntil(context.getString(R.string.welcome_later),
+                () -> preferences.getBoolean(Storage.KEY_SETUP_DONE, false));
 
         assertTrue("the setup was not recorded as answered",
                    preferences.getBoolean(Storage.KEY_SETUP_DONE, false));
@@ -177,11 +207,16 @@ public class WelcomeTest {
         launch();
         scrollTo(context.getString(R.string.welcome_next));
 
-        tap(context.getString(R.string.welcome_next));
+        // The observed effect: the summary's own title, which only appears
+        // once the walk in forwardFrom has actually run - re-tapped until it
+        // does, rather than trusting a single tap right after the scroll.
+        tapUntil(context.getString(R.string.welcome_next),
+                () -> device.findObject(By.text(
+                        context.getString(R.string.welcome_done_title))) != null);
 
         assertNotNull("Next did not land on a real page",
-                device.wait(Until.findObject(By.text(
-                        context.getString(R.string.welcome_done_title))), WAIT));
+                device.findObject(By.text(
+                        context.getString(R.string.welcome_done_title))));
     }
 
     /**
@@ -199,7 +234,13 @@ public class WelcomeTest {
     public void choosingALanguageRedrawsThePageInIt() {
         launch();
 
-        tap("Polski");
+        // No scrollTo here - Polski is on screen without scrolling, so the
+        // fling scrollTo's own comment describes does not apply. tapUntil is
+        // still used rather than a bare tap, on the same reasoning: the
+        // preference write is the real, observable effect of the click
+        // landing, and re-querying "Polski" costs nothing if it already did.
+        tapUntil("Polski",
+                () -> "pl".equals(preferences.getString(Language.KEY_LANGUAGE, "")));
 
         assertNotNull("the page did not come back",
                 device.wait(Until.findObject(By.text(
