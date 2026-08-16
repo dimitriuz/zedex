@@ -430,12 +430,15 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         //
         // The ROMs are not unpacked here any more: startEmulator does it, on
         // every start, so that a data folder chosen at any point gets them.
-        // Unconditional now that the wizard is the one that asks the first-run
-        // question: installDemo is its own guard, keyed on KEY_DEMO_INSTALLED,
-        // and skips whatever is already there - so this still runs exactly
-        // once for a fresh install (once the wizard has settled the folders)
-        // and does nothing on every start after.
-        Storage.installDemo(this);
+        // Guarded on welcomeNeeded rather than unconditional: an install still
+        // waiting on the wizard has not settled a folder yet, and installDemo
+        // running here first would plant the tape in the pre-wizard default
+        // root, mark KEY_DEMO_INSTALLED, and turn WelcomeActivity.finishSetup's
+        // own installDemo into a no-op - so the tape sits somewhere other than
+        // the folder DonePage just told the summary about. This is what the
+        // old StartPanel.setupNeeded guard already did correctly, and calling
+        // it unconditional here was a mistake this app made once.
+        if (!Prefs.welcomeNeeded(this, preferences)) Storage.installDemo(this);
 
         // Asks GitHub whether there is a newer APK than this one, on a thread of
         // its own, and says nothing unless there is. Never for a Play install
@@ -991,6 +994,14 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // own rows: All files access is granted on a screen of Android's, and
         // coming back from that is a resume rather than a result.
         roms.onResumed();
+
+        // The wizard's own retry: this activity is singleInstance and stays
+        // alive behind WelcomeActivity while it is up, and coming back to it
+        // is a resume rather than a result. The same guard surfaceChanged
+        // uses, for the same reason - started only ever flips true right
+        // before machine.start(), so whichever of the two runs first wins and
+        // the other's own call is a no-op.
+        if (!started) startEmulator();
 
         // The settings screen can have changed these while we were away.
         layout.setLightsVisible(

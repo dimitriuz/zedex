@@ -119,24 +119,62 @@ public final class WelcomeActivity extends ZedexActivity {
         setContentView(scroll);
     }
 
+    /**
+     * @return null for a {@link Page} Tasks 5-9 have not built a {@link Step}
+     *         for yet - <b>scaffold, not a real "no page"</b>. {@link #next},
+     *         {@link #skip} and {@link #back} all walk past a null the way
+     *         {@link #forwardFrom}/{@link #backwardFrom} do, so nothing here
+     *         is ever shown; the only two pages that exist today, WELCOME and
+     *         DONE, both build one. Once every case does, this branch is
+     *         unreachable and the walking in {@link #forwardFrom}/
+     *         {@link #backwardFrom} never iterates more than once - that is
+     *         the moment to delete the null handling on both ends together.
+     */
     private Step stepFor(Page which) {
         switch (which) {
             case WELCOME: return new LanguagePage(this::recreate);
             case DONE:    return new DonePage();
             default:
-                throw new IllegalStateException("no page for " + which);
+                return null;
         }
+    }
+
+    /**
+     * The next page after {@code from} whose {@link Step} is actually built,
+     * or null past the end. See {@link #stepFor}'s own comment: this is the
+     * half of the scaffold that keeps {@link #next}/{@link #skip} from
+     * landing on a page Tasks 5-9 have not written yet.
+     */
+    private Page forwardFrom(Page from) {
+        Page candidate = Steps.after(from, preferences, hasCatalogue);
+
+        while (candidate != null && stepFor(candidate) == null) {
+            candidate = Steps.after(candidate, preferences, hasCatalogue);
+        }
+
+        return candidate;
+    }
+
+    /** {@link #forwardFrom}, walking the other way for {@link #back}. */
+    private Page backwardFrom(Page from) {
+        Page candidate = Steps.before(from, preferences, hasCatalogue);
+
+        while (candidate != null && stepFor(candidate) == null) {
+            candidate = Steps.before(candidate, preferences, hasCatalogue);
+        }
+
+        return candidate;
     }
 
     /** Forwards: the page settles whatever it was holding, then on. */
     private void next() {
         step.apply(preferences);
-        go(Steps.after(page, preferences, hasCatalogue));
+        go(forwardFrom(page));
     }
 
     /** Past: apply is not called, so a skipped page writes nothing. */
     private void skip() {
-        go(Steps.after(page, preferences, hasCatalogue));
+        go(forwardFrom(page));
     }
 
     /**
@@ -151,7 +189,7 @@ public final class WelcomeActivity extends ZedexActivity {
      * own beside it.
      */
     private void back() {
-        Page previous = Steps.before(page, preferences, hasCatalogue);
+        Page previous = backwardFrom(page);
 
         if (previous == null) finishSetup();
         else show(previous);

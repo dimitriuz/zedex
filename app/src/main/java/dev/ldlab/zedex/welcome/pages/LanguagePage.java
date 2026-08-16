@@ -52,10 +52,16 @@ public final class LanguagePage implements Step {
         for (int i = 0; i < names.length && i < values.length; i++) {
             String value = values[i];
 
+            // The hint explains what "the system language" means, which only
+            // the empty value needs saying about it - every other row is
+            // already the name of the language it chooses. Nine identical
+            // captions were what pushed the way past the wizard below the
+            // fold; 0 is Cards' own "no caption" now.
+            int description = value.isEmpty() ? R.string.welcome_language_hint : 0;
+
             // The one already in force leads, in the icon's cyan, so the page
             // says what it is set to as well as what it could be set to.
-            column.addView(Cards.choiceOf(context, names[i],
-                    R.string.welcome_language_hint,
+            column.addView(Cards.choiceOf(context, names[i], description,
                     v -> {
                         preferences.edit()
                                 .putString(Language.KEY_LANGUAGE, value)
