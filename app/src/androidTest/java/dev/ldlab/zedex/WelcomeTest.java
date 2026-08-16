@@ -7,6 +7,7 @@ import dev.ldlab.zedex.storage.Storage;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import android.content.Context;
@@ -262,16 +263,28 @@ public class WelcomeTest {
         long deadline = SystemClock.uptimeMillis() + timeoutMs;
 
         while (SystemClock.uptimeMillis() < deadline) {
-            scrollTo(text);
-
-            UiObject2 found = device.findObject(By.text(text));
-            if (found != null) {
-                Rect bounds = found.getVisibleBounds();
-                device.click(bounds.centerX(), bounds.centerY());
-            }
-
+            tapOnce(text);
             if (effect.getAsBoolean()) return;
             SystemClock.sleep(200);
+        }
+    }
+
+    /**
+     * One tap on {@code text}, scrolled into view first - the single-shot
+     * half of what {@link #tapUntil} loops. Its own method because
+     * {@link #theLibraryPageIsDroppedWithoutAContentFolder} needs exactly one
+     * tap and nothing more: a {@code tapUntil} whose effect is "the page
+     * after LIBRARY appeared" cannot fail on the regression it exists to
+     * catch, since a Next that lands on LIBRARY instead would simply be
+     * tapped again by the retry loop until it reached SCRAPING anyway.
+     */
+    private void tapOnce(String text) {
+        scrollTo(text);
+
+        UiObject2 found = device.findObject(By.text(text));
+        if (found != null) {
+            Rect bounds = found.getVisibleBounds();
+            device.click(bounds.centerX(), bounds.centerY());
         }
     }
 
@@ -419,6 +432,22 @@ public class WelcomeTest {
      * #nextLandsSomewhereRealRatherThanCrashing} does, except the last: with
      * no content folder, LIBRARY does not apply, so SCREEN's own Next lands
      * on SCRAPING directly.
+     *
+     * <b>The last step retaps only while still on SCREEN, never on
+     * "SCRAPING appeared".</b> A plain {@code tapUntil} keyed on "SCRAPING
+     * appeared" cannot fail on the very regression this test exists to catch:
+     * were LIBRARY shown anyway despite there being no content folder, the
+     * retry loop would simply tap its own Next again and land on SCRAPING
+     * regardless, and the assertion below would still pass. A single bare
+     * tap has its own problem instead - {@link #scrollTo}'s own comment notes
+     * a tap right after a scroll can be swallowed with nothing on screen to
+     * say so, which would fail this test for a reason that has nothing to do
+     * with the rule it checks. So the retry condition here is "neither
+     * SCRAPING nor LIBRARY has appeared yet" rather than "SCRAPING appeared":
+     * a swallowed tap keeps retrying because neither marker showed, exactly
+     * like {@code tapUntil} - but the moment LIBRARY appears, the loop stops
+     * dead rather than tapping again, so the final assertions see the real
+     * regression instead of a Next that got tapped straight past it.
      */
     @Test
     public void theLibraryPageIsDroppedWithoutAContentFolder() {
@@ -449,18 +478,22 @@ public class WelcomeTest {
                             context.getString(R.string.welcome_screen))) != null);
 
             // SCREEN -> SCRAPING, straight past LIBRARY - the page this test
-            // is about. Its own longer wait: leaving SCREEN is what is slow
-            // here, same as in nextLandsSomewhereRealRatherThanCrashing,
-            // whatever page comes after it.
+            // is about. Retapped only while still on SCREEN - see the method
+            // comment above for why "SCRAPING appeared" is the wrong effect
+            // to key the retry on here.
+            String scraping = context.getString(R.string.welcome_scraping);
+            String library = context.getString(R.string.welcome_library);
             tapUntil(context.getString(R.string.welcome_next), () ->
-                    device.findObject(By.text(
-                            context.getString(R.string.welcome_scraping))) != null,
+                    device.findObject(By.text(scraping)) != null
+                            || device.findObject(By.text(library)) != null,
                     LEAVING_SCREEN_WAIT);
 
             assertNotNull("scraping should follow the screen page when there "
                         + "is no library page",
-                    device.findObject(By.text(
-                            context.getString(R.string.welcome_scraping))));
+                    device.findObject(By.text(scraping)));
+
+            assertNull("the library page should not appear without a content folder",
+                    device.findObject(By.text(library)));
         } finally {
             if (folder != null) {
                 preferences.edit()
