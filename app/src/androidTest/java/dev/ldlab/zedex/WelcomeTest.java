@@ -12,6 +12,7 @@ import static org.junit.Assert.assertTrue;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.Configuration;
 import android.graphics.Rect;
 import android.os.SystemClock;
 
@@ -28,6 +29,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+
+import java.util.Locale;
 
 /**
  * The wizard, walked.
@@ -435,18 +438,46 @@ public class WelcomeTest {
     }
 
     /**
+     * The same string as the app would draw it with Polish chosen.
+     *
+     * Read out of the app's own resources rather than written out here, so
+     * this test says "the page came back in Polish" and not "the page came
+     * back saying <em>Witaj w Zedeksie</em>" - a translation is allowed to be
+     * reworded without a test having to be edited to match, and a hard-coded
+     * Polish word in an English source file is a thing nobody translating
+     * would ever think to look at.
+     */
+    private String inPolish(int id) {
+        Configuration configuration =
+                new Configuration(context.getResources().getConfiguration());
+        configuration.setLocale(new Locale("pl"));
+
+        return context.createConfigurationContext(configuration).getString(id);
+    }
+
+    /**
      * Choosing a language redraws the page in it, which is the only proof a
      * language choice can offer on the page that makes it.
      *
-     * The redraw itself is asserted rather than the Polish word it will
-     * eventually show: the translations do not land until Task 14, so
-     * "Dalej" cannot appear yet. What is checked instead is the preference
-     * the tap is supposed to write, and that the activity came back to its
-     * own first page rather than finishing or going anywhere else - which is
-     * the proof that it recreated rather than doing nothing at all.
+     * <b>The preference is reset first, and that is not a formality.</b>
+     * {@link #tapUntil} retries against an observed effect and returns the
+     * moment that effect holds - so on a bench whose language preference was
+     * already {@code pl}, the very first check would pass before any tap had
+     * landed and this test could not fail. Emptying it makes the effect a
+     * real transition: empty is "follow the phone", which is never the string
+     * {@code pl} whatever the phone is set to, and it is also the state in
+     * which the app draws the same language {@link #context} reads its own
+     * strings in - which is what {@link #launch}'s English assertion above
+     * needs. {@code tearDown} puts back whatever was found, as it already did.
+     *
+     * Until Task 14 this could only assert that the preference had been
+     * written and that the wizard's first page came back at all: there were
+     * no Polish strings, so a Polish page and an English one read identically.
+     * There are now, so the redraw is asserted in the language it redrew in.
      */
     @Test
     public void choosingALanguageRedrawsThePageInIt() {
+        preferences.edit().putString(Language.KEY_LANGUAGE, "").apply();
         launch();
 
         // No scrollTo here - Polski is on screen without scrolling, so the
@@ -457,9 +488,9 @@ public class WelcomeTest {
         tapUntil("Polski",
                 () -> "pl".equals(preferences.getString(Language.KEY_LANGUAGE, "")));
 
-        assertNotNull("the page did not come back",
+        assertNotNull("the page did not come back in Polish",
                 device.wait(Until.findObject(By.text(
-                        context.getString(R.string.welcome_title))), WAIT));
+                        inPolish(R.string.welcome_title))), WAIT));
         assertEquals("pl", preferences.getString(Language.KEY_LANGUAGE, ""));
     }
 
