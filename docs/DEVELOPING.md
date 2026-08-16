@@ -176,6 +176,24 @@ AGP's `addGeneratedSourceDirectory`, which wires every consumer there is and any
 added later. `assembleDebug` will not catch a regression here — `lintVital` only
 runs for release, so check with `./gradlew assembleRelease`.
 
+**And nothing local runs the lint CI runs.** The workflow's own step is
+`./gradlew lintDebug`, which is broader than the `lintVital` an
+`assembleRelease` triggers and stricter than anything `assembleDebug` does —
+it fails the build on errors. So a `NewApi` call, an unused resource or a
+wrong `@link` passes every local build and stops the PR. Run it before you
+push:
+
+```sh
+env JAVA_HOME=/opt/android-studio/jbr ./gradlew lintDebug
+```
+
+The failure that prompted this note is worth knowing for its shape rather than
+its subject: `Coach.releaseBack` guarded an API-33 call with `backCallback ==
+null`, which is correct at run time — the field is only ever assigned inside a
+version-guarded branch — and invisible to lint, which cannot infer a field's
+provenance. **A version check has to be spelled out where the call is**, even
+when something else already implies it.
+
 The first run says where it is and nothing more — a line under the two folder
 buttons, naming the path, kept in step as the data folder is chosen. It used to
 be a screen of its own with *Load the demo* and *Not now* on it, and that is a

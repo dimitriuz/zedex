@@ -314,9 +314,23 @@ public final class Coach extends FrameLayout {
                 android.window.OnBackInvokedDispatcher.PRIORITY_OVERLAY, backCallback);
     }
 
-    /** The other half of {@link #claimBack} - a no-op on API below 33, where
-     *  {@link #backCallback} is never set in the first place. */
+    /**
+     * The other half of {@link #claimBack} - a no-op on API below 33, where
+     * {@link #backCallback} is never set in the first place.
+     *
+     * <b>The version check is spelled out rather than left to the null.</b>
+     * A null {@code backCallback} does mean "below 33, or nothing claimed",
+     * so the null test alone is correct at run time - but lint cannot infer
+     * that a field is only ever assigned inside a guarded branch, and fails
+     * the build with {@code NewApi} on the two API-33 calls below. CI runs
+     * {@code lintDebug} and {@code assembleDebug} does not, so this is a
+     * failure that only ever shows up after a push.
+     */
     private void releaseBack(Activity activity) {
+        if (android.os.Build.VERSION.SDK_INT
+                < android.os.Build.VERSION_CODES.TIRAMISU) {
+            return;
+        }
         if (backCallback == null) return;
 
         activity.getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(backCallback);
