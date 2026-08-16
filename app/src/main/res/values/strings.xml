@@ -212,6 +212,14 @@
     <string name="welcome_skip">Skip</string>
     <string name="welcome_language">Language</string>
     <string name="welcome_language_hint">Zedex speaks nine. Leave it on the system language and it follows your phone.</string>
+    <string name="welcome_machine">Which Spectrum?</string>
+    <string name="welcome_machine_hint">The one a game expects. 128K runs most things; the full list, and every other machine Fuse knows, is in Settings › Machine.</string>
+    <string name="welcome_machine_48">The original, 48K of memory and the beeper.</string>
+    <string name="welcome_machine_128">128K and the AY sound chip. What most games want.</string>
+    <string name="welcome_machine_plus2">The 128K with a tape deck built in.</string>
+    <string name="welcome_machine_plus2a">The +3 without the disk drive.</string>
+    <string name="welcome_machine_plus3">128K with a 3-inch disk drive.</string>
+    <string name="welcome_machine_pentagon">The Russian clone, and most of what arrives as .trd or .scl.</string>
     <string name="welcome_done_title">That\'s everything</string>
     <string name="welcome_done_message">All of it lives in Settings if you want to change your mind.</string>
     <string name="welcome_start">Start the machine</string>

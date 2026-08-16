@@ -12,6 +12,7 @@ import dev.ldlab.zedex.welcome.Steps;
 import dev.ldlab.zedex.welcome.pages.DonePage;
 import dev.ldlab.zedex.welcome.pages.FoldersPage;
 import dev.ldlab.zedex.welcome.pages.LanguagePage;
+import dev.ldlab.zedex.welcome.pages.MachinePage;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -140,11 +141,11 @@ public final class WelcomeActivity extends ZedexActivity {
     }
 
     /**
-     * @return null for a {@link Page} Tasks 6-9 have not built a {@link Step}
+     * @return null for a {@link Page} Tasks 7-9 have not built a {@link Step}
      *         for yet - <b>scaffold, not a real "no page"</b>. {@link #next},
      *         {@link #skip} and {@link #back} all walk past a null the way
      *         {@link #forwardFrom}/{@link #backwardFrom} do, so nothing here
-     *         is ever shown; WELCOME, FOLDERS and DONE build one, and MACHINE,
+     *         is ever shown; WELCOME, FOLDERS, MACHINE and DONE build one, and
      *         CONTROLS, SCREEN, LIBRARY and SCRAPING do not yet. Once every
      *         case does, this branch is unreachable and the walking in
      *         {@link #forwardFrom}/{@link #backwardFrom} never iterates more
@@ -155,6 +156,7 @@ public final class WelcomeActivity extends ZedexActivity {
         switch (which) {
             case WELCOME: return new LanguagePage(this::recreate);
             case FOLDERS: return new FoldersPage(this);
+            case MACHINE: return new MachinePage();
             case DONE:    return new DonePage();
             default:
                 return null;

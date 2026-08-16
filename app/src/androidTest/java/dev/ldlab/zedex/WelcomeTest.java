@@ -194,14 +194,14 @@ public class WelcomeTest {
     /**
      * Next has to land somewhere real rather than crashing.
      *
-     * Tasks 6-9 have not written a Step for MACHINE, CONTROLS, SCREEN,
-     * LIBRARY or SCRAPING yet - {@code WelcomeActivity.stepFor} answers null
-     * for all five today - so this is the regression the walk in {@code
-     * forwardFrom} exists to prevent: without it, tapping the only button on
-     * a reachable page throws {@code IllegalStateException} building the
-     * page after it. Landing on the summary - by way of the folders page,
-     * the one built page among the six - is what proves the walk skipped
-     * every unbuilt page rather than stopping on one.
+     * Tasks 7-9 have not written a Step for CONTROLS, SCREEN, LIBRARY or
+     * SCRAPING yet - {@code WelcomeActivity.stepFor} answers null for all
+     * four today - so this is the regression the walk in {@code forwardFrom}
+     * exists to prevent: without it, tapping the only button on a reachable
+     * page throws {@code IllegalStateException} building the page after it.
+     * Landing on the summary - by way of the folders and machine pages, the
+     * two built pages among the six - is what proves the walk skipped every
+     * unbuilt page rather than stopping on one.
      */
     @Test
     public void nextLandsSomewhereRealRatherThanCrashing() {
