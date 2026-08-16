@@ -107,7 +107,7 @@ public class SettingsActivity extends AppCompatActivity
      * mediaName the first time anything is opened - so by the time anything
      * calls this, an empty preferences file is not a thing that reliably
      * still exists to test, and every new install read as an update. See
-     * {@link #isUpdate} for the question asked instead.
+     * {@link Prefs#isUpdate} for the question asked instead.
      *
      * Runs once, guarded by {@link #KEY_LIBRARY_MIGRATED}: a user who flips
      * the switch either way afterwards is never put back by a second run of
@@ -119,37 +119,11 @@ public class SettingsActivity extends AppCompatActivity
         if (preferences.getBoolean(KEY_LIBRARY_MIGRATED, false)) return;
 
         android.content.SharedPreferences.Editor edit = preferences.edit();
-        if (isUpdate(context)) {
+        if (Prefs.isUpdate(context)) {
             edit.putBoolean(KEY_LIBRARY, false);
         }
         edit.putBoolean(KEY_LIBRARY_MIGRATED, true);
         edit.apply();
-    }
-
-    /**
-     * Whether this install has ever been updated - the question
-     * {@link #migrateLibraryDefault} actually needs to ask, in place of the
-     * preferences file, which a fresh install fills in within moments of
-     * starting and so cannot be read as "still empty" by the time anything
-     * calls this.
-     *
-     * {@code firstInstallTime} and {@code lastUpdateTime} are the same
-     * instant for exactly as long as an install has never replaced itself,
-     * and differ from the first update on - which is unaffected by anything
-     * this process has done to its own preferences, unlike
-     * {@code getAll().isEmpty()}. Any failure to read it answers "yes, this
-     * is an update": the conservative direction, since it is an existing
-     * user's launch screen that must not change under them, never a new
-     * user's.
-     */
-    private static boolean isUpdate(Context context) {
-        try {
-            android.content.pm.PackageInfo info = context.getPackageManager()
-                    .getPackageInfo(context.getPackageName(), 0);
-            return info.firstInstallTime != info.lastUpdateTime;
-        } catch (android.content.pm.PackageManager.NameNotFoundException e) {
-            return true;
-        }
     }
 
     /**

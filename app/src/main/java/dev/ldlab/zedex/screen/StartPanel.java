@@ -562,22 +562,15 @@ public final class StartPanel {
 
     /**
      * Whether this is the first start, and so whether the folders have been
-     * asked about. Recorded rather than guessed from whether they have been
-     * chosen: keeping everything where it is is an answer too, and one nobody
-     * should be asked for twice.
+     * asked about.
+     *
+     * The rule lives in {@link Prefs#welcomeNeeded} now, and is no longer "the
+     * preferences file is empty" - see that method for what was wrong with it
+     * and how long it had been wrong.
      */
     public static boolean setupNeeded(Activity activity) {
-        SharedPreferences preferences = activity.getSharedPreferences(
-                Prefs.PREFS, Activity.MODE_PRIVATE);
-
-        if (preferences.getBoolean(Storage.KEY_SETUP_DONE, false)) return false;
-
-        // An install that predates this screen has answered by never being
-        // asked: it has a machine, a folder, a keyboard skin, something. An
-        // upgrade is no moment to interrogate somebody who has been playing
-        // for a month, so only a preferences file with nothing at all in it
-        // counts as a first run.
-        return preferences.getAll().isEmpty();
+        return Prefs.welcomeNeeded(activity, activity.getSharedPreferences(
+                Prefs.PREFS, Activity.MODE_PRIVATE));
     }
 
     /** Whether the first run is still waiting to be answered. */

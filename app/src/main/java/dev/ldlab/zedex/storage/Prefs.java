@@ -1,5 +1,9 @@
 package dev.ldlab.zedex.storage;
 
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.content.pm.PackageInfo;
+
 /**
  * Every setting this app stores, by name.
  *
@@ -261,6 +265,61 @@ public final class Prefs {
             return Integer.parseInt(preferences.getString(key, String.valueOf(fallback)));
         } catch (NumberFormatException | ClassCastException e) {
             return fallback;
+        }
+    }
+
+    /**
+     * Whether the first run is still to be answered.
+     *
+     * <b>Not "are the preferences empty".</b> That is what this used to ask,
+     * from {@code StartPanel.setupNeeded}, and it was answered for it: {@code
+     * LibraryActivity} is the launcher and writes {@code libraryMigrated} in
+     * its own {@code onCreate} before {@code EmulatorActivity} ever gets here,
+     * so the file was never empty and the folders question was never put. The
+     * app settled where it kept everything without asking, and nothing said
+     * so. {@code SettingsActivity} had already learned this for its own
+     * migration and written it down; this is the caller that did not get the
+     * memo.
+     *
+     * The honest question is whether this install has ever been updated, which
+     * nothing this process does to its own preferences can change.
+     *
+     * @param everUpdated {@link #isUpdate}, passed rather than asked, so the
+     *                    rule can be tested on the JVM tier - a device test
+     *                    cannot pose "an install that has been updated" either
+     */
+    public static boolean welcomeNeeded(boolean everUpdated,
+                                        SharedPreferences preferences) {
+        if (preferences.getBoolean(Storage.KEY_SETUP_DONE, false)) return false;
+        return !everUpdated;
+    }
+
+    /** {@link #welcomeNeeded(boolean, SharedPreferences)}, asking the package
+     *  manager the question it needs. */
+    public static boolean welcomeNeeded(Context context,
+                                        SharedPreferences preferences) {
+        return welcomeNeeded(isUpdate(context), preferences);
+    }
+
+    /**
+     * Whether this install has ever replaced itself.
+     *
+     * {@code firstInstallTime} and {@code lastUpdateTime} are the same instant
+     * for exactly as long as an install has never been updated, and differ from
+     * the first update on. Unlike the preferences file, that is unaffected by
+     * anything this process has written.
+     *
+     * Any failure to read it answers "yes, this is an update" - the
+     * conservative direction, since it is an existing user who must not be
+     * interrogated, never a new one who must not be asked.
+     */
+    public static boolean isUpdate(Context context) {
+        try {
+            PackageInfo info = context.getPackageManager()
+                    .getPackageInfo(context.getPackageName(), 0);
+            return info.firstInstallTime != info.lastUpdateTime;
+        } catch (android.content.pm.PackageManager.NameNotFoundException e) {
+            return true;
         }
     }
 }
