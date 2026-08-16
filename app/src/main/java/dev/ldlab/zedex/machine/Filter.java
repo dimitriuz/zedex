@@ -90,11 +90,12 @@ public enum Filter {
      * answers to the same question on disk, and the wrong one is the one that
      * survives an uninstall of this code.
      *
-     * <b>It writes nothing when there is nothing to carry.</b> A device that has
-     * never run the app has no preferences at all, and that is precisely how
-     * {@link Prefs#welcomeNeeded} knows to ask where the files should go —
-     * one key written here before it looks would answer that question for it,
-     * and the first-start screen would never appear again.
+     * <b>It writes nothing when there is nothing to carry.</b> Neither old
+     * boolean present means there was never an old setting to carry forward,
+     * so the early return above leaves the preferences file exactly as it
+     * found it rather than writing a default {@link Prefs#KEY_FILTER} - two
+     * answers to the same question on disk is one too many, which is the
+     * whole reason this migration exists in the first place.
      */
     public static void migrate(SharedPreferences preferences) {
         if (preferences.contains(Prefs.KEY_FILTER)) return;
