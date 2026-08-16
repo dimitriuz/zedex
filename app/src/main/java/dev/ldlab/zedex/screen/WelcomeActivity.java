@@ -13,7 +13,9 @@ import dev.ldlab.zedex.welcome.pages.ControlsPage;
 import dev.ldlab.zedex.welcome.pages.DonePage;
 import dev.ldlab.zedex.welcome.pages.FoldersPage;
 import dev.ldlab.zedex.welcome.pages.LanguagePage;
+import dev.ldlab.zedex.welcome.pages.LibraryPage;
 import dev.ldlab.zedex.welcome.pages.MachinePage;
+import dev.ldlab.zedex.welcome.pages.ScrapingPage;
 import dev.ldlab.zedex.welcome.pages.ScreenPage;
 
 import android.app.Activity;
@@ -143,16 +145,13 @@ public final class WelcomeActivity extends ZedexActivity {
     }
 
     /**
-     * @return null for a {@link Page} Task 9 has not built a {@link Step}
-     *         for yet - <b>scaffold, not a real "no page"</b>. {@link #next},
-     *         {@link #skip} and {@link #back} all walk past a null the way
-     *         {@link #forwardFrom}/{@link #backwardFrom} do, so nothing here
-     *         is ever shown; WELCOME, FOLDERS, MACHINE, CONTROLS, SCREEN and
-     *         DONE build one, and LIBRARY and SCRAPING do not yet. Once
-     *         every case does, this branch is unreachable and the walking in
-     *         {@link #forwardFrom}/{@link #backwardFrom} never iterates more
-     *         than once - that is the moment to delete the null handling on
-     *         both ends together.
+     * Every {@link Page} builds a real {@link Step} now - LIBRARY and
+     * SCRAPING were the last two, added in Task 9. There used to be a
+     * {@code default: return null} here, walked past by {@link #forwardFrom}
+     * and {@link #backwardFrom} for whichever pages Tasks 6-9 had not written
+     * yet; now that every case does, a page failing to build is a bug and
+     * must say so loudly rather than being silently skipped the way a
+     * not-yet-written one used to be - see {@link #forwardFrom}.
      */
     private Step stepFor(Page which) {
         switch (which) {
@@ -161,37 +160,26 @@ public final class WelcomeActivity extends ZedexActivity {
             case MACHINE:  return new MachinePage();
             case CONTROLS: return new ControlsPage();
             case SCREEN:   return new ScreenPage();
+            case LIBRARY:  return new LibraryPage();
+            case SCRAPING: return new ScrapingPage(this);
             case DONE:     return new DonePage();
             default:
-                return null;
+                // Unreachable while every Page above builds a Step, and
+                // caught here rather than left to a NullPointerException
+                // three calls later in show() if a new Page is ever added
+                // without a case for it.
+                throw new IllegalStateException("no Step for " + which);
         }
     }
 
-    /**
-     * The next page after {@code from} whose {@link Step} is actually built,
-     * or null past the end. See {@link #stepFor}'s own comment: this is the
-     * half of the scaffold that keeps {@link #next}/{@link #skip} from
-     * landing on a page Tasks 6-9 have not written yet.
-     */
+    /** The next page after {@code from} that applies - see {@link Steps}. */
     private Page forwardFrom(Page from) {
-        Page candidate = Steps.after(from, preferences, hasCatalogue);
-
-        while (candidate != null && stepFor(candidate) == null) {
-            candidate = Steps.after(candidate, preferences, hasCatalogue);
-        }
-
-        return candidate;
+        return Steps.after(from, preferences, hasCatalogue);
     }
 
     /** {@link #forwardFrom}, walking the other way for {@link #back}. */
     private Page backwardFrom(Page from) {
-        Page candidate = Steps.before(from, preferences, hasCatalogue);
-
-        while (candidate != null && stepFor(candidate) == null) {
-            candidate = Steps.before(candidate, preferences, hasCatalogue);
-        }
-
-        return candidate;
+        return Steps.before(from, preferences, hasCatalogue);
     }
 
     /** Forwards: the page settles whatever it was holding, then on. */

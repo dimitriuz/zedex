@@ -228,6 +228,16 @@
     <string name="welcome_screen">The picture</string>
     <string name="welcome_screen_hint">What the screen should look like. These are photographs of the real thing, and it is all live in ☰ › Display later.</string>
     <string name="welcome_screen_border">Border</string>
+    <string name="welcome_library">Your library</string>
+    <string name="welcome_library_hint">Zedex can open on your own games rather than on a bare Spectrum, and browse an archive of about forty thousand more.</string>
+    <string name="welcome_library_start">Open on the library</string>
+    <string name="welcome_library_start_hint">Start on your games. The machine is one tap away either way.</string>
+    <string name="welcome_library_archive">Which archive</string>
+    <string name="welcome_scraping">Covers and descriptions</string>
+    <string name="welcome_scraping_hint">Zedex can look up what a game is, who wrote it and what its cover looked like. Nothing is fetched until you ask for it.</string>
+    <string name="welcome_scraping_sources">Where to look, and in what order</string>
+    <string name="welcome_scraping_account">Your own ScreenScraper account</string>
+    <string name="welcome_scraping_account_hint">Optional. The shared account is in every copy of the app and readable by anyone who wants it, so scraping a whole collection is better done on your own — and it is what keeps the shared one working for everybody else.</string>
     <string name="welcome_done_title">That\'s everything</string>
     <string name="welcome_done_message">All of it lives in Settings if you want to change your mind.</string>
     <string name="welcome_start">Start the machine</string>

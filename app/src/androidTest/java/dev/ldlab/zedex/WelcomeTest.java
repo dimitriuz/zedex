@@ -240,10 +240,21 @@ public class WelcomeTest {
         }
     }
 
-    /** How long {@link #nextLandsSomewhereRealRatherThanCrashing}'s own
-     *  SCREEN -&gt; DONE step waits - see {@link #tapUntil(String,
-     *  java.util.function.BooleanSupplier, long)}'s own comment. */
-    private static final long SCREEN_TO_DONE_WAIT = 10000;
+    /**
+     * How long {@link #nextLandsSomewhereRealRatherThanCrashing}'s own
+     * SCREEN -&gt; LIBRARY step waits - see {@link #tapUntil(String,
+     * java.util.function.BooleanSupplier, long)}'s own comment.
+     *
+     * Named for what makes the step slow rather than for where it used to
+     * land: this was {@code SCREEN_TO_DONE_WAIT} while LIBRARY and SCRAPING
+     * were still scaffolded past as unbuilt pages, and SCREEN went straight
+     * to DONE. Task 9 built both, so SCREEN's own Next now lands on LIBRARY
+     * first - but the 5.3-5.5s this was measured at belongs to leaving the
+     * tallest page (four stills, eight cards, a border section), not to
+     * whatever page comes after it, so the number carries over unchanged
+     * onto the step that is slow for the same reason today.
+     */
+    private static final long LEAVING_SCREEN_WAIT = 10000;
 
     @Test
     public void theFirstPageOffersAWayStraightPast() {
@@ -274,30 +285,39 @@ public class WelcomeTest {
     }
 
     /**
-     * Next has to land somewhere real rather than crashing.
+     * Next has to land somewhere real rather than crashing, all the way
+     * through every page there is.
      *
-     * Task 9 has not written a Step for LIBRARY or SCRAPING yet -
-     * {@code WelcomeActivity.stepFor} answers null for both today - so this
-     * is the regression the walk in {@code forwardFrom} exists to prevent:
-     * without it, tapping the only button on a reachable page throws
-     * {@code IllegalStateException} building the page after it. Landing on
-     * the summary - by way of the folders, machine, controls and screen
-     * pages, the four built pages among six - is what proves the walk
-     * skipped every unbuilt page rather than stopping on one.
+     * Task 9 built LIBRARY and SCRAPING, the last two pages, and retired the
+     * {@code default: return null} scaffold {@code WelcomeActivity.stepFor}
+     * used to answer for them - {@code forwardFrom}/{@code backwardFrom} no
+     * longer walk past an unbuilt page, because there is not one any more.
+     * This walk now covers all eight pages, and a page that failed to build
+     * would throw {@code IllegalStateException} reaching it rather than
+     * being skipped silently, which is what makes landing on the summary a
+     * real proof rather than a lucky one.
+     *
+     * <b>LIBRARY appears here because this bench has a content folder.</b>
+     * {@code Steps.applies} drops LIBRARY without one - see
+     * {@link #theLibraryPageIsDroppedWithoutAContentFolder} for that side of
+     * it - and every catalogue needs no credentials, so {@code hasCatalogue}
+     * is true on every build. Nothing here touches the content folder
+     * preference, so whichever way it happens to be set, this walk asserts
+     * on the pages that preference actually produces rather than guessing.
      *
      * <b>One {@code tapUntil} per page, not one deadline for the whole walk.</b>
-     * This used to wait on a single effect - the DONE title - covering all
-     * five intermediate pages (WELCOME, FOLDERS, MACHINE, CONTROLS, SCREEN)
-     * behind one {@code WAIT}, which meant that constant had to be inflated
-     * to survive every page's own fling-and-tap in sequence; the same shape
+     * This used to wait on a single effect - the DONE title - covering
+     * several intermediate pages behind one {@code WAIT}, which meant that
+     * constant had to be inflated to survive every page's own
+     * fling-and-tap in sequence; the same shape
      * {@link #theControlsPageOffersTheKeyboardJoystick}'s own comment
-     * describes and rejects. Instead this walks the same five pages
-     * {@code tapUntil} at a time, each waiting only for the marker the very
-     * next page shows, so the shared {@code WAIT} only ever has to cover one
-     * page settling - same as every other test in this file.
+     * describes and rejects. Instead this walks page by page, each waiting
+     * only for the marker the very next page shows, so the shared
+     * {@code WAIT} only ever has to cover one page settling - same as every
+     * other test in this file.
      *
-     * <b>Except the last step.</b> SCREEN -&gt; DONE alone needs longer than
-     * {@code WAIT} - see {@link #SCREEN_TO_DONE_WAIT} for the measurement -
+     * <b>Except one step.</b> SCREEN -&gt; LIBRARY alone needs longer than
+     * {@code WAIT} - see {@link #LEAVING_SCREEN_WAIT} for the measurement -
      * and gets its own deadline through the three-argument
      * {@link #tapUntil(String, java.util.function.BooleanSupplier, long)}
      * rather than widening the shared constant for every other transition.
@@ -326,15 +346,92 @@ public class WelcomeTest {
                 device.findObject(By.text(
                         context.getString(R.string.welcome_screen))) != null);
 
-        // SCREEN -> DONE: its own, longer wait - see SCREEN_TO_DONE_WAIT.
+        // SCREEN -> LIBRARY: its own, longer wait - see LEAVING_SCREEN_WAIT.
         tapUntil(context.getString(R.string.welcome_next), () ->
                 device.findObject(By.text(
-                        context.getString(R.string.welcome_done_title))) != null,
-                SCREEN_TO_DONE_WAIT);
+                        context.getString(R.string.welcome_library))) != null,
+                LEAVING_SCREEN_WAIT);
+
+        // LIBRARY -> SCRAPING
+        tapUntil(context.getString(R.string.welcome_next), () ->
+                device.findObject(By.text(
+                        context.getString(R.string.welcome_scraping))) != null);
+
+        // SCRAPING -> DONE
+        tapUntil(context.getString(R.string.welcome_next), () ->
+                device.findObject(By.text(
+                        context.getString(R.string.welcome_done_title))) != null);
 
         assertNotNull("Next did not land on the summary",
                 device.findObject(By.text(
                         context.getString(R.string.welcome_done_title))));
+    }
+
+    /**
+     * The archive page is dropped when there is no content folder: without
+     * one startsInLibrary is false whatever the switch says, so the switch
+     * would be a setting that cannot take effect.
+     *
+     * <b>Walked page by page with {@code tapUntil}, not five bare taps.</b>
+     * A bare {@code findObject(...).click()} for each of the five steps was
+     * tried first and threw a {@code NullPointerException} on this bench -
+     * CONTROLS and SCREEN are both taller than one screenful (see {@link
+     * #scrollTo}'s own comment), so Next is not always in UiAutomator's tree
+     * yet when a fixed loop asks for it, whether or not the tap before it
+     * actually landed. {@code tapUntil} is what this file already has for
+     * exactly that - it scrolls before every attempt and retries against an
+     * observed marker - so this walks the same five transitions {@link
+     * #nextLandsSomewhereRealRatherThanCrashing} does, except the last: with
+     * no content folder, LIBRARY does not apply, so SCREEN's own Next lands
+     * on SCRAPING directly.
+     */
+    @Test
+    public void theLibraryPageIsDroppedWithoutAContentFolder() {
+        String folder = preferences.getString(Storage.KEY_CONTENT_TREE, null);
+        preferences.edit().remove(Storage.KEY_CONTENT_TREE).apply();
+
+        try {
+            launch();
+
+            // WELCOME -> FOLDERS
+            tapUntil(context.getString(R.string.welcome_next), () ->
+                    device.findObject(By.textStartsWith(
+                            context.getString(R.string.setup_data, ""))) != null);
+
+            // FOLDERS -> MACHINE
+            tapUntil(context.getString(R.string.welcome_next), () ->
+                    device.findObject(By.text(
+                            context.getString(R.string.welcome_machine))) != null);
+
+            // MACHINE -> CONTROLS
+            tapUntil(context.getString(R.string.welcome_next), () ->
+                    device.findObject(By.text(
+                            context.getString(R.string.welcome_controls))) != null);
+
+            // CONTROLS -> SCREEN
+            tapUntil(context.getString(R.string.welcome_next), () ->
+                    device.findObject(By.text(
+                            context.getString(R.string.welcome_screen))) != null);
+
+            // SCREEN -> SCRAPING, straight past LIBRARY - the page this test
+            // is about. Its own longer wait: leaving SCREEN is what is slow
+            // here, same as in nextLandsSomewhereRealRatherThanCrashing,
+            // whatever page comes after it.
+            tapUntil(context.getString(R.string.welcome_next), () ->
+                    device.findObject(By.text(
+                            context.getString(R.string.welcome_scraping))) != null,
+                    LEAVING_SCREEN_WAIT);
+
+            assertNotNull("scraping should follow the screen page when there "
+                        + "is no library page",
+                    device.findObject(By.text(
+                            context.getString(R.string.welcome_scraping))));
+        } finally {
+            if (folder != null) {
+                preferences.edit()
+                        .putString(Storage.KEY_CONTENT_TREE, folder).apply();
+            }
+        }
     }
 
     /**

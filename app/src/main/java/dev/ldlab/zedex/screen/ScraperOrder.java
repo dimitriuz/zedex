@@ -23,18 +23,23 @@ import java.util.List;
  * The list shown is every source this build has, in the order they will be
  * asked, with the disabled ones after the enabled ones. Rebuilt in place on
  * every move rather than animated: it is three rows.
+ *
+ * <b>Public, not package-private any more.</b> {@code welcome.ScrapingPage}
+ * calls {@link #show} from a different package - a member another layer
+ * needs has to be public, or the boundary stops it, exactly as {@code
+ * FoldersPage} widened whatever the wizard needed of {@code storage}.
  */
-final class ScraperOrder {
+public final class ScraperOrder {
 
     /** What the dialog came to: the enabled names, in order. */
-    interface Chosen {
+    public interface Chosen {
         void take(List<String> namesInOrder);
     }
 
     private ScraperOrder() {
     }
 
-    static void show(Activity activity, List<String> available, List<String> enabled,
+    public static void show(Activity activity, List<String> available, List<String> enabled,
                      Chosen onSave) {
         // Enabled first and in their own order, then whatever is left - which
         // is what the list means: the order it will ask them in.
