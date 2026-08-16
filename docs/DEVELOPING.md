@@ -228,19 +228,31 @@ preview the filter without Fuse, since it is a GL shader in
 `native/ui/android/android_gl.c` running on its framebuffer.
 
 **Nothing recaptures them when the shader changes.** If you change the filter,
-recapture: load the demo tape, set each filter from ☰ › Display, `screencap`,
-crop to the 4:3 picture, scale to ~480px wide. They live here rather than in a
-README beside the files because `res/drawable` takes resources and nothing else
-— a `.md` dropped in there is a build failure.
+recapture: set each filter from ☰ › Display and `screencap`. They live here
+rather than in a README beside the files because `res/drawable` takes resources
+and nothing else — a `.md` dropped in there is a build failure.
 
-**The demo tape's own wordmark colour-cycles, so the four captures were not
-taken at the same instant** — real time passed navigating ☰ › Display between
-them, and each still shows whatever phase the cycle happened to be in. Harmless
-today (verified at pixel level that no still misrepresents its own filter), but
-a careless recapture could catch the cycle at a moment that makes two filters
-look more alike, or less, than they do in general. Pause on a stable frame, or
-capture all four in as tight a sequence as the menu allows, and compare the new
-stills side by side before committing them.
+**Shoot the 128 boot menu, not the demo.** The demo's starfield is the wrong
+subject twice over: it has almost no hard edges, so scanlines and the CRT
+curve are both hard to tell apart at the size a wizard row draws, and its
+wordmark colour-cycles, so four captures taken a few seconds apart differ for
+a reason that has nothing to do with the filter. The boot menu is static, high
+contrast, and carries the colour bar — which is the part that shows what a
+filter does to *colour* rather than to edges.
+
+Three things about the processing, each of which was got wrong once:
+
+- **Crop all four to the same rectangle** — the flat picture's own bounds. Crop
+  each to its own and the CRT ones get scaled back up to match, which hides the
+  inset edge that is the whole point of that filter. On a 2376x1080 capture the
+  picture is x 528-1967 over the full height: 1440x1080, exactly 4:3.
+- **Resize with `BOX`, never `LANCZOS`.** A scanline is one pixel tall, and any
+  filter that averages adjacent rows washes the texture out — 1440 to 480 is a
+  whole-number factor, so `BOX` keeps it exactly.
+- **Do not quantise to a palette.** It looks like free bytes (191 KB down to
+  86 KB on the busiest one) and it kills the colour bar: the scanline texture
+  consumes the whole 256-colour palette in greys, and the red/yellow/green/cyan
+  stripes come back as pale yellow and blue. ~250 KB for the four is the price.
 
 ## Building
 
