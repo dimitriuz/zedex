@@ -2,6 +2,7 @@ package dev.ldlab.zedex.screen;
 
 import dev.ldlab.zedex.storage.Prefs;
 import dev.ldlab.zedex.work.Work;
+import dev.ldlab.zedex.view.Cards;
 import dev.ldlab.zedex.view.Palette;
 import dev.ldlab.zedex.EmulatorActivity;
 import dev.ldlab.zedex.R;
@@ -17,7 +18,6 @@ import android.provider.DocumentsContract;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
@@ -246,10 +246,10 @@ public final class StartPanel {
      * that a missing ROM used to leave behind with no way out of it.
      */
     private View buildPanel() {
-        int pad = unit(6);
+        int pad = Cards.unit(activity, 6);
 
-        Column content = new Column(activity, unit(150));
-        content.setPadding(pad, unit(10), pad, pad);
+        LinearLayout content = Cards.column(activity, 150);
+        content.setPadding(pad, Cards.unit(activity, 10), pad, pad);
 
         title = new TextView(activity);
         title.setTextSize(26);
@@ -260,30 +260,31 @@ public final class StartPanel {
         message = new TextView(activity);
         message.setTextSize(15);
         message.setTextColor(Palette.MUTED);
-        message.setLineSpacing(unit(1), 1f);
-        message.setPadding(0, unit(2), 0, unit(5));
+        message.setLineSpacing(Cards.unit(activity, 1), 1f);
+        message.setPadding(0, Cards.unit(activity, 2), 0, Cards.unit(activity, 5));
         content.addView(message);
 
         // Above the three ways of finding ROMs, because where this one applies
         // the ROMs have already been found: they are in the folder, and Android
         // is not letting the app look. Downloading a second set into a folder
         // it still cannot read would not help.
-        grant = panelChoice(R.string.roms_grant, R.string.roms_grant_hint,
-                            v -> askForAllFiles(R.string.roms_grant_ask));
+        grant = Cards.choice(activity, R.string.roms_grant, R.string.roms_grant_hint,
+                            v -> askForAllFiles(R.string.roms_grant_ask), false);
         grant.setVisibility(View.GONE);
         content.addView(grant);
 
         // Downloading first: it is the one that needs nothing of the user.
-        choices.add(panelChoice(R.string.roms_where,
-                R.string.roms_where_hint, v -> offerRomsDownload()));
-        choices.add(panelChoice(R.string.roms_folder,
-                R.string.roms_folder_hint, v -> importRomsFolder()));
-        choices.add(panelChoice(R.string.roms_files,
-                R.string.roms_files_hint, v -> importRomFiles()));
+        choices.add(Cards.choice(activity, R.string.roms_where,
+                R.string.roms_where_hint, v -> offerRomsDownload(), false));
+        choices.add(Cards.choice(activity, R.string.roms_folder,
+                R.string.roms_folder_hint, v -> importRomsFolder(), false));
+        choices.add(Cards.choice(activity, R.string.roms_files,
+                R.string.roms_files_hint, v -> importRomFiles(), false));
 
         for (View choice : choices) content.addView(choice);
 
-        run = panelChoice(R.string.roms_run, R.string.roms_run_hint, v -> runNow());
+        run = Cards.choice(activity, R.string.roms_run, R.string.roms_run_hint,
+                           v -> runNow(), false);
         run.setVisibility(View.GONE);
         content.addView(run);
 
@@ -291,33 +292,24 @@ public final class StartPanel {
         // the answer written on the button: what a folder is called matters
         // more here than what the row would do to it.
         dataFolder = new TextView(activity);
-        folders.add(folderCard(dataFolder, R.string.setup_data_hint,
-                               v -> chooseDataFolder()));
+        folders.add(Cards.valueCard(activity, dataFolder, R.string.setup_data_hint,
+                                    v -> chooseDataFolder()));
 
         contentFolder = new TextView(activity);
-        folders.add(folderCard(contentFolder, R.string.setup_content_hint,
-                               v -> chooseContentFolder()));
+        folders.add(Cards.valueCard(activity, contentFolder, R.string.setup_content_hint,
+                                    v -> chooseContentFolder()));
 
         // Said on the way past rather than asked about. The demo is a tape like
         // any other once the folders are settled, and a screen of its own
         // between somebody and the machine they came for is a toll booth: they
         // have to answer it before the Spectrum appears, and the answer is
         // nearly always no. This tells them it is there and gets out of the way.
-        //
-        // Its own quiet card, with the icon's cyan down the near edge: it is
-        // the one row here that asks for nothing, so it should not look like
-        // the ones that do.
-        demoNote = new TextView(activity);
-        demoNote.setTextSize(14);
-        demoNote.setTextColor(Palette.MUTED);
-        demoNote.setLineSpacing(unit(1), 1f);
-        demoNote.setPadding(unit(4), unit(3), unit(4), unit(3));
-        demoNote.setBackground(stripe(CARD, CYAN));
-        folders.add(spaced(demoNote));
+        demoNote = Cards.note(activity);
+        folders.add(Cards.spaced(activity, demoNote));
 
         // The one that gets on with it, in the icon's cyan: every other row
         // here is a detour, and this is the way out.
-        start = panelChoice(R.string.setup_start, R.string.setup_start_hint,
+        start = Cards.choice(activity, R.string.setup_start, R.string.setup_start_hint,
                             v -> finishSetup(), true);
         folders.add(start);
 
@@ -333,7 +325,7 @@ public final class StartPanel {
         // a tablet is margin: left where it fell, the whole screen read as one
         // corner of a page with nothing on the other two thirds of it.
         ScrollView scroll = new ScrollView(activity);
-        scroll.setBackgroundColor(BACK);
+        scroll.setBackgroundColor(Cards.BACK);
 
         FrameLayout.LayoutParams middle = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
@@ -348,176 +340,6 @@ public final class StartPanel {
 
         return scroll;
     }
-
-    /**
-     * A button with a line under it saying what it does, since "Choose
-     * folder" and "Choose files" are not self-explaining on their own.
-     */
-    private View panelChoice(int label, int description, View.OnClickListener action) {
-        return panelChoice(label, description, action, false);
-    }
-
-    /**
-     * One thing that can be done: what it is, and a line saying what it does.
-     *
-     * A card rather than a button with a caption under it. A stock button on
-     * black is a grey lozenge with no relation to anything else on the screen,
-     * and the caption belonging to it was only implied by being nearby - so a
-     * column of them read as a list of loose parts. Here the two lines are
-     * inside the thing you tap, which is what makes it one row.
-     */
-    private View panelChoice(int label, int description,
-                             View.OnClickListener action, boolean primary) {
-        LinearLayout row = new LinearLayout(activity);
-
-        row.setOrientation(LinearLayout.VERTICAL);
-        row.setBackground(card(primary ? CYAN : CARD));
-        row.setPadding(unit(4), unit(3), unit(4), unit(3));
-        row.setOnClickListener(action);
-        touchable(row);
-
-        TextView name = new TextView(activity);
-        name.setText(label);
-        name.setTextSize(17);
-        name.setTextColor(primary ? ON_CYAN : Palette.TEXT);
-        row.addView(name);
-
-        TextView caption = new TextView(activity);
-        caption.setText(description);
-        caption.setTextSize(13);
-        caption.setTextColor(primary ? 0xcc05222a : Palette.MUTED);
-        caption.setLineSpacing(unit(1) / 2f, 1f);
-        caption.setPadding(0, unit(1), 0, 0);
-        row.addView(caption);
-
-        return spaced(row);
-    }
-
-    /** The same shape, holding a value this class keeps up to date. */
-    private View folderCard(TextView value, int description,
-                            View.OnClickListener action) {
-        LinearLayout row = new LinearLayout(activity);
-
-        row.setOrientation(LinearLayout.VERTICAL);
-        row.setBackground(card(CARD));
-        row.setPadding(unit(4), unit(3), unit(4), unit(3));
-        row.setOnClickListener(action);
-        touchable(row);
-
-        value.setTextSize(17);
-        value.setTextColor(Palette.TEXT);
-        row.addView(value);
-
-        TextView caption = new TextView(activity);
-        caption.setText(description);
-        caption.setTextSize(13);
-        caption.setTextColor(Palette.MUTED);
-        caption.setLineSpacing(unit(1) / 2f, 1f);
-        caption.setPadding(0, unit(1), 0, 0);
-        row.addView(caption);
-
-        return spaced(row);
-    }
-
-    /** The platform's own press feedback, over whatever the row is painted. */
-    private void touchable(View row) {
-        android.util.TypedValue found = new android.util.TypedValue();
-
-        if (activity.getTheme().resolveAttribute(
-                android.R.attr.selectableItemBackground, found, true)) {
-            row.setForeground(activity.getDrawable(found.resourceId));
-        }
-    }
-
-    /** A button with a line under it saying what it does. */
-    /** Four dp, the step everything on this panel is spaced by. */
-    private int unit(int steps) {
-        return Math.round(4 * steps * activity.getResources()
-                .getDisplayMetrics().density);
-    }
-
-    // --- the look of it ------------------------------------------------------
-    //
-    // Built here rather than in a theme or a drawable folder for the reason
-    // everything else in this app is built in code: there are no dependencies
-    // to inflate with, and one file that says how the screen looks beats a
-    // colour in one place and a shape in another.
-    //
-    // The palette is the app's own - the dark plate of the icon, and the cyan
-    // that marks a chosen thing in the key editor.
-
-    private static final int BACK = 0xff0e0f13;
-    private static final int CARD = 0xff1b1d24;
-    private static final int EDGE = 0x14ffffff;
-    private static final int CYAN = 0xff00b0c8;
-    private static final int ON_CYAN = 0xff05222a;
-
-    /** A card: the shape every row on this panel is. */
-    private android.graphics.drawable.Drawable card(int fill) {
-        android.graphics.drawable.GradientDrawable shape =
-                new android.graphics.drawable.GradientDrawable();
-
-        shape.setColor(fill);
-        shape.setCornerRadius(unit(3));
-        shape.setStroke(Math.max(1, unit(1) / 4), EDGE);
-
-        return shape;
-    }
-
-    /** The same, with a band of colour down the leading edge. */
-    private android.graphics.drawable.Drawable stripe(int fill, int accent) {
-        android.graphics.drawable.GradientDrawable band =
-                new android.graphics.drawable.GradientDrawable();
-        band.setColor(accent);
-        band.setCornerRadius(unit(3));
-
-        android.graphics.drawable.LayerDrawable both =
-                new android.graphics.drawable.LayerDrawable(
-                        new android.graphics.drawable.Drawable[] { band, card(fill) });
-
-        both.setLayerInset(1, unit(1), 0, 0, 0);
-        return both;
-    }
-
-    /** A row, with air under it. */
-    private View spaced(View row) {
-        LinearLayout holder = new LinearLayout(activity);
-        holder.setOrientation(LinearLayout.VERTICAL);
-        holder.addView(row, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT));
-        holder.setPadding(0, 0, 0, unit(3));
-
-        return holder;
-    }
-
-    /**
-     * A column that stops growing.
-     *
-     * A line of text the whole width of a tablet is a line nobody can follow
-     * back to its start, and the panel is mostly prose. Sixty characters or so
-     * is the width this settles at; the rest of the window is margin, and the
-     * column sits in the middle of it.
-     */
-    private static final class Column extends LinearLayout {
-
-        private final int most;
-
-        Column(android.content.Context context, int most) {
-            super(context);
-            this.most = most;
-            setOrientation(VERTICAL);
-        }
-
-        @Override
-        protected void onMeasure(int widthSpec, int heightSpec) {
-            if (MeasureSpec.getSize(widthSpec) > most) {
-                widthSpec = MeasureSpec.makeMeasureSpec(most, MeasureSpec.EXACTLY);
-            }
-            super.onMeasure(widthSpec, heightSpec);
-        }
-    }
-
 
     /**
      * @param startFailed whether Fuse tried and gave up, which needs a new
