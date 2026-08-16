@@ -55,9 +55,10 @@ public final class AllFiles {
      * granted afterwards through an unrelated route (the ROMs panel, say)
      * would silently apply a folder the user explicitly backed out of.
      *
-     * @param onCancel run when the user taps Cancel; not called on the
-     *                 guard branch, since nothing was pinned before that
-     *                 branch returns either.
+     * @param onCancel run on Cancel or on a cancel of the dialog itself - a
+     *                 back press or a tap outside it, which land nowhere
+     *                 without this. Not called on the guard branch, since
+     *                 nothing was pinned before that branch returns either.
      */
     public static void ask(Activity activity, int why, Runnable onCancel) {
         // Nothing to grant in a build that does not declare it, and the
@@ -69,6 +70,20 @@ public final class AllFiles {
             return;
         }
 
+        // Back and tap-outside dismiss the dialog through Android's own
+        // cancel listener rather than either button, so onCancel is wired
+        // there too - both mean the same "no, discard this" here. Guarded
+        // rather than trusted to fire once: AlertDialog does not call the
+        // cancel listener for a button press, but nothing here should rely
+        // on that holding forever, and this way it cannot matter either way.
+        boolean[] ran = {false};
+        Runnable cancelOnce = () -> {
+            if (onCancel != null && !ran[0]) {
+                ran[0] = true;
+                onCancel.run();
+            }
+        };
+
         new AlertDialog.Builder(activity,
                 android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setMessage(why)
@@ -77,7 +92,8 @@ public final class AllFiles {
                                 Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
                                 Uri.parse("package:" + activity.getPackageName()))))
                 .setNegativeButton(android.R.string.cancel, onCancel == null ? null
-                        : (dialog, which) -> onCancel.run())
+                        : (dialog, which) -> cancelOnce.run())
+                .setOnCancelListener(dialog -> cancelOnce.run())
                 .show();
     }
 }
