@@ -4,6 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
 import dev.ldlab.zedex.storage.Prefs;
+import dev.ldlab.zedex.storage.Storage;
 
 import android.app.Activity;
 import android.app.ActivityOptions;
@@ -59,7 +60,8 @@ public final class Screen {
     }
 
     /**
-     * Turns every guide off before {@code LibraryActivity} starts.
+     * Turns every guide off before {@code LibraryActivity} starts, and marks
+     * first run done.
      *
      * The same treatment {@code Emulator.launch()} gives the machine's own
      * guide, and for the same reason: a mark over the rail or the toolbar
@@ -68,12 +70,23 @@ public final class Screen {
      * drawn over. Call before {@code startActivity}, not after - the
      * activity reads these on the way up.
      *
-     * {@code GuideTest} is the one class that wants a guide and turns this
-     * back off for itself.
+     * {@code Storage.KEY_SETUP_DONE} has to go with the guide flags now that
+     * {@code LibraryActivity.onCreate} hands over to {@code WelcomeActivity}
+     * whenever {@code Prefs#welcomeNeeded} says so - a fresh
+     * {@code connectedDebugAndroidTest} install has
+     * {@code firstInstallTime == lastUpdateTime}, which is exactly the case
+     * that method answers true for, so every one of this class's callers
+     * would otherwise land on the wizard instead of the library. Symmetric
+     * with {@code Emulator.launch()}, which sets the same flag for the same
+     * reason on the machine's side.
+     *
+     * {@code GuideTest} is the one class that wants a guide and turns the
+     * guide flags back off for itself.
      */
     public static void suppressGuides(Context context) {
         SharedPreferences.Editor edit = context.getSharedPreferences(
                 Prefs.PREFS, Context.MODE_PRIVATE).edit();
+        edit.putBoolean(Storage.KEY_SETUP_DONE, true);
         for (String flag : Prefs.GUIDE_FLAGS) edit.putBoolean(flag, true);
         edit.commit();
     }

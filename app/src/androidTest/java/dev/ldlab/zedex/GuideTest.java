@@ -3,6 +3,7 @@ package dev.ldlab.zedex;
 import dev.ldlab.zedex.library.catalogue.Catalogues;
 import dev.ldlab.zedex.screen.LibraryActivity;
 import dev.ldlab.zedex.storage.Prefs;
+import dev.ldlab.zedex.storage.Storage;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -145,7 +146,15 @@ public class GuideTest {
      *              stops one mark short of the last, which reads "Got it".
      */
     private void walkTheGuide(String flag, String extra, int marks) {
-        preferences.edit().putBoolean(flag, false).commit();
+        // Same reason as Screen.suppressGuides: a fresh connectedDebugAndroidTest
+        // install has firstInstallTime == lastUpdateTime, so Prefs.welcomeNeeded
+        // would otherwise send this launch to WelcomeActivity instead of
+        // LibraryActivity - EXTRA_FROM_MENU only skips the startsInLibrary
+        // gate below it, not this one.
+        preferences.edit()
+                .putBoolean(flag, false)
+                .putBoolean(Storage.KEY_SETUP_DONE, true)
+                .commit();
 
         Intent intent = new Intent(context, LibraryActivity.class);
         intent.putExtra(LibraryActivity.EXTRA_FROM_MENU, true);
