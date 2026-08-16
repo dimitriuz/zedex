@@ -2,7 +2,6 @@ package dev.ldlab.zedex.machine;
 
 import dev.ldlab.zedex.storage.Prefs;
 import dev.ldlab.zedex.R;
-import dev.ldlab.zedex.screen.StartPanel;
 import android.content.SharedPreferences;
 
 /**
@@ -93,7 +92,7 @@ public enum Filter {
      *
      * <b>It writes nothing when there is nothing to carry.</b> A device that has
      * never run the app has no preferences at all, and that is precisely how
-     * {@link StartPanel#setupNeeded} knows to ask where the files should go —
+     * {@link Prefs#welcomeNeeded} knows to ask where the files should go —
      * one key written here before it looks would answer that question for it,
      * and the first-start screen would never appear again.
      */

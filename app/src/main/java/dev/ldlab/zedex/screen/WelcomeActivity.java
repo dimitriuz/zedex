@@ -10,6 +10,7 @@ import dev.ldlab.zedex.welcome.Page;
 import dev.ldlab.zedex.welcome.Step;
 import dev.ldlab.zedex.welcome.Steps;
 import dev.ldlab.zedex.welcome.pages.DonePage;
+import dev.ldlab.zedex.welcome.pages.FoldersPage;
 import dev.ldlab.zedex.welcome.pages.LanguagePage;
 
 import android.app.Activity;
@@ -73,6 +74,25 @@ public final class WelcomeActivity extends ZedexActivity {
         out.putString(STATE_PAGE, page.name());
     }
 
+    @Override
+    protected void onActivityResult(int request, int result, Intent data) {
+        super.onActivityResult(request, result, data);
+
+        if (step instanceof FoldersPage) {
+            ((FoldersPage) step).onActivityResult(request, result, data);
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        // A settings-page permission has no onActivityResult - only a resume
+        // can notice the answer, or a folder picked before the permission
+        // existed is never applied and the row stalls until a restart.
+        if (step instanceof FoldersPage) ((FoldersPage) step).onResumed();
+    }
+
     /** Which page this is, and the whole of what the wizard knows. */
     private void show(Page which) {
         page = which;
@@ -120,19 +140,21 @@ public final class WelcomeActivity extends ZedexActivity {
     }
 
     /**
-     * @return null for a {@link Page} Tasks 5-9 have not built a {@link Step}
+     * @return null for a {@link Page} Tasks 6-9 have not built a {@link Step}
      *         for yet - <b>scaffold, not a real "no page"</b>. {@link #next},
      *         {@link #skip} and {@link #back} all walk past a null the way
      *         {@link #forwardFrom}/{@link #backwardFrom} do, so nothing here
-     *         is ever shown; the only two pages that exist today, WELCOME and
-     *         DONE, both build one. Once every case does, this branch is
-     *         unreachable and the walking in {@link #forwardFrom}/
-     *         {@link #backwardFrom} never iterates more than once - that is
-     *         the moment to delete the null handling on both ends together.
+     *         is ever shown; WELCOME, FOLDERS and DONE build one, and MACHINE,
+     *         CONTROLS, SCREEN, LIBRARY and SCRAPING do not yet. Once every
+     *         case does, this branch is unreachable and the walking in
+     *         {@link #forwardFrom}/{@link #backwardFrom} never iterates more
+     *         than once - that is the moment to delete the null handling on
+     *         both ends together.
      */
     private Step stepFor(Page which) {
         switch (which) {
             case WELCOME: return new LanguagePage(this::recreate);
+            case FOLDERS: return new FoldersPage(this);
             case DONE:    return new DonePage();
             default:
                 return null;
@@ -143,7 +165,7 @@ public final class WelcomeActivity extends ZedexActivity {
      * The next page after {@code from} whose {@link Step} is actually built,
      * or null past the end. See {@link #stepFor}'s own comment: this is the
      * half of the scaffold that keeps {@link #next}/{@link #skip} from
-     * landing on a page Tasks 5-9 have not written yet.
+     * landing on a page Tasks 6-9 have not written yet.
      */
     private Page forwardFrom(Page from) {
         Page candidate = Steps.after(from, preferences, hasCatalogue);

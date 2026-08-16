@@ -194,13 +194,14 @@ public class WelcomeTest {
     /**
      * Next has to land somewhere real rather than crashing.
      *
-     * Tasks 5-9 have not written a Step for FOLDERS, MACHINE, CONTROLS,
-     * SCREEN, LIBRARY or SCRAPING yet - {@code WelcomeActivity.stepFor}
-     * answers null for all six today - so this is the regression the walk in
-     * {@code forwardFrom} exists to prevent: without it, tapping the only
-     * button on the only reachable page throws {@code IllegalStateException}
-     * building the page after it. Landing on the summary is what proves the
-     * walk skipped every unbuilt page rather than stopping on one.
+     * Tasks 6-9 have not written a Step for MACHINE, CONTROLS, SCREEN,
+     * LIBRARY or SCRAPING yet - {@code WelcomeActivity.stepFor} answers null
+     * for all five today - so this is the regression the walk in {@code
+     * forwardFrom} exists to prevent: without it, tapping the only button on
+     * a reachable page throws {@code IllegalStateException} building the
+     * page after it. Landing on the summary - by way of the folders page,
+     * the one built page among the six - is what proves the walk skipped
+     * every unbuilt page rather than stopping on one.
      */
     @Test
     public void nextLandsSomewhereRealRatherThanCrashing() {
@@ -208,8 +209,9 @@ public class WelcomeTest {
         scrollTo(context.getString(R.string.welcome_next));
 
         // The observed effect: the summary's own title, which only appears
-        // once the walk in forwardFrom has actually run - re-tapped until it
-        // does, rather than trusting a single tap right after the scroll.
+        // once the walk in forwardFrom has actually run, by way of the
+        // folders page - re-tapped until it does, rather than trusting a
+        // single tap right after the scroll.
         tapUntil(context.getString(R.string.welcome_next),
                 () -> device.findObject(By.text(
                         context.getString(R.string.welcome_done_title))) != null);
@@ -246,5 +248,23 @@ public class WelcomeTest {
                 device.wait(Until.findObject(By.text(
                         context.getString(R.string.welcome_title))), WAIT));
         assertEquals("pl", preferences.getString(Language.KEY_LANGUAGE, ""));
+    }
+
+    /** The folders page says where things will go, and both rows carry the
+     *  answer on the button - what a folder is called matters more here than
+     *  what the row would do to it. */
+    @Test
+    public void theFoldersPageNamesBothFolders() {
+        launch();
+
+        device.findObject(By.text(
+                context.getString(R.string.welcome_next))).click();
+
+        assertNotNull("the data folder row never appeared",
+                device.wait(Until.findObject(By.textStartsWith(
+                        context.getString(R.string.setup_data, ""))), WAIT));
+        assertNotNull("the content folder row never appeared",
+                device.findObject(By.textStartsWith(
+                        context.getString(R.string.setup_content, ""))));
     }
 }

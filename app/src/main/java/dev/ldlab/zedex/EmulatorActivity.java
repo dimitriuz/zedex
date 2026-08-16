@@ -990,11 +990,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
             getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }
 
-        // A folder chosen before the app was allowed to use it, and the panel's
-        // own rows: All files access is granted on a screen of Android's, and
-        // coming back from that is a resume rather than a result.
-        roms.onResumed();
-
         // The wizard's own retry: this activity is singleInstance and stays
         // alive behind WelcomeActivity while it is up, and coming back to it
         // is a resume rather than a result. The same guard surfaceChanged
