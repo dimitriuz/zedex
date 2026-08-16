@@ -125,6 +125,14 @@ final class Emulator {
         // Gradle run, and false on a device somebody has set up by hand. Every
         // test here is about the machine, so it asks for the machine; the
         // library has tests of its own.
+        // A test sets the world it needs. The first run would sit over the quick
+        // bar, and every test that opens a menu would fail with "the ☰ button
+        // never appeared". Written rather than tapped away: a tapIfPresent races
+        // a posted screen and passes or fails on timing.
+        context.getSharedPreferences(Prefs.PREFS, Context.MODE_PRIVATE).edit()
+                .putBoolean(Storage.KEY_SETUP_DONE, true)
+                .commit();
+
         Intent intent = new Intent(context, EmulatorActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
 
@@ -134,16 +142,6 @@ final class Emulator {
         context.startActivity(intent, Screen.here());
 
         device.wait(Until.hasObject(By.pkg(pkg).depth(0)), BOOT);
-
-        // The first start asks where things are kept, and its panel sits over
-        // the quick bar - so ☰ is unreachable until it is answered, and every
-        // test that opens a menu fails with "the ☰ button never appeared" on a
-        // run that began with a fresh install. Which is every run: Gradle
-        // uninstalls the app first. Its defaults are what a test wants.
-        // By the app's own string rather than the English of it: measured to
-        // resolve through the app's resources from here, so it keeps working on
-        // a device whose language is not English.
-        tapIfPresent(context.getString(R.string.setup_start));
 
         assertNotNull("the keyboard never appeared",
                       device.wait(Until.findObject(By.desc("ENTER")), BOOT));

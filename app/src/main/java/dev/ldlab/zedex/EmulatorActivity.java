@@ -32,6 +32,7 @@ import dev.ldlab.zedex.screen.Panels;
 import dev.ldlab.zedex.screen.SettingsActivity;
 import dev.ldlab.zedex.screen.StartPanel;
 import dev.ldlab.zedex.screen.StatesActivity;
+import dev.ldlab.zedex.screen.WelcomeActivity;
 import dev.ldlab.zedex.storage.Recents;
 import dev.ldlab.zedex.storage.States;
 import dev.ldlab.zedex.feedback.Crashes;
@@ -429,7 +430,12 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         //
         // The ROMs are not unpacked here any more: startEmulator does it, on
         // every start, so that a data folder chosen at any point gets them.
-        if (!StartPanel.setupNeeded(this)) Storage.installDemo(this);
+        // Unconditional now that the wizard is the one that asks the first-run
+        // question: installDemo is its own guard, keyed on KEY_DEMO_INSTALLED,
+        // and skips whatever is already there - so this still runs exactly
+        // once for a fresh install (once the wizard has settled the folders)
+        // and does nothing on every start after.
+        Storage.installDemo(this);
 
         // Asks GitHub whether there is a newer APK than this one, on a thread of
         // its own, and says nothing unless there is. Never for a Play install
@@ -2214,9 +2220,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     private void startEmulator() {
         // The first run asks where things are kept before anything is kept
         // anywhere: the ROMs are unpacked into the answer, so the question
-        // comes before the machine.
-        if (StartPanel.setupNeeded(this) || roms.asking()) {
-            roms.showSetup();
+        // comes before the machine. This activity is singleInstance and stays
+        // alive behind the wizard, so it keeps whatever file it was opened
+        // with and onResume tries again when the wizard is done.
+        if (Prefs.welcomeNeeded(this, preferences)) {
+            WelcomeActivity.start(this, true);
             return;
         }
 

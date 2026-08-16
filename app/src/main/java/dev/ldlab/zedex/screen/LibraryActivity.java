@@ -516,7 +516,16 @@ public final class LibraryActivity extends ZedexActivity {
         // is the launcher and so asks first.
         SettingsActivity.migrateIfNeeded(this, preferences);
 
-
+        // Before the hand-over, not after: the answer that decides where this
+        // app opens is exactly what the wizard is about to write, so this
+        // screen cannot make that decision yet. It hands over and goes; the
+        // wizard routes when it is done.
+        if (Prefs.welcomeNeeded(this, preferences)) {
+            WelcomeActivity.start(this, false);
+            finish();
+            handedOver = true;
+            return;
+        }
 
         if (!fromMenu && !SettingsActivity.startsInLibrary(preferences)) {
             startActivity(new Intent(this, EmulatorActivity.class));

@@ -201,6 +201,24 @@
     <string name="setup_start">Start the machine</string>
     <string name="setup_start_hint">Done \u2014 boot the Spectrum.</string>
 
+    <!-- The first run. Every page is skippable and the first page offers a way
+         past all of them: a screen between somebody and the machine they came
+         for is a toll booth, and this one has to earn each page it keeps. -->
+    <string name="welcome_title">Welcome to Zedex</string>
+    <string name="welcome_message">Seven quick questions \u2014 language, where files go, which Spectrum, controls, the picture, your library and the archive. All of them can be changed later, in Settings.</string>
+    <string name="welcome_later">Set it up later</string>
+    <string name="welcome_later_hint">Go straight to the Spectrum. Everything keeps its usual default.</string>
+    <string name="welcome_next">Next</string>
+    <string name="welcome_skip">Skip</string>
+    <string name="welcome_language">Language</string>
+    <string name="welcome_language_hint">Zedex speaks nine. Leave it on the system language and it follows your phone.</string>
+    <string name="welcome_done_title">That\'s everything</string>
+    <string name="welcome_done_message">All of it lives in Settings if you want to change your mind.</string>
+    <string name="welcome_start">Start the machine</string>
+    <string name="welcome_start_hint">Done \u2014 boot the Spectrum.</string>
+    <string name="welcome_issues">Feedback and issues</string>
+    <string name="welcome_issues_hint">Anything broken, missing or wrong \u2014 on GitHub.</string>
+
     <string name="roms_needed">ROMs needed</string>
     <string name="roms_needed_message">The app ships the ROMs it is allowed to, but none of them could be put in\n\n%1$s\n\nThat folder may not be writable — Settings › App can point somewhere else. Or bring your own, whichever way below.</string>
     <string name="roms_blocked">No access to that folder</string>

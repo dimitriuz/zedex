@@ -108,13 +108,19 @@ public final class Cards {
         name.setTextColor(leading ? ON_CYAN : Palette.TEXT);
         row.addView(name);
 
-        TextView caption = new TextView(context);
-        caption.setText(description);
-        caption.setTextSize(13);
-        caption.setTextColor(leading ? 0xcc05222a : Palette.MUTED);
-        caption.setLineSpacing(unit(context, 1) / 2f, 1f);
-        caption.setPadding(0, unit(context, 1), 0, 0);
-        row.addView(caption);
+        // Zero means no caption - a row whose name says everything, like a
+        // plain "Next" or a link named after its own destination. TextView's
+        // own setText(int) throws on a resource id of zero rather than
+        // clearing itself, so this is the row's job and not that method's.
+        if (description != 0) {
+            TextView caption = new TextView(context);
+            caption.setText(description);
+            caption.setTextSize(13);
+            caption.setTextColor(leading ? 0xcc05222a : Palette.MUTED);
+            caption.setLineSpacing(unit(context, 1) / 2f, 1f);
+            caption.setPadding(0, unit(context, 1), 0, 0);
+            row.addView(caption);
+        }
 
         return spaced(context, row);
     }
