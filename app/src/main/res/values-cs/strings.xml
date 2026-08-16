@@ -170,8 +170,60 @@
     <string name="setup_content">Složka s hrami: %1$s</string>
     <string name="setup_content_none">nevybrána</string>
     <string name="setup_content_hint">Odkud začíná „Otevřít soubor…“. Nasměruj ji na své hry a každé nahrání bude o dvě klepnutí kratší.</string>
-    <string name="setup_start">Spustit počítač</string>
-    <string name="setup_start_hint">Hotovo — nastartovat Spectrum.</string>
+
+    <string name="welcome_title">Vítej v Zedexu</string>
+    <string name="welcome_message">Sedm rychlých otázek — jazyk, kam jdou soubory, který Spectrum, ovládání, obraz, tvá knihovna a archiv. Všechno se dá později změnit v Nastavení.</string>
+    <string name="welcome_later">Nastavit později</string>
+    <string name="welcome_later_hint">Rovnou ke Spectru. Všechno zůstane na obvyklé výchozí hodnotě.</string>
+    <string name="welcome_next">Dál</string>
+    <string name="welcome_skip">Přeskočit</string>
+    <string name="welcome_language">Jazyk</string>
+    <string name="welcome_language_hint">Zedex mluví devíti jazyky. Necháš-li jazyk systému, půjde podle telefonu.</string>
+    <string name="welcome_machine">Který Spectrum?</string>
+    <string name="welcome_machine_hint">Ten, který hra očekává. Na 128K běží většina věcí; celý seznam a všechny další počítače, které Fuse zná, jsou v Nastavení › Počítač.</string>
+    <string name="welcome_machine_48">Originál, 48K paměti a bzučák.</string>
+    <string name="welcome_machine_128">128K a zvukový čip AY. Co chce většina her.</string>
+    <string name="welcome_machine_plus2">128K se zabudovaným magnetofonem.</string>
+    <string name="welcome_machine_plus2a">+3 bez disketové mechaniky.</string>
+    <string name="welcome_machine_plus3">128K s třípalcovou disketovou mechanikou.</string>
+    <string name="welcome_machine_pentagon">Ruský klon, a většina toho, co přichází jako .trd nebo .scl.</string>
+    <string name="welcome_controls">Klávesnice a joystick</string>
+    <string name="welcome_controls_hint">Kterou klávesnici kreslit přes obraz a co má hra považovat za připojené.</string>
+    <string name="welcome_controls_keyboard">Klávesnice</string>
+    <string name="welcome_controls_joystick">Joystick</string>
+    <string name="welcome_controls_system_note">Píše vlastní klávesnice telefonu — tady se nekreslí nic.</string>
+    <string name="welcome_screen">Obraz</string>
+    <string name="welcome_screen_hint">Jak má obrazovka vypadat. Tohle jsou fotky skutečného stroje a všechno se dá později měnit za běhu v ☰ › Obraz.</string>
+    <string name="welcome_screen_border">Okraj</string>
+    <string name="welcome_library">Tvá knihovna</string>
+    <string name="welcome_library_hint">Zedex se může otevírat na tvých vlastních hrách místo na holém Spectru a procházet archiv asi čtyřiceti tisíc dalších.</string>
+    <string name="welcome_library_start">Spouštět v knihovně</string>
+    <string name="welcome_library_start_hint">Začínat u svých her. Počítač je tak jako tak na jedno klepnutí.</string>
+    <string name="welcome_library_archive">Který archiv</string>
+    <string name="welcome_scraping">Obaly a popisy</string>
+    <string name="welcome_scraping_hint">Zedex umí dohledat, co je to za hru, kdo ji napsal a jak vypadal její obal. Nic se nestahuje, dokud o to nepožádáš.</string>
+    <string name="welcome_scraping_sources">Kde hledat a v jakém pořadí</string>
+    <string name="welcome_scraping_account">Tvůj vlastní účet ScreenScraper</string>
+    <string name="welcome_scraping_account_hint">Nepovinné. Sdílený účet je v každé kopii aplikace a přečte si ho, kdo chce, takže celou sbírku je lepší stahovat na vlastní — a právě to drží ten sdílený použitelný pro všechny ostatní.</string>
+    <string name="welcome_done_title">To je všechno</string>
+    <string name="welcome_done_message">Všechno tohle je v Nastavení, kdyby sis to rozmyslel.</string>
+    <string name="welcome_start">Spustit počítač</string>
+    <string name="welcome_start_hint">Hotovo — nastartovat Spectrum.</string>
+    <string name="welcome_issues">Ohlasy a problémy</string>
+    <string name="welcome_issues_hint">Cokoli rozbitého, chybějícího nebo špatného — na GitHubu.</string>
+
+    <string name="guide_next">Dál</string>
+    <string name="guide_done">Rozumím</string>
+    <string name="guide_picture">Kdykoli klepni na obraz, aby se tahle tlačítka vrátila — mizí, aby nebyla přes hru.</string>
+    <string name="guide_files">Kazety, disky a cokoli dalšího, co chceš nahrát.</string>
+    <string name="guide_controls">Klávesnice, joystick a to, co dělá tvůj gamepad.</string>
+    <string name="guide_menu">Všechno ostatní je tady — počítače, uložené stavy, cheaty a nastavení.</string>
+    <string name="guide_tabs">Tvé hry, tvé oblíbené, co jsi hrál naposledy — a archiv asi čtyřiceti tisíc dalších.</string>
+    <string name="guide_toolbar">Hledání, filtr a řazení. Filtr zůstane, dokud ho nezrušíš.</string>
+    <string name="guide_row">Klepni na hru, ať vidíš, co se o ní ví; klepni znovu a hraj.</string>
+    <string name="guide_pane">Všechno, co se o téhle hře stáhlo — obal, kdo ji napsal, manuál a cesta dovnitř.</string>
+    <string name="guide_shelves">Police: podle písmene, podle kategorie, podle roku, nebo to nejlíp hodnocené.</string>
+    <string name="guide_catalogue_search">Najít hru podle jména v celém archivu.</string>
 
     <string name="roms_needed">Chybí ROMy</string>
     <string name="roms_needed_message">Aplikace přiváží ty ROMy, které smí, ale ani jeden se nepodařilo umístit do\n\n%1$s\n\nDo té složky se možná nedá zapisovat — v Nastavení › Aplikace lze ukázat na jinou. Nebo přines vlastní, kterýmkoli způsobem níže.</string>
@@ -506,6 +558,13 @@
     <string name="capture_busy">Předchozí nahrávka se ještě dokončuje</string>
     <string name="capture_open_folder">Otevřít složku se záznamy</string>
     <string name="capture_no_browser">Nahrávky jsou v %1$s</string>
+
+    <string name="settings_group_start">Začínáme</string>
+    <string name="settings_welcome_again">Projít nastavení znovu</string>
+    <string name="settings_welcome_again_summary">Otázky z prvního spuštění — jazyk, složky, počítač, ovládání, obraz, tvá knihovna a stahování dat. Nic se nemaže.</string>
+    <string name="settings_guide_again">Ukázat průvodce znovu</string>
+    <string name="settings_guide_again_summary">Popisky nad tlačítky, až příště otevřeš počítač, knihovnu a archiv.</string>
+    <string name="settings_guide_again_done">Průvodce poběží znovu, až příště otevřeš každou obrazovku.</string>
 
     <string name="settings_group_language">Jazyk</string>
     <string name="settings_language">Jazyk aplikace</string>
