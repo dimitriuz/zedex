@@ -144,6 +144,31 @@ public final class Coach extends FrameLayout {
         card.addView(captionView);
 
         next = new Button(activity);
+
+        // A plain clickable View is focusable, but not focusable in touch
+        // mode - and touch mode is exactly the state this app is in every
+        // time a mark appears, since a guide always follows a tap or a
+        // launch. Without this, the requestFocus() call in show() below
+        // silently does nothing, and {@link #dispatchGenericMotionEvent}'s
+        // whole defence against a gamepad's stick or hat depends on it:
+        // ViewGroup routes a joystick's axis to whichever child actually has
+        // focus and nowhere else, so a mark that never took focus is a mark
+        // a hat push moves straight past.
+        //
+        // Measured rather than assumed, instrumenting the actually-focused
+        // view a second after a mark appeared: on {@code LibraryActivity},
+        // where nothing else asks for focus first, this line is the whole
+        // fix - confirmed, Coach's own button now holds it. On {@code
+        // EmulatorActivity}, focus lands on Coach just as briefly and is
+        // then seen back on {@code EmulatorLayout} within a few seconds - a
+        // second, separate reclaim this fix does not reach, not yet
+        // isolated to a line. Left as a finding for whoever picks it up
+        // next rather than a guess at a fix: the machine's tour is no
+        // better protected against a gamepad mid-mark than it was, but it
+        // is no worse either, and this line is a real improvement over
+        // shipping nothing.
+        next.setFocusableInTouchMode(true);
+
         next.setText(last ? R.string.guide_done : R.string.guide_next);
         next.setAllCaps(false);
         next.setTextColor(ON_CYAN);
@@ -212,6 +237,30 @@ public final class Coach extends FrameLayout {
             View child = content.getChildAt(i);
             if (child instanceof Coach) content.removeView(child);
         }
+    }
+
+    /**
+     * Whether a mark is up on {@code activity} right now.
+     *
+     * <b>For a caller whose own {@code dispatchKeyEvent} runs before the
+     * window's</b> - {@code LibraryActivity}'s does, to claim a pad's D-pad
+     * and buttons ahead of a focused search field. {@link #dispatchKeyEvent}
+     * above only ever gets a key once that caller has already decided not to
+     * claim it itself, which for a screen wired this way is never: the pad
+     * input this class is meant to be the only thing answering while a mark
+     * is up would otherwise move a selection behind it, unseen by {@code
+     * Coach} at all. A caller reached the ordinary way - through {@code
+     * onKeyDown}/{@code onKeyUp}, downstream of the window's own dispatch,
+     * the way {@code EmulatorActivity} is wired - never needs this: the view
+     * tree, and so this class, already saw the key first.
+     */
+    public static boolean isShowing(Activity activity) {
+        ViewGroup content = activity.findViewById(android.R.id.content);
+
+        for (int i = 0; i < content.getChildCount(); i++) {
+            if (content.getChildAt(i) instanceof Coach) return true;
+        }
+        return false;
     }
 
     /**

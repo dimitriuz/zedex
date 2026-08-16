@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.screen;
 
+import dev.ldlab.zedex.Screen;
 import dev.ldlab.zedex.library.Entry;
 import dev.ldlab.zedex.library.meta.Meta;
 import dev.ldlab.zedex.library.meta.Metadata;
@@ -106,6 +107,7 @@ public class ScrapeOneGameHandEditTest {
         Instrumentation.ActivityMonitor monitor = instrumentation.addMonitor(
                 LibraryActivity.class.getName(), null, false);
 
+        Screen.suppressGuides(context);
         context.startActivity(
                 new android.content.Intent(context, LibraryActivity.class)
                         .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK));

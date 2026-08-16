@@ -3,8 +3,12 @@ package dev.ldlab.zedex;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
+import dev.ldlab.zedex.storage.Prefs;
+
 import android.app.Activity;
 import android.app.ActivityOptions;
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.Display;
 
@@ -52,6 +56,26 @@ public final class Screen {
         ActivityOptions options = ActivityOptions.makeBasic();
         options.setLaunchDisplayId(Display.DEFAULT_DISPLAY);
         return options.toBundle();
+    }
+
+    /**
+     * Turns every guide off before {@code LibraryActivity} starts.
+     *
+     * The same treatment {@code Emulator.launch()} gives the machine's own
+     * guide, and for the same reason: a mark over the rail or the toolbar
+     * swallows the very tap most of this suite's tests are about to make,
+     * since {@code Coach} consumes every touch reaching it whatever it is
+     * drawn over. Call before {@code startActivity}, not after - the
+     * activity reads these on the way up.
+     *
+     * {@code GuideTest} is the one class that wants a guide and turns this
+     * back off for itself.
+     */
+    public static void suppressGuides(Context context) {
+        SharedPreferences.Editor edit = context.getSharedPreferences(
+                Prefs.PREFS, Context.MODE_PRIVATE).edit();
+        for (String flag : Prefs.GUIDE_FLAGS) edit.putBoolean(flag, true);
+        edit.commit();
     }
 
     /**

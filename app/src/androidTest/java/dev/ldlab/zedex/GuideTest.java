@@ -1,14 +1,19 @@
 package dev.ldlab.zedex;
 
+import dev.ldlab.zedex.library.catalogue.Catalogues;
+import dev.ldlab.zedex.screen.LibraryActivity;
 import dev.ldlab.zedex.storage.Prefs;
+import dev.ldlab.zedex.storage.Storage;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeFalse;
+import static org.junit.Assume.assumeTrue;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -121,5 +126,70 @@ public class GuideTest {
         assertNull("the guide came back",
                 device.wait(Until.findObject(By.text(
                         context.getString(R.string.guide_next))), 2000));
+    }
+
+    /**
+     * Arms one guide, opens the library on the tab it belongs to, walks it to
+     * the end, and answers whether the flag was set.
+     *
+     * EXTRA_FROM_MENU on both: it asks for the library whatever the start-in-
+     * library setting says, which is exactly why every other library test uses
+     * it too. Without it a bench with the setting off hands straight over to
+     * the machine and the test measures the wrong screen.
+     *
+     * Unbounded, unlike the machine's own walk above: this class does not
+     * know how many marks either tour has, only that {@code Tour} always
+     * ends on "Got it" - and both of the library's guides are new enough not
+     * to have earned a hard-coded mark count of their own yet.
+     */
+    private void walkTheGuide(String flag, String extra) {
+        preferences.edit().putBoolean(flag, false).commit();
+
+        Intent intent = new Intent(context, LibraryActivity.class);
+        intent.putExtra(LibraryActivity.EXTRA_FROM_MENU, true);
+        if (extra != null) intent.putExtra(extra, true);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                      | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        context.startActivity(intent, Screen.here());
+
+        assertNotNull("the guide never appeared",
+                device.wait(Until.findObject(By.text(
+                        context.getString(R.string.guide_next))), WAIT));
+
+        // To the end: the flag is set there and not at the start, so a guide
+        // abandoned half way is a guide that has not been given.
+        while (device.findObject(By.text(
+                context.getString(R.string.guide_next))) != null) {
+            device.findObject(By.text(
+                    context.getString(R.string.guide_next))).click();
+            device.waitForIdle();
+        }
+        device.findObject(By.text(
+                context.getString(R.string.guide_done))).click();
+        device.waitForIdle();
+    }
+
+    @Test
+    public void theLibrarysGuideIsGivenOnBrowse() {
+        assumeTrue("no content folder granted", preferences.getString(
+                Storage.KEY_CONTENT_TREE, null) != null);
+
+        walkTheGuide(Prefs.KEY_GUIDE_LIBRARY, null);
+
+        assertTrue("the library guide did not record itself as given",
+                   preferences.getBoolean(Prefs.KEY_GUIDE_LIBRARY, false));
+    }
+
+    @Test
+    public void theArchivesGuideIsGivenOnTheCatalogueTab() {
+        assumeTrue("no content folder granted", preferences.getString(
+                Storage.KEY_CONTENT_TREE, null) != null);
+        assumeTrue("no catalogue in this build", Catalogues.any(context));
+
+        walkTheGuide(Prefs.KEY_GUIDE_CATALOGUE,
+                     LibraryActivity.EXTRA_OPEN_CATALOGUE);
+
+        assertTrue("the archive guide did not record itself as given",
+                   preferences.getBoolean(Prefs.KEY_GUIDE_CATALOGUE, false));
     }
 }

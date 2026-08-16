@@ -256,6 +256,13 @@
     <string name="guide_files">Tapes, disks and anything else you want to load.</string>
     <string name="guide_controls">The keyboard, the joystick, and what your gamepad does.</string>
     <string name="guide_menu">Everything else lives in here — machines, saved states, cheats and settings.</string>
+    <string name="guide_tabs">Your games, your favourites, what you played last — and an archive of about forty thousand more.</string>
+    <string name="guide_toolbar">Search, filter and sort. A filter stays until you clear it.</string>
+    <string name="guide_row">Tap a game to see what is known about it; tap again to play.</string>
+    <string name="guide_pane">Everything scraped about this game — the cover, who wrote it, the manual, and the way in.</string>
+    <string name="guide_shelves">Shelves: by letter, by category, by year, or whatever is best rated.</string>
+    <string name="guide_catalogue_search">Look for a game by name across the whole archive.</string>
+    <string name="guide_catalogue_pane">Download it into your own library, or open it straight away.</string>
 
     <string name="roms_needed">ROMs needed</string>
     <string name="roms_needed_message">The app ships the ROMs it is allowed to, but none of them could be put in\n\n%1$s\n\nThat folder may not be writable — Settings › App can point somewhere else. Or bring your own, whichever way below.</string>

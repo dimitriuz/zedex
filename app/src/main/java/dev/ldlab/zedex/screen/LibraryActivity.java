@@ -30,6 +30,8 @@ import dev.ldlab.zedex.library.ui.Selection;
 import dev.ldlab.zedex.storage.Recents;
 import dev.ldlab.zedex.storage.Storage;
 import dev.ldlab.zedex.view.SafeArea;
+import dev.ldlab.zedex.welcome.Coach;
+import dev.ldlab.zedex.welcome.Tour;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -338,6 +340,44 @@ public final class LibraryActivity extends ZedexActivity {
     private RecyclerView recycler;
     private EntryAdapter adapter;
     private GamepadCursor padCursor;
+
+    /**
+     * The frame around {@link #recycler} - and around {@link #emptyLabel} and
+     * {@link #noFolderView}, whichever of the three is actually showing.
+     *
+     * {@link #browseTour}'s own target for "tap a game": not the recycler
+     * itself, which {@link #setLoading} and {@link #finishLoad} both set
+     * {@code GONE} while a folder is being walked or found empty - a tour
+     * armed the moment Browse is shown, before that walk has answered, would
+     * point at nothing. This frame is never touched by either and is on
+     * screen from the moment {@link #buildMainColumn} builds it.
+     */
+    private View listArea;
+
+    /** {@link #browseTour}'s own target for "your games, your favourites…" -
+     *  the rail is never hidden, on any tab; see {@link #buildRail}'s own
+     *  comment on why it is not touched by {@link #applyTabViews}. */
+    private View tabRail;
+
+    /** {@link #browseTour}'s own target for "search, filter and sort" - the
+     *  row {@link #buildToolbar} returns, kept here because that method hands
+     *  it straight to its caller rather than a field of its own. */
+    private View toolbarRow;
+
+    /**
+     * The library's own two guides - Browse's, and the archive's - one flag
+     * each, armed the first time {@link #show} actually shows that tab. See
+     * {@code EmulatorActivity.buildMachineTour}, which settled this shape
+     * first: targets are suppliers rather than views, so a tour declines
+     * quietly whenever what it would ring is not there to ring, and the flag
+     * it guards is left unset for next time rather than spent on nothing.
+     *
+     * Built in {@link #onCreate}, once everything either points at exists -
+     * not as field initialisers, which would run before those fields are
+     * assigned; see CLAUDE.md, "Build collaborators in onCreate".
+     */
+    private Tour browseTour;
+    private Tour catalogueTour;
 
     /**
      * How many columns the grid shape has - recomputed from the recycler's
@@ -704,8 +744,60 @@ public final class LibraryActivity extends ZedexActivity {
             pendingSelectionKey = state.getString(STATE_SELECTED_KEY);
         }
 
+        // After buildPage(), so every target either points at already exists -
+        // see each tour's own comment for why its marks are the views that
+        // are never independently hidden, rather than the row or the pane
+        // that would be truer to the words but is not there yet the first
+        // time a tab is shown.
+        browseTour = buildBrowseTour();
+        catalogueTour = buildCatalogueTour();
+
         pushRoot();
         show(wantsCatalogue(getIntent()) ? Tab.CATALOGUE : Tab.BROWSE);
+    }
+
+    /**
+     * The library's own guide: the rail first, since it is the one thing on
+     * this screen with no label of its own to say what it does - then the
+     * toolbar, then the list, then the pane.
+     *
+     * <b>None of the four ever require data to have loaded.</b> {@link
+     * #tabRail}, {@link #toolbarRow} and {@link #listArea} are built once in
+     * {@link #onCreate} and never independently hidden; {@link #pane} is
+     * hidden only while {@link #libraryPanel} has taken its job over, on a
+     * two-screen handheld. A mark pointed at {@link #recycler} itself, or at
+     * its first bound row, would decline on every first showing instead: both
+     * go {@code GONE} while {@link #load} is still walking the folder, which
+     * is exactly when {@link #show} arms this.
+     */
+    private Tour buildBrowseTour() {
+        return Tour.of(Prefs.KEY_GUIDE_LIBRARY)
+                .mark(() -> tabRail, R.string.guide_tabs)
+                .mark(() -> toolbarRow, R.string.guide_toolbar)
+                .mark(() -> listArea, R.string.guide_row)
+                .mark(() -> libraryPanel.inUse() ? null : pane, R.string.guide_pane);
+    }
+
+    /**
+     * The archive's own guide: search, then the shelves you land on, then
+     * what tapping into one of them leads to.
+     *
+     * <b>Never {@link CatalogueView}'s own pane.</b> It starts {@code GONE}
+     * and stays that way until somebody has already tapped a title, so a
+     * tour armed the moment this tab is first shown - before anybody has
+     * tapped anything - would never find it there to ring; {@link
+     * CatalogueView#list()} rings the shelf list instead for both of the
+     * last two marks, which is where a shelf and then a title are actually
+     * tapped from.
+     */
+    private Tour buildCatalogueTour() {
+        return Tour.of(Prefs.KEY_GUIDE_CATALOGUE)
+                .mark(() -> catalogueView == null ? null : catalogueView.searchField(),
+                      R.string.guide_catalogue_search)
+                .mark(() -> catalogueView == null ? null : catalogueView.list(),
+                      R.string.guide_shelves)
+                .mark(() -> catalogueView == null ? null : catalogueView.list(),
+                      R.string.guide_catalogue_pane);
     }
 
     /**
@@ -836,6 +928,15 @@ public final class LibraryActivity extends ZedexActivity {
         // Same reasoning, for the dialog's own second GamepadCursor - closing
         // it releases that repeat too, via its own onDismiss.
         optionsDialog.dismiss();
+
+        // Through each tour, never Coach.dismiss directly - see Tour's own
+        // class comment. Neither holds anything the way the machine's tour
+        // holds its quick bar's fade, so there is nothing here for either
+        // release to do beyond taking its own mark down - but calling both
+        // costs nothing: at most one of the two is ever actually mid-walk,
+        // and dismissing an idle Tour is a no-op.
+        browseTour.dismiss(this);
+        catalogueTour.dismiss(this);
 
         // A player left running behind the screen is a real leak, and this
         // screen is exactly the one people leave running - going to the
@@ -1242,9 +1343,23 @@ public final class LibraryActivity extends ZedexActivity {
      * want. {@link GamepadCursor#key} already refuses anything not from a
      * pad, so a real keyboard's own arrow keys reach the field exactly as
      * they always did.
+     *
+     * <b>Except while a guide mark is up.</b> Claiming a pad key here, ahead
+     * of {@code super}, is exactly what would otherwise carry it past {@link
+     * Coach} unseen - {@code Coach.dispatchKeyEvent} only ever runs once this
+     * method has already decided not to claim the key itself, and on this
+     * screen that decision is made first. A D-pad
+     * push behind a mark ringing the toolbar would move the selection nobody
+     * can see, the same failure a hat axis was fixed for on {@code
+     * EmulatorActivity} - and left open here, since this screen claims a pad
+     * key earlier than that one does. See {@link Coach#isShowing}'s own
+     * comment for why {@code onGenericMotionEvent} below needs no matching
+     * guard: that hook runs downstream of the window's own dispatch, so
+     * {@code Coach} already saw the axis first.
      */
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
+        if (Coach.isShowing(this)) return super.dispatchKeyEvent(event);
         if (padCursor.key(event)) return true;
         return super.dispatchKeyEvent(event);
     }
@@ -1496,6 +1611,7 @@ public final class LibraryActivity extends ZedexActivity {
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
         FrameLayout content = new FrameLayout(this);
+        listArea = content;
 
         recycler = new RecyclerView(this);
         recycler.setLayoutManager(grid ? new GridLayoutManager(this, gridSpanCount)
@@ -1645,6 +1761,7 @@ public final class LibraryActivity extends ZedexActivity {
         machineButton.setOnClickListener(v -> openMachine());
         rail.addView(machineButton);
 
+        tabRail = rail;
         return rail;
     }
 
@@ -1838,6 +1955,7 @@ public final class LibraryActivity extends ZedexActivity {
                 optionsDialog.show(sortFieldIndex(sort), sortDescending, grid));
         row.addView(optionsButton);
 
+        toolbarRow = row;
         return row;
     }
 
@@ -2180,6 +2298,14 @@ public final class LibraryActivity extends ZedexActivity {
         // own column and pane, or the catalogue's. Everything below it is
         // about the first, and harmless while it is hidden.
         applyTabViews();
+
+        // One guide per tab, each with its own flag, armed the first time
+        // that tab is actually shown - so somebody who has had the app for a
+        // year meets the archive's marks when they first open the archive.
+        // Both decline quietly when their targets are missing; see each
+        // tour's own comment.
+        if (tab == Tab.BROWSE) browseTour.arm(this);
+        if (tab == Tab.CATALOGUE) catalogueTour.arm(this);
 
         // Leaving Browse with a filter still set must not leave the chips
         // showing over a tab filtering() does not apply to - updateFilterChips
