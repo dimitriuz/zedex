@@ -14,6 +14,8 @@ import android.widget.LinearLayout;
 import android.widget.Switch;
 import android.widget.TextView;
 
+import java.util.List;
+
 /**
  * Whether the app opens on the library, and which archive it browses.
  *
@@ -53,13 +55,25 @@ public final class LibraryPage implements Step {
 
         column.addView(Cards.note(context, R.string.welcome_library_archive));
 
-        // Catalogues.preferred already applies the same fallback this page
-        // must show as the leading card: a stored name that matches nothing
-        // - nobody has chosen yet - falls back to the first catalogue rather
-        // than leading nothing, exactly as MachinePage's own default machine
-        // does for Prefs.KEY_MACHINE.
-        Catalogue preferred = Catalogues.preferred(context);
-        String chosen = preferred != null ? preferred.name() : null;
+        // Fetched once: Catalogues.preferred(context) would answer the same
+        // Catalogue this page is about to draw cards for, but only by
+        // calling Catalogues.all(context) a second time to get it - two
+        // otherwise-identical lists of the same two lightweight objects.
+        // Reading the fallback here instead - a stored name nothing
+        // matches, including "nothing stored", leads on the first entry -
+        // is the same rule Catalogues.preferred states in its own comment,
+        // applied to the one list this method already has.
+        List<Catalogue> catalogues = Catalogues.all(context);
+        String stored = preferences.getString(Prefs.KEY_CATALOGUE, null);
+
+        String chosen = null;
+        for (Catalogue catalogue : catalogues) {
+            if (catalogue.name().equals(stored)) {
+                chosen = stored;
+                break;
+            }
+        }
+        if (chosen == null && !catalogues.isEmpty()) chosen = catalogues.get(0).name();
 
         // A Cards.Group so tapping a different archive moves the cyan
         // highlight there live, rather than leaving it on whichever card was
@@ -67,7 +81,7 @@ public final class LibraryPage implements Step {
         // shape, with two groups instead of one.
         Cards.Group archives = new Cards.Group();
 
-        for (Catalogue catalogue : Catalogues.all(context)) {
+        for (Catalogue catalogue : catalogues) {
             String name = catalogue.name();
 
             // Catalogues.preferred matches Prefs.KEY_CATALOGUE against

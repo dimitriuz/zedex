@@ -24,22 +24,32 @@ import java.util.List;
  * asked, with the disabled ones after the enabled ones. Rebuilt in place on
  * every move rather than animated: it is three rows.
  *
- * <b>Public, not package-private any more.</b> {@code welcome.ScrapingPage}
- * calls {@link #show} from a different package - a member another layer
- * needs has to be public, or the boundary stops it, exactly as {@code
- * FoldersPage} widened whatever the wizard needed of {@code storage}.
+ * <b>Package-private on purpose, including from {@code welcome.ScrapingPage},
+ * which reaches this dialog too.</b> A member another layer genuinely needs
+ * has to be public - CLAUDE.md says so, and it is a fact about Java's
+ * boundaries, not license to widen everything a lambda happens to touch.
+ * Making this class, {@link Chosen} and {@link #show} all public so a lambda
+ * outside this package could satisfy {@link Chosen} directly was tried first
+ * and reverted: that would have published the dialog's class name and its
+ * bespoke callback type forever, for one call site, when the caller only
+ * ever needed to hand over a list and get a list back. {@link
+ * ScraperOrderEntry#show} is the one seam this package opens for that - a
+ * stock {@code java.util.function.Consumer<List<String>>} in, adapted to
+ * {@link Chosen} right here, so a future second caller from outside
+ * {@code screen} still finds one purpose-built entry point rather than a
+ * reason to widen a fourth declaration.
  */
-public final class ScraperOrder {
+final class ScraperOrder {
 
     /** What the dialog came to: the enabled names, in order. */
-    public interface Chosen {
+    interface Chosen {
         void take(List<String> namesInOrder);
     }
 
     private ScraperOrder() {
     }
 
-    public static void show(Activity activity, List<String> available, List<String> enabled,
+    static void show(Activity activity, List<String> available, List<String> enabled,
                      Chosen onSave) {
         // Enabled first and in their own order, then whatever is left - which
         // is what the list means: the order it will ask them in.

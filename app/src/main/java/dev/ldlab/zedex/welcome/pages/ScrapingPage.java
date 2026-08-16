@@ -3,7 +3,7 @@ package dev.ldlab.zedex.welcome.pages;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.library.scrape.Provider;
 import dev.ldlab.zedex.library.scrape.Scrapers;
-import dev.ldlab.zedex.screen.ScraperOrder;
+import dev.ldlab.zedex.screen.ScraperOrderEntry;
 import dev.ldlab.zedex.storage.Prefs;
 import dev.ldlab.zedex.view.Cards;
 import dev.ldlab.zedex.welcome.Step;
@@ -31,8 +31,8 @@ import java.util.List;
  */
 public final class ScrapingPage implements Step {
 
-    /** {@code ScraperOrder.show} needs an {@code Activity} to host its own
-     *  dialog, not a bare {@code Context} - the same reason {@code
+    /** {@code ScraperOrderEntry.show} needs an {@code Activity} to host its
+     *  own dialog, not a bare {@code Context} - the same reason {@code
      *  LanguagePage} takes a {@code Runnable} instead of doing its own
      *  recreate(). */
     private final Activity activity;
@@ -72,7 +72,7 @@ public final class ScrapingPage implements Step {
 
         column.addView(Cards.choice(context,
                 R.string.welcome_scraping_sources, 0,
-                v -> ScraperOrder.show(activity, available, enabled,
+                v -> ScraperOrderEntry.show(activity, available, enabled,
                         chosen -> Scrapers.save(activity, chosen)),
                 false));
 
