@@ -251,6 +251,11 @@
          arrive with the first tour. -->
     <string name="guide_next">Next</string>
     <string name="guide_done">Got it</string>
+    <string name="guide_skip">Skip the guide</string>
+    <string name="guide_picture">Tap the picture any time to bring these buttons back — they fade out so they are not over the game.</string>
+    <string name="guide_files">Tapes, disks and anything else you want to load.</string>
+    <string name="guide_controls">The keyboard, the joystick, and what your gamepad does.</string>
+    <string name="guide_menu">Everything else lives in here — machines, saved states, cheats and settings.</string>
 
     <string name="roms_needed">ROMs needed</string>
     <string name="roms_needed_message">The app ships the ROMs it is allowed to, but none of them could be put in\n\n%1$s\n\nThat folder may not be writable — Settings › App can point somewhere else. Or bring your own, whichever way below.</string>

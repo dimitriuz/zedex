@@ -47,6 +47,8 @@ import dev.ldlab.zedex.view.QuickBar;
 import dev.ldlab.zedex.view.Rows;
 import dev.ldlab.zedex.view.SpectrumKeyboardView;
 import dev.ldlab.zedex.view.SystemKeyboardView;
+import dev.ldlab.zedex.welcome.Coach;
+import dev.ldlab.zedex.welcome.Tour;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
@@ -464,6 +466,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         roms = new StartPanel(this, romsHost);
         menu = buildMenu();
         quickBar = buildQuickBar();
+        machineTour = buildMachineTour();
 
         // The machine's own face, once there is a bar to put a face on. Not
         // up with the collaborators in onCreate, where this was first written
@@ -1084,7 +1087,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // show/hide toggles as well as the picture - each of them two lists
         // that happened to share an icon, so the icon could not say what was
         // behind it and the list had to be read to the end.
-        bar.addGroup(R.drawable.ic_folder, getString(R.string.menu_files),
+        filesGroup = bar.addGroup(R.drawable.ic_folder, getString(R.string.menu_files),
                      this::fillFiles);
         bar.addGroup(R.drawable.ic_bookmark, getString(R.string.menu_states),
                      states::fill);
@@ -1094,7 +1097,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                      this::fillMachine);
         bar.addGroup(R.drawable.ic_camera, getString(R.string.menu_capture),
                      capture::fill);
-        bar.addGroup(R.drawable.ic_controls, getString(R.string.menu_on_screen),
+        controlsGroup = bar.addGroup(R.drawable.ic_controls, getString(R.string.menu_on_screen),
                      this::fillOnScreen);
         bar.addGroup(R.drawable.ic_display, getString(R.string.menu_display),
                      this::fillDisplay);
@@ -1154,6 +1157,55 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     private ImageButton manualAction;
     private ImageButton libraryAction;
     private ImageButton menuAction;
+
+    /** The Files and the on-screen Controls groups, kept for the same reason
+     *  {@link #menuAction} already is: {@link #machineTour} points at them. */
+    private ImageButton filesGroup;
+    private ImageButton controlsGroup;
+
+    /**
+     * The machine's own guide: the picture first, because the bar fading
+     * after three seconds with no hint that a tap brings it back is the
+     * least discoverable thing in the app - and every other mark here is
+     * about that same bar.
+     *
+     * <b>Suppliers, not views.</b> {@link #filesGroup}, {@link
+     * #controlsGroup} and {@link #menuAction} are all on the quick bar, and
+     * the bar is <em>borrowed</em> by the second screen's panel when one is
+     * showing - {@link EmulatorLayout#setLentAway} detaches it from {@link
+     * #layout} and a fresh {@code SecondScreen} reparents it onto its own
+     * window. So {@code quickBar.getParent() == layout} is the fact to read:
+     * true only while the bar is actually in this window, false both while it
+     * is borrowed and in the instant between detach and reattach. Reading
+     * that here, next to each target, means {@link Tour#arm} needs no
+     * separate condition for a second screen at all - a borrowed bar simply
+     * answers null like any other missing target.
+     *
+     * The picture itself never moves - detaching the {@code SurfaceView}
+     * would destroy the surface Fuse draws into - so {@link #layout} itself
+     * is always a fine target for it.
+     *
+     * <b>Built in {@link #buildMachineTour}, called from {@link #onCreate},
+     * not a field initialiser.</b> This one would run before {@code
+     * fadeQuickBar} is declared and referencing it from an initialiser is an
+     * illegal forward reference - the same rule this project keeps about
+     * collaborators and field initialisers, one line finer.
+     */
+    private Tour machineTour;
+
+    private Tour buildMachineTour() {
+        return Tour.of(Prefs.KEY_GUIDE_MACHINE)
+                .mark(() -> layout, R.string.guide_picture)
+                .mark(() -> quickBar.getParent() == layout ? filesGroup : null,
+                      R.string.guide_files)
+                .mark(() -> quickBar.getParent() == layout ? controlsGroup : null,
+                      R.string.guide_controls)
+                .mark(() -> quickBar.getParent() == layout ? menuAction : null,
+                      R.string.guide_menu)
+                // Or the bar fades out from under its own explanation.
+                .holding(() -> quickBar.removeCallbacks(fadeQuickBar),
+                         this::revealQuickBar);
+    }
 
     /**
      * Shows the game's details, or the machine again.
@@ -2107,6 +2159,11 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // on behind a machine nobody is looking at either.
         panels.pauseVideo();
 
+        // Idempotent - a no-op when no mark is up, and left showing when
+        // there is one nothing else takes down; see Coach's own class
+        // comment.
+        Coach.dismiss(this);
+
         // A held direction has nobody to let go of it once we are not being sent
         // events any more.
         gamepad.releaseAll();
@@ -2250,6 +2307,14 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         started = true;
 
         machine.start();
+
+        // Not while the bar is on the panel: with a second screen the quick
+        // bar is borrowed by a Presentation on the other display, and an
+        // overlay in this window would ring a bar that is not here. Tour.arm
+        // declines on a null target, so this needs no separate check - the
+        // suppliers answer null when the bar is not in this window; see
+        // machineTour's own comment.
+        machineTour.arm(this);
     }
 
     @Override

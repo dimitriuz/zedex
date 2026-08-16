@@ -43,12 +43,20 @@ import android.widget.TextView;
  * activity lamps did exactly this once and took the whole UI Automator suite
  * down.
  *
- * <b>Every touch and key event is consumed while a mark is up.</b> {@link
- * #onTouchEvent} always returns true, so a tap on the scrim cannot reach
- * whatever it is drawn over, and {@link #dispatchKeyEvent} swallows
+ * <b>Every touch, key and motion event is consumed while a mark is up.</b>
+ * {@link #onTouchEvent} always returns true, so a tap on the scrim cannot
+ * reach whatever it is drawn over, and {@link #dispatchKeyEvent} swallows
  * everything except the one that activates Next - so nothing behind is
  * half-pressed and no {@code GamepadCursor} moves a cursor or steals focus
- * mid-mark.
+ * mid-mark. {@link #dispatchGenericMotionEvent} does the same for a
+ * gamepad's stick or hat: that class of input often arrives as an axis
+ * rather than a key - see the project's own note on this, that falling
+ * through to the view tree "looks like the tidier fix and leaves the D-pad
+ * dead" - and on the machine's own screen an unclaimed one would reach
+ * {@code EmulatorActivity}'s joystick handling and move the emulated
+ * joystick, or move a list's selection on a screen that uses {@code
+ * GamepadCursor}, either of them behind the scrim a mark is supposed to be
+ * the only thing in front of.
  *
  * <b>The hole needs a software layer to punch through.</b> {@link
  * PorterDuff.Mode#CLEAR} zeroes the alpha of whatever this view has already
@@ -312,6 +320,25 @@ public final class Coach extends FrameLayout {
         // Everything else is swallowed, the activating key included - so
         // nothing behind this can be half-pressed and no GamepadCursor sees
         // a direction or a button and moves a cursor or a selection under it.
+        return true;
+    }
+
+    /**
+     * Swallows a gamepad's stick or hat, exactly as {@link #dispatchKeyEvent}
+     * swallows every key but the one that activates Next.
+     *
+     * A pad direction often arrives as a hat axis rather than a key, which
+     * Android turns into no focus move at all on its own - so whatever reads
+     * generic motion has to claim it itself, and {@code
+     * dispatchGenericMotionEvent} is the same early hook {@code
+     * dispatchKeyEvent} already uses for keys rather than an {@code onX}
+     * override a subclass further down could still see. Left unconsumed,
+     * this axis would reach {@code EmulatorActivity.onGenericMotionEvent} and
+     * move the emulated joystick, or a {@code GamepadCursor} on a screen that
+     * has one, while the scrim is meant to be the only thing answering.
+     */
+    @Override
+    public boolean dispatchGenericMotionEvent(MotionEvent event) {
         return true;
     }
 
