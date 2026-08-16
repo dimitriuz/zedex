@@ -78,12 +78,44 @@ public class WelcomeTest {
         wasLanguage = preferences.getString(Language.KEY_LANGUAGE, "");
     }
 
+    /**
+     * The preferences back, and the notification shade shut.
+     *
+     * <b>The shade is not paranoia - this class pulls it down.</b> Every page
+     * here is taller than the screen, so {@link #scrollTo} flings a {@code
+     * UiScrollable}, and the wizard's own ScrollView reaches the top of the
+     * window; {@code scrollIntoView} begins by scrolling to the beginning,
+     * which is a downward swipe starting near that top edge, and Android
+     * reads one of those as the gesture that opens the shade. Measured:
+     * launcher focused before this class, {@code mCurrentFocus=Window{...
+     * NotificationShade}} after it, every run.
+     *
+     * It outlives the class, exactly like the file picker CLAUDE.md already
+     * warns about - it belongs to SystemUI, so nothing done to this app
+     * clears it - and a shade over the screen is a full-height window with
+     * none of our views under it. Everything that ran afterwards read the
+     * shade instead of the app: {@code GuideTest} reported "the keyboard
+     * never appeared" and then "the guide never appeared", and sixteen of
+     * twenty-three tests in one batch failed that way, none of them for a
+     * reason of their own.
+     *
+     * Closed here rather than opened-and-closed around each fling: the swipe
+     * that grabs it is the one this class needs, so the cure is to put it
+     * back rather than to try not to touch it.
+     */
     @After
     public void tearDown() {
         preferences.edit()
                 .putBoolean(Storage.KEY_SETUP_DONE, wasDone)
                 .putString(Language.KEY_LANGUAGE, wasLanguage)
                 .apply();
+
+        try {
+            device.executeShellCommand("cmd statusbar collapse");
+        } catch (java.io.IOException e) {
+            // Nothing this test can do about it, and nothing it should fail
+            // for: the assertions have already run by here.
+        }
     }
 
     private void launch() {
