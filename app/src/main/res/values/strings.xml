@@ -220,6 +220,11 @@
     <string name="welcome_machine_plus2a">The +3 without the disk drive.</string>
     <string name="welcome_machine_plus3">128K with a 3-inch disk drive.</string>
     <string name="welcome_machine_pentagon">The Russian clone, and most of what arrives as .trd or .scl.</string>
+    <string name="welcome_controls">Keyboard and joystick</string>
+    <string name="welcome_controls_hint">Which keyboard to draw over the picture, and what a game should think is plugged in.</string>
+    <string name="welcome_controls_keyboard">Keyboard</string>
+    <string name="welcome_controls_joystick">Joystick</string>
+    <string name="welcome_controls_system_note">Your phone\'s own keyboard types instead — nothing is drawn here.</string>
     <string name="welcome_done_title">That\'s everything</string>
     <string name="welcome_done_message">All of it lives in Settings if you want to change your mind.</string>
     <string name="welcome_start">Start the machine</string>

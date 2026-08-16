@@ -9,6 +9,7 @@ import dev.ldlab.zedex.view.Palette;
 import dev.ldlab.zedex.welcome.Page;
 import dev.ldlab.zedex.welcome.Step;
 import dev.ldlab.zedex.welcome.Steps;
+import dev.ldlab.zedex.welcome.pages.ControlsPage;
 import dev.ldlab.zedex.welcome.pages.DonePage;
 import dev.ldlab.zedex.welcome.pages.FoldersPage;
 import dev.ldlab.zedex.welcome.pages.LanguagePage;
@@ -141,23 +142,24 @@ public final class WelcomeActivity extends ZedexActivity {
     }
 
     /**
-     * @return null for a {@link Page} Tasks 7-9 have not built a {@link Step}
+     * @return null for a {@link Page} Tasks 8-9 have not built a {@link Step}
      *         for yet - <b>scaffold, not a real "no page"</b>. {@link #next},
      *         {@link #skip} and {@link #back} all walk past a null the way
      *         {@link #forwardFrom}/{@link #backwardFrom} do, so nothing here
-     *         is ever shown; WELCOME, FOLDERS, MACHINE and DONE build one, and
-     *         CONTROLS, SCREEN, LIBRARY and SCRAPING do not yet. Once every
-     *         case does, this branch is unreachable and the walking in
+     *         is ever shown; WELCOME, FOLDERS, MACHINE, CONTROLS and DONE
+     *         build one, and SCREEN, LIBRARY and SCRAPING do not yet. Once
+     *         every case does, this branch is unreachable and the walking in
      *         {@link #forwardFrom}/{@link #backwardFrom} never iterates more
      *         than once - that is the moment to delete the null handling on
      *         both ends together.
      */
     private Step stepFor(Page which) {
         switch (which) {
-            case WELCOME: return new LanguagePage(this::recreate);
-            case FOLDERS: return new FoldersPage(this);
-            case MACHINE: return new MachinePage();
-            case DONE:    return new DonePage();
+            case WELCOME:  return new LanguagePage(this::recreate);
+            case FOLDERS:  return new FoldersPage(this);
+            case MACHINE:  return new MachinePage();
+            case CONTROLS: return new ControlsPage();
+            case DONE:     return new DonePage();
             default:
                 return null;
         }

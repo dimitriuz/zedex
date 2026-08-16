@@ -70,8 +70,13 @@ public final class MachinePage implements Step {
         // both state; checked, they agree, so a skipped page is safe.
         String current = preferences.getString(Prefs.KEY_MACHINE, "128");
 
+        // A Cards.Group, so tapping a different machine moves the cyan
+        // highlight there live - rather than leaving it on the card that
+        // used to be current until the page is rebuilt from scratch.
+        Cards.Group group = new Cards.Group();
+
         for (Model machine : MACHINES) {
-            column.addView(Cards.choiceOf(context, machine.name,
+            column.addView(group.add(context, machine.name,
                     machine.description,
                     v -> preferences.edit()
                             .putString(Prefs.KEY_MACHINE, machine.id).apply(),
