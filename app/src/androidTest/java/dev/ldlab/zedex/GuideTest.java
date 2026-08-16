@@ -90,7 +90,7 @@ public class GuideTest {
 
         // Walk it to the end; the flag is set at the end and not the start,
         // so a guide abandoned half way is a guide that has not been given.
-        // The machine's guide has four marks, and the last of them reads
+        // The machine's guide has three marks, and the last of them reads
         // "Got it" rather than "Next" - see Coach.show's own last parameter -
         // so both texts are looked for, or the walk stops one mark short and
         // never reaches the click that actually sets the flag.
@@ -98,7 +98,7 @@ public class GuideTest {
         // Bounded at the mark count plus one: an uncapped loop turns a Coach
         // that fails to advance into a hang rather than a failure, and a hang
         // gives no clue which mark it stuck on.
-        final int marks = 4; // buildMachineTour's own four .mark() calls.
+        final int marks = 3; // buildMachineTour's own three .mark() calls.
         for (int tap = 0; tap <= marks; tap++) {
             UiObject2 button = device.findObject(By.text(next));
             if (button == null) button = device.findObject(By.text(done));

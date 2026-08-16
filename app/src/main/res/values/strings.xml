@@ -249,8 +249,7 @@
     <string name="guide_next">Next</string>
     <string name="guide_done">Got it</string>
     <string name="guide_picture">Tap the picture any time to bring these buttons back — they fade out so they are not over the game.</string>
-    <string name="guide_files">Tapes, disks and anything else you want to load.</string>
-    <string name="guide_controls">The keyboard, the joystick, and what your gamepad does.</string>
+    <string name="guide_bar">Tapes and disks, saved games, the machine, screenshots, the keyboard and joystick, and the picture — each icon opens a short list.</string>
     <string name="guide_menu">Everything else lives in here — machines, saved states, cheats and settings.</string>
     <string name="guide_tabs">Your games, your favourites, what you played last — and an archive of about forty thousand more.</string>
     <string name="guide_toolbar">Search, filter and sort. A filter stays until you clear it.</string>

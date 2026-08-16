@@ -214,8 +214,7 @@
     <string name="guide_next">Siguiente</string>
     <string name="guide_done">Entendido</string>
     <string name="guide_picture">Toca la imagen cuando quieras para traer de vuelta estos botones: se desvanecen para no quedarse sobre el juego.</string>
-    <string name="guide_files">Cintas, discos y cualquier otra cosa que quieras cargar.</string>
-    <string name="guide_controls">El teclado, el joystick y lo que hace tu mando.</string>
+    <string name="guide_bar">Cintas y discos, partidas guardadas, la máquina, capturas, el teclado y el joystick, y la imagen: cada icono abre una lista breve.</string>
     <string name="guide_menu">Todo lo demás está aquí dentro: máquinas, partidas guardadas, trucos y ajustes.</string>
     <string name="guide_tabs">Tus juegos, tus favoritos, lo que jugaste por última vez, y un archivo de unos cuarenta mil más.</string>
     <string name="guide_toolbar">Buscar, filtrar y ordenar. Un filtro se queda hasta que lo quites.</string>

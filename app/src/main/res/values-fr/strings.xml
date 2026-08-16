@@ -214,8 +214,7 @@
     <string name="guide_next">Suivant</string>
     <string name="guide_done">Compris</string>
     <string name="guide_picture">Touchez l\'image à tout moment pour ramener ces boutons — ils s\'effacent pour ne pas rester sur le jeu.</string>
-    <string name="guide_files">Cassettes, disquettes et tout ce que vous voulez charger.</string>
-    <string name="guide_controls">Le clavier, le joystick, et ce que fait votre manette.</string>
+    <string name="guide_bar">Cassettes et disquettes, sauvegardes, la machine, captures d\'écran, le clavier et le joystick, et l\'image — chaque icône ouvre une courte liste.</string>
     <string name="guide_menu">Tout le reste est là-dedans — machines, sauvegardes, codes et réglages.</string>
     <string name="guide_tabs">Vos jeux, vos favoris, ce que vous avez joué en dernier — et une archive d\'environ quarante mille autres.</string>
     <string name="guide_toolbar">Chercher, filtrer et trier. Un filtre reste jusqu\'à ce que vous l\'enleviez.</string>

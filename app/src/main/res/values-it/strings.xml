@@ -214,8 +214,7 @@
     <string name="guide_next">Avanti</string>
     <string name="guide_done">Ho capito</string>
     <string name="guide_picture">Tocca l\'immagine quando vuoi per far tornare questi pulsanti: svaniscono per non restare sopra il gioco.</string>
-    <string name="guide_files">Nastri, dischi e qualunque altra cosa tu voglia caricare.</string>
-    <string name="guide_controls">La tastiera, il joystick, e cosa fa il tuo gamepad.</string>
+    <string name="guide_bar">Nastri e dischi, salvataggi, la macchina, schermate, tastiera e joystick, e l\'immagine: ogni icona apre un breve elenco.</string>
     <string name="guide_menu">Tutto il resto sta qui dentro: macchine, salvataggi, trucchi e impostazioni.</string>
     <string name="guide_tabs">I tuoi giochi, i tuoi preferiti, quello che hai giocato per ultimo — e un archivio di altri quarantamila circa.</string>
     <string name="guide_toolbar">Cerca, filtra e ordina. Un filtro resta finché non lo togli.</string>

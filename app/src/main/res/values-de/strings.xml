@@ -214,8 +214,7 @@
     <string name="guide_next">Weiter</string>
     <string name="guide_done">Verstanden</string>
     <string name="guide_picture">Tippe jederzeit auf das Bild, um diese Schaltflächen zurückzuholen — sie blenden aus, damit sie nicht über dem Spiel liegen.</string>
-    <string name="guide_files">Kassetten, Disketten und alles andere, was du laden willst.</string>
-    <string name="guide_controls">Die Tastatur, der Joystick, und was dein Gamepad tut.</string>
+    <string name="guide_bar">Bänder und Disketten, Spielstände, die Maschine, Bildschirmfotos, Tastatur und Joystick und das Bild — jedes Symbol öffnet eine kurze Liste.</string>
     <string name="guide_menu">Alles andere steckt hier drin — Maschinen, Spielstände, Cheats und Einstellungen.</string>
     <string name="guide_tabs">Deine Spiele, deine Favoriten, was du zuletzt gespielt hast — und ein Archiv von etwa vierzigtausend weiteren.</string>
     <string name="guide_toolbar">Suchen, filtern und sortieren. Ein Filter bleibt, bis du ihn aufhebst.</string>

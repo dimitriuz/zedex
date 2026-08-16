@@ -214,8 +214,7 @@
     <string name="guide_next">Dál</string>
     <string name="guide_done">Rozumím</string>
     <string name="guide_picture">Kdykoli klepni na obraz, aby se tahle tlačítka vrátila — mizí, aby nebyla přes hru.</string>
-    <string name="guide_files">Kazety, disky a cokoli dalšího, co chceš nahrát.</string>
-    <string name="guide_controls">Klávesnice, joystick a to, co dělá tvůj gamepad.</string>
+    <string name="guide_bar">Pásky a diskety, uložené hry, stroj, snímky obrazovky, klávesnice a joystick a obraz — každá ikona otevře krátký seznam.</string>
     <string name="guide_menu">Všechno ostatní je tady — počítače, uložené stavy, cheaty a nastavení.</string>
     <string name="guide_tabs">Tvé hry, tvé oblíbené, co jsi hrál naposledy — a archiv asi čtyřiceti tisíc dalších.</string>
     <string name="guide_toolbar">Hledání, filtr a řazení. Filtr zůstane, dokud ho nezrušíš.</string>

@@ -1086,7 +1086,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // show/hide toggles as well as the picture - each of them two lists
         // that happened to share an icon, so the icon could not say what was
         // behind it and the list had to be read to the end.
-        filesGroup = bar.addGroup(R.drawable.ic_folder, getString(R.string.menu_files),
+        bar.addGroup(R.drawable.ic_folder, getString(R.string.menu_files),
                      this::fillFiles);
         bar.addGroup(R.drawable.ic_bookmark, getString(R.string.menu_states),
                      states::fill);
@@ -1096,7 +1096,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                      this::fillMachine);
         bar.addGroup(R.drawable.ic_camera, getString(R.string.menu_capture),
                      capture::fill);
-        controlsGroup = bar.addGroup(R.drawable.ic_controls, getString(R.string.menu_on_screen),
+        bar.addGroup(R.drawable.ic_controls, getString(R.string.menu_on_screen),
                      this::fillOnScreen);
         bar.addGroup(R.drawable.ic_display, getString(R.string.menu_display),
                      this::fillDisplay);
@@ -1157,21 +1157,26 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     private ImageButton libraryAction;
     private ImageButton menuAction;
 
-    /** The Files and the on-screen Controls groups, kept for the same reason
-     *  {@link #menuAction} already is: {@link #machineTour} points at them. */
-    private ImageButton filesGroup;
-    private ImageButton controlsGroup;
-
     /**
-     * The machine's own guide: the picture first, because the bar fading
-     * after three seconds with no hint that a tap brings it back is the
-     * least discoverable thing in the app - and every other mark here is
-     * about that same bar.
+     * The machine's own guide: the picture, the bar, and ☰.
      *
-     * <b>Suppliers, not views.</b> {@link #filesGroup}, {@link
-     * #controlsGroup} and {@link #menuAction} are all on the quick bar, and
-     * the bar is <em>borrowed</em> by the second screen's panel when one is
-     * showing - {@link EmulatorLayout#setLentAway} detaches it from {@link
+     * <b>The bar is rung whole rather than an icon at a time.</b> There are
+     * nine of them, and a mark each would be a ten-step tour on the first
+     * launch somebody ever makes - which is a thing people abandon rather
+     * than read. It would also be nine ways for the guide to decline: {@link
+     * QuickBar#setCompact} drops icons when the bar is narrow, and {@link
+     * Tour#arm} refuses the <em>whole</em> guide when any one target answers
+     * null, so on a narrow phone a per-icon tour would silently never fire.
+     * The bar itself is always there when the bar is there.
+     *
+     * So the caption names what the icons open and the mark rings all of
+     * them. What is left is the two things the icons cannot say themselves:
+     * that a tap on the picture brings the bar back once it has faded, and
+     * that ☰ holds everything the bar has no room for.
+     *
+     * <b>Suppliers, not views.</b> {@link #menuAction} is on the quick bar,
+     * and the bar is <em>borrowed</em> by the second screen's panel when one
+     * is showing - {@link EmulatorLayout#setLentAway} detaches it from {@link
      * #layout} and a fresh {@code SecondScreen} reparents it onto its own
      * window. So {@code quickBar.getParent() == layout} is the fact to read:
      * true only while the bar is actually in this window, false both while it
@@ -1195,10 +1200,8 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     private Tour buildMachineTour() {
         return Tour.of(Prefs.KEY_GUIDE_MACHINE)
                 .mark(() -> layout, R.string.guide_picture)
-                .mark(() -> quickBar.getParent() == layout ? filesGroup : null,
-                      R.string.guide_files)
-                .mark(() -> quickBar.getParent() == layout ? controlsGroup : null,
-                      R.string.guide_controls)
+                .mark(() -> quickBar.getParent() == layout ? quickBar : null,
+                      R.string.guide_bar)
                 .mark(() -> quickBar.getParent() == layout ? menuAction : null,
                       R.string.guide_menu)
                 // Or the bar fades out from under its own explanation.

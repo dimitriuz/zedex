@@ -214,8 +214,7 @@
     <string name="guide_next">Dalej</string>
     <string name="guide_done">Rozumiem</string>
     <string name="guide_picture">Dotknij obrazu w dowolnej chwili, żeby przywrócić te przyciski — znikają, żeby nie leżeć na grze.</string>
-    <string name="guide_files">Taśmy, dyski i wszystko inne, co chcesz wczytać.</string>
-    <string name="guide_controls">Klawiatura, joystick i to, co robi twój pad.</string>
+    <string name="guide_bar">Taśmy i dyskietki, zapisane gry, maszyna, zrzuty ekranu, klawiatura i joystick oraz obraz — każda ikona otwiera krótką listę.</string>
     <string name="guide_menu">Wszystko inne jest tutaj — maszyny, zapisane stany, kody i ustawienia.</string>
     <string name="guide_tabs">Twoje gry, twoje ulubione, w co grałeś ostatnio — i archiwum około czterdziestu tysięcy innych.</string>
     <string name="guide_toolbar">Szukanie, filtr i sortowanie. Filtr zostaje, dopóki go nie zdejmiesz.</string>
