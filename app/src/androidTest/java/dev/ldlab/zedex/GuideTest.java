@@ -3,7 +3,6 @@ package dev.ldlab.zedex;
 import dev.ldlab.zedex.library.catalogue.Catalogues;
 import dev.ldlab.zedex.screen.LibraryActivity;
 import dev.ldlab.zedex.storage.Prefs;
-import dev.ldlab.zedex.storage.Storage;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -137,12 +136,15 @@ public class GuideTest {
      * it too. Without it a bench with the setting off hands straight over to
      * the machine and the test measures the wrong screen.
      *
-     * Unbounded, unlike the machine's own walk above: this class does not
-     * know how many marks either tour has, only that {@code Tour} always
-     * ends on "Got it" - and both of the library's guides are new enough not
-     * to have earned a hard-coded mark count of their own yet.
+     * @param marks how many marks this tour has - {@code buildBrowseTour} and
+     *              {@code buildCatalogueTour} both name their own count, the
+     *              same way {@code theMachinesGuideRunsOnceAndNotTwice} does
+     *              above. Bounds the walk, exactly as that one does and for
+     *              the same reason: an unbounded loop turns a guide that
+     *              fails to advance into a hang, and a bare "Next" search
+     *              stops one mark short of the last, which reads "Got it".
      */
-    private void walkTheGuide(String flag, String extra) {
+    private void walkTheGuide(String flag, String extra, int marks) {
         preferences.edit().putBoolean(flag, false).commit();
 
         Intent intent = new Intent(context, LibraryActivity.class);
@@ -152,29 +154,48 @@ public class GuideTest {
                       | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         context.startActivity(intent, Screen.here());
 
-        assertNotNull("the guide never appeared",
-                device.wait(Until.findObject(By.text(
-                        context.getString(R.string.guide_next))), WAIT));
+        String next = context.getString(R.string.guide_next);
+        String done = context.getString(R.string.guide_done);
 
-        // To the end: the flag is set there and not at the start, so a guide
-        // abandoned half way is a guide that has not been given.
-        while (device.findObject(By.text(
-                context.getString(R.string.guide_next))) != null) {
-            device.findObject(By.text(
-                    context.getString(R.string.guide_next))).click();
+        assertNotNull("the guide never appeared",
+                device.wait(Until.findObject(By.text(next)), WAIT));
+
+        // The accessibility tree spans every display, so a launch that
+        // landed on the wrong one still finds "Next" through it - and every
+        // click below would then land on display 0 instead, with nothing in
+        // the eventual failure to say a display was ever the problem. Every
+        // other library launcher in this suite checks this; this one hadn't.
+        Screen.assertHere();
+
+        for (int tap = 0; tap <= marks; tap++) {
+            UiObject2 button = device.findObject(By.text(next));
+            if (button == null) button = device.findObject(By.text(done));
+            if (button == null) break;
+
+            button.click();
             device.waitForIdle();
         }
-        device.findObject(By.text(
-                context.getString(R.string.guide_done))).click();
-        device.waitForIdle();
+
+        if (device.findObject(By.text(next)) != null
+                || device.findObject(By.text(done)) != null) {
+            fail("the guide is still showing \"" + next + "\" or \"" + done
+                    + "\" after " + (marks + 1) + " taps - it never reached the end");
+        }
     }
 
     @Test
     public void theLibrarysGuideIsGivenOnBrowse() {
-        assumeTrue("no content folder granted", preferences.getString(
-                Storage.KEY_CONTENT_TREE, null) != null);
-
-        walkTheGuide(Prefs.KEY_GUIDE_LIBRARY, null);
+        // No content-folder assumeTrue here: neither of browseTour's four
+        // targets - the rail, the toolbar, the list's own frame, the pane -
+        // needs one. All four are built unconditionally in onCreate; the
+        // "choose a folder" view is shown *inside* the list's frame rather
+        // than replacing it, and the pane shows a placeholder with nothing
+        // selected. A guard copied from FilterTest/DetailPaneTest, where it
+        // is load-bearing because those tests go looking for real games,
+        // would only have skipped this test silently on the standard Gradle
+        // route - connectedDebugAndroidTest wipes the SAF grant, and only a
+        // human with a picker can restore it.
+        walkTheGuide(Prefs.KEY_GUIDE_LIBRARY, null, 4); // buildBrowseTour's own four .mark() calls.
 
         assertTrue("the library guide did not record itself as given",
                    preferences.getBoolean(Prefs.KEY_GUIDE_LIBRARY, false));
@@ -182,12 +203,15 @@ public class GuideTest {
 
     @Test
     public void theArchivesGuideIsGivenOnTheCatalogueTab() {
-        assumeTrue("no content folder granted", preferences.getString(
-                Storage.KEY_CONTENT_TREE, null) != null);
+        // Kept, unlike the content-folder guard above: catalogueTour's own
+        // targets are only built when Catalogues.any() is - see
+        // LibraryActivity.buildPage - so a build with no catalogue truly has
+        // no shelf to land on, and wantsCatalogue() refuses the extra outright.
         assumeTrue("no catalogue in this build", Catalogues.any(context));
 
         walkTheGuide(Prefs.KEY_GUIDE_CATALOGUE,
-                     LibraryActivity.EXTRA_OPEN_CATALOGUE);
+                     LibraryActivity.EXTRA_OPEN_CATALOGUE,
+                     2); // buildCatalogueTour's own two .mark() calls.
 
         assertTrue("the archive guide did not record itself as given",
                    preferences.getBoolean(Prefs.KEY_GUIDE_CATALOGUE, false));

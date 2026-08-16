@@ -779,25 +779,36 @@ public final class LibraryActivity extends ZedexActivity {
     }
 
     /**
-     * The archive's own guide: search, then the shelves you land on, then
-     * what tapping into one of them leads to.
+     * The archive's own guide: search, then the shelves you land on.
+     *
+     * <b>Two marks, not three.</b> A first draft added a third, captioned
+     * {@code guide_catalogue_pane} ("Download it into your own library, or
+     * open it straight away") and pointed at {@link CatalogueView#list()} -
+     * the same view {@code guide_shelves} already rings - since nothing else
+     * on this tab represents that action before a title has been tapped.
+     * That left two consecutive marks ringing the same rectangle with only
+     * the caption changing. {@link CatalogueView}'s own options button (sort,
+     * format, catalogue) is a real, always-present, distinct view, but it is
+     * about narrowing the shelf, not about downloading or opening a game - a
+     * caption pointed at it would ring the wrong thing about the right
+     * words. No view on this tab, before a title is tapped, is honestly
+     * "download it or open it", so the mark was dropped rather than kept for
+     * a target that does not fit it; {@code guide_catalogue_pane} is left in
+     * {@code strings.xml}, unconsumed, same as {@code guide_skip} - a call
+     * for whoever next decides what unused guide strings cost in
+     * translation, not something to remove from here.
      *
      * <b>Never {@link CatalogueView}'s own pane.</b> It starts {@code GONE}
      * and stays that way until somebody has already tapped a title, so a
      * tour armed the moment this tab is first shown - before anybody has
-     * tapped anything - would never find it there to ring; {@link
-     * CatalogueView#list()} rings the shelf list instead for both of the
-     * last two marks, which is where a shelf and then a title are actually
-     * tapped from.
+     * tapped anything - would never find it there to ring.
      */
     private Tour buildCatalogueTour() {
         return Tour.of(Prefs.KEY_GUIDE_CATALOGUE)
                 .mark(() -> catalogueView == null ? null : catalogueView.searchField(),
                       R.string.guide_catalogue_search)
                 .mark(() -> catalogueView == null ? null : catalogueView.list(),
-                      R.string.guide_shelves)
-                .mark(() -> catalogueView == null ? null : catalogueView.list(),
-                      R.string.guide_catalogue_pane);
+                      R.string.guide_shelves);
     }
 
     /**

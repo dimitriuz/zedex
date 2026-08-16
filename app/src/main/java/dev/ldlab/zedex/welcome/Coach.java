@@ -58,6 +58,25 @@ import android.widget.TextView;
  * GamepadCursor}, either of them behind the scrim a mark is supposed to be
  * the only thing in front of.
  *
+ * <b>Both of those only work while {@link #next} actually holds focus</b> -
+ * {@code ViewGroup} routes a key event to whichever child is {@code
+ * mFocused}, exactly the way it routes generic motion, so a mark whose
+ * button never took focus never had either defence: not only was a
+ * gamepad's hat free to move a selection behind the scrim, {@code
+ * dispatchKeyEvent} itself was never being asked, so a real keyboard's
+ * Enter or a gamepad's own A could not activate Next either - the only way
+ * through was an actual touch on the visible button, whose hit-testing does
+ * not depend on focus. See {@link #next}'s own comment for why that was true
+ * of every mark this app has shown, until now.
+ *
+ * <b>Back is a third path, and neither of the above reaches it.</b> From API
+ * 33 a predictive-back gesture is not a {@link KeyEvent} at all - it is
+ * delivered to whichever {@code OnBackInvokedCallback} is registered with
+ * the highest priority, entirely apart from the view tree {@link
+ * #dispatchKeyEvent} and {@link #dispatchGenericMotionEvent} answer for. A
+ * mark that only swallows keys and motion still lets a back gesture pop
+ * whatever is underneath it - see {@link #claimBack}.
+ *
  * <b>The hole needs a software layer to punch through.</b> {@link
  * PorterDuff.Mode#CLEAR} zeroes the alpha of whatever this view has already
  * drawn - the scrim - so it can reveal what is beneath; drawn straight onto a
@@ -106,6 +125,11 @@ public final class Coach extends FrameLayout {
     private final LinearLayout card;
     private final Button next;
 
+    /** Registered by {@link #claimBack}, released by {@link #releaseBack} -
+     *  null on API below 33, and null between the two calls on every other
+     *  build. */
+    private android.window.OnBackInvokedCallback backCallback;
+
     private Coach(Activity activity, View target, CharSequence caption,
                   boolean last, Runnable onNext) {
         super(activity);
@@ -149,24 +173,34 @@ public final class Coach extends FrameLayout {
         // mode - and touch mode is exactly the state this app is in every
         // time a mark appears, since a guide always follows a tap or a
         // launch. Without this, the requestFocus() call in show() below
-        // silently does nothing, and {@link #dispatchGenericMotionEvent}'s
-        // whole defence against a gamepad's stick or hat depends on it:
-        // ViewGroup routes a joystick's axis to whichever child actually has
-        // focus and nowhere else, so a mark that never took focus is a mark
-        // a hat push moves straight past.
+        // silently does nothing - and both {@link #dispatchKeyEvent} and
+        // {@link #dispatchGenericMotionEvent} depend on it, not only the
+        // second: ViewGroup routes a key event to whichever child is {@code
+        // mFocused} exactly as it routes generic motion, so a mark that
+        // never took focus was never being asked about either kind of
+        // event. That is a bigger gap than a gamepad's stick or hat moving a
+        // selection behind the scrim - Coach's own Next was not reliably
+        // activatable from a real keyboard's Enter or a gamepad's A either,
+        // since a touch is the one input class that reaches a view by
+        // hit-testing rather than by focus and so was never affected.
         //
         // Measured rather than assumed, instrumenting the actually-focused
-        // view a second after a mark appeared: on {@code LibraryActivity},
-        // where nothing else asks for focus first, this line is the whole
-        // fix - confirmed, Coach's own button now holds it. On {@code
-        // EmulatorActivity}, focus lands on Coach just as briefly and is
-        // then seen back on {@code EmulatorLayout} within a few seconds - a
-        // second, separate reclaim this fix does not reach, not yet
-        // isolated to a line. Left as a finding for whoever picks it up
-        // next rather than a guess at a fix: the machine's tour is no
-        // better protected against a gamepad mid-mark than it was, but it
-        // is no worse either, and this line is a real improvement over
-        // shipping nothing.
+        // view: on {@code LibraryActivity}, where nothing else asks for
+        // focus first, this line is the whole fix - confirmed, Coach's own
+        // button now holds it for as long as the mark is up. On {@code
+        // EmulatorActivity} the same request succeeds too, equally
+        // confirmed - but {@code Coach.dismiss}'s own {@code removeView}
+        // hands focus straight back to {@code EmulatorLayout} the instant a
+        // mark is taken down (Android's own {@code rootViewRequestFocus},
+        // automatic whenever a focused view is detached - confirmed by a
+        // full stack trace, not inferred), because that is the only other
+        // view in the activity asking to be focusable in touch mode. That
+        // window is one mark's worth of transition, closed again the moment
+        // the next mark's own {@code requestFocus()} runs - open for good
+        // only once the last mark ends, when the tour is already over. Left
+        // unfixed: narrower than first thought, and the tour is no worse
+        // protected than before this line, only briefly less than fully so
+        // between marks.
         next.setFocusableInTouchMode(true);
 
         next.setText(last ? R.string.guide_done : R.string.guide_next);
@@ -215,6 +249,8 @@ public final class Coach extends FrameLayout {
         content.addView(coach, new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
+        coach.claimBack(activity);
+
         // Posted: the hole is placed from the target's own bounds and this
         // view's own size, neither of which exist until a layout pass has
         // happened - inline, this would ask about the frame before either was
@@ -235,8 +271,48 @@ public final class Coach extends FrameLayout {
 
         for (int i = content.getChildCount() - 1; i >= 0; i--) {
             View child = content.getChildAt(i);
-            if (child instanceof Coach) content.removeView(child);
+            if (child instanceof Coach) {
+                ((Coach) child).releaseBack(activity);
+                content.removeView(child);
+            }
         }
+    }
+
+    /**
+     * Swallows a predictive-back gesture for as long as this mark is up -
+     * see the class comment on why {@link #dispatchKeyEvent} and {@link
+     * #dispatchGenericMotionEvent} do not reach it at all from API 33.
+     *
+     * <b>{@code PRIORITY_OVERLAY}</b>, not {@code PRIORITY_DEFAULT}: the host
+     * screen may already hold a callback of its own at the default priority
+     * - {@code LibraryActivity} registers and unregisters one dynamically as
+     * Browse's own stack fills and empties - and this has to be asked
+     * first, above it, or a gesture would reach the host's callback and pop
+     * a shelf out from under the scrim. Registering above whatever else is
+     * there, rather than trying to already know it, is also simpler and
+     * cannot drift out of step with a host screen's own back logic changing
+     * independently later.
+     *
+     * <b>Swallows outright, same as every other key.</b> There is nothing
+     * for Back to mean here that Next does not already mean, and giving it
+     * a second action - dismissing the mark early, say - would be a second
+     * way out of a guide the rest of this class deliberately gives only one.
+     */
+    private void claimBack(Activity activity) {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) return;
+
+        backCallback = () -> { };
+        activity.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                android.window.OnBackInvokedDispatcher.PRIORITY_OVERLAY, backCallback);
+    }
+
+    /** The other half of {@link #claimBack} - a no-op on API below 33, where
+     *  {@link #backCallback} is never set in the first place. */
+    private void releaseBack(Activity activity) {
+        if (backCallback == null) return;
+
+        activity.getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(backCallback);
+        backCallback = null;
     }
 
     /**
@@ -246,13 +322,13 @@ public final class Coach extends FrameLayout {
      * window's</b> - {@code LibraryActivity}'s does, to claim a pad's D-pad
      * and buttons ahead of a focused search field. {@link #dispatchKeyEvent}
      * above only ever gets a key once that caller has already decided not to
-     * claim it itself, which for a screen wired this way is never: the pad
-     * input this class is meant to be the only thing answering while a mark
-     * is up would otherwise move a selection behind it, unseen by {@code
-     * Coach} at all. A caller reached the ordinary way - through {@code
-     * onKeyDown}/{@code onKeyUp}, downstream of the window's own dispatch,
-     * the way {@code EmulatorActivity} is wired - never needs this: the view
-     * tree, and so this class, already saw the key first.
+     * claim it itself, which for a screen wired this way is never - so
+     * without a check like this one, a pad key would move a selection behind
+     * an active mark, unseen by {@code Coach} at all, on every press. A
+     * caller reached the ordinary way - through {@code onKeyDown}/{@code
+     * onKeyUp}, downstream of the window's own dispatch, the way {@code
+     * EmulatorActivity} is wired - never needs this: the view tree, and so
+     * this class, already saw the key first.
      */
     public static boolean isShowing(Activity activity) {
         ViewGroup content = activity.findViewById(android.R.id.content);
