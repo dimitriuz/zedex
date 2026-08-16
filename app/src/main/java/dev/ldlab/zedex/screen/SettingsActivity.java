@@ -985,7 +985,13 @@ public class SettingsActivity extends AppCompatActivity
             if (!Storage.canUseAnyFolder()
                     && Storage.needsAllFilesFor(getActivity(), folder)) {
                 pendingFolder = folder;
-                AllFiles.ask(getActivity(), R.string.settings_all_files_folder);
+                // Cancel is a distinct "no" from "not yet granted" - without
+                // this, a grant arriving later through an unrelated route
+                // (the ROMs panel, say) would silently apply a folder the
+                // user explicitly backed out of. See AllFiles.ask's own
+                // javadoc on the three-argument form.
+                AllFiles.ask(getActivity(), R.string.settings_all_files_folder,
+                        () -> pendingFolder = null);
                 return;
             }
 

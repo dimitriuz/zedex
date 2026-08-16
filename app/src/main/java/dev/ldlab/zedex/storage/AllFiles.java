@@ -38,6 +38,28 @@ public final class AllFiles {
      *            data folder Android is already refusing to list.
      */
     public static void ask(Activity activity, int why) {
+        ask(activity, why, null);
+    }
+
+    /**
+     * As {@link #ask(Activity, int)}, but with somewhere for Cancel to go.
+     *
+     * The two-argument form's Cancel is a plain dismiss, which is right for
+     * a caller with no state pinned on this ask - {@code chooseAnyFolder}'s
+     * own request never sets anything, and the two onboarding pickers clear
+     * their {@code pending} unconditionally on the next resume regardless of
+     * how they got there. {@code SettingsActivity.useFolder} is different:
+     * it sets {@code pendingFolder} before asking, precisely so a grant
+     * arriving late - after the user has left this dialog - still applies
+     * the folder they picked. Cancel has to undo that pin, or a permission
+     * granted afterwards through an unrelated route (the ROMs panel, say)
+     * would silently apply a folder the user explicitly backed out of.
+     *
+     * @param onCancel run when the user taps Cancel; not called on the
+     *                 guard branch, since nothing was pinned before that
+     *                 branch returns either.
+     */
+    public static void ask(Activity activity, int why, Runnable onCancel) {
         // Nothing to grant in a build that does not declare it, and the
         // settings page would open empty. Every caller checks first; this is
         // the backstop.
@@ -54,7 +76,8 @@ public final class AllFiles {
                         activity.startActivity(new Intent(
                                 Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
                                 Uri.parse("package:" + activity.getPackageName()))))
-                .setNegativeButton(android.R.string.cancel, null)
+                .setNegativeButton(android.R.string.cancel, onCancel == null ? null
+                        : (dialog, which) -> onCancel.run())
                 .show();
     }
 }
