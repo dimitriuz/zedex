@@ -215,6 +215,15 @@ crop to the 4:3 picture, scale to ~480px wide. They live here rather than in a
 README beside the files because `res/drawable` takes resources and nothing else
 — a `.md` dropped in there is a build failure.
 
+**The demo tape's own wordmark colour-cycles, so the four captures were not
+taken at the same instant** — real time passed navigating ☰ › Display between
+them, and each still shows whatever phase the cycle happened to be in. Harmless
+today (verified at pixel level that no still misrepresents its own filter), but
+a careless recapture could catch the cycle at a moment that makes two filters
+look more alike, or less, than they do in general. Pause on a stable frame, or
+capture all four in as tight a sequence as the menu allows, and compare the new
+stills side by side before committing them.
+
 ## Building
 
 Requires the Android SDK with NDK r27, plus `autoconf`-era build tools on the

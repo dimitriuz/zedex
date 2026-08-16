@@ -143,7 +143,7 @@ public final class WelcomeActivity extends ZedexActivity {
     }
 
     /**
-     * @return null for a {@link Page} Tasks 8-9 have not built a {@link Step}
+     * @return null for a {@link Page} Task 9 has not built a {@link Step}
      *         for yet - <b>scaffold, not a real "no page"</b>. {@link #next},
      *         {@link #skip} and {@link #back} all walk past a null the way
      *         {@link #forwardFrom}/{@link #backwardFrom} do, so nothing here

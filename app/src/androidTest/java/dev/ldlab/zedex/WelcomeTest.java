@@ -40,22 +40,21 @@ import org.junit.runner.RunWith;
 public class WelcomeTest {
 
     /**
-     * Long enough for {@code launch()} to find the wizard, and separately for
-     * {@link #tapUntil} to walk every built page to the summary.
+     * Long enough for {@code launch()} to find the wizard, and for a single
+     * {@link #tapUntil} call to wait out one page's fling-and-tap.
      *
-     * <b>Measured, not guessed.</b> {@link #nextLandsSomewhereRealRatherThanCrashing}
-     * now walks five real pages - WELCOME, FOLDERS, MACHINE, CONTROLS, SCREEN -
-     * to reach DONE, one more than before ScreenPage existed, and the new page
-     * is the tallest of them (four stills and eight cards), so each fling to
-     * reach its own Next takes longer to settle. At 5000ms (the budget four
-     * pages ran under) it failed about a third of the time on this bench; 7000
-     * and 12000ms were both still flaky over repeated runs. 20000ms passed five
-     * repeats of this test and two of the full class cleanly, so that is the
-     * number here - generous rather than tight, since the point of a deadline
-     * is catching a control that has genuinely stopped responding, not shaving
-     * margin off one that mostly works.
+     * <b>One page transition, not a whole walk.</b> Every caller of
+     * {@link #tapUntil} waits on a marker only the *next* page shows, so this
+     * only ever has to cover one page settling - never a multi-page walk. The
+     * 5000ms this was originally measured against covers that case
+     * comfortably; a test that needs to survive several pages in a row (see
+     * {@link #nextLandsSomewhereRealRatherThanCrashing}) does so by calling
+     * {@link #tapUntil} once per page, each with its own fresh {@code WAIT}
+     * budget, rather than by this constant growing to cover all of them at
+     * once. Widening this for one slow transition would loosen every other
+     * call's deadline along with it.
      */
-    private static final long WAIT = 20000;
+    private static final long WAIT = 5000;
 
     private UiDevice device;
     private Context context;
@@ -177,7 +176,55 @@ public class WelcomeTest {
      * handled.
      */
     private void tapUntil(String text, java.util.function.BooleanSupplier effect) {
-        long deadline = SystemClock.uptimeMillis() + WAIT;
+        tapUntil(text, effect, WAIT);
+    }
+
+    /**
+     * Waits for {@code text} to be visible, scrolling before every attempt -
+     * the read-only sibling of {@link #tapUntil}, for a check that has
+     * nothing to click.
+     *
+     * <b>Found this the hard way.</b> {@link #theControlsPageOffersTheKeyboardJoystick}
+     * used to call {@link #scrollTo} once and then {@code device.wait(...)} -
+     * a single scroll before a wait loop that never scrolls again, exactly
+     * the shape {@link #tapUntil}'s own comment warns against ("found nothing
+     * on a later page reached mid-loop and looped inertly to the timeout").
+     * Measured: that combination failed intermittently in the full class run
+     * (never in isolation, where the emulator has nothing else queued right
+     * after the CONTROLS page's own marker appears) - the single
+     * {@code scrollTo} sometimes ran before the page's five skins and ten
+     * joystick rows had actually been measured, missed the target, and
+     * {@code device.wait} then had nothing left to retry the scroll.
+     */
+    private boolean scrollUntilVisible(String text, long timeoutMs) {
+        long deadline = SystemClock.uptimeMillis() + timeoutMs;
+
+        while (SystemClock.uptimeMillis() < deadline) {
+            scrollTo(text);
+            if (device.findObject(By.text(text)) != null) return true;
+            SystemClock.sleep(200);
+        }
+        return false;
+    }
+
+    /**
+     * {@link #tapUntil(String, java.util.function.BooleanSupplier)}, with its
+     * own deadline instead of the shared {@link #WAIT}.
+     *
+     * For one transition only: {@link #nextLandsSomewhereRealRatherThanCrashing}'s
+     * own SCREEN -&gt; DONE step, measured (five isolated repeats, force-stopped
+     * between each) at 5.3-5.5s wall-clock every time - {@code ScreenPage} is
+     * the tallest page (four stills, eight cards, a border section), so
+     * finding its own Next and waiting for DONE to build costs more than the
+     * other transitions' 150-200ms and more even than CONTROLS -&gt; SCREEN's
+     * own ~4.0-4.1s. Sitting right on the {@code WAIT} boundary rather than
+     * comfortably under it, it failed 3 of 5 isolated repeats at 5000ms. This
+     * is exactly the case the class-level javadoc on {@code WAIT} calls out -
+     * one slow transition raised for itself, the shared constant left alone.
+     */
+    private void tapUntil(String text, java.util.function.BooleanSupplier effect,
+                          long timeoutMs) {
+        long deadline = SystemClock.uptimeMillis() + timeoutMs;
 
         while (SystemClock.uptimeMillis() < deadline) {
             scrollTo(text);
@@ -192,6 +239,11 @@ public class WelcomeTest {
             SystemClock.sleep(200);
         }
     }
+
+    /** How long {@link #nextLandsSomewhereRealRatherThanCrashing}'s own
+     *  SCREEN -&gt; DONE step waits - see {@link #tapUntil(String,
+     *  java.util.function.BooleanSupplier, long)}'s own comment. */
+    private static final long SCREEN_TO_DONE_WAIT = 10000;
 
     @Test
     public void theFirstPageOffersAWayStraightPast() {
@@ -224,7 +276,7 @@ public class WelcomeTest {
     /**
      * Next has to land somewhere real rather than crashing.
      *
-     * Tasks 10-11 have not written a Step for LIBRARY or SCRAPING yet -
+     * Task 9 has not written a Step for LIBRARY or SCRAPING yet -
      * {@code WelcomeActivity.stepFor} answers null for both today - so this
      * is the regression the walk in {@code forwardFrom} exists to prevent:
      * without it, tapping the only button on a reachable page throws
@@ -232,21 +284,55 @@ public class WelcomeTest {
      * the summary - by way of the folders, machine, controls and screen
      * pages, the four built pages among six - is what proves the walk
      * skipped every unbuilt page rather than stopping on one.
+     *
+     * <b>One {@code tapUntil} per page, not one deadline for the whole walk.</b>
+     * This used to wait on a single effect - the DONE title - covering all
+     * five intermediate pages (WELCOME, FOLDERS, MACHINE, CONTROLS, SCREEN)
+     * behind one {@code WAIT}, which meant that constant had to be inflated
+     * to survive every page's own fling-and-tap in sequence; the same shape
+     * {@link #theControlsPageOffersTheKeyboardJoystick}'s own comment
+     * describes and rejects. Instead this walks the same five pages
+     * {@code tapUntil} at a time, each waiting only for the marker the very
+     * next page shows, so the shared {@code WAIT} only ever has to cover one
+     * page settling - same as every other test in this file.
+     *
+     * <b>Except the last step.</b> SCREEN -&gt; DONE alone needs longer than
+     * {@code WAIT} - see {@link #SCREEN_TO_DONE_WAIT} for the measurement -
+     * and gets its own deadline through the three-argument
+     * {@link #tapUntil(String, java.util.function.BooleanSupplier, long)}
+     * rather than widening the shared constant for every other transition.
      */
     @Test
     public void nextLandsSomewhereRealRatherThanCrashing() {
         launch();
-        scrollTo(context.getString(R.string.welcome_next));
 
-        // The observed effect: the summary's own title, which only appears
-        // once the walk in forwardFrom has actually run, by way of the
-        // folders page - re-tapped until it does, rather than trusting a
-        // single tap right after the scroll.
-        tapUntil(context.getString(R.string.welcome_next),
-                () -> device.findObject(By.text(
-                        context.getString(R.string.welcome_done_title))) != null);
+        // WELCOME -> FOLDERS
+        tapUntil(context.getString(R.string.welcome_next), () ->
+                device.findObject(By.textStartsWith(
+                        context.getString(R.string.setup_data, ""))) != null);
 
-        assertNotNull("Next did not land on a real page",
+        // FOLDERS -> MACHINE
+        tapUntil(context.getString(R.string.welcome_next), () ->
+                device.findObject(By.text(
+                        context.getString(R.string.welcome_machine))) != null);
+
+        // MACHINE -> CONTROLS
+        tapUntil(context.getString(R.string.welcome_next), () ->
+                device.findObject(By.text(
+                        context.getString(R.string.welcome_controls))) != null);
+
+        // CONTROLS -> SCREEN
+        tapUntil(context.getString(R.string.welcome_next), () ->
+                device.findObject(By.text(
+                        context.getString(R.string.welcome_screen))) != null);
+
+        // SCREEN -> DONE: its own, longer wait - see SCREEN_TO_DONE_WAIT.
+        tapUntil(context.getString(R.string.welcome_next), () ->
+                device.findObject(By.text(
+                        context.getString(R.string.welcome_done_title))) != null,
+                SCREEN_TO_DONE_WAIT);
+
+        assertNotNull("Next did not land on the summary",
                 device.findObject(By.text(
                         context.getString(R.string.welcome_done_title))));
     }
@@ -329,10 +415,7 @@ public class WelcomeTest {
                 device.findObject(By.text(
                         context.getString(R.string.welcome_controls))) != null);
 
-        scrollTo(context.getString(R.string.joystick_keyboard));
-
-        assertNotNull("the keyboard joystick is missing from the list",
-                device.wait(Until.findObject(By.text(
-                        context.getString(R.string.joystick_keyboard))), WAIT));
+        assertTrue("the keyboard joystick is missing from the list",
+                scrollUntilVisible(context.getString(R.string.joystick_keyboard), WAIT));
     }
 }
