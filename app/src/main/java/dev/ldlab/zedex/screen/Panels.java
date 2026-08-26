@@ -125,6 +125,13 @@ public final class Panels {
         return panel != null;
     }
 
+    /** The live panel, or null while the controls are on the machine's own
+     *  screen - for whoever needs to reach into its window, the machine's
+     *  guide drawing a mark over the borrowed bar among them. */
+    public SecondScreen panel() {
+        return panel;
+    }
+
     /** Whether the panel is showing the game's details rather than the
      *  controls - what the machine's own bar reads to know which face to
      *  wear; see {@code EmulatorActivity.applyBarMode}. */

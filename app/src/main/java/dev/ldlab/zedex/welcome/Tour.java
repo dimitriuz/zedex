@@ -3,6 +3,7 @@ package dev.ldlab.zedex.welcome;
 import dev.ldlab.zedex.storage.Prefs;
 
 import android.app.Activity;
+import android.app.Presentation;
 import android.content.SharedPreferences;
 import android.view.View;
 
@@ -14,9 +15,12 @@ import java.util.function.Supplier;
  * A named sequence of coach marks, and the flag that says it has been given.
  *
  * <b>Targets are suppliers, not views.</b> The view may not be laid out yet,
- * or may not exist in this configuration at all - the quick bar is borrowed by
- * the second screen's panel when one is showing, and a mark ringing a bar that
- * is not in this window rings empty space.
+ * or may not exist in this configuration at all - and a target may live in a
+ * different window from the one this activity owns: the quick bar is borrowed
+ * by the second screen's panel when one is showing, and a mark ringing a bar
+ * that is on another display would ring empty space. A mark names the window
+ * its target lives in - see {@link #mark(Supplier, Supplier, int)} - and is
+ * drawn there.
  *
  * <b>It declines quietly.</b> A missing target leaves the flag unset, so the
  * guide is given properly the next time rather than being spent on nothing.
@@ -42,10 +46,15 @@ public final class Tour {
     /** One mark: what to ring, and what to say about it. */
     private static final class Mark {
         final Supplier<View> target;
+
+        /** The window this mark is drawn in - the panel's own when its target
+         *  is borrowed there, and null for the activity's own window. */
+        final Supplier<Presentation> panel;
         final int caption;
 
-        Mark(Supplier<View> target, int caption) {
+        Mark(Supplier<View> target, Supplier<Presentation> panel, int caption) {
             this.target = target;
+            this.panel = panel;
             this.caption = caption;
         }
     }
@@ -64,6 +73,11 @@ public final class Tour {
      *  hold suspended. */
     private boolean active;
 
+    /** Where the mark now up was drawn - the panel's own window when its
+     *  target is borrowed there, null for the activity's own. {@link
+     *  #dismiss} takes the mark down where it actually lives. */
+    private Presentation onPanel;
+
     private Tour(String flag) {
         this.flag = flag;
     }
@@ -73,7 +87,19 @@ public final class Tour {
     }
 
     public Tour mark(Supplier<View> target, int caption) {
-        marks.add(new Mark(target, caption));
+        return mark(target, () -> null, caption);
+    }
+
+    /**
+     * A mark for a target that lives in a second screen's own window - the
+     * machine's controls when they are borrowed by the panel. The overlay is
+     * drawn there, where it can ring the target at all; see {@link
+     * Coach#show(Activity, Presentation, View, CharSequence, boolean,
+     * Runnable)}. A panel that answers null - gone before this mark is due -
+     * declines the walk exactly as a missing target does.
+     */
+    public Tour mark(Supplier<View> target, Supplier<Presentation> panel, int caption) {
+        marks.add(new Mark(target, panel, caption));
         return this;
     }
 
@@ -119,15 +145,19 @@ public final class Tour {
 
         Mark mark = marks.get(at);
         View target = mark.target.get();
+        Presentation panel = mark.panel.get();
 
-        // Gone since the check above - a bar that faded, a row recycled. Not a
-        // failure: stop, and leave the flag so the guide is given next time.
-        if (target == null) {
+        // Gone since the check above - a bar that faded, a row recycled, or
+        // the panel it lives in going down. Not a failure: stop, and leave
+        // the flag so the guide is given next time.
+        if (target == null || (panel != null && !panel.isShowing())) {
             dismiss(activity);
             return;
         }
 
-        Coach.show(activity, target, activity.getString(mark.caption),
+        onPanel = panel;
+
+        Coach.show(activity, panel, target, activity.getString(mark.caption),
                    at == marks.size() - 1,
                    () -> showFrom(activity, preferences, at + 1));
     }
@@ -146,7 +176,9 @@ public final class Tour {
      * been answered.
      */
     public void dismiss(Activity activity) {
-        Coach.dismiss(activity);
+        if (onPanel != null && onPanel.isShowing()) Coach.dismiss(onPanel);
+        else Coach.dismiss(activity);
+        onPanel = null;
 
         if (active) {
             active = false;

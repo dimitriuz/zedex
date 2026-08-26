@@ -5,6 +5,7 @@ import dev.ldlab.zedex.view.Cards;
 import dev.ldlab.zedex.view.Palette;
 
 import android.app.Activity;
+import android.app.Presentation;
 import android.graphics.Canvas;
 import android.graphics.Insets;
 import android.graphics.Paint;
@@ -28,9 +29,11 @@ import android.widget.TextView;
 /**
  * A coach mark: a scrim over the whole window with a hole cut at some real
  * view's bounds, a caption card near the hole, and a <i>Next</i>. One overlay
- * view, added to {@code android.R.id.content} and removed again when it is
- * dismissed - {@link Tour} (a later task) sequences several of these into a
- * guide.
+ * view, added to {@code android.R.id.content} - or to a second screen's own
+ * content when its target is borrowed by a panel, see {@link #show(Activity,
+ * Presentation, View, CharSequence, boolean, Runnable)} - and removed again
+ * when it is dismissed. {@link Tour} (a later task) sequences several of these
+ * into a guide.
  *
  * <b>The caption is a real {@link TextView} and Next a real {@link Button},
  * not text drawn onto the canvas.</b> This app is driven by gamepad often
@@ -83,7 +86,11 @@ import android.widget.TextView;
  * the highest priority, entirely apart from the view tree {@link
  * #dispatchKeyEvent} and {@link #dispatchGenericMotionEvent} answer for. A
  * mark that only swallows keys and motion still lets a back gesture pop
- * whatever is underneath it - see {@link #claimBack}.
+ * whatever is underneath it - see {@link #claimBack}. A mark on the panel's
+ * own window claims nothing instead: Back pressed there never reaches this
+ * view tree at all, because the panel answers it with its host's own handler
+ * before any dispatch - and that handler is where a mark swallows it. See
+ * {@code EmulatorActivity.handleBack}.
  *
  * <b>The hole needs a software layer to punch through.</b> {@link
  * PorterDuff.Mode#CLEAR} zeroes the alpha of whatever this view has already
@@ -121,6 +128,11 @@ public final class Coach extends FrameLayout {
     private final View target;
     private final Runnable onNext;
 
+    /** The window's content this mark was added to - the activity's own, or
+     *  a panel's when its target is borrowed there. Next dismisses from it,
+     *  since that is where this view actually lives. */
+    private final ViewGroup root;
+
     private final Paint cut = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Rect hole = new Rect();
     private final RectF holeF = new RectF();
@@ -135,12 +147,15 @@ public final class Coach extends FrameLayout {
 
     /** Registered by {@link #claimBack}, released by {@link #releaseBack} -
      *  null on API below 33, and null between the two calls on every other
-     *  build. */
+     *  build. A mark on a panel's own window never sets either - it claims
+     *  no Back at all, see the class comment. */
     private android.window.OnBackInvokedCallback backCallback;
+    private android.window.OnBackInvokedDispatcher backDispatcher;
 
-    private Coach(Activity activity, View target, CharSequence caption,
+    private Coach(Activity activity, ViewGroup root, View target, CharSequence caption,
                   boolean last, Runnable onNext) {
         super(activity);
+        this.root = root;
         this.target = target;
         this.onNext = onNext;
 
@@ -219,7 +234,7 @@ public final class Coach extends FrameLayout {
         buttonBg.setCornerRadius(cardRadiusPx);
         next.setBackground(buttonBg);
         next.setOnClickListener(v -> {
-            Coach.dismiss(activity);
+            dismiss(root);
             onNext.run();
         });
 
@@ -238,9 +253,9 @@ public final class Coach extends FrameLayout {
     }
 
     /**
-     * Puts up a mark ringing {@code target}, captioned {@code caption}. Any
-     * mark already showing on this activity is dismissed first, so a caller
-     * never has to check.
+     * Puts up a mark ringing {@code target}, captioned {@code caption}, in
+     * this activity's own window. Any mark already showing there is dismissed
+     * first, so a caller never has to check.
      *
      * @param last   whether this is the last mark of its guide - Next reads
      *               "Got it" instead
@@ -249,15 +264,36 @@ public final class Coach extends FrameLayout {
      */
     public static void show(Activity activity, View target, CharSequence caption,
                             boolean last, Runnable onNext) {
-        dismiss(activity);
+        show(activity, null, target, caption, last, onNext);
+    }
 
-        ViewGroup content = activity.findViewById(android.R.id.content);
-        Coach coach = new Coach(activity, target, caption, last, onNext);
+    /**
+     * The same mark in a second screen's own window - for a target borrowed
+     * by the panel, which an overlay in this activity's content cannot ring:
+     * it is on another display. The hole math needs no change for it, because
+     * it is window-relative to whichever window both this view and its target
+     * live in.
+     *
+     * <b>Claims no Back of its own.</b> A key or gesture pressed on that
+     * window is answered by the panel's host before any view tree sees it -
+     * see {@code SecondScreen.dispatchKeyEvent} - so there is nothing for a
+     * callback here to get ahead of, and the host's handler is where a mark
+     * swallows it.
+     */
+    public static void show(Activity activity, Presentation panel, View target,
+                            CharSequence caption, boolean last, Runnable onNext) {
+        ViewGroup content = (panel == null)
+                ? activity.findViewById(android.R.id.content)
+                : panel.findViewById(android.R.id.content);
+
+        dismiss(content);
+
+        Coach coach = new Coach(activity, content, target, caption, last, onNext);
 
         content.addView(coach, new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
-        coach.claimBack(activity);
+        if (panel == null) coach.claimBack(activity);
 
         // Posted: the hole is placed from the target's own bounds and this
         // view's own size, neither of which exist until a layout pass has
@@ -275,13 +311,21 @@ public final class Coach extends FrameLayout {
      * activity's own {@code onPause} without checking which ran first.
      */
     public static void dismiss(Activity activity) {
-        ViewGroup content = activity.findViewById(android.R.id.content);
+        dismiss(activity.findViewById(android.R.id.content));
+    }
 
-        for (int i = content.getChildCount() - 1; i >= 0; i--) {
-            View child = content.getChildAt(i);
+    /** The panel's own window - see {@link #show}. */
+    public static void dismiss(Presentation panel) {
+        if (!panel.isShowing()) return;
+        dismiss(panel.findViewById(android.R.id.content));
+    }
+
+    private static void dismiss(ViewGroup root) {
+        for (int i = root.getChildCount() - 1; i >= 0; i--) {
+            View child = root.getChildAt(i);
             if (child instanceof Coach) {
-                ((Coach) child).releaseBack(activity);
-                content.removeView(child);
+                ((Coach) child).releaseBack();
+                root.removeView(child);
             }
         }
     }
@@ -310,7 +354,8 @@ public final class Coach extends FrameLayout {
         if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) return;
 
         backCallback = () -> { };
-        activity.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+        backDispatcher = activity.getOnBackInvokedDispatcher();
+        backDispatcher.registerOnBackInvokedCallback(
                 android.window.OnBackInvokedDispatcher.PRIORITY_OVERLAY, backCallback);
     }
 
@@ -326,15 +371,16 @@ public final class Coach extends FrameLayout {
      * {@code lintDebug} and {@code assembleDebug} does not, so this is a
      * failure that only ever shows up after a push.
      */
-    private void releaseBack(Activity activity) {
+    private void releaseBack() {
         if (android.os.Build.VERSION.SDK_INT
                 < android.os.Build.VERSION_CODES.TIRAMISU) {
             return;
         }
         if (backCallback == null) return;
 
-        activity.getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(backCallback);
+        backDispatcher.unregisterOnBackInvokedCallback(backCallback);
         backCallback = null;
+        backDispatcher = null;
     }
 
     /**
@@ -353,10 +399,18 @@ public final class Coach extends FrameLayout {
      * this class, already saw the key first.
      */
     public static boolean isShowing(Activity activity) {
-        ViewGroup content = activity.findViewById(android.R.id.content);
+        return isShowing(activity.findViewById(android.R.id.content));
+    }
 
-        for (int i = 0; i < content.getChildCount(); i++) {
-            if (content.getChildAt(i) instanceof Coach) return true;
+    /** The panel's own window - see {@link #show}. */
+    public static boolean isShowing(Presentation panel) {
+        if (!panel.isShowing()) return false;
+        return isShowing(panel.findViewById(android.R.id.content));
+    }
+
+    private static boolean isShowing(ViewGroup root) {
+        for (int i = 0; i < root.getChildCount(); i++) {
+            if (root.getChildAt(i) instanceof Coach) return true;
         }
         return false;
     }
@@ -484,8 +538,13 @@ public final class Coach extends FrameLayout {
      * nothing here reacts to them, so passing them on costs nothing and
      * keeping them is a regression the project has already made once (see
      * the class comment).
+     *
+     * Public because {@code EmulatorActivity} needs the same list for its
+     * own half of a mark on the panel's window: while one is up it declines
+     * every key that arrives through that window so this view can swallow it,
+     * and these are the keys it must still let take their ordinary path.
      */
-    private static boolean isSystemKey(int keyCode) {
+    public static boolean isSystemKey(int keyCode) {
         switch (keyCode) {
             case KeyEvent.KEYCODE_VOLUME_UP:
             case KeyEvent.KEYCODE_VOLUME_DOWN:
