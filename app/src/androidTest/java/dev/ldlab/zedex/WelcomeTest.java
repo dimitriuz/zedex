@@ -83,7 +83,7 @@ public class WelcomeTest {
      * The preferences back, and the notification shade shut.
      *
      * <b>The shade is not paranoia - this class pulls it down.</b> Every page
-     * here is taller than the screen, so {@link #scrollTo} flings a {@code
+     * here can be taller than the screen, so {@link #scrollTo} flings a {@code
      * UiScrollable}, and the wizard's own ScrollView reaches the top of the
      * window; {@code scrollIntoView} begins by scrolling to the beginning,
      * which is a downward swipe starting near that top edge, and Android
@@ -202,8 +202,8 @@ public class WelcomeTest {
      * <b>Scrolls before every attempt, not only before the first.</b> A
      * ScrollView only puts what it has actually scrolled into view into
      * UiAutomator's own tree - see {@link #scrollTo} - and on a page taller
-     * than one screenful (the first page's ten language rows, the screen
-     * page's four stills), the target can start below the fold *again* after a
+     * than one screenful (the machine page's long list on a short phone), the
+     * target can start below the fold *again* after a
      * page change lands the next page scrolled back to its own top. Calling
      * {@link #scrollTo} once before the loop, as this method used to, found
      * nothing on a later page reached mid-loop and looped inertly to the
@@ -212,27 +212,7 @@ public class WelcomeTest {
      * handled.
      */
     private void tapUntil(String text, java.util.function.BooleanSupplier effect) {
-        tapUntil(text, effect, WAIT);
-    }
-
-    /**
-     * {@link #tapUntil(String, java.util.function.BooleanSupplier)}, with its
-     * own deadline instead of the shared {@link #WAIT}.
-     *
-     * For one transition only: {@link #nextLandsSomewhereRealRatherThanCrashing}'s
-     * own SCREEN -&gt; DONE step, measured (five isolated repeats, force-stopped
-     * between each) at 5.3-5.5s wall-clock every time - {@code ScreenPage} is
-     * the tallest page (four stills, eight cards, a border section), so
-     * finding its own Next and waiting for DONE to build costs more than the
-     * other transitions' 150-200ms and more even than CONTROLS -&gt; SCREEN's
-     * own ~4.0-4.1s. Sitting right on the {@code WAIT} boundary rather than
-     * comfortably under it, it failed 3 of 5 isolated repeats at 5000ms. This
-     * is exactly the case the class-level javadoc on {@code WAIT} calls out -
-     * one slow transition raised for itself, the shared constant left alone.
-     */
-    private void tapUntil(String text, java.util.function.BooleanSupplier effect,
-                          long timeoutMs) {
-        long deadline = SystemClock.uptimeMillis() + timeoutMs;
+        long deadline = SystemClock.uptimeMillis() + WAIT;
 
         while (SystemClock.uptimeMillis() < deadline) {
             tapOnce(text);
@@ -259,22 +239,6 @@ public class WelcomeTest {
             device.click(bounds.centerX(), bounds.centerY());
         }
     }
-
-    /**
-     * How long {@link #nextLandsSomewhereRealRatherThanCrashing}'s own
-     * SCREEN -&gt; LIBRARY step waits - see {@link #tapUntil(String,
-     * java.util.function.BooleanSupplier, long)}'s own comment.
-     *
-     * Named for what makes the step slow rather than for where it used to
-     * land: this was {@code SCREEN_TO_DONE_WAIT} while LIBRARY and SCRAPING
-     * were still scaffolded past as unbuilt pages, and SCREEN went straight
-     * to DONE. Task 9 built both, so SCREEN's own Next now lands on LIBRARY
-     * first - but the 5.3-5.5s this was measured at belongs to leaving the
-     * tallest page (four stills, eight cards, a border section), not to
-     * whatever page comes after it, so the number carries over unchanged
-     * onto the step that is slow for the same reason today.
-     */
-    private static final long LEAVING_SCREEN_WAIT = 10000;
 
     @Test
     public void theFirstPageOffersAWayStraightPast() {
@@ -328,19 +292,11 @@ public class WelcomeTest {
      * <b>One {@code tapUntil} per page, not one deadline for the whole walk.</b>
      * This used to wait on a single effect - the DONE title - covering
      * several intermediate pages behind one {@code WAIT}, which meant that
-     * constant had to be inflated to survive every page's own
-     * fling-and-tap in sequence; the same shape
-     * {@link #theControlsPageOffersTheKeyboardJoystick}'s own comment
-     * describes and rejects. Instead this walks page by page, each waiting
+     * constant had to be inflated to survive every page's own fling-and-tap
+     * in sequence. Instead this walks page by page, each waiting
      * only for the marker the very next page shows, so the shared
      * {@code WAIT} only ever has to cover one page settling - same as every
      * other test in this file.
-     *
-     * <b>Except one step.</b> SCREEN -&gt; LIBRARY alone needs longer than
-     * {@code WAIT} - see {@link #LEAVING_SCREEN_WAIT} for the measurement -
-     * and gets its own deadline through the three-argument
-     * {@link #tapUntil(String, java.util.function.BooleanSupplier, long)}
-     * rather than widening the shared constant for every other transition.
      */
     @Test
     public void nextLandsSomewhereRealRatherThanCrashing() {
@@ -366,11 +322,10 @@ public class WelcomeTest {
                 device.findObject(By.text(
                         context.getString(R.string.welcome_screen))) != null);
 
-        // SCREEN -> LIBRARY: its own, longer wait - see LEAVING_SCREEN_WAIT.
+        // SCREEN -> LIBRARY
         tapUntil(context.getString(R.string.welcome_next), () ->
                 device.findObject(By.text(
-                        context.getString(R.string.welcome_library))) != null,
-                LEAVING_SCREEN_WAIT);
+                        context.getString(R.string.welcome_library))) != null);
 
         // LIBRARY -> SCRAPING
         tapUntil(context.getString(R.string.welcome_next), () ->
@@ -395,9 +350,9 @@ public class WelcomeTest {
      * <b>Walked page by page with {@code tapUntil}, not five bare taps.</b>
      * A bare {@code findObject(...).click()} for each of the five steps was
      * tried first and threw a {@code NullPointerException} on this bench -
-     * CONTROLS and SCREEN are both taller than one screenful (see {@link
-     * #scrollTo}'s own comment), so Next is not always in UiAutomator's tree
-     * yet when a fixed loop asks for it, whether or not the tap before it
+     * a page can be taller than one screenful (see {@link #scrollTo}'s own
+     * comment), so Next is not always in UiAutomator's tree yet when a fixed
+     * loop asks for it, whether or not the tap before it
      * actually landed. {@code tapUntil} is what this file already has for
      * exactly that - it scrolls before every attempt and retries against an
      * observed marker - so this walks the same five transitions {@link
@@ -457,8 +412,7 @@ public class WelcomeTest {
             String library = context.getString(R.string.welcome_library);
             tapUntil(context.getString(R.string.welcome_next), () ->
                     device.findObject(By.text(scraping)) != null
-                            || device.findObject(By.text(library)) != null,
-                    LEAVING_SCREEN_WAIT);
+                            || device.findObject(By.text(library)) != null);
 
             assertNotNull("scraping should follow the screen page when there "
                         + "is no library page",
