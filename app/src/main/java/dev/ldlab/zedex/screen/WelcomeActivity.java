@@ -3,6 +3,7 @@ package dev.ldlab.zedex.screen;
 import dev.ldlab.zedex.EmulatorActivity;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.library.catalogue.Catalogues;
+import dev.ldlab.zedex.storage.Prefs;
 import dev.ldlab.zedex.storage.Storage;
 import dev.ldlab.zedex.view.Cards;
 import dev.ldlab.zedex.view.Palette;
@@ -20,6 +21,7 @@ import dev.ldlab.zedex.welcome.pages.ScreenPage;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.hardware.display.DisplayManager;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
@@ -263,6 +265,19 @@ public final class WelcomeActivity extends ZedexActivity {
 
         // A tape like any other from here on; the summary said where it is.
         Storage.installDemo(this);
+
+        // A handheld that has a panel should start with it on. The first run
+        // is the one moment a default may be written without overwriting a
+        // choice: the key is absent until then, and this is the only place
+        // that writes it from nothing - an update never reaches this method,
+        // and a wizard re-run from Settings finds the key already set.
+        DisplayManager displays = getSystemService(DisplayManager.class);
+        if (displays != null && !preferences.contains(Prefs.KEY_SECOND_SCREEN)
+                && displays.getDisplays(
+                        DisplayManager.DISPLAY_CATEGORY_PRESENTATION).length > 0) {
+            preferences.edit()
+                    .putBoolean(Prefs.KEY_SECOND_SCREEN, true).apply();
+        }
 
         preferences.edit().putBoolean(Storage.KEY_SETUP_DONE, true).apply();
 
