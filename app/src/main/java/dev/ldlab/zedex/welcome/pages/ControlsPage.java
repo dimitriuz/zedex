@@ -8,6 +8,7 @@ import dev.ldlab.zedex.welcome.Step;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.res.Configuration;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
@@ -23,14 +24,16 @@ import android.widget.TextView;
  * so the preview here is the actual skin rather than a picture of one. Touch
  * is off, so nothing is ever sent to a Fuse that is not there.
  *
- * <b>The plate sits beside the list, not above it.</b> A keyboard is wide
- * and low, so stacked over its five rows it takes most of a short screen
- * before the first choice is reached - and a tap then updates a picture you
- * have to scroll back up to see. One column for the rows, one for the plate,
- * keeps both on screen at once. The joystick question used to be asked here
- * as well and is not any more: which interface a game thinks is plugged in
- * is the machine's own business (see {@code ControlsUi}), and a page about
- * the keyboard should only ask about the keyboard.
+ * <b>Where the plate sits depends on the room there is.</b> Landscape has
+ * room sideways, so the rows and the plate sit side by side and a tap
+ * updates a picture that is already on screen. Portrait does not - a wide,
+ * low plate squeezed into half a column would be too small to read - so the
+ * list comes first and the plate under it at full width. The activity has no
+ * {@code configChanges}, so a rotation rebuilds the page for whatever window
+ * there is now. The joystick question used to be asked here as well and is
+ * not any more: which interface a game thinks is plugged in is the machine's
+ * own business (see {@code ControlsUi}), and a page about the keyboard
+ * should only ask about the keyboard.
  */
 public final class ControlsPage implements Step {
 
@@ -56,11 +59,6 @@ public final class ControlsPage implements Step {
     public View body(Context context, SharedPreferences preferences) {
         LinearLayout column = new LinearLayout(context);
         column.setOrientation(LinearLayout.VERTICAL);
-
-        // One column for the rows, one for the plate - see the class comment
-        // for why the two sit side by side rather than stacked.
-        LinearLayout sideBySide = new LinearLayout(context);
-        sideBySide.setOrientation(LinearLayout.HORIZONTAL);
 
         LinearLayout skinsColumn = new LinearLayout(context);
         skinsColumn.setOrientation(LinearLayout.VERTICAL);
@@ -100,15 +98,27 @@ public final class ControlsPage implements Step {
                     skin == current));
         }
 
-        sideBySide.addView(skinsColumn, new LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        // Landscape has room sideways: the rows and the plate sit side by
+        // side. Portrait does not - see the class comment - so the list
+        // comes first and the plate under it at full width.
+        if (context.getResources().getConfiguration()
+                .orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            LinearLayout sideBySide = new LinearLayout(context);
+            sideBySide.setOrientation(LinearLayout.HORIZONTAL);
 
-        LinearLayout.LayoutParams previewLp = new LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        previewLp.leftMargin = Cards.unit(context, 2);
-        sideBySide.addView(previewSlot, previewLp);
+            sideBySide.addView(skinsColumn, new LinearLayout.LayoutParams(
+                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-        column.addView(sideBySide);
+            LinearLayout.LayoutParams previewLp = new LinearLayout.LayoutParams(
+                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            previewLp.leftMargin = Cards.unit(context, 2);
+            sideBySide.addView(previewSlot, previewLp);
+
+            column.addView(sideBySide);
+        } else {
+            column.addView(skinsColumn);
+            column.addView(previewSlot);
+        }
 
         return column;
     }
