@@ -197,7 +197,6 @@
     <string name="welcome_library">Ваша библиотека</string>
     <string name="welcome_library_hint">Zedex может открываться на ваших играх, а не на пустом Spectrum, и листать архив ещё примерно из сорока тысяч.</string>
     <string name="welcome_library_start">Запускаться в библиотеке</string>
-    <string name="welcome_library_start_hint">Начинать со своих игр. Машина в любом случае в одном нажатии.</string>
     <string name="welcome_library_archive">Какой архив</string>
     <string name="welcome_scraping">Обложки и описания</string>
     <string name="welcome_scraping_hint">Zedex умеет узнать, что это за игра, кто её написал и как выглядела её обложка. Ничего не загружается, пока вы не попросите.</string>

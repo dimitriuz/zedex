@@ -197,7 +197,6 @@
     <string name="welcome_library">Tvá knihovna</string>
     <string name="welcome_library_hint">Zedex se může otevírat na tvých vlastních hrách místo na holém Spectru a procházet archiv asi čtyřiceti tisíc dalších.</string>
     <string name="welcome_library_start">Spouštět v knihovně</string>
-    <string name="welcome_library_start_hint">Začínat u svých her. Počítač je tak jako tak na jedno klepnutí.</string>
     <string name="welcome_library_archive">Který archiv</string>
     <string name="welcome_scraping">Obaly a popisy</string>
     <string name="welcome_scraping_hint">Zedex umí dohledat, co je to za hru, kdo ji napsal a jak vypadal její obal. Nic se nestahuje, dokud o to nepožádáš.</string>

@@ -197,7 +197,6 @@
     <string name="welcome_library">Votre bibliothèque</string>
     <string name="welcome_library_hint">Zedex peut s\'ouvrir sur vos propres jeux plutôt que sur un Spectrum nu, et parcourir une archive d\'environ quarante mille autres.</string>
     <string name="welcome_library_start">Démarrer sur la bibliothèque</string>
-    <string name="welcome_library_start_hint">Commencer par vos jeux. La machine reste à un toucher, dans les deux cas.</string>
     <string name="welcome_library_archive">Quelle archive</string>
     <string name="welcome_scraping">Jaquettes et descriptions</string>
     <string name="welcome_scraping_hint">Zedex peut chercher ce qu\'est un jeu, qui l\'a écrit et à quoi ressemblait sa jaquette. Rien n\'est récupéré tant que vous ne le demandez pas.</string>

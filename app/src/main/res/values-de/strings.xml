@@ -197,7 +197,6 @@
     <string name="welcome_library">Deine Bibliothek</string>
     <string name="welcome_library_hint">Zedex kann bei deinen eigenen Spielen starten statt bei einem nackten Spectrum, und in einem Archiv von etwa vierzigtausend weiteren blättern.</string>
     <string name="welcome_library_start">In der Bibliothek starten</string>
-    <string name="welcome_library_start_hint">Bei deinen Spielen anfangen. Die Maschine ist so oder so einen Tipper entfernt.</string>
     <string name="welcome_library_archive">Welches Archiv</string>
     <string name="welcome_scraping">Cover und Beschreibungen</string>
     <string name="welcome_scraping_hint">Zedex kann nachschlagen, was ein Spiel ist, wer es geschrieben hat und wie sein Cover aussah. Nichts wird geholt, bevor du darum bittest.</string>

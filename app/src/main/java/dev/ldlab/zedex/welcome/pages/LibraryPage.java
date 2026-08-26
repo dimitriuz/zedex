@@ -49,10 +49,6 @@ public final class LibraryPage implements Step {
                 preferences.edit().putBoolean(Prefs.KEY_LIBRARY, on).apply());
         column.addView(open);
 
-        TextView startHint = Cards.note(context);
-        startHint.setText(R.string.welcome_library_start_hint);
-        column.addView(startHint);
-
         column.addView(Cards.note(context, R.string.welcome_library_archive));
 
         // Fetched once: Catalogues.preferred(context) would answer the same
