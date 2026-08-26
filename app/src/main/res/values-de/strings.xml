@@ -169,7 +169,7 @@
     <string name="setup_data_hint">Wohin ROMs, Spielstände, Kassetten und Disketten gehen. Ein gemeinsamer Ort — Dokumente, eine SD-Karte — behält sie, wenn die App deinstalliert wird. Bildschirmfotos und Aufnahmen gehen stattdessen in die Galerie.</string>
     <string name="setup_content">Spieleordner: %1$s</string>
     <string name="setup_content_none">nicht gewählt</string>
-    <string name="setup_content_hint">Wo „Datei öffnen…“ zu suchen beginnt. Zeige damit auf deine Spiele, und jedes Laden ist zwei Tipper kürzer.</string>
+    <string name="setup_content_hint">Wo die Bibliothek deine Spiele findet und „Datei öffnen…“ zu suchen beginnt. Zeige damit auf deine Spiele, und jedes Laden ist zwei Tipper kürzer.</string>
 
     <string name="welcome_title">Willkommen bei Zedex</string>
     <string name="welcome_message">Sieben kurze Fragen — Sprache, wohin die Dateien gehen, welcher Spectrum, die Steuerung, das Bild, deine Bibliothek und das Archiv. Alles davon lässt sich später in den Einstellungen ändern.</string>

@@ -169,7 +169,7 @@
     <string name="setup_data_hint">Donde van las ROM, las partidas, las cintas y los discos. Un sitio compartido —Documentos, una tarjeta SD— los conserva cuando se desinstala la app. Las capturas y las grabaciones van a tu galería.</string>
     <string name="setup_content">Carpeta de juegos: %1$s</string>
     <string name="setup_content_none">sin elegir</string>
-    <string name="setup_content_hint">Donde empieza a buscar «Abrir archivo…». Apúntala a tus juegos y cada carga será dos toques más corta.</string>
+    <string name="setup_content_hint">Donde la biblioteca encuentra tus juegos y donde empieza a buscar «Abrir archivo…». Apúntala a tus juegos y cada carga será dos toques más corta.</string>
 
     <string name="welcome_title">Bienvenido a Zedex</string>
     <string name="welcome_message">Siete preguntas rápidas: el idioma, dónde van los archivos, qué Spectrum, los controles, la imagen, tu biblioteca y el archivo. Todas se pueden cambiar más tarde, en Ajustes.</string>

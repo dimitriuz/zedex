@@ -169,7 +169,7 @@
     <string name="setup_data_hint">Kam jdou ROMy, uložené stavy, kazety a diskety. Společné místo — Dokumenty, SD karta — je zachová i po odinstalování aplikace. Snímky obrazovky a nahrávky jdou místo toho do galerie.</string>
     <string name="setup_content">Složka s hrami: %1$s</string>
     <string name="setup_content_none">nevybrána</string>
-    <string name="setup_content_hint">Odkud začíná „Otevřít soubor…“. Nasměruj ji na své hry a každé nahrání bude o dvě klepnutí kratší.</string>
+    <string name="setup_content_hint">Knihovna zde ukazuje vaše hry, a tady začíná i „Otevřít soubor…“. Nasměruj ji na své hry a každé nahrání bude o dvě klepnutí kratší.</string>
 
     <string name="welcome_title">Vítej v Zedexu</string>
     <string name="welcome_message">Sedm rychlých otázek — jazyk, kam jdou soubory, který Spectrum, ovládání, obraz, tvá knihovna a archiv. Všechno se dá později změnit v Nastavení.</string>

@@ -169,7 +169,7 @@
     <string name="setup_data_hint">Tam idą ROM-y, stany, taśmy i dyski. Wspólne miejsce — Dokumenty, karta SD — zachowa je po odinstalowaniu aplikacji. Zrzuty ekranu i nagrania idą do galerii.</string>
     <string name="setup_content">Folder z grami: %1$s</string>
     <string name="setup_content_none">nie wybrany</string>
-    <string name="setup_content_hint">Skąd zaczyna „Otwórz plik…”. Wskaż nim swoje gry i każde wczytanie będzie o dwa dotknięcia krótsze.</string>
+    <string name="setup_content_hint">Gdzie biblioteka znajduje twoje gry i skąd zaczyna „Otwórz plik…”. Wskaż na swoje gry i każde wczytanie będzie o dwa dotknięcia krótsze.</string>
 
     <string name="welcome_title">Witaj w Zedeksie</string>
     <string name="welcome_message">Siedem szybkich pytań — język, gdzie trafiają pliki, który Spectrum, sterowanie, obraz, twoja biblioteka i archiwum. Wszystko można zmienić później, w Ustawieniach.</string>

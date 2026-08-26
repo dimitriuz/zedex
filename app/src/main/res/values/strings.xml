@@ -197,7 +197,7 @@
     <!-- %1$s is the folder's name, or "not chosen". -->
     <string name="setup_content">Content folder: %1$s</string>
     <string name="setup_content_none">not chosen</string>
-    <string name="setup_content_hint">Where Open file\u2026 starts looking. Point it at your games and every load is two taps shorter.</string>
+    <string name="setup_content_hint">Where the library finds your games, and where Open file\u2026 starts looking. Point it at your games and every load is two taps shorter.</string>
 
     <!-- The first run. Every page is skippable and the first page offers a way
          past all of them: a screen between somebody and the machine they came
