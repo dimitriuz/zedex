@@ -186,8 +186,8 @@
     <string name="welcome_machine_plus2a">Der +3 ohne das Diskettenlaufwerk.</string>
     <string name="welcome_machine_plus3">128K mit einem 3-Zoll-Diskettenlaufwerk.</string>
     <string name="welcome_machine_pentagon">Der russische Klon, und das meiste, was als .trd oder .scl ankommt.</string>
-    <string name="welcome_controls">Tastatur und Joystick</string>
-    <string name="welcome_controls_hint">Welche Tastatur über das Bild gezeichnet wird, und was ein Spiel für angeschlossen halten soll.</string>
+    <string name="welcome_controls">Tastatur</string>
+    <string name="welcome_controls_hint">Welche Tastatur über das Bild gezeichnet wird — ihre Tasten sind es, die ein Spiel als Tastendruck liest.</string>
     <string name="welcome_controls_keyboard">Tastatur</string>
     <string name="welcome_controls_joystick">Joystick</string>
     <string name="welcome_controls_system_note">Die eigene Tastatur des Telefons tippt stattdessen — hier wird nichts gezeichnet.</string>

@@ -186,8 +186,8 @@
     <string name="welcome_machine_plus2a">+3 без дисковода.</string>
     <string name="welcome_machine_plus3">128K с трёхдюймовым дисководом.</string>
     <string name="welcome_machine_pentagon">Русский клон, и почти всё, что приходит как .trd или .scl.</string>
-    <string name="welcome_controls">Клавиатура и джойстик</string>
-    <string name="welcome_controls_hint">Какую клавиатуру рисовать поверх изображения и что игра должна считать подключённым.</string>
+    <string name="welcome_controls">Клавиатура</string>
+    <string name="welcome_controls_hint">Какую клавиатуру рисовать поверх изображения — её клавиши это то, что игра считывает как нажатия.</string>
     <string name="welcome_controls_keyboard">Клавиатура</string>
     <string name="welcome_controls_joystick">Джойстик</string>
     <string name="welcome_controls_system_note">Печатает собственная клавиатура телефона — здесь ничего не рисуется.</string>

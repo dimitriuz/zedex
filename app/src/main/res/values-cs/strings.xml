@@ -186,8 +186,8 @@
     <string name="welcome_machine_plus2a">+3 bez disketové mechaniky.</string>
     <string name="welcome_machine_plus3">128K s třípalcovou disketovou mechanikou.</string>
     <string name="welcome_machine_pentagon">Ruský klon, a většina toho, co přichází jako .trd nebo .scl.</string>
-    <string name="welcome_controls">Klávesnice a joystick</string>
-    <string name="welcome_controls_hint">Kterou klávesnici kreslit přes obraz a co má hra považovat za připojené.</string>
+    <string name="welcome_controls">Klávesnice</string>
+    <string name="welcome_controls_hint">Kterou klávesnici kreslit přes obraz — její klávesy jsou to, co hra čte jako stisk klávesy.</string>
     <string name="welcome_controls_keyboard">Klávesnice</string>
     <string name="welcome_controls_joystick">Joystick</string>
     <string name="welcome_controls_system_note">Píše vlastní klávesnice telefonu — tady se nekreslí nic.</string>

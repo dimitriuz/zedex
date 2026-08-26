@@ -186,8 +186,8 @@
     <string name="welcome_machine_plus2a">El +3 sin la disquetera.</string>
     <string name="welcome_machine_plus3">128K con disquetera de 3 pulgadas.</string>
     <string name="welcome_machine_pentagon">El clon ruso, y casi todo lo que llega como .trd o .scl.</string>
-    <string name="welcome_controls">Teclado y joystick</string>
-    <string name="welcome_controls_hint">Qué teclado dibujar sobre la imagen, y qué debe creer un juego que hay enchufado.</string>
+    <string name="welcome_controls">Teclado</string>
+    <string name="welcome_controls_hint">Qué teclado dibujar sobre la imagen — sus teclas son lo que un juego lee como pulsaciones.</string>
     <string name="welcome_controls_keyboard">Teclado</string>
     <string name="welcome_controls_joystick">Joystick</string>
     <string name="welcome_controls_system_note">Escribe el teclado propio del teléfono: aquí no se dibuja nada.</string>

@@ -186,8 +186,8 @@
     <string name="welcome_machine_plus2a">+3 bez stacji dysków.</string>
     <string name="welcome_machine_plus3">128K ze stacją dysków 3 cale.</string>
     <string name="welcome_machine_pentagon">Rosyjski klon, i większość tego, co przychodzi jako .trd albo .scl.</string>
-    <string name="welcome_controls">Klawiatura i joystick</string>
-    <string name="welcome_controls_hint">Którą klawiaturę rysować na obrazie i co gra ma uważać za podłączone.</string>
+    <string name="welcome_controls">Klawiatura</string>
+    <string name="welcome_controls_hint">Którą klawiaturę rysować na obrazie — jej klawisze to to, co gra odczytuje jako naciśnięcia.</string>
     <string name="welcome_controls_keyboard">Klawiatura</string>
     <string name="welcome_controls_joystick">Joystick</string>
     <string name="welcome_controls_system_note">Pisze własna klawiatura telefonu — tutaj nic nie jest rysowane.</string>

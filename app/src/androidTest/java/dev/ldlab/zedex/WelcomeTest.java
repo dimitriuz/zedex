@@ -202,8 +202,8 @@ public class WelcomeTest {
      * <b>Scrolls before every attempt, not only before the first.</b> A
      * ScrollView only puts what it has actually scrolled into view into
      * UiAutomator's own tree - see {@link #scrollTo} - and on a page taller
-     * than one screenful (the controls page's plate, five skins and ten
-     * joystick rows), the target can start below the fold *again* after a
+     * than one screenful (the first page's ten language rows, the screen
+     * page's four stills), the target can start below the fold *again* after a
      * page change lands the next page scrolled back to its own top. Calling
      * {@link #scrollTo} once before the loop, as this method used to, found
      * nothing on a later page reached mid-loop and looped inertly to the
@@ -213,34 +213,6 @@ public class WelcomeTest {
      */
     private void tapUntil(String text, java.util.function.BooleanSupplier effect) {
         tapUntil(text, effect, WAIT);
-    }
-
-    /**
-     * Waits for {@code text} to be visible, scrolling before every attempt -
-     * the read-only sibling of {@link #tapUntil}, for a check that has
-     * nothing to click.
-     *
-     * <b>Found this the hard way.</b> {@link #theControlsPageOffersTheKeyboardJoystick}
-     * used to call {@link #scrollTo} once and then {@code device.wait(...)} -
-     * a single scroll before a wait loop that never scrolls again, exactly
-     * the shape {@link #tapUntil}'s own comment warns against ("found nothing
-     * on a later page reached mid-loop and looped inertly to the timeout").
-     * Measured: that combination failed intermittently in the full class run
-     * (never in isolation, where the emulator has nothing else queued right
-     * after the CONTROLS page's own marker appears) - the single
-     * {@code scrollTo} sometimes ran before the page's five skins and ten
-     * joystick rows had actually been measured, missed the target, and
-     * {@code device.wait} then had nothing left to retry the scroll.
-     */
-    private boolean scrollUntilVisible(String text, long timeoutMs) {
-        long deadline = SystemClock.uptimeMillis() + timeoutMs;
-
-        while (SystemClock.uptimeMillis() < deadline) {
-            scrollTo(text);
-            if (device.findObject(By.text(text)) != null) return true;
-            SystemClock.sleep(200);
-        }
-        return false;
     }
 
     /**
@@ -577,38 +549,4 @@ public class WelcomeTest {
                         context.getString(R.string.setup_content, ""))));
     }
 
-    /**
-     * The pad's keyboard mode is ours, not Fuse's, and is appended after
-     * Fuse's eight. Looking it up by name in joystickTypeNames() finds
-     * nothing and never will, which is how the setup dialog once shipped with
-     * the option missing.
-     *
-     * <b>Not a bare loop of three Next taps.</b> The controls page is a real
-     * keyboard plate plus five skins plus ten joystick rows - far past a
-     * screenful - so Next and the keyboard joystick row both start out below
-     * the fold, the same as the language list on page one. tapUntil already
-     * copes with a page that needs scrolling before its own retry can land;
-     * this walks Folders, then Machine, then Controls, waiting each time for
-     * a marker only the next page shows, rather than assuming three
-     * unconditional taps land on four different pages in a row.
-     */
-    @Test
-    public void theControlsPageOffersTheKeyboardJoystick() {
-        launch();
-
-        tapUntil(context.getString(R.string.welcome_next), () ->
-                device.findObject(By.textStartsWith(
-                        context.getString(R.string.setup_data, ""))) != null);
-
-        tapUntil(context.getString(R.string.welcome_next), () ->
-                device.findObject(By.text(
-                        context.getString(R.string.welcome_machine))) != null);
-
-        tapUntil(context.getString(R.string.welcome_next), () ->
-                device.findObject(By.text(
-                        context.getString(R.string.welcome_controls))) != null);
-
-        assertTrue("the keyboard joystick is missing from the list",
-                scrollUntilVisible(context.getString(R.string.joystick_keyboard), WAIT));
-    }
 }

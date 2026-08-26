@@ -186,8 +186,8 @@
     <string name="welcome_machine_plus2a">Le +3 sans le lecteur de disquettes.</string>
     <string name="welcome_machine_plus3">128K avec un lecteur de disquettes 3 pouces.</string>
     <string name="welcome_machine_pentagon">Le clone russe, et l\'essentiel de ce qui arrive en .trd ou .scl.</string>
-    <string name="welcome_controls">Clavier et joystick</string>
-    <string name="welcome_controls_hint">Quel clavier dessiner par-dessus l\'image, et ce qu\'un jeu doit croire branché.</string>
+    <string name="welcome_controls">Clavier</string>
+    <string name="welcome_controls_hint">Quel clavier dessiner par-dessus l\'image — ses touches sont ce qu\'un jeu lit comme pressions.</string>
     <string name="welcome_controls_keyboard">Clavier</string>
     <string name="welcome_controls_joystick">Joystick</string>
     <string name="welcome_controls_system_note">C\'est le clavier du téléphone qui écrit — rien n\'est dessiné ici.</string>

@@ -1,8 +1,6 @@
 package dev.ldlab.zedex.welcome.pages;
 
-import dev.ldlab.zedex.FuseNative;
 import dev.ldlab.zedex.R;
-import dev.ldlab.zedex.input.Controls;
 import dev.ldlab.zedex.storage.Prefs;
 import dev.ldlab.zedex.view.Cards;
 import dev.ldlab.zedex.view.SpectrumKeyboardView;
@@ -11,11 +9,13 @@ import dev.ldlab.zedex.welcome.Step;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
 /**
- * The on-screen keyboard skin, and what a game should think is plugged in.
+ * The on-screen keyboard skin - which plate is drawn over the picture when
+ * a game asks for its keys.
  *
  * <b>A real keyboard, drawn.</b> {@link SpectrumKeyboardView} touches
  * {@code FuseNative} only on a key press, never to draw - which is why
@@ -23,15 +23,14 @@ import android.widget.TextView;
  * so the preview here is the actual skin rather than a picture of one. Touch
  * is off, so nothing is ever sent to a Fuse that is not there.
  *
- * <b>The joystick list is Fuse's own</b>, read live through
- * {@link FuseNative#joystickTypeNames()} - which, unlike {@code
- * machineIds()}, is populated before Fuse runs, so this page can ask rather
- * than keep a table the way {@link MachinePage} has to. Fuse has no joystick
- * called the keyboard: its eight are None, Cursor, Kempston, Sinclair 1/2,
- * Timex 1/2, Fuller. The pad's keyboard mode is this app's own -
- * {@link Controls#JOYSTICK_KEYBOARD} - appended after Fuse's list rather than
- * looked up in it, since looking it up by name in Fuse's own array finds
- * nothing and never will.
+ * <b>The plate sits beside the list, not above it.</b> A keyboard is wide
+ * and low, so stacked over its five rows it takes most of a short screen
+ * before the first choice is reached - and a tap then updates a picture you
+ * have to scroll back up to see. One column for the rows, one for the plate,
+ * keeps both on screen at once. The joystick question used to be asked here
+ * as well and is not any more: which interface a game thinks is plugged in
+ * is the machine's own business (see {@code ControlsUi}), and a page about
+ * the keyboard should only ask about the keyboard.
  */
 public final class ControlsPage implements Step {
 
@@ -58,9 +57,16 @@ public final class ControlsPage implements Step {
         LinearLayout column = new LinearLayout(context);
         column.setOrientation(LinearLayout.VERTICAL);
 
+        // One column for the rows, one for the plate - see the class comment
+        // for why the two sit side by side rather than stacked.
+        LinearLayout sideBySide = new LinearLayout(context);
+        sideBySide.setOrientation(LinearLayout.HORIZONTAL);
+
+        LinearLayout skinsColumn = new LinearLayout(context);
+        skinsColumn.setOrientation(LinearLayout.VERTICAL);
+
         previewSlot = new LinearLayout(context);
         previewSlot.setOrientation(LinearLayout.VERTICAL);
-        column.addView(previewSlot);
 
         preview = new SpectrumKeyboardView(context);
         preview.setEnabled(false);
@@ -69,8 +75,6 @@ public final class ControlsPage implements Step {
         SpectrumKeyboardView.Skin current = SpectrumKeyboardView.Skin.of(
                 preferences.getString(Prefs.KEY_KEYBOARD_SKIN, null));
         showSkin(context, current);
-
-        column.addView(Cards.note(context, R.string.welcome_controls_keyboard));
 
         // A Cards.Group so tapping a different skin moves the cyan live,
         // rather than leaving it on the row that was current when the page
@@ -85,7 +89,7 @@ public final class ControlsPage implements Step {
             int description = skin == SpectrumKeyboardView.Skin.SYSTEM
                     ? R.string.welcome_controls_system_note : 0;
 
-            column.addView(skins.add(context, context.getString(skin.title),
+            skinsColumn.addView(skins.add(context, context.getString(skin.title),
                     description,
                     v -> {
                         preferences.edit()
@@ -96,35 +100,15 @@ public final class ControlsPage implements Step {
                     skin == current));
         }
 
-        column.addView(Cards.note(context, R.string.welcome_controls_joystick));
+        sideBySide.addView(skinsColumn, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-        // Fuse's own list, then ours appended after it - see the class
-        // comment for why this array, and not a table, is the right source.
-        String[] names = FuseNative.joystickTypeNames();
+        LinearLayout.LayoutParams previewLp = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        previewLp.leftMargin = Cards.unit(context, 2);
+        sideBySide.addView(previewSlot, previewLp);
 
-        int stored = preferences.getInt(Prefs.KEY_JOYSTICK_TYPE,
-                Controls.JOYSTICK_KEMPSTON);
-
-        Cards.Group joysticks = new Cards.Group();
-
-        for (int i = 0; i < names.length; i++) {
-            int type = i;
-            column.addView(joysticks.add(context, names[i], 0,
-                    v -> preferences.edit()
-                            // putInt: the wrong getter on this key throws
-                            // only when the key is present, so it passes
-                            // every fresh-install test and crashes on the
-                            // first device where the setting has been
-                            // touched.
-                            .putInt(Prefs.KEY_JOYSTICK_TYPE, type).apply(),
-                    type == stored));
-        }
-
-        column.addView(joysticks.add(context, R.string.joystick_keyboard, 0,
-                v -> preferences.edit()
-                        .putInt(Prefs.KEY_JOYSTICK_TYPE,
-                                Controls.JOYSTICK_KEYBOARD).apply(),
-                stored == Controls.JOYSTICK_KEYBOARD));
+        column.addView(sideBySide);
 
         return column;
     }
