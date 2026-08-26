@@ -200,7 +200,7 @@
     <string name="welcome_library_archive">Какой архив</string>
     <string name="welcome_scraping">Обложки и описания</string>
     <string name="welcome_scraping_hint">Zedex умеет узнать, что это за игра, кто её написал и как выглядела её обложка. Ничего не загружается, пока вы не попросите.</string>
-    <string name="welcome_scraping_sources">Где искать и в каком порядке</string>
+    <string name="welcome_scraping_sources">Настроить скраперы</string>
     <string name="welcome_scraping_account">Ваша собственная учётная запись ScreenScraper</string>
     <string name="welcome_scraping_account_hint">Необязательно. Общая учётная запись есть в каждой копии приложения, и прочитать её может кто угодно, поэтому целую коллекцию лучше собирать со своей — и именно это оставляет общую рабочей для всех остальных.</string>
     <string name="welcome_done_title">Это всё</string>

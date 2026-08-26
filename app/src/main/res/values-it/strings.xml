@@ -200,7 +200,7 @@
     <string name="welcome_library_archive">Quale archivio</string>
     <string name="welcome_scraping">Copertine e descrizioni</string>
     <string name="welcome_scraping_hint">Zedex può cercare cos\'è un gioco, chi l\'ha scritto e com\'era la sua copertina. Non viene scaricato niente finché non lo chiedi.</string>
-    <string name="welcome_scraping_sources">Dove cercare, e in che ordine</string>
+    <string name="welcome_scraping_sources">Configura i scraper</string>
     <string name="welcome_scraping_account">Il tuo account ScreenScraper</string>
     <string name="welcome_scraping_account_hint">Facoltativo. L\'account condiviso è in ogni copia dell\'app e può leggerlo chiunque lo voglia, perciò un\'intera collezione conviene farla con il proprio — ed è quello che tiene in piedi quello condiviso per tutti gli altri.</string>
     <string name="welcome_done_title">È tutto</string>

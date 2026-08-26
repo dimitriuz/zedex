@@ -200,7 +200,7 @@
     <string name="welcome_library_archive">Який архів</string>
     <string name="welcome_scraping">Обкладинки та описи</string>
     <string name="welcome_scraping_hint">Zedex уміє дізнатися, що це за гра, хто її написав і яка була її обкладинка. Нічого не завантажується, доки ви не попросите.</string>
-    <string name="welcome_scraping_sources">Де шукати і в якому порядку</string>
+    <string name="welcome_scraping_sources">Налаштувати скрейпери</string>
     <string name="welcome_scraping_account">Ваш власний обліковий запис ScreenScraper</string>
     <string name="welcome_scraping_account_hint">Необов\'язково. Спільний обліковий запис є в кожній копії застосунку, і прочитати його може будь-хто, тож цілу колекцію краще збирати зі своїм — і саме це лишає спільний робочим для всіх інших.</string>
     <string name="welcome_done_title">Це все</string>

@@ -200,7 +200,7 @@
     <string name="welcome_library_archive">Který archiv</string>
     <string name="welcome_scraping">Obaly a popisy</string>
     <string name="welcome_scraping_hint">Zedex umí dohledat, co je to za hru, kdo ji napsal a jak vypadal její obal. Nic se nestahuje, dokud o to nepožádáš.</string>
-    <string name="welcome_scraping_sources">Kde hledat a v jakém pořadí</string>
+    <string name="welcome_scraping_sources">Nastavit skenery</string>
     <string name="welcome_scraping_account">Tvůj vlastní účet ScreenScraper</string>
     <string name="welcome_scraping_account_hint">Nepovinné. Sdílený účet je v každé kopii aplikace a přečte si ho, kdo chce, takže celou sbírku je lepší stahovat na vlastní — a právě to drží ten sdílený použitelný pro všechny ostatní.</string>
     <string name="welcome_done_title">To je všechno</string>

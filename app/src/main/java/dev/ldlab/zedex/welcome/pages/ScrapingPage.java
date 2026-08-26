@@ -13,6 +13,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.text.InputType;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -59,22 +60,34 @@ public final class ScrapingPage implements Step {
         LinearLayout column = new LinearLayout(context);
         column.setOrientation(LinearLayout.VERTICAL);
 
-        // The same two calls SettingsActivity's own scraper-order row makes:
-        // every name this build can offer, and the ones already chosen (in
-        // their own order), read straight off Scrapers rather than off a
-        // preference this page would have to parse itself.
+        // The names this build can offer, read once here - they are the same
+        // for the life of the build.
         List<String> available = Scrapers.names(context);
 
-        List<String> enabled = new ArrayList<>();
-        for (Provider provider : Scrapers.enabled(context)) {
-            enabled.add(provider.name());
-        }
-
-        column.addView(Cards.choice(context,
+        View sources = Cards.choice(context,
                 R.string.welcome_scraping_sources, 0,
-                v -> ScraperOrderEntry.show(activity, available, enabled,
-                        chosen -> Scrapers.save(activity, chosen)),
-                false));
+                v -> {
+                    // Re-read on every open: a selection saved by an earlier
+                    // open of this very dialog must be what the next one
+                    // starts from. SettingsActivity's own row reads it the
+                    // same way; capturing it at build time is how this page
+                    // used to show a choice that had already been made and
+                    // undone again.
+                    List<String> enabled = new ArrayList<>();
+                    for (Provider provider : Scrapers.enabled(activity)) {
+                        enabled.add(provider.name());
+                    }
+                    ScraperOrderEntry.show(activity, available, enabled,
+                            chosen -> Scrapers.save(activity, chosen));
+                },
+                true);
+
+        // A button, not a form row: wrapped to its own width and painted the
+        // leading cyan rather than stretched across the page like the rows
+        // that choose things.
+        column.addView(sources, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
 
         column.addView(Cards.note(context, R.string.welcome_scraping_account));
 

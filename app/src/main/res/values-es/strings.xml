@@ -200,7 +200,7 @@
     <string name="welcome_library_archive">Qué archivo</string>
     <string name="welcome_scraping">Carátulas y descripciones</string>
     <string name="welcome_scraping_hint">Zedex puede averiguar qué es un juego, quién lo escribió y cómo era su carátula. No se descarga nada hasta que lo pidas.</string>
-    <string name="welcome_scraping_sources">Dónde buscar, y en qué orden</string>
+    <string name="welcome_scraping_sources">Configurar los scrapers</string>
     <string name="welcome_scraping_account">Tu propia cuenta de ScreenScraper</string>
     <string name="welcome_scraping_account_hint">Opcional. La cuenta compartida está en todas las copias de la app y puede leerla quien quiera, así que una colección entera se scrapea mejor con la tuya, y es lo que mantiene en pie la compartida para todos los demás.</string>
     <string name="welcome_done_title">Eso es todo</string>

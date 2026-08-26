@@ -200,7 +200,7 @@
     <string name="welcome_library_archive">Które archiwum</string>
     <string name="welcome_scraping">Okładki i opisy</string>
     <string name="welcome_scraping_hint">Zedex potrafi sprawdzić, czym jest gra, kto ją napisał i jak wyglądała jej okładka. Nic nie jest pobierane, dopóki o to nie poprosisz.</string>
-    <string name="welcome_scraping_sources">Gdzie szukać i w jakiej kolejności</string>
+    <string name="welcome_scraping_sources">Skonfiguruj scrapery</string>
     <string name="welcome_scraping_account">Twoje własne konto ScreenScraper</string>
     <string name="welcome_scraping_account_hint">Opcjonalne. Wspólne konto jest w każdej kopii aplikacji i może je odczytać każdy, kto zechce, więc całą kolekcję lepiej pobierać na własnym — i to właśnie utrzymuje wspólne przy życiu dla wszystkich innych.</string>
     <string name="welcome_done_title">To wszystko</string>
