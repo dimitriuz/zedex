@@ -21,6 +21,8 @@ import dev.ldlab.zedex.welcome.pages.ScreenPage;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.View;
+import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -125,13 +127,10 @@ public final class WelcomeActivity extends ZedexActivity {
         // The way on, and the ways past. DONE has neither: its only button
         // starts the machine, because there is nothing left to skip.
         if (page == Page.DONE) {
-            column.addView(Cards.choice(this, R.string.welcome_start,
-                    R.string.welcome_start_hint, v -> finishSetup(), true));
+            column.addView(Cards.spaced(this, Cards.button(this,
+                    getString(R.string.welcome_start), v -> finishSetup(), true)));
         } else {
-            column.addView(Cards.choice(this, R.string.welcome_next, 0,
-                    v -> next(), true));
-            column.addView(Cards.choice(this, R.string.welcome_skip, 0,
-                    v -> skip(), false));
+            column.addView(Cards.spaced(this, navigationRow()));
         }
 
         // Only on page one: one offer to leave the whole thing, where it can
@@ -145,6 +144,30 @@ public final class WelcomeActivity extends ZedexActivity {
         scroll.setBackgroundColor(Cards.BACK);
         scroll.addView(column);
         setContentView(scroll);
+    }
+
+    /**
+     * Skip and Next on one line - a button row, not two stacked cards.
+     *
+     * Equal halves with air between them, Skip on the left and Next on the
+     * right: the way forward reads last, and neither button needs to be
+     * wider than its partner to say what it does.
+     */
+    private View navigationRow() {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+
+        row.addView(Cards.button(this, getString(R.string.welcome_skip),
+                v -> skip(), false), new LinearLayout.LayoutParams(
+                        0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        LinearLayout.LayoutParams next = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        next.leftMargin = Cards.unit(this, 2);
+        row.addView(Cards.button(this, getString(R.string.welcome_next),
+                v -> next(), true), next);
+
+        return row;
     }
 
     /**

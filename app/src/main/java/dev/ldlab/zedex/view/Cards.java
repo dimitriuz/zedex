@@ -5,6 +5,7 @@ import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.LayerDrawable;
 import android.util.TypedValue;
+import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
@@ -35,8 +36,9 @@ public final class Cards {
     // to inflate with, and one file that says how the screen looks beats a
     // colour in one place and a shape in another.
     //
-    // The palette is the app's own - the dark plate of the icon, and the cyan
-    // that marks a chosen thing in the key editor.
+    // The palette is the app's own - the dark plate of the icon, the cyan
+    // that marks a chosen thing in the key editor, and the green that marks
+    // the way forward on a navigation row.
 
     public static final int BACK = 0xff0e0f13;
     public static final int CARD = 0xff1b1d24;
@@ -44,6 +46,9 @@ public final class Cards {
     public static final int CYAN = 0xff00b0c8;
     private static final int ON_CYAN = 0xff05222a;
     private static final int CAPTION_ON_CYAN = 0xcc05222a;
+    /** The way forward on a navigation row - see {@link #button}. */
+    private static final int GREEN = 0xff43c463;
+    private static final int ON_GREEN = 0xff07230f;
 
     /** Four dp, the step everything on this panel is spaced by. */
     public static int unit(Context context, int steps) {
@@ -133,6 +138,34 @@ public final class Cards {
     public static View choice(Context context, int label, int description,
                               View.OnClickListener action, boolean leading) {
         return choiceOf(context, context.getString(label), description, action, leading);
+    }
+
+    /**
+     * A button for a page's navigation row - deliberately not a
+     * {@link #choiceOf} card.
+     *
+     * The wizard's Next and Skip used to be choice cards of their own: full
+     * width, stacked, the primary one painted CYAN exactly like a selected
+     * row of the form above it, so navigation read as more form. A button is
+     * smaller, sits beside its partner on one line, and wears its own
+     * colour - GREEN for the way forward, the plain card fill for the way
+     * past - which is what keeps it telling a different story from the rows
+     * that choose things.
+     */
+    public static View button(Context context, CharSequence label,
+                              View.OnClickListener action, boolean primary) {
+        TextView view = new TextView(context);
+
+        view.setText(label);
+        view.setTextSize(17);
+        view.setGravity(Gravity.CENTER);
+        view.setTextColor(primary ? ON_GREEN : Palette.MUTED);
+        view.setBackground(card(context, primary ? GREEN : CARD));
+        view.setPadding(unit(context, 4), unit(context, 3), unit(context, 4), unit(context, 3));
+        view.setOnClickListener(action);
+        touchable(context, view);
+
+        return view;
     }
 
     /**
