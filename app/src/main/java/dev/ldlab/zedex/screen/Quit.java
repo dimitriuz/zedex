@@ -1,5 +1,6 @@
 package dev.ldlab.zedex.screen;
 
+import dev.ldlab.zedex.ZedexApplication;
 import android.app.Activity;
 import android.app.ActivityManager;
 
@@ -18,9 +19,14 @@ import android.app.ActivityManager;
  * from.
  *
  * So every task of ours goes, not just this one. {@code getAppTasks} answers
- * for this app alone and needs no permission, and each is removed the same way
- * the single one used to be: off the recents list too, because a task left
- * there offers to resume a machine whose process has gone.
+ * for this app alone and needs no permission - but only for the tasks that
+ * are <em>visible</em>, and a stopped one is not among them: measured on API
+ * 36, quit from the machine with the library behind it left the library's
+ * task standing, and Android restarted the process to draw it. So every live
+ * activity goes first - the stopped ones among them, which no task list will
+ * ever name - and each visible task is then removed the same way the single
+ * one used to be: off the recents list too, because a task left there offers
+ * to resume a machine whose process has gone.
  *
  * The process last, and by {@code exit} rather than by letting the activities
  * finish: Fuse's core is C with global state and no shutdown path worth
@@ -34,6 +40,11 @@ public final class Quit {
 
     /** Every task, and then the process. Never returns. */
     public static void everything(Activity activity) {
+        // The stopped tasks first - see the class comment for why getAppTasks
+        // alone leaves them standing.
+        ((ZedexApplication) activity.getApplicationContext())
+                .finishEveryActivity();
+
         ActivityManager manager = activity.getSystemService(ActivityManager.class);
 
         if (manager != null) {

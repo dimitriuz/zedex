@@ -143,6 +143,7 @@
         grants out of a backup; res/xml/backup_rules.xml says why for each.
     -->
     <application
+        android:name=".ZedexApplication"
         android:label="@string/app_name"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"

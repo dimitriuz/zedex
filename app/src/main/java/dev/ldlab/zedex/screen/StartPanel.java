@@ -4,6 +4,7 @@ import dev.ldlab.zedex.work.Work;
 import dev.ldlab.zedex.view.Cards;
 import dev.ldlab.zedex.view.Palette;
 import dev.ldlab.zedex.EmulatorActivity;
+import dev.ldlab.zedex.ZedexApplication;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.storage.AllFiles;
 import dev.ldlab.zedex.storage.Storage;
@@ -535,13 +536,15 @@ public final class StartPanel {
 
     /**
      * The emulation thread cannot be started twice in one process, so trying
-     * again after Fuse has given up means a new one.
+     * again after Fuse has given up means a new one - and every other live
+     * activity goes with it, for the reason Quit gives: a stopped task left
+     * standing is what Android restarts the app into after the exit.
      */
     private void restartForRoms() {
         Intent intent = new Intent(activity, EmulatorActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         activity.startActivity(intent);
-        activity.finish();
+        ((ZedexApplication) activity.getApplicationContext()).finishEveryActivity();
         Runtime.getRuntime().exit(0);
     }
 
