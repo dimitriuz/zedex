@@ -210,18 +210,6 @@
     <string name="welcome_issues">Uwagi i problemy</string>
     <string name="welcome_issues_hint">Cokolwiek zepsute, brakujące albo błędne — na GitHubie.</string>
 
-    <string name="guide_next">Dalej</string>
-    <string name="guide_done">Rozumiem</string>
-    <string name="guide_picture">Dotknij obrazu w dowolnej chwili, żeby przywrócić te przyciski — znikają, żeby nie leżeć na grze.</string>
-    <string name="guide_bar">Taśmy i dyskietki, zapisane gry, maszyna, zrzuty ekranu, klawiatura i joystick oraz obraz — każda ikona otwiera krótką listę.</string>
-    <string name="guide_menu">Wszystko inne jest tutaj — maszyny, zapisane stany, kody i ustawienia.</string>
-    <string name="guide_tabs">Twoje gry, twoje ulubione, w co grałeś ostatnio — i archiwum około czterdziestu tysięcy innych.</string>
-    <string name="guide_toolbar">Szukanie, filtr i sortowanie. Filtr zostaje, dopóki go nie zdejmiesz.</string>
-    <string name="guide_row">Dotknij gry, żeby zobaczyć, co o niej wiadomo; dotknij jeszcze raz, żeby zagrać.</string>
-    <string name="guide_pane">Wszystko, co pobrano o tej grze — okładka, kto ją napisał, instrukcja i droga do środka.</string>
-    <string name="guide_shelves">Półki: po literze, po kategorii, po roku albo najlepiej oceniane.</string>
-    <string name="guide_catalogue_search">Poszukaj gry po nazwie w całym archiwum.</string>
-
     <string name="roms_needed">Potrzebne ROM-y</string>
     <string name="roms_needed_message">Aplikacja dostarcza te ROM-y, które jej wolno, ale żadnego nie udało się umieścić w\n\n%1$s\n\nDo tego folderu może nie dać się pisać — w Ustawienia › Aplikacja można wskazać inny. Albo przynieś własne, jednym ze sposobów poniżej.</string>
     <string name="roms_blocked">Brak dostępu do tego folderu</string>
@@ -310,7 +298,6 @@
     <string name="card_failed">Nie udało się przygotować tego obrazu karty</string>
     <string name="card_eject_confirm">Wysunąć kartę? Zmiany są najpierw zapisywane do obrazu.</string>
     <string name="tape_saved">Zapisano %1$s</string>
-
 
     <string name="menu_save_state">Zapisz stan…</string>
     <string name="menu_load_state">Wczytaj stan…</string>
@@ -559,9 +546,6 @@
     <string name="settings_group_start">Na początek</string>
     <string name="settings_welcome_again">Przejdź konfigurację jeszcze raz</string>
     <string name="settings_welcome_again_summary">Pytania z pierwszego uruchomienia — język, foldery, maszyna, sterowanie, obraz, twoja biblioteka i pobieranie danych. Nic nie jest kasowane.</string>
-    <string name="settings_guide_again">Pokaż przewodnik jeszcze raz</string>
-    <string name="settings_guide_again_summary">Wskazówki nad przyciskami, przy następnym otwarciu maszyny, biblioteki i archiwum.</string>
-    <string name="settings_guide_again_done">Przewodnik pojawi się znowu przy następnym otwarciu każdego ekranu.</string>
 
     <string name="settings_group_language">Język</string>
     <string name="settings_language">Język aplikacji</string>

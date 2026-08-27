@@ -210,18 +210,6 @@
     <string name="welcome_issues">Rückmeldungen und Probleme</string>
     <string name="welcome_issues_hint">Alles, was kaputt, fehlend oder falsch ist — auf GitHub.</string>
 
-    <string name="guide_next">Weiter</string>
-    <string name="guide_done">Verstanden</string>
-    <string name="guide_picture">Tippe jederzeit auf das Bild, um diese Schaltflächen zurückzuholen — sie blenden aus, damit sie nicht über dem Spiel liegen.</string>
-    <string name="guide_bar">Bänder und Disketten, Spielstände, die Maschine, Bildschirmfotos, Tastatur und Joystick und das Bild — jedes Symbol öffnet eine kurze Liste.</string>
-    <string name="guide_menu">Alles andere steckt hier drin — Maschinen, Spielstände, Cheats und Einstellungen.</string>
-    <string name="guide_tabs">Deine Spiele, deine Favoriten, was du zuletzt gespielt hast — und ein Archiv von etwa vierzigtausend weiteren.</string>
-    <string name="guide_toolbar">Suchen, filtern und sortieren. Ein Filter bleibt, bis du ihn aufhebst.</string>
-    <string name="guide_row">Tippe auf ein Spiel, um zu sehen, was über es bekannt ist; tippe noch einmal zum Spielen.</string>
-    <string name="guide_pane">Alles, was zu diesem Spiel gescrapt wurde — das Cover, wer es geschrieben hat, das Handbuch und der Weg hinein.</string>
-    <string name="guide_shelves">Regale: nach Buchstabe, nach Kategorie, nach Jahr, oder was am besten bewertet ist.</string>
-    <string name="guide_catalogue_search">Ein Spiel im ganzen Archiv nach Namen suchen.</string>
-
     <string name="roms_needed">ROMs nötig</string>
     <string name="roms_needed_message">Die App liefert die ROMs mit, die sie darf, aber keines davon ließ sich ablegen in\n\n%1$s\n\nIn diesen Ordner kann vielleicht nicht geschrieben werden — unter Einstellungen › App lässt sich ein anderer wählen. Oder bringe eigene mit, auf einem der Wege unten.</string>
     <string name="roms_blocked">Kein Zugriff auf diesen Ordner</string>
@@ -310,7 +298,6 @@
     <string name="card_failed">Dieses Kartenabbild ließ sich nicht vorbereiten</string>
     <string name="card_eject_confirm">Karte auswerfen? Änderungen werden vorher ins Abbild geschrieben.</string>
     <string name="tape_saved">%1$s geschrieben</string>
-
 
     <string name="menu_save_state">Spielstand speichern…</string>
     <string name="menu_load_state">Spielstand laden…</string>
@@ -559,9 +546,6 @@
     <string name="settings_group_start">Erste Schritte</string>
     <string name="settings_welcome_again">Die Einrichtung erneut durchlaufen</string>
     <string name="settings_welcome_again_summary">Die Fragen vom ersten Start — Sprache, Ordner, Maschine, Steuerung, das Bild, deine Bibliothek und das Scraping. Es wird nichts gelöscht.</string>
-    <string name="settings_guide_again">Die Einführung erneut zeigen</string>
-    <string name="settings_guide_again_summary">Die Hinweise über den Schaltflächen, wenn du das nächste Mal die Maschine, die Bibliothek und das Archiv öffnest.</string>
-    <string name="settings_guide_again_done">Die Einführung läuft beim nächsten Öffnen jedes Bildschirms erneut.</string>
 
     <string name="settings_group_language">Sprache</string>
     <string name="settings_language">App-Sprache</string>

@@ -95,7 +95,7 @@ public class ArtworkChoiceTest {
         Instrumentation.ActivityMonitor monitor = instrumentation.addMonitor(
                 LibraryActivity.class.getName(), null, false);
 
-        Screen.suppressGuides(context);
+        Screen.suppressFirstRun(context);
         context.startActivity(
                 new android.content.Intent(context, LibraryActivity.class)
                         .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK));

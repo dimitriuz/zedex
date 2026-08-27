@@ -206,7 +206,7 @@ public class LanguageTest {
         Intent intent = new Intent(context, LibraryActivity.class);
         intent.putExtra(LibraryActivity.EXTRA_FROM_MENU, true);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-        Screen.suppressGuides(context);
+        Screen.suppressFirstRun(context);
         context.startActivity(intent, Screen.here());
 
         assertNotNull("the library never came up in Polish - its Browse tab should "

@@ -210,18 +210,6 @@
     <string name="welcome_issues">Відгуки та проблеми</string>
     <string name="welcome_issues_hint">Усе зламане, відсутнє чи неправильне — на GitHub.</string>
 
-    <string name="guide_next">Далі</string>
-    <string name="guide_done">Зрозуміло</string>
-    <string name="guide_picture">Торкніться зображення будь-коли, щоб повернути ці кнопки — вони згасають, щоб не лежати поверх гри.</string>
-    <string name="guide_bar">Стрічки й диски, збереження, машина, знімки екрана, клавіатура і джойстик, зображення — кожен значок відкриває короткий список.</string>
-    <string name="guide_menu">Усе інше тут — машини, збережені стани, чити та налаштування.</string>
-    <string name="guide_tabs">Ваші ігри, ваше обране, у що грали востаннє — і архів ще приблизно з сорока тисяч.</string>
-    <string name="guide_toolbar">Пошук, фільтр і сортування. Фільтр лишається, доки ви його не знімете.</string>
-    <string name="guide_row">Торкніться гри, щоб побачити, що про неї відомо; торкніться ще раз, щоб грати.</string>
-    <string name="guide_pane">Усе, що зібрано про цю гру — обкладинка, хто її написав, посібник і спосіб увійти.</string>
-    <string name="guide_shelves">Полиці: за літерою, за категорією, за роком або за найкращими оцінками.</string>
-    <string name="guide_catalogue_search">Шукати гру за назвою по всьому архіву.</string>
-
     <string name="roms_needed">Потрібні ROM</string>
     <string name="roms_needed_message">Застосунок постачається з тими ROM, які йому дозволено роздавати, але жоден не вдалося покласти в\n\n%1$s\n\nМожливо, у цю теку не можна писати — у «Налаштування › Застосунок» можна вказати іншу. Або додайте свої, будь-яким способом нижче.</string>
     <string name="roms_blocked">Немає доступу до цієї теки</string>
@@ -310,7 +298,6 @@
     <string name="card_failed">Не вдалося підготувати цей образ картки</string>
     <string name="card_eject_confirm">Вийняти картку? Зміни спершу запишуться в образ.</string>
     <string name="tape_saved">Записано: %1$s</string>
-
 
     <string name="menu_save_state">Зберегти стан…</string>
     <string name="menu_load_state">Завантажити стан…</string>
@@ -559,9 +546,6 @@
     <string name="settings_group_start">Для початку</string>
     <string name="settings_welcome_again">Пройти налаштування знову</string>
     <string name="settings_welcome_again_summary">Запитання першого запуску — мова, теки, машина, керування, зображення, ваша бібліотека та збір даних. Нічого не стирається.</string>
-    <string name="settings_guide_again">Показати підказки знову</string>
-    <string name="settings_guide_again_summary">Підказки над кнопками — під час наступного відкриття машини, бібліотеки та архіву.</string>
-    <string name="settings_guide_again_done">Підказки з\'являться знову при наступному відкритті кожного екрана.</string>
 
     <string name="settings_group_language">Мова</string>
     <string name="settings_language">Мова застосунку</string>

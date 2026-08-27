@@ -189,9 +189,7 @@ file identifies itself, and the machine switches when the media needs one — a
 **First start** asks a few questions — language, where files go, which Spectrum,
 controls, the picture, your library and the archive — and every one of them can
 be skipped, or changed later in Settings: the data folder in *Settings › App*,
-the content folder in *Settings › Library*. The first time you open the machine,
-the library and the archive, a few pointers say what the buttons do; *Settings ›
-App* runs either again.
+the content folder in *Settings › Library*. *Settings › App* runs them again.
 
 Files the app writes there are yours to open, copy and delete. Files you copy
 *in* are a different matter: Android hands an app only what it wrote itself, so

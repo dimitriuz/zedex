@@ -557,9 +557,7 @@ public class SettingsActivity extends AppCompatActivity
             snapToEntries();
             updateSummaries();
 
-            // Getting started: the way back into the first-run wizard, and the
-            // way to re-arm the coach marks - two rows because re-running seven
-            // questions and re-arming three overlays are different wants; see
+            // Getting started: the way back into the first-run wizard; see
             // settings_app.xml.
             Preference welcomeAgain = findPreference("welcomeAgain");
             if (welcomeAgain != null) {
@@ -568,20 +566,6 @@ public class SettingsActivity extends AppCompatActivity
                     // has no routing to do - it was not the launcher that
                     // opened it.
                     WelcomeActivity.start(getActivity(), true);
-                    return true;
-                });
-            }
-
-            Preference guideAgain = findPreference("guideAgain");
-            if (guideAgain != null) {
-                guideAgain.setOnPreferenceClickListener(preference -> {
-                    SharedPreferences.Editor edit = getPreferenceManager()
-                            .getSharedPreferences().edit();
-                    for (String flag : Prefs.GUIDE_FLAGS) edit.putBoolean(flag, false);
-                    edit.apply();
-
-                    Toast.makeText(getActivity(), R.string.settings_guide_again_done,
-                                   Toast.LENGTH_LONG).show();
                     return true;
                 });
             }

@@ -180,7 +180,7 @@ public class CatalogueScreenTest {
         intent.putExtra(LibraryActivity.EXTRA_FROM_MENU, true);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
 
-        Screen.suppressGuides(context);
+        Screen.suppressFirstRun(context);
 
         // On the display this test can see - see Screen. A bench with a second
         // display hands the launch to whichever one last had focus, and then

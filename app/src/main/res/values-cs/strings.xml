@@ -210,18 +210,6 @@
     <string name="welcome_issues">Ohlasy a problémy</string>
     <string name="welcome_issues_hint">Cokoli rozbitého, chybějícího nebo špatného — na GitHubu.</string>
 
-    <string name="guide_next">Dál</string>
-    <string name="guide_done">Rozumím</string>
-    <string name="guide_picture">Kdykoli klepni na obraz, aby se tahle tlačítka vrátila — mizí, aby nebyla přes hru.</string>
-    <string name="guide_bar">Pásky a diskety, uložené hry, stroj, snímky obrazovky, klávesnice a joystick a obraz — každá ikona otevře krátký seznam.</string>
-    <string name="guide_menu">Všechno ostatní je tady — počítače, uložené stavy, cheaty a nastavení.</string>
-    <string name="guide_tabs">Tvé hry, tvé oblíbené, co jsi hrál naposledy — a archiv asi čtyřiceti tisíc dalších.</string>
-    <string name="guide_toolbar">Hledání, filtr a řazení. Filtr zůstane, dokud ho nezrušíš.</string>
-    <string name="guide_row">Klepni na hru, ať vidíš, co se o ní ví; klepni znovu a hraj.</string>
-    <string name="guide_pane">Všechno, co se o téhle hře stáhlo — obal, kdo ji napsal, manuál a cesta dovnitř.</string>
-    <string name="guide_shelves">Police: podle písmene, podle kategorie, podle roku, nebo to nejlíp hodnocené.</string>
-    <string name="guide_catalogue_search">Najít hru podle jména v celém archivu.</string>
-
     <string name="roms_needed">Chybí ROMy</string>
     <string name="roms_needed_message">Aplikace přiváží ty ROMy, které smí, ale ani jeden se nepodařilo umístit do\n\n%1$s\n\nDo té složky se možná nedá zapisovat — v Nastavení › Aplikace lze ukázat na jinou. Nebo přines vlastní, kterýmkoli způsobem níže.</string>
     <string name="roms_blocked">K té složce není přístup</string>
@@ -310,7 +298,6 @@
     <string name="card_failed">Ten obraz karty se nepodařilo připravit</string>
     <string name="card_eject_confirm">Vysunout kartu? Změny se nejdřív zapíšou do obrazu.</string>
     <string name="tape_saved">Zapsáno %1$s</string>
-
 
     <string name="menu_save_state">Uložit stav…</string>
     <string name="menu_load_state">Nahrát stav…</string>
@@ -559,9 +546,6 @@
     <string name="settings_group_start">Začínáme</string>
     <string name="settings_welcome_again">Projít nastavení znovu</string>
     <string name="settings_welcome_again_summary">Otázky z prvního spuštění — jazyk, složky, počítač, ovládání, obraz, tvá knihovna a stahování dat. Nic se nemaže.</string>
-    <string name="settings_guide_again">Ukázat průvodce znovu</string>
-    <string name="settings_guide_again_summary">Popisky nad tlačítky, až příště otevřeš počítač, knihovnu a archiv.</string>
-    <string name="settings_guide_again_done">Průvodce poběží znovu, až příště otevřeš každou obrazovku.</string>
 
     <string name="settings_group_language">Jazyk</string>
     <string name="settings_language">Jazyk aplikace</string>

@@ -210,18 +210,6 @@
     <string name="welcome_issues">Comentarios y problemas</string>
     <string name="welcome_issues_hint">Cualquier cosa rota, ausente o mal: en GitHub.</string>
 
-    <string name="guide_next">Siguiente</string>
-    <string name="guide_done">Entendido</string>
-    <string name="guide_picture">Toca la imagen cuando quieras para traer de vuelta estos botones: se desvanecen para no quedarse sobre el juego.</string>
-    <string name="guide_bar">Cintas y discos, partidas guardadas, la máquina, capturas, el teclado y el joystick, y la imagen: cada icono abre una lista breve.</string>
-    <string name="guide_menu">Todo lo demás está aquí dentro: máquinas, partidas guardadas, trucos y ajustes.</string>
-    <string name="guide_tabs">Tus juegos, tus favoritos, lo que jugaste por última vez, y un archivo de unos cuarenta mil más.</string>
-    <string name="guide_toolbar">Buscar, filtrar y ordenar. Un filtro se queda hasta que lo quites.</string>
-    <string name="guide_row">Toca un juego para ver qué se sabe de él; toca otra vez para jugar.</string>
-    <string name="guide_pane">Todo lo scrapeado sobre este juego: la carátula, quién lo escribió, el manual y la manera de entrar.</string>
-    <string name="guide_shelves">Estantes: por letra, por categoría, por año, o lo mejor valorado.</string>
-    <string name="guide_catalogue_search">Buscar un juego por nombre en todo el archivo.</string>
-
     <string name="roms_needed">Faltan ROM</string>
     <string name="roms_needed_message">La app incluye las ROM que le está permitido, pero ninguna se ha podido poner en\n\n%1$s\n\nPuede que en esa carpeta no se pueda escribir; en Ajustes › App se puede apuntar a otra. O trae las tuyas, por cualquiera de las vías de abajo.</string>
     <string name="roms_blocked">Sin acceso a esa carpeta</string>
@@ -310,7 +298,6 @@
     <string name="card_failed">No se pudo preparar esa imagen de tarjeta</string>
     <string name="card_eject_confirm">¿Expulsar la tarjeta? Los cambios se escriben antes en la imagen.</string>
     <string name="tape_saved">Escrito %1$s</string>
-
 
     <string name="menu_save_state">Guardar partida…</string>
     <string name="menu_load_state">Cargar partida…</string>
@@ -559,9 +546,6 @@
     <string name="settings_group_start">Primeros pasos</string>
     <string name="settings_welcome_again">Volver a hacer la configuración</string>
     <string name="settings_welcome_again_summary">Las preguntas del primer arranque: idioma, carpetas, máquina, controles, la imagen, tu biblioteca y el scraping. No se borra nada.</string>
-    <string name="settings_guide_again">Volver a mostrar la guía</string>
-    <string name="settings_guide_again_summary">Los avisos sobre los botones, la próxima vez que abras la máquina, la biblioteca y el archivo.</string>
-    <string name="settings_guide_again_done">La guía volverá a salir la próxima vez que abras cada pantalla.</string>
 
     <string name="settings_group_language">Idioma</string>
     <string name="settings_language">Idioma de la app</string>

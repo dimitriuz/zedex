@@ -9,20 +9,11 @@
 -->
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!--
-        Two rows and not one: re-running seven questions and re-arming three
-        overlays are different wants, and somebody who has just been shown a
-        guide they did not want should not have to walk a wizard to stop it.
-    -->
     <PreferenceCategory android:title="@string/settings_group_start">
         <Preference
             android:key="welcomeAgain"
             android:title="@string/settings_welcome_again"
             android:summary="@string/settings_welcome_again_summary" />
-        <Preference
-            android:key="guideAgain"
-            android:title="@string/settings_guide_again"
-            android:summary="@string/settings_guide_again_summary" />
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/settings_group_language">

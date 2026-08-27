@@ -95,9 +95,8 @@ public class WelcomeTest {
      * warns about - it belongs to SystemUI, so nothing done to this app
      * clears it - and a shade over the screen is a full-height window with
      * none of our views under it. Everything that ran afterwards read the
-     * shade instead of the app: {@code GuideTest} reported "the keyboard
-     * never appeared" and then "the guide never appeared", and sixteen of
-     * twenty-three tests in one batch failed that way, none of them for a
+     * shade instead of the app: sixteen of twenty-three tests in one batch
+     * failed reporting "the keyboard never appeared", none of them for a
      * reason of their own.
      *
      * Closed here rather than opened-and-closed around each fling: the swipe

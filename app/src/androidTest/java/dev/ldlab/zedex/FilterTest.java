@@ -435,7 +435,7 @@ public class FilterTest {
         // root with nothing filtered.
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
 
-        Screen.suppressGuides(context);
+        Screen.suppressFirstRun(context);
 
         // On the display this test can see - see Screen. Run on its own the
         // library came up here anyway; run after a class that had left another

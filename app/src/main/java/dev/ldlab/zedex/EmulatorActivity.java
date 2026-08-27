@@ -30,7 +30,6 @@ import dev.ldlab.zedex.screen.GameInfoActivity;
 import dev.ldlab.zedex.screen.LibraryActivity;
 import dev.ldlab.zedex.screen.Panels;
 import dev.ldlab.zedex.screen.SettingsActivity;
-import dev.ldlab.zedex.screen.SecondScreen;
 import dev.ldlab.zedex.screen.StartPanel;
 import dev.ldlab.zedex.screen.StatesActivity;
 import dev.ldlab.zedex.screen.WelcomeActivity;
@@ -48,11 +47,8 @@ import dev.ldlab.zedex.view.QuickBar;
 import dev.ldlab.zedex.view.Rows;
 import dev.ldlab.zedex.view.SpectrumKeyboardView;
 import dev.ldlab.zedex.view.SystemKeyboardView;
-import dev.ldlab.zedex.welcome.Tour;
-import dev.ldlab.zedex.welcome.Coach;
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.Presentation;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -468,7 +464,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         roms = new StartPanel(this, romsHost);
         menu = buildMenu();
         quickBar = buildQuickBar();
-        machineTour = buildMachineTour();
 
         // The machine's own face, once there is a bar to put a face on. Not
         // up with the collaborators in onCreate, where this was first written
@@ -1159,70 +1154,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     private ImageButton manualAction;
     private ImageButton libraryAction;
     private ImageButton menuAction;
-
-    /**
-     * The machine's own guide: the picture, the bar, and ☰.
-     *
-     * <b>The bar is rung whole rather than an icon at a time.</b> There are
-     * nine of them, and a mark each would be a ten-step tour on the first
-     * launch somebody ever makes - which is a thing people abandon rather
-     * than read. It would also be nine ways for the guide to decline: {@link
-     * QuickBar#setCompact} drops icons when the bar is narrow, and {@link
-     * Tour#arm} refuses the <em>whole</em> guide when any one target answers
-     * null, so on a narrow phone a per-icon tour would silently never fire.
-     * The bar itself is always there when the bar is there.
-     *
-     * So the caption names what the icons open and the mark rings all of
-     * them. What is left is the two things the icons cannot say themselves:
-     * that a tap on the picture brings the bar back once it has faded, and
-     * that ☰ holds everything the bar has no room for.
-     *
-     * <b>The bar's marks follow the bar to whichever window it is in.</b>
-     * {@link #menuAction} is on the quick bar, and the bar is <em>borrowed</em>
-     * by the second screen's panel when one is showing - {@link
-     * EmulatorLayout#setLentAway} detaches it from {@link #layout} and a fresh
-     * {@code SecondScreen} reparents it onto its own window. An overlay in
-     * this activity's content cannot ring a view on another display, so each
-     * of those two marks names the window it must be drawn in - {@link
-     * #guidePanel}, the panel's own while the bar is borrowed there and null
-     * while the bar is on the machine's screen - and {@link Tour} draws it
-     * there. A bar with no parent at all, the instant between detach and
-     * reattach, answers null like any other missing target, and the tour
-     * declines quietly for next time.
-     *
-     * The picture itself never moves - detaching the {@code SurfaceView}
-     * would destroy the surface Fuse draws into - so {@link #layout} itself
-     * is always a fine target for it, in this window.
-     *
-     * <b>Built in {@link #buildMachineTour}, called from {@link #onCreate},
-     * not a field initialiser.</b> This one would run before {@code
-     * fadeQuickBar} is declared and referencing it from an initialiser is an
-     * illegal forward reference - the same rule this project keeps about
-     * collaborators and field initialisers, one line finer.
-     */
-    private Tour machineTour;
-
-    private Tour buildMachineTour() {
-        return Tour.of(Prefs.KEY_GUIDE_MACHINE)
-                .mark(() -> layout, R.string.guide_picture)
-                .mark(() -> quickBar.getParent() != null ? quickBar : null,
-                      this::guidePanel, R.string.guide_bar)
-                .mark(() -> quickBar.getParent() != null ? menuAction : null,
-                      this::guidePanel, R.string.guide_menu)
-                // Or the bar fades out from under its own explanation.
-                .holding(() -> quickBar.removeCallbacks(fadeQuickBar),
-                         this::revealQuickBar);
-    }
-
-    /**
-     * The window the bar's own marks must be drawn in: the panel's, while the
-     * bar is borrowed by it, and null while the bar is on the machine's own
-     * screen - a mark is only ever as far away as its target.
-     */
-    private Presentation guidePanel() {
-        SecondScreen panel = panels.panel();
-        return (panel != null && quickBar.getParent() != layout) ? panel : null;
-    }
 
     /**
      * Shows the game's details, or the machine again.
@@ -2176,13 +2107,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // on behind a machine nobody is looking at either.
         panels.pauseVideo();
 
-        // Through the tour, not Coach.dismiss directly - Tour.dismiss also
-        // runs the tour's own release when one is owed, which is what
-        // re-arms the quick bar's fade. Coach.dismiss alone would take the
-        // mark down and leave the fade unscheduled until some unrelated tap
-        // called revealQuickBar() again - see Tour's own class comment.
-        machineTour.dismiss(this);
-
         // A held direction has nobody to let go of it once we are not being sent
         // events any more.
         gamepad.releaseAll();
@@ -2326,12 +2250,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         started = true;
 
         machine.start();
-
-        // The tour follows the bar to whichever window it is in - with a
-        // second screen the quick bar is borrowed by a Presentation on the
-        // other display, and its marks are drawn there rather than declined;
-        // see machineTour's own comment.
-        machineTour.arm(this);
     }
 
     @Override
@@ -2359,32 +2277,8 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         return true;
     }
 
-    /**
-     * Whether a guide mark is up on the panel's own window right now.
-     *
-     * The machine's tour draws its bar and menu marks there while the controls
-     * are borrowed by a second screen, and while one is up the keys that
-     * arrive through that window belong to the mark rather than to the game -
-     * see {@link #onKeyDown} for the half of this rule that lives here.
-     */
-    private boolean guideOnPanel() {
-        SecondScreen panel = panels.panel();
-        return panel != null && Coach.isShowing(panel);
-    }
-
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        // A guide mark up on the panel's own window owns the keys that arrive
-        // through it - SecondScreen hands every non-Back key to this activity
-        // first, and a mark is supposed to be the only thing in front. Back
-        // takes its own path into handleBack, which swallows for a mark itself;
-        // the system keys keep theirs, or a volume press would die in the
-        // panel's view tree instead of taking its ordinary path.
-        if (guideOnPanel() && keyCode != KeyEvent.KEYCODE_BACK
-                && !Coach.isSystemKey(keyCode)) {
-            return false;
-        }
-
         // A controller first: its buttons are not keys the machine has, and its
         // D-pad must not be mistaken for a keyboard's cursor keys, which the
         // machine does have.
@@ -2446,15 +2340,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     private void handleBack() {
         android.util.Log.i("Zedex", "back: EmulatorActivity.handleBack");
 
-        // A guide mark up on either screen swallows Back, however it arrived.
-        // The panel answers every Back of its own through this very method -
-        // the API 30 to 32 key and the 33+ callback both route into its
-        // backPressed, which runs the host's own handler - so this is where a
-        // mark on that window swallows it; see Coach.show's panel overload for
-        // why it claims no callback of its own.
-        SecondScreen panel = panels.panel();
-        if (Coach.isShowing(this) || (panel != null && Coach.isShowing(panel))) return;
-
         // With the sheet open, back belongs to the sheet: up one page,
         // and out of the sheet altogether from the top of it.
         if (menu.back()) return;
@@ -2477,13 +2362,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
-        // The other half of onKeyDown's guard - a press without its release
-        // would leave the game half-keyed.
-        if (guideOnPanel() && keyCode != KeyEvent.KEYCODE_BACK
-                && !Coach.isSystemKey(keyCode)) {
-            return false;
-        }
-
         if (gamepad.key(event)) return true;
         if (keyCode == KeyEvent.KEYCODE_BACK) return super.onKeyUp(keyCode, event);
 
@@ -2493,10 +2371,6 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
     /** A controller's stick and hat, which arrive as axes rather than as keys. */
     @Override
     public boolean onGenericMotionEvent(MotionEvent event) {
-        // A stick or hat arriving while a mark is up on the panel would move
-        // the emulated joystick behind it - the same leak onKeyDown guards.
-        if (guideOnPanel()) return false;
-
         return gamepad.motion(event) || super.onGenericMotionEvent(event);
     }
 

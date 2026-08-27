@@ -188,10 +188,10 @@ env JAVA_HOME=/opt/android-studio/jbr ./gradlew lintDebug
 ```
 
 The failure that prompted this note is worth knowing for its shape rather than
-its subject: `Coach.releaseBack` guarded an API-33 call with `backCallback ==
-null`, which is correct at run time — the field is only ever assigned inside a
-version-guarded branch — and invisible to lint, which cannot infer a field's
-provenance. **A version check has to be spelled out where the call is**, even
+its subject: a since-removed class guarded an API-33 call with `backCallback
+== null`, which was correct at run time — the field was only ever assigned
+inside a version-guarded branch — and invisible to lint, which cannot infer a
+field's provenance. **A version check has to be spelled out where the call is**, even
 when something else already implies it.
 
 The first run says where it is and nothing more — a line under the two folder

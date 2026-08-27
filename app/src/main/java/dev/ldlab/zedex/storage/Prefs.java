@@ -246,21 +246,6 @@ public final class Prefs {
     public static final String KEY_FILTER_NOISE = "filterNoise";
 
     /**
-     * Whether each guide has been given. One flag per screen, not one for the
-     * lot: somebody who has had the app for a year gets the archive's marks
-     * the first time they open the archive, and is not handed a welcome they
-     * have no use for. Somebody who skipped the wizard still gets them.
-     */
-    public static final String KEY_GUIDE_MACHINE = "guideMachine";
-    public static final String KEY_GUIDE_LIBRARY = "guideLibrary";
-    public static final String KEY_GUIDE_CATALOGUE = "guideCatalogue";
-
-    /** All three, for the Settings row that re-arms them and for the tests
-     *  that must turn them off before they can measure anything else. */
-    public static final String[] GUIDE_FLAGS = {
-        KEY_GUIDE_MACHINE, KEY_GUIDE_LIBRARY, KEY_GUIDE_CATALOGUE,
-    };
-    /**
      * A number out of a preference that stores one as a String.
      *
      * ListPreference writes strings whatever the values look like, so every

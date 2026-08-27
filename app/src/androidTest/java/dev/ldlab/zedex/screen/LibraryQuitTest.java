@@ -61,7 +61,7 @@ public class LibraryQuitTest {
 
         // Or a mark over the toolbar would swallow the very tap this test
         // makes on Options.
-        Screen.suppressGuides(context);
+        Screen.suppressFirstRun(context);
         context.startActivity(library, Screen.here());
 
         UiObject2 options = device.wait(

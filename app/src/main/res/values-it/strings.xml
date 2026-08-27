@@ -210,18 +210,6 @@
     <string name="welcome_issues">Osservazioni e problemi</string>
     <string name="welcome_issues_hint">Qualsiasi cosa rotta, mancante o sbagliata: su GitHub.</string>
 
-    <string name="guide_next">Avanti</string>
-    <string name="guide_done">Ho capito</string>
-    <string name="guide_picture">Tocca l\'immagine quando vuoi per far tornare questi pulsanti: svaniscono per non restare sopra il gioco.</string>
-    <string name="guide_bar">Nastri e dischi, salvataggi, la macchina, schermate, tastiera e joystick, e l\'immagine: ogni icona apre un breve elenco.</string>
-    <string name="guide_menu">Tutto il resto sta qui dentro: macchine, salvataggi, trucchi e impostazioni.</string>
-    <string name="guide_tabs">I tuoi giochi, i tuoi preferiti, quello che hai giocato per ultimo — e un archivio di altri quarantamila circa.</string>
-    <string name="guide_toolbar">Cerca, filtra e ordina. Un filtro resta finché non lo togli.</string>
-    <string name="guide_row">Tocca un gioco per vedere cosa se ne sa; tocca di nuovo per giocare.</string>
-    <string name="guide_pane">Tutto quello che è stato raccolto su questo gioco: la copertina, chi l\'ha scritto, il manuale e il modo di entrarci.</string>
-    <string name="guide_shelves">Scaffali: per lettera, per categoria, per anno, o i più votati.</string>
-    <string name="guide_catalogue_search">Cercare un gioco per nome in tutto l\'archivio.</string>
-
     <string name="roms_needed">Servono le ROM</string>
     <string name="roms_needed_message">L\'app include le ROM che le è permesso includere, ma nessuna si è potuta mettere in\n\n%1$s\n\nForse in quella cartella non si può scrivere: in Impostazioni › App se ne può indicare un\'altra. Oppure porta le tue, in uno dei modi qui sotto.</string>
     <string name="roms_blocked">Nessun accesso a quella cartella</string>
@@ -310,7 +298,6 @@
     <string name="card_failed">Quell\'immagine di scheda non si è potuta preparare</string>
     <string name="card_eject_confirm">Espellere la scheda? Le modifiche vengono prima scritte nell\'immagine.</string>
     <string name="tape_saved">Scritto %1$s</string>
-
 
     <string name="menu_save_state">Salva stato…</string>
     <string name="menu_load_state">Carica stato…</string>
@@ -559,9 +546,6 @@
     <string name="settings_group_start">Per cominciare</string>
     <string name="settings_welcome_again">Rifare la configurazione</string>
     <string name="settings_welcome_again_summary">Le domande del primo avvio: lingua, cartelle, macchina, comandi, l\'immagine, la tua libreria e lo scraping. Non viene cancellato niente.</string>
-    <string name="settings_guide_again">Rivedere la guida</string>
-    <string name="settings_guide_again_summary">Le indicazioni sopra i pulsanti, la prossima volta che apri la macchina, la libreria e l\'archivio.</string>
-    <string name="settings_guide_again_done">La guida ripartirà la prossima volta che apri ciascuna schermata.</string>
 
     <string name="settings_group_language">Lingua</string>
     <string name="settings_language">Lingua dell\'app</string>

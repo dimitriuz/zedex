@@ -126,8 +126,7 @@ public final class Panels {
     }
 
     /** The live panel, or null while the controls are on the machine's own
-     *  screen - for whoever needs to reach into its window, the machine's
-     *  guide drawing a mark over the borrowed bar among them. */
+     *  screen - for whoever needs to reach into its window. */
     public SecondScreen panel() {
         return panel;
     }

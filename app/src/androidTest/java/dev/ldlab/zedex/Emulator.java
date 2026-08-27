@@ -37,10 +37,6 @@ import androidx.test.uiautomator.Until;
  */
 final class Emulator {
 
-    /** Set only for the duration of {@link #launchShowingGuides}, and read by
-     *  {@link #launch}'s own preference write - see that method for why. */
-    private boolean guides;
-
     static final long SECOND = 1000;
 
     /** Long enough for Fuse to start and a machine to reach its boot menu. */
@@ -129,24 +125,14 @@ final class Emulator {
         // Gradle run, and false on a device somebody has set up by hand. Every
         // test here is about the machine, so it asks for the machine; the
         // library has tests of its own.
-        // A test sets the world it needs. The first run and the guide would
-        // both sit over the quick bar, and every test that opens a menu would
-        // fail with "the ☰ button never appeared" - which fifteen of
-        // thirty-four once did. Turned off rather than tapped away: a
-        // tapIfPresent races a posted overlay and passes or fails on timing.
+        // A test sets the world it needs. The first run would sit over the
+        // quick bar, and every test that opens a menu would fail with "the ☰
+        // button never appeared" - which fifteen of thirty-four once did.
+        // Turned off rather than tapped away: a tapIfPresent races a posted
+        // overlay and passes or fails on timing.
         SharedPreferences.Editor edit = context.getSharedPreferences(
                 Prefs.PREFS, Context.MODE_PRIVATE).edit();
         edit.putBoolean(Storage.KEY_SETUP_DONE, true);
-
-        // Except for the one class that is about the guides; see
-        // launchShowingGuides. Left untouched there rather than forced back
-        // off - GuideTest calls this twice in one test, and a flag Tour
-        // itself set true finishing the first walk has to survive the
-        // second launch, or "runs once and not twice" could never be
-        // observed at all.
-        if (!guides) {
-            for (String flag : Prefs.GUIDE_FLAGS) edit.putBoolean(flag, true);
-        }
         edit.commit();
 
         Intent intent = new Intent(context, EmulatorActivity.class);
@@ -175,19 +161,6 @@ final class Emulator {
         // Fuse that had not finished starting, and the test ran on whatever
         // the previous class had left behind.
         useSpectrum48();
-    }
-
-    /** {@link #launch()}, but leaving the guides armed - for the one class
-     *  that is about them. Everything else wants {@link #launch()}, which
-     *  turns them off: a mark over the quick bar swallows the taps every
-     *  other test makes. */
-    void launchShowingGuides() {
-        guides = true;
-        try {
-            launch();
-        } finally {
-            guides = false;
-        }
     }
 
     /** True when the app is asking for ROMs, which means it cannot run. */

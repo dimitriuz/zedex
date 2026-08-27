@@ -580,28 +580,6 @@ public final class CatalogueView extends FrameLayout {
         }
     }
 
-    /**
-     * {@code welcome.Tour}'s own target for its first mark on this tab - see
-     * {@code LibraryActivity.buildCatalogueTour}. Present from construction
-     * and never hidden, unlike {@link #pane} - a tour that pointed at that
-     * one instead would decline for ever, since it stays {@code GONE} until
-     * somebody has already tapped a title.
-     */
-    public View searchField() {
-        return searchField;
-    }
-
-    /**
-     * The list of shelves and titles - {@code welcome.Tour}'s own target for
-     * its second mark, for the same reason {@link #searchField()} is the
-     * first: unlike {@link #pane}, this is never hidden, so a tour armed the
-     * moment the tab is shown - before anybody has tapped anything - still
-     * finds something to ring.
-     */
-    public View list() {
-        return recycler;
-    }
-
     /** Whether a view is inside this one - the bound on where focus may go. */
     private boolean holds(View view) {
         for (ViewParent parent = view.getParent(); parent != null; parent = parent.getParent()) {

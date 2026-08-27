@@ -210,18 +210,6 @@
     <string name="welcome_issues">Retours et problèmes</string>
     <string name="welcome_issues_hint">Tout ce qui est cassé, manquant ou faux — sur GitHub.</string>
 
-    <string name="guide_next">Suivant</string>
-    <string name="guide_done">Compris</string>
-    <string name="guide_picture">Touchez l\'image à tout moment pour ramener ces boutons — ils s\'effacent pour ne pas rester sur le jeu.</string>
-    <string name="guide_bar">Cassettes et disquettes, sauvegardes, la machine, captures d\'écran, le clavier et le joystick, et l\'image — chaque icône ouvre une courte liste.</string>
-    <string name="guide_menu">Tout le reste est là-dedans — machines, sauvegardes, codes et réglages.</string>
-    <string name="guide_tabs">Vos jeux, vos favoris, ce que vous avez joué en dernier — et une archive d\'environ quarante mille autres.</string>
-    <string name="guide_toolbar">Chercher, filtrer et trier. Un filtre reste jusqu\'à ce que vous l\'enleviez.</string>
-    <string name="guide_row">Touchez un jeu pour voir ce qu\'on sait de lui ; touchez encore pour jouer.</string>
-    <string name="guide_pane">Tout ce qui a été scrapé sur ce jeu — la jaquette, qui l\'a écrit, le manuel, et la façon d\'y entrer.</string>
-    <string name="guide_shelves">Rayons : par lettre, par catégorie, par année, ou les mieux notés.</string>
-    <string name="guide_catalogue_search">Chercher un jeu par son nom dans toute l\'archive.</string>
-
     <string name="roms_needed">ROM nécessaires</string>
     <string name="roms_needed_message">L\'app fournit les ROM qu\'elle a le droit de fournir, mais aucune n\'a pu être placée dans\n\n%1$s\n\nCe dossier n\'est peut-être pas accessible en écriture — Réglages › App peut en désigner un autre. Ou apportez les vôtres, par l\'un des moyens ci-dessous.</string>
     <string name="roms_blocked">Pas d\'accès à ce dossier</string>
@@ -310,7 +298,6 @@
     <string name="card_failed">Cette image de carte n\'a pas pu être préparée</string>
     <string name="card_eject_confirm">Éjecter la carte ? Les modifications sont d\'abord écrites dans l\'image.</string>
     <string name="tape_saved">%1$s écrit</string>
-
 
     <string name="menu_save_state">Enregistrer une sauvegarde…</string>
     <string name="menu_load_state">Charger une sauvegarde…</string>
@@ -559,9 +546,6 @@
     <string name="settings_group_start">Pour commencer</string>
     <string name="settings_welcome_again">Refaire la configuration</string>
     <string name="settings_welcome_again_summary">Les questions du premier démarrage — langue, dossiers, machine, commandes, l\'image, votre bibliothèque et le scraping. Rien n\'est effacé.</string>
-    <string name="settings_guide_again">Revoir le guide</string>
-    <string name="settings_guide_again_summary">Les repères sur les boutons, la prochaine fois que vous ouvrirez la machine, la bibliothèque et l\'archive.</string>
-    <string name="settings_guide_again_done">Le guide repassera la prochaine fois que vous ouvrirez chaque écran.</string>
 
     <string name="settings_group_language">Langue</string>
     <string name="settings_language">Langue de l\'app</string>

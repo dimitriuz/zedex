@@ -210,18 +210,6 @@
     <string name="welcome_issues">Отзывы и проблемы</string>
     <string name="welcome_issues_hint">Всё сломанное, недостающее или неверное — на GitHub.</string>
 
-    <string name="guide_next">Дальше</string>
-    <string name="guide_done">Понятно</string>
-    <string name="guide_picture">Коснитесь изображения в любой момент, чтобы вернуть эти кнопки — они гаснут, чтобы не лежать поверх игры.</string>
-    <string name="guide_bar">Ленты и диски, сохранения, машина, снимки экрана, клавиатура и джойстик, изображение — каждый значок открывает короткий список.</string>
-    <string name="guide_menu">Всё остальное здесь — машины, сохранённые состояния, читы и настройки.</string>
-    <string name="guide_tabs">Ваши игры, ваше избранное, во что играли в последний раз — и архив ещё примерно из сорока тысяч.</string>
-    <string name="guide_toolbar">Поиск, фильтр и сортировка. Фильтр остаётся, пока вы его не снимете.</string>
-    <string name="guide_row">Коснитесь игры, чтобы увидеть, что о ней известно; коснитесь ещё раз, чтобы играть.</string>
-    <string name="guide_pane">Всё, что собрано об этой игре — обложка, кто её написал, руководство и способ войти.</string>
-    <string name="guide_shelves">Полки: по букве, по категории, по году или по лучшим оценкам.</string>
-    <string name="guide_catalogue_search">Искать игру по названию по всему архиву.</string>
-
     <string name="roms_needed">Нужны ROM</string>
     <string name="roms_needed_message">Приложение поставляется с теми ROM, которые ему разрешено раздавать, но ни один не удалось положить в\n\n%1$s\n\nВозможно, в эту папку нельзя писать — в «Настройки › Приложение» можно указать другую. Или добавьте свои, любым способом ниже.</string>
     <string name="roms_blocked">Нет доступа к этой папке</string>
@@ -310,7 +298,6 @@
     <string name="card_failed">Не удалось подготовить этот образ карты</string>
     <string name="card_eject_confirm">Извлечь карту? Изменения сначала запишутся в образ.</string>
     <string name="tape_saved">Записано: %1$s</string>
-
 
     <string name="menu_save_state">Сохранить состояние…</string>
     <string name="menu_load_state">Загрузить состояние…</string>
@@ -559,9 +546,6 @@
     <string name="settings_group_start">Для начала</string>
     <string name="settings_welcome_again">Пройти настройку заново</string>
     <string name="settings_welcome_again_summary">Вопросы первого запуска — язык, папки, машина, управление, изображение, ваша библиотека и сбор данных. Ничего не стирается.</string>
-    <string name="settings_guide_again">Показать подсказки снова</string>
-    <string name="settings_guide_again_summary">Подсказки над кнопками — при следующем открытии машины, библиотеки и архива.</string>
-    <string name="settings_guide_again_done">Подсказки появятся снова при следующем открытии каждого экрана.</string>
 
     <string name="settings_group_language">Язык</string>
     <string name="settings_language">Язык приложения</string>
