@@ -18,7 +18,7 @@ one part of the app that needs setting up before it works.
 A strip of icons across the top of the window, either way up. It fades after
 three seconds — **tap the picture to bring it back**.
 
-<a href="screenshots/main-menu.jpg"><img src="screenshots/main-menu.jpg" width="400" alt="The quick bar with a group open"></a>
+<a href="screenshots/main-menu.jpg"><img src="screenshots/quick_bar.jpg" width="400" alt="The quick bar with a group open"></a>
 
 Six of the icons are *groups*: they open a short list of words underneath
 rather than doing anything themselves, and tapping the same icon again puts the
@@ -70,7 +70,7 @@ launch only — drops off the list instead of sitting there failing.
 | <img src="icons/stop.svg" width="16"> | **Stop recording** | in place of the two above, while one is running |
 | <img src="icons/folder.svg" width="16"> | **Open captures folder** | under a line. All three go to `Pictures/Zedex`, which is what puts them in your gallery |
 
-## <img src="icons/controls.svg" width="20" align="top"> On screen…
+## <img src="icons/controls.svg" width="20" align="top"> Controls…
 
 | | | |
 | --- | --- | --- |

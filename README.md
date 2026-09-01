@@ -19,7 +19,9 @@ Most of the code was written by Claude, directed and reviewed by a
 professional software developer.
 
 Using the app: [docs/USING.md](docs/USING.md).
+
 Building, testing and releases: [docs/DEVELOPING.md](docs/DEVELOPING.md).
+
 How Fuse is wired in: [docs/INTERNALS.md](docs/INTERNALS.md).
 
 # Features
