@@ -141,7 +141,40 @@ Also visible in the fuller dump: `Location: 0c:e6:7c:1b:93:a4`, which is the
 **phone's own Bluetooth adapter**, not the pad's. That is a per-phone identifier
 and must not reach a bug report either.
 
-### Whether the descriptor is MAC-derived: not answered
+### Reading 2b: a USB pad, and two pads at once
+
+A **Microsoft X-Box 360 pad** over USB, with the GameSir still connected:
+
+```
+22: Microsoft X-Box 360 pad
+    Classes: KEYBOARD | GAMEPAD | JOYSTICK | EXTERNAL
+    Descriptor: dc4619eefd76423d152d1b3789814fb245dfd008
+    Location: usb-11200000.xhci0-1/input0
+    Identifier: bus=0x0003, vendor=0x045e, product=0x028e, version=0x0114,
+                bluetoothAddress=<not set>
+```
+
+Three things, and the second one is a bug in the plan.
+
+**A USB pad is one device.** The Bluetooth pad's three endpoints are a
+Bluetooth HID artifact, not something every pad does. Choosing by
+`GAMEPAD | JOYSTICK` sources handles both shapes, so that stays right.
+
+**Two pads can be connected at once, and both report those sources.** The plan's
+`padKey()` walked the device list and returned the first pad it found - which,
+with two attached, is whichever the list happens to hold first. It would load
+one pad's mapping and apply it to events from both. That is the exact failure
+per-pad storage exists to prevent, arrived at from the other direction. See
+*Resolving the pad per event*, which replaces it.
+
+**A pad with no unique id cannot be told from another of the same model.**
+`045e:028e` is the generic XInput identity that a great many third-party pads
+report, and there is no `uniqueId` to separate two of them. Two identical USB
+pads will therefore share one mapping. That is acceptable - same model, same
+layout - but it is a property to know rather than discover, and it is the
+opposite of the Bluetooth case, where every unit is distinct.
+
+### Whether the descriptor is MAC-derived: not answered, and not answerable from here
 
 AOSP builds it from a unique id where the device has one, which for Bluetooth is
 the address - and that was **not** confirmed here.
@@ -155,18 +188,52 @@ such a collision. `sha1("3537:1023:uniqueId:A0:5A:59:BD:2A:C5")` and the same
 with `nonce:%04x` appended for 0-7, in four spellings of the address, matched
 none of the three.
 
-**That proves nothing either way**, which is the point of writing it down rather
-than trying a third time: a wrong guess at the input format and a wrong theory
-about what is in it are indistinguishable from out here. The decisive test is
-two pads of the same model producing two descriptors, and there is one pad.
+A third attempt was made and it was the decisive one, because the USB pad is a
+case whose inputs are **all** visible: no `uniqueId`, so AOSP's own
+`generateDescriptor` should reduce to `"045e:028e:"` and nothing else. Seven
+spellings were tried - that bare form, plus name, plus location, plus bus, plus
+version, and two orderings - and **none matched `dc4619ee…`**.
+
+So the method is wrong, not the theory. Whatever this build computes, it is not
+SHA-1 of the strings AOSP's published source suggests - unsurprising on a
+heavily customised Oplus build, and unknowable without its source. **Both
+earlier failures therefore carry no information at all**, and no further
+guessing is warranted.
+
+What that leaves: the descriptor's contents are opaque here, AOSP documents it
+as possibly incorporating a device's unique id, and a Bluetooth device's unique
+id is its address. **That is enough on its own to keep it out of `Diagnostics`**
+- the decision never needed the proof, and it stands on the documented
+possibility rather than on a measurement nobody can take.
 
 **So the descriptor stays out of `Diagnostics`.** Unproven, and the conservative
 direction is the one where a bug report cannot carry a per-unit identifier.
 Name and mapping only. Revisit only with a second pad of the same model in hand.
 
+### Resolving the pad per event
+
+`Gamepad` cannot hold one `PadMap`, because two pads can be connected at once
+and each has its own. It holds a lookup instead, and asks it with the device id
+every event already carries:
+
+```java
+    public interface Maps {
+        /** This device's mapping. Never null; the defaults for a pad nobody
+         *  has changed, and for a device that has gone away. */
+        PadMap forDevice(int deviceId);
+    }
+```
+
+`EmulatorActivity` supplies one over `PadMaps`, caching by device id so that a
+`getDevice` and a JSON parse do not happen per button press, and dropping the
+cache when a device is added or removed or the mapping is edited. A test
+supplies a fake, which is what keeps `Gamepad`'s side of this assertable at all.
+
+`Gamepad.releaseAll()` still applies to everything, since a lookup changing
+means whatever was down was down under the old arrangement.
+
 ### Readings still to take
 
-2. the pad powered off and on;
 3. the pad forgotten in Bluetooth settings and paired again;
 4. the phone rebooted.
 

@@ -387,15 +387,28 @@ refactor lands proved before the feature is built on it.
 **Interfaces:**
 - Consumes: `PadMap.defaults()`, `slotFor(int)`, `slotFor(int, int)`,
   `PadMap.NONE`.
-- Produces: `Gamepad.setMap(PadMap)`.
+- Produces: `Gamepad.Maps` (one method, `PadMap forDevice(int)`);
+  `Gamepad.setMaps(Maps)`.
 
 - [ ] **Step 1: Add the field and the setter**
 
 In `Gamepad`, beside `keys`:
 
 ```java
-    /** Which physical binding is which control. Replaced when the pad changes. */
-    private PadMap map = PadMap.defaults();
+    /**
+     * Where a device's mapping comes from.
+     *
+     * A lookup and not one map, because two pads can be connected at once -
+     * measured, with a Bluetooth pad and a USB pad both reporting GAMEPAD and
+     * JOYSTICK - and each has its own. Every event carries the device id that
+     * answers this, so nothing has to guess which pad is "the" pad.
+     */
+    public interface Maps {
+        /** Never null: the defaults for a pad nobody has changed. */
+        PadMap forDevice(int deviceId);
+    }
+
+    private Maps maps = deviceId -> PadMap.defaults();
 
     /**
      * A different pad, or the same pad remapped.
@@ -404,9 +417,9 @@ In `Gamepad`, beside `keys`:
      * its hold: whatever was pressed was pressed under the old arrangement, and
      * its release would land on whatever now holds that button.
      */
-    public void setMap(PadMap map) {
+    public void setMaps(Maps maps) {
         releaseAll();
-        this.map = map;
+        this.maps = maps;
     }
 ```
 
@@ -417,6 +430,7 @@ leaving everything above it - including the `hotkey(...)` call, which must stay
 first - exactly as it is:
 
 ```java
+        PadMap map = maps.forDevice(event.getDeviceId());
         int slot = map.slotFor(event.getKeyCode());
 
         if (slot == PadMap.NONE) {
@@ -473,7 +487,8 @@ how fast the pointer goes, which four on-or-off directions cannot say:
 
                 if (Math.abs(value) < DEAD_ZONE) continue;
 
-                int slot = map.slotFor(axisId, value < 0 ? -1 : +1);
+                int slot = maps.forDevice(event.getDeviceId())
+                              .slotFor(axisId, value < 0 ? -1 : +1);
                 if (slot != PadMap.NONE && slot <= FuseNative.JOYSTICK_DOWN) {
                     fromAxes[slot] = true;
                 }
@@ -1211,86 +1226,262 @@ git commit -m "feat: a stored mapping per pad"
 
 ---
 
-### Task 6: The machine uses the stored mapping
+### Task 6: The machine resolves each pad's mapping
 
 **Files:**
+- Create: `app/src/main/java/dev/ldlab/zedex/input/PadMapCache.java`
+- Create: `app/src/test/java/dev/ldlab/zedex/input/PadMapCacheTest.java`
 - Modify: `app/src/main/java/dev/ldlab/zedex/EmulatorActivity.java` (wherever
-  `setHotkeys` is called - `grep -n setHotkeys` to find it)
+  `setHotkeys` is called - `grep -n setHotkeys` to find every site)
 
 **Interfaces:**
-- Consumes: `PadMaps.load`, `PadMaps.keyFor`, `Gamepad.setMap`.
+- Consumes: `Gamepad.Maps`, `PadMaps.load`, `PadMaps.keyFor`,
+  `Gamepad.setMaps`.
+- Produces: `PadMapCache implements Gamepad.Maps`, constructed with a
+  `SharedPreferences` and a `PadMapCache.Devices` lookup;
+  `PadMapCache.forget()` to drop what it has cached.
 
-- [ ] **Step 1: Find where the hotkeys are pushed into the pad**
+**Why a cache and not a call:** `forDevice` runs for every button press and
+every motion event. Resolving a device and parsing JSON per press would be
+absurd, and holding one map per pad is three lines.
+
+**Why an indirection for `InputDevice`:** `InputDevice.getDevice` is static and
+answers null under the stub `android.jar`, so a cache that called it directly
+would be untestable for the same reason `SparseArray` is. One interface, and the
+test supplies its own devices.
+
+- [ ] **Step 1: Write the failing test**
+
+`app/src/test/java/dev/ldlab/zedex/input/PadMapCacheTest.java`:
+
+```java
+package dev.ldlab.zedex.input;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
+
+import android.view.KeyEvent;
+
+import dev.ldlab.zedex.FakePreferences;
+import dev.ldlab.zedex.FuseNative;
+
+import org.junit.Test;
+
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * Two pads at once, each on its own mapping.
+ *
+ * Not hypothetical: measured on a Realme RMX5061 with a GameSir-Cyclone Pro on
+ * Bluetooth and an X-Box 360 pad on USB, both reporting GAMEPAD and JOYSTICK at
+ * the same time. An earlier draft of this took "the first pad in the device
+ * list", which would have applied one pad's mapping to the other's buttons.
+ */
+public class PadMapCacheTest {
+
+    private static final String GAMESIR = "f5c2919f";
+    private static final String XBOX = "dc4619ee";
+
+    /** The device table an event's id is resolved against. */
+    private static final class Devices implements PadMapCache.Devices {
+        final Map<Integer, String> keys = new HashMap<>();
+        int lookups;
+
+        @Override
+        public String keyFor(int deviceId) {
+            lookups++;
+            return keys.get(deviceId);
+        }
+    }
+
+    @Test
+    public void eachPadGetsItsOwnMapping() {
+        FakePreferences preferences = new FakePreferences();
+
+        PadMaps.save(preferences, GAMESIR, "GameSir-Cyclone Pro",
+                     PadMap.defaults().with(FuseNative.JOYSTICK_FIRE,
+                             PadMap.Binding.button(KeyEvent.KEYCODE_BUTTON_B)));
+
+        Devices devices = new Devices();
+        devices.keys.put(19, GAMESIR);
+        devices.keys.put(22, XBOX);
+
+        PadMapCache cache = new PadMapCache(preferences, devices);
+
+        // The GameSir has Fire on B; the X-Box, untouched, still has it on A.
+        assertEquals(FuseNative.JOYSTICK_FIRE,
+                     cache.forDevice(19).slotFor(KeyEvent.KEYCODE_BUTTON_B));
+        assertEquals(PadMap.NONE,
+                     cache.forDevice(19).slotFor(KeyEvent.KEYCODE_BUTTON_A));
+        assertEquals(FuseNative.JOYSTICK_FIRE,
+                     cache.forDevice(22).slotFor(KeyEvent.KEYCODE_BUTTON_A));
+    }
+
+    /** A device that has gone away drives the defaults, not nothing. */
+    @Test
+    public void anUnknownDeviceGetsTheDefaults() {
+        PadMapCache cache = new PadMapCache(new FakePreferences(), new Devices());
+
+        assertEquals(FuseNative.JOYSTICK_FIRE,
+                     cache.forDevice(99).slotFor(KeyEvent.KEYCODE_BUTTON_A));
+    }
+
+    /** Asked twice, resolved once: this runs for every button press. */
+    @Test
+    public void aMappingIsResolvedOncePerDevice() {
+        Devices devices = new Devices();
+        devices.keys.put(19, GAMESIR);
+
+        PadMapCache cache = new PadMapCache(new FakePreferences(), devices);
+
+        assertSame(cache.forDevice(19), cache.forDevice(19));
+        assertEquals(1, devices.lookups);
+    }
+
+    /** An edit is seen after forget(), which is what the editor calls. */
+    @Test
+    public void forgettingPicksUpAnEdit() {
+        FakePreferences preferences = new FakePreferences();
+        Devices devices = new Devices();
+        devices.keys.put(19, GAMESIR);
+
+        PadMapCache cache = new PadMapCache(preferences, devices);
+        assertEquals(FuseNative.JOYSTICK_FIRE,
+                     cache.forDevice(19).slotFor(KeyEvent.KEYCODE_BUTTON_A));
+
+        PadMaps.save(preferences, GAMESIR, "GameSir-Cyclone Pro",
+                     PadMap.defaults().with(FuseNative.JOYSTICK_FIRE,
+                             PadMap.Binding.button(KeyEvent.KEYCODE_BUTTON_B)));
+        cache.forget();
+
+        assertEquals(FuseNative.JOYSTICK_FIRE,
+                     cache.forDevice(19).slotFor(KeyEvent.KEYCODE_BUTTON_B));
+    }
+}
+```
+
+- [ ] **Step 2: Run and watch it fail**
+
+Expected: `cannot find symbol: class PadMapCache`.
+
+- [ ] **Step 3: Write `PadMapCache`**
+
+```java
+package dev.ldlab.zedex.input;
+
+import android.content.SharedPreferences;
+import android.view.InputDevice;
+
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * Which mapping belongs to the device an event came from.
+ *
+ * Per device and not per app, because two pads can be connected at once -
+ * measured, a Bluetooth pad and a USB pad both reporting GAMEPAD and JOYSTICK -
+ * and each carries its own. Every event already says which device it came from,
+ * so there is nothing to guess.
+ *
+ * Cached because this answers a question asked for every button press and every
+ * motion event, and the honest answer costs a device lookup and a JSON parse.
+ *
+ * {@link Devices} exists so this is testable: {@code InputDevice.getDevice} is
+ * static and answers null under the stub android.jar, so anything calling it
+ * directly is out of reach on the JVM tier - the same trap as SparseArray, one
+ * layer up.
+ */
+public final class PadMapCache implements Gamepad.Maps {
+
+    /** A device id to the key its mapping is stored under. */
+    public interface Devices {
+        /** Null when there is no such device, or it is not a pad. */
+        String keyFor(int deviceId);
+    }
+
+    /** The real one: Android's device table. */
+    public static final Devices ANDROID = deviceId -> {
+        InputDevice device = InputDevice.getDevice(deviceId);
+        return device == null ? null : PadMaps.keyFor(device);
+    };
+
+    private final SharedPreferences preferences;
+    private final Devices devices;
+    private final Map<Integer, PadMap> resolved = new HashMap<>();
+
+    public PadMapCache(SharedPreferences preferences, Devices devices) {
+        this.preferences = preferences;
+        this.devices = devices;
+    }
+
+    @Override
+    public PadMap forDevice(int deviceId) {
+        PadMap known = resolved.get(deviceId);
+        if (known != null) return known;
+
+        String key = devices.keyFor(deviceId);
+
+        // A device that has gone away, or was never a pad, drives the defaults
+        // rather than nothing: a pad unplugged mid-press still has to be able
+        // to let go of what it was holding.
+        PadMap map = key == null ? PadMap.defaults() : PadMaps.load(preferences, key);
+
+        resolved.put(deviceId, map);
+        return map;
+    }
+
+    /** Drop everything cached: a pad was added or removed, or one was edited. */
+    public void forget() {
+        resolved.clear();
+    }
+}
+```
+
+- [ ] **Step 4: Run and watch it pass**
 
 ```sh
-grep -rn "setHotkeys" app/src/main/java/dev/ldlab/zedex/
+env JAVA_HOME=/opt/android-studio/jbr ./gradlew testDebugUnitTest --tests '*PadMap*'
 ```
 
-Every one of those places is where the map has to be pushed too: the mapping and
-the hotkeys go stale for the same reasons and at the same moments.
+Expected: PASS, 22 tests.
 
-- [ ] **Step 2: Push the map beside them**
+- [ ] **Step 5: Hand it to the pad**
 
-At each site, after `gamepad.setHotkeys(...)`:
+In `EmulatorActivity`, build one cache in `onCreate` beside the other
+collaborators - **not as a field initialiser**, which runs before `preferences`
+is assigned and hands it null:
 
 ```java
-        gamepad.setMap(PadMaps.load(preferences, padKey()));
+        padMaps = new PadMapCache(preferences, PadMapCache.ANDROID);
+        gamepad.setMaps(padMaps);
 ```
 
-and add, near the other small helpers in that class:
+Then `padMaps.forget()` wherever the hotkeys are already reloaded
+(`grep -n setHotkeys`), and from an `InputManager.InputDeviceListener`
+registered in `onResume` and unregistered in `onPause` - both
+`onInputDeviceAdded` and `onInputDeviceRemoved`, because a device id is reused
+and a stale entry would be another pad's mapping.
 
-```java
-    /**
-     * The connected pad's key, or "" when there is none.
-     *
-     * A mapping belongs to a pad, and with none connected there is nothing for
-     * one to belong to - so a machine with no controller runs on the defaults,
-     * which is what it always ran on.
-     */
-    private String padKey() {
-        for (int id : InputDevice.getDeviceIds()) {
-            InputDevice device = InputDevice.getDevice(id);
-            if (device == null) continue;
+Note `setMaps` is called once and the cache is mutable, so nothing needs
+re-setting; `forget()` is the whole of the invalidation.
 
-            int sources = device.getSources();
-            boolean pad = (sources & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD
-                       || (sources & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK;
-
-            if (pad) return PadMaps.keyFor(device);
-        }
-        return "";
-    }
-```
-
-`Gamepad.isPad` asks this same question of an event's sources and is private.
-Two callers now, so make it `static boolean isPad(int sources)` package-private
-in `Gamepad` and have this call it rather than repeating the two masks.
-
-- [ ] **Step 3: Reload when a pad appears or goes**
-
-`EmulatorActivity` should already be reloading hotkeys on resume. If it is not
-also watching for a controller being connected, register an
-`InputManager.InputDeviceListener` in `onResume` and unregister it in `onPause`,
-calling the same two setters from `onInputDeviceAdded` and
-`onInputDeviceRemoved`. Plugging a second pad in mid-game is exactly the case
-this feature is for.
-
-- [ ] **Step 4: Build and check on the device**
+- [ ] **Step 6: Build and check on the device**
 
 ```sh
 env JAVA_HOME=/opt/android-studio/jbr ./gradlew assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Still nothing captured anywhere, so the pad must behave exactly as it did in
-Task 3. Confirm that before going on: this task is plumbing, and plumbing that
-changes behaviour is plumbing that is wrong.
+Nothing is captured yet, so both pads must behave exactly as in Task 3 - with
+both connected at once, and with each on its own. Plumbing that changes
+behaviour is plumbing that is wrong.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add app/src/main/java/dev/ldlab/zedex/EmulatorActivity.java
-git commit -m "feat: the machine reads the connected pad's mapping"
+git add app/src/main/java/dev/ldlab/zedex/input/PadMapCache.java         app/src/test/java/dev/ldlab/zedex/input/PadMapCacheTest.java         app/src/main/java/dev/ldlab/zedex/EmulatorActivity.java
+git commit -m "feat: each connected pad resolves its own mapping"
 ```
 
 ---
@@ -1434,6 +1625,13 @@ Reuse the existing capture dialog. On a `KeyEvent` while a slot is waiting:
         PadMaps.save(preferences, deviceKey, deviceName, updated);
         map = updated;
         showBindings();
+
+The machine's own `PadMapCache` is in another activity and does not see this.
+`EmulatorActivity` already calls `padMaps.forget()` where it reloads the
+hotkeys, and it reloads those on resume - so coming back from this screen picks
+the edit up. Confirm that on the device rather than assuming it: a capture that
+only takes effect after a restart is the "a setting has to be applied as well as
+stored" bug wearing a new hat.
 ```
 
 `showBindings()` must redraw **every** row, not the one captured - the conflict
