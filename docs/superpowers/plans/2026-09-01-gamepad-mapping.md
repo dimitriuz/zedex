@@ -483,24 +483,54 @@ how fast the pointer goes, which four on-or-off directions cannot say:
         // Every axis the device actually has, rather than the two pairs this
         // used to read: a pad whose directions arrive on some other axis can be
         // bound to it, and one that has no such axis simply reports none.
-        for (int i = 0; i < fromAxes.length; i++) fromAxes[i] = false;
+        //
+        // How far each direction is pushed, and not merely whether it is, so
+        // that opposites can be resolved below. axis() used to do that for the
+        // stick against the hat by taking whichever was furthest, and dropping
+        // it would be a regression rather than a simplification: an analogue
+        // stick worn enough to rest past the dead zone would fight the hat
+        // somebody is actually using, and the machine would see left and right
+        // held at once.
+        float[] strength = new float[4];
 
+        PadMap map = maps.forDevice(event.getDeviceId());
         InputDevice device = event.getDevice();
+
         if (device != null) {
             for (InputDevice.MotionRange range : device.getMotionRanges()) {
                 int axisId = range.getAxis();
                 float value = event.getAxisValue(axisId);
+                float size = Math.abs(value);
 
-                if (Math.abs(value) < DEAD_ZONE) continue;
+                if (size < DEAD_ZONE) continue;
 
-                int slot = maps.forDevice(event.getDeviceId())
-                              .slotFor(axisId, value < 0 ? -1 : +1);
-                if (slot != PadMap.NONE && slot <= FuseNative.JOYSTICK_DOWN) {
-                    fromAxes[slot] = true;
+                int slot = map.slotFor(axisId, value < 0 ? -1 : +1);
+
+                if (slot != PadMap.NONE && slot <= FuseNative.JOYSTICK_DOWN
+                        && size > strength[slot]) {
+                    strength[slot] = size;
                 }
             }
         }
+
+        // Left against right, then up against down: the further push wins and
+        // the other is dropped. Two equal opposite pushes cancel, where the old
+        // code happened to give it to the stick - an artefact of the order its
+        // two arguments were in rather than a decision, and cancelling is the
+        // more defensible reading of a pad being pushed both ways at once.
+        for (int i = 0; i < strength.length; i += 2) {
+            if (strength[i] > strength[i + 1]) strength[i + 1] = 0f;
+            else if (strength[i + 1] > strength[i]) strength[i] = 0f;
+            else strength[i] = strength[i + 1] = 0f;
+        }
+
+        for (int i = 0; i < fromAxes.length; i++) fromAxes[i] = strength[i] > 0f;
 ```
+
+The pairs are `(LEFT, RIGHT)` and `(UP, DOWN)`, which are slots 0/1 and 2/3, so
+stepping by two walks exactly them. This is the one part of the task that is not
+behaviour-neutral by construction and cannot be unit-tested - `motion()` needs a
+real `MotionEvent` - so Step 6's check on the device is what covers it.
 
 The local `x` and `y` are still wanted by the `Mouse` block above; leave the two
 `axis(event, ...)` calls that produce them where they are.
