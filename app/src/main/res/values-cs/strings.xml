@@ -139,6 +139,15 @@
     <string name="profile_delete">Smazat profil</string>
     <string name="profile_delete_ask">Smazat „%1$s“?</string>
     <string name="profile_last">Ovládání potřebuje jeden profil, takže posledni smazat nelze.</string>
+    <string name="slot_left">Doleva</string>
+    <string name="slot_right">Doprava</string>
+    <string name="slot_up">Nahoru</string>
+    <string name="slot_down">Dolů</string>
+    <string name="slot_fire">Oheň</string>
+    <string name="slot_button_1">Tlačítko 1</string>
+    <string name="slot_button_2">Tlačítko 2</string>
+    <string name="slot_button_3">Tlačítko 3</string>
+
     <string name="setup_demo">V balení je i úvodní kazeta — logo, hvězdné pole a trochu hudby na AY. Otevři si ji, kdy chceš, ze „Soubory…“ nebo z\n\n%1$s</string>
 
     <string name="overlay_open">Klávesnice přes obraz</string>

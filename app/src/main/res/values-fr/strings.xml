@@ -139,6 +139,15 @@
     <string name="profile_delete">Supprimer le profil</string>
     <string name="profile_delete_ask">Supprimer « %1$s » ?</string>
     <string name="profile_last">Les commandes ont besoin d\'un profil, le dernier ne peut donc pas être supprimé.</string>
+    <string name="slot_left">Gauche</string>
+    <string name="slot_right">Droite</string>
+    <string name="slot_up">Haut</string>
+    <string name="slot_down">Bas</string>
+    <string name="slot_fire">Tir</string>
+    <string name="slot_button_1">Bouton 1</string>
+    <string name="slot_button_2">Bouton 2</string>
+    <string name="slot_button_3">Bouton 3</string>
+
     <string name="setup_demo">Il y a aussi une cassette d\'introduction dans la boîte — un logo, un champ d\'étoiles et un peu de musique sur l\'AY. Ouvrez-la quand vous voulez, depuis « Fichiers… » ou depuis\n\n%1$s</string>
 
     <string name="overlay_open">Clavier par-dessus l\'image</string>

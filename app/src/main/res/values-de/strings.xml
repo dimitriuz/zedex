@@ -139,6 +139,15 @@
     <string name="profile_delete">Profil löschen</string>
     <string name="profile_delete_ask">„%1$s“ löschen?</string>
     <string name="profile_last">Die Steuerung braucht ein Profil, deshalb lässt sich das letzte nicht löschen.</string>
+    <string name="slot_left">Links</string>
+    <string name="slot_right">Rechts</string>
+    <string name="slot_up">Oben</string>
+    <string name="slot_down">Unten</string>
+    <string name="slot_fire">Feuer</string>
+    <string name="slot_button_1">Taste 1</string>
+    <string name="slot_button_2">Taste 2</string>
+    <string name="slot_button_3">Taste 3</string>
+
     <string name="setup_demo">Eine Intro-Kassette liegt auch dabei — ein Schriftzug, ein Sternenfeld und etwas Musik auf dem AY. Öffne sie, wann du willst, aus „Dateien…“ oder aus\n\n%1$s</string>
 
     <string name="overlay_open">Tastatur über dem Bild</string>

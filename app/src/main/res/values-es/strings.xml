@@ -139,6 +139,15 @@
     <string name="profile_delete">Eliminar el perfil</string>
     <string name="profile_delete_ask">¿Eliminar «%1$s»?</string>
     <string name="profile_last">Los controles necesitan un perfil, así que el último no se puede eliminar.</string>
+    <string name="slot_left">Izquierda</string>
+    <string name="slot_right">Derecha</string>
+    <string name="slot_up">Arriba</string>
+    <string name="slot_down">Abajo</string>
+    <string name="slot_fire">Disparo</string>
+    <string name="slot_button_1">Botón 1</string>
+    <string name="slot_button_2">Botón 2</string>
+    <string name="slot_button_3">Botón 3</string>
+
     <string name="setup_demo">En la caja hay también una cinta de introducción: un logotipo, un campo de estrellas y algo de música en el AY. Ábrela cuando quieras, desde «Archivos…» o desde\n\n%1$s</string>
 
     <string name="overlay_open">Teclado sobre la imagen</string>

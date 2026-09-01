@@ -139,6 +139,15 @@
     <string name="profile_delete">Удалить профиль</string>
     <string name="profile_delete_ask">Удалить «%1$s»?</string>
     <string name="profile_last">Управлению нужен хотя бы один профиль, поэтому последний удалить нельзя.</string>
+    <string name="slot_left">Влево</string>
+    <string name="slot_right">Вправо</string>
+    <string name="slot_up">Вверх</string>
+    <string name="slot_down">Вниз</string>
+    <string name="slot_fire">Огонь</string>
+    <string name="slot_button_1">Кнопка 1</string>
+    <string name="slot_button_2">Кнопка 2</string>
+    <string name="slot_button_3">Кнопка 3</string>
+
     <string name="setup_demo">В комплекте есть и вступительная лента — надпись, звёздное поле и немного музыки на AY. Откройте её когда угодно, из «Файлы…» или из\n\n%1$s</string>
 
     <string name="overlay_open">Клавиатура поверх картинки</string>

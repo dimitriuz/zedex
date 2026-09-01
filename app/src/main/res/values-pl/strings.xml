@@ -139,6 +139,15 @@
     <string name="profile_delete">Usuń profil</string>
     <string name="profile_delete_ask">Usunąć „%1$s”?</string>
     <string name="profile_last">Sterowanie potrzebuje jednego profilu, więc ostatniego nie da się usunąć.</string>
+    <string name="slot_left">Lewo</string>
+    <string name="slot_right">Prawo</string>
+    <string name="slot_up">Góra</string>
+    <string name="slot_down">Dół</string>
+    <string name="slot_fire">Ogień</string>
+    <string name="slot_button_1">Przycisk 1</string>
+    <string name="slot_button_2">Przycisk 2</string>
+    <string name="slot_button_3">Przycisk 3</string>
+
     <string name="setup_demo">W pudełku jest też taśma wprowadzająca — logo, pole gwiazd i trochę muzyki na AY. Otwórz ją, kiedy chcesz, z „Pliki…” albo z\n\n%1$s</string>
 
     <string name="overlay_open">Klawiatura na obrazie</string>

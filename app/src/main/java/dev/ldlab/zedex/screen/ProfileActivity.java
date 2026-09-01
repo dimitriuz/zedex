@@ -234,13 +234,13 @@ public final class ProfileActivity extends ZedexActivity
             Button row = slots[slot];
             if (row == null) continue;
 
-            row.setText(ControlProfiles.slotName(slot) + "   "
+            row.setText(ControlProfiles.slotName(this, slot) + "   "
                         + ControlProfiles.name(profile.keys[slot]));
             row.setTextColor(slot == selected ? SELECTED : Palette.TEXT);
         }
 
         hint.setText(getString(R.string.profile_hint,
-                               ControlProfiles.slotName(selected)));
+                               ControlProfiles.slotName(this, selected)));
     }
 
     /** A key was tapped on the keyboard: it belongs to the selected control. */
