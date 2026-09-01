@@ -85,6 +85,11 @@
     <string name="gamepad_none">Brak kontrolera</string>
     <string name="gamepad_none_message">Podłącz kontroler i spróbuj ponownie. Przyciski przypisuje się przez wciśnięcie, bo pady nie zgadzają się co do tego, jak nazywają się ich własne przyciski.</string>
     <string name="gamepad_is_hotkey">To sam modyfikator. Jest przytrzymywany, gdy wciska się czynność, więc nie może być też czynnością.</string>
+    <string name="gamepad_machine_section">Maszyna</string>
+    <string name="gamepad_app_section">Aplikacja</string>
+    <string name="gamepad_default_marker">%1$s (domyślne)</string>
+    <string name="gamepad_reset_pad">Zresetuj ten kontroler</string>
+    <string name="gamepad_press_control">Wciśnij przycisk dla %1$s</string>
 
     <string name="hotkey_pause">Wstrzymaj lub wznów</string>
     <string name="hotkey_reset">Zresetuj maszynę</string>

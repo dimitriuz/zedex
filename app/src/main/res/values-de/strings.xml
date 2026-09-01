@@ -85,6 +85,11 @@
     <string name="gamepad_none">Kein Controller</string>
     <string name="gamepad_none_message">Schließe einen Controller an und versuche es erneut. Tasten werden durch Drücken belegt, weil Pads sich nicht darauf einigen, wie ihre eigenen Tasten heißen.</string>
     <string name="gamepad_is_hotkey">Das ist die Umschalttaste selbst. Sie wird gehalten, während eine Aktion gedrückt wird, also kann sie nicht auch eine sein.</string>
+    <string name="gamepad_machine_section">Die Maschine</string>
+    <string name="gamepad_app_section">Die App</string>
+    <string name="gamepad_default_marker">%1$s (Standard)</string>
+    <string name="gamepad_reset_pad">Diesen Controller zurücksetzen</string>
+    <string name="gamepad_press_control">Drücke eine Taste für %1$s</string>
 
     <string name="hotkey_pause">Anhalten oder fortsetzen</string>
     <string name="hotkey_reset">Maschine zurücksetzen</string>

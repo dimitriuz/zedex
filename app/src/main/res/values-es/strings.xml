@@ -85,6 +85,11 @@
     <string name="gamepad_none">Sin mando</string>
     <string name="gamepad_none_message">Conecta un mando y vuelve a intentarlo. Los botones se asignan pulsándolos, porque los mandos no se ponen de acuerdo en cómo se llaman sus propios botones.</string>
     <string name="gamepad_is_hotkey">Ese es el modificador. Se mantiene pulsado mientras se pulsa una acción, así que no puede ser también una.</string>
+    <string name="gamepad_machine_section">La máquina</string>
+    <string name="gamepad_app_section">La app</string>
+    <string name="gamepad_default_marker">%1$s (predeterminado)</string>
+    <string name="gamepad_reset_pad">Reiniciar este mando</string>
+    <string name="gamepad_press_control">Pulsa un botón para %1$s</string>
 
     <string name="hotkey_pause">Pausar o continuar</string>
     <string name="hotkey_reset">Reiniciar la máquina</string>

@@ -85,6 +85,11 @@
     <string name="gamepad_none">Нет контроллера</string>
     <string name="gamepad_none_message">Подключите контроллер и попробуйте снова. Кнопки назначаются нажатием, потому что пады не сходятся в том, как называются их собственные кнопки.</string>
     <string name="gamepad_is_hotkey">Это сам модификатор. Он удерживается, пока нажимают действие, поэтому действием быть не может.</string>
+    <string name="gamepad_machine_section">Машина</string>
+    <string name="gamepad_app_section">Приложение</string>
+    <string name="gamepad_default_marker">%1$s (по умолчанию)</string>
+    <string name="gamepad_reset_pad">Сбросить этот контроллер</string>
+    <string name="gamepad_press_control">Нажмите кнопку для %1$s</string>
 
     <string name="hotkey_pause">Пауза или продолжить</string>
     <string name="hotkey_reset">Сбросить машину</string>

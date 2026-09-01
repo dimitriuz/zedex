@@ -85,6 +85,11 @@
     <string name="gamepad_none">Žádný ovladač</string>
     <string name="gamepad_none_message">Připoj ovladač a zkus to znovu. Tlačítka se přiřazují stisknutím, protože pady se neshodnou na tom, jak se jejich vlastní tlačítka jmenují.</string>
     <string name="gamepad_is_hotkey">To je sám modifikátor. Drží se, když se tiskne akce, takže akcí být nemůže.</string>
+    <string name="gamepad_machine_section">Počítač</string>
+    <string name="gamepad_app_section">Aplikace</string>
+    <string name="gamepad_default_marker">%1$s (výchozí)</string>
+    <string name="gamepad_reset_pad">Resetovat tento ovladač</string>
+    <string name="gamepad_press_control">Stiskni tlačítko pro %1$s</string>
 
     <string name="hotkey_pause">Pozastavit nebo pokračovat</string>
     <string name="hotkey_reset">Resetovat počítač</string>
