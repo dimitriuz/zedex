@@ -26,6 +26,9 @@ import androidx.test.uiautomator.By;
 import androidx.test.uiautomator.BySelector;
 import androidx.test.uiautomator.UiDevice;
 import androidx.test.uiautomator.UiObject2;
+import androidx.test.uiautomator.UiObjectNotFoundException;
+import androidx.test.uiautomator.UiScrollable;
+import androidx.test.uiautomator.UiSelector;
 import androidx.test.uiautomator.Until;
 
 import org.junit.After;
@@ -135,6 +138,20 @@ public class GamepadCaptureTest {
         edit.putString(Language.KEY_LANGUAGE, languageBefore);
 
         edit.commit();
+
+        // row() below can fling a UiScrollable, whose scrollIntoView begins
+        // by scrolling to the beginning - a downward swipe near the top of
+        // this screen's scrolling view, which Android can read as the
+        // gesture that opens the notification shade (see WelcomeTest's own
+        // tearDown for where this was first measured). The shade is
+        // SystemUI's and outlives this class if left up, so put it back down
+        // regardless of whether this run actually pulled it.
+        try {
+            device.executeShellCommand("cmd statusbar collapse");
+        } catch (java.io.IOException e) {
+            // Nothing this test can do about it, and nothing it should fail
+            // for: the assertions have already run by here.
+        }
     }
 
     private Activity launch() {
@@ -158,9 +175,33 @@ public class GamepadCaptureTest {
         return launched;
     }
 
+    /**
+     * The machine's section (a picker row, eight control rows, "Reset this
+     * pad") plus "The app" heading and its explanatory paragraph sit ahead of
+     * the hotkey rows, and on a tall enough screen that is more than one
+     * screenful - the hotkey rows are below the fold and {@code
+     * By.textStartsWith} alone, with no scrolling, cannot see them (measured
+     * on a Realme RMX5061). So a first, unscrolled look is tried, and only if
+     * that fails is a {@link UiScrollable} asked to bring the row into view
+     * before looking again - this must find a genuine fact, not paper over a
+     * missing row, so nothing here treats "still not found" as anything but
+     * a failure.
+     */
     private UiObject2 row(String startsWith) {
         UiObject2 found = device.wait(Until.findObject(By.textStartsWith(startsWith)), FIND);
-        assertNotNull("no row starting with \"" + startsWith + "\"", found);
+        if (found == null) {
+            try {
+                UiScrollable scrollable = new UiScrollable(new UiSelector().scrollable(true));
+                if (scrollable.exists()) {
+                    scrollable.scrollIntoView(new UiSelector().textStartsWith(startsWith));
+                }
+            } catch (UiObjectNotFoundException e) {
+                // Not there, or not scrollable; the assertion below reports it.
+            }
+            found = device.wait(Until.findObject(By.textStartsWith(startsWith)), FIND);
+        }
+        assertNotNull("no row starting with \"" + startsWith + "\" - scrolled and still did not find it",
+                found);
         return found;
     }
 
