@@ -268,8 +268,20 @@ every event already carries:
 
 `EmulatorActivity` supplies one over `PadMaps`, caching by device id so that a
 `getDevice` and a JSON parse do not happen per button press, and dropping the
-cache when a device is added or removed or the mapping is edited. A test
-supplies a fake, which is what keeps `Gamepad`'s side of this assertable at all.
+cache when a device is added or removed or the mapping is edited. The seam
+itself is sound — `PadMapCache` is genuinely testable on the JVM tier through
+its own `Devices` seam — but the specific claim that a fake `Maps` would make
+`Gamepad` assertable turned out to be false when someone tried to keep it.
+**`Gamepad.key()` and `Gamepad.motion()` cannot be exercised on the JVM tier at
+all**, which is what `GamepadTest`'s own javadoc measures and explains in detail:
+the mockable `android.jar` substituted at test runtime hardcodes defaults (0,
+false, null) for every framework method regardless of what was passed to a
+constructor, and those getters are `final` on the real SDK, so overriding them
+does not compile. Adding Robolectric or mockito-inline to `testImplementation`
+would fix this properly, but is a build-configuration decision — not this
+feature's call. The seam kept `PadMapCache` out of `Gamepad` and testable; that
+part of the architecture held. What did not hold was the promise written before
+it was measured.
 
 `Gamepad.releaseAll()` still applies to everything, since a lookup changing
 means whatever was down was down under the old arrangement.
