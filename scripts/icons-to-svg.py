@@ -37,9 +37,10 @@ ICONS = os.path.join(HERE, "docs", "icons")
 # backgrounds and launcher art too, and a docs folder that grew whatever was
 # added next to them would be a folder nobody could account for.
 WANTED = """
-bolt bookmark border camera chip close controls crt display fast_forward file
-film folder fullscreen indicators info joystick keyboard load manual menu mouse
-pause play record reset save scanlines signal stop swap turbo
+bolt bookmark border camera catalogue chip close controls crt disk display
+eject fast_forward file film folder fullscreen indicators info joystick
+keyboard library load manual menu mouse music pause play plus poke quit record
+reset rewind save scanlines settings signal stop swap tape trash turbo
 """.split()
 
 # The app tints its icons at draw time; a static file cannot be tinted.

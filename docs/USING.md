@@ -18,7 +18,7 @@ one part of the app that needs setting up before it works.
 A strip of icons across the top of the window, either way up. It fades after
 three seconds — **tap the picture to bring it back**.
 
-<a href="screenshots/main-menu.jpg"><img src="screenshots/quick_bar.jpg" width="400" alt="The quick bar with a group open"></a>
+<a href="screenshots/quick_bar.jpg"><img src="screenshots/quick_bar.jpg" width="400" alt="The quick bar with a group open"></a>
 
 Six of the icons are *groups*: they open a short list of words underneath
 rather than doing anything themselves, and tapping the same icon again puts the
@@ -70,7 +70,7 @@ launch only — drops off the list instead of sitting there failing.
 | <img src="icons/stop.svg" width="16"> | **Stop recording** | in place of the two above, while one is running |
 | <img src="icons/folder.svg" width="16"> | **Open captures folder** | under a line. All three go to `Pictures/Zedex`, which is what puts them in your gallery |
 
-## <img src="icons/controls.svg" width="20" align="top"> Controls…
+## <img src="icons/controls.svg" width="20" align="top"> On screen…
 
 | | | |
 | --- | --- | --- |
@@ -82,7 +82,9 @@ launch only — drops off the list instead of sitting there failing.
 | <img src="icons/mouse.svg" width="16"> | **Mouse: on** / **off** | the Kempston mouse |
 
 The last four say what is set now and open the full list; the bar has no room
-for eight joystick interfaces.
+for eight joystick interfaces. Not to be confused with the sheet's own
+[Controls…](#controls), which is a different page: this one is what is on the
+glass right now, that one is how the pad and the keyboard are set up.
 
 ## <img src="icons/display.svg" width="20" align="top"> Display…
 
@@ -122,13 +124,111 @@ something there.
 
 # The menu sheet
 
-**☰** holds *Library*, *Open file…*, *Open recent…*, *Machine…*, *States…*, *Pokes…*,
-*Music…*, *Media…*, *Capture…*, *Controls…*, *Settings…*, *About Zedex* and
-*Quit*. *Library…*, *Open recent…* and *Music…* appear when there is something
-for them to show.
+**☰** at the right-hand end of the bar. It is the long form: everything the bar
+carries, plus the four pages there was no room for — cheats, music, the tape
+deck and drives, and the controls.
+
+Same rule as the bar — a row with nothing behind it is not drawn. *Library* and
+*Online browser* need somewhere to go, *Open recent…* needs a recent file, and
+*Music…* appears only for a game somebody has ripped the tunes out of.
+
+| | | |
+| --- | --- | --- |
+| <img src="icons/library.svg" width="16"> | **Library** | your games. It is a separate task from the machine, so this is the only way across — Back here opens ☰ instead |
+| <img src="icons/catalogue.svg" width="16"> | **Online browser** | the archives, when one is switched on |
+| <img src="icons/folder.svg" width="16"> | **Open file…** | |
+| <img src="icons/file.svg" width="16"> | **Open recent…** | the same last ten the bar's Files group has |
+| <img src="icons/chip.svg" width="16"> | **Machine…** | the same page the bar's Machine group opens |
+| <img src="icons/bookmark.svg" width="16"> | **States…** | the same page the bar's States group opens |
+| <img src="icons/poke.svg" width="16"> | **Pokes…** | [below](#pokes) |
+| <img src="icons/music.svg" width="16"> | **Music…** | [below](#music) |
+| <img src="icons/tape.svg" width="16"> | **Media…** | [below](#media) |
+| <img src="icons/camera.svg" width="16"> | **Capture…** | the same page the bar's Capture group opens |
+| <img src="icons/controls.svg" width="16"> | **Controls…** | [below](#controls) |
+| <img src="icons/settings.svg" width="16"> | **Settings…** | |
+| <img src="icons/info.svg" width="16"> | **About Zedex** | |
+| <img src="icons/quit.svg" width="16"> | **Quit** | warns about unsaved disks first |
 
 **Back** never exits: it leaves fullscreen, or goes up a menu page, or opens ☰.
-*Quit* warns about unsaved disks first.
+
+## Pokes…
+
+Cheats for whatever is loaded, then your own.
+
+| | | |
+| --- | --- | --- |
+| | ***Cheats for …*** | the built-in database's, matched on the file's own fingerprint. Ones that take a number ask for it |
+| | ***Cheats found by scraping*** | in its place, when the database has never heard of the file |
+| <img src="icons/poke.svg" width="16"> | **Search the cheat database…** | for a game that loaded under a different name |
+| <img src="icons/info.svg" width="16"> | **Look it up at The Tipshop…** | a web search, where the database came from |
+| <img src="icons/poke.svg" width="16"> | **Poke once…** | fire an address and value now, without keeping it |
+| <img src="icons/plus.svg" width="16"> | **Add a poke…** | keep one. Decimal, or hex after `0x`, `$` or `#` |
+| | ***Stored*** | your own, each with a <img src="icons/trash.svg" width="14"> to forget it |
+
+The database answers first and a scrape only tops it up, because the built-in
+match is on the file itself and a scraped one is on whichever entry the scrape
+settled on.
+
+## Music…
+
+Only for a game whose AY tunes somebody has ripped out and a scrape has
+fetched. One row per tune; **Stop the music** appears while one is playing.
+
+Playing a tune pauses the machine and puts it back exactly where it was
+afterwards — mid-level, mid-jump.
+
+## Media…
+
+The tape deck, every drive the machine has, and the memory card slot, in three
+sections.
+
+**Tape**
+
+| | | |
+| --- | --- | --- |
+| <img src="icons/folder.svg" width="16"> | **Load a tape…** | |
+| <img src="icons/play.svg" width="16"> | **Play** / **Stop** | stop keeps the position, so playing again carries on |
+| <img src="icons/rewind.svg" width="16"> | **Rewind to the start** | the first block; there is no winding |
+| <img src="icons/tape.svg" width="16"> | **Blocks…** | what is on the tape, block by block |
+| <img src="icons/save.svg" width="16"> | **Save tape…** | the machine writes to its tape as well as reading from it — a BASIC `SAVE "name"` appends, and this is what puts it on disk |
+| <img src="icons/plus.svg" width="16"> | **New tape** | |
+
+Everything but *Load a tape…* and *New tape* needs a tape in the deck.
+
+**Drives**
+
+One row per drive the machine actually has — so four on a Beta-equipped
+Pentagon, two on a +3, and a *no drives* note on a 48K. Each says what is in it
+and opens:
+
+| | | |
+| --- | --- | --- |
+| <img src="icons/folder.svg" width="16"> | **Load disk…** | |
+| <img src="icons/plus.svg" width="16"> | **New disk** | asks first if there is already one in the drive |
+| <img src="icons/save.svg" width="16"> | **Save over …** | back over the file it came from, when it came from one |
+| <img src="icons/save.svg" width="16"> | **Save as…** | a copy |
+| <img src="icons/eject.svg" width="16"> | **Eject** | |
+
+**Memory card**
+
+| | | |
+| --- | --- | --- |
+| <img src="icons/folder.svg" width="16"> | **Insert card…** / **Change card…** | |
+| <img src="icons/save.svg" width="16"> | **Write changes now** | they are written once a second anyway, and whenever the app is paused |
+| <img src="icons/eject.svg" width="16"> | **Eject card** | |
+
+The section says so when there is no firmware yet, or when the DivMMC
+interface is off — a card can go in before either and will be waiting.
+[Setting it up](#setting-up-the-memory-card) is at the foot of this page.
+
+## Controls…
+
+| | | |
+| --- | --- | --- |
+| <img src="icons/joystick.svg" width="16"> | **Joystick…** | which interface, and the key profile when it is sending keys |
+| <img src="icons/keyboard.svg" width="16"> | **Keyboard…** | which of the five skins |
+| <img src="icons/mouse.svg" width="16"> | **Mouse…** | the Kempston mouse and its sensitivity |
+| <img src="icons/controls.svg" width="16"> | **Controller hotkeys…** | [the table below](#controller-hotkeys). Tap a row, press the button |
 
 # Settings
 
