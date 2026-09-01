@@ -382,13 +382,54 @@ names, descriptions, artwork, videos and manuals — becomes Zedex's own library
 Only the words are copied; the pictures stay where ES-DE keeps them. Press it
 again to take in what has changed since.
 
+By hand instead: the same two files go in ES-DE's own `custom_systems` folder.
+Add to them rather than replacing them — a `<system>` here replaces the bundled
+one of the same name, so ES-DE's Fuse and Speccy entries have to be carried
+along or they are gone.
+
+<details>
+<summary><code>ES-DE/custom_systems/es_find_rules.xml</code></summary>
+
+```xml
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<ruleList>
+    <emulator name="ZEDEX">
+        <rule type="androidpackage">
+            <entry>dev.ldlab.zedex/dev.ldlab.zedex.EmulatorActivity</entry>
+        </rule>
+    </emulator>
+</ruleList>
+```
+</details>
+
+<details>
+<summary><code>ES-DE/custom_systems/es_systems.xml</code></summary>
+
+```xml
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<systemList>
+    <system>
+        <name>zxspectrum</name>
+        <fullname>Sinclair ZX Spectrum</fullname>
+        <path>%ROMPATH%/zxspectrum</path>
+        <extension>.dsk .DSK .gz .GZ .img .IMG .mgt .MGT .rzx .RZX .scl .SCL .sh .SH .sna .SNA .szx .SZX .tap .TAP .trd .TRD .tzx .TZX .udi .UDI .z80 .Z80 .7z .7Z .zip .ZIP</extension>
+        <command label="Zedex">%EMULATOR_ZEDEX% %ACTIVITY_CLEAR_TASK% %ACTIVITY_CLEAR_TOP% %ACTION%=android.intent.action.VIEW %DATA%=%ROMPROVIDER%</command>
+        <command label="Fuse">%EMULATOR_RETROARCH% %EXTRA_CONFIGFILE%=%EXTERNALDATA%/Android/data/%ANDROIDPACKAGE%/files/retroarch.cfg %EXTRA_LIBRETRO%=%INTERNALDATA%/%ANDROIDPACKAGE%/cores/fuse_libretro_android.so %EXTRA_ROM%=%ROM%</command>
+        <command label="Speccy (Standalone)">%EMULATOR_SPECCY% %ACTIVITY_CLEAR_TASK% %ACTIVITY_CLEAR_TOP% %ACTION%=android.intent.action.VIEW %DATA%=%ROMSAF%</command>
+        <platform>zxspectrum</platform>
+        <theme>zxspectrum</theme>
+    </system>
+</systemList>
+```
+</details>
+
 ## Cocoon
 
-[Cocoon](https://cocoon-shell.com) needs nothing from Zedex: import
-[`docs/frontends/ZXSpectrum-Zedex.json`](docs/frontends/ZXSpectrum-Zedex.json)
-with *Import custom platform* and Zedex is offered as a player for ZX Spectrum.
-Cocoon's own RetroArch entries are kept. The same file works in
-[Daijishō](https://github.com/TapiocaFox/Daijishou).
+[Cocoon](https://cocoon-shell.com) needs nothing from Zedex. Download
+**[ZXSpectrum-Zedex.json](https://raw.githubusercontent.com/dimitriuz/zedex/main/docs/frontends/ZXSpectrum-Zedex.json)**
+and import it with *Import custom platform*: Zedex is then offered as a player
+for ZX Spectrum, and Cocoon's own RetroArch entries are kept. The same file
+works in [Daijishō](https://github.com/TapiocaFox/Daijishou).
 
 Untested on the Google Play build, which has no All files access.
 
