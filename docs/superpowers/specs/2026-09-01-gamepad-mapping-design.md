@@ -174,6 +174,16 @@ pads will therefore share one mapping. That is acceptable - same model, same
 layout - but it is a property to know rather than discover, and it is the
 opposite of the Bluetooth case, where every unit is distinct.
 
+### Reading 3: forgotten in Bluetooth settings and paired again
+
+**All three descriptors identical.** `f5c2919f…`, `ee0742fe…`, `3c1f1565…`,
+unchanged.
+
+This is the reading that mattered most. A power cycle only re-establishes a
+link; forgetting the device drops the bond and pairs it as though it had never
+been seen, and it is the thing most likely to have moved a descriptor. It did
+not. The kernel ids moved again, 19/20/21 to 23/24/25.
+
 ### Whether the descriptor is MAC-derived: not answered, and not answerable from here
 
 AOSP builds it from a unique id where the device has one, which for Bluetooth is
