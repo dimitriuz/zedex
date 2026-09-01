@@ -158,6 +158,13 @@ public final class PadMap {
      *  whatever else held it. The original is unchanged. */
     public PadMap with(int slot, Binding binding) {
         Map<Integer, Binding> next = new HashMap<>(chosen);
+
+        // Evict any other slot holding the same binding. A slot whose capture
+        // is evicted goes back to its defaults rather than being stranded with
+        // nothing - a slot is always either captured or on defaults.
+        int bindingKey = binding.key();
+        next.values().removeIf(other -> other.key() == bindingKey);
+
         next.put(slot, binding);
         return new PadMap(next);
     }

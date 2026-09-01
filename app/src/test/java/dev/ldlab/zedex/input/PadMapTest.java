@@ -176,4 +176,32 @@ public class PadMapTest {
         // A slot whose binding was taken away has none to show.
         assertNull(changed.bindingFor(ControlProfiles.BUTTON_1));
     }
+
+    /**
+     * The same button captured onto a second slot leaves the first alone.
+     *
+     * Two captures colliding on one binding is an ordinary thing to do in a
+     * remapping screen - you decide L1 should be Right after all - and the
+     * most recent one has to win, or the screen disagrees with the pad. The
+     * slot that lost its capture goes back to its defaults rather than being
+     * stranded with nothing: a slot is always either captured or on defaults.
+     */
+    @Test
+    public void recapturingAButtonTakesItOffTheSlotThatHadIt() {
+        PadMap map = PadMap.defaults()
+                .with(FuseNative.JOYSTICK_LEFT,
+                      PadMap.Binding.button(KeyEvent.KEYCODE_BUTTON_L1))
+                .with(FuseNative.JOYSTICK_RIGHT,
+                      PadMap.Binding.button(KeyEvent.KEYCODE_BUTTON_L1));
+
+        assertEquals(FuseNative.JOYSTICK_RIGHT, map.slotFor(KeyEvent.KEYCODE_BUTTON_L1));
+        assertEquals(KeyEvent.KEYCODE_BUTTON_L1,
+                     map.bindingFor(FuseNative.JOYSTICK_RIGHT).code);
+
+        // Left has no capture any more, so it is back on its defaults.
+        assertEquals(FuseNative.JOYSTICK_LEFT, map.slotFor(KeyEvent.KEYCODE_DPAD_LEFT));
+        assertEquals(KeyEvent.KEYCODE_DPAD_LEFT,
+                     map.bindingFor(FuseNative.JOYSTICK_LEFT).code);
+        assertTrue(map.isDefault(FuseNative.JOYSTICK_LEFT));
+    }
 }
