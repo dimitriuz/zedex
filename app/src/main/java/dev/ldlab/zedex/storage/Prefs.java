@@ -84,6 +84,18 @@ public final class Prefs {
     /** Written from the quick bar: the picture has the window to itself. */
     public static final String KEY_FULLSCREEN = "fullscreen";
     public static final String KEY_JOYSTICK_TYPE = "joystickType";
+    /**
+     * Every pad's control mapping, keyed by device inside the one value.
+     *
+     * A JSON String, not a per-device key of its own - a settings screen
+     * cannot enumerate every pad a person might ever plug in, so one value
+     * holds all of them; see {@code input.PadMaps}, which owns the shape of
+     * what is inside it. Declared here rather than there because {@code Prefs}
+     * does not otherwise import {@code input}, and this file is where every
+     * other preference key already lives - {@code PadMaps.KEY} reads this
+     * constant, so the literal exists once.
+     */
+    public static final String KEY_PAD_MAPPINGS = "padMappings";
     public static final String KEY_KEYBOARD = "keyboard";
     /** Which machine's keyboard is drawn; see SpectrumKeyboardView.Skin. */
     public static final String KEY_KEYBOARD_SKIN = "keyboardSkin";

@@ -5,6 +5,9 @@ import dev.ldlab.zedex.FuseNative;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -210,5 +213,102 @@ public final class PadMap {
     public int slotFor(int axisId, int sign) {
         Integer slot = effective.get(axis(axisId, sign));
         return slot == null ? NONE : slot;
+    }
+
+    /**
+     * The slot names as stored.
+     *
+     * By name and not by index, for the reason Hotkeys gives about its own
+     * bindings: the constants can be reordered without spoiling what anyone
+     * saved, and a name that means nothing here is skipped rather than shifting
+     * everything after it.
+     */
+    private static final String[] NAMES = new String[ControlProfiles.SLOTS];
+
+    static {
+        NAMES[FuseNative.JOYSTICK_LEFT]  = "LEFT";
+        NAMES[FuseNative.JOYSTICK_RIGHT] = "RIGHT";
+        NAMES[FuseNative.JOYSTICK_UP]    = "UP";
+        NAMES[FuseNative.JOYSTICK_DOWN]  = "DOWN";
+        NAMES[FuseNative.JOYSTICK_FIRE]  = "FIRE";
+        NAMES[ControlProfiles.BUTTON_1]  = "BUTTON_1";
+        NAMES[ControlProfiles.BUTTON_2]  = "BUTTON_2";
+        NAMES[ControlProfiles.BUTTON_3]  = "BUTTON_3";
+    }
+
+    /**
+     * A binding as a short string: {@code k96} for a button, {@code a15-} for
+     * an axis pushed one way.
+     *
+     * A string and not a tagged integer because it has two shapes, and because
+     * this ends up in a bug report - which is where "my pad is wrong" gets
+     * answered, and a report nobody can read answers nothing.
+     */
+    private static String encode(Binding binding) {
+        if (!binding.isAxis) return "k" + binding.code;
+        return "a" + binding.code + (binding.sign < 0 ? "-" : "+");
+    }
+
+    private static Binding decode(String text) {
+        if (text == null || text.length() < 2) return null;
+
+        try {
+            if (text.charAt(0) == 'k') {
+                return Binding.button(Integer.parseInt(text.substring(1)));
+            }
+            if (text.charAt(0) == 'a') {
+                char sign = text.charAt(text.length() - 1);
+                if (sign != '-' && sign != '+') return null;
+
+                int axisId = Integer.parseInt(text.substring(1, text.length() - 1));
+                return Binding.axis(axisId, sign == '-' ? -1 : +1);
+            }
+        } catch (NumberFormatException e) {
+            return null;
+        }
+        return null;
+    }
+
+    public String toJson() {
+        JSONObject object = new JSONObject();
+
+        for (Map.Entry<Integer, Binding> entry : chosen.entrySet()) {
+            int slot = entry.getKey();
+            if (slot < 0 || slot >= NAMES.length) continue;
+
+            try {
+                object.put(NAMES[slot], encode(entry.getValue()));
+            } catch (JSONException e) {
+                // A slot that will not serialise is one row of a mapping. The
+                // rest is still worth writing.
+            }
+        }
+
+        return object.toString();
+    }
+
+    /** A stored mapping, or the defaults where it cannot be read. */
+    public static PadMap fromJson(String stored) {
+        if (stored == null || stored.isEmpty()) return defaults();
+
+        Map<Integer, Binding> chosen = new HashMap<>();
+
+        try {
+            JSONObject object = new JSONObject(stored);
+
+            for (int slot = 0; slot < NAMES.length; slot++) {
+                String text = object.optString(NAMES[slot], null);
+                if (text == null) continue;
+
+                Binding binding = decode(text);
+                if (binding != null) chosen.put(slot, binding);
+            }
+        } catch (JSONException e) {
+            // A mapping that will not parse is a pad with no mapping, which is
+            // a pad that works - not a pad with no controls.
+            return defaults();
+        }
+
+        return new PadMap(chosen);
     }
 }

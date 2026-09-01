@@ -204,4 +204,52 @@ public class PadMapTest {
                      map.bindingFor(FuseNative.JOYSTICK_LEFT).code);
         assertTrue(map.isDefault(FuseNative.JOYSTICK_LEFT));
     }
+
+    /** A capture survives being written down and read back. */
+    @Test
+    public void aMapRoundTripsThroughJson() {
+        PadMap map = PadMap.defaults()
+                .with(FuseNative.JOYSTICK_FIRE,
+                      PadMap.Binding.button(KeyEvent.KEYCODE_BUTTON_B))
+                .with(FuseNative.JOYSTICK_LEFT,
+                      PadMap.Binding.axis(MotionEvent.AXIS_RZ, -1));
+
+        PadMap back = PadMap.fromJson(map.toJson());
+
+        assertEquals(FuseNative.JOYSTICK_FIRE, back.slotFor(KeyEvent.KEYCODE_BUTTON_B));
+        assertEquals(FuseNative.JOYSTICK_LEFT, back.slotFor(MotionEvent.AXIS_RZ, -1));
+        assertEquals(PadMap.NONE, back.slotFor(KeyEvent.KEYCODE_BUTTON_A));
+    }
+
+    /**
+     * One bad row does not cost the others.
+     *
+     * A mapping is worth more than the row somebody's future version wrote
+     * into it: an unknown slot name and an unparseable binding are both
+     * skipped, and what was understood still applies.
+     */
+    @Test
+    public void whatCannotBeUnderstoodIsSkippedAndTheRestStands() {
+        PadMap map = PadMap.fromJson(
+                "{\"FIRE\":\"k97\",\"WARP_DRIVE\":\"k42\",\"BUTTON_1\":\"nonsense\"}");
+
+        // FIRE was understood: B (97) is Fire, and A has lost it the way any
+        // capture takes a binding away from the slot that held it.
+        assertEquals(FuseNative.JOYSTICK_FIRE, map.slotFor(KeyEvent.KEYCODE_BUTTON_B));
+        assertEquals(PadMap.NONE, map.slotFor(KeyEvent.KEYCODE_BUTTON_A));
+
+        // WARP_DRIVE is not a slot and BUTTON_1's value is not a binding, so
+        // neither was applied - and the rest of the defaults are untouched.
+        assertEquals(ControlProfiles.BUTTON_2, map.slotFor(KeyEvent.KEYCODE_BUTTON_X));
+        assertEquals(ControlProfiles.BUTTON_3, map.slotFor(KeyEvent.KEYCODE_BUTTON_Y));
+    }
+
+    /** Malformed JSON is a pad with no mapping, not a pad with no controls. */
+    @Test
+    public void malformedJsonFallsBackToTheDefaults() {
+        PadMap map = PadMap.fromJson("{not json");
+
+        assertEquals(FuseNative.JOYSTICK_FIRE, map.slotFor(KeyEvent.KEYCODE_BUTTON_A));
+        assertEquals(ControlProfiles.BUTTON_1, map.slotFor(KeyEvent.KEYCODE_BUTTON_B));
+    }
 }
