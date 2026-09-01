@@ -128,13 +128,37 @@ Three different descriptors from identical vendor, product, version and
 Bluetooth address also means **the descriptor incorporates the device name**,
 whatever else is in it.
 
+### Reading 2: the pad powered off and on
+
+**All three descriptors identical.** `f5c2919f…`, `ee0742fe…`, `3c1f1565…`,
+unchanged.
+
+The kernel device ids moved, 16/17/18 to 19/20/21, which is the point of not
+using them: an id is a slot in a list of what is currently attached, and it
+changes every time anything is plugged in. The descriptor is what survives.
+
+Also visible in the fuller dump: `Location: 0c:e6:7c:1b:93:a4`, which is the
+**phone's own Bluetooth adapter**, not the pad's. That is a per-phone identifier
+and must not reach a bug report either.
+
 ### Whether the descriptor is MAC-derived: not answered
 
 AOSP builds it from a unique id where the device has one, which for Bluetooth is
-the address - but that was not confirmed here. Reconstructing the hash from
-guessed input formats was tried and matched nothing, which proves neither way:
-a wrong guess and a wrong theory look identical. The decisive test is two pads
-of the same model, and there is one.
+the address - and that was **not** confirmed here.
+
+Two reconstruction attempts, both failed. The second was worth making because
+the data suggested a formula: AOSP's `assignDescriptorLocked` appends the device
+*name* only when vendor and product are both zero, and these three share a
+non-zero `3537:1023` and one Bluetooth address while having three different
+descriptors - which points at the nonce that EventHub assigns to break exactly
+such a collision. `sha1("3537:1023:uniqueId:A0:5A:59:BD:2A:C5")` and the same
+with `nonce:%04x` appended for 0-7, in four spellings of the address, matched
+none of the three.
+
+**That proves nothing either way**, which is the point of writing it down rather
+than trying a third time: a wrong guess at the input format and a wrong theory
+about what is in it are indistinguishable from out here. The decisive test is
+two pads of the same model producing two descriptors, and there is one pad.
 
 **So the descriptor stays out of `Diagnostics`.** Unproven, and the conservative
 direction is the one where a bug report cannot carry a per-unit identifier.
