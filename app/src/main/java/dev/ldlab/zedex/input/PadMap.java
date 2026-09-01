@@ -83,20 +83,114 @@ public final class PadMap {
         { button(KeyEvent.KEYCODE_BUTTON_Y),    ControlProfiles.BUTTON_3 },
     };
 
+    /** A button, or one direction of one axis. */
+    public static final class Binding {
+        public final boolean isAxis;
+
+        /** The keycode, or the axis id. */
+        public final int code;
+
+        /** -1 or +1 for an axis; 0 for a button. */
+        public final int sign;
+
+        private Binding(boolean isAxis, int code, int sign) {
+            this.isAxis = isAxis;
+            this.code = code;
+            this.sign = sign;
+        }
+
+        public static Binding button(int keycode) {
+            return new Binding(false, keycode, 0);
+        }
+
+        public static Binding axis(int axisId, int sign) {
+            return new Binding(true, axisId, sign < 0 ? -1 : +1);
+        }
+
+        int key() {
+            return isAxis ? PadMap.axis(code, sign) : PadMap.button(code);
+        }
+    }
+
+    /** What was captured, slot to binding. Empty on a pad nobody has changed. */
+    private final Map<Integer, Binding> chosen;
+
     /** Binding to slot, already resolved. Read for every event, so it is flat. */
     private final Map<Integer, Integer> effective;
 
-    private PadMap(Map<Integer, Integer> effective) {
-        this.effective = effective;
+    private PadMap(Map<Integer, Binding> chosen) {
+        this.chosen = chosen;
+        this.effective = resolve(chosen);
     }
 
     /** What every pad does until somebody says otherwise. */
     public static PadMap defaults() {
+        return new PadMap(new HashMap<>());
+    }
+
+    /**
+     * The defaults, then each capture laid over them.
+     *
+     * Two removals per capture, and both are needed. Every entry pointing at
+     * the slot goes, or a captured Left would be a third Left beside the stick
+     * and the hat rather than instead of them. The entry keyed by the binding
+     * goes, or B would be Fire and Button 1 at once and one press would do two
+     * things.
+     */
+    private static Map<Integer, Integer> resolve(Map<Integer, Binding> chosen) {
         Map<Integer, Integer> table = new HashMap<>();
 
         for (int[] entry : DEFAULTS) table.put(entry[0], entry[1]);
 
-        return new PadMap(table);
+        for (Map.Entry<Integer, Binding> capture : chosen.entrySet()) {
+            int slot = capture.getKey();
+            int binding = capture.getValue().key();
+
+            table.values().removeIf(where -> where == slot);
+            table.remove(binding);
+            table.put(binding, slot);
+        }
+
+        return table;
+    }
+
+    /** This map with one slot moved to a binding, and that binding taken off
+     *  whatever else held it. The original is unchanged. */
+    public PadMap with(int slot, Binding binding) {
+        Map<Integer, Binding> next = new HashMap<>(chosen);
+        next.put(slot, binding);
+        return new PadMap(next);
+    }
+
+    /** What drives this slot, for the screen to draw. Null when nothing does. */
+    public Binding bindingFor(int slot) {
+        Binding captured = chosen.get(slot);
+        if (captured != null) return captured;
+
+        // Walked in DEFAULTS order and not the table's, which is a HashMap and
+        // has none. A direction has three default bindings and Fire has two, so
+        // scanning the table would name an arbitrary one of them - and a
+        // different one on another run, which is a row that changes what it
+        // says for no reason and a test that passes on hash order.
+        for (int[] entry : DEFAULTS) {
+            Integer where = effective.get(entry[0]);
+            if (where != null && where == slot) return fromKey(entry[0]);
+        }
+
+        // Unchosen, and its defaults were taken by a capture elsewhere.
+        return null;
+    }
+
+    /** Whether this slot is still on what it was born with. */
+    public boolean isDefault(int slot) {
+        return !chosen.containsKey(slot);
+    }
+
+    private static Binding fromKey(int key) {
+        if (key < AXIS_BASE) return Binding.button(key);
+
+        int packed = key - AXIS_BASE;
+        return Binding.axis(packed / 2, (packed % 2) == 0 ? -1 : +1);
     }
 
     /** The control this button drives, or {@link #NONE}. */
