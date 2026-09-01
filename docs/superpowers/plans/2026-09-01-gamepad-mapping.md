@@ -776,6 +776,19 @@ Replace `defaults()` and the constructor with:
      *  whatever else held it. The original is unchanged. */
     public PadMap with(int slot, Binding binding) {
         Map<Integer, Binding> next = new HashMap<>(chosen);
+
+        // Off any other slot that had captured it, and not only out of the
+        // resolved table: two slots claiming one binding would leave bindingFor
+        // naming a button that something else now answers to - the screen would
+        // read "Left: L1" while L1 fired Right. It also makes the most recent
+        // capture the winner, where iterating two claims resolved it by slot
+        // index instead, so the thing you did last did not reliably take.
+        //
+        // The evicted slot goes back to its defaults rather than to nothing: a
+        // slot is always either captured or on its defaults, and there is no
+        // third state to reason about.
+        next.values().removeIf(held -> held.key() == binding.key());
+
         next.put(slot, binding);
         return new PadMap(next);
     }
