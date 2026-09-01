@@ -26,6 +26,9 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import java.util.HashSet;
+import java.util.Set;
+
 /**
  * Binds a controller's buttons to the app's own actions.
  *
@@ -83,7 +86,18 @@ public final class GamepadActivity extends ZedexActivity {
      *  centre, and without this it binds itself the moment a row is tapped. */
     private static final float RELEASED = 0.2f;
 
-    private boolean axisArmed = true;
+    /**
+     * Axes seen at rest since this row started waiting, and the only ones that
+     * may bind.
+     *
+     * Per axis and not one flag for the device: a stick worn enough to rest
+     * past RELEASED, or a trigger with a nonzero idle baseline, would otherwise
+     * disarm the whole screen for good - every row, not just the open one, and
+     * silently, since the button path keeps working. An axis that never comes
+     * to rest simply never becomes bindable, which is the honest answer for an
+     * axis that is never at rest.
+     */
+    private final Set<Integer> armedAxes = new HashSet<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -225,7 +239,7 @@ public final class GamepadActivity extends ZedexActivity {
         capturing = null;
         capturingModifier = false;
         capturingSlot = slot;
-        axisArmed = false;
+        armedAxes.clear();
         ask(getString(R.string.gamepad_press_control, ControlProfiles.slotName(this, slot)));
     }
 
@@ -404,21 +418,26 @@ public final class GamepadActivity extends ZedexActivity {
         float most = 0f;
 
         for (InputDevice.MotionRange range : device.getMotionRanges()) {
-            float value = event.getAxisValue(range.getAxis());
-            if (Math.abs(value) > Math.abs(most)) {
+            int axis = range.getAxis();
+            float value = event.getAxisValue(axis);
+            float size = Math.abs(value);
+
+            if (size < RELEASED) {
+                armedAxes.add(axis);
+                continue;
+            }
+
+            if (size < CAPTURE || !armedAxes.contains(axis)) continue;
+
+            if (size > Math.abs(most)) {
                 most = value;
-                furthest = range.getAxis();
+                furthest = axis;
             }
         }
 
-        if (Math.abs(most) < RELEASED) {
-            axisArmed = true;
-            return true;
-        }
+        if (furthest < 0) return true;
 
-        if (!axisArmed || Math.abs(most) < CAPTURE || furthest < 0) return true;
-
-        axisArmed = false;
+        armedAxes.remove(furthest);
         adoptDevice(device);
         bind(PadMap.Binding.axis(furthest, most < 0 ? -1 : +1));
         stop();
