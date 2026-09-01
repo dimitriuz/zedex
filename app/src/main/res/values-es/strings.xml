@@ -89,7 +89,7 @@
     <string name="gamepad_app_section">La app</string>
     <string name="gamepad_default_marker">%1$s (predeterminado)</string>
     <string name="gamepad_reset_pad">Reiniciar este mando</string>
-    <string name="gamepad_press_control">Pulsa un botón para %1$s</string>
+    <string name="gamepad_press_control">Pulsa un botón o una dirección para %1$s</string>
 
     <string name="hotkey_pause">Pausar o continuar</string>
     <string name="hotkey_reset">Reiniciar la máquina</string>

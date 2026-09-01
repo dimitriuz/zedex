@@ -110,7 +110,7 @@
     <string name="gamepad_app_section">The app</string>
     <string name="gamepad_default_marker">%1$s (default)</string>
     <string name="gamepad_reset_pad">Reset this pad</string>
-    <string name="gamepad_press_control">Press a button for %1$s</string>
+    <string name="gamepad_press_control">Press a button or push a direction for %1$s</string>
 
     <string name="hotkey_pause">Pause or resume</string>
     <string name="hotkey_reset">Reset the machine</string>

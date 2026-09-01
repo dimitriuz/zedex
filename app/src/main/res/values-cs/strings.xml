@@ -89,7 +89,7 @@
     <string name="gamepad_app_section">Aplikace</string>
     <string name="gamepad_default_marker">%1$s (výchozí)</string>
     <string name="gamepad_reset_pad">Resetovat tento ovladač</string>
-    <string name="gamepad_press_control">Stiskni tlačítko pro %1$s</string>
+    <string name="gamepad_press_control">Stiskni tlačítko nebo směr pro %1$s</string>
 
     <string name="hotkey_pause">Pozastavit nebo pokračovat</string>
     <string name="hotkey_reset">Resetovat počítač</string>

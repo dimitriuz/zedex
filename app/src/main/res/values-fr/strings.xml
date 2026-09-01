@@ -89,7 +89,7 @@
     <string name="gamepad_app_section">L\'app</string>
     <string name="gamepad_default_marker">%1$s (par défaut)</string>
     <string name="gamepad_reset_pad">Réinitialiser cette manette</string>
-    <string name="gamepad_press_control">Appuyez sur un bouton pour %1$s</string>
+    <string name="gamepad_press_control">Appuyez sur un bouton ou une direction pour %1$s</string>
 
     <string name="hotkey_pause">Mettre en pause ou reprendre</string>
     <string name="hotkey_reset">Réinitialiser la machine</string>

@@ -75,6 +75,16 @@ public final class GamepadActivity extends ZedexActivity {
     private int capturingSlot = -1;
     private AlertDialog capture;
 
+    /** Past this a push is a capture. Well above Gamepad's own 0.4, because a
+     *  binding is meant, and a play threshold would take a lean. */
+    private static final float CAPTURE = 0.7f;
+
+    /** And under this before the next one will arm - a worn stick rests off
+     *  centre, and without this it binds itself the moment a row is tapped. */
+    private static final float RELEASED = 0.2f;
+
+    private boolean axisArmed = true;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -215,6 +225,7 @@ public final class GamepadActivity extends ZedexActivity {
         capturing = null;
         capturingModifier = false;
         capturingSlot = slot;
+        axisArmed = false;
         ask(getString(R.string.gamepad_press_control, ControlProfiles.slotName(this, slot)));
     }
 
@@ -304,6 +315,36 @@ public final class GamepadActivity extends ZedexActivity {
     }
 
     /**
+     * Makes {@code device} the pad this screen edits, reloading its mapping
+     * first if it is not already.
+     *
+     * The event names its own device, so the pad being edited is fixed from
+     * whatever actually sent the press or push - which also covers a pad
+     * connected only after this screen opened, when nothing was found for it
+     * in onCreate. When it is from a *different* pad than the one this
+     * screen loaded (two pads can be connected at once - both key presses and
+     * axis pushes can arrive from either), the map has to be reloaded for it
+     * too - otherwise the capture would merge into the wrong pad's map and
+     * save that under the new pad's key, silently replacing whatever it
+     * actually had stored. There is no picker yet to make this switch
+     * explicit (Task 10 adds one); until then, the press or push itself is
+     * taken as saying which pad is meant.
+     *
+     * Shared by both capture paths so this rule is fixed in one place - two
+     * copies of it is how it gets got wrong again.
+     */
+    private void adoptDevice(InputDevice device) {
+        if (device == null) return;
+
+        String key = PadMaps.keyFor(device);
+        if (!key.equals(deviceKey)) {
+            deviceKey = key;
+            deviceName = device.getName();
+            map = PadMaps.load(preferences, deviceKey);
+        }
+    }
+
+    /**
      * Takes the press while a capture is waiting.
      *
      * Through {@code dispatchKeyEvent} rather than {@code onKeyDown}, because a
@@ -324,27 +365,7 @@ public final class GamepadActivity extends ZedexActivity {
         if (capturingModifier) {
             Hotkeys.setModifier(preferences, keycode);
         } else if (capturingSlot >= 0) {
-            // The event names its own device, so the pad being edited is
-            // fixed from whatever actually sent the press - which also
-            // covers a pad connected only after this screen opened, when
-            // nothing was found for it in onCreate. When the press is from a
-            // *different* pad than the one this screen loaded (two pads can
-            // be connected at once), the map has to be reloaded for it too -
-            // otherwise the capture would merge into the wrong pad's map and
-            // save that under the new pad's key, silently replacing whatever
-            // it actually had stored. There is no picker yet to make this
-            // switch explicit (Task 10 adds one); until then, the press
-            // itself is taken as saying which pad is meant.
-            InputDevice device = event.getDevice();
-            if (device != null) {
-                String key = PadMaps.keyFor(device);
-                if (!key.equals(deviceKey)) {
-                    deviceKey = key;
-                    deviceName = device.getName();
-                    map = PadMaps.load(preferences, deviceKey);
-                }
-            }
-
+            adoptDevice(event.getDevice());
             bind(PadMap.Binding.button(keycode));
             stop();
             return true;
@@ -360,6 +381,47 @@ public final class GamepadActivity extends ZedexActivity {
 
         stop();
         showBindings();
+        return true;
+    }
+
+    /**
+     * Takes a stick or hat push while a capture is waiting.
+     *
+     * Only for a control slot: the app's own hotkeys and the modifier are
+     * keys, never directions, so an axis push while one of those is waiting
+     * is ignored rather than offered.
+     */
+    @Override
+    public boolean onGenericMotionEvent(MotionEvent event) {
+        if (capturingSlot < 0 || !Gamepad.isFrom(event)) {
+            return super.onGenericMotionEvent(event);
+        }
+
+        InputDevice device = event.getDevice();
+        if (device == null) return true;
+
+        int furthest = -1;
+        float most = 0f;
+
+        for (InputDevice.MotionRange range : device.getMotionRanges()) {
+            float value = event.getAxisValue(range.getAxis());
+            if (Math.abs(value) > Math.abs(most)) {
+                most = value;
+                furthest = range.getAxis();
+            }
+        }
+
+        if (Math.abs(most) < RELEASED) {
+            axisArmed = true;
+            return true;
+        }
+
+        if (!axisArmed || Math.abs(most) < CAPTURE || furthest < 0) return true;
+
+        axisArmed = false;
+        adoptDevice(device);
+        bind(PadMap.Binding.axis(furthest, most < 0 ? -1 : +1));
+        stop();
         return true;
     }
 
