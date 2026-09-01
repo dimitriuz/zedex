@@ -100,7 +100,23 @@ public final class PadMaps {
         preferences.edit().putString(Prefs.KEY_PAD_MAPPINGS, everything.toString()).apply();
     }
 
-    /** Every pad with a stored mapping, device key to name, for the picker. */
+    /**
+     * Every pad with a stored mapping, device key to name, for the picker.
+     *
+     * An entry with no {@code "name"} is omitted rather than named after its
+     * own key. That used to fall back to the key - a key is better than
+     * nothing to show - but that stopped being true the moment this value
+     * started reaching a report the user sends to somebody else: the key can
+     * be Android's own device descriptor, which is not proven free of a
+     * Bluetooth MAC (see Diagnostics and CLAUDE.md), so printing it anywhere
+     * a person or the picker can show it undoes the whole point of keeping it
+     * out of the report. {@code save()} always writes a name, so this is a
+     * corrupt or hand-edited entry either way - it costs that one entry its
+     * row, and nothing else. Naming it after its key instead, or with a
+     * placeholder, would both still be wrong: a placeholder shared by two
+     * nameless pads reads as the same pad and cannot be told apart, which is
+     * a worse picker than one that leaves the row out.
+     */
     public static Map<String, String> known(SharedPreferences preferences) {
         Map<String, String> names = new HashMap<>();
         JSONObject everything = all(preferences);
@@ -110,7 +126,10 @@ public final class PadMaps {
             JSONObject entry = everything.optJSONObject(deviceKey);
             if (entry == null) continue;
 
-            names.put(deviceKey, entry.optString(NAME, deviceKey));
+            String name = entry.optString(NAME, null);
+            if (name == null || name.isEmpty()) continue;
+
+            names.put(deviceKey, name);
         }
 
         return names;

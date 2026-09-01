@@ -59,8 +59,18 @@ public final class GamepadActivity extends ZedexActivity {
     private final Button[] rows = new Button[Hotkeys.Action.values().length];
     private Button modifierRow;
 
-    /** The picker row naming the pad being edited - null when there is
-     *  nothing to choose between; see {@link #build()}. */
+    /**
+     * The picker row naming the pad being edited - null when there is
+     * nothing to choose between; see {@link #build()}.
+     *
+     * Whether it exists is decided once, from {@link #padOptions()} at
+     * build time - the same moment {@code connectedPad()} decides which pad
+     * this screen starts on in {@link #onCreate}. A pad plugged in after
+     * that is not added to the picker until the screen is reopened, even
+     * though a capture from it still works right away through
+     * {@link #adoptDevice}: consistent with how the rest of this screen
+     * already reads the world once, rather than live.
+     */
     private Button padRow;
 
     /** One row per control slot, in slot order, so a capture can redraw them
