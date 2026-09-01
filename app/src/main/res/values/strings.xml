@@ -111,6 +111,12 @@
     <string name="gamepad_default_marker">%1$s (default)</string>
     <string name="gamepad_reset_pad">Reset this pad</string>
     <string name="gamepad_press_control">Press a button or push a direction for %1$s</string>
+    <!-- %1$s is the pad's own name: "Xbox Wireless Controller". -->
+    <string name="gamepad_pad">Controller: %1$s</string>
+    <string name="gamepad_choose_pad">Choose a controller</string>
+    <!-- %1$s is a stored pad's name, offered in the picker although it is not
+         the one plugged in right now. -->
+    <string name="gamepad_pad_disconnected">%1$s (not connected)</string>
 
     <string name="hotkey_pause">Pause or resume</string>
     <string name="hotkey_reset">Reset the machine</string>

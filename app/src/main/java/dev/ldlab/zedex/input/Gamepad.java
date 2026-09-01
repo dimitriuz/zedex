@@ -142,7 +142,15 @@ public final class Gamepad {
         return isPad(event.getSource());
     }
 
-    private static boolean isPad(int sources) {
+    /**
+     * Public rather than package-private: {@code GamepadActivity} (the pad
+     * picker) and {@code Diagnostics} (the report) both need to tell a pad
+     * from any other input device, and are in other packages - see CLAUDE.md,
+     * "A member another layer needs has to be public". Kept here rather than
+     * copied a third time, which is how the same mask ended up duplicated in
+     * {@code GamepadActivity.connectedPad()} before this.
+     */
+    public static boolean isPad(int sources) {
         return (sources & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD
             || (sources & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK;
     }

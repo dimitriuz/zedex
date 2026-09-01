@@ -90,6 +90,9 @@
     <string name="gamepad_default_marker">%1$s (par défaut)</string>
     <string name="gamepad_reset_pad">Réinitialiser cette manette</string>
     <string name="gamepad_press_control">Appuyez sur un bouton ou une direction pour %1$s</string>
+    <string name="gamepad_pad">Manette : %1$s</string>
+    <string name="gamepad_choose_pad">Choisir une manette</string>
+    <string name="gamepad_pad_disconnected">%1$s (non branchée)</string>
 
     <string name="hotkey_pause">Mettre en pause ou reprendre</string>
     <string name="hotkey_reset">Réinitialiser la machine</string>

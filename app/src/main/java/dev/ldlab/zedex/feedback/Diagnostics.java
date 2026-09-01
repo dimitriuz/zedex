@@ -3,6 +3,9 @@ package dev.ldlab.zedex.feedback;
 import dev.ldlab.zedex.storage.Prefs;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.storage.Storage;
+import dev.ldlab.zedex.input.Gamepad;
+import dev.ldlab.zedex.input.PadMap;
+import dev.ldlab.zedex.input.PadMaps;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -12,6 +15,7 @@ import android.os.Build;
 import android.util.DisplayMetrics;
 
 import java.io.File;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -28,7 +32,9 @@ import java.util.Map;
  * rules moved three times. The screen and the cutout, because two of the worst
  * layout bugs were a tablet's geometry. Where the ROMs ended up, because the
  * answer is sometimes "not where you think". The settings that change what the
- * app does, because "it does not work" usually means one of them.
+ * app does, because "it does not work" usually means one of them. Each pad's
+ * mapping, because "the button does the wrong thing" is answered by seeing
+ * what it is actually bound to, not by guessing.
  *
  * {@code key=value} a line, so that it reads plainly and two reports diff.
  */
@@ -50,7 +56,7 @@ public final class Diagnostics {
         device(context, out);
         storage(context, out);
         settings(context, preferences, out);
-        controllers(context, out);
+        controllers(context, preferences, out);
 
         return out.toString();
     }
@@ -152,29 +158,50 @@ public final class Diagnostics {
     }
 
     /**
-     * Whether anything the app would treat as a controller is plugged in.
+     * Whether anything the app would treat as a controller is plugged in,
+     * and - beside that - each one's own name and mapping.
      *
      * A great many reports are about controls, and "the buttons do nothing" reads
      * quite differently once you know a pad is connected and the on-screen one
-     * has therefore stepped aside.
+     * has therefore stepped aside; a wrong button reads differently again once
+     * the mapping it is actually using is in front of you.
+     *
+     * <b>Not the device key.</b> {@link PadMaps#keyFor} is Android's own
+     * descriptor where a device has one, and that descriptor is not proven
+     * harmless - see PadMaps and CLAUDE.md. So it stays out of every report,
+     * used here only to look a stored mapping up, never printed. The name and
+     * the mapping (see {@link PadMap#toJson}, written for exactly this) are
+     * what go in.
      */
-    private static void controllers(Context context, StringBuilder out) {
+    private static void controllers(Context context, SharedPreferences preferences,
+                                    StringBuilder out) {
         StringBuilder pads = new StringBuilder();
+
+        // Key to name, connected pads first - a pad with a stored mapping but
+        // not plugged in right now is still worth a line, since a mapping can
+        // be corrected with the pad away (see GamepadActivity's picker).
+        LinkedHashMap<String, String> byKey = new LinkedHashMap<>();
 
         for (int id : InputDevice.getDeviceIds()) {
             InputDevice device = InputDevice.getDevice(id);
-            if (device == null) continue;
+            if (device == null || !Gamepad.isPad(device.getSources())) continue;
 
-            int sources = device.getSources();
-            boolean pad = (sources & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD
-                       || (sources & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK;
-
-            if (!pad) continue;
             if (pads.length() > 0) pads.append(", ");
             pads.append(device.getName());
+
+            byKey.put(PadMaps.keyFor(device), device.getName());
         }
 
         line(out, "controllers", pads.length() == 0 ? "none" : pads.toString());
+
+        for (Map.Entry<String, String> known : PadMaps.known(preferences).entrySet()) {
+            byKey.putIfAbsent(known.getKey(), known.getValue());
+        }
+
+        for (Map.Entry<String, String> pad : byKey.entrySet()) {
+            PadMap map = PadMaps.load(preferences, pad.getKey());
+            line(out, "pad", pad.getValue() + " " + map.toJson());
+        }
     }
 
     /**

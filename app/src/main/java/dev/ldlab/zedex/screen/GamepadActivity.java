@@ -26,7 +26,11 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -54,6 +58,10 @@ public final class GamepadActivity extends ZedexActivity {
     /** The rows, so a capture can rewrite them all without rebuilding. */
     private final Button[] rows = new Button[Hotkeys.Action.values().length];
     private Button modifierRow;
+
+    /** The picker row naming the pad being edited - null when there is
+     *  nothing to choose between; see {@link #build()}. */
+    private Button padRow;
 
     /** One row per control slot, in slot order, so a capture can redraw them
      *  all - a capture always risks taking a binding off a second row. */
@@ -130,6 +138,14 @@ public final class GamepadActivity extends ZedexActivity {
         // to this screen for, above the app's own hotkeys.
         column.addView(note(getString(R.string.gamepad_machine_section), Palette.MUTED, 13));
 
+        // Only when there is something to choose between - a chooser with one
+        // entry is a row that teaches you not to press it.
+        if (padOptions().size() > 1) {
+            padRow = row("");
+            padRow.setOnClickListener(view -> choosePad());
+            column.addView(padRow, rowParams());
+        }
+
         for (int slot = 0; slot < ControlProfiles.SLOTS; slot++) {
             int fixedSlot = slot;
             Button button = row(ControlProfiles.slotName(this, slot));
@@ -180,6 +196,11 @@ public final class GamepadActivity extends ZedexActivity {
      * skipped the row it did not capture would hide that having happened.
      */
     private void showBindings() {
+        if (padRow != null) {
+            String name = deviceName == null ? getString(R.string.gamepad_none) : deviceName;
+            padRow.setText(getString(R.string.gamepad_pad, name));
+        }
+
         for (int slot = 0; slot < ControlProfiles.SLOTS; slot++) {
             PadMap.Binding binding = map.bindingFor(slot);
             Button button = controlRows[slot];
@@ -263,25 +284,80 @@ public final class GamepadActivity extends ZedexActivity {
         showBindings();
     }
 
-    /**
-     * The pad this screen edits: whichever gamepad or joystick is connected
-     * right now, or null when none is.
-     *
-     * Picking among several is {@code GamepadActivity}'s own job in a later
-     * step; today there is at most one to find.
-     */
-    private static InputDevice connectedPad() {
+    /** Every gamepad or joystick connected right now, in whatever order
+     *  Android hands out device ids. */
+    private static List<InputDevice> connectedPads() {
+        List<InputDevice> pads = new ArrayList<>();
+
         for (int id : InputDevice.getDeviceIds()) {
             InputDevice device = InputDevice.getDevice(id);
-            if (device == null) continue;
-
-            int sources = device.getSources();
-            if ((sources & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD
-                    || (sources & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK) {
-                return device;
-            }
+            if (device != null && Gamepad.isPad(device.getSources())) pads.add(device);
         }
-        return null;
+
+        return pads;
+    }
+
+    /**
+     * The pad this screen starts editing: the first one connected, or null
+     * when none is. Just the head of {@link #connectedPads()} - the picker
+     * is what offers the rest.
+     */
+    private static InputDevice connectedPad() {
+        List<InputDevice> pads = connectedPads();
+        return pads.isEmpty() ? null : pads.get(0);
+    }
+
+    /**
+     * Every pad the picker can offer: connected ones first, then every pad
+     * with a stored mapping - so a mapping can be corrected with the pad
+     * unplugged. Device key to name; the key never reaches the screen or a
+     * report, only this lookup.
+     */
+    private LinkedHashMap<String, String> padOptions() {
+        LinkedHashMap<String, String> options = new LinkedHashMap<>();
+
+        for (InputDevice device : connectedPads()) {
+            options.put(PadMaps.keyFor(device), device.getName());
+        }
+        for (Map.Entry<String, String> known : PadMaps.known(preferences).entrySet()) {
+            options.putIfAbsent(known.getKey(), known.getValue());
+        }
+
+        return options;
+    }
+
+    /**
+     * Lists every pad {@link #padOptions()} offers and switches to whichever
+     * is chosen, through the same {@link #switchTo} a capture from a
+     * different pad already goes through - one way to change which pad this
+     * screen edits, not two.
+     */
+    private void choosePad() {
+        LinkedHashMap<String, String> options = padOptions();
+        if (options.size() <= 1) return;
+
+        List<String> keys = new ArrayList<>(options.keySet());
+        Set<String> connectedKeys = new HashSet<>();
+        for (InputDevice device : connectedPads()) connectedKeys.add(PadMaps.keyFor(device));
+
+        String[] labels = new String[keys.size()];
+        for (int i = 0; i < keys.size(); i++) {
+            String key = keys.get(i);
+            String name = options.get(key);
+            labels[i] = connectedKeys.contains(key)
+                    ? name
+                    : getString(R.string.gamepad_pad_disconnected, name);
+        }
+
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(R.string.gamepad_choose_pad)
+                .setItems(labels, (dialog, which) -> {
+                    String key = keys.get(which);
+                    switchTo(key, options.get(key));
+                    showBindings();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
     }
 
     /**
@@ -340,22 +416,33 @@ public final class GamepadActivity extends ZedexActivity {
      * axis pushes can arrive from either), the map has to be reloaded for it
      * too - otherwise the capture would merge into the wrong pad's map and
      * save that under the new pad's key, silently replacing whatever it
-     * actually had stored. There is no picker yet to make this switch
-     * explicit (Task 10 adds one); until then, the press or push itself is
-     * taken as saying which pad is meant.
+     * actually had stored. The picker (see {@link #choosePad()}) is the
+     * explicit way to say which pad is meant; a press or push says it just
+     * as well when nobody has reached for the picker at all.
      *
      * Shared by both capture paths so this rule is fixed in one place - two
-     * copies of it is how it gets got wrong again.
+     * copies of it is how it gets got wrong again. Goes through
+     * {@link #switchTo}, the same method the picker uses - a capture and a
+     * tap in the picker are two ways of saying the same thing, and there is
+     * one place that says what happens once it is said.
      */
     private void adoptDevice(InputDevice device) {
         if (device == null) return;
+        switchTo(PadMaps.keyFor(device), device.getName());
+    }
 
-        String key = PadMaps.keyFor(device);
-        if (!key.equals(deviceKey)) {
-            deviceKey = key;
-            deviceName = device.getName();
-            map = PadMaps.load(preferences, deviceKey);
-        }
+    /**
+     * Makes the pad named by {@code key}/{@code name} the one this screen
+     * edits, reloading its mapping. By key and name rather than by a live
+     * {@link InputDevice}: the picker can name a pad that is not plugged in
+     * right now, which has no InputDevice to ask.
+     */
+    private void switchTo(String key, String name) {
+        if (key.equals(deviceKey)) return;
+
+        deviceKey = key;
+        deviceName = name;
+        map = PadMaps.load(preferences, deviceKey);
     }
 
     /**

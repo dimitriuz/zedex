@@ -90,6 +90,9 @@
     <string name="gamepad_default_marker">%1$s (Standard)</string>
     <string name="gamepad_reset_pad">Diesen Controller zurücksetzen</string>
     <string name="gamepad_press_control">Drücke eine Taste oder eine Richtung für %1$s</string>
+    <string name="gamepad_pad">Controller: %1$s</string>
+    <string name="gamepad_choose_pad">Controller wählen</string>
+    <string name="gamepad_pad_disconnected">%1$s (nicht angeschlossen)</string>
 
     <string name="hotkey_pause">Anhalten oder fortsetzen</string>
     <string name="hotkey_reset">Maschine zurücksetzen</string>
