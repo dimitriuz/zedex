@@ -7,6 +7,8 @@ import static org.junit.Assert.assertTrue;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import dev.ldlab.zedex.input.PadMap;
+import dev.ldlab.zedex.input.PadMaps;
 import dev.ldlab.zedex.screen.SettingsActivity;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -121,6 +123,52 @@ public class DiagnosticsTest {
                     java.util.regex.Pattern
                         .compile("[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}")
                         .matcher(report).find());
+    }
+
+    /**
+     * The one identifier this feature could plausibly leak, and the test
+     * above cannot catch it.
+     *
+     * {@code carriesNoIdentifier()} greps for {@code mac=}, {@code serial},
+     * {@code imei} and the like - none of which would match a raw
+     * {@code InputDevice} descriptor, which is exactly what a pad's mapping
+     * is stored keyed by (see {@link PadMaps#keyFor} and CLAUDE.md: "the
+     * descriptor is not proven harmless"). {@link Diagnostics#report} is
+     * meant to use the key only to look a mapping up, and print the pad's
+     * name and its mapping - never the key itself. This builds a store with
+     * a known, descriptor-shaped key and asserts the actual thing: the key
+     * is absent from the report while the pad's own name is present.
+     */
+    @Test
+    public void carriesNoDeviceKey() {
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        SharedPreferences preferences =
+                context.getSharedPreferences(Prefs.PREFS, Context.MODE_PRIVATE);
+
+        String previous = preferences.getString(Prefs.KEY_PAD_MAPPINGS, null);
+
+        // Shaped like the real thing - Android's own getDescriptor() is a
+        // 40-character hex string - and distinct enough that it could only
+        // have reached the report from here.
+        String deviceKey = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
+        String padName = "Zedex Test Pad";
+
+        try {
+            PadMaps.save(preferences, deviceKey, padName, PadMap.defaults());
+
+            String report = Diagnostics.report(context);
+
+            assertFalse("a report containing the device key:\n" + report,
+                        report.contains(deviceKey));
+            assertTrue("a report with no name for the pad it does carry:\n" + report,
+                       report.contains(padName));
+        } finally {
+            if (previous == null) {
+                preferences.edit().remove(Prefs.KEY_PAD_MAPPINGS).commit();
+            } else {
+                preferences.edit().putString(Prefs.KEY_PAD_MAPPINGS, previous).commit();
+            }
+        }
     }
 
     /**
