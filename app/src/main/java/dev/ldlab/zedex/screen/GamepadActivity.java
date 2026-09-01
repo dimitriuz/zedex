@@ -28,6 +28,7 @@ import android.widget.TextView;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -60,26 +61,38 @@ public final class GamepadActivity extends ZedexActivity {
     private Button modifierRow;
 
     /**
-     * The picker row naming the pad being edited - null when there is
-     * nothing to choose between; see {@link #build()}.
+     * The row naming the pad being edited - null when there is nothing worth
+     * saying about it; see {@link #build()}.
      *
-     * Whether it exists is decided once, from {@link #padOptions()} at
-     * build time - the same moment {@code connectedPad()} decides which pad
-     * this screen starts on in {@link #onCreate}. A pad plugged in after
-     * that is not added to the picker until the screen is reopened, even
-     * though a capture from it still works right away through
+     * Shown whenever {@link #padOptions()} offers more than one pad (in which
+     * case it is also the picker), and whenever the pad being edited is not
+     * simply the one connected pad - a stored mapping reached because nothing
+     * is plugged in, which without a name would look like the screen had
+     * quietly opened on somebody else's pad rather than said whose it is.
+     * Whether it exists is decided once, at build time, the same moment
+     * {@link #onCreate} decides which pad this screen starts on. A pad
+     * plugged in after that is not added to the picker until the screen is
+     * reopened, even though a capture from it still works right away through
      * {@link #adoptDevice}: consistent with how the rest of this screen
      * already reads the world once, rather than live.
      */
     private Button padRow;
 
+    /** "Reset this pad" - disabled when {@link #deviceKey} is null, where it
+     *  would otherwise be a tap that resets nothing. */
+    private Button resetPadRow;
+
     /** One row per control slot, in slot order, so a capture can redraw them
      *  all - a capture always risks taking a binding off a second row. */
     private final Button[] controlRows = new Button[ControlProfiles.SLOTS];
 
-    /** The pad being edited: the one connected when this screen opened. Null
-     *  when none is, in which case every row shows the built-in defaults and
-     *  nothing can be captured. */
+    /**
+     * The pad being edited: the one connected when this screen opened, or -
+     * with none connected - a pad this screen already has a stored mapping
+     * for, so that mapping stays reachable without its pad to hand. Null
+     * only when neither exists, in which case every row shows the built-in
+     * defaults and nothing can be captured or reset.
+     */
     private String deviceKey;
     private String deviceName;
 
@@ -129,6 +142,21 @@ public final class GamepadActivity extends ZedexActivity {
         if (pad != null) {
             deviceKey = PadMaps.keyFor(pad);
             deviceName = pad.getName();
+        } else {
+            // Nothing connected: fall back to a pad this screen already knows
+            // about, so its mapping stays reachable - "Reset this pad" has to
+            // land on that stored entry rather than on nothing. Which one is
+            // arbitrary when there is more than one, but then padOptions()
+            // has more than one entry and the picker built in build() is how
+            // the rest are reached; with exactly one this is the pad, which
+            // is the case that used to be unreachable at all.
+            Iterator<Map.Entry<String, String>> known =
+                    PadMaps.known(preferences).entrySet().iterator();
+            if (known.hasNext()) {
+                Map.Entry<String, String> first = known.next();
+                deviceKey = first.getKey();
+                deviceName = first.getValue();
+            }
         }
         map = PadMaps.load(preferences, deviceKey);
 
@@ -148,9 +176,13 @@ public final class GamepadActivity extends ZedexActivity {
         // to this screen for, above the app's own hotkeys.
         column.addView(note(getString(R.string.gamepad_machine_section), Palette.MUTED, 13));
 
-        // Only when there is something to choose between - a chooser with one
-        // entry is a row that teaches you not to press it.
-        if (padOptions().size() > 1) {
+        // A picker when there is something to choose between - a chooser with
+        // one entry is a row that teaches you not to press it - and, even
+        // with only one, a plain label whenever that one pad is not simply
+        // "the pad that is connected": a stored mapping reached with its pad
+        // unplugged still deserves to say whose mapping is on screen.
+        boolean editingADisconnectedPad = deviceKey != null && connectedPad() == null;
+        if (padOptions().size() > 1 || editingADisconnectedPad) {
             padRow = row("");
             padRow.setOnClickListener(view -> choosePad());
             column.addView(padRow, rowParams());
@@ -165,9 +197,9 @@ public final class GamepadActivity extends ZedexActivity {
             column.addView(button, rowParams());
         }
 
-        Button resetPad = row(getString(R.string.gamepad_reset_pad));
-        resetPad.setOnClickListener(view -> resetPad());
-        column.addView(resetPad, rowParams());
+        resetPadRow = row(getString(R.string.gamepad_reset_pad));
+        resetPadRow.setOnClickListener(view -> resetPad());
+        column.addView(resetPadRow, rowParams());
 
         column.addView(note(getString(R.string.gamepad_app_section), Palette.MUTED, 13));
         column.addView(note(getString(R.string.gamepad_explain), Palette.MUTED, 13));
@@ -210,6 +242,13 @@ public final class GamepadActivity extends ZedexActivity {
             String name = deviceName == null ? getString(R.string.gamepad_none) : deviceName;
             padRow.setText(getString(R.string.gamepad_pad, name));
         }
+
+        // Nothing to reset without a pad to reset it for - a capture from a
+        // pad this screen did not start on (see adoptDevice()) can set
+        // deviceKey after the fact, so this has to be re-read every redraw
+        // rather than decided once at build time the way padRow's presence is.
+        resetPadRow.setEnabled(deviceKey != null);
+        resetPadRow.setTextColor(deviceKey == null ? Palette.MUTED : Palette.TEXT);
 
         for (int slot = 0; slot < ControlProfiles.SLOTS; slot++) {
             PadMap.Binding binding = map.bindingFor(slot);
