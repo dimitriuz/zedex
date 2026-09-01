@@ -71,12 +71,17 @@ public final class ControlsUi {
     }
 
     /**
-     * The two things you play with, the mouse, and what a controller asks of the
-     * app.
+     * The two things you play with, the mouse, and what a controller does -
+     * both to the machine and to the app.
      *
-     * The hotkeys are not under <i>Joystick…</i>, which is about what the pad
-     * sends the <em>machine</em>. These are what a controller asks of the app,
-     * and they work whether the pad is a joystick or a set of keys.
+     * <i>Controller buttons…</i> is not under <i>Joystick…</i>, even though it
+     * leads with the machine's own eight controls now: those are what the pad
+     * sends the <em>machine</em>, while <i>Joystick…</i> is only which
+     * interface it sends them as. What used to be true of this whole row - "the
+     * app's hotkeys, and they work whether the pad is a joystick or a set of
+     * keys" - is true of its second half now; the first is which physical
+     * button is which control, and belongs beside it rather than in a third
+     * place of its own. See {@code GamepadActivity}.
      */
     public void fill(MenuDrawer sheet) {
         sheet.addSubmenu(text(R.string.menu_joystick), R.drawable.ic_joystick,

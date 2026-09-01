@@ -90,8 +90,8 @@
     <string name="mouse_sensitivity">Sensitivity: %1$d%%</string>
     <string name="mouse_sensitivity_title">Mouse sensitivity</string>
     <string name="mouse_explain">While it is on, a drag across the picture moves the pointer, the pad and a controller\'s stick move it too, and fire and the first button beside it are the mouse\'s two buttons. The interface is only plugged in while this is on, since it answers three ports a game might read for something else.</string>
-    <string name="menu_gamepad">Controller hotkeys…</string>
-    <string name="gamepad_activity">Controller hotkeys</string>
+    <string name="menu_gamepad">Controller buttons…</string>
+    <string name="gamepad_activity">Controller buttons</string>
     <string name="gamepad_explain">One button is the hotkey, and every action is that button and another — so a button means one thing while the hotkey is down and another while it is not, and nothing is taken away from the game.</string>
     <string name="gamepad_hotkey">Hotkey</string>
     <string name="gamepad_hotkey_none">None — actions fire on their own</string>
@@ -472,7 +472,7 @@
     <string name="settings_auto_hide_summary">Take the on-screen pad away while a real one is plugged in</string>
     <string name="settings_keyboard_type">Keyboard type</string>
     <string name="settings_sensitivity">Mouse sensitivity</string>
-    <string name="settings_hotkeys">Controller hotkeys\u2026</string>
+    <string name="settings_hotkeys">Controller buttons\u2026</string>
     <string name="settings_hotkeys_summary">What a controller\u2019s buttons do to the app rather than to the machine</string>
     <string name="settings_tape_format_summary">What a tape is written as when you do not type an extension</string>
     <string name="settings_loader">Fast loading</string>
