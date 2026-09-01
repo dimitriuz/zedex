@@ -7,6 +7,7 @@ import android.view.KeyEvent;
 
 import dev.ldlab.zedex.FakePreferences;
 import dev.ldlab.zedex.FuseNative;
+import dev.ldlab.zedex.storage.Prefs;
 
 import org.junit.Test;
 
@@ -85,7 +86,7 @@ public class PadMapsTest {
     @Test
     public void malformedStorageIsSurvived() {
         FakePreferences preferences = new FakePreferences();
-        preferences.edit().putString(PadMaps.KEY, "{not json").apply();
+        preferences.edit().putString(Prefs.KEY_PAD_MAPPINGS, "{not json").apply();
 
         assertEquals(FuseNative.JOYSTICK_FIRE,
                      PadMaps.load(preferences, ONE).slotFor(KeyEvent.KEYCODE_BUTTON_A));

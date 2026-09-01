@@ -92,8 +92,18 @@ public final class Prefs {
      * holds all of them; see {@code input.PadMaps}, which owns the shape of
      * what is inside it. Declared here rather than there because {@code Prefs}
      * does not otherwise import {@code input}, and this file is where every
-     * other preference key already lives - {@code PadMaps.KEY} reads this
-     * constant, so the literal exists once.
+     * other preference key already lives.
+     *
+     * {@code PadMaps} reads and writes this constant by name at every call
+     * site ({@code Prefs.KEY_PAD_MAPPINGS}), the same way {@code Border},
+     * {@code Loader} and every other reader in the codebase does - never
+     * through a local alias. A local {@code PadMaps.KEY} field used to point
+     * at this constant instead, and {@code scripts/check-prefs.py} finds a
+     * preference by matching a {@code KEY_*}-shaped token at the call site;
+     * an alias named plain {@code KEY} matched nothing, so {@code
+     * padMappings} was silently absent from the tool's report even though it
+     * exited 0 - unguarded against exactly the wrong-type-read bug the script
+     * exists to catch (see the class comment above, and 1.1.0's crash).
      */
     public static final String KEY_PAD_MAPPINGS = "padMappings";
     public static final String KEY_KEYBOARD = "keyboard";

@@ -29,15 +29,6 @@ public final class PadMaps {
     private PadMaps() {
     }
 
-    /**
-     * A JSON object of device key to that pad's mapping. A String.
-     *
-     * Declared once, in {@link Prefs#KEY_PAD_MAPPINGS} - {@code Prefs} does
-     * not import this package, so the literal lives there and this field
-     * only points at it, rather than the other way round.
-     */
-    public static final String KEY = Prefs.KEY_PAD_MAPPINGS;
-
     private static final String NAME = "name";
 
     /**
@@ -63,7 +54,13 @@ public final class PadMaps {
     }
 
     private static JSONObject all(SharedPreferences preferences) {
-        String stored = preferences.getString(KEY, null);
+        // Prefs.KEY_PAD_MAPPINGS, called by name at every site rather than
+        // through a local alias - scripts/check-prefs.py finds a preference
+        // by matching KEY_* at the call site, and a local alias named plain
+        // KEY was invisible to it: padMappings never appeared in the report,
+        // silently unguarded against the wrong-type-read bug that shipped a
+        // crash in the bug reporter once already. See Prefs.KEY_PAD_MAPPINGS.
+        String stored = preferences.getString(Prefs.KEY_PAD_MAPPINGS, null);
         if (stored == null || stored.isEmpty()) return new JSONObject();
 
         try {
@@ -93,14 +90,14 @@ public final class PadMaps {
             return;
         }
 
-        preferences.edit().putString(KEY, everything.toString()).apply();
+        preferences.edit().putString(Prefs.KEY_PAD_MAPPINGS, everything.toString()).apply();
     }
 
     /** Back to the defaults for one pad, leaving the others alone. */
     public static void forget(SharedPreferences preferences, String deviceKey) {
         JSONObject everything = all(preferences);
         everything.remove(deviceKey);
-        preferences.edit().putString(KEY, everything.toString()).apply();
+        preferences.edit().putString(Prefs.KEY_PAD_MAPPINGS, everything.toString()).apply();
     }
 
     /** Every pad with a stored mapping, device key to name, for the picker. */
