@@ -90,25 +90,65 @@ hotkeys.
 
 ## The device key
 
-**This is the first task, and it is a measurement.** `InputDevice.getDescriptor()`
-is documented as a stable hash of vendor, product and name, and if that holds it
-is the right key. It has never been used in this app, and "my mapping vanished"
-is the worst failure this feature can have — worse than not having it, because
-the person has now spent effort on something that did not keep.
+**Partly measured**, 2026-09-01, on a Realme RMX5061 (Android 15) with a
+**GameSir-Cyclone Pro** over Bluetooth, read with
+`adb shell dumpsys input`. Readings 2-4 are still to take.
 
-With a real Bluetooth pad, `adb shell dumpsys input` prints every device's
-descriptor. Read it:
+### Reading 1: connected
 
-1. with the pad connected;
-2. after disconnecting and reconnecting it;
-3. after re-pairing it from scratch;
-4. after a reboot of the phone;
-5. beside the handheld's own built-in pad, so the two are seen to differ.
+```
+16: GameSir-Cyclone Pro
+    Classes: KEYBOARD | GAMEPAD | JOYSTICK | BATTERY | EXTERNAL
+    Descriptor: f5c2919fbd87c6e420793988bf6cf56cfe3d374a
+    Identifier: bus=0x0005, vendor=0x3537, product=0x1023, version=0x0101,
+                bluetoothAddress=A0:5A:59:BD:2A:C5
+17: GameSir-Cyclone Pro Consumer Control
+    Classes: KEYBOARD | BATTERY | EXTERNAL
+    Descriptor: ee0742fe7486962e718e6305dae01c3a983a316a
+    Identifier: ...same vendor, product, version and bluetoothAddress
+18: GameSir-Cyclone Pro Keyboard
+    Classes: KEYBOARD | ALPHAKEY | BATTERY | EXTERNAL
+    Descriptor: 3c1f1565ca029305b95c887240d8bd64a104e1b6
+    Identifier: ...same vendor, product, version and bluetoothAddress
+```
 
-If the descriptor survives all of that, key on it. If it moves, key on
-`vendorId:productId:name` instead and say so here. Do not build the storage
-until this is known: the key is in every stored object and changing it later is
-a migration.
+**One pad is three input devices.** That was not anticipated anywhere above and
+it changes two things:
+
+- **`vendor:product` alone is not a usable fallback key** - all three share
+  `3537:1023`, so a mapping keyed that way would be shared between the pad and
+  its own consumer-control and keyboard endpoints. The fallback must carry the
+  name: `vendor:product:name`, which does separate them.
+- **Picking the pad by source is right, and is now load-bearing rather than
+  incidental.** Only id 16 reports `GAMEPAD | JOYSTICK`; the other two are
+  keyboards. `padKey()` must find the device by those sources, which is also
+  what `Gamepad.isFrom` already asks of an event, so the two agree.
+
+Three different descriptors from identical vendor, product, version and
+Bluetooth address also means **the descriptor incorporates the device name**,
+whatever else is in it.
+
+### Whether the descriptor is MAC-derived: not answered
+
+AOSP builds it from a unique id where the device has one, which for Bluetooth is
+the address - but that was not confirmed here. Reconstructing the hash from
+guessed input formats was tried and matched nothing, which proves neither way:
+a wrong guess and a wrong theory look identical. The decisive test is two pads
+of the same model, and there is one.
+
+**So the descriptor stays out of `Diagnostics`.** Unproven, and the conservative
+direction is the one where a bug report cannot carry a per-unit identifier.
+Name and mapping only. Revisit only with a second pad of the same model in hand.
+
+### Readings still to take
+
+2. the pad powered off and on;
+3. the pad forgotten in Bluetooth settings and paired again;
+4. the phone rebooted.
+
+If `f5c2919f…` survives all three, key on `InputDevice.getDescriptor()`. If it
+moves in any of them, key on `vendorId:productId:name` and record which reading
+moved it.
 
 ## `PadMap`
 
