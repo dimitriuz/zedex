@@ -16,9 +16,13 @@ import android.view.MotionEvent;
  * that type is Keyboard. A game that wants QAOP is playable on a gamepad without
  * the gamepad knowing what a Q is.
  *
- * <b>A is fire</b>, and B, X and Y are the three key buttons beside it, in that
- * order. The stick, the hat and the D-pad all steer. <b>Start</b> is Enter, which
- * is what a game asks for whatever its own keys are.
+ * <b>By default, A is fire</b>, and B, X and Y are the three key buttons beside
+ * it, in that order, with the stick, the hat and the D-pad all steering — but
+ * every one of those is only the default now: {@link PadMap} says what a
+ * physical binding actually drives, and any of it can be recaptured onto
+ * another button or axis from {@code GamepadActivity}. <b>Start</b> is Enter,
+ * which is what a game asks for whatever its own keys are, and is the one
+ * button this class does not let {@link PadMap} answer for.
  *
  * Everything the app wants for itself is behind a <b>hotkey</b> instead — see
  * {@link Hotkeys}. A pad has no spare buttons, so rather than take four of them

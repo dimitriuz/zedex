@@ -66,8 +66,13 @@ public final class PadMaps {
         try {
             return new JSONObject(stored);
         } catch (JSONException e) {
-            // Every pad back on its defaults, which is a working app. Kept
-            // rather than cleared: a later version may understand it.
+            // Every pad back on its defaults, which is a working app. This
+            // read does not itself clear the stored text - but nothing here
+            // holds it either. save() and forget() both rewrite the whole
+            // key from what all() returns, so the first one called after
+            // this discards whatever could not be parsed along with
+            // everything else. What survives is "until the next write", not
+            // "for a later version to still have a chance at".
             return new JSONObject();
         }
     }
