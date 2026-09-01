@@ -419,7 +419,7 @@
     <string name="settings_keyboard_type">Tipo de teclado</string>
     <string name="settings_sensitivity">Sensibilidad del ratón</string>
     <string name="settings_hotkeys">Botones del mando…</string>
-    <string name="settings_hotkeys_summary">Qué hacen los botones de un mando a la app en lugar de a la máquina</string>
+    <string name="settings_hotkeys_summary">Qué hacen los botones de un mando a la máquina, y qué más hacen en la app</string>
     <string name="settings_tape_format_summary">Como qué se escribe una cinta cuando no escribes una extensión</string>
     <string name="settings_loader">Carga rápida</string>
     <string name="settings_detect_loader">Detectar cargadores</string>

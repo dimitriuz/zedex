@@ -419,7 +419,7 @@
     <string name="settings_keyboard_type">Tipo di tastiera</string>
     <string name="settings_sensitivity">Sensibilità del mouse</string>
     <string name="settings_hotkeys">Tasti del controller…</string>
-    <string name="settings_hotkeys_summary">Cosa fanno i tasti di un controller all\'app anziché alla macchina</string>
+    <string name="settings_hotkeys_summary">Cosa fanno i tasti di un controller alla macchina, e cos\'altro fanno all\'app</string>
     <string name="settings_tape_format_summary">Come viene scritto un nastro quando non digiti un\'estensione</string>
     <string name="settings_loader">Caricamento veloce</string>
     <string name="settings_detect_loader">Riconosci i caricatori</string>

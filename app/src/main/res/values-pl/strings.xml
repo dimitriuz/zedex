@@ -419,7 +419,7 @@
     <string name="settings_keyboard_type">Typ klawiatury</string>
     <string name="settings_sensitivity">Czułość myszy</string>
     <string name="settings_hotkeys">Przyciski kontrolera…</string>
-    <string name="settings_hotkeys_summary">Co przyciski kontrolera robią aplikacji, a nie maszynie</string>
+    <string name="settings_hotkeys_summary">Co przyciski kontrolera robią maszynie, a co jeszcze aplikacji</string>
     <string name="settings_tape_format_summary">Jako co zapisuje się taśmę, kiedy nie wpiszesz rozszerzenia</string>
     <string name="settings_loader">Szybkie wczytywanie</string>
     <string name="settings_detect_loader">Rozpoznawaj loadery</string>

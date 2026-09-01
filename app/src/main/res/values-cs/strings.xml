@@ -419,7 +419,7 @@
     <string name="settings_keyboard_type">Typ klávesnice</string>
     <string name="settings_sensitivity">Citlivost myši</string>
     <string name="settings_hotkeys">Tlačítka ovladače…</string>
-    <string name="settings_hotkeys_summary">Co tlačítka ovladače dělají s aplikací místo s počítačem</string>
+    <string name="settings_hotkeys_summary">Co tlačítka ovladače dělají s počítačem, a co ještě s aplikací</string>
     <string name="settings_tape_format_summary">Jako co se kazeta zapíše, když nenapíšeš příponu</string>
     <string name="settings_loader">Rychlé nahrávání</string>
     <string name="settings_detect_loader">Rozpoznávat nahrávače</string>

@@ -419,7 +419,7 @@
     <string name="settings_keyboard_type">Type de clavier</string>
     <string name="settings_sensitivity">Sensibilité de la souris</string>
     <string name="settings_hotkeys">Boutons de la manette…</string>
-    <string name="settings_hotkeys_summary">Ce que les boutons d\'une manette font à l\'app plutôt qu\'à la machine</string>
+    <string name="settings_hotkeys_summary">Ce que les boutons d\'une manette font à la machine, et ce qu\'ils font d\'autre dans l\'app</string>
     <string name="settings_tape_format_summary">En quoi une cassette est écrite quand vous ne tapez pas d\'extension</string>
     <string name="settings_loader">Chargement rapide</string>
     <string name="settings_detect_loader">Détecter les chargeurs</string>

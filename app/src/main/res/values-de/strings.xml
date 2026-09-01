@@ -419,7 +419,7 @@
     <string name="settings_keyboard_type">Tastaturtyp</string>
     <string name="settings_sensitivity">Mausempfindlichkeit</string>
     <string name="settings_hotkeys">Controller-Tasten…</string>
-    <string name="settings_hotkeys_summary">Was die Tasten eines Controllers mit der App tun statt mit der Maschine</string>
+    <string name="settings_hotkeys_summary">Was die Tasten eines Controllers mit der Maschine tun, und was sie sonst noch in der App tun</string>
     <string name="settings_tape_format_summary">Als was eine Kassette geschrieben wird, wenn du keine Endung eintippst</string>
     <string name="settings_loader">Schnelles Laden</string>
     <string name="settings_detect_loader">Lader erkennen</string>

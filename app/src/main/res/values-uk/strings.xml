@@ -419,7 +419,7 @@
     <string name="settings_keyboard_type">Тип клавіатури</string>
     <string name="settings_sensitivity">Чутливість мишки</string>
     <string name="settings_hotkeys">Кнопки контролера…</string>
-    <string name="settings_hotkeys_summary">Що кнопки контролера роблять із застосунком, а не з машиною</string>
+    <string name="settings_hotkeys_summary">Що кнопки контролера роблять із машиною, а що ще — із застосунком</string>
     <string name="settings_tape_format_summary">У якому форматі пишеться стрічка, якщо не вказати розширення</string>
     <string name="settings_loader">Швидке завантаження</string>
     <string name="settings_detect_loader">Розпізнавати завантажувачі</string>
