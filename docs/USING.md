@@ -264,6 +264,25 @@ actions to bind; nine out of the box:
 
 Rebind in ☰ *Controls… › Controller hotkeys…*: tap a row, press the button.
 
+## Remapping the machine's controls
+
+That same screen has a row above the hotkey list for each of the eight
+controls — Left, Right, Up, Down, Fire, and the three key buttons. Tap one
+and press a button, or push a stick or hat, and that becomes the binding:
+captured rather than chosen, since pads disagree about what their own
+buttons are called — and a push binds as readily as a press, which is the
+only way in for a pad whose D-pad arrives as a stick or hat axis rather than
+four keys.
+
+A capture takes its binding off whatever else held it, in the same redraw:
+bind Fire to B and Button 1 — B's old row — goes blank at once, not on the
+next visit.
+
+Each controller keeps its own mapping. A second pad gets its own eight rows,
+untouched by whatever the first was given; a picker to choose between them
+only appears once there is more than one to choose from. *Reset this pad*
+drops every capture and returns to the defaults underneath.
+
 In the library a pad drives everything: the stick moves, **A** plays, **B**
 goes up, **Y** favourites, **L1/R1** change tab, **L2/R2** page, **X**
 searches and **Select** opens View, Sort and Filter.
