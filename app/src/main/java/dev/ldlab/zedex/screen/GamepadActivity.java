@@ -18,6 +18,7 @@ import android.os.Bundle;
 import android.view.Gravity;
 import android.view.InputDevice;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -163,7 +164,9 @@ public final class GamepadActivity extends ZedexActivity {
             if (binding == null) {
                 value = getString(R.string.gamepad_unbound);
             } else {
-                String name = KeyEvent.keyCodeToString(binding.code);
+                String name = binding.isAxis
+                        ? MotionEvent.axisToString(binding.code) + (binding.sign < 0 ? " -" : " +")
+                        : KeyEvent.keyCodeToString(binding.code);
                 value = map.isDefault(slot)
                         ? getString(R.string.gamepad_default_marker, name)
                         : name;
@@ -324,11 +327,22 @@ public final class GamepadActivity extends ZedexActivity {
             // The event names its own device, so the pad being edited is
             // fixed from whatever actually sent the press - which also
             // covers a pad connected only after this screen opened, when
-            // nothing was found for it in onCreate.
+            // nothing was found for it in onCreate. When the press is from a
+            // *different* pad than the one this screen loaded (two pads can
+            // be connected at once), the map has to be reloaded for it too -
+            // otherwise the capture would merge into the wrong pad's map and
+            // save that under the new pad's key, silently replacing whatever
+            // it actually had stored. There is no picker yet to make this
+            // switch explicit (Task 10 adds one); until then, the press
+            // itself is taken as saying which pad is meant.
             InputDevice device = event.getDevice();
             if (device != null) {
-                deviceKey = PadMaps.keyFor(device);
-                deviceName = device.getName();
+                String key = PadMaps.keyFor(device);
+                if (!key.equals(deviceKey)) {
+                    deviceKey = key;
+                    deviceName = device.getName();
+                    map = PadMaps.load(preferences, deviceKey);
+                }
             }
 
             bind(PadMap.Binding.button(keycode));
