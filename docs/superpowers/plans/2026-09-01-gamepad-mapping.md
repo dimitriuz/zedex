@@ -663,8 +663,13 @@ Append to `PadMapTest`:
     public void aRowCanSayWhatItIsOnAndWhetherItWasChosen() {
         PadMap map = PadMap.defaults();
 
+        // The first binding in DEFAULTS order, so the row says the same thing
+        // every run: A for Fire rather than DPAD_CENTER, DPAD_LEFT for Left
+        // rather than whichever of its three the table happened to yield.
         assertEquals(KeyEvent.KEYCODE_BUTTON_A,
                      map.bindingFor(FuseNative.JOYSTICK_FIRE).code);
+        assertEquals(KeyEvent.KEYCODE_DPAD_LEFT,
+                     map.bindingFor(FuseNative.JOYSTICK_LEFT).code);
         assertTrue(map.isDefault(FuseNative.JOYSTICK_FIRE));
 
         PadMap changed = map.with(FuseNative.JOYSTICK_FIRE,
@@ -780,9 +785,17 @@ Replace `defaults()` and the constructor with:
         Binding captured = chosen.get(slot);
         if (captured != null) return captured;
 
-        for (Map.Entry<Integer, Integer> entry : effective.entrySet()) {
-            if (entry.getValue() == slot) return fromKey(entry.getKey());
+        // Walked in DEFAULTS order and not the table's, which is a HashMap and
+        // has none. A direction has three default bindings and Fire has two, so
+        // scanning the table would name an arbitrary one of them - and a
+        // different one on another run, which is a row that changes what it
+        // says for no reason and a test that passes on hash order.
+        for (int[] entry : DEFAULTS) {
+            Integer where = effective.get(entry[0]);
+            if (where != null && where == slot) return fromKey(entry[0]);
         }
+
+        // Unchosen, and its defaults were taken by a capture elsewhere.
         return null;
     }
 
