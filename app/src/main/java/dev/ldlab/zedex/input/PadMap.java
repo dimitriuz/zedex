@@ -172,10 +172,24 @@ public final class PadMap {
         return new PadMap(next);
     }
 
-    /** What drives this slot, for the screen to draw. Null when nothing does. */
+    /**
+     * What drives this slot, for the screen to draw. Null when nothing does.
+     *
+     * A captured binding is trusted only once it is checked against
+     * {@link #effective}: {@link #with} evicts a binding from every other
+     * slot before granting it, so a map built through it never disagrees with
+     * itself, but {@link #fromJson} has no such guard - two slot names in a
+     * hand-edited or corrupted store can both decode to the same binding, and
+     * {@link #resolve} still gives it to exactly one. Returning {@code chosen}
+     * unchecked would let the slot that lost the race claim it too, which is
+     * a row lying about what actually happens when the button is pressed.
+     */
     public Binding bindingFor(int slot) {
         Binding captured = chosen.get(slot);
-        if (captured != null) return captured;
+        if (captured != null) {
+            Integer holder = effective.get(captured.key());
+            if (holder != null && holder == slot) return captured;
+        }
 
         // Walked in DEFAULTS order and not the table's, which is a HashMap and
         // has none. A direction has three default bindings and Fire has two, so
@@ -249,18 +263,42 @@ public final class PadMap {
         return "a" + binding.code + (binding.sign < 0 ? "-" : "+");
     }
 
+    /**
+     * The top of what a button's number may legitimately be.
+     *
+     * Bounded at {@link #AXIS_BASE} itself, since a keycode at or past it
+     * would land in the numeric space {@link #axis} packs into and collide
+     * with an axis binding there - a tampered {@code "k70000"} is exactly
+     * that. Real keycodes top out in the low hundreds, so this is generous
+     * rather than exact.
+     */
+    private static final int MAX_KEYCODE = AXIS_BASE - 1;
+
+    /**
+     * The top of what an axis id may legitimately be.
+     *
+     * Real axis ids top out at Android's own {@code AXIS_GENERIC_16} (47),
+     * so this is generous too - but it exists to stop {@link #axis} being
+     * asked to pack a number large enough to overflow the doubling it does,
+     * which a bare "must be non-negative" check would not catch.
+     */
+    private static final int MAX_AXIS = 1000;
+
     private static Binding decode(String text) {
         if (text == null || text.length() < 2) return null;
 
         try {
             if (text.charAt(0) == 'k') {
-                return Binding.button(Integer.parseInt(text.substring(1)));
+                int keycode = Integer.parseInt(text.substring(1));
+                if (keycode < 0 || keycode > MAX_KEYCODE) return null;
+                return Binding.button(keycode);
             }
             if (text.charAt(0) == 'a') {
                 char sign = text.charAt(text.length() - 1);
                 if (sign != '-' && sign != '+') return null;
 
                 int axisId = Integer.parseInt(text.substring(1, text.length() - 1));
+                if (axisId < 0 || axisId > MAX_AXIS) return null;
                 return Binding.axis(axisId, sign == '-' ? -1 : +1);
             }
         } catch (NumberFormatException e) {

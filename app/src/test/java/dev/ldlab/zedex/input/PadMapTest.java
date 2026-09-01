@@ -252,4 +252,38 @@ public class PadMapTest {
         assertEquals(FuseNative.JOYSTICK_FIRE, map.slotFor(KeyEvent.KEYCODE_BUTTON_A));
         assertEquals(ControlProfiles.BUTTON_1, map.slotFor(KeyEvent.KEYCODE_BUTTON_B));
     }
+
+    /**
+     * {@code bindingFor()} must not let a slot that lost the race also claim
+     * the binding.
+     *
+     * {@link PadMap#with} dedups as it goes - a binding is evicted from every
+     * other slot before being granted, so a map built through it never
+     * disagrees with itself. {@link PadMap#fromJson} has no such guard: two
+     * slot names in a hand-edited or corrupted store can both decode to the
+     * same binding. {@link PadMap#resolve} still gives it to exactly one of
+     * them (whichever the stored map's iteration happens to visit last), but
+     * before this fix {@code bindingFor()} read {@code chosen} directly and
+     * would answer with the captured binding for the slot that lost too - a
+     * row lying about what actually happens when the button is pressed.
+     *
+     * Which of FIRE or Button 1 wins is not pinned here on purpose: {@code
+     * chosen} is a HashMap, and its entry order is not part of this class's
+     * contract. What is asserted is the invariant - exactly one of the two
+     * slots reports the binding, and it agrees with {@link PadMap#slotFor}
+     * about which; the other reports nothing, honestly, rather than the same
+     * binding a second time.
+     */
+    @Test
+    public void bindingForDoesNotAlsoNameTheSlotThatLostTheRace() {
+        PadMap map = PadMap.fromJson("{\"FIRE\":\"k97\",\"BUTTON_1\":\"k97\"}");
+
+        boolean fireWon = map.slotFor(KeyEvent.KEYCODE_BUTTON_B) == FuseNative.JOYSTICK_FIRE;
+        int winner = fireWon ? FuseNative.JOYSTICK_FIRE : ControlProfiles.BUTTON_1;
+        int loser = fireWon ? ControlProfiles.BUTTON_1 : FuseNative.JOYSTICK_FIRE;
+
+        assertEquals(KeyEvent.KEYCODE_BUTTON_B, map.bindingFor(winner).code);
+        assertNull("the slot that lost the race must not also claim button B",
+                   map.bindingFor(loser));
+    }
 }
