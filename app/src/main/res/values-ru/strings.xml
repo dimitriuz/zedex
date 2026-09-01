@@ -545,7 +545,7 @@
     <string name="lights_shown">Индикаторы показаны</string>
     <string name="lights_hidden">Индикаторы скрыты</string>
     <string name="menu_files">Файлы…</string>
-    <string name="menu_on_screen">На экране…</string>
+    <string name="menu_on_screen">Управление…</string>
     <string name="quick_save">Быстрое сохранение\n%1$s</string>
     <string name="quick_load">Быстрая загрузка\n%1$s</string>
     <string name="menu_capture">Захват…</string>

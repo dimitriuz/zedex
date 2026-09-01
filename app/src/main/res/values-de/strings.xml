@@ -545,7 +545,7 @@
     <string name="lights_shown">Kontrollleuchten werden gezeigt</string>
     <string name="lights_hidden">Kontrollleuchten verborgen</string>
     <string name="menu_files">Dateien…</string>
-    <string name="menu_on_screen">Auf dem Bildschirm…</string>
+    <string name="menu_on_screen">Steuerung…</string>
     <string name="quick_save">Schnellspeichern\n%1$s</string>
     <string name="quick_load">Schnellladen\n%1$s</string>
     <string name="menu_capture">Aufnehmen…</string>

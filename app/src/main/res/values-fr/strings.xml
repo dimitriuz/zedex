@@ -545,7 +545,7 @@
     <string name="lights_shown">Témoins affichés</string>
     <string name="lights_hidden">Témoins masqués</string>
     <string name="menu_files">Fichiers…</string>
-    <string name="menu_on_screen">À l\'écran…</string>
+    <string name="menu_on_screen">Commandes…</string>
     <string name="quick_save">Sauvegarde rapide\n%1$s</string>
     <string name="quick_load">Chargement rapide\n%1$s</string>
     <string name="menu_capture">Capture…</string>

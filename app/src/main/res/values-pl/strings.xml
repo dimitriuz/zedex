@@ -545,7 +545,7 @@
     <string name="lights_shown">Wskaźniki pokazane</string>
     <string name="lights_hidden">Wskaźniki ukryte</string>
     <string name="menu_files">Pliki…</string>
-    <string name="menu_on_screen">Na ekranie…</string>
+    <string name="menu_on_screen">Sterowanie…</string>
     <string name="quick_save">Szybki zapis\n%1$s</string>
     <string name="quick_load">Szybkie wczytanie\n%1$s</string>
     <string name="menu_capture">Przechwytywanie…</string>

@@ -545,7 +545,7 @@
     <string name="lights_shown">Indicadores mostrados</string>
     <string name="lights_hidden">Indicadores ocultos</string>
     <string name="menu_files">Archivos…</string>
-    <string name="menu_on_screen">En pantalla…</string>
+    <string name="menu_on_screen">Controles…</string>
     <string name="quick_save">Guardado rápido\n%1$s</string>
     <string name="quick_load">Carga rápida\n%1$s</string>
     <string name="menu_capture">Capturar…</string>

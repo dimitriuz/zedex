@@ -545,7 +545,7 @@
     <string name="lights_shown">Kontrolky zobrazeny</string>
     <string name="lights_hidden">Kontrolky skryty</string>
     <string name="menu_files">Soubory…</string>
-    <string name="menu_on_screen">Na obrazovce…</string>
+    <string name="menu_on_screen">Ovládání…</string>
     <string name="quick_save">Rychlé uložení\n%1$s</string>
     <string name="quick_load">Rychlé nahrání\n%1$s</string>
     <string name="menu_capture">Záznam…</string>

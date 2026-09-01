@@ -606,10 +606,13 @@
     <string name="lights_shown">Indicators shown</string>
     <string name="lights_hidden">Indicators hidden</string>
     <string name="menu_files">Files…</string>
-    <!-- The quick bar's own name for the show/hide group. Not "Controls",
-         which the sheet already uses for the page that leads to the joystick
-         and the keyboard. -->
-    <string name="menu_on_screen">On screen…</string>
+    <!-- The quick bar's own name for the group that used to be only the
+         show/hide rows. Four of its six rows are now which joystick
+         interface, key profile, keyboard skin and whether the mouse is on -
+         a controls menu, not an on-screen one, and menu_controls is exactly
+         that word already; docs/USING.md has called this group "Controls…"
+         since it changed. -->
+    <string name="menu_on_screen">Controls…</string>
     <!-- The quick states, named after the file that is open, not after the
          state: the state is "Tujad Quick" and saying quick twice reads badly.
          A title over a value, like the machine row, rather than the two joined
