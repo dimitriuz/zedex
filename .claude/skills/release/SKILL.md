@@ -111,37 +111,45 @@ The workflow has now created a draft. Rewrite its body, keeping GitHub's own
 compare link at the foot - it is the only part of the generated notes worth
 having, and people do follow it.
 
-Write in the README's voice: what changed, what it means, nothing about how it
-was built. The audience is somebody deciding whether to take the update.
+**One line per feature or fix.** Not a paragraph, not prose that sets the
+scene - the same rule the README lives under, for the same reason: somebody is
+deciding whether to take an update, and a wall of text buries the thing they
+came for. Group under `## What's new`, `## Fixed` and `## Also` where there is
+enough to group.
 
 ```markdown
 ## What's new
 
-- **Cocoon and Daijishō** can launch Zedex now - a platform file to import,
-  nothing to set up in the app
-- **docs/USING.md** - every row of the quick bar and every page behind ☰,
-  written out
-- The two ES-DE files in full, for anyone who would rather set it up by hand
+- Map a controller's buttons to the machine's eight controls - *Settings › Controls › Controller buttons…*
+- A direction can be captured from a stick or hat push, for a pad whose D-pad is an axis
+- Each pad keeps its own mapping; a picker appears once there is more than one
 
-**Full Changelog**: https://github.com/dimitriuz/zedex/compare/v1.6.2...v1.6.3
+## Fixed
+
+- Rebinding a hotkey with a controller never worked: the dialog swallowed every press
+
+**Full Changelog**: https://github.com/dimitriuz/zedex/compare/v1.6.2...v1.7.0
 ```
 
 What makes these notes good rather than a rearranged commit log:
 
+- **One line, and it says what changed.** A clause of why is fine where the
+  what is meaningless without it - "for a pad whose D-pad is an axis" earns its
+  place because otherwise nobody knows who the row is for. Two sentences does
+  not.
 - **Group by what somebody would notice**, not by commit prefix. Three commits
-  that together added one feature are one bullet.
-- **Drop what does not reach the user.** Refactors, test changes, CI, and the
-  internal half of a change nobody can see. If that empties the list, say so
-  in a sentence - "a documentation release, nothing in the emulator itself" is
-  more useful than five bullets about markdown.
-- **Name the thing, not the file.** "Cocoon and Daijishō can launch Zedex" over
-  "added docs/frontends/ZXSpectrum-Zedex.json".
+  that together added one feature are one line.
+- **Drop what does not reach the user.** Refactors, tests, CI, and the internal
+  half of a change nobody can see. If that empties the list, say so in a
+  sentence - "a documentation release, nothing in the emulator itself" is more
+  useful than five lines about markdown.
+- **Name the thing, not the file.** "Zedex can be added to the Cocoon frontend"
+  over "added docs/frontends/ZXSpectrum-Zedex.json".
 - **Carry over anything a user must do.** A new permission, a setting that
-  moved, a folder that has to be picked again. This is the only place they will
-  read it.
-- **Do not invent.** Everything in the notes has to be in the commits. Where a
-  change was measured on a device and where it was not, the commit body says
-  so, and the notes should not upgrade the second into the first.
+  moved, a folder to pick again. This is the only place they will read it.
+- **Do not invent.** Everything has to be in the commits, and where a change was
+  measured on a device and where it was not, the commit body says so - the notes
+  must not upgrade the second into the first.
 
 Then put them on the draft, from a file rather than a flag so the markdown
 survives the shell:
