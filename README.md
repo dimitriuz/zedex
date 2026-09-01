@@ -358,6 +358,15 @@ where the strip itself would be — under the picture upright, beside it sideway
 for as long as a drive is turning and not a moment longer. It is the lamp that answers "is it safe to close this yet".
 Turning the indicators off in *Settings › Display* turns that off too.
 
+## Languages
+
+English, German, Spanish, French, Italian, Polish, Czech, Russian and
+Ukrainian. It follows the phone's language, and *Settings › App › App language*
+overrides it for Zedex alone.
+
+
+# Frontends
+
 ## ES-DE
 
 If you use [ES-DE](https://es-de.org) as your frontend, *Settings › App › Add to
@@ -373,12 +382,15 @@ names, descriptions, artwork, videos and manuals — becomes Zedex's own library
 Only the words are copied; the pictures stay where ES-DE keeps them. Press it
 again to take in what has changed since.
 
-## Languages
+## Cocoon
 
-English, German, Spanish, French, Italian, Polish, Czech, Russian and
-Ukrainian. It follows the phone's language, and *Settings › App › App language*
-overrides it for Zedex alone.
+[Cocoon](https://cocoon-shell.com) needs nothing from Zedex: import
+[`docs/frontends/ZXSpectrum-Zedex.json`](docs/frontends/ZXSpectrum-Zedex.json)
+with *Import custom platform* and Zedex is offered as a player for ZX Spectrum.
+Cocoon's own RetroArch entries are kept. The same file works in
+[Daijishō](https://github.com/TapiocaFox/Daijishou).
 
+Untested on the Google Play build, which has no All files access.
 
 # No ads, no tracking
 
