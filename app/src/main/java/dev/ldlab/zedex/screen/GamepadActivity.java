@@ -413,6 +413,20 @@ public final class GamepadActivity extends ZedexActivity {
      * Waits for a button. The dialog is what makes the wait obvious, and its
      * buttons are the two ways out that a press is not: clearing the binding,
      * and changing one's mind.
+     *
+     * <b>Why the dialog, and not the activity, is wired to take the press.</b>
+     * A showing {@link AlertDialog} owns the focused window, and Android
+     * delivers key and motion events to the focused window's own callback -
+     * never to the activity underneath it. So {@code GamepadActivity}'s
+     * {@link #dispatchKeyEvent} and {@link #onGenericMotionEvent} were never
+     * being asked while this dialog was up, which is the only moment either
+     * exists for: B fell through to {@code Dialog.onKeyUp}'s own default,
+     * which cancels on back, and A fell through to whichever view the dialog
+     * had focused (Cancel, here), which consumes a press meant as a confirm.
+     * Both listeners below call the very same {@link #handleCapturedKey} and
+     * {@link #handleCapturedMotion} the activity's own overrides call - one
+     * rule, asked from wherever the event actually lands, rather than a
+     * second copy of it living on the dialog.
      */
     private void ask(String message) {
         AlertDialog.Builder builder = new AlertDialog.Builder(
@@ -439,6 +453,21 @@ public final class GamepadActivity extends ZedexActivity {
         }
 
         capture = builder.show();
+
+        // Fires before the view hierarchy sees the key at all - which is
+        // what lets this take A and B off the buttons the dialog would
+        // otherwise have handed them to. Consuming only what a capture
+        // actually wants (see handleCapturedKey) leaves Cancel and a
+        // keyboard's own Back untouched: neither is a gamepad-sourced
+        // ACTION_DOWN while something is waiting, so both fall straight
+        // through to the dialog's ordinary handling.
+        capture.setOnKeyListener((dialog, keyCode, event) -> handleCapturedKey(event));
+
+        // Generic motion (a stick or a hat) has no OnKeyListener equivalent
+        // on Dialog - only the window's own decor view sees it, for the same
+        // reason: the dialog is what has focus, not the activity beneath it.
+        capture.getWindow().getDecorView()
+                .setOnGenericMotionListener((view, event) -> handleCapturedMotion(event));
     }
 
     private void stop() {
@@ -495,19 +524,24 @@ public final class GamepadActivity extends ZedexActivity {
     }
 
     /**
-     * Takes the press while a capture is waiting.
+     * Takes the press while a capture is waiting, wherever it actually
+     * arrives from - the activity's own {@link #dispatchKeyEvent} when
+     * nothing is covering it, or the capture dialog's
+     * {@code OnKeyListener} while it is up (see {@link #ask}), which is the
+     * only time this class has anything to do at all: a dialog's own window
+     * is what has focus then, and the activity underneath it is never asked.
      *
-     * Through {@code dispatchKeyEvent} rather than {@code onKeyDown}, because a
-     * dialog is up and would otherwise have the event first - Start and B are
-     * both ways of dismissing one, and both are buttons somebody will want to
-     * bind.
+     * Returns whether the event was one this took - false for anything that
+     * is not a gamepad-sourced button going down while something is waiting,
+     * which is exactly what has to fall through to whatever else the caller
+     * would otherwise have done with it (a dialog's own Cancel, or a
+     * keyboard's own Back).
      */
-    @Override
-    public boolean dispatchKeyEvent(KeyEvent event) {
+    private boolean handleCapturedKey(KeyEvent event) {
         if ((capturing == null && !capturingModifier && capturingSlot < 0)
                 || event.getAction() != KeyEvent.ACTION_DOWN
                 || !Gamepad.isFrom(event)) {
-            return super.dispatchKeyEvent(event);
+            return false;
         }
 
         int keycode = event.getKeyCode();
@@ -535,16 +569,29 @@ public final class GamepadActivity extends ZedexActivity {
     }
 
     /**
-     * Takes a stick or hat push while a capture is waiting.
+     * Through {@code dispatchKeyEvent} rather than {@code onKeyDown} for the
+     * case nothing is covering this activity: Start and B are both ways of
+     * dismissing whatever is in front, and both are buttons somebody will
+     * want to bind. While the capture dialog is up, this is never reached at
+     * all - see {@link #ask} and {@link #handleCapturedKey}.
+     */
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        return handleCapturedKey(event) || super.dispatchKeyEvent(event);
+    }
+
+    /**
+     * Takes a stick or hat push while a capture is waiting, wherever it
+     * arrives from - see {@link #handleCapturedKey}, its key-event twin, for
+     * why there are two ways in.
      *
      * Only for a control slot: the app's own hotkeys and the modifier are
      * keys, never directions, so an axis push while one of those is waiting
      * is ignored rather than offered.
      */
-    @Override
-    public boolean onGenericMotionEvent(MotionEvent event) {
+    private boolean handleCapturedMotion(MotionEvent event) {
         if (capturingSlot < 0 || !Gamepad.isFrom(event)) {
-            return super.onGenericMotionEvent(event);
+            return false;
         }
 
         InputDevice device = event.getDevice();
@@ -578,6 +625,11 @@ public final class GamepadActivity extends ZedexActivity {
         bind(PadMap.Binding.axis(furthest, most < 0 ? -1 : +1));
         stop();
         return true;
+    }
+
+    @Override
+    public boolean onGenericMotionEvent(MotionEvent event) {
+        return handleCapturedMotion(event) || super.onGenericMotionEvent(event);
     }
 
     private void warn(int message) {
