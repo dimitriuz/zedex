@@ -18,6 +18,7 @@ native.
 Most of the code was written by Claude, directed and reviewed by a
 professional software developer.
 
+Using the app: [docs/USING.md](docs/USING.md).
 Building, testing and releases: [docs/DEVELOPING.md](docs/DEVELOPING.md).
 How Fuse is wired in: [docs/INTERNALS.md](docs/INTERNALS.md).
 
@@ -72,25 +73,13 @@ Plug one in and it works — no mapping screen. Stick, hat and D-pad steer, A is
 fire, B, X and Y are the key buttons, Start is Enter, and the on-screen pad
 steps aside.
 
-Hotkeys are RetroArch style: one button is the hotkey, and every action is that
-button and another, so nothing is taken from the game. The hotkey is Select by
-default and can be any button, or None, in which case bindings fire on their
-own. Twenty-two actions to bind; nine out of the box:
+Hotkeys are RetroArch style: one button is the hotkey, and every action is
+that button and another, so nothing is taken from the game. Twenty-two actions
+to bind, nine out of the box — Select + B pauses, Select + R1 quick saves,
+Select + Start quits. The whole list, and how to rebind, is in
+[docs/USING.md](docs/USING.md#controller-hotkeys).
 
-| Action | Button |
-| --- | --- |
-| Pause or resume | Select + B |
-| Quit the app | Select + Start |
-| Quick save | Select + R1 |
-| Quick load | Select + L1 |
-| Fast forward | Select + R2, while held |
-| Fullscreen | Select + X |
-| Show or hide the keyboard | Select + Y |
-| Next key profile | Select + R3 |
-| Next joystick type | Select + L3 |
-
-Fast forward runs at 500% and stays silent. Rebind in ☰ *Controls… ›
-Controller hotkeys…*: tap a row, press the button.
+Fast forward runs at 500% and stays silent.
 
 ## Profiles
 
@@ -208,17 +197,12 @@ because Play does not allow that permission to an app that works without it.
 
 ## The memory card
 
-A DivMMC with esxDOS on it. Two things are yours to bring:
+A DivMMC with esxDOS on it, on any machine. Two things are yours to bring: the
+`ESXMMC.BIN` firmware from [esxdos.org](http://www.esxdos.org/), and a card
+image — an `.hdf`, or a raw image such as a MiSTer `.vhd`, which gets an HDF
+header written for it. Then `.ls` lists the card and `.` commands are esxDOS's.
 
-1. **Firmware.** `ESXMMC.BIN`, the 8K DivMMC build, from
-   [esxdos.org](http://www.esxdos.org/). *Settings › Machine › DivMMC firmware*.
-2. **A card image.** ☰ *Media… › Insert card…*. An `.hdf`, or a raw image such
-   as a MiSTer `.vhd`, which gets an HDF header written for it. It needs
-   esxDOS's own `BIN` and `SYS` folders on it.
-
-Switch on *DivMMC interface* in the same place; the machine resets. Then `.ls`
-lists the card, `.` commands are esxDOS's, and ☰ *Machine… › NMI* opens its file
-browser. Changes are written back once a second and whenever the app is paused.
+Both steps, in order: [docs/USING.md](docs/USING.md#setting-up-the-memory-card).
 
 # Library
 
@@ -235,9 +219,8 @@ the two either way.
 - Filter by format, genre, rating, developer or publisher — narrows the whole
   collection, not just the folder you're browsing; from the toolbar's
   **Options** button or the pad's Select
-- A controller drives all of it: the stick moves, **A** plays, **B** goes up,
-  **Y** favourites, **L1/R1** change tab, **L2/R2** page, **X** searches and
-  **Select** opens View, Sort and Filter
+- A controller drives all of it —
+  [which button does what](docs/USING.md#controller-hotkeys)
 
 <a href="docs/screenshots/library-options.jpg"><img src="docs/screenshots/library-options.jpg" width="400" alt="The Options menu: view, sort, filter, edit metadata and the two scrape actions"></a>
 <a href="docs/screenshots/library-edit.jpg"><img src="docs/screenshots/library-edit.jpg" width="400" alt="Editing a game's name and description by hand"></a>
@@ -320,50 +303,13 @@ sends, rather than which interface the game listens to.
 
 # Getting around
 
-**The quick bar** — a strip across the top of the window, either way up. Tap the
-picture to bring it back; it fades after three seconds.
+**[docs/USING.md](docs/USING.md)** is the tour: every row of the quick bar and
+what it does, the ☰ sheet, the Settings tabs, what the indicators mean, the
+controller hotkeys, and setting up the memory card.
 
-| | |
-| --- | --- |
-| Files | open one, and the last ten |
-| States | save, load, and the quick pair named after what is running |
-| Machine | pause, change machine, reset, NMI |
-| Capture | screenshot, GIF, MP4, and the folder they go to |
-| On screen | the keyboard and the joystick, and the four settings worth changing mid-game: joystick interface, key profile, keyboard, mouse |
-| Display | scanlines, CRT, video output, border, lamps |
-| Fast forward | hold for 500%, silent |
-| Fullscreen | |
-
-<a href="docs/screenshots/main-menu.jpg"><img src="docs/screenshots/main-menu.jpg" width="400" alt="The main menu"></a>
-
-**☰** has *Library*, *Open file…*, *Open recent…*, *Machine…*, *States…*,
-*Pokes…*, *Music…*, *Media…*, *Capture…*, *Controls…*, *Settings…*, *About
-Zedex* and *Quit*. *Library…*, *Open recent…* and *Music…* appear when there is
-something for them to show. **Back** never
-exits: it leaves fullscreen, or goes up a menu page, or opens ☰. *Quit* warns
-about unsaved disks first.
-
-**Settings** has seven tabs — Machine, Tape, Display, Controls, Sound, Library,
-App. The first five are the Spectrum; the last two are Zedex: the library and
-its folder, then language, folders, formats, updates.
-Everything that persists is there, exactly once; ☰ and the bar are shortcuts to
-the same settings.
-
-**Activity lamps** — tape, disk, memory card, AY, keyboard, joystick, mouse.
-Blue reads, amber writes; the AY is three bars, one per channel. A lit joystick
-lamp with a dead stick means the game wants a different interface.
-
-Fullscreen gives the picture their strip back, and keeps one of them: the disk,
-where the strip itself would be — under the picture upright, beside it sideways —
-for as long as a drive is turning and not a moment longer. It is the lamp that answers "is it safe to close this yet".
-Turning the indicators off in *Settings › Display* turns that off too.
-
-## Languages
-
-English, German, Spanish, French, Italian, Polish, Czech, Russian and
-Ukrainian. It follows the phone's language, and *Settings › App › App language*
-overrides it for Zedex alone.
-
+The short version: a strip of icons across the top of the window, either way
+up — tap the picture to bring it back, it fades after three seconds. Six of
+them open a short list; the rest act at once. **Back** never exits the app.
 
 # Frontends
 

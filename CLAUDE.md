@@ -1,6 +1,6 @@
 # Zedex — working notes
 
-A ZX Spectrum emulator for Android, built on an unmodified Fuse core. `README.md` is for people using the app and nothing else — keep build, test and release material out of it. `docs/DEVELOPING.md` covers building, driving it from adb, the tests and releases; `docs/INTERNALS.md` how the core is wired in. This file is the operational knowledge that is easy to get wrong and expensive to rediscover.
+A ZX Spectrum emulator for Android, built on an unmodified Fuse core. `README.md` is for people using the app and nothing else — keep build, test and release material out of it. `docs/USING.md` is the tour of the controls — every quick bar row, the ☰ sheet, the hotkeys — and is where a how-to that outgrows a README line goes; its icons are generated from `res/drawable` by `scripts/icons-to-svg.py`, so an icon changed in the app and not there leaves the guide illustrating a button that no longer looks like that, silently. `docs/DEVELOPING.md` covers building, driving it from adb, the tests and releases; `docs/INTERNALS.md` how the core is wired in. This file is the operational knowledge that is easy to get wrong and expensive to rediscover.
 
 ## Hard rules
 
