@@ -923,6 +923,12 @@ with the machine on screen, 0.0% with the library on it.
 
 ## Releases
 
+**`/release` drives the whole of this** - `.claude/skills/release/SKILL.md`. It
+reads what has changed since the last tag, asks for the version number, bumps
+`version.properties`, tags, watches the workflow, writes the draft's notes and
+publishes once you confirm. What follows is the same process by hand, and what
+the skill is written against.
+
 CI does the same two steps in the same order. `.github/workflows/build.yml`
 builds a debug APK on every push and pull request;
 `.github/workflows/release.yml` builds, signs and publishes on a tag. Both
