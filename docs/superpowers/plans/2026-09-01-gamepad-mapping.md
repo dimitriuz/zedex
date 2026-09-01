@@ -53,7 +53,13 @@ env JAVA_HOME=/opt/android-studio/jbr ./gradlew testDebugUnitTest --tests '*PadM
 
 ---
 
-### Task 1: Measure the device key
+### Task 1: Measure the device key - DONE 2026-09-01
+
+**Done.** The answer is `InputDevice.getDescriptor()`, with
+`vendorId:productId:name` as the fallback where a device reports none; the four
+readings are in the spec's *The device key*. The steps below are kept as the
+record of what was asked, and as the recipe if it ever has to be re-taken on
+another device.
 
 This is a measurement, not code, and it is first because its answer goes into
 every stored object. `InputDevice.getDescriptor()` is documented as a stable
@@ -1116,9 +1122,10 @@ public final class PadMaps {
      * product and one Bluetooth address, and differing only in the name. A
      * fallback of vendor:product would hand all three one mapping.
      *
-     * NOTE: this is the constant Task 1 measured. If the descriptor moved on
-     * re-pairing or reboot, drop it and use the fallback for every pad, and
-     * say here which reading moved it.
+     * Measured: the descriptor survived a power cycle, a full forget-and-
+     * re-pair and a reboot, on a Bluetooth pad and a USB pad both, while every
+     * kernel id moved in three of the four readings. See the spec's
+     * "The device key".
      */
     public static String keyFor(InputDevice device) {
         String descriptor = device.getDescriptor();

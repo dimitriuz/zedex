@@ -90,9 +90,12 @@ hotkeys.
 
 ## The device key
 
-**Partly measured**, 2026-09-01, on a Realme RMX5061 (Android 15) with a
-**GameSir-Cyclone Pro** over Bluetooth, read with
-`adb shell dumpsys input`. Readings 2-4 are still to take.
+**Measured**, 2026-09-01, on a Realme RMX5061 with a **GameSir-Cyclone Pro**
+over Bluetooth and a **Microsoft X-Box 360 pad** over USB, read with
+`adb shell dumpsys input`.
+
+**Verdict: key on `InputDevice.getDescriptor()`.** Every descriptor was
+identical across all four readings; every kernel id moved in three of them.
 
 ### Reading 1: connected
 
@@ -184,6 +187,35 @@ link; forgetting the device drops the bond and pairs it as though it had never
 been seen, and it is the thing most likely to have moved a descriptor. It did
 not. The kernel ids moved again, 19/20/21 to 23/24/25.
 
+### Reading 4: the phone rebooted
+
+**Every descriptor identical.** The GameSir's three, and the X-Box pad's.
+
+The ids are worth putting side by side, because they are what a reasonable
+person would have reached for first:
+
+| | pad | consumer | keyboard | X-Box |
+| --- | --- | --- | --- | --- |
+| 1. connected | 16 | 17 | 18 | - |
+| 2. power cycled | 19 | 20 | 21 | - |
+| 2b. USB pad added | 19 | 20 | 21 | 22 |
+| 3. re-paired | 23 | 24 | 25 | 22 |
+| 4. rebooted | 9 | 10 | 11 | 8 |
+
+Four different ids for one pad that never changed; one descriptor throughout.
+An id is a slot in the list of what is attached at this instant, and the reboot
+makes that plainest - the X-Box pad went from 22 to 8 without being touched.
+
+### The answer
+
+**Key on `InputDevice.getDescriptor()`.** It survived a power cycle, a full
+forget-and-re-pair, and a reboot, on both a Bluetooth and a USB pad.
+
+**Fall back to `vendorId:productId:name`** where a device reports no descriptor
+at all. The name is not optional in that fallback: one Bluetooth pad is three
+input devices sharing a vendor, a product and an address, and only the name
+separates them.
+
 ### Whether the descriptor is MAC-derived: not answered, and not answerable from here
 
 AOSP builds it from a unique id where the device has one, which for Bluetooth is
@@ -241,15 +273,6 @@ supplies a fake, which is what keeps `Gamepad`'s side of this assertable at all.
 
 `Gamepad.releaseAll()` still applies to everything, since a lookup changing
 means whatever was down was down under the old arrangement.
-
-### Readings still to take
-
-3. the pad forgotten in Bluetooth settings and paired again;
-4. the phone rebooted.
-
-If `f5c2919f…` survives all three, key on `InputDevice.getDescriptor()`. If it
-moves in any of them, key on `vendorId:productId:name` and record which reading
-moved it.
 
 ## `PadMap`
 
