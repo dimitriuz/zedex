@@ -264,6 +264,10 @@ actions to bind; nine out of the box:
 
 Rebind in ☰ *Controls… › Controller hotkeys…*: tap a row, press the button.
 
+In the library a pad drives everything: the stick moves, **A** plays, **B**
+goes up, **Y** favourites, **L1/R1** change tab, **L2/R2** page, **X**
+searches and **Select** opens View, Sort and Filter.
+
 ## Remapping the machine's controls
 
 That same screen has a row above the hotkey list for each of the eight
@@ -282,10 +286,6 @@ Each controller keeps its own mapping. A second pad gets its own eight rows,
 untouched by whatever the first was given; a picker to choose between them
 only appears once there is more than one to choose from. *Reset this pad*
 drops every capture and returns to the defaults underneath.
-
-In the library a pad drives everything: the stick moves, **A** plays, **B**
-goes up, **Y** favourites, **L1/R1** change tab, **L2/R2** page, **X**
-searches and **Select** opens View, Sort and Filter.
 
 # Setting up the memory card
 

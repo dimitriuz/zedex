@@ -78,11 +78,11 @@ steps aside.
 Hotkeys are RetroArch style: one button is the hotkey, and every action is
 that button and another, so nothing is taken from the game. Twenty-two actions
 to bind, nine out of the box — Select + B pauses, Select + R1 quick saves,
-Select + Start quits. The same screen also remaps the eight controls
-themselves, captured button by button, for a pad that disagrees with Android
-about its own buttons or sends a direction on a stick or hat axis — each pad
-keeps its own mapping. The whole list, and how to rebind, is in
-[docs/USING.md](docs/USING.md#controller-hotkeys).
+Select + Start quits. The whole list, and how to rebind, is in
+[docs/USING.md](docs/USING.md#controller-hotkeys). The same screen also
+remaps the eight controls themselves, captured button by button, for a pad
+that disagrees with Android about its own buttons or sends a direction on a
+stick or hat axis — each pad keeps its own mapping.
 
 Fast forward runs at 500% and stays silent.
 
