@@ -70,7 +70,9 @@ launch only — drops off the list instead of sitting there failing.
 | <img src="icons/stop.svg" width="16"> | **Stop recording** | in place of the two above, while one is running |
 | <img src="icons/folder.svg" width="16"> | **Open captures folder** | under a line. All three go to `Pictures/Zedex`, which is what puts them in your gallery |
 
-## <img src="icons/controls.svg" width="20" align="top"> On screen…
+## <img src="icons/controls.svg" width="20" align="top"> Controls…
+
+The joystick, the keyboard and the mouse, without leaving the game.
 
 | | | |
 | --- | --- | --- |
@@ -82,9 +84,8 @@ launch only — drops off the list instead of sitting there failing.
 | <img src="icons/mouse.svg" width="16"> | **Mouse: on** / **off** | the Kempston mouse |
 
 The last four say what is set now and open the full list; the bar has no room
-for eight joystick interfaces. Not to be confused with the sheet's own
-[Controls…](#controls), which is a different page: this one is what is on the
-glass right now, that one is how the pad and the keyboard are set up.
+for eight joystick interfaces. ☰ *Controls…* reaches the same lists, and the
+controller hotkeys besides.
 
 ## <img src="icons/display.svg" width="20" align="top"> Display…
 
@@ -125,8 +126,8 @@ something there.
 # The menu sheet
 
 **☰** at the right-hand end of the bar. It is the long form: everything the bar
-carries, plus the four pages there was no room for — cheats, music, the tape
-deck and drives, and the controls.
+carries, plus the three pages there was no room for — cheats, music, and the
+tape deck with the drives.
 
 Same rule as the bar — a row with nothing behind it is not drawn. *Library* and
 *Online browser* need somewhere to go, *Open recent…* needs a recent file, and
@@ -144,7 +145,7 @@ Same rule as the bar — a row with nothing behind it is not drawn. *Library* an
 | <img src="icons/music.svg" width="16"> | **Music…** | [below](#music) |
 | <img src="icons/tape.svg" width="16"> | **Media…** | [below](#media) |
 | <img src="icons/camera.svg" width="16"> | **Capture…** | the same page the bar's Capture group opens |
-| <img src="icons/controls.svg" width="16"> | **Controls…** | [below](#controls) |
+| <img src="icons/controls.svg" width="16"> | **Controls…** | *Joystick…*, *Keyboard…* and *Mouse…* — the full lists behind the bar's own Controls group — plus *[Controller hotkeys…](#controller-hotkeys)* |
 | <img src="icons/settings.svg" width="16"> | **Settings…** | |
 | <img src="icons/info.svg" width="16"> | **About Zedex** | |
 | <img src="icons/quit.svg" width="16"> | **Quit** | warns about unsaved disks first |
@@ -220,15 +221,6 @@ and opens:
 The section says so when there is no firmware yet, or when the DivMMC
 interface is off — a card can go in before either and will be waiting.
 [Setting it up](#setting-up-the-memory-card) is at the foot of this page.
-
-## Controls…
-
-| | | |
-| --- | --- | --- |
-| <img src="icons/joystick.svg" width="16"> | **Joystick…** | which interface, and the key profile when it is sending keys |
-| <img src="icons/keyboard.svg" width="16"> | **Keyboard…** | which of the five skins |
-| <img src="icons/mouse.svg" width="16"> | **Mouse…** | the Kempston mouse and its sensitivity |
-| <img src="icons/controls.svg" width="16"> | **Controller hotkeys…** | [the table below](#controller-hotkeys). Tap a row, press the button |
 
 # Settings
 
