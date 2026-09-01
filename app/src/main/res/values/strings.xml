@@ -90,8 +90,8 @@
     <string name="mouse_sensitivity">Sensitivity: %1$d%%</string>
     <string name="mouse_sensitivity_title">Mouse sensitivity</string>
     <string name="mouse_explain">While it is on, a drag across the picture moves the pointer, the pad and a controller\'s stick move it too, and fire and the first button beside it are the mouse\'s two buttons. The interface is only plugged in while this is on, since it answers three ports a game might read for something else.</string>
-    <string name="menu_gamepad">Controller hotkeys…</string>
-    <string name="gamepad_activity">Controller hotkeys</string>
+    <string name="menu_gamepad">Controller buttons…</string>
+    <string name="gamepad_activity">Controller buttons</string>
     <string name="gamepad_explain">One button is the hotkey, and every action is that button and another — so a button means one thing while the hotkey is down and another while it is not, and nothing is taken away from the game.</string>
     <string name="gamepad_hotkey">Hotkey</string>
     <string name="gamepad_hotkey_none">None — actions fire on their own</string>
@@ -106,6 +106,17 @@
     <string name="gamepad_none">No controller</string>
     <string name="gamepad_none_message">Connect a controller and try again. Buttons are bound by pressing them, since pads do not agree on what their own buttons are called.</string>
     <string name="gamepad_is_hotkey">That is the hotkey itself. It is held down while an action is pressed, so it cannot also be one.</string>
+    <string name="gamepad_machine_section">The machine</string>
+    <string name="gamepad_app_section">The app</string>
+    <string name="gamepad_default_marker">%1$s (default)</string>
+    <string name="gamepad_reset_pad">Reset this pad</string>
+    <string name="gamepad_press_control">Press a button or push a direction for %1$s</string>
+    <!-- %1$s is the pad's own name: "Xbox Wireless Controller". -->
+    <string name="gamepad_pad">Controller: %1$s</string>
+    <string name="gamepad_choose_pad">Choose a controller</string>
+    <!-- %1$s is a stored pad's name, offered in the picker although it is not
+         the one plugged in right now. -->
+    <string name="gamepad_pad_disconnected">%1$s (not connected)</string>
 
     <string name="hotkey_pause">Pause or resume</string>
     <string name="hotkey_reset">Reset the machine</string>
@@ -165,6 +176,18 @@
     <string name="profile_delete">Delete profile</string>
     <string name="profile_delete_ask">Delete “%1$s”?</string>
     <string name="profile_last">The controls need one profile, so the last one cannot be deleted.</string>
+
+    <!-- The eight controls a pad or the on-screen joystick can drive, named in
+         the key profile editor and in the pad mapping rows. -->
+    <string name="slot_left">Left</string>
+    <string name="slot_right">Right</string>
+    <string name="slot_up">Up</string>
+    <string name="slot_down">Down</string>
+    <string name="slot_fire">Fire</string>
+    <string name="slot_button_1">Button 1</string>
+    <string name="slot_button_2">Button 2</string>
+    <string name="slot_button_3">Button 3</string>
+
     <string name="setup_demo">There is an intro tape in the box too — a wordmark, a starfield and some music on the AY. Open it whenever you like, from Files… or from\n\n%1$s</string>
 
     <string name="overlay_open">Keyboard over the picture</string>
@@ -449,8 +472,8 @@
     <string name="settings_auto_hide_summary">Take the on-screen pad away while a real one is plugged in</string>
     <string name="settings_keyboard_type">Keyboard type</string>
     <string name="settings_sensitivity">Mouse sensitivity</string>
-    <string name="settings_hotkeys">Controller hotkeys\u2026</string>
-    <string name="settings_hotkeys_summary">What a controller\u2019s buttons do to the app rather than to the machine</string>
+    <string name="settings_hotkeys">Controller buttons\u2026</string>
+    <string name="settings_hotkeys_summary">What a controller\u2019s buttons do to the machine, and what else they do to the app</string>
     <string name="settings_tape_format_summary">What a tape is written as when you do not type an extension</string>
     <string name="settings_loader">Fast loading</string>
     <string name="settings_detect_loader">Detect loaders</string>
@@ -583,10 +606,13 @@
     <string name="lights_shown">Indicators shown</string>
     <string name="lights_hidden">Indicators hidden</string>
     <string name="menu_files">Files…</string>
-    <!-- The quick bar's own name for the show/hide group. Not "Controls",
-         which the sheet already uses for the page that leads to the joystick
-         and the keyboard. -->
-    <string name="menu_on_screen">On screen…</string>
+    <!-- The quick bar's own name for the group that used to be only the
+         show/hide rows. Four of its six rows are now which joystick
+         interface, key profile, keyboard skin and whether the mouse is on -
+         a controls menu, not an on-screen one, and menu_controls is exactly
+         that word already; docs/USING.md has called this group "Controls…"
+         since it changed. -->
+    <string name="menu_on_screen">Controls…</string>
     <!-- The quick states, named after the file that is open, not after the
          state: the state is "Tujad Quick" and saying quick twice reads badly.
          A title over a value, like the machine row, rather than the two joined

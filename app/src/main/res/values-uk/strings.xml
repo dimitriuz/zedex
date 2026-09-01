@@ -85,6 +85,14 @@
     <string name="gamepad_none">Немає контролера</string>
     <string name="gamepad_none_message">Під’єднайте контролер і спробуйте знову. Кнопки призначаються натисканням, бо пади не сходяться в тому, як звуться їхні власні кнопки.</string>
     <string name="gamepad_is_hotkey">Це сам модифікатор. Він утримується, поки натискають дію, тому дією бути не може.</string>
+    <string name="gamepad_machine_section">Машина</string>
+    <string name="gamepad_app_section">Застосунок</string>
+    <string name="gamepad_default_marker">%1$s (за замовчуванням)</string>
+    <string name="gamepad_reset_pad">Скинути цей контролер</string>
+    <string name="gamepad_press_control">Натисніть кнопку або напрям для %1$s</string>
+    <string name="gamepad_pad">Контролер: %1$s</string>
+    <string name="gamepad_choose_pad">Вибрати контролер</string>
+    <string name="gamepad_pad_disconnected">%1$s (не під’єднаний)</string>
 
     <string name="hotkey_pause">Пауза або продовжити</string>
     <string name="hotkey_reset">Скинути машину</string>
@@ -139,6 +147,15 @@
     <string name="profile_delete">Видалити профіль</string>
     <string name="profile_delete_ask">Видалити «%1$s»?</string>
     <string name="profile_last">Керуванню потрібен хоча б один профіль, тому останній видалити не можна.</string>
+    <string name="slot_left">Вліво</string>
+    <string name="slot_right">Вправо</string>
+    <string name="slot_up">Вгору</string>
+    <string name="slot_down">Вниз</string>
+    <string name="slot_fire">Вогонь</string>
+    <string name="slot_button_1">Кнопка 1</string>
+    <string name="slot_button_2">Кнопка 2</string>
+    <string name="slot_button_3">Кнопка 3</string>
+
     <string name="setup_demo">У комплекті є і вступна стрічка — надпис, зореве поле і трохи музики на AY. Відкрийте її коли завгодно, з «Файли…» або з\n\n%1$s</string>
 
     <string name="overlay_open">Клавіатура поверх картинки</string>
@@ -402,7 +419,7 @@
     <string name="settings_keyboard_type">Тип клавіатури</string>
     <string name="settings_sensitivity">Чутливість мишки</string>
     <string name="settings_hotkeys">Кнопки контролера…</string>
-    <string name="settings_hotkeys_summary">Що кнопки контролера роблять із застосунком, а не з машиною</string>
+    <string name="settings_hotkeys_summary">Що кнопки контролера роблять із машиною, а що ще — із застосунком</string>
     <string name="settings_tape_format_summary">У якому форматі пишеться стрічка, якщо не вказати розширення</string>
     <string name="settings_loader">Швидке завантаження</string>
     <string name="settings_detect_loader">Розпізнавати завантажувачі</string>
@@ -528,7 +545,7 @@
     <string name="lights_shown">Індикатори показано</string>
     <string name="lights_hidden">Індикатори сховано</string>
     <string name="menu_files">Файли…</string>
-    <string name="menu_on_screen">На екрані…</string>
+    <string name="menu_on_screen">Керування…</string>
     <string name="quick_save">Швидке збереження\n%1$s</string>
     <string name="quick_load">Швидке завантаження\n%1$s</string>
     <string name="menu_capture">Захоплення…</string>

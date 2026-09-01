@@ -85,6 +85,14 @@
     <string name="gamepad_none">Kein Controller</string>
     <string name="gamepad_none_message">Schließe einen Controller an und versuche es erneut. Tasten werden durch Drücken belegt, weil Pads sich nicht darauf einigen, wie ihre eigenen Tasten heißen.</string>
     <string name="gamepad_is_hotkey">Das ist die Umschalttaste selbst. Sie wird gehalten, während eine Aktion gedrückt wird, also kann sie nicht auch eine sein.</string>
+    <string name="gamepad_machine_section">Die Maschine</string>
+    <string name="gamepad_app_section">Die App</string>
+    <string name="gamepad_default_marker">%1$s (Standard)</string>
+    <string name="gamepad_reset_pad">Diesen Controller zurücksetzen</string>
+    <string name="gamepad_press_control">Drücke eine Taste oder eine Richtung für %1$s</string>
+    <string name="gamepad_pad">Controller: %1$s</string>
+    <string name="gamepad_choose_pad">Controller wählen</string>
+    <string name="gamepad_pad_disconnected">%1$s (nicht angeschlossen)</string>
 
     <string name="hotkey_pause">Anhalten oder fortsetzen</string>
     <string name="hotkey_reset">Maschine zurücksetzen</string>
@@ -139,6 +147,15 @@
     <string name="profile_delete">Profil löschen</string>
     <string name="profile_delete_ask">„%1$s“ löschen?</string>
     <string name="profile_last">Die Steuerung braucht ein Profil, deshalb lässt sich das letzte nicht löschen.</string>
+    <string name="slot_left">Links</string>
+    <string name="slot_right">Rechts</string>
+    <string name="slot_up">Oben</string>
+    <string name="slot_down">Unten</string>
+    <string name="slot_fire">Feuer</string>
+    <string name="slot_button_1">Taste 1</string>
+    <string name="slot_button_2">Taste 2</string>
+    <string name="slot_button_3">Taste 3</string>
+
     <string name="setup_demo">Eine Intro-Kassette liegt auch dabei — ein Schriftzug, ein Sternenfeld und etwas Musik auf dem AY. Öffne sie, wann du willst, aus „Dateien…“ oder aus\n\n%1$s</string>
 
     <string name="overlay_open">Tastatur über dem Bild</string>
@@ -402,7 +419,7 @@
     <string name="settings_keyboard_type">Tastaturtyp</string>
     <string name="settings_sensitivity">Mausempfindlichkeit</string>
     <string name="settings_hotkeys">Controller-Tasten…</string>
-    <string name="settings_hotkeys_summary">Was die Tasten eines Controllers mit der App tun statt mit der Maschine</string>
+    <string name="settings_hotkeys_summary">Was die Tasten eines Controllers mit der Maschine tun, und was sie sonst noch in der App tun</string>
     <string name="settings_tape_format_summary">Als was eine Kassette geschrieben wird, wenn du keine Endung eintippst</string>
     <string name="settings_loader">Schnelles Laden</string>
     <string name="settings_detect_loader">Lader erkennen</string>
@@ -528,7 +545,7 @@
     <string name="lights_shown">Kontrollleuchten werden gezeigt</string>
     <string name="lights_hidden">Kontrollleuchten verborgen</string>
     <string name="menu_files">Dateien…</string>
-    <string name="menu_on_screen">Auf dem Bildschirm…</string>
+    <string name="menu_on_screen">Steuerung…</string>
     <string name="quick_save">Schnellspeichern\n%1$s</string>
     <string name="quick_load">Schnellladen\n%1$s</string>
     <string name="menu_capture">Aufnehmen…</string>

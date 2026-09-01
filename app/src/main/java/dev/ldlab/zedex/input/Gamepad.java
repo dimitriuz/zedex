@@ -16,9 +16,13 @@ import android.view.MotionEvent;
  * that type is Keyboard. A game that wants QAOP is playable on a gamepad without
  * the gamepad knowing what a Q is.
  *
- * <b>A is fire</b>, and B, X and Y are the three key buttons beside it, in that
- * order. The stick, the hat and the D-pad all steer. <b>Start</b> is Enter, which
- * is what a game asks for whatever its own keys are.
+ * <b>By default, A is fire</b>, and B, X and Y are the three key buttons beside
+ * it, in that order, with the stick, the hat and the D-pad all steering — but
+ * every one of those is only the default now: {@link PadMap} says what a
+ * physical binding actually drives, and any of it can be recaptured onto
+ * another button or axis from {@code GamepadActivity}. <b>Start</b> is Enter,
+ * which is what a game asks for whatever its own keys are, and is the one
+ * button this class does not let {@link PadMap} answer for.
  *
  * Everything the app wants for itself is behind a <b>hotkey</b> instead — see
  * {@link Hotkeys}. A pad has no spare buttons, so rather than take four of them
@@ -47,6 +51,33 @@ public final class Gamepad {
     }
 
     private final Actions actions;
+
+    /**
+     * Where a device's mapping comes from.
+     *
+     * A lookup and not one map, because two pads can be connected at once -
+     * measured, with a Bluetooth pad and a USB pad both reporting GAMEPAD and
+     * JOYSTICK - and each has its own. Every event carries the device id that
+     * answers this, so nothing has to guess which pad is "the" pad.
+     */
+    public interface Maps {
+        /** Never null: the defaults for a pad nobody has changed. */
+        PadMap forDevice(int deviceId);
+    }
+
+    private Maps maps = deviceId -> PadMap.defaults();
+
+    /**
+     * A different pad, or the same pad remapped.
+     *
+     * Everything down is let go first, for the reason {@link #setHotkeys} ends
+     * its hold: whatever was pressed was pressed under the old arrangement, and
+     * its release would land on whatever now holds that button.
+     */
+    public void setMaps(Maps maps) {
+        releaseAll();
+        this.maps = maps;
+    }
 
     /** The hotkey and what it carries. Replaced when the settings change. */
     private Hotkeys.Bindings keys = new Hotkeys.Bindings(0);
@@ -115,7 +146,15 @@ public final class Gamepad {
         return isPad(event.getSource());
     }
 
-    private static boolean isPad(int sources) {
+    /**
+     * Public rather than package-private: {@code GamepadActivity} (the pad
+     * picker) and {@code Diagnostics} (the report) both need to tell a pad
+     * from any other input device, and are in other packages - see CLAUDE.md,
+     * "A member another layer needs has to be public". Kept here rather than
+     * copied a third time, which is how the same mask ended up duplicated in
+     * {@code GamepadActivity.connectedPad()} before this.
+     */
+    public static boolean isPad(int sources) {
         return (sources & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD
             || (sources & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK;
     }
@@ -135,40 +174,28 @@ public final class Gamepad {
 
         if (hotkey(event.getKeyCode(), pressed)) return true;
 
-        switch (event.getKeyCode()) {
-            case KeyEvent.KEYCODE_DPAD_LEFT:  return way(0, pressed);
-            case KeyEvent.KEYCODE_DPAD_RIGHT: return way(1, pressed);
-            case KeyEvent.KEYCODE_DPAD_UP:    return way(2, pressed);
-            case KeyEvent.KEYCODE_DPAD_DOWN:  return way(3, pressed);
+        PadMap map = maps.forDevice(event.getDeviceId());
+        int slot = map.slotFor(event.getKeyCode());
 
-            case KeyEvent.KEYCODE_BUTTON_A:
-            case KeyEvent.KEYCODE_DPAD_CENTER:
-                send(FuseNative.JOYSTICK_FIRE, pressed);
-                return true;
-
-            case KeyEvent.KEYCODE_BUTTON_B:
-                send(ControlProfiles.BUTTON_1, pressed);
-                return true;
-
-            case KeyEvent.KEYCODE_BUTTON_X:
-                send(ControlProfiles.BUTTON_2, pressed);
-                return true;
-
-            case KeyEvent.KEYCODE_BUTTON_Y:
-                send(ControlProfiles.BUTTON_3, pressed);
-                return true;
-
+        if (slot == PadMap.NONE) {
             // Enter as itself, not as whatever Button 1 happens to hold: a game
-            // that says PRESS ENTER wants Enter. On its own, that is - with the
-            // hotkey down it is whatever the hotkey list says, which by default
-            // is the way out of the app.
-            case KeyEvent.KEYCODE_BUTTON_START:
-                FuseNative.key(KeyEvent.KEYCODE_ENTER, pressed);
-                return true;
+            // that says PRESS ENTER wants Enter. Past the map on purpose - it
+            // is not one of the eight controls, so there is no slot for it to
+            // be, and nothing else a pad sends means anything here.
+            if (event.getKeyCode() != KeyEvent.KEYCODE_BUTTON_START) return false;
 
-            default:
-                return false;
+            FuseNative.key(KeyEvent.KEYCODE_ENTER, pressed);
+            return true;
         }
+
+        // The four directions go through way() rather than send(): many pads
+        // report the hat as both an axis and a D-pad key, and the two paths are
+        // tracked apart and combined so that a release down one cannot cancel a
+        // press that came down the other.
+        if (slot <= FuseNative.JOYSTICK_DOWN) return way(slot, pressed);
+
+        send(slot, pressed);
+        return true;
     }
 
     /**
@@ -255,10 +282,51 @@ public final class Gamepad {
                         Math.abs(y) >= DEAD_ZONE ? y : 0);
         }
 
-        fromAxes[0] = x <= -DEAD_ZONE;
-        fromAxes[1] = x >= DEAD_ZONE;
-        fromAxes[2] = y <= -DEAD_ZONE;
-        fromAxes[3] = y >= DEAD_ZONE;
+        // Every axis the device actually has, rather than the two pairs this
+        // used to read: a pad whose directions arrive on some other axis can be
+        // bound to it, and one that has no such axis simply reports none.
+        //
+        // How far each direction is pushed, and not merely whether it is, so
+        // that opposites can be resolved below. axis() used to do that for the
+        // stick against the hat by taking whichever was furthest, and dropping
+        // it would be a regression rather than a simplification: an analogue
+        // stick worn enough to rest past the dead zone would fight the hat
+        // somebody is actually using, and the machine would see left and right
+        // held at once.
+        float[] strength = new float[4];
+
+        PadMap map = maps.forDevice(event.getDeviceId());
+        InputDevice device = event.getDevice();
+
+        if (device != null) {
+            for (InputDevice.MotionRange range : device.getMotionRanges()) {
+                int axisId = range.getAxis();
+                float value = event.getAxisValue(axisId);
+                float size = Math.abs(value);
+
+                if (size < DEAD_ZONE) continue;
+
+                int slot = map.slotFor(axisId, value < 0 ? -1 : +1);
+
+                if (slot != PadMap.NONE && slot <= FuseNative.JOYSTICK_DOWN
+                        && size > strength[slot]) {
+                    strength[slot] = size;
+                }
+            }
+        }
+
+        // Left against right, then up against down: the further push wins and
+        // the other is dropped. Two equal opposite pushes cancel, where the old
+        // code happened to give it to the stick - an artefact of the order its
+        // two arguments were in rather than a decision, and cancelling is the
+        // more defensible reading of a pad being pushed both ways at once.
+        for (int i = 0; i < strength.length; i += 2) {
+            if (strength[i] > strength[i + 1]) strength[i + 1] = 0f;
+            else if (strength[i + 1] > strength[i]) strength[i] = 0f;
+            else strength[i] = strength[i + 1] = 0f;
+        }
+
+        for (int i = 0; i < fromAxes.length; i++) fromAxes[i] = strength[i] > 0f;
 
         // The triggers, where they are axes rather than buttons, as the same
         // buttons they would have been. Whichever way round a pad reports them,

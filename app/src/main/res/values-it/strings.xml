@@ -85,6 +85,14 @@
     <string name="gamepad_none">Nessun controller</string>
     <string name="gamepad_none_message">Collega un controller e riprova. I tasti si assegnano premendoli, perché i pad non concordano su come si chiamino i loro stessi tasti.</string>
     <string name="gamepad_is_hotkey">Quello è il modificatore. Resta premuto mentre si preme un\'azione, quindi non può essere anche un\'azione.</string>
+    <string name="gamepad_machine_section">La macchina</string>
+    <string name="gamepad_app_section">L\'app</string>
+    <string name="gamepad_default_marker">%1$s (predefinito)</string>
+    <string name="gamepad_reset_pad">Resetta questo controller</string>
+    <string name="gamepad_press_control">Premi un tasto o una direzione per %1$s</string>
+    <string name="gamepad_pad">Controller: %1$s</string>
+    <string name="gamepad_choose_pad">Scegli un controller</string>
+    <string name="gamepad_pad_disconnected">%1$s (non collegato)</string>
 
     <string name="hotkey_pause">Metti in pausa o riprendi</string>
     <string name="hotkey_reset">Resetta la macchina</string>
@@ -139,6 +147,15 @@
     <string name="profile_delete">Elimina il profilo</string>
     <string name="profile_delete_ask">Eliminare «%1$s»?</string>
     <string name="profile_last">I comandi hanno bisogno di un profilo, quindi l\'ultimo non si può eliminare.</string>
+    <string name="slot_left">Sinistra</string>
+    <string name="slot_right">Destra</string>
+    <string name="slot_up">Su</string>
+    <string name="slot_down">Giù</string>
+    <string name="slot_fire">Fuoco</string>
+    <string name="slot_button_1">Tasto 1</string>
+    <string name="slot_button_2">Tasto 2</string>
+    <string name="slot_button_3">Tasto 3</string>
+
     <string name="setup_demo">Nella scatola c\'è anche un nastro introduttivo: un logo, un campo di stelle e un po\' di musica sull\'AY. Aprilo quando vuoi, da «File…» o da\n\n%1$s</string>
 
     <string name="overlay_open">Tastiera sopra l\'immagine</string>
@@ -402,7 +419,7 @@
     <string name="settings_keyboard_type">Tipo di tastiera</string>
     <string name="settings_sensitivity">Sensibilità del mouse</string>
     <string name="settings_hotkeys">Tasti del controller…</string>
-    <string name="settings_hotkeys_summary">Cosa fanno i tasti di un controller all\'app anziché alla macchina</string>
+    <string name="settings_hotkeys_summary">Cosa fanno i tasti di un controller alla macchina, e cos\'altro fanno all\'app</string>
     <string name="settings_tape_format_summary">Come viene scritto un nastro quando non digiti un\'estensione</string>
     <string name="settings_loader">Caricamento veloce</string>
     <string name="settings_detect_loader">Riconosci i caricatori</string>
@@ -528,7 +545,7 @@
     <string name="lights_shown">Indicatori mostrati</string>
     <string name="lights_hidden">Indicatori nascosti</string>
     <string name="menu_files">File…</string>
-    <string name="menu_on_screen">Sullo schermo…</string>
+    <string name="menu_on_screen">Comandi…</string>
     <string name="quick_save">Salvataggio rapido\n%1$s</string>
     <string name="quick_load">Caricamento rapido\n%1$s</string>
     <string name="menu_capture">Cattura…</string>

@@ -10,6 +10,7 @@ import dev.ldlab.zedex.input.ControlProfiles;
 import dev.ldlab.zedex.input.Gamepad;
 import dev.ldlab.zedex.input.Hotkeys;
 import dev.ldlab.zedex.input.Mouse;
+import dev.ldlab.zedex.input.PadMapCache;
 import dev.ldlab.zedex.library.catalogue.Catalogues;
 import dev.ldlab.zedex.library.meta.Metadata;
 import dev.ldlab.zedex.machine.Video;
@@ -175,6 +176,14 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
 
     /** A physical controller, when there is one; harmless when there is not. */
     private final Gamepad gamepad = new Gamepad(this::runHotkey);
+
+    /**
+     * Which mapping each connected pad's events resolve against; see
+     * {@link PadMapCache}. Built in {@link #onCreate}, not as a field
+     * initialiser - those run before {@code preferences} is assigned.
+     */
+    private PadMapCache padMaps;
+
     private boolean started;
 
     /** Holds the screen and the keyboard, and decides how they share the window. */
@@ -392,6 +401,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                 // on-screen pad steps aside for the handheld's real one.
                 revealQuickBar();
                 applyFullscreen();
+                padMaps.forget();
                 controls.applyGamepad();
 
                 // A panel that has gone takes the details side with it, and
@@ -568,6 +578,12 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
                 preferences.getBoolean(Prefs.KEY_KEYBOARD, true));
         layout.setLightsVisible(
                 preferences.getBoolean(Prefs.KEY_INDICATORS, true));
+
+        // In onCreate rather than as a field initialiser, for the same reason
+        // as Media and the cheats: this needs preferences, which a field
+        // initialiser would find null. See CLAUDE.md.
+        padMaps = new PadMapCache(preferences, PadMapCache.ANDROID);
+        gamepad.setMaps(padMaps);
 
         // Here rather than beside Media and the cheats: it is handed the layout,
         // so it cannot exist until there is one.
@@ -1009,6 +1025,7 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
         // Connecting or disconnecting one while the app was away.
         InputManager input = getSystemService(InputManager.class);
         if (input != null) input.registerInputDeviceListener(devices, null);
+        padMaps.forget();
         controls.applyGamepad();
 
         // The same for a second panel, and for the setting that wants one.
@@ -2182,23 +2199,30 @@ public class EmulatorActivity extends Activity implements SurfaceHolder.Callback
      * the only answer, and this is how to know it has changed. Every one of the
      * three does the same thing - look again - since the question is only ever
      * whether there is one now.
+     *
+     * {@code padMaps.forget()} runs here too: a device id is reused, so a stale
+     * cache entry from a pad that just left would be handed to whatever pad
+     * turns up next with the same id.
      */
     private final InputManager.InputDeviceListener devices =
             new InputManager.InputDeviceListener() {
 
         @Override
         public void onInputDeviceAdded(int deviceId) {
+            padMaps.forget();
             controls.applyGamepad();
         }
 
         @Override
         public void onInputDeviceRemoved(int deviceId) {
             gamepad.releaseAll();
+            padMaps.forget();
             controls.applyGamepad();
         }
 
         @Override
         public void onInputDeviceChanged(int deviceId) {
+            padMaps.forget();
             controls.applyGamepad();
         }
     };

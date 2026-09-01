@@ -85,6 +85,14 @@
     <string name="gamepad_none">Brak kontrolera</string>
     <string name="gamepad_none_message">Podłącz kontroler i spróbuj ponownie. Przyciski przypisuje się przez wciśnięcie, bo pady nie zgadzają się co do tego, jak nazywają się ich własne przyciski.</string>
     <string name="gamepad_is_hotkey">To sam modyfikator. Jest przytrzymywany, gdy wciska się czynność, więc nie może być też czynnością.</string>
+    <string name="gamepad_machine_section">Maszyna</string>
+    <string name="gamepad_app_section">Aplikacja</string>
+    <string name="gamepad_default_marker">%1$s (domyślne)</string>
+    <string name="gamepad_reset_pad">Zresetuj ten kontroler</string>
+    <string name="gamepad_press_control">Wciśnij przycisk lub kierunek dla %1$s</string>
+    <string name="gamepad_pad">Kontroler: %1$s</string>
+    <string name="gamepad_choose_pad">Wybierz kontroler</string>
+    <string name="gamepad_pad_disconnected">%1$s (niepodłączony)</string>
 
     <string name="hotkey_pause">Wstrzymaj lub wznów</string>
     <string name="hotkey_reset">Zresetuj maszynę</string>
@@ -139,6 +147,15 @@
     <string name="profile_delete">Usuń profil</string>
     <string name="profile_delete_ask">Usunąć „%1$s”?</string>
     <string name="profile_last">Sterowanie potrzebuje jednego profilu, więc ostatniego nie da się usunąć.</string>
+    <string name="slot_left">Lewo</string>
+    <string name="slot_right">Prawo</string>
+    <string name="slot_up">Góra</string>
+    <string name="slot_down">Dół</string>
+    <string name="slot_fire">Ogień</string>
+    <string name="slot_button_1">Przycisk 1</string>
+    <string name="slot_button_2">Przycisk 2</string>
+    <string name="slot_button_3">Przycisk 3</string>
+
     <string name="setup_demo">W pudełku jest też taśma wprowadzająca — logo, pole gwiazd i trochę muzyki na AY. Otwórz ją, kiedy chcesz, z „Pliki…” albo z\n\n%1$s</string>
 
     <string name="overlay_open">Klawiatura na obrazie</string>
@@ -402,7 +419,7 @@
     <string name="settings_keyboard_type">Typ klawiatury</string>
     <string name="settings_sensitivity">Czułość myszy</string>
     <string name="settings_hotkeys">Przyciski kontrolera…</string>
-    <string name="settings_hotkeys_summary">Co przyciski kontrolera robią aplikacji, a nie maszynie</string>
+    <string name="settings_hotkeys_summary">Co przyciski kontrolera robią maszynie, a co jeszcze aplikacji</string>
     <string name="settings_tape_format_summary">Jako co zapisuje się taśmę, kiedy nie wpiszesz rozszerzenia</string>
     <string name="settings_loader">Szybkie wczytywanie</string>
     <string name="settings_detect_loader">Rozpoznawaj loadery</string>
@@ -528,7 +545,7 @@
     <string name="lights_shown">Wskaźniki pokazane</string>
     <string name="lights_hidden">Wskaźniki ukryte</string>
     <string name="menu_files">Pliki…</string>
-    <string name="menu_on_screen">Na ekranie…</string>
+    <string name="menu_on_screen">Sterowanie…</string>
     <string name="quick_save">Szybki zapis\n%1$s</string>
     <string name="quick_load">Szybkie wczytanie\n%1$s</string>
     <string name="menu_capture">Przechwytywanie…</string>

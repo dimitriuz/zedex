@@ -85,6 +85,14 @@
     <string name="gamepad_none">Žádný ovladač</string>
     <string name="gamepad_none_message">Připoj ovladač a zkus to znovu. Tlačítka se přiřazují stisknutím, protože pady se neshodnou na tom, jak se jejich vlastní tlačítka jmenují.</string>
     <string name="gamepad_is_hotkey">To je sám modifikátor. Drží se, když se tiskne akce, takže akcí být nemůže.</string>
+    <string name="gamepad_machine_section">Počítač</string>
+    <string name="gamepad_app_section">Aplikace</string>
+    <string name="gamepad_default_marker">%1$s (výchozí)</string>
+    <string name="gamepad_reset_pad">Resetovat tento ovladač</string>
+    <string name="gamepad_press_control">Stiskni tlačítko nebo směr pro %1$s</string>
+    <string name="gamepad_pad">Ovladač: %1$s</string>
+    <string name="gamepad_choose_pad">Vybrat ovladač</string>
+    <string name="gamepad_pad_disconnected">%1$s (nepřipojený)</string>
 
     <string name="hotkey_pause">Pozastavit nebo pokračovat</string>
     <string name="hotkey_reset">Resetovat počítač</string>
@@ -139,6 +147,15 @@
     <string name="profile_delete">Smazat profil</string>
     <string name="profile_delete_ask">Smazat „%1$s“?</string>
     <string name="profile_last">Ovládání potřebuje jeden profil, takže posledni smazat nelze.</string>
+    <string name="slot_left">Doleva</string>
+    <string name="slot_right">Doprava</string>
+    <string name="slot_up">Nahoru</string>
+    <string name="slot_down">Dolů</string>
+    <string name="slot_fire">Oheň</string>
+    <string name="slot_button_1">Tlačítko 1</string>
+    <string name="slot_button_2">Tlačítko 2</string>
+    <string name="slot_button_3">Tlačítko 3</string>
+
     <string name="setup_demo">V balení je i úvodní kazeta — logo, hvězdné pole a trochu hudby na AY. Otevři si ji, kdy chceš, ze „Soubory…“ nebo z\n\n%1$s</string>
 
     <string name="overlay_open">Klávesnice přes obraz</string>
@@ -402,7 +419,7 @@
     <string name="settings_keyboard_type">Typ klávesnice</string>
     <string name="settings_sensitivity">Citlivost myši</string>
     <string name="settings_hotkeys">Tlačítka ovladače…</string>
-    <string name="settings_hotkeys_summary">Co tlačítka ovladače dělají s aplikací místo s počítačem</string>
+    <string name="settings_hotkeys_summary">Co tlačítka ovladače dělají s počítačem, a co ještě s aplikací</string>
     <string name="settings_tape_format_summary">Jako co se kazeta zapíše, když nenapíšeš příponu</string>
     <string name="settings_loader">Rychlé nahrávání</string>
     <string name="settings_detect_loader">Rozpoznávat nahrávače</string>
@@ -528,7 +545,7 @@
     <string name="lights_shown">Kontrolky zobrazeny</string>
     <string name="lights_hidden">Kontrolky skryty</string>
     <string name="menu_files">Soubory…</string>
-    <string name="menu_on_screen">Na obrazovce…</string>
+    <string name="menu_on_screen">Ovládání…</string>
     <string name="quick_save">Rychlé uložení\n%1$s</string>
     <string name="quick_load">Rychlé nahrání\n%1$s</string>
     <string name="menu_capture">Záznam…</string>

@@ -4,8 +4,11 @@ import dev.ldlab.zedex.storage.Prefs;
 import dev.ldlab.zedex.view.Palette;
 import dev.ldlab.zedex.R;
 import dev.ldlab.zedex.view.SafeArea;
+import dev.ldlab.zedex.input.ControlProfiles;
 import dev.ldlab.zedex.input.Gamepad;
 import dev.ldlab.zedex.input.Hotkeys;
+import dev.ldlab.zedex.input.PadMap;
+import dev.ldlab.zedex.input.PadMaps;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
@@ -13,13 +16,23 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.Gravity;
+import android.view.InputDevice;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Binds a controller's buttons to the app's own actions.
@@ -48,12 +61,74 @@ public final class GamepadActivity extends ZedexActivity {
     private Button modifierRow;
 
     /**
+     * The row naming the pad being edited - null when there is nothing worth
+     * saying about it; see {@link #build()}.
+     *
+     * Shown whenever {@link #padOptions()} offers more than one pad (in which
+     * case it is also the picker), and whenever the pad being edited is not
+     * simply the one connected pad - a stored mapping reached because nothing
+     * is plugged in, which without a name would look like the screen had
+     * quietly opened on somebody else's pad rather than said whose it is.
+     * Whether it exists is decided once, at build time, the same moment
+     * {@link #onCreate} decides which pad this screen starts on. A pad
+     * plugged in after that is not added to the picker until the screen is
+     * reopened, even though a capture from it still works right away through
+     * {@link #adoptDevice}: consistent with how the rest of this screen
+     * already reads the world once, rather than live.
+     */
+    private Button padRow;
+
+    /** "Reset this pad" - disabled when {@link #deviceKey} is null, where it
+     *  would otherwise be a tap that resets nothing. */
+    private Button resetPadRow;
+
+    /** One row per control slot, in slot order, so a capture can redraw them
+     *  all - a capture always risks taking a binding off a second row. */
+    private final Button[] controlRows = new Button[ControlProfiles.SLOTS];
+
+    /**
+     * The pad being edited: the one connected when this screen opened, or -
+     * with none connected - a pad this screen already has a stored mapping
+     * for, so that mapping stays reachable without its pad to hand. Null
+     * only when neither exists, in which case every row shows the built-in
+     * defaults and nothing can be captured or reset.
+     */
+    private String deviceKey;
+    private String deviceName;
+
+    /** This pad's mapping. Defaults when {@link #deviceKey} is null. */
+    private PadMap map = PadMap.defaults();
+
+    /**
      * What the next button press binds to, or null while nothing is waiting.
-     * The hotkey itself is {@code capturingModifier}.
+     * The hotkey itself is {@code capturingModifier}; a control slot is
+     * {@code capturingSlot}.
      */
     private Hotkeys.Action capturing;
     private boolean capturingModifier;
+    private int capturingSlot = -1;
     private AlertDialog capture;
+
+    /** Past this a push is a capture. Well above Gamepad's own 0.4, because a
+     *  binding is meant, and a play threshold would take a lean. */
+    private static final float CAPTURE = 0.7f;
+
+    /** And under this before the next one will arm - a worn stick rests off
+     *  centre, and without this it binds itself the moment a row is tapped. */
+    private static final float RELEASED = 0.2f;
+
+    /**
+     * Axes seen at rest since this row started waiting, and the only ones that
+     * may bind.
+     *
+     * Per axis and not one flag for the device: a stick worn enough to rest
+     * past RELEASED, or a trigger with a nonzero idle baseline, would otherwise
+     * disarm the whole screen for good - every row, not just the open one, and
+     * silently, since the button path keeps working. An axis that never comes
+     * to rest simply never becomes bindable, which is the honest answer for an
+     * axis that is never at rest.
+     */
+    private final Set<Integer> armedAxes = new HashSet<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,6 +137,28 @@ public final class GamepadActivity extends ZedexActivity {
         // The manifest label is resolved in the phone's language rather than
         // this screen's, so the title is set here; see Language.
         setTitle(R.string.gamepad_activity);
+
+        InputDevice pad = connectedPad();
+        if (pad != null) {
+            deviceKey = PadMaps.keyFor(pad);
+            deviceName = pad.getName();
+        } else {
+            // Nothing connected: fall back to a pad this screen already knows
+            // about, so its mapping stays reachable - "Reset this pad" has to
+            // land on that stored entry rather than on nothing. Which one is
+            // arbitrary when there is more than one, but then padOptions()
+            // has more than one entry and the picker built in build() is how
+            // the rest are reached; with exactly one this is the pad, which
+            // is the case that used to be unreachable at all.
+            Iterator<Map.Entry<String, String>> known =
+                    PadMaps.known(preferences).entrySet().iterator();
+            if (known.hasNext()) {
+                Map.Entry<String, String> first = known.next();
+                deviceKey = first.getKey();
+                deviceName = first.getValue();
+            }
+        }
+        map = PadMaps.load(preferences, deviceKey);
 
         setContentView(build());
 
@@ -75,6 +172,36 @@ public final class GamepadActivity extends ZedexActivity {
         column.setOrientation(LinearLayout.VERTICAL);
         column.setPadding(pixels(12), pixels(12), pixels(12), pixels(24));
 
+        // The machine's eight controls go first: it is what most people come
+        // to this screen for, above the app's own hotkeys.
+        column.addView(note(getString(R.string.gamepad_machine_section), Palette.MUTED, 13));
+
+        // A picker when there is something to choose between - a chooser with
+        // one entry is a row that teaches you not to press it - and, even
+        // with only one, a plain label whenever that one pad is not simply
+        // "the pad that is connected": a stored mapping reached with its pad
+        // unplugged still deserves to say whose mapping is on screen.
+        boolean editingADisconnectedPad = deviceKey != null && connectedPad() == null;
+        if (padOptions().size() > 1 || editingADisconnectedPad) {
+            padRow = row("");
+            padRow.setOnClickListener(view -> choosePad());
+            column.addView(padRow, rowParams());
+        }
+
+        for (int slot = 0; slot < ControlProfiles.SLOTS; slot++) {
+            int fixedSlot = slot;
+            Button button = row(ControlProfiles.slotName(this, slot));
+            button.setOnClickListener(view -> captureSlot(fixedSlot));
+
+            controlRows[slot] = button;
+            column.addView(button, rowParams());
+        }
+
+        resetPadRow = row(getString(R.string.gamepad_reset_pad));
+        resetPadRow.setOnClickListener(view -> resetPad());
+        column.addView(resetPadRow, rowParams());
+
+        column.addView(note(getString(R.string.gamepad_app_section), Palette.MUTED, 13));
         column.addView(note(getString(R.string.gamepad_explain), Palette.MUTED, 13));
 
         modifierRow = row(getString(R.string.gamepad_hotkey));
@@ -103,8 +230,46 @@ public final class GamepadActivity extends ZedexActivity {
         return page;
     }
 
-    /** Every row's button, and the hotkey's. */
+    /**
+     * Every row's button: the eight controls, the hotkey, and every action.
+     *
+     * All of them, every time - a capture on one control row can take its
+     * binding off a second one (see {@link PadMap#with}), and a redraw that
+     * skipped the row it did not capture would hide that having happened.
+     */
     private void showBindings() {
+        if (padRow != null) {
+            String name = deviceName == null ? getString(R.string.gamepad_none) : deviceName;
+            padRow.setText(getString(R.string.gamepad_pad, name));
+        }
+
+        // Nothing to reset without a pad to reset it for - a capture from a
+        // pad this screen did not start on (see adoptDevice()) can set
+        // deviceKey after the fact, so this has to be re-read every redraw
+        // rather than decided once at build time the way padRow's presence is.
+        resetPadRow.setEnabled(deviceKey != null);
+        resetPadRow.setTextColor(deviceKey == null ? Palette.MUTED : Palette.TEXT);
+
+        for (int slot = 0; slot < ControlProfiles.SLOTS; slot++) {
+            PadMap.Binding binding = map.bindingFor(slot);
+            Button button = controlRows[slot];
+
+            String value;
+            if (binding == null) {
+                value = getString(R.string.gamepad_unbound);
+            } else {
+                String name = binding.isAxis
+                        ? MotionEvent.axisToString(binding.code) + (binding.sign < 0 ? " -" : " +")
+                        : KeyEvent.keyCodeToString(binding.code);
+                value = map.isDefault(slot)
+                        ? getString(R.string.gamepad_default_marker, name)
+                        : name;
+            }
+
+            button.setText(ControlProfiles.slotName(this, slot) + "\n" + value);
+            button.setTextColor(binding == null ? Palette.MUTED : Palette.TEXT);
+        }
+
         int modifier = Hotkeys.modifier(preferences);
 
         modifierRow.setText(getString(R.string.gamepad_hotkey) + "\n"
@@ -129,19 +294,139 @@ public final class GamepadActivity extends ZedexActivity {
     private void capture(Hotkeys.Action action) {
         capturing = action;
         capturingModifier = false;
+        capturingSlot = -1;
         ask(getString(R.string.gamepad_press, getString(action.title)));
     }
 
     private void captureModifier() {
         capturing = null;
         capturingModifier = true;
+        capturingSlot = -1;
         ask(getString(R.string.gamepad_press_hotkey));
+    }
+
+    private void captureSlot(int slot) {
+        capturing = null;
+        capturingModifier = false;
+        capturingSlot = slot;
+        armedAxes.clear();
+        ask(getString(R.string.gamepad_press_control, ControlProfiles.slotName(this, slot)));
+    }
+
+    /**
+     * Saves a capture against {@link #capturingSlot} and redraws every row.
+     *
+     * Pulled out to its own method, rather than left inline where it is
+     * called, so a later capture path - an axis push as well as a button
+     * press - can share it without repeating the save-and-redraw.
+     */
+    private void bind(PadMap.Binding binding) {
+        map = map.with(capturingSlot, binding);
+        PadMaps.save(preferences, deviceKey, deviceName, map);
+        showBindings();
+    }
+
+    /** Every capture on this pad, undone in one row. */
+    private void resetPad() {
+        PadMaps.forget(preferences, deviceKey);
+        map = PadMaps.load(preferences, deviceKey);
+        showBindings();
+    }
+
+    /** Every gamepad or joystick connected right now, in whatever order
+     *  Android hands out device ids. */
+    private static List<InputDevice> connectedPads() {
+        List<InputDevice> pads = new ArrayList<>();
+
+        for (int id : InputDevice.getDeviceIds()) {
+            InputDevice device = InputDevice.getDevice(id);
+            if (device != null && Gamepad.isPad(device.getSources())) pads.add(device);
+        }
+
+        return pads;
+    }
+
+    /**
+     * The pad this screen starts editing: the first one connected, or null
+     * when none is. Just the head of {@link #connectedPads()} - the picker
+     * is what offers the rest.
+     */
+    private static InputDevice connectedPad() {
+        List<InputDevice> pads = connectedPads();
+        return pads.isEmpty() ? null : pads.get(0);
+    }
+
+    /**
+     * Every pad the picker can offer: connected ones first, then every pad
+     * with a stored mapping - so a mapping can be corrected with the pad
+     * unplugged. Device key to name; the key never reaches the screen or a
+     * report, only this lookup.
+     */
+    private LinkedHashMap<String, String> padOptions() {
+        LinkedHashMap<String, String> options = new LinkedHashMap<>();
+
+        for (InputDevice device : connectedPads()) {
+            options.put(PadMaps.keyFor(device), device.getName());
+        }
+        for (Map.Entry<String, String> known : PadMaps.known(preferences).entrySet()) {
+            options.putIfAbsent(known.getKey(), known.getValue());
+        }
+
+        return options;
+    }
+
+    /**
+     * Lists every pad {@link #padOptions()} offers and switches to whichever
+     * is chosen, through the same {@link #switchTo} a capture from a
+     * different pad already goes through - one way to change which pad this
+     * screen edits, not two.
+     */
+    private void choosePad() {
+        LinkedHashMap<String, String> options = padOptions();
+        if (options.size() <= 1) return;
+
+        List<String> keys = new ArrayList<>(options.keySet());
+        Set<String> connectedKeys = new HashSet<>();
+        for (InputDevice device : connectedPads()) connectedKeys.add(PadMaps.keyFor(device));
+
+        String[] labels = new String[keys.size()];
+        for (int i = 0; i < keys.size(); i++) {
+            String key = keys.get(i);
+            String name = options.get(key);
+            labels[i] = connectedKeys.contains(key)
+                    ? name
+                    : getString(R.string.gamepad_pad_disconnected, name);
+        }
+
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(R.string.gamepad_choose_pad)
+                .setItems(labels, (dialog, which) -> {
+                    String key = keys.get(which);
+                    switchTo(key, options.get(key));
+                    showBindings();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
     }
 
     /**
      * Waits for a button. The dialog is what makes the wait obvious, and its
      * buttons are the two ways out that a press is not: clearing the binding,
      * and changing one's mind.
+     *
+     * <b>Why the dialog, and not the activity, is wired to take the press.</b>
+     * A showing {@link AlertDialog} owns the focused window, and Android
+     * delivers key and motion events to the focused window's own callback -
+     * never to the activity underneath it. So {@code GamepadActivity}'s
+     * {@link #dispatchKeyEvent} and {@link #onGenericMotionEvent} were never
+     * being asked while this dialog was up, which is the only moment either
+     * exists for: B fell through to {@code Dialog.onKeyUp}'s own default,
+     * which cancels on back, and A fell through to whichever view the dialog
+     * had focused (Cancel, here), which consumes a press meant as a confirm.
+     * Both listeners below call the very same {@link #handleCapturedKey} and
+     * {@link #handleCapturedMotion} the activity's own overrides call - one
+     * rule, asked from wherever the event actually lands, rather than a
+     * second copy of it living on the dialog.
      */
     private void ask(String message) {
         AlertDialog.Builder builder = new AlertDialog.Builder(
@@ -153,7 +438,11 @@ public final class GamepadActivity extends ZedexActivity {
                 .setNegativeButton(android.R.string.cancel, (dialog, which) -> stop())
                 .setOnDismissListener(dialog -> stop());
 
-        if (Gamepad.connected()) {
+        // No Clear for a control slot: unlike a hotkey, a slot is never
+        // simply unbound - it is captured or it is on its defaults, and
+        // "Reset this pad" is the row that answers "take it off what it is
+        // on now" for every slot at once rather than one at a time.
+        if (Gamepad.connected() && (capturing != null || capturingModifier)) {
             builder.setPositiveButton(R.string.gamepad_clear, (dialog, which) -> {
                 if (capturingModifier) Hotkeys.setModifier(preferences, 0);
                 else if (capturing != null) Hotkeys.bind(preferences, capturing, 0);
@@ -164,11 +453,27 @@ public final class GamepadActivity extends ZedexActivity {
         }
 
         capture = builder.show();
+
+        // Fires before the view hierarchy sees the key at all - which is
+        // what lets this take A and B off the buttons the dialog would
+        // otherwise have handed them to. Consuming only what a capture
+        // actually wants (see handleCapturedKey) leaves Cancel and a
+        // keyboard's own Back untouched: neither is a gamepad-sourced
+        // ACTION_DOWN while something is waiting, so both fall straight
+        // through to the dialog's ordinary handling.
+        capture.setOnKeyListener((dialog, keyCode, event) -> handleCapturedKey(event));
+
+        // Generic motion (a stick or a hat) has no OnKeyListener equivalent
+        // on Dialog - only the window's own decor view sees it, for the same
+        // reason: the dialog is what has focus, not the activity beneath it.
+        capture.getWindow().getDecorView()
+                .setOnGenericMotionListener((view, event) -> handleCapturedMotion(event));
     }
 
     private void stop() {
         capturing = null;
         capturingModifier = false;
+        capturingSlot = -1;
 
         if (capture != null) {
             AlertDialog dialog = capture;
@@ -178,25 +483,76 @@ public final class GamepadActivity extends ZedexActivity {
     }
 
     /**
-     * Takes the press while a capture is waiting.
+     * Makes {@code device} the pad this screen edits, reloading its mapping
+     * first if it is not already.
      *
-     * Through {@code dispatchKeyEvent} rather than {@code onKeyDown}, because a
-     * dialog is up and would otherwise have the event first - Start and B are
-     * both ways of dismissing one, and both are buttons somebody will want to
-     * bind.
+     * The event names its own device, so the pad being edited is fixed from
+     * whatever actually sent the press or push - which also covers a pad
+     * connected only after this screen opened, when nothing was found for it
+     * in onCreate. When it is from a *different* pad than the one this
+     * screen loaded (two pads can be connected at once - both key presses and
+     * axis pushes can arrive from either), the map has to be reloaded for it
+     * too - otherwise the capture would merge into the wrong pad's map and
+     * save that under the new pad's key, silently replacing whatever it
+     * actually had stored. The picker (see {@link #choosePad()}) is the
+     * explicit way to say which pad is meant; a press or push says it just
+     * as well when nobody has reached for the picker at all.
+     *
+     * Shared by both capture paths so this rule is fixed in one place - two
+     * copies of it is how it gets got wrong again. Goes through
+     * {@link #switchTo}, the same method the picker uses - a capture and a
+     * tap in the picker are two ways of saying the same thing, and there is
+     * one place that says what happens once it is said.
      */
-    @Override
-    public boolean dispatchKeyEvent(KeyEvent event) {
-        if ((capturing == null && !capturingModifier)
+    private void adoptDevice(InputDevice device) {
+        if (device == null) return;
+        switchTo(PadMaps.keyFor(device), device.getName());
+    }
+
+    /**
+     * Makes the pad named by {@code key}/{@code name} the one this screen
+     * edits, reloading its mapping. By key and name rather than by a live
+     * {@link InputDevice}: the picker can name a pad that is not plugged in
+     * right now, which has no InputDevice to ask.
+     */
+    private void switchTo(String key, String name) {
+        if (key.equals(deviceKey)) return;
+
+        deviceKey = key;
+        deviceName = name;
+        map = PadMaps.load(preferences, deviceKey);
+    }
+
+    /**
+     * Takes the press while a capture is waiting, wherever it actually
+     * arrives from - the activity's own {@link #dispatchKeyEvent} when
+     * nothing is covering it, or the capture dialog's
+     * {@code OnKeyListener} while it is up (see {@link #ask}), which is the
+     * only time this class has anything to do at all: a dialog's own window
+     * is what has focus then, and the activity underneath it is never asked.
+     *
+     * Returns whether the event was one this took - false for anything that
+     * is not a gamepad-sourced button going down while something is waiting,
+     * which is exactly what has to fall through to whatever else the caller
+     * would otherwise have done with it (a dialog's own Cancel, or a
+     * keyboard's own Back).
+     */
+    private boolean handleCapturedKey(KeyEvent event) {
+        if ((capturing == null && !capturingModifier && capturingSlot < 0)
                 || event.getAction() != KeyEvent.ACTION_DOWN
                 || !Gamepad.isFrom(event)) {
-            return super.dispatchKeyEvent(event);
+            return false;
         }
 
         int keycode = event.getKeyCode();
 
         if (capturingModifier) {
             Hotkeys.setModifier(preferences, keycode);
+        } else if (capturingSlot >= 0) {
+            adoptDevice(event.getDevice());
+            bind(PadMap.Binding.button(keycode));
+            stop();
+            return true;
         } else if (keycode == Hotkeys.modifier(preferences)) {
             // The hotkey cannot also be an action: it is held down while the
             // action is pressed, so it would fire itself on the way.
@@ -210,6 +566,70 @@ public final class GamepadActivity extends ZedexActivity {
         stop();
         showBindings();
         return true;
+    }
+
+    /**
+     * Through {@code dispatchKeyEvent} rather than {@code onKeyDown} for the
+     * case nothing is covering this activity: Start and B are both ways of
+     * dismissing whatever is in front, and both are buttons somebody will
+     * want to bind. While the capture dialog is up, this is never reached at
+     * all - see {@link #ask} and {@link #handleCapturedKey}.
+     */
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        return handleCapturedKey(event) || super.dispatchKeyEvent(event);
+    }
+
+    /**
+     * Takes a stick or hat push while a capture is waiting, wherever it
+     * arrives from - see {@link #handleCapturedKey}, its key-event twin, for
+     * why there are two ways in.
+     *
+     * Only for a control slot: the app's own hotkeys and the modifier are
+     * keys, never directions, so an axis push while one of those is waiting
+     * is ignored rather than offered.
+     */
+    private boolean handleCapturedMotion(MotionEvent event) {
+        if (capturingSlot < 0 || !Gamepad.isFrom(event)) {
+            return false;
+        }
+
+        InputDevice device = event.getDevice();
+        if (device == null) return true;
+
+        int furthest = -1;
+        float most = 0f;
+
+        for (InputDevice.MotionRange range : device.getMotionRanges()) {
+            int axis = range.getAxis();
+            float value = event.getAxisValue(axis);
+            float size = Math.abs(value);
+
+            if (size < RELEASED) {
+                armedAxes.add(axis);
+                continue;
+            }
+
+            if (size < CAPTURE || !armedAxes.contains(axis)) continue;
+
+            if (size > Math.abs(most)) {
+                most = value;
+                furthest = axis;
+            }
+        }
+
+        if (furthest < 0) return true;
+
+        armedAxes.remove(furthest);
+        adoptDevice(device);
+        bind(PadMap.Binding.axis(furthest, most < 0 ? -1 : +1));
+        stop();
+        return true;
+    }
+
+    @Override
+    public boolean onGenericMotionEvent(MotionEvent event) {
+        return handleCapturedMotion(event) || super.onGenericMotionEvent(event);
     }
 
     private void warn(int message) {

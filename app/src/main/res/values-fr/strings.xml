@@ -85,6 +85,14 @@
     <string name="gamepad_none">Pas de manette</string>
     <string name="gamepad_none_message">Branchez une manette et réessayez. Les boutons s\'associent en appuyant dessus, car les manettes ne s\'accordent pas sur le nom de leurs propres boutons.</string>
     <string name="gamepad_is_hotkey">C\'est le modificateur lui-même. Il reste enfoncé pendant qu\'on appuie sur une action, il ne peut donc pas en être une.</string>
+    <string name="gamepad_machine_section">La machine</string>
+    <string name="gamepad_app_section">L\'app</string>
+    <string name="gamepad_default_marker">%1$s (par défaut)</string>
+    <string name="gamepad_reset_pad">Réinitialiser cette manette</string>
+    <string name="gamepad_press_control">Appuyez sur un bouton ou une direction pour %1$s</string>
+    <string name="gamepad_pad">Manette : %1$s</string>
+    <string name="gamepad_choose_pad">Choisir une manette</string>
+    <string name="gamepad_pad_disconnected">%1$s (non branchée)</string>
 
     <string name="hotkey_pause">Mettre en pause ou reprendre</string>
     <string name="hotkey_reset">Réinitialiser la machine</string>
@@ -139,6 +147,15 @@
     <string name="profile_delete">Supprimer le profil</string>
     <string name="profile_delete_ask">Supprimer « %1$s » ?</string>
     <string name="profile_last">Les commandes ont besoin d\'un profil, le dernier ne peut donc pas être supprimé.</string>
+    <string name="slot_left">Gauche</string>
+    <string name="slot_right">Droite</string>
+    <string name="slot_up">Haut</string>
+    <string name="slot_down">Bas</string>
+    <string name="slot_fire">Tir</string>
+    <string name="slot_button_1">Bouton 1</string>
+    <string name="slot_button_2">Bouton 2</string>
+    <string name="slot_button_3">Bouton 3</string>
+
     <string name="setup_demo">Il y a aussi une cassette d\'introduction dans la boîte — un logo, un champ d\'étoiles et un peu de musique sur l\'AY. Ouvrez-la quand vous voulez, depuis « Fichiers… » ou depuis\n\n%1$s</string>
 
     <string name="overlay_open">Clavier par-dessus l\'image</string>
@@ -402,7 +419,7 @@
     <string name="settings_keyboard_type">Type de clavier</string>
     <string name="settings_sensitivity">Sensibilité de la souris</string>
     <string name="settings_hotkeys">Boutons de la manette…</string>
-    <string name="settings_hotkeys_summary">Ce que les boutons d\'une manette font à l\'app plutôt qu\'à la machine</string>
+    <string name="settings_hotkeys_summary">Ce que les boutons d\'une manette font à la machine, et ce qu\'ils font d\'autre dans l\'app</string>
     <string name="settings_tape_format_summary">En quoi une cassette est écrite quand vous ne tapez pas d\'extension</string>
     <string name="settings_loader">Chargement rapide</string>
     <string name="settings_detect_loader">Détecter les chargeurs</string>
@@ -528,7 +545,7 @@
     <string name="lights_shown">Témoins affichés</string>
     <string name="lights_hidden">Témoins masqués</string>
     <string name="menu_files">Fichiers…</string>
-    <string name="menu_on_screen">À l\'écran…</string>
+    <string name="menu_on_screen">Commandes…</string>
     <string name="quick_save">Sauvegarde rapide\n%1$s</string>
     <string name="quick_load">Chargement rapide\n%1$s</string>
     <string name="menu_capture">Capture…</string>

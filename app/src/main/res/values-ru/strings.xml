@@ -85,6 +85,14 @@
     <string name="gamepad_none">Нет контроллера</string>
     <string name="gamepad_none_message">Подключите контроллер и попробуйте снова. Кнопки назначаются нажатием, потому что пады не сходятся в том, как называются их собственные кнопки.</string>
     <string name="gamepad_is_hotkey">Это сам модификатор. Он удерживается, пока нажимают действие, поэтому действием быть не может.</string>
+    <string name="gamepad_machine_section">Машина</string>
+    <string name="gamepad_app_section">Приложение</string>
+    <string name="gamepad_default_marker">%1$s (по умолчанию)</string>
+    <string name="gamepad_reset_pad">Сбросить этот контроллер</string>
+    <string name="gamepad_press_control">Нажмите кнопку или направление для %1$s</string>
+    <string name="gamepad_pad">Контроллер: %1$s</string>
+    <string name="gamepad_choose_pad">Выбрать контроллер</string>
+    <string name="gamepad_pad_disconnected">%1$s (не подключён)</string>
 
     <string name="hotkey_pause">Пауза или продолжить</string>
     <string name="hotkey_reset">Сбросить машину</string>
@@ -139,6 +147,15 @@
     <string name="profile_delete">Удалить профиль</string>
     <string name="profile_delete_ask">Удалить «%1$s»?</string>
     <string name="profile_last">Управлению нужен хотя бы один профиль, поэтому последний удалить нельзя.</string>
+    <string name="slot_left">Влево</string>
+    <string name="slot_right">Вправо</string>
+    <string name="slot_up">Вверх</string>
+    <string name="slot_down">Вниз</string>
+    <string name="slot_fire">Огонь</string>
+    <string name="slot_button_1">Кнопка 1</string>
+    <string name="slot_button_2">Кнопка 2</string>
+    <string name="slot_button_3">Кнопка 3</string>
+
     <string name="setup_demo">В комплекте есть и вступительная лента — надпись, звёздное поле и немного музыки на AY. Откройте её когда угодно, из «Файлы…» или из\n\n%1$s</string>
 
     <string name="overlay_open">Клавиатура поверх картинки</string>
@@ -402,7 +419,7 @@
     <string name="settings_keyboard_type">Тип клавиатуры</string>
     <string name="settings_sensitivity">Чувствительность мыши</string>
     <string name="settings_hotkeys">Кнопки контроллера…</string>
-    <string name="settings_hotkeys_summary">Что кнопки контроллера делают с приложением, а не с машиной</string>
+    <string name="settings_hotkeys_summary">Что кнопки контроллера делают с машиной, а что ещё — с приложением</string>
     <string name="settings_tape_format_summary">В каком формате пишется лента, если не указать расширение</string>
     <string name="settings_loader">Быстрая загрузка</string>
     <string name="settings_detect_loader">Распознавать загрузчики</string>
@@ -528,7 +545,7 @@
     <string name="lights_shown">Индикаторы показаны</string>
     <string name="lights_hidden">Индикаторы скрыты</string>
     <string name="menu_files">Файлы…</string>
-    <string name="menu_on_screen">На экране…</string>
+    <string name="menu_on_screen">Управление…</string>
     <string name="quick_save">Быстрое сохранение\n%1$s</string>
     <string name="quick_load">Быстрая загрузка\n%1$s</string>
     <string name="menu_capture">Захват…</string>

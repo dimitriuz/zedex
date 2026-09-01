@@ -1,6 +1,8 @@
 package dev.ldlab.zedex.input;
 
 import dev.ldlab.zedex.FuseNative;
+import dev.ldlab.zedex.R;
+import android.content.Context;
 import android.content.SharedPreferences;
 import android.view.KeyEvent;
 
@@ -259,16 +261,16 @@ public final class ControlProfiles {
     }
 
     /** What a slot is called in the editor, in slot order. */
-    public static String slotName(int slot) {
+    public static String slotName(Context context, int slot) {
         switch (slot) {
-            case FuseNative.JOYSTICK_LEFT: return "Left";
-            case FuseNative.JOYSTICK_RIGHT: return "Right";
-            case FuseNative.JOYSTICK_UP: return "Up";
-            case FuseNative.JOYSTICK_DOWN: return "Down";
-            case FuseNative.JOYSTICK_FIRE: return "Fire";
-            case BUTTON_1: return "Button 1";
-            case BUTTON_2: return "Button 2";
-            default: return "Button 3";
+            case FuseNative.JOYSTICK_LEFT:  return context.getString(R.string.slot_left);
+            case FuseNative.JOYSTICK_RIGHT: return context.getString(R.string.slot_right);
+            case FuseNative.JOYSTICK_UP:    return context.getString(R.string.slot_up);
+            case FuseNative.JOYSTICK_DOWN:  return context.getString(R.string.slot_down);
+            case FuseNative.JOYSTICK_FIRE:  return context.getString(R.string.slot_fire);
+            case BUTTON_1:                  return context.getString(R.string.slot_button_1);
+            case BUTTON_2:                  return context.getString(R.string.slot_button_2);
+            default:                        return context.getString(R.string.slot_button_3);
         }
     }
 }

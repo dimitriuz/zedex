@@ -85,6 +85,14 @@
     <string name="gamepad_none">Sin mando</string>
     <string name="gamepad_none_message">Conecta un mando y vuelve a intentarlo. Los botones se asignan pulsándolos, porque los mandos no se ponen de acuerdo en cómo se llaman sus propios botones.</string>
     <string name="gamepad_is_hotkey">Ese es el modificador. Se mantiene pulsado mientras se pulsa una acción, así que no puede ser también una.</string>
+    <string name="gamepad_machine_section">La máquina</string>
+    <string name="gamepad_app_section">La app</string>
+    <string name="gamepad_default_marker">%1$s (predeterminado)</string>
+    <string name="gamepad_reset_pad">Reiniciar este mando</string>
+    <string name="gamepad_press_control">Pulsa un botón o una dirección para %1$s</string>
+    <string name="gamepad_pad">Mando: %1$s</string>
+    <string name="gamepad_choose_pad">Elegir mando</string>
+    <string name="gamepad_pad_disconnected">%1$s (no conectado)</string>
 
     <string name="hotkey_pause">Pausar o continuar</string>
     <string name="hotkey_reset">Reiniciar la máquina</string>
@@ -139,6 +147,15 @@
     <string name="profile_delete">Eliminar el perfil</string>
     <string name="profile_delete_ask">¿Eliminar «%1$s»?</string>
     <string name="profile_last">Los controles necesitan un perfil, así que el último no se puede eliminar.</string>
+    <string name="slot_left">Izquierda</string>
+    <string name="slot_right">Derecha</string>
+    <string name="slot_up">Arriba</string>
+    <string name="slot_down">Abajo</string>
+    <string name="slot_fire">Disparo</string>
+    <string name="slot_button_1">Botón 1</string>
+    <string name="slot_button_2">Botón 2</string>
+    <string name="slot_button_3">Botón 3</string>
+
     <string name="setup_demo">En la caja hay también una cinta de introducción: un logotipo, un campo de estrellas y algo de música en el AY. Ábrela cuando quieras, desde «Archivos…» o desde\n\n%1$s</string>
 
     <string name="overlay_open">Teclado sobre la imagen</string>
@@ -402,7 +419,7 @@
     <string name="settings_keyboard_type">Tipo de teclado</string>
     <string name="settings_sensitivity">Sensibilidad del ratón</string>
     <string name="settings_hotkeys">Botones del mando…</string>
-    <string name="settings_hotkeys_summary">Qué hacen los botones de un mando a la app en lugar de a la máquina</string>
+    <string name="settings_hotkeys_summary">Qué hacen los botones de un mando a la máquina, y qué más hacen en la app</string>
     <string name="settings_tape_format_summary">Como qué se escribe una cinta cuando no escribes una extensión</string>
     <string name="settings_loader">Carga rápida</string>
     <string name="settings_detect_loader">Detectar cargadores</string>
@@ -528,7 +545,7 @@
     <string name="lights_shown">Indicadores mostrados</string>
     <string name="lights_hidden">Indicadores ocultos</string>
     <string name="menu_files">Archivos…</string>
-    <string name="menu_on_screen">En pantalla…</string>
+    <string name="menu_on_screen">Controles…</string>
     <string name="quick_save">Guardado rápido\n%1$s</string>
     <string name="quick_load">Carga rápida\n%1$s</string>
     <string name="menu_capture">Capturar…</string>
