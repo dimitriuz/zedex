@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Zedex <zedex@invalid>
 Date: Thu, 6 Aug 2026 11:05:46 +0200
-Subject: [PATCH 2/2] Turbo: a 7MHz Z80 on the clones that had one
+Subject: [PATCH 2/3] Turbo: a 7MHz Z80 on the clones that had one
 
 The Pentagons and the Scorpion ran their Z80 at twice 3.5MHz while keeping the
 50Hz frame and everything else about the display, so a game got twice the work
