@@ -1,0 +1,44 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Zedex <zedex@invalid>
+Date: Mon, 21 Sep 2026 10:07:50 +0200
+Subject: [PATCH 3/3] disk: do not read past the end of a CPC image
+
+open_cpc's first pass forces the MFM byte of every track the header
+claims - buff[ idx + 0x13 ] - stepping idx through the file by the track
+size table, and checks neither that table's zeroes nor the end of the
+buffer.  An extended image that says 41 tracks over 40 tracks of data,
+with the last size table entry zero for the unformatted track, therefore
+reads nineteen bytes past the end of the allocation, and writes there
+when that byte happens to be zero.
+
+That is how CPDRead writes a 40 track +3 disk, so real images are
+affected: Los 40 Principales Vol. 1 (ZXDB 0014248) is one.  Whether it
+faults is whether the byte after the buffer is mapped, so the same image
+crashes on one machine and plays on another - on Android, where the
+allocator puts a guard page after a large block, it is a reliable
+SIGSEGV.
+
+The main loop below already skips unformatted tracks and stops when the
+data runs out; this does the same two things.
+---
+ peripherals/disk/disk.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/peripherals/disk/disk.c b/peripherals/disk/disk.c
+index 46f6466..7758e64 100644
+--- a/peripherals/disk/disk.c
++++ b/peripherals/disk/disk.c
+@@ -1625,6 +1625,13 @@ open_cpc( buffer_t *buffer, disk_t *d, int preindex )
+   }
+   idx = 256;
+   for( i = 0; i < d->sides * d->cylinders; i++ ) {
++    /* An unformatted track has no header to fix up, and a header that claims
++       more tracks than the file carries has no bytes there at all - both of
++       which the main loop below already allows for, and neither of which was
++       checked here. Reading buff[ idx + 0x13 ] past the end of the image is
++       undefined, and where it is a zero byte this writes there too. */
++    if( d->type == DISK_ECPC && tltbl[i] == 0 ) continue;
++    if( idx + 0x13 >= buffer->file.length ) break;
+     if( buff[ idx + 0x13 ] == 0 ) /* we now assume MFM */
+       buff[ idx + 0x13 ] = 2;
+     idx += d->type == DISK_ECPC ? tltbl[i] * 256 : trlen;
