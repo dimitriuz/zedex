@@ -324,9 +324,11 @@ public final class Manuals {
 
         try {
             context.startActivity(intent);
-        } catch (ActivityNotFoundException e) {
+        } catch (ActivityNotFoundException | SecurityException e) {
             // No PDF viewer at all, rather than doing nothing silently - the
-            // same choice Feedback makes when there is no mail app.
+            // same choice Feedback makes when there is no mail app. Or a
+            // grant this app no longer holds, which the platform refuses to
+            // pass on: Capture.openFolder crashed in exactly that way.
             Toast.makeText(context, R.string.open_failed, Toast.LENGTH_LONG).show();
         }
     }
@@ -402,8 +404,17 @@ public final class Manuals {
         releaseLastGrant(context);
 
         for (ResolveInfo info : context.getPackageManager().queryIntentActivities(intent, 0)) {
-            context.grantUriPermission(info.activityInfo.packageName, uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            try {
+                context.grantUriPermission(info.activityInfo.packageName, uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            } catch (SecurityException e) {
+                // Only what this app holds can be granted on, and a document
+                // in a SAF tree is held only while the tree's grant lasts.
+                // Thrown from here it would crash whoever asked for the
+                // intent; start() reports the same refusal as a toast.
+                Log.w(TAG, "cannot grant " + uri + " to "
+                           + info.activityInfo.packageName, e);
+            }
         }
 
         granted = uri;
