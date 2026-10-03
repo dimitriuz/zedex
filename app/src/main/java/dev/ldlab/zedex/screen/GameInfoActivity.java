@@ -9,6 +9,8 @@ import dev.ldlab.zedex.storage.Prefs;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.util.Log;
+import android.widget.Toast;
 
 /**
  * Everything known about one game, on a screen of its own - which is now
@@ -36,6 +38,8 @@ import android.os.Bundle;
  * cannot be showing something the store no longer says.
  */
 public final class GameInfoActivity extends ZedexActivity {
+
+    private static final String TAG = "Zedex";
 
     /** The game's path relative to the content tree - {@link Metadata#relativePath}. */
     public static final String EXTRA_PATH = "dev.ldlab.zedex.extra.GAME_PATH";
@@ -166,9 +170,18 @@ public final class GameInfoActivity extends ZedexActivity {
                 // The same hand-over a row in the library makes - see
                 // LibraryActivity.openGame, whose own comment explains why
                 // the grant travels with it.
-                startActivity(new Intent(Intent.ACTION_VIEW, uri, this, EmulatorActivity.class)
-                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        .putExtra(EmulatorActivity.EXTRA_LIBRARY_PATH, path));
+                try {
+                    startActivity(new Intent(Intent.ACTION_VIEW, uri, this, EmulatorActivity.class)
+                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            .putExtra(EmulatorActivity.EXTRA_LIBRARY_PATH, path));
+                } catch (SecurityException e) {
+                    // The grant on this document is gone - see openGame's own
+                    // catch for how a persisted grant goes, and why
+                    // startActivity is where that shows.
+                    Log.w(TAG, "no permission left for " + uri, e);
+                    Toast.makeText(this, R.string.open_failed, Toast.LENGTH_LONG).show();
+                    return;
+                }
                 finish();
             });
 

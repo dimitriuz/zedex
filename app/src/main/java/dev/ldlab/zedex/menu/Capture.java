@@ -152,7 +152,14 @@ public final class Capture {
         if (uri != null) {
             Intent view = new Intent(Intent.ACTION_VIEW);
             view.setDataAndType(uri, DocumentsContract.Document.MIME_TYPE_DIR);
-            view.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+            // No FLAG_GRANT_READ_URI_PERMISSION: this app holds no grant on
+            // the external storage provider, so it has nothing to pass on.
+            // Google's Files holds MANAGE_DOCUMENTS and the platform skips the
+            // check for it, which is why the flag looked harmless - but on a
+            // phone whose own file manager answers instead (ColorOS, 1.7.1's
+            // first Play crash) the platform asks whether *we* may grant it,
+            // and startActivity throws SecurityException.
 
             // The emulator is singleInstance, so without a task of its own the
             // file manager is handed the intent in the background and never
@@ -178,7 +185,10 @@ public final class Capture {
         try {
             activity.startActivity(intent);
             return true;
-        } catch (android.content.ActivityNotFoundException e) {
+        } catch (android.content.ActivityNotFoundException
+                 | SecurityException e) {
+            // A file manager that refuses the hand-over is one that cannot
+            // open it; the next way of asking, or the path, is still offered.
             return false;
         }
     }
