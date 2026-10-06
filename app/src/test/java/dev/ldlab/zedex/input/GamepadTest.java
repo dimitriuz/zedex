@@ -107,4 +107,54 @@ public class GamepadTest {
     public void noSourcesAtAllIsNotAPad() {
         assertFalse(Gamepad.isPad(0));
     }
+
+    // --- a device, not just a mask ------------------------------------------
+
+    private static final int PAD = InputDevice.SOURCE_GAMEPAD;
+
+    /**
+     * The 1.7.2 report from a Xiaomi 25078RA3EY: {@code controllers=uinput-fpc}
+     * and no on-screen joystick. The fingerprint sensor's driver registers an
+     * input device whose sources carry the gamepad bit, so the touch joystick
+     * was hidden for a pad that was never there. Refused by name whatever it
+     * claims to have, since nobody has measured what this one does claim.
+     */
+    @Test
+    public void aFingerprintSensorIsNotAPadWhateverItClaims() {
+        assertFalse(Gamepad.looksLikePad("uinput-fpc", PAD, true, true));
+        assertFalse(Gamepad.looksLikePad("uinput-goodix", PAD, false, true));
+        assertFalse(Gamepad.looksLikePad("uinput-silead", PAD, true, false));
+        assertFalse(Gamepad.looksLikePad("UINPUT-FPC", PAD, true, true));
+        assertFalse(Gamepad.looksLikePad("fpc1020 fingerprint", PAD, true, true));
+    }
+
+    /**
+     * A device with the bit and nothing a pad has - no stick, no hat, no face
+     * or start button - is something else wearing a pad's label.
+     */
+    @Test
+    public void theBitWithNoStickAndNoButtonsIsNotAPad() {
+        assertFalse(Gamepad.looksLikePad("gpio-keys", PAD, false, false));
+    }
+
+    /** Real ones: a stick, buttons, or both. */
+    @Test
+    public void aDeviceWithAStickOrButtonsIsAPad() {
+        assertTrue(Gamepad.looksLikePad("Xbox Wireless Controller", PAD, true, true));
+        assertTrue(Gamepad.looksLikePad("GameSir-Cyclone Pro", PAD, true, false));
+        assertTrue(Gamepad.looksLikePad("Odin Controller", PAD, false, true));
+    }
+
+    /** The name alone never makes a pad of something without the bits. */
+    @Test
+    public void aGoodNameWithoutTheBitsIsNotAPad() {
+        assertFalse(Gamepad.looksLikePad("Xbox Wireless Controller",
+                InputDevice.SOURCE_KEYBOARD, true, true));
+    }
+
+    /** A device with no name at all is judged on what it has. */
+    @Test
+    public void noNameIsJudgedOnWhatItHas() {
+        assertTrue(Gamepad.looksLikePad(null, PAD, true, true));
+    }
 }

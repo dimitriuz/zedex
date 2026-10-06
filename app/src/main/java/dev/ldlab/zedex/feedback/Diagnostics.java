@@ -184,7 +184,7 @@ public final class Diagnostics {
 
         for (int id : InputDevice.getDeviceIds()) {
             InputDevice device = InputDevice.getDevice(id);
-            if (device == null || !Gamepad.isPad(device.getSources())) continue;
+            if (!Gamepad.isPad(device)) continue;
 
             if (pads.length() > 0) pads.append(", ");
             pads.append(device.getName());

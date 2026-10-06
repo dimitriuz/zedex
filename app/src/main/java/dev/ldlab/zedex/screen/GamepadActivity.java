@@ -340,7 +340,7 @@ public final class GamepadActivity extends ZedexActivity {
 
         for (int id : InputDevice.getDeviceIds()) {
             InputDevice device = InputDevice.getDevice(id);
-            if (device != null && Gamepad.isPad(device.getSources())) pads.add(device);
+            if (Gamepad.isPad(device)) pads.add(device);
         }
 
         return pads;

@@ -130,9 +130,79 @@ public final class Gamepad {
     public static boolean connected() {
         for (int id : InputDevice.getDeviceIds()) {
             InputDevice device = InputDevice.getDevice(id);
-            if (device != null && isPad(device.getSources())) return true;
+            if (isPad(device)) return true;
         }
         return false;
+    }
+
+    /**
+     * Whether a connected device is a controller somebody could play with.
+     *
+     * The source bits alone are not enough to say so. A Xiaomi phone's
+     * fingerprint sensor ({@code uinput-fpc}) registers an input device whose
+     * sources carry the gamepad bit, and {@link #connected()} answering yes
+     * for it hid the on-screen joystick on a phone with no pad at all - the
+     * 1.7.2 report from a Xiaomi 25078RA3EY. So this is the one test for "is a
+     * pad plugged in", and every place that asks a device rather than an
+     * event goes through it.
+     *
+     * Public because {@code GamepadActivity} (the pad picker) and {@code
+     * Diagnostics} (the report) ask it too, from other packages - kept here
+     * rather than copied, which is how the same mask was once duplicated in
+     * {@code GamepadActivity.connectedPad()}.
+     */
+    public static boolean isPad(InputDevice device) {
+        if (device == null) return false;
+
+        boolean stick = device.getMotionRange(MotionEvent.AXIS_X) != null
+                || device.getMotionRange(MotionEvent.AXIS_HAT_X) != null;
+
+        boolean buttons = false;
+        for (boolean has : device.hasKeys(PAD_BUTTONS)) buttons |= has;
+
+        return looksLikePad(device.getName(), device.getSources(), stick, buttons);
+    }
+
+    /** What a pad has and a sensor does not: any one of these will do. */
+    private static final int[] PAD_BUTTONS = {
+        KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_BUTTON_B,
+        KeyEvent.KEYCODE_BUTTON_X, KeyEvent.KEYCODE_BUTTON_Y,
+        KeyEvent.KEYCODE_BUTTON_START, KeyEvent.KEYCODE_BUTTON_SELECT,
+    };
+
+    /**
+     * Fingerprint sensor drivers, which register as input devices and some of
+     * which claim to be gamepads. Refused by name as well as by what they
+     * have, because what {@code uinput-fpc} claims to have has never been
+     * measured here - only that it carries the gamepad bit - and a sensor
+     * that does claim a face button must still not hide the joystick.
+     */
+    private static final String[] NOT_PADS = {
+        "uinput-fpc", "uinput-goodix", "uinput-silead", "uinput-elan",
+        "uinput-synaptics", "uinput-egis", "uinput-focal", "uinput-chipone",
+        "uinput-novatek", "fingerprint",
+    };
+
+    /**
+     * {@link #isPad(InputDevice)} with the device already read, so it can be
+     * asserted on the JVM tier, where every {@code InputDevice} getter
+     * answers a default.
+     *
+     * @param stick   whether it has an X or hat axis
+     * @param buttons whether it has any of the face, start or select buttons
+     */
+    static boolean looksLikePad(String name, int sources, boolean stick,
+                                boolean buttons) {
+        if (!isPad(sources)) return false;
+
+        if (name != null) {
+            String lower = name.toLowerCase(java.util.Locale.ROOT);
+            for (String not : NOT_PADS) {
+                if (lower.contains(not)) return false;
+            }
+        }
+
+        return stick || buttons;
     }
 
     /**
@@ -147,12 +217,9 @@ public final class Gamepad {
     }
 
     /**
-     * Public rather than package-private: {@code GamepadActivity} (the pad
-     * picker) and {@code Diagnostics} (the report) both need to tell a pad
-     * from any other input device, and are in other packages - see CLAUDE.md,
-     * "A member another layer needs has to be public". Kept here rather than
-     * copied a third time, which is how the same mask ended up duplicated in
-     * {@code GamepadActivity.connectedPad()} before this.
+     * Whether a source mask has a pad's bits. Right for an event, which only
+     * says where it came from, and not enough for a device - see {@link
+     * #isPad(InputDevice)}, which starts here and asks more.
      */
     public static boolean isPad(int sources) {
         return (sources & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD
