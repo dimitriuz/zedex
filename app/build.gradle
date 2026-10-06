@@ -375,6 +375,23 @@ android {
     }
 
     /*
+     * Every language in every install, Play's included.
+     *
+     * A bundle is split by language by default, and Play then installs only
+     * the splits for the languages the phone is set to. The app's own
+     * language list (see Language) chooses from all nine whatever the phone
+     * says, so on an English phone choosing Russian found no Russian strings
+     * and quietly stayed English - in the Play build only, since the APKs
+     * from the release workflow carry everything. The strings are a few
+     * hundred KB; a language picker that works is worth more.
+     */
+    bundle {
+        language {
+            enableSplit = false
+        }
+    }
+
+    /*
      * Lint runs, and can fail the build.
      *
      * abortOnError was false, which meant not only that `lint` never stopped
