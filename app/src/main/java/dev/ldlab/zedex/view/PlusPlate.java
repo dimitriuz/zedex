@@ -129,7 +129,13 @@ final class PlusPlate extends Plate {
         place(4,
             fn(76, KeyEvent.KEYCODE_CTRL_LEFT, 0, "SYMBOL SHIFT").label("SYMBOL\nSHIFT"),
             fn(KEY, KeyEvent.KEYCODE_SEMICOLON, 0, ";").label(";"),
-            fn(KEY, KeyEvent.KEYCODE_APOSTROPHE, 0, "QUOTE").label("”"),
+            // The plate's `"` is not a character of its own to the machine: on
+            // the hardware this key is the P column of the SYMBOL SHIFT row, so
+            // it is sent as that combination — which is what the ROM types `"`
+            // for. Android's apostrophe would be honest on a PC keyboard and
+            // wrong here: Fuse maps it to symbol shift and 7, an apostrophe.
+            fn(KEY, KeyEvent.KEYCODE_P, KeyEvent.KEYCODE_CTRL_LEFT, "QUOTE")
+                    .label("\""),
             fn(KEY, KeyEvent.KEYCODE_DPAD_LEFT, 0, "LEFT").arrow(WEST),
             fn(KEY, KeyEvent.KEYCODE_DPAD_RIGHT, 0, "RIGHT").arrow(EAST),
             fn(328, KeyEvent.KEYCODE_SPACE, 0, "SPACE"),
