@@ -138,8 +138,11 @@ public class SpectrumKeyboardView extends View {
          * does not: TRUE VIDEO is CAPS SHIFT and 3, GRAPH is CAPS SHIFT and 9.
          * Most of the rest turn out to be single keycodes Fuse already maps -
          * Escape is EDIT, Caps Lock is CAPS LOCK, Backspace is DELETE, and the
-         * arrows and the punctuation are what Fuse does with a PC keyboard -
-         * so only five keys need this.
+         * arrows and the punctuation are what Fuse does with a PC keyboard.
+         * The exceptions are the ones a PC has no key for: the shift
+         * combinations above, and the plate's {@code "}, which on the machine
+         * is SYMBOL SHIFT and P and so cannot be a keycode of its own -
+         * Fuse's apostrophe is SYMBOL SHIFT and 7, an apostrophe.
          */
         final int modifier;
 
