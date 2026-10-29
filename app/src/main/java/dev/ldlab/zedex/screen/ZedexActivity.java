@@ -19,7 +19,9 @@ import android.os.Bundle;
  * <ul>
  *   <li>{@code attachBaseContext(Language.wrap(base))}, or the screen comes
  *       up in the phone's language rather than the chosen one - invisible to
- *       anyone whose phone is already in that language.</li>
+ *       anyone whose phone is already in that language. And noticing in
+ *       {@code onResume} that the language was changed while the screen sat
+ *       under Settings, or it stays in the old one until it is closed.</li>
  *   <li>{@code SafeArea.fit} on the content view, or the screen lays itself
  *       into the display cutout. API 35 does that unconditionally, and an
  *       AVD has no cutout, so it looks right until it is on a real phone.</li>
@@ -43,9 +45,10 @@ import android.os.Bundle;
  * laid out the way these are - {@code EmulatorLayout} handles the cutout
  * itself, through a rect it applies to every child, because it measures the
  * picture against the window rather than padding a view group - and it has no
- * title bar to name. Its {@code attachBaseContext} does the same thing for
- * the same reason, with the extra step of noticing a language change while it
- * is running, which none of these need.
+ * title bar to name. Its {@code attachBaseContext} and {@code onResume} do
+ * the same thing for the same reason, and it has the harder case: it lists
+ * {@code locale} in configChanges, so even the phone's own language changing
+ * reaches it only through that check.
  */
 public abstract class ZedexActivity extends Activity {
 
@@ -66,6 +69,29 @@ public abstract class ZedexActivity extends Activity {
     @Override
     protected void attachBaseContext(Context base) {
         super.attachBaseContext(Language.wrap(base));
+        language = Language.builtWith(this);
+    }
+
+    /** What {@link #attachBaseContext} built this screen with; see
+     *  {@link Language#builtWith}. */
+    private String language = "";
+
+    /**
+     * Built again if the language changed while this screen sat underneath
+     * another - the library opens Settings and stays below it, and came back
+     * from a language picked there still in the old one. Android recreates a
+     * screen for the phone's language changing and never for a preference,
+     * and the words on this one were resolved when it was built.
+     *
+     * The rest of a subclass's onResume still runs on the old instance, since
+     * recreate() only schedules the rebuild - which is what a rotation does to
+     * every screen here already, so nothing new is asked of them.
+     */
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        if (!language.equals(Language.builtWith(this))) recreate();
     }
 
     @Override

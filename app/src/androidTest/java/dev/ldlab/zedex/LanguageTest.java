@@ -18,6 +18,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.uiautomator.By;
 import androidx.test.uiautomator.UiDevice;
+import androidx.test.uiautomator.UiObject2;
 import androidx.test.uiautomator.Until;
 
 import org.junit.After;
@@ -212,6 +213,92 @@ public class LanguageTest {
         assertNotNull("the library never came up in Polish - its Browse tab should "
                       + "read \"Przeglądaj\"",
                       device.wait(Until.findObject(By.desc("Przeglądaj")), FIND));
+
+        Screen.assertHere();
+    }
+
+    // --- and on a screen that was already open ------------------------------------------
+
+    /**
+     * A language chosen while the library is open reaches it when it comes
+     * back to the front - which is what happens when Settings, opened from
+     * it, closes.
+     *
+     * It did not. The screen's words were resolved when it was built, and
+     * nothing rebuilt it for a preference: Android recreates a screen when
+     * the phone's language changes and never otherwise. A new intent to the
+     * open library is a pause and a resume and nothing more, which is all
+     * that coming back from Settings is to it - so this fails without the
+     * check in {@code ZedexActivity.onResume}, rather than passing because
+     * the screen was built afresh.
+     */
+    @Test
+    public void theLibraryFollowsALanguageChosenWhileItWasOpen() {
+        choose("");
+
+        Intent intent = new Intent(context, LibraryActivity.class);
+        intent.putExtra(LibraryActivity.EXTRA_FROM_MENU, true);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+        Screen.suppressFirstRun(context);
+        context.startActivity(intent, Screen.here());
+
+        assertNotNull("the library never came up in the phone's language",
+                      device.wait(Until.findObject(
+                              By.desc(context.getString(R.string.library_tab_browse))), FIND));
+
+        choose(POLISH);
+
+        // SINGLE_TOP, not CLEAR_TOP: a standard activity under CLEAR_TOP alone
+        // is finished and started again, which would pass with or without the
+        // fix.
+        Intent again = new Intent(context, LibraryActivity.class);
+        again.putExtra(LibraryActivity.EXTRA_FROM_MENU, true);
+        again.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+        context.startActivity(again, Screen.here());
+
+        assertNotNull("the library came back in the language it was opened in - its "
+                      + "Browse tab should read \"Przeglądaj\"",
+                      device.wait(Until.findObject(By.desc("Przeglądaj")), FIND));
+
+        Screen.assertHere();
+    }
+
+    /**
+     * The same for the machine, which has the harder case and its own copy of
+     * the check: it lists {@code locale} in configChanges, so nothing at all
+     * rebuilds it but that check.
+     *
+     * Before, it compared the language its resources were built with against
+     * itself - frozen once a language is chosen - so it stayed in the old one
+     * until the app was restarted, while every screen opened from it spoke
+     * the new one. It is {@code singleInstance}, so a new intent reaches the
+     * open machine as a pause and a resume, like the library above.
+     */
+    @Test
+    public void theMachineFollowsALanguageChosenWhileItWasOpen() {
+        choose("");
+
+        Emulator emulator = new Emulator();
+        emulator.useDataFolder();
+        emulator.launch();
+
+        choose(POLISH);
+
+        Intent intent = new Intent(context, EmulatorActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+        context.startActivity(intent, Screen.here());
+
+        // The quick bar fades three seconds after it was last touched, and a
+        // tap on the picture brings it back - so tap until the row is there
+        // to be read, rather than guessing how long the rebuild takes.
+        UiObject2 files = null;
+        for (int i = 0; i < 10 && files == null; i++) {
+            device.click(device.getDisplayWidth() / 2, device.getDisplayHeight() / 8);
+            files = device.wait(Until.findObject(By.desc("Pliki…")), 1000);
+        }
+
+        assertNotNull("the machine came back in the language it was opened in - its "
+                      + "quick bar should offer \"Pliki…\"", files);
 
         Screen.assertHere();
     }

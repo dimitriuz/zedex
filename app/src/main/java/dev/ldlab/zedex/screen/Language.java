@@ -63,6 +63,27 @@ public final class Language {
     }
 
     /**
+     * What a screen was built with, for telling later whether it is out of
+     * date: equal answers mean the screen speaks what it should.
+     *
+     * Two things, because each misses the other's change. {@link
+     * #effectiveTag} on a running screen notices the phone's language
+     * changing - with nothing chosen the screen's base is the phone's own
+     * context, which Android updates in place - and cannot notice a choice:
+     * once a language is chosen, {@link #wrap} gives the screen a
+     * configuration of its own, and nothing ever updates that. Comparing it
+     * alone is how the machine stayed in the old language after one was
+     * picked in Settings, until the app was restarted. {@link #tag} notices
+     * the choice and, being "" before and after, cannot notice the phone.
+     *
+     * Each half is compared with itself, never with the other, so a recreated
+     * screen always reads equal and cannot be recreated again in a loop.
+     */
+    public static String builtWith(Context context) {
+        return tag(context) + '/' + effectiveTag(context);
+    }
+
+    /**
      * The context an activity should be built on.
      *
      * Called from {@code attachBaseContext}, which runs before anything else an
