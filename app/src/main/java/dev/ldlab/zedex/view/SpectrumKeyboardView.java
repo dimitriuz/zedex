@@ -77,7 +77,7 @@ public class SpectrumKeyboardView extends View {
 
         /** What this skin is called, for a list or a summary. A resource and
          *  not a literal: "slim" and "Android keyboard" are this app's own
-         *  words rather than Fuse's, so they are nine files like any other
+         *  words rather than Fuse's, so they are ten files like any other
          *  string - and a literal here is one check-strings.py can never
          *  see, because it never reaches strings.xml. */
         public final int title;

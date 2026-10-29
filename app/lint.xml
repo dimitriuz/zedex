@@ -23,7 +23,7 @@
         which is stricter where it counts and quiet where it does not: every
         form must take the same arguments as English, "other" must exist, and
         a name must be a plural in every language or in none. See CLAUDE.md,
-        "A new string is nine files".
+        "A new string is ten files".
     -->
     <issue id="MissingQuantity" severity="ignore" />
 

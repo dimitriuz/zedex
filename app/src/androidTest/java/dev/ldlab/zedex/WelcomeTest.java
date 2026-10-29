@@ -133,7 +133,7 @@ public class WelcomeTest {
 
     /**
      * The page is a column in a plain ScrollView, and the language list ahead
-     * of it - nine languages and the system default - is enough rows that the
+     * of it - ten languages and the system default - is enough rows that the
      * way past sits below the fold. UiAutomator's own tree only reports what
      * a ScrollView has actually scrolled into view, exactly like {@code
      * Emulator.scrollTo} finding a machine by name in the ☰ sheet; without

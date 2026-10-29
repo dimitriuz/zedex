@@ -46,7 +46,7 @@ import java.util.Locale;
  *    "" after. A screen comparing the wrong one concludes nothing happened and
  *    never recreates.
  *
- * Polish, because it is one of the eight and its words for these are visibly
+ * Polish, because it is one of the nine and its words for these are visibly
  * not the English ones.
  *
  * The preference is put back in {@link #restoreTheLanguage} whatever happens:

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Só as listas que levam palavras; as *_values lê-as o Fuse e compara-as com strcmp. -->
+<resources>
+    <string-array name="volume_names">
+        <item>Desligado</item>
+        <item>25%</item>
+        <item>50%</item>
+        <item>75%</item>
+        <item>100%</item>
+    </string-array>
+
+    <string-array name="loader_names">
+        <item>Desligado — em tempo real</item>
+        <item>Seguro — carregadores da ROM</item>
+        <item>Turbo — qualquer carregador</item>
+    </string-array>
+
+    <string-array name="ay_stereo_names">
+        <item>Desligado — mono</item>
+        <item>ACB — A à esquerda, C ao centro, B à direita</item>
+        <item>ABC — A à esquerda, B ao centro, C à direita</item>
+    </string-array>
+
+
+    <string-array name="tape_format_names">
+        <item>TAP — mais pequeno, o habitual</item>
+        <item>TZX — mantém os carregadores próprios</item>
+    </string-array>
+
+    <string-array name="format_names">
+        <item>SZX — todas as máquinas</item>
+        <item>Z80 — amplamente suportado</item>
+        <item>SNA — só 48K e 128K</item>
+    </string-array>
+
+    <string-array name="border_names">
+        <item>Completa — cada píxel que a máquina desenha</item>
+        <item>Estreita — um quarto da borda</item>
+        <item>Nenhuma — só a imagem, 256×192</item>
+    </string-array>
+
+</resources>

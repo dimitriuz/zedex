@@ -231,7 +231,7 @@
     <string name="welcome_later_hint">Go straight to the Spectrum. Everything keeps its usual default.</string>
     <string name="welcome_next">Next</string>
     <string name="welcome_skip">Skip</string>
-    <string name="welcome_language_hint">Zedex speaks nine. Leave it on the system language and it follows your phone.</string>
+    <string name="welcome_language_hint">Zedex speaks ten. Leave it on the system language and it follows your phone.</string>
     <string name="welcome_machine">Which Spectrum?</string>
     <string name="welcome_machine_hint">The one a game expects. 128K runs most things; the full list, and every other machine Fuse knows, is in Settings › Machine.</string>
     <string name="welcome_machine_48">The original, 48K of memory and the beeper.</string>
@@ -979,7 +979,7 @@
          not: every item is a reference, and a reference inside an array is
          resolved in the current locale like any other. The words are
          translated - just above, one <string> at a time. Copying the array
-         into eight more files would only be eight more chances for the order
+         into nine more files would only be nine more chances for the order
          to drift out of step with scrape_media_folders, which is the one
          thing here that must not happen. -->
     <string-array name="scrape_media_entries" translatable="false">

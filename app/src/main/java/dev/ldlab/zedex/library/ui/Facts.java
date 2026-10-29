@@ -29,7 +29,7 @@ public final class Facts {
      *
      * <b>A colon rather than a sentence, and no plural.</b> "Played 1 times"
      * is what a naive format gives, and the correct alternative is a {@code
-     * <plurals>} in nine files with two to four forms each, in languages whose
+     * <plurals>} in ten files with two to four forms each, in languages whose
      * rules differ - Russian and Polish need {@code few} and {@code many}. A
      * label and a number needs none of that and is what the row is: the
      * field's own name, which the editor already has translated, and its

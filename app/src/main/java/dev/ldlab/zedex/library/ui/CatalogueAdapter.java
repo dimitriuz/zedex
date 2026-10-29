@@ -140,7 +140,7 @@ public final class CatalogueAdapter extends RecyclerView.Adapter<RecyclerView.Vi
      * Null for {@link Catalogue.Page#UNKNOWN_TOTAL} - a shelf that cannot
      * count - and null at {@link #COUNTING_CAP}, which is a cap wearing a
      * count's clothes. A bare numeral rather than a sentence: the words
-     * around it would be a tenth string in nine files for something the shelf
+     * around it would be a tenth string in ten files for something the shelf
      * label beside it already explains.
      */
     public static String countLabel(int total) {

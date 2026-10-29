@@ -100,7 +100,7 @@ public class ZxartApiTest {
                      + "order:votes,desc/", path);
     }
 
-    /** Three of the app's nine languages are zxart's; the other six read
+    /** Three of the app's ten languages are zxart's; the other seven read
      *  English rather than Russian, which is what the service defaults to. */
     @Test
     public void theLanguageIsTheUsersWhereTheServiceHasIt() {
@@ -109,6 +109,7 @@ public class ZxartApiTest {
         assertEquals("eng", ZxartApi.language(Locale.ENGLISH));
         assertEquals("eng", ZxartApi.language(new Locale("pl")));
         assertEquals("eng", ZxartApi.language(new Locale("uk")));
+        assertEquals("eng", ZxartApi.language(new Locale("pt", "PT")));
     }
 
     /** Titles arrive HTML-escaped, measured: "Girl &amp; Sea" and

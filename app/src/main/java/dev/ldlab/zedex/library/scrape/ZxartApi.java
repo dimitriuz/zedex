@@ -367,7 +367,7 @@ public final class ZxartApi {
     /**
      * Which of zxart's three languages to ask in.
      *
-     * The app speaks nine and zxart three, so six of them read English rather
+     * The app speaks ten and zxart three, so seven of them read English rather
      * than the Russian zxart defaults to. Taking the language matters because
      * it is what {@code categoriesString}, the category tree's titles and a
      * picture's tags come back in - and it is exactly why an import's folder

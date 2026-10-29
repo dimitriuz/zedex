@@ -805,10 +805,15 @@ adb shell pm clear dev.ldlab.zedex.debug     # and the remembered folder with it
 ## Languages
 
 `values/strings.xml` is the original; `values-de`, `values-es`, `values-fr`,
-`values-it`, `values-pl`, `values-cs`, `values-ru` and `values-uk` follow it,
-with `arrays.xml` beside each for the lists that contain words. Adding a string
-means adding it to `values/` and then to the eight, or accepting that it shows
-in English until somebody does.
+`values-it`, `values-pl`, `values-pt`, `values-cs`, `values-ru` and `values-uk`
+follow it, with `arrays.xml` beside each for the lists that contain words.
+Adding a string means adding it to `values/` and then to the nine, or accepting
+that it shows in English until somebody does.
+
+`values-pt` is European Portuguese, and the picker stores `pt-PT` for it. The
+folder is the bare language rather than `values-pt-rPT` on purpose: a phone set
+to Brazilian Portuguese falls back to it too, and reads Portugal's spelling
+rather than English.
 
 ```sh
 scripts/check-strings.py          # completeness, stray keys, format specifiers
