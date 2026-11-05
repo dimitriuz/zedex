@@ -275,6 +275,10 @@
     <string name="tape_stopped">Nastro fermo: ripartendo continua da qui</string>
     <string name="tape_rewound">Nastro riavvolto</string>
     <string name="tape_save">Salva il nastro…</string>
+    <string name="tape_record">Registra</string>
+    <string name="tape_record_stop">Stop registrazione</string>
+    <string name="tape_recording_started">Registrazione in corso — avvia il salvataggio dal programma, poi Stop registrazione quando finisce</string>
+    <string name="tape_recording_stopped">Registrazione aggiunta al nastro — Salva il nastro… la conserva</string>
     <string name="tape_new">Nastro nuovo</string>
     <string name="tape_new_done">Iniziato un nastro vuoto</string>
     <string name="tape_new_confirm">Buttare il nastro attuale e iniziarne uno vuoto?</string>

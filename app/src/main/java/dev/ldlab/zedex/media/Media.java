@@ -407,41 +407,62 @@ public final class Media {
      *
      * The tape and the disks used to be separate menus, which put them at
      * different depths for no reason a user would recognise — they are the same
-     * question. The machine can write to its tape as well as read from it, since
+     * question. The machine can write to its tape as well as read from it:
      * Fuse's tape traps catch the ROM's save routine and a BASIC
-     * {@code SAVE "name"} appends to the tape held in memory; that is what
-     * <em>Save tape…</em> writes out.
+     * {@code SAVE "name"} appends to the tape held in memory, and a
+     * recording - the machine's own tape-out signal sampled into the tape -
+     * catches what the trap never sees, a game that saves through its own
+     * routine. <em>Save tape…</em> writes out whichever the deck now holds;
+     * <em>Record</em> exists for the saves the trap misses.
      */
     public void fill(MenuDrawer sheet) {
-        // The deck's transport, and only while there is something on the tape:
-        // Fuse's own play refuses an empty one, and a row that cannot do
-        // anything is worse than no row.
-        //
-        // Stop rather than pause because that is what Fuse has, and it is the
-        // same thing - the position is kept, so playing again carries on from
-        // there. Rewind goes to the first block; there is no winding.
-        boolean tape = FuseNative.hasTape();
+        if (FuseNative.tapeRecording()) {
+            // While Fuse is recording, the deck's only row is how to stop:
+            // loading, rewinding or writing the tape now would change the
+            // very tape the recording is about to be appended to, so there
+            // is deliberately nothing else here to tap.
+            sheet.addItem(text(R.string.tape_record_stop), R.drawable.ic_stop,
+                          () -> recordTape(false));
+        } else {
+            // The deck's transport, and only while there is something on the tape:
+            // Fuse's own play refuses an empty one, and a row that cannot do
+            // anything is worse than no row.
+            //
+            // Stop rather than pause because that is what Fuse has, and it is the
+            // same thing - the position is kept, so playing again carries on from
+            // there. Rewind goes to the first block; there is no winding.
+            boolean tape = FuseNative.hasTape();
 
-        sheet.addItem(text(R.string.tape_load), R.drawable.ic_folder, this::pick);
+            sheet.addItem(text(R.string.tape_load), R.drawable.ic_folder, this::pick);
 
-        if (tape) {
-            boolean playing = FuseNative.tapePlaying();
+            if (tape) {
+                boolean playing = FuseNative.tapePlaying();
 
-            sheet.addItem(text(playing ? R.string.tape_stop : R.string.tape_play),
-                          playing ? R.drawable.ic_stop : R.drawable.ic_play,
-                          () -> playTape(!playing));
-            sheet.addItem(text(R.string.tape_rewind), R.drawable.ic_rewind,
-                          this::rewindTape);
-            sheet.addItem(text(R.string.tape_browser), R.drawable.ic_tape,
-                          this::showTapeBrowser);
-            // Only with something on the tape: it used to be here always and
-            // answered a tap with a toast saying there was nothing to write,
-            // which is a row that exists to say it does not work.
-            sheet.addSubmenu(text(R.string.tape_save), R.drawable.ic_save,
-                             saveTape());
+                sheet.addItem(text(playing ? R.string.tape_stop : R.string.tape_play),
+                              playing ? R.drawable.ic_stop : R.drawable.ic_play,
+                              () -> playTape(!playing));
+                sheet.addItem(text(R.string.tape_rewind), R.drawable.ic_rewind,
+                              this::rewindTape);
+                sheet.addItem(text(R.string.tape_browser), R.drawable.ic_tape,
+                              this::showTapeBrowser);
+                sheet.addItem(text(R.string.tape_record), R.drawable.ic_record,
+                              () -> recordTape(true));
+                // Only with something on the tape: it used to be here always and
+                // answered a tap with a toast saying there was nothing to write,
+                // which is a row that exists to say it does not work.
+                sheet.addSubmenu(text(R.string.tape_save), R.drawable.ic_save,
+                                 saveTape());
+            } else {
+                // Record needs no tape, and wants none: the usual way in is
+                // an empty deck, a recording, and only then a tape worth
+                // saving - the machine can write to a deck it was never
+                // given, and this is the row that catches it.
+                sheet.addItem(text(R.string.tape_record), R.drawable.ic_record,
+                              () -> recordTape(true));
+            }
+
+            sheet.addSubmenu(text(R.string.tape_new), R.drawable.ic_plus, newTape());
         }
-
-        sheet.addSubmenu(text(R.string.tape_new), R.drawable.ic_plus, newTape());
 
         sheet.addRule();
         sheet.addSection(text(R.string.menu_disks_section));
@@ -570,6 +591,20 @@ public final class Media {
     private void rewindTape() {
         FuseNative.tapeRewind();
         host.note(R.string.tape_rewound);
+    }
+
+    /**
+     * Fuse's own tape recorder: what the machine sends to the tape, sampled
+     * off the ULA's tape-out pin. The save trap steps aside while it runs
+     * (tape.c refuses to trap a save once recording), so a recording sees a
+     * game's own save routine that the trap would otherwise have hidden,
+     * pulse for pulse - and the ROM's own save too. Stopping appends the
+     * sample as one block, which <em>Save tape…</em> then writes out.
+     */
+    private void recordTape(boolean on) {
+        FuseNative.tapeRecord(on);
+        host.note(on ? R.string.tape_recording_started
+                     : R.string.tape_recording_stopped);
     }
 
     /**

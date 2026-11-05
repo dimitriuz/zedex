@@ -275,6 +275,10 @@
     <string name="tape_stopped">Kazeta zastavena — další přehrání pokračuje odtud</string>
     <string name="tape_rewound">Kazeta přetočena</string>
     <string name="tape_save">Uložit kazetu…</string>
+    <string name="tape_record">Nahrávat</string>
+    <string name="tape_record_stop">Zastavit nahrávání</string>
+    <string name="tape_recording_started">Probíhá nahrávání — v programu spusťte ukládání a po jeho skončení zvolte Zastavit nahrávání</string>
+    <string name="tape_recording_stopped">Nahrávka přidána na kazetu — Uložit kazetu… ji zachová</string>
     <string name="tape_new">Nová kazeta</string>
     <string name="tape_new_done">Začata prázdná kazeta</string>
     <string name="tape_new_confirm">Zahodit současnou kazetu a začít prázdnou?</string>

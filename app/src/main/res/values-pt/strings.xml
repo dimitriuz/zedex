@@ -280,6 +280,10 @@
     <string name="tape_stopped">Cassete parada — ao reproduzir de novo continua daqui</string>
     <string name="tape_rewound">Cassete rebobinada</string>
     <string name="tape_save">Guardar cassete…</string>
+    <string name="tape_record">Gravar</string>
+    <string name="tape_record_stop">Parar a gravação</string>
+    <string name="tape_recording_started">A gravar — inicie a gravação no programa e, quando terminar, Parar a gravação</string>
+    <string name="tape_recording_stopped">Gravação adicionada à cassete — Guardar cassete… mantém-na</string>
     <string name="tape_new">Nova cassete</string>
     <string name="tape_new_done">Começou uma cassete vazia</string>
     <string name="tape_new_confirm">Deitar fora a cassete atual e começar uma vazia?</string>

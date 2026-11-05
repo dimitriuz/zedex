@@ -275,6 +275,10 @@
     <string name="tape_stopped">Лента остановлена — при следующем пуске продолжит с этого места</string>
     <string name="tape_rewound">Лента перемотана</string>
     <string name="tape_save">Сохранить ленту…</string>
+    <string name="tape_record">Запись</string>
+    <string name="tape_record_stop">Остановить запись</string>
+    <string name="tape_recording_started">Идёт запись — запустите сохранение в программе, затем Остановить запись, когда оно закончится</string>
+    <string name="tape_recording_stopped">Запись добавлена на ленту — Сохранить ленту… сохранит её</string>
     <string name="tape_new">Новая лента</string>
     <string name="tape_new_done">Начата пустая лента</string>
     <string name="tape_new_confirm">Выбросить текущую ленту и начать пустую?</string>

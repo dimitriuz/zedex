@@ -318,6 +318,10 @@
     <string name="tape_stopped">Tape stopped — playing again carries on from here</string>
     <string name="tape_rewound">Tape rewound</string>
     <string name="tape_save">Save tape\u2026</string>
+    <string name="tape_record">Record</string>
+    <string name="tape_record_stop">Stop recording</string>
+    <string name="tape_recording_started">Recording — start the save in the program, then Stop recording when it ends</string>
+    <string name="tape_recording_stopped">Recording added to the tape — Save tape\u2026 keeps it</string>
     <string name="tape_new">New tape</string>
     <string name="tape_new_done">Started an empty tape</string>
     <string name="tape_new_confirm">Throw away the current tape and start an empty one?</string>

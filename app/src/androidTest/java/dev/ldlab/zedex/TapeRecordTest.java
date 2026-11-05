@@ -12,6 +12,9 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.io.File;
+import java.io.IOException;
+
 /**
  * Fuse's own tape recorder - {@code tape_record_start()} / {@code tape_record_stop()} -
  * reached through the bridge's command queue.
@@ -58,8 +61,17 @@ public class TapeRecordTest {
     }
 
     @After
-    public void stopRecording() {
+    public void stopRecordingAndCleanUp() {
         stopAndForget();
+
+        // The round trip leaves its tape and its recording in the cache; a
+        // killed run never reaches here, and MediaStore-style leftovers make
+        // the next one read a stale file as a fresh one, so delete on the
+        // way out what both directions of the run write.
+        for (String name : new String[]{"saver.tap", "recorded.tzx"}) {
+            File file = new File(emulator.context().getCacheDir(), name);
+            if (file.isFile()) file.delete();
+        }
     }
 
     /** Asks for a stop and waits for the published flag to say so. */
@@ -177,5 +189,195 @@ public class TapeRecordTest {
                      0, blockCount());
         assertFalse("tapeRecording() says true and nothing started it",
                     FuseNative.tapeRecording());
+    }
+
+    /**
+     * What the sheet does while a recording runs: the Tape section is
+     * <em>only</em> <em>Stop recording</em>. Load, New tape, Play and
+     * <em>Save tape…</em> during a recording would mutate or write out the
+     * very tape the recording is about to be appended to, so they are not
+     * merely hidden — there is nothing there to tap.
+     *
+     * <p>The block to hang the ordinary rows on is recorded natively, the
+     * way {@link #recordingAppendsOneBlock} does it: the point of this test
+     * is the sheet, and the recorder is already pinned elsewhere.
+     */
+    @Test
+    public void recordingHidesTheOtherTapeRows() {
+        // A sibling that died with the sheet open would leave its rows for
+        // find() to trip over here; start from a closed drawer either way.
+        emulator.closeMenu();
+
+        startFromAnEmptyTape();
+
+        FuseNative.tapeRecord(true);
+        assertTrue("the block to hang the rows on never started recording",
+                   awaitRecording(true));
+        emulator.idle(1000);
+        FuseNative.tapeRecord(false);
+        assertTrue("the block to hang the rows on never stopped recording",
+                   awaitRecording(false));
+        awaitBlockCount(1);
+        assertEquals("the block to hang the rows on never appeared",
+                     1, blockCount());
+
+        emulator.menu("Media");
+        assertTrue("a tape with a block on it does not offer Save tape…",
+                   emulator.isInMenu("Save tape"));
+        assertTrue("a tape with a block on it does not offer Rewind",
+                   emulator.isInMenu("Rewind"));
+
+        emulator.tap("Record");
+        assertTrue("tapping Record never started a recording",
+                   awaitRecording(true));
+
+        emulator.menu("Media");
+        assertTrue("while recording the sheet does not offer Stop recording",
+                   emulator.isInMenu("Stop recording"));
+        for (String row : new String[]{"Load a tape", "New tape", "Rewind",
+                                       "Blocks", "Save tape"}) {
+            assertFalse("while recording the sheet still offers " + row,
+                        emulator.isInMenu(row));
+        }
+
+        emulator.tap("Stop recording");
+        assertTrue("tapping Stop recording never stopped the recording",
+                   awaitRecording(false));
+
+        emulator.menu("Media");
+        assertTrue("Record is not offered again once the stop is done",
+                   emulator.isInMenu("Record"));
+        assertTrue("Save tape… is not offered again once the stop is done",
+                   emulator.isInMenu("Save tape"));
+        emulator.closeMenu();
+    }
+
+    /**
+     * The whole reason for the feature, as a round trip: a real ROM save,
+     * recorded off the ULA's tape-out pin while the save trap stands aside
+     * (tape.c refuses to trap a save while {@code tape_recording}), written
+     * out as a file, and loaded back. The program the machine saves sets
+     * the border green when it runs, so green after a reset and a load of
+     * the written file can only mean the recording carried a program that
+     * {@code LOAD ""} could read and 128 BASIC could auto-start.
+     *
+     * <p>The file is a <b>.tzx</b>, not a .tap: libspectrum's .tap writer
+     * has nothing to say about an RLE pulse block, and a recorded block
+     * is exactly that.
+     *
+     * <p>Bound comments measured on the bench: the save itself is the
+     * ROM's own pilot tone and two blocks — a little over two seconds of
+     * real time — and the load back is the same tape played for real,
+     * seconds. The bounds are minutes because a loaded host is slower
+     * than the emulator, not because the Spectrum is.
+     */
+    @Test
+    public void aRecordedSaveLoadsBack() throws IOException {
+        emulator.menu("Machine", "Reset", "Reset");
+        emulator.idle(Emulator.BOOT);
+
+        // The deck goes empty before the saver tape goes in, and that is
+        // load-bearing rather than tidy: a sibling's recording is a
+        // *modified* tape, and opening a file over one makes Fuse ask
+        // whether to save it - which blocks the emulation thread until
+        // somebody answers (see FuseNative.onConfirmSave). startFromAnEmptyTape
+        // is the only way in that cannot stall, because the bridge clears
+        // tape_modified before it closes.
+        startFromAnEmptyTape();
+
+        File saver = new File(emulator.context().getCacheDir(), "saver.tap");
+        new TapeProgram()
+                .line(10, "BORDER 4: STOP")
+                // LINE 10 is what makes the load back run: the 128's BASIC
+                // auto-starts a program whose header names a line.
+                .line(20, "SAVE \"rec\" LINE 10")
+                .startingAt(20)
+                .writeTo(saver, "saver");
+
+        // Autoloads, runs line 20, and waits at the ROM's own
+        // “Start tape, then press any key”.
+        emulator.open(saver);
+
+        // The deck goes empty now, so the one block counted after the stop
+        // can only be the recording.
+        startFromAnEmptyTape();
+
+        emulator.menu("Media", "Record");
+        assertTrue("Record from the sheet never started the recorder",
+                   awaitRecording(true));
+        emulator.closeMenu();
+        emulator.key("ENTER");
+
+        // The save: the ROM's pilot tone and blocks hold the border at the
+        // black/blue the port writes paint through, and white means the
+        // routine has finished. Started is a colour; finished is that
+        // colour held over three polls, so a stripe caught mid-pulse is
+        // not read as a done save.
+        boolean started = false;
+        for (int waited = 0; waited < 15 * Emulator.SECOND; waited += 300) {
+            if (emulator.borderColour() != 7) {
+                started = true;
+                break;
+            }
+            emulator.idle(300);
+        }
+        assertTrue("the border never left white, so the save never started",
+                   started);
+
+        boolean finished = false;
+        for (int waited = 0, white = 0; waited < 60 * Emulator.SECOND;
+             waited += 300) {
+            white = emulator.borderColour() == 7 ? white + 1 : 0;
+            if (white >= 3) {
+                finished = true;
+                break;
+            }
+            emulator.idle(300);
+        }
+        assertTrue("the save never finished within a minute of starting",
+                   finished);
+
+        emulator.menu("Media", "Stop recording");
+        assertTrue("Stop recording from the sheet never stopped the recorder",
+                   awaitRecording(false));
+        awaitBlockCount(1);
+        assertEquals("the recorded save is not the one block on the tape",
+                     1, blockCount());
+
+        // Write the deck out. The command is queued and there is no answer
+        // to wait for, so the file itself is the report, as in Media.java.
+        File recorded = new File(emulator.context().getCacheDir(),
+                                 "recorded.tzx");
+        if (recorded.isFile()) recorded.delete();
+        FuseNative.writeTape(recorded.getAbsolutePath());
+        boolean written = false;
+        for (int waited = 0; waited < 5 * Emulator.SECOND; waited += 100) {
+            if (recorded.isFile() && recorded.length() > 0) {
+                written = true;
+                break;
+            }
+            emulator.idle(100);
+        }
+        assertTrue("the tape holding the recording was never written", written);
+
+        // And back: reset, open the file, and the autoloaded LOAD "" reads
+        // the recording for real (an RLE pulse block is no ROM loader, so
+        // the trap leaves it to the tape), the 128 auto-starts it, and
+        // BORDER 4 runs. Green is not a colour the ROM or the port stripes
+        // ever paint, so only the loaded program sets it.
+        emulator.menu("Machine", "Reset", "Reset");
+        emulator.idle(Emulator.BOOT);
+        emulator.open(recorded);
+
+        boolean green = false;
+        for (int waited = 0; waited < 90 * Emulator.SECOND; waited += 300) {
+            if (emulator.borderColour() == 4) {
+                green = true;
+                break;
+            }
+            emulator.idle(300);
+        }
+        assertTrue("the recording did not load back: the border never "
+                   + "turned green, so the saved program never ran", green);
     }
 }
