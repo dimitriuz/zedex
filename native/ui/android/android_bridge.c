@@ -124,6 +124,7 @@ typedef enum command_type {
   COMMAND_TAPE_PLAY,			/* a: 1 play, 0 stop */
   COMMAND_TAPE_REWIND,
   COMMAND_TAPE_BLOCK,			/* a: which block to wind to */
+  COMMAND_TAPE_RECORD,			/* a: 1 start, 0 stop */
   COMMAND_MOUSE_MOVE,			/* a: dx, b: dy, in the mouse's own units */
   COMMAND_MOUSE_BUTTON,			/* a: 0 left 1 right, b: down */
   COMMAND_POKE,				/* a: address, b: value */
@@ -746,6 +747,29 @@ drain_commands( void )
 
     case COMMAND_TAPE_BLOCK:
       tape_select_block( command.a );
+      break;
+
+    case COMMAND_TAPE_RECORD:
+      /* Fuse guards neither of its own functions: tape_record_start()
+         allocates a fresh sampling buffer and schedules a sampling event
+         without looking at tape_recording, and tape_record_stop() writes the
+         last length byte and appends a block without looking either. A stray
+         stop is the fatal one - with nothing ever recorded the buffer is
+         NULL, and that write is a SIGSEGV on the emulation thread; measured.
+         A second start is quieter: it leaks the buffer in hand and puts a
+         second sampling event into the same struct, so every pulse is counted
+         about twice over and the block it eventually appends plays back long.
+         Both directions are therefore checked here, against Fuse's own flag,
+         on the emulation thread at the moment the command runs - the only
+         moment the flag means anything. */
+      if( command.a ) {
+        if( !tape_recording ) tape_record_start();
+      } else if( tape_recording ) {
+        tape_record_stop();
+        /* The stop appends a block. Nothing else here touched the tape, so
+           the browser's list has no reason to think it has grown one. */
+        androidstate_tape_changed = 1;
+      }
       break;
 
     /* The mouse is relative and Fuse takes it that way: kempmouse keeps the
@@ -1409,6 +1433,16 @@ JNIEXPORT void JNICALL
 Java_dev_ldlab_zedex_FuseNative_newTape( JNIEnv *env, jclass class )
 {
   queue_command( COMMAND_NEW_TAPE, 0, 0 );
+}
+
+/* Queued like every other command: Fuse's recorder is an event that samples
+   the ULA's tape level between frames, so it has to be started between two of
+   them, not in the middle of one. */
+JNIEXPORT void JNICALL
+Java_dev_ldlab_zedex_FuseNative_tapeRecord( JNIEnv *env, jclass class,
+                                            jboolean on )
+{
+  queue_command( COMMAND_TAPE_RECORD, on ? 1 : 0, 0 );
 }
 
 

@@ -47,6 +47,7 @@ static int machine_list_current = -1;
 static int machine_turbo_capable;
 static int tape_on_machine;
 static int tape_running;
+static int tape_record_on;		/* Fuse's tape_recording, for the menu */
 
 /* The tape's blocks, for the browser.
  *
@@ -172,6 +173,7 @@ androidstate_publish( void )
 
   tape_on_machine = tape_present();
   tape_running = tape_is_playing();
+  tape_record_on = tape_recording;
   publish_tape_blocks();
 
   drive_list_count = 0;
@@ -400,6 +402,21 @@ Java_dev_ldlab_zedex_FuseNative_tapePlaying( JNIEnv *env, jclass class )
   pthread_mutex_unlock( &machine_mutex );
 
   return playing;
+}
+
+/* Whether a recording is in progress, for a menu that has to say Record or
+   Stop. Fuse's own flag, copied once a frame like everything else the UI
+   thread reads, so it lags a start or a stop by up to a frame. */
+JNIEXPORT jboolean JNICALL
+Java_dev_ldlab_zedex_FuseNative_tapeRecording( JNIEnv *env, jclass class )
+{
+  jboolean recording;
+
+  pthread_mutex_lock( &machine_mutex );
+  recording = tape_record_on ? JNI_TRUE : JNI_FALSE;
+  pthread_mutex_unlock( &machine_mutex );
+
+  return recording;
 }
 
 /* Controller in the high byte, drive in the low one. */
