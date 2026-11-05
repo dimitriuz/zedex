@@ -275,6 +275,10 @@
     <string name="tape_stopped">Cinta parada: al volver a darle play sigue desde aquí</string>
     <string name="tape_rewound">Cinta rebobinada</string>
     <string name="tape_save">Guardar la cinta…</string>
+    <string name="tape_record">Grabar</string>
+    <string name="tape_record_stop">Detener la grabación</string>
+    <string name="tape_recording_started">Grabando — inicia el guardado en el programa y, cuando termine, Detener la grabación</string>
+    <string name="tape_recording_stopped">Grabación añadida a la cinta — Guardar la cinta… la conserva</string>
     <string name="tape_new">Cinta nueva</string>
     <string name="tape_new_done">Empezada una cinta vacía</string>
     <string name="tape_new_confirm">¿Tirar la cinta actual y empezar una vacía?</string>

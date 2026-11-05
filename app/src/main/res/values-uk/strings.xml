@@ -275,6 +275,10 @@
     <string name="tape_stopped">Стрічку зупинено — наступний пуск продовжить із цього місця</string>
     <string name="tape_rewound">Стрічку перемотано</string>
     <string name="tape_save">Зберегти стрічку…</string>
+    <string name="tape_record">Запис</string>
+    <string name="tape_record_stop">Зупинити запис</string>
+    <string name="tape_recording_started">Йде запис — запустіть збереження в програмі, потім Зупинити запис, коли воно завершиться</string>
+    <string name="tape_recording_stopped">Запис додано на стрічку — Зберегти стрічку… збереже його</string>
     <string name="tape_new">Нова стрічка</string>
     <string name="tape_new_done">Розпочато порожню стрічку</string>
     <string name="tape_new_confirm">Викинути поточну стрічку і почати порожню?</string>

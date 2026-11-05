@@ -47,6 +47,8 @@ static int machine_list_current = -1;
 static int machine_turbo_capable;
 static int tape_on_machine;
 static int tape_running;
+static int tape_record_on;		/* Fuse's tape_recording, for the menu */
+static int tape_needs_tzx;		/* a .tap write would drop blocks */
 
 /* The tape's blocks, for the browser.
  *
@@ -95,6 +97,66 @@ count_block( libspectrum_tape_block *block, void *user_data )
   }
 
   walk->count++;
+}
+
+/* Whether saving the tape as a .tap would lose anything.
+ *
+ * libspectrum's .tap writer writes ROM, TURBO and PURE_DATA blocks, steps
+ * over the metadata ones without a word, and skips every other block type
+ * with a message (tap.c:149-199). What it skips includes RLE_PULSE - which
+ * is what Fuse's recorder produces (tape_record_stop() in tape.c), so a
+ * recorded tape looks perfectly ordinary in the browser and the *Save
+ * tape…* page, and writing it out as a .tap answered with a 0-byte file:
+ * measured. The page can only warn by asking first, and asking means
+ * walking everything the tape holds. Deliberately not capped like the
+ * browser's list below: what fits in MAX_TAPE_BLOCKS says nothing about a
+ * block at position two hundred.
+ */
+typedef struct {
+  int needs_tzx;
+} tzx_walk;
+
+static void
+check_block( libspectrum_tape_block *block, void *user_data )
+{
+  tzx_walk *walk = user_data;
+
+  switch( libspectrum_tape_block_type( block ) ) {
+
+  case LIBSPECTRUM_TAPE_BLOCK_ROM:
+  case LIBSPECTRUM_TAPE_BLOCK_TURBO:
+  case LIBSPECTRUM_TAPE_BLOCK_PURE_DATA:
+    /* What a .tap carries. */
+    return;
+
+  case LIBSPECTRUM_TAPE_BLOCK_GROUP_START:
+  case LIBSPECTRUM_TAPE_BLOCK_GROUP_END:
+  case LIBSPECTRUM_TAPE_BLOCK_STOP48:
+  case LIBSPECTRUM_TAPE_BLOCK_COMMENT:
+  case LIBSPECTRUM_TAPE_BLOCK_MESSAGE:
+  case LIBSPECTRUM_TAPE_BLOCK_ARCHIVE_INFO:
+  case LIBSPECTRUM_TAPE_BLOCK_HARDWARE:
+  case LIBSPECTRUM_TAPE_BLOCK_CUSTOM:
+  case LIBSPECTRUM_TAPE_BLOCK_CONCAT:
+    /* Skipped, but silently: nothing they hold survives either way, and
+       nothing the tape needs to do depends on them. */
+    return;
+
+  default:
+    walk->needs_tzx = 1;
+  }
+}
+
+static void
+publish_tape_needs_tzx( void )
+{
+  tzx_walk walk = { 0 };
+
+  tape_needs_tzx = 0;
+  if( tape_on_machine ) {
+    tape_foreach( check_block, &walk );
+    tape_needs_tzx = walk.needs_tzx;
+  }
 }
 
 static void
@@ -172,6 +234,8 @@ androidstate_publish( void )
 
   tape_on_machine = tape_present();
   tape_running = tape_is_playing();
+  tape_record_on = tape_recording;
+  publish_tape_needs_tzx();
   publish_tape_blocks();
 
   drive_list_count = 0;
@@ -400,6 +464,37 @@ Java_dev_ldlab_zedex_FuseNative_tapePlaying( JNIEnv *env, jclass class )
   pthread_mutex_unlock( &machine_mutex );
 
   return playing;
+}
+
+/* Whether a recording is in progress, for a menu that has to say Record or
+   Stop. Fuse's own flag, copied once a frame like everything else the UI
+   thread reads, so it lags a start or a stop by up to a frame. */
+JNIEXPORT jboolean JNICALL
+Java_dev_ldlab_zedex_FuseNative_tapeRecording( JNIEnv *env, jclass class )
+{
+  jboolean recording;
+
+  pthread_mutex_lock( &machine_mutex );
+  recording = tape_record_on ? JNI_TRUE : JNI_FALSE;
+  pthread_mutex_unlock( &machine_mutex );
+
+  return recording;
+}
+
+/* Whether writing the tape out as a .tap would drop blocks - see
+   tape_needs_tzx. The *Save tape…* page forces the name to .tzx when this
+   says yes, because the alternative is a file with pieces of the tape
+   missing, or an empty one. */
+JNIEXPORT jboolean JNICALL
+Java_dev_ldlab_zedex_FuseNative_tapeNeedsTzx( JNIEnv *env, jclass class )
+{
+  jboolean needs;
+
+  pthread_mutex_lock( &machine_mutex );
+  needs = tape_needs_tzx ? JNI_TRUE : JNI_FALSE;
+  pthread_mutex_unlock( &machine_mutex );
+
+  return needs;
 }
 
 /* Controller in the high byte, drive in the low one. */

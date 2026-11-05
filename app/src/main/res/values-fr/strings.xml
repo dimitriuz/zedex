@@ -275,6 +275,10 @@
     <string name="tape_stopped">Cassette arrêtée — la lecture reprendra ici</string>
     <string name="tape_rewound">Cassette rembobinée</string>
     <string name="tape_save">Enregistrer la cassette…</string>
+    <string name="tape_record">Enregistrer</string>
+    <string name="tape_record_stop">Arrêter l\'enregistrement</string>
+    <string name="tape_recording_started">Enregistrement en cours — lancez la sauvegarde depuis le programme, puis Arrêter l\'enregistrement quand elle se termine</string>
+    <string name="tape_recording_stopped">Enregistrement ajouté à la cassette — Enregistrer la cassette… le conserve</string>
     <string name="tape_new">Nouvelle cassette</string>
     <string name="tape_new_done">Cassette vierge commencée</string>
     <string name="tape_new_confirm">Jeter la cassette actuelle et en commencer une vierge ?</string>

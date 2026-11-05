@@ -275,6 +275,10 @@
     <string name="tape_stopped">Kassette gestoppt — beim nächsten Start geht es hier weiter</string>
     <string name="tape_rewound">Kassette zurückgespult</string>
     <string name="tape_save">Kassette speichern…</string>
+    <string name="tape_record">Aufnehmen</string>
+    <string name="tape_record_stop">Aufnahme stoppen</string>
+    <string name="tape_recording_started">Aufnahme — im Programm die Speicherung starten und nach ihrem Ende Aufnahme stoppen</string>
+    <string name="tape_recording_stopped">Aufnahme zur Kassette hinzugefügt — Kassette speichern… bewahrt sie auf</string>
     <string name="tape_new">Neue Kassette</string>
     <string name="tape_new_done">Leere Kassette begonnen</string>
     <string name="tape_new_confirm">Die aktuelle Kassette wegwerfen und eine leere beginnen?</string>

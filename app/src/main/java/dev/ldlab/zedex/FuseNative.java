@@ -313,6 +313,39 @@ public final class FuseNative {
     public static native boolean tapePlaying();
 
     /**
+     * Fuse's own tape recorder. On samples the ULA's tape level into a buffer;
+     * off turns that buffer into a block appended to the tape, which
+     * {@code writeTape} then writes out like any other block.
+     *
+     * <p>What it is for: a save that goes through the program's own routine
+     * rather than the ROM's, which the tape traps never see, so nothing else
+     * appends the block and the machine appears to save into nowhere.
+     *
+     * <p>Queued like every other command, so it lands between frames. Either
+     * direction asked twice is ignored - Fuse's own functions do not check
+     * whether they were already doing it, and a second start corrupts the
+     * recording in progress.
+     */
+    public static native void tapeRecord(boolean on);
+
+    /**
+     * Whether a recording is in progress, from the once-a-frame snapshot: it
+     * can lag {@link #tapeRecord} by a frame, so a screen that has just asked
+     * for one waits for this to agree instead of trusting the answer.
+     */
+    public static native boolean tapeRecording();
+
+    /**
+     * Whether writing the tape out as a .tap would drop blocks. libspectrum's
+     * .tap writer carries ROM, turbo and pure-data blocks only, and steps over
+     * everything else - including the RLE pulse block that <em>every</em>
+     * recording is, which is how a saved recording used to arrive as a 0-byte
+     * file. The Save tape… page forces .tzx when this says true. False with
+     * no tape; from the once-a-frame snapshot, like the rest.
+     */
+    public static native boolean tapeNeedsTzx();
+
+    /**
      * The tape's blocks as the browser lists them, already numbered and
      * described by libspectrum - "3. Program: Tujad" - and capped at a hundred
      * and twenty-eight, since a TZX can carry thousands of pulse blocks.

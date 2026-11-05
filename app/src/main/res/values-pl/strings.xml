@@ -275,6 +275,10 @@
     <string name="tape_stopped">Taśma zatrzymana — kolejne odtwarzanie ruszy z tego miejsca</string>
     <string name="tape_rewound">Taśma przewinięta</string>
     <string name="tape_save">Zapisz taśmę…</string>
+    <string name="tape_record">Nagrywaj</string>
+    <string name="tape_record_stop">Zatrzymaj nagrywanie</string>
+    <string name="tape_recording_started">Trwa nagrywanie — uruchom zapis w programie, a gdy się skończy, wybierz Zatrzymaj nagrywanie</string>
+    <string name="tape_recording_stopped">Nagranie dodane do taśmy — Zapisz taśmę… je zachowa</string>
     <string name="tape_new">Nowa taśma</string>
     <string name="tape_new_done">Zaczęto pustą taśmę</string>
     <string name="tape_new_confirm">Wyrzucić obecną taśmę i zacząć pustą?</string>
