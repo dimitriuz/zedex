@@ -192,7 +192,7 @@ sections.
 | <img src="icons/rewind.svg" width="16"> | **Rewind to the start** | the first block; there is no winding |
 | <img src="icons/tape.svg" width="16"> | **Blocks…** | what is on the tape, block by block |
 | <img src="icons/record.svg" width="16"> | **Record** / **Stop recording** | captures what the machine sends to the tape, for a game that saves through its own routine rather than the ROM's (Level 9's later adventures, such as *The Price of Magik*), so *Save tape…* alone would miss it; stopping adds it to the tape, and *Save tape…* writes it out |
-| <img src="icons/save.svg" width="16"> | **Save tape…** | the machine writes to its tape as well as reading from it — a BASIC `SAVE "name"` appends, and this is what puts it on disk |
+| <img src="icons/save.svg" width="16"> | **Save tape…** | the machine writes to its tape as well as reading from it — a BASIC `SAVE "name"` appends, and this is what puts it on disk; a tape holding a recording, or anything else a `.tap` cannot carry, is always written as a `.tzx` |
 | <img src="icons/plus.svg" width="16"> | **New tape** | |
 
 Everything but *Load a tape…*, *Record* and *New tape* needs a tape in
@@ -200,6 +200,11 @@ the deck — *Record* works onto an empty one, which is how a recording
 usually starts. While a recording runs, *Stop recording* is the only
 tape row there is: nothing else may touch the tape it is about to
 write to.
+
+To load a recorded save back into a game that is already running, turn
+off *Autoload media* (Settings → Tape) first, so opening the `.tzx`
+puts it in the deck without resetting the machine, then use the game's
+own restore command.
 
 **Drives**
 

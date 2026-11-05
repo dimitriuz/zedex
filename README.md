@@ -159,7 +159,7 @@ Screenshots as PNG, and recording to GIF or MP4. All three go to
 - The +3 floppy, drives A: and B:
 - DivMMC and a memory card, on any machine
 - Timex SCLD video and its hi-res modes
-- A tape deck that reads and writes
+- A tape deck that reads, writes and records — for games that save their own way
 - Kempston mouse
 
 <a href="docs/screenshots/media.jpg"><img src="docs/screenshots/media.jpg" width="400" alt="The tape deck and every drive the machine has"></a>
