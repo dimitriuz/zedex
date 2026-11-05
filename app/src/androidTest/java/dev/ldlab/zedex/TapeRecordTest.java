@@ -288,7 +288,7 @@ public class TapeRecordTest {
         File saver = new File(emulator.context().getCacheDir(), "saver.tap");
         new TapeProgram()
                 .line(10, "BORDER 4: STOP")
-                // LINE 10 is what makes the load back run: the 128's BASIC
+                // LINE 10 is what makes the load back run: LOAD ""
                 // auto-starts a program whose header names a line.
                 .line(20, "SAVE \"rec\" LINE 10")
                 .startingAt(20)
@@ -308,8 +308,8 @@ public class TapeRecordTest {
         emulator.closeMenu();
         emulator.key("ENTER");
 
-        // The save: the ROM's pilot tone and blocks hold the border at the
-        // black/blue the port writes paint through, and white means the
+        // The save: the ROM stripes the border red/cyan through its pilot
+        // tone and blue/yellow through the data, and white means the
         // routine has finished. Started is a colour; finished is that
         // colour held over three polls, so a stripe caught mid-pulse is
         // not read as a done save.
