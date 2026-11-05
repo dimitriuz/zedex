@@ -665,9 +665,26 @@ public final class Media {
      * Fuse picks the format from the extension, so choosing one is choosing
      * what to call the file. Typing .tap or .tzx yourself still wins; the
      * setting is only what happens when you do not.
+     *
+     * A tape holding anything the .tap format cannot carry has no choice:
+     * libspectrum's writer steps over an RLE pulse block - which is what
+     * every recording is - and answers with a file that is empty where the
+     * tape was full. {@link FuseNative#tapeNeedsTzx()} is asked first, and
+     * a yes turns a bare name into .tzx and a typed .tap into .tzx too;
+     * the toast after the write names the file actually written, so the
+     * change is visible without a word of warning.
      */
     private File tapeFile(String name) {
         String lower = name.toLowerCase(Locale.ROOT);
+
+        if (FuseNative.tapeNeedsTzx()) {
+            String base = lower.endsWith(".tap")
+                    ? name.substring(0, name.length() - ".tap".length())
+                    : name;
+            if (!base.toLowerCase(Locale.ROOT).endsWith(".tzx")) base += ".tzx";
+            return new File(Storage.tapesDirectory(activity), base);
+        }
+
         String wanted = preferences.getString(Prefs.KEY_TAPE_FORMAT, "tap");
         String file = lower.endsWith(".tap") || lower.endsWith(".tzx")
                 ? name : name + "." + wanted;

@@ -336,6 +336,16 @@ public final class FuseNative {
     public static native boolean tapeRecording();
 
     /**
+     * Whether writing the tape out as a .tap would drop blocks. libspectrum's
+     * .tap writer carries ROM, turbo and pure-data blocks only, and steps over
+     * everything else - including the RLE pulse block that <em>every</em>
+     * recording is, which is how a saved recording used to arrive as a 0-byte
+     * file. The Save tape… page forces .tzx when this says true. False with
+     * no tape; from the once-a-frame snapshot, like the rest.
+     */
+    public static native boolean tapeNeedsTzx();
+
+    /**
      * The tape's blocks as the browser lists them, already numbered and
      * described by libspectrum - "3. Program: Tujad" - and capped at a hundred
      * and twenty-eight, since a TZX can carry thousands of pulse blocks.

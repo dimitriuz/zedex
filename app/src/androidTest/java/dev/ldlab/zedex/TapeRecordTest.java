@@ -5,7 +5,13 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
 
+import android.content.Context;
+import android.content.SharedPreferences;
+
 import androidx.test.ext.junit.runners.AndroidJUnit4;
+
+import dev.ldlab.zedex.storage.Prefs;
+import dev.ldlab.zedex.storage.Storage;
 
 import org.junit.After;
 import org.junit.Before;
@@ -14,6 +20,7 @@ import org.junit.runner.RunWith;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Objects;
 
 /**
  * Fuse's own tape recorder - {@code tape_record_start()} / {@code tape_record_stop()} -
@@ -47,13 +54,35 @@ public class TapeRecordTest {
 
     private static final long POLL = 50;
 
+    /** The bench's saved tape-format preference, put back by @After. */
+    private String savedFormat;
+
     private final Emulator emulator = new Emulator();
+
+    private SharedPreferences preferences() {
+        return emulator.context()
+                .getSharedPreferences(Prefs.PREFS, Context.MODE_PRIVATE);
+    }
+
+    /**
+     * Pins the <em>Save tape…</em> page's format preference - these tests
+     * are about which extension the page picks, so they set it rather
+     * than inheriting whatever the bench was left with. @After puts the
+     * previous value back.
+     */
+    private void tapeFormat(String value) {
+        preferences().edit()
+                     .putString(Prefs.KEY_TAPE_FORMAT, value)
+                     .commit();
+    }
 
     @Before
     public void setUp() {
         emulator.useDataFolder();
         emulator.launch();
         assumeFalse("no ROMs in " + emulator.romFolder(), emulator.needsRoms());
+
+        savedFormat = preferences().getString(Prefs.KEY_TAPE_FORMAT, null);
 
         // A run killed mid-recording leaves the bench recording, and every
         // later test would then start a second recording on top of it.
@@ -64,13 +93,38 @@ public class TapeRecordTest {
     public void stopRecordingAndCleanUp() {
         stopAndForget();
 
-        // The round trip leaves its tape and its recording in the cache; a
-        // killed run never reaches here, and MediaStore-style leftovers make
-        // the next one read a stale file as a fresh one, so delete on the
-        // way out what both directions of the run write.
-        for (String name : new String[]{"saver.tap", "recorded.tzx"}) {
+        if (!Objects.equals(
+                    preferences().getString(Prefs.KEY_TAPE_FORMAT, null), savedFormat)) {
+            SharedPreferences.Editor restore = preferences().edit();
+            if (savedFormat == null) restore.remove(Prefs.KEY_TAPE_FORMAT);
+            else restore.putString(Prefs.KEY_TAPE_FORMAT, savedFormat);
+            restore.commit();
+        }
+
+        // What the round trip and the plain save write, in the folder
+        // <em>Save tape…</em> actually saves to: a killed run never reaches
+        // here, and a stale file reads as a fresh one - the next run waits
+        // for a file it never wrote, or MediaStore quietly renames it to
+        // "recorded (1).tzx" with the same result.
+        deleteTapeFiles("recorded", "plain");
+        for (String name : new String[]{"saver.tap", "plain.tap"}) {
             File file = new File(emulator.context().getCacheDir(), name);
             if (file.isFile()) file.delete();
+        }
+    }
+
+    /**
+     * Both extensions for each name: <em>which</em> one arrives is exactly
+     * what those tests assert, so the other must not be lying around from
+     * a previous run.
+     */
+    private void deleteTapeFiles(String... bases) {
+        File directory = Storage.tapesDirectory(emulator.context());
+        for (String base : bases) {
+            for (String extension : new String[]{".tap", ".tzx"}) {
+                File file = new File(directory, base + extension);
+                if (file.isFile()) file.delete();
+            }
         }
     }
 
@@ -112,6 +166,15 @@ public class TapeRecordTest {
              waited += POLL) {
             emulator.idle(POLL);
         }
+    }
+
+    /** Polls the border for {@code timeout}, green being the answer. */
+    private boolean awaitGreen(long timeout) {
+        for (long waited = 0; waited < timeout; waited += 300) {
+            if (emulator.borderColour() == 4) return true;
+            emulator.idle(300);
+        }
+        return emulator.borderColour() == 4;
     }
 
     /**
@@ -261,9 +324,11 @@ public class TapeRecordTest {
      * the written file can only mean the recording carried a program that
      * {@code LOAD ""} could read and 128 BASIC could auto-start.
      *
-     * <p>The file is a <b>.tzx</b>, not a .tap: libspectrum's .tap writer
-     * has nothing to say about an RLE pulse block, and a recorded block
-     * is exactly that.
+     * <p>The file arrives as a <b>.tzx</b> from the <em>Save tape…</em>
+     * page, and that is half the point: libspectrum's .tap writer has
+     * nothing to say about an RLE pulse block - every recording is one -
+     * and the page has to refuse to write the empty .tap that used to
+     * answer in its place.
      *
      * <p>Bound comments measured on the bench: the save itself is the
      * ROM's own pilot tone and two blocks — a little over two seconds of
@@ -273,6 +338,13 @@ public class TapeRecordTest {
      */
     @Test
     public void aRecordedSaveLoadsBack() throws IOException {
+        deleteTapeFiles("recorded");
+
+        // The save step is about the format the page picks, so pin it:
+        // unpin, and a bench left on "tzx" would let the round trip pass
+        // on the preference's default rather than on the choice.
+        tapeFormat("tap");
+
         emulator.menu("Machine", "Reset", "Reset");
         emulator.idle(Emulator.BOOT);
 
@@ -344,12 +416,16 @@ public class TapeRecordTest {
         assertEquals("the recorded save is not the one block on the tape",
                      1, blockCount());
 
-        // Write the deck out. The command is queued and there is no answer
-        // to wait for, so the file itself is the report, as in Media.java.
-        File recorded = new File(emulator.context().getCacheDir(),
+        // Write the deck out through the *Save tape…* page, the way a
+        // person does it: type a bare name, the page picks the format -
+        // and picking .tap here can only write an empty file. The command
+        // is queued with no answer to wait for, so the file itself is the
+        // report, as in Media.writeTape.
+        File recorded = new File(Storage.tapesDirectory(emulator.context()),
                                  "recorded.tzx");
-        if (recorded.isFile()) recorded.delete();
-        FuseNative.writeTape(recorded.getAbsolutePath());
+        emulator.menu("Media", "Save tape");
+        emulator.enterText("recorded");
+        emulator.tap("Save tape");
         boolean written = false;
         for (int waited = 0; waited < 5 * Emulator.SECOND; waited += 100) {
             if (recorded.isFile() && recorded.length() > 0) {
@@ -359,25 +435,75 @@ public class TapeRecordTest {
             emulator.idle(100);
         }
         assertTrue("the tape holding the recording was never written", written);
+        assertFalse("Save tape… wrote a .tap for a tape a .tap cannot hold",
+                    new File(recorded.getParentFile(), "recorded.tap").isFile());
 
-        // And back: reset, open the file, and the autoloaded LOAD "" reads
-        // the recording for real (an RLE pulse block is no ROM loader, so
-        // the trap leaves it to the tape), the 128 auto-starts it, and
-        // BORDER 4 runs. Green is not a colour the ROM or the port stripes
-        // ever paint, so only the loaded program sets it.
+        // And back: reset, open the file, and Fuse's autoload types the
+        // LOAD "" that reads the recording for real (an RLE pulse block is
+        // no ROM loader, so the trap leaves it to the tape) and the 128
+        // auto-starts it, and BORDER 4 runs. Green is not a colour the ROM
+        // or the port stripes ever paint, so only the loaded program sets
+        // it. One attempt is not enough: the phantom typist races the
+        // pilot tone and loses sometimes - measured, the white border
+        // staying put while a second open() of the same file loads in a
+        // second. The file is already on the deck, so retrying just asks
+        // for the load again.
         emulator.menu("Machine", "Reset", "Reset");
         emulator.idle(Emulator.BOOT);
         emulator.open(recorded);
 
-        boolean green = false;
-        for (int waited = 0; waited < 90 * Emulator.SECOND; waited += 300) {
-            if (emulator.borderColour() == 4) {
-                green = true;
-                break;
-            }
-            emulator.idle(300);
+        boolean green = awaitGreen(45 * Emulator.SECOND);
+        if (!green) {
+            emulator.open(recorded);
+            green = awaitGreen(45 * Emulator.SECOND);
         }
+
         assertTrue("the recording did not load back: the border never "
                    + "turned green, so the saved program never ran", green);
+    }
+
+    /**
+     * The other half of the format decision: a tape made only of blocks
+     * a .tap can carry must still come out as a .tap. Without this the fix
+     * for a recorded tape could quietly become "everything is .tzx now",
+     * and nothing else in this file would notice.
+     *
+     * <p>Saves through the sheet with the format preference pinned to
+     * "tap" - this test is about that preference, so it sets it; @After
+     * puts the bench's own value back.
+     */
+    @Test
+    public void aPlainTapeStillSavesAsTap() throws IOException {
+        deleteTapeFiles("plain");
+        tapeFormat("tap");
+
+        // Empty deck first: opening over a sibling's modified tape
+        // would raise the save-confirmation and stall the pump.
+        startFromAnEmptyTape();
+
+        File program = new File(emulator.context().getCacheDir(),
+                                "plain.tap");
+        if (program.isFile()) program.delete();
+        new TapeProgram().line(10, "BORDER 4: STOP")
+                         .writeTo(program, "plain");
+        emulator.open(program);
+
+        File saved = new File(Storage.tapesDirectory(emulator.context()),
+                              "plain.tap");
+        emulator.menu("Media", "Save tape");
+        emulator.enterText("plain");
+        emulator.tap("Save tape");
+
+        boolean written = false;
+        for (int waited = 0; waited < 5 * Emulator.SECOND; waited += 100) {
+            if (saved.isFile() && saved.length() > 0) {
+                written = true;
+                break;
+            }
+            emulator.idle(100);
+        }
+        assertTrue("a tape a .tap can hold stopped saving as .tap", written);
+        assertFalse("a plain tape went to .tzx too",
+                    new File(saved.getParentFile(), "plain.tzx").isFile());
     }
 }
