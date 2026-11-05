@@ -22,16 +22,16 @@ import org.junit.runner.RunWith;
  * frame, and the block a stop appends reaches the browser's list through
  * {@code androidstate_publish()} as well.
  *
- * <p>The point of the whole class is that Fuse's two functions do not guard
- * themselves. {@code tape_record_start()} allocates a fresh sampling buffer and
- * schedules a fresh {@code record_event} without looking at {@code
- * tape_recording}, so a second start leaks the first buffer and leaves two
- * events sampling into the one struct - each of which schedules another, so the
- * machine drowns, and the stop then writes into a buffer it has already set to
- * NULL. {@code tape_record_stop()} while not recording writes a length byte to
- * that NULL buffer outright. So the bridge guards both, and these three tests
- * are the guard: a double start must still append exactly one block, and a stop
- * nobody asked for must append nothing and survive.
+ * <p>Fuse's two record functions do not guard themselves; the bridge does. Of
+ * the two guards, this class can pin only the stop one: with nothing recording,
+ * {@code tape_record_stop()} writes a length byte into a NULL sampling buffer,
+ * which is a SIGSEGV - measured, by removing the guard and watching the run die
+ * in that function. A double start is not observable through this API - it
+ * leaks the sampling buffer and roughly doubles each pulse count inside the
+ * block, and {@code tapeBlocks()} shows neither - so {@link
+ * #startTwiceThenStopAppendsOneBlock} pins only that a double start appends no
+ * second block and does not crash. The start guard is kept for the part that
+ * cannot be seen from here.
  *
  * <p>Instrumentation rather than JVM: the questions are about what the real
  * Fuse core does, and it has to be running to answer them.
@@ -128,11 +128,12 @@ public class TapeRecordTest {
     }
 
     /**
-     * Fuse's {@code tape_record_start()} does not look at {@code
-     * tape_recording} before allocating a buffer and scheduling another
-     * sampling event, so the guard is the only thing between a double start and
-     * two events feeding one buffer. Hence: exactly one block, and one block
-     * still - the second event would have had time to append by now.
+     * What a double start can be made to answer from Java: no second block, and
+     * no crash. Only {@code tape_record_stop()} ever appends a block, and it
+     * removes every sampling event, so the second start's damage - the leaked
+     * buffer, the pulse counts counted twice over - never reaches {@code
+     * tapeBlocks()}. The guard in the bridge is what stops that damage
+     * happening; this only proves it is not fatal.
      */
     @Test
     public void startTwiceThenStopAppendsOneBlock() {

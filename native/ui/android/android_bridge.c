@@ -757,8 +757,8 @@ drain_commands( void )
          stop is the fatal one - with nothing ever recorded the buffer is
          NULL, and that write is a SIGSEGV on the emulation thread; measured.
          A second start is quieter: it leaks the buffer in hand and puts a
-         second sampling event into the same struct, so every pulse is counted
-         about twice over and the block it eventually appends plays back long.
+         second sampling event into the same struct, which would count every
+         pulse about twice over (read from tape.c, not measured).
          Both directions are therefore checked here, against Fuse's own flag,
          on the emulation thread at the moment the command runs - the only
          moment the flag means anything. */
