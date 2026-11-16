@@ -82,10 +82,17 @@ count_block( libspectrum_tape_block *block, void *user_data )
 
   if( walk->format && walk->count < MAX_TAPE_BLOCKS ) {
     char type[ 64 ], details[ 96 ];
+    char *found = NULL;
 
     type[0] = details[0] = '\0';
     libspectrum_tape_block_description( type, sizeof( type ), block );
-    tape_block_details( details, sizeof( details ), block );
+
+    /* 1.10 allocates the text instead of filling our buffer, and does not
+       bound it; take what fits and give the rest back. */
+    if( !tape_block_details( &found, block ) && found ) {
+      snprintf( details, sizeof( details ), "%s", found );
+      libspectrum_free( found );
+    }
 
     if( details[0] ) {
       snprintf( tape_blocks[ walk->count ], sizeof( tape_blocks[0] ),

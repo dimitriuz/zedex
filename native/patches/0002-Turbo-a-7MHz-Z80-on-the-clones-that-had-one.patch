@@ -17,8 +17,8 @@ alone and the picture would be drawn in the first half of every frame.
 
 Three things do not follow the CPU, and each was a bug before it was a line:
 
-  - The AY has a clock of its own and stays at 1.75MHz, so sound.c multiplies
-    AY_CLOCK_RATIO by machine_turbo_factor().  Without it every tune plays an
+  - The AY has a clock of its own and stays at 1.75MHz, so ay_engine.c
+    multiplies AY_CLOCK_RATIO by machine_turbo_factor().  Without it every tune plays an
     octave up in turbo, which is the first thing this got wrong.
   - ULA_CONTENTION_SIZE was 80000, one entry per tstate, and the Pentagon's
     doubled frame is 143360.  The array is indexed by a running tstate count
@@ -50,14 +50,14 @@ menu has to know not to offer it on a 48K.
  machine.h         |  12 +++++
  peripherals/ula.h |   7 ++-
  settings.dat      |   1 +
- sound.c           |  11 +++--
- 5 files changed, 148 insertions(+), 4 deletions(-)
+ sound/ay_engine.c |   6 ++-
+ 5 files changed, 145 insertions(+), 2 deletions(-)
 
 diff --git a/machine.c b/machine.c
-index 57415b8..009458a 100644
+index c9a45d9..30fdd57 100644
 --- a/machine.c
 +++ b/machine.c
-@@ -45,6 +45,7 @@
+@@ -46,6 +46,7 @@
  #include "settings.h"
  #include "snapshot.h"
  #include "sound.h"
@@ -65,7 +65,7 @@ index 57415b8..009458a 100644
  #include "tape.h"
  #include "timer/timer.h"
  #include "ui/ui.h"
-@@ -371,9 +372,62 @@ machine_reset( int hard_reset )
+@@ -561,9 +562,62 @@ machine_reset_from_snapshot( int hard_reset, libspectrum_snap *snap )
    return 0;
  }
  
@@ -80,7 +80,7 @@ index 57415b8..009458a 100644
 +   Everything in machine_timings is therefore doubled together, so that a frame
 +   still takes tstates_per_frame / processor_speed seconds. The AY is the one
 +   thing that does not follow, since it has a clock of its own: see
-+   AY_CLOCK_RATIO in sound.c, which multiplies by this.
++   AY_STEP in sound/ay_engine.c, which multiplies by this.
 +
 +   settings_current.turbo is the only copy of whether it is on, so that the
 +   command line - which is read before there is a machine to tell - and the
@@ -128,7 +128,7 @@ index 57415b8..009458a 100644
    /* Pull timings we use repeatedly out of libspectrum and store them
       for ourself */
    machine->timings.processor_speed =
-@@ -390,6 +444,22 @@ machine_set_const_timings( fuse_machine_info *machine )
+@@ -580,6 +634,22 @@ machine_set_const_timings( fuse_machine_info *machine )
      libspectrum_timings_interrupt_length( machine->machine );
    machine->timings.tstates_per_frame =
      libspectrum_timings_tstates_per_frame( machine->machine );
@@ -151,7 +151,7 @@ index 57415b8..009458a 100644
  }
  
  static void
-@@ -424,6 +494,57 @@ machine_set_variable_timings( fuse_machine_info *machine )
+@@ -614,6 +684,57 @@ machine_set_variable_timings( fuse_machine_info *machine )
    }
  }
  
@@ -210,12 +210,12 @@ index 57415b8..009458a 100644
  machine_end( void )
  {
 diff --git a/machine.h b/machine.h
-index f8d4d80..053d4c4 100644
+index 5ceb57f..7dd0f82 100644
 --- a/machine.h
 +++ b/machine.h
-@@ -109,4 +109,16 @@ int machine_load_rom( int page_num, const char *filename, const char *fallback,
- 
- int machine_reset( int hard_reset );
+@@ -118,4 +118,16 @@ int machine_reset( int hard_reset );
+ int machine_reset_from_snapshot( int hard_reset, libspectrum_snap *snap );
+ int machine_select_from_snapshot( libspectrum_machine type, libspectrum_snap *snap );
  
 +/* Turbo mode: a 7MHz Z80 on the machines that had one, with the frame still
 +   50Hz. Whether it is on is settings_current.turbo; this applies a change to
@@ -249,43 +249,31 @@ index f0eaeaf..08613db 100644
  /* How much contention do we get at every tstate when MREQ is active? */
  extern libspectrum_byte ula_contention[ ULA_CONTENTION_SIZE ];
 diff --git a/settings.dat b/settings.dat
-index 59a538d..05ab8c8 100644
+index cf88845..52c5e17 100644
 --- a/settings.dat
 +++ b/settings.dat
-@@ -100,6 +100,7 @@ stereo_ay, string, NULL,, separation
- sound_force_8bit, boolean, 0
+@@ -103,6 +103,7 @@ stereo_ay, string, NULL,, separation
+ sound_force_8bit, null, 0
  sound_freq, numeric, 44100, 'f'
  speaker_type, string, NULL
 +turbo, boolean, 0
  turbosound, boolean, 1
  volume_ay, numeric, 100
  volume_beeper, numeric, 100
-diff --git a/sound.c b/sound.c
-index 8e226ca..bce0e60 100644
---- a/sound.c
-+++ b/sound.c
-@@ -642,7 +642,7 @@ static void
- sound_ay_overlay( void )
- {
-   libspectrum_dword f;
--  int chip, chips;
-+  int chip, chips, step;
-   int last_chan1 = 0, last_chan2 = 0, last_chan3 = 0;
+diff --git a/sound/ay_engine.c b/sound/ay_engine.c
+index ce5c619..219de65 100644
+--- a/sound/ay_engine.c
++++ b/sound/ay_engine.c
+@@ -68,7 +68,11 @@ static unsigned int levels[AY_ENV_STEPS];
+ static Blip_Synth *synths[AY_CHANNELS];
+ static Blip_Synth *right_synths[AY_CHANNELS];
  
-   /* If no AY chip, don't produce any AY sound (!) */
-@@ -658,8 +658,13 @@ sound_ay_overlay( void )
-   for( chip = 0; chip < chips; chip++ )
-     ay_chip[ chip ].change_next = 0;
+-#define AY_STEP ( AY_CLOCK_DIVISOR * AY_CLOCK_RATIO )
++/* The AY has a clock of its own and does not follow the CPU: a machine in
++ * turbo has twice the tstates in a frame and the same 1.75MHz chip, so the
++ * step between its ticks is in tstates of whatever the CPU is doing now.
++ * Without the factor every tune plays an octave up in turbo. */
++#define AY_STEP ( AY_CLOCK_DIVISOR * AY_CLOCK_RATIO * machine_turbo_factor() )
  
--  for( f = 0; f < machine_current->timings.tstates_per_frame;
--       f+= AY_CLOCK_DIVISOR * AY_CLOCK_RATIO ) {
-+  /* The AY has a clock of its own and does not follow the CPU, so a machine
-+     in turbo has twice the tstates in a frame and the same 1.75MHz chip -
-+     without this every tune plays an octave up in turbo, which was the first
-+     thing turbo mode got wrong. */
-+  step = AY_CLOCK_DIVISOR * AY_CLOCK_RATIO * machine_turbo_factor();
-+
-+  for( f = 0; f < machine_current->timings.tstates_per_frame; f += step ) {
-     int levels[AY_CHANNELS] = { 0, 0, 0 };
- 
-     for( chip = 0; chip < chips; chip++ )
+ static void
+ ay_state_reset( struct ay_chip *c )

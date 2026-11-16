@@ -25,8 +25,8 @@ BUILD="$ROOT/build-native"
 APP="$ROOT/app/src/main"
 NATIVE="$ROOT/native"
 
-FUSE_VER="1.9.1"
-LIBSPECTRUM_VER="1.6.3"
+FUSE_VER="1.10.1"
+LIBSPECTRUM_VER="1.8.0"
 
 SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-$HOME/Android/Sdk}}"
 NDK="${ANDROID_NDK_HOME:-$(ls -d "$SDK"/ndk/* 2>/dev/null | sort -V | tail -1)}"
@@ -87,10 +87,10 @@ fetch() {
 
 fetch "fuse-$FUSE_VER" \
   "https://downloads.sourceforge.net/project/fuse-emulator/fuse/$FUSE_VER/fuse-$FUSE_VER.tar.gz" \
-  5815b42256d4dd28581d59f3ceec33fcd736b7a68afe032b1e65ba714fb55642
+  f57cd30f15bac6fb7a873b0ee406eb0014617691f665caa01d001624b4953e97
 fetch "libspectrum-$LIBSPECTRUM_VER" \
   "https://downloads.sourceforge.net/project/fuse-emulator/libspectrum/$LIBSPECTRUM_VER/libspectrum-$LIBSPECTRUM_VER.tar.gz" \
-  fa4a5e68c1ab5860dcdf99f5486ee6313995dbe30e84160e9f699d0f8db77d76
+  3a3322f906f054987163c2e9707160b7cda302ee46d64111c7cb6ec33adc9d04
 
 ##############################################################################
 # What Fuse is actually built from: a copy of the release with native/patches/

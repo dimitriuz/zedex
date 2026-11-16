@@ -173,12 +173,17 @@ the one being addressed. The switch is on by default, and on a machine that
 cannot have one it does nothing at all.
 
 **One chip was assumed in two places, and both had to become arrays.**
-`machine_current->ay` is `ayinfo[AY_CHIPS]`; and Fuse's `sound.c` kept the whole
-generator — tone ticks and periods, the noise and envelope counters, the
-register copy, the frame's write queue, and the noise RNG and envelope, which
-were `static` *inside* `sound_ay_overlay()` — in file statics. They are a struct
-per chip now, and the body of the overlay is `ay_chip_overlay()`, one chip for
-one AY clock step, adding its three channels into the caller's `levels[]`.
+`machine_current->ay` is `ayinfo[AY_CHIPS]`; and the generator — tone ticks and
+periods, the noise and envelope counters, the register copy, the frame's write
+queue, the noise RNG and envelope — lived in file statics, in `sound.c` until
+Fuse 1.10 and in `sound/ay_engine.c` since that release moved it. They are a
+`struct ay_chip` per chip now, `ay_engine_write()` takes the chip it is for, and
+`ay_engine_render()` steps every chip for one AY clock step, adding the chips'
+three channels together. (1.10 rewrote the sound layer, so this patch and the
+turbo one were ported to the new engine rather than rebased. The port was
+checked off-device against the unpatched engine: with one chip the sequence of
+amplitude changes handed to the synths is identical, and two chips fed the same
+writes give exactly double.)
 
 **The chips are summed before the synth sees them**, rather than given synths of
 their own: a channel is one waveform however many chips play into it, and the
@@ -208,7 +213,7 @@ the picture would be drawn in the first half of every frame.
 
 Three things do not follow the CPU, and each was a bug before it was a line:
 
-- **The AY has a clock of its own** and stays at 1.75MHz, so `sound.c`
+- **The AY has a clock of its own** and stays at 1.75MHz, so `ay_engine.c`
   multiplies `AY_CLOCK_RATIO` by `machine_turbo_factor()`. Without it every tune
   plays an octave up in turbo, which is the first thing this got wrong and the
   reason the test below measures pitch as well as speed.
@@ -2631,7 +2636,7 @@ doing. A channel counts only while the mixer has
 not switched off both its tone and its noise, since a game that finishes with a
 channel usually silences it there and leaves the amplitude behind. **A channel
 following the envelope generator reads as full**: where the envelope has got to
-is `static` inside Fuse's `sound.c` and not reachable from here, and computing
+is `static` inside Fuse's `sound/ay_engine.c` and not reachable from here, and computing
 it again on this side would mean a second envelope generator that could disagree
 with the one being heard.
 
@@ -2868,7 +2873,7 @@ clears it.
 
 **The browser is a list from the snapshot, not a walk on demand.** Blocks are
 described by `libspectrum_tape_block_description()` for the type and Fuse's
-`tape_block_details()` for the specifics, both formatted on the emulation thread
+`tape_block_details()` (which allocates its text since 1.10; `android_state.c` copies it into a bounded buffer and frees it) for the specifics, both formatted on the emulation thread
 into `android_state.c`'s array — because a tape that is playing is a list being
 mutated, and the UI thread has no business walking it. Two things keep the cost
 down: the descriptions are rebuilt only when the block count or the current block

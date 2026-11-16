@@ -25,10 +25,10 @@ data runs out; this does the same two things.
  1 file changed, 7 insertions(+)
 
 diff --git a/peripherals/disk/disk.c b/peripherals/disk/disk.c
-index 46f6466..7758e64 100644
+index 708dc70..96a8c80 100644
 --- a/peripherals/disk/disk.c
 +++ b/peripherals/disk/disk.c
-@@ -1625,6 +1625,13 @@ open_cpc( buffer_t *buffer, disk_t *d, int preindex )
+@@ -1667,6 +1667,13 @@ open_cpc( buffer_t *buffer, disk_t *d, int preindex )
    }
    idx = 256;
    for( i = 0; i < d->sides * d->cylinders; i++ ) {
