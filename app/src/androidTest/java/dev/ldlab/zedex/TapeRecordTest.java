@@ -412,9 +412,19 @@ public class TapeRecordTest {
         emulator.menu("Media", "Stop recording");
         assertTrue("Stop recording from the sheet never stopped the recorder",
                    awaitRecording(false));
-        awaitBlockCount(1);
-        assertEquals("the recorded save is not the one block on the tape",
-                     1, blockCount());
+        // Fuse 1.10 ends a recording with a Pause block that holds the final
+        // signal level, so the save is one pulse block and then possibly
+        // nothing but pauses - what matters is that it is one recording.
+        int pulses = 0;
+        String[] blocks = FuseNative.tapeBlocks();
+        for (String block : blocks == null ? new String[0] : blocks) {
+            if (block.contains("Pulse")) pulses++;
+            else assertTrue("a recorded save held something besides pulses "
+                            + "and pauses: " + java.util.Arrays.toString(blocks),
+                            block.contains("Pause"));
+        }
+        assertEquals("the recorded save is not one pulse block: "
+                     + java.util.Arrays.toString(blocks), 1, pulses);
 
         // Write the deck out through the *Save tape…* page, the way a
         // person does it: type a bare name, the page picks the format -

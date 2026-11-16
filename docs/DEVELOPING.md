@@ -270,8 +270,8 @@ twice and both have to agree, so there is no "latest" for a new Fuse to slip
 into:
 
 ```sh
-FUSE_VER="1.9.1"          # in the URL: .../fuse/$FUSE_VER/fuse-$FUSE_VER.tar.gz
-LIBSPECTRUM_VER="1.6.3"
+FUSE_VER="1.10.1"          # in the URL: .../fuse/$FUSE_VER/fuse-$FUSE_VER.tar.gz
+LIBSPECTRUM_VER="1.8.0"
 ```
 
 and each `fetch` carries the hash of the exact tarball it expects. A release
